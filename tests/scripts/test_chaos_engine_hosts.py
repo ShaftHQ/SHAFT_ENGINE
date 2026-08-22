@@ -2656,22 +2656,19 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 },
             )
 
-    def test_tool_launcher_resolves_runtime_after_project_move(self):
+    def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")
         with tempfile.TemporaryDirectory() as temporary:
-            first = Path(temporary) / "first"
-            second = Path(temporary) / "moved project"
-            core = first / ".chaos-engine"
-            runtime = first / ".chaos-engine-runtime"
+            project = Path(temporary) / "legacy project"
+            core = project / ".chaos-engine"
+            runtime = project / ".chaos-engine-runtime"
             core.mkdir(parents=True)
             runtime.joinpath("bin").mkdir(parents=True)
             command = runtime / "bin" / ("graphify.exe" if os.name == "nt" else "graphify")
             command.write_text("tool\n", encoding="utf-8")
-            first.replace(second)
 
-            resolved = module.resolve_command(second / ".chaos-engine", "graphify")
-
-            self.assertEqual(second / ".chaos-engine-runtime/bin" / command.name, resolved)
+            with self.assertRaisesRegex(ValueError, "dependency controller"):
+                module.resolve_command(core, "graphify")
 
     def test_tool_launcher_suppresses_runtime_bytecode_caches(self):
         module = load(TOOL, "chaos_engine_tool_environment")

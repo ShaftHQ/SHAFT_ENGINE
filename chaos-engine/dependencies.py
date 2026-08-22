@@ -212,18 +212,33 @@ def publish_pointer(
     if pointer_path.exists() or is_link_or_reparse(pointer_path):
         current = _read_pointer(project)
         current_active = _validate_generation_record(current["active"])
-        _validate_selected_generation(
-            project,
-            current_active,
-            current_active["specificationSha256"],
-            current_active["coreSha256"],
-            verify_installed_core=False,
-        )
-        previous = (
-            _validate_generation_record(current.get("previous"))
-            if current_active == active and current.get("previous") is not None
-            else current_active
-        )
+        current_valid = True
+        try:
+            _validate_selected_generation(
+                project,
+                current_active,
+                current_active["specificationSha256"],
+                current_active["coreSha256"],
+                verify_installed_core=False,
+            )
+        except (OSError, ValueError):
+            current_valid = False
+        if current_valid and current_active != active:
+            previous = current_active
+        elif current.get("previous") is not None:
+            tracked_previous = _validate_generation_record(current["previous"])
+            try:
+                _validate_selected_generation(
+                    project,
+                    tracked_previous,
+                    tracked_previous["specificationSha256"],
+                    tracked_previous["coreSha256"],
+                    verify_installed_core=False,
+                )
+            except (OSError, ValueError):
+                previous = None
+            else:
+                previous = tracked_previous
     transaction = transaction_id or secrets.token_hex(16)
     if HEX_ID.fullmatch(transaction) is None:
         raise ValueError("dependency transaction identifier is invalid")
@@ -802,6 +817,104 @@ def active_generation(
         verify_installed_core=True,
     )
     return generation, pointer
+
+
+def pointer_records(project: Path) -> dict[str, object]:
+    """Return authenticated active/previous records without accepting paths."""
+    return _read_pointer(project.absolute())
+
+
+def validated_previous(
+    project: Path,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+    *,
+    runner=None,
+) -> dict[str, str]:
+    """Validate and probe the compatible previous generation before rollback."""
+    project = project.absolute()
+    pointer = _read_pointer(project)
+    previous = _validate_generation_record(pointer.get("previous"))
+    generation = _validate_selected_generation(
+        project,
+        previous,
+        expected_specification_sha256,
+        expected_core_sha256,
+        verify_installed_core=False,
+    )
+    receipt, _ = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{previous['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+    )
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    execute = runner or run_command
+    probes = {
+        "uv": ["--version"],
+        "mempalace": ["--version"],
+        "mempalace-mcp": ["--help"],
+        "graphify": ["--version"],
+        "memory": ["--help"],
+        "memory-mcp": ["--help"],
+    }
+    for name, arguments in probes.items():
+        execute(dispatch_command(generation, receipt, name, arguments), environment)
+    return previous
+
+
+def probe_active(
+    project: Path,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+    *,
+    runner=None,
+) -> None:
+    """Actively probe every exact dispatch from the selected generation."""
+    project = project.absolute()
+    generation, pointer = active_generation(
+        project,
+        expected_specification_sha256=expected_specification_sha256,
+        expected_core_sha256=expected_core_sha256,
+    )
+    active = _validate_generation_record(pointer["active"])
+    receipt, _ = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+    )
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    execute = runner or run_command
+    for name, arguments in {
+        "uv": ["--version"],
+        "mempalace": ["--version"],
+        "mempalace-mcp": ["--help"],
+        "graphify": ["--version"],
+        "memory": ["--help"],
+        "memory-mcp": ["--help"],
+    }.items():
+        execute(dispatch_command(generation, receipt, name, arguments), environment)
+
+
+def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]:
+    """Resolve one exact dispatch from the authenticated active generation."""
+    project = project.absolute()
+    pointer = _read_pointer(project)
+    active = _validate_generation_record(pointer.get("active"))
+    generation = _validate_selected_generation(
+        project,
+        active,
+        active["specificationSha256"],
+        active["coreSha256"],
+        verify_installed_core=False,
+    )
+    receipt, _ = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+    )
+    return dispatch_command(generation, receipt, tool, arguments)
 
 
 def dispatch_command(
@@ -1504,7 +1617,9 @@ def sealed_ownership_record(runtime: Path) -> dict[str, object]:
     }
 
 
-def verify_sealed_ownership(runtime: Path, expected: object) -> None:
+def verify_sealed_ownership(
+    runtime: Path, expected: object, *, full: bool = False
+) -> None:
     if not isinstance(expected, dict):
         raise ValueError("dependency sealed generation ownership is invalid")
     files = expected.get("files")
@@ -1544,7 +1659,7 @@ def verify_sealed_ownership(runtime: Path, expected: object) -> None:
         if not isinstance(expected_identity, dict):
             raise ValueError("dependency sealed generation identity is invalid")
         current = _file_identity(runtime / relative)
-        if os.name != "nt" and current == expected_identity:
+        if not full and os.name != "nt" and current == expected_identity:
             continue
         digest, captured = _capture_regular_relative(
             runtime,
@@ -1557,6 +1672,39 @@ def verify_sealed_ownership(runtime: Path, expected: object) -> None:
             raise ValueError("dependency sealed generation identity drift detected")
         if digest != files[relative]:
             raise ValueError("dependency sealed generation content drift detected")
+
+
+def remove_generation(project: Path, record: dict[str, str]) -> None:
+    """Delete one unselected verified generation without following path links."""
+    project = _trusted_root(project.absolute(), "project")
+    record = _validate_generation_record(record)
+    pointer_path = project / POINTER_NAME
+    if pointer_path.exists() or is_link_or_reparse(pointer_path):
+        pointer = _read_pointer(project)
+        if record in (pointer.get("active"), pointer.get("previous")):
+            raise ValueError("dependency selected generation cannot be removed")
+    generation = _validate_selected_generation(
+        project,
+        record,
+        record["specificationSha256"],
+        record["coreSha256"],
+        verify_installed_core=False,
+    )
+    receipt, _ = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{record['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+    )
+    verify_sealed_ownership(generation, receipt["ownership"], full=True)
+    generations = project / GENERATIONS_NAME
+    with ExitStack() as holds:
+        parent = holds.enter_context(_hold_directory(generations, "generation container"))
+        child = holds.enter_context(_hold_directory(generation, "retired generation"))
+        expected = child[1]
+        if os.name != "nt":
+            _delete_held_child(parent, record["generationId"], child, expected)
+            return
+    _delete_windows_tree(generation, expected)
 
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:

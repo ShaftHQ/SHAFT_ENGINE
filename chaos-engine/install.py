@@ -1117,6 +1117,27 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             )
             if not valid_phase:
                 raise ValueError("rollback state does not match the recorded phase")
+            generation_previous = None
+            previous_specification_sha256 = None
+            previous_core_sha256 = None
+            current_dependencies = load_dependency_controller(target)
+            desired_root = target if target_commit == desired_commit else backup
+            previous_dependencies = load_dependency_controller(desired_root)
+            if hasattr(current_dependencies, "validated_previous") and hasattr(
+                previous_dependencies, "publish_pointer"
+            ):
+                previous_specification = previous_dependencies.load_specification(
+                    desired_root / "dependencies.json"
+                )
+                previous_specification_sha256 = (
+                    previous_dependencies.specification_digest(previous_specification)
+                )
+                previous_core_sha256 = file_sha256(desired_root / MANIFEST_NAME)
+                generation_previous = current_dependencies.validated_previous(
+                    project,
+                    previous_specification_sha256,
+                    previous_core_sha256,
+                )
             if target_commit != desired_commit:
                 rollback(project, _locked=True)
             try:
@@ -1131,35 +1152,43 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 if isinstance(restored_host_receipt.get("clientActivation"), dict):
                     previous_hosts.activate_detected_plugins(project)
                 previous_dependencies = load_dependency_controller(target)
-                runtime = project / ".chaos-engine-runtime"
-                removed_newer_runtime = False
-                if not hasattr(previous_dependencies, "RUNTIME_CONTRACT_VERSION"):
-                    removed_newer_runtime = not runtime.exists()
-                    if runtime.exists():
-                        current_dependencies = load_dependency_controller(backup)
-                        current_receipt = current_dependencies.read_receipt(runtime)
-                        ownership = current_receipt.get("ownership")
-                        links = (
-                            ownership.get("links", [])
-                            if isinstance(ownership, dict)
-                            else None
-                        )
-                        if links:
-                            current_dependencies.remove(
-                                runtime,
-                                current_dependencies.load_specification(
-                                    backup / "dependencies.json"
-                                ),
-                            )
-                            removed_newer_runtime = True
-                if not removed_newer_runtime:
-                    repair = provisioner or previous_dependencies.repair
-                    repair(
-                        runtime,
-                        previous_dependencies.load_specification(
-                            target / "dependencies.json"
-                        ),
+                if generation_previous is not None:
+                    previous_dependencies.publish_pointer(
+                        project,
+                        generation_previous,
+                        expected_specification_sha256=previous_specification_sha256,
+                        expected_core_sha256=previous_core_sha256,
                     )
+                else:
+                    runtime = project / ".chaos-engine-runtime"
+                    removed_newer_runtime = False
+                    if not hasattr(previous_dependencies, "RUNTIME_CONTRACT_VERSION"):
+                        removed_newer_runtime = not runtime.exists()
+                        if runtime.exists():
+                            current_dependencies = load_dependency_controller(backup)
+                            current_receipt = current_dependencies.read_receipt(runtime)
+                            ownership = current_receipt.get("ownership")
+                            links = (
+                                ownership.get("links", [])
+                                if isinstance(ownership, dict)
+                                else None
+                            )
+                            if links:
+                                current_dependencies.remove(
+                                    runtime,
+                                    current_dependencies.load_specification(
+                                        backup / "dependencies.json"
+                                    ),
+                                )
+                                removed_newer_runtime = True
+                    if not removed_newer_runtime:
+                        repair = provisioner or previous_dependencies.repair
+                        repair(
+                            runtime,
+                            previous_dependencies.load_specification(
+                                target / "dependencies.json"
+                            ),
+                        )
             except BaseException:
                 raise
             transaction_path = project / CROSS_ROLLBACK_JOURNAL_NAME
@@ -1280,6 +1309,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     distribution: str = DEFAULT_DISTRIBUTION,
 ) -> Path:
     project = project.resolve()
+    generation_mode = provisioner is None
     with project_lock(project):
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
@@ -1287,6 +1317,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         old_commit = None
         old_manifest = None
         host_snapshot = None
+        old_specification_sha256 = None
+        old_core_sha256 = None
         if current.exists():
             old_manifest = inspect_current_install(current)
             if old_manifest is not None:
@@ -1295,6 +1327,24 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 host_receipt_path = project / old_host_controller.RECEIPT_NAME
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
                     host_snapshot = old_host_controller.snapshot(project)
+                if generation_mode:
+                    try:
+                        old_dependencies = load_dependency_controller(current)
+                        old_specification = old_dependencies.load_specification(
+                            current / "dependencies.json"
+                        )
+                        old_specification_sha256 = old_dependencies.specification_digest(
+                            old_specification
+                        )
+                        old_core_sha256 = file_sha256(current / MANIFEST_NAME)
+                        old_dependencies.active_generation(
+                            project,
+                            expected_specification_sha256=old_specification_sha256,
+                            expected_core_sha256=old_core_sha256,
+                        )
+                    except (OSError, ValueError):
+                        old_specification_sha256 = None
+                        old_core_sha256 = None
         target = install(
             project,
             source,
@@ -1321,21 +1371,75 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         runtime_existed = runtime.exists() or is_link_or_reparse(runtime)
         controller = None
         specification = None
+        candidate = None
+        retired_generation = None
+        candidate_published = False
         try:
+            controller = load_dependency_controller(target)
+            specification = controller.load_specification(target / "dependencies.json")
+            if generation_mode:
+                specification_sha256 = controller.specification_digest(specification)
+                core_sha256 = file_sha256(target / MANIFEST_NAME)
+                try:
+                    controller.active_generation(
+                        project,
+                        expected_specification_sha256=specification_sha256,
+                        expected_core_sha256=core_sha256,
+                    )
+                except (OSError, ValueError):
+                    candidate = controller.prepare_candidate(
+                        project, specification, core_sha256
+                    )
             host_controller.install(
                 project,
                 core_commit=commit,
                 capability_policy_digest=installed_manifest.get("capabilityPolicySha256"),
             )
             host_created = not host_existed
-            controller = load_dependency_controller(target)
-            specification = controller.load_specification(target / "dependencies.json")
-            provision = provisioner or controller.repair
-            provision(runtime, specification)
+            if not generation_mode:
+                provisioner(runtime, specification)
             host_controller.initialize_mempalace_runtime(project)
+            if candidate is not None:
+                try:
+                    retired_generation = controller.pointer_records(project).get(
+                        "previous"
+                    )
+                except (OSError, ValueError):
+                    retired_generation = None
+                controller.publish_pointer(
+                    project,
+                    candidate,
+                    expected_specification_sha256=specification_sha256,
+                    expected_core_sha256=core_sha256,
+                )
+                candidate_published = True
+                if retired_generation is not None:
+                    controller.remove_generation(project, retired_generation)
         except BaseException as error:
             compensation_errors: list[BaseException] = []
-            if (
+            restore_generation = None
+            if candidate is not None and not candidate_published:
+                try:
+                    pointer = controller.pointer_records(project)
+                    candidate_published = pointer.get("active") == candidate
+                except (OSError, ValueError):
+                    pass
+            if candidate_published and old_specification_sha256 and old_core_sha256:
+                try:
+                    restore_generation = controller.validated_previous(
+                        project,
+                        expected_specification_sha256=old_specification_sha256,
+                        expected_core_sha256=old_core_sha256,
+                    )
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            can_compensate = not candidate_published or restore_generation is not None
+            if candidate is not None and not candidate_published:
+                try:
+                    controller.remove_generation(project, candidate)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            if can_compensate and (
                 not runtime_existed
                 and runtime.exists()
                 and controller is not None
@@ -1345,26 +1449,39 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     controller.remove(runtime, specification)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            if host_snapshot is not None:
+            if can_compensate and host_snapshot is not None:
                 try:
                     host_controller.restore_snapshot(project, host_snapshot)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            elif host_created:
+            elif can_compensate and host_created:
                 try:
                     host_controller.uninstall(project)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            try:
-                backup_path = project / BACKUP_NAME
-                if old_commit is None and try_verify_install(backup_path) is not None:
-                    rollback(project, _locked=True)
-                elif old_commit is None:
-                    uninstall(project, expected_commit=commit, _locked=True)
-                elif core_changed and backup_path.exists():
-                    rollback(project, _locked=True)
-            except BaseException as cleanup_error:
-                compensation_errors.append(cleanup_error)
+            if can_compensate:
+                try:
+                    backup_path = project / BACKUP_NAME
+                    if old_commit is None and try_verify_install(backup_path) is not None:
+                        rollback(project, _locked=True)
+                    elif old_commit is None:
+                        uninstall(project, expected_commit=commit, _locked=True)
+                    elif core_changed and backup_path.exists():
+                        rollback(project, _locked=True)
+                    if restore_generation is not None:
+                        controller.publish_pointer(
+                            project,
+                            restore_generation,
+                            expected_specification_sha256=old_specification_sha256,
+                            expected_core_sha256=old_core_sha256,
+                        )
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            elif old_commit is not None:
+                try:
+                    write_cross_rollback_journal(project, old_commit, commit)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
             if compensation_errors:
                 if len(compensation_errors) == 1:
                     raise compensation_errors[0] from error
@@ -1495,6 +1612,34 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 result["dependencies"] = {"status": "recovery-required"}
                 attach_component_status(
                     result, project, target, "recovery-required", host_controller
+                )
+                return result
+            pointer_path = project / ".chaos-engine-runtime-current.json"
+            if pointer_path.exists() or is_link_or_reparse(pointer_path):
+                controller = load_dependency_controller(target)
+                specification = controller.load_specification(
+                    target / "dependencies.json"
+                )
+                generation, pointer = controller.active_generation(
+                    project,
+                    expected_specification_sha256=controller.specification_digest(
+                        specification
+                    ),
+                    expected_core_sha256=file_sha256(target / MANIFEST_NAME),
+                )
+                if active_probes:
+                    controller.probe_active(
+                        project,
+                        controller.specification_digest(specification),
+                        file_sha256(target / MANIFEST_NAME),
+                    )
+                result["dependencies"] = {
+                    "status": "healthy",
+                    "generationId": pointer["active"]["generationId"],
+                    "path": str(generation),
+                }
+                attach_component_status(
+                    result, project, target, "healthy", host_controller
                 )
                 return result
             if not runtime.exists():

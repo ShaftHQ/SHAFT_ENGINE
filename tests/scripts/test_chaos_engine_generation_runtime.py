@@ -17,6 +17,10 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTROLLER = ROOT / "chaos-engine/dependencies.py"
+TOOL = ROOT / "chaos-engine/tool.py"
+INSTALLER = ROOT / "chaos-engine/install.py"
+SOURCE = ROOT / "chaos-engine"
+TEST_COMMIT = "1" * 40
 
 
 def load_controller():
@@ -25,6 +29,28 @@ def load_controller():
     )
     if specification is None or specification.loader is None:
         raise RuntimeError("dependency controller could not be loaded")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+def load_tool():
+    specification = importlib.util.spec_from_file_location(
+        "chaos_engine_generation_tool", TOOL
+    )
+    if specification is None or specification.loader is None:
+        raise RuntimeError("tool launcher could not be loaded")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+def load_installer():
+    specification = importlib.util.spec_from_file_location(
+        "chaos_engine_generation_installer", INSTALLER
+    )
+    if specification is None or specification.loader is None:
+        raise RuntimeError("installer could not be loaded")
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
     return module
@@ -50,11 +76,18 @@ class GenerationRuntimeTests(unittest.TestCase):
         )
 
     @staticmethod
-    def generation_fixture(module, project: Path) -> tuple[Path, dict[str, str]]:
+    def generation_fixture(
+        module,
+        project: Path,
+        *,
+        generation_id: str = "a" * 32,
+        specification_sha256: str = "b" * 64,
+    ) -> tuple[Path, dict[str, str]]:
         core = project / ".chaos-engine/manifest.json"
-        core.parent.mkdir()
-        core.write_text('{"owned":true}\n', encoding="utf-8")
-        generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
+        core.parent.mkdir(exist_ok=True)
+        if not core.exists():
+            core.write_text('{"owned":true}\n', encoding="utf-8")
+        generation = project / ".chaos-engine-runtime-generations" / generation_id
         generation.mkdir(parents=True)
         scripts = "Scripts" if os.name == "nt" else "bin"
         python_name = "python.exe" if os.name == "nt" else "python"
@@ -107,7 +140,7 @@ class GenerationRuntimeTests(unittest.TestCase):
             "schemaVersion": 2,
             "runtimeContractVersion": 3,
             "checkedAt": datetime.now(timezone.utc).isoformat(),
-            "specificationSha256": "b" * 64,
+            "specificationSha256": specification_sha256,
             "coreSha256": module.sha256(core),
             "environment": {},
             "installed": {},
@@ -120,8 +153,8 @@ class GenerationRuntimeTests(unittest.TestCase):
         receipt = generation / "receipt.json"
         receipt.write_text(json.dumps(receipt_value) + "\n", encoding="utf-8")
         return generation, {
-            "generationId": "a" * 32,
-            "specificationSha256": "b" * 64,
+            "generationId": generation_id,
+            "specificationSha256": specification_sha256,
             "coreSha256": module.sha256(core),
             "receiptSha256": module.sha256(receipt),
         }
@@ -152,6 +185,649 @@ class GenerationRuntimeTests(unittest.TestCase):
             pointer_path.write_text(json.dumps(value), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "generation identifier"):
                 self.select(module, project, active)
+
+    def test_stable_launcher_dispatches_all_tools_from_active_generation(self):
+        controller = load_controller()
+        launcher = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, active = self.generation_fixture(controller, project)
+            shutil.copy2(CONTROLLER, project / ".chaos-engine/dependencies.py")
+            self.publish(controller, project, active)
+            receipt = json.loads(
+                (generation / controller.RECEIPT_NAME).read_text(encoding="utf-8")
+            )
+
+            for name in controller.REQUIRED_DISPATCHES:
+                with self.subTest(tool=name):
+                    expected = controller.dispatch_command(
+                        generation, receipt, name, ["--version"]
+                    )
+                    self.assertEqual(
+                        expected,
+                        launcher.resolve_command(
+                            project / ".chaos-engine", name, ["--version"]
+                        ),
+                    )
+
+    def test_fresh_install_builds_candidate_then_publishes_pointer_last(self):
+        installer = load_installer()
+        controller = load_controller()
+        events: list[str] = []
+        legacy_repairs: list[Path] = []
+        original_load_installed = installer.load_installed_controller
+
+        def prepare(project, specification, core_sha256):
+            events.append("candidate")
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.assertEqual(core_sha256, record["coreSha256"])
+            return record
+
+        def publish(project, active, **kwargs):
+            events.append("publish")
+            return controller.publish_pointer(project, active, **kwargs)
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=publish,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+            repair=lambda runtime, _specification: legacy_repairs.append(runtime),
+        )
+
+        def load_installed(installed_root, name):
+            loaded = original_load_installed(installed_root, name)
+            if name != "hosts":
+                return loaded
+            real_install = loaded.install
+            real_initialize = loaded.initialize_mempalace_runtime
+
+            def install_hosts(*args, **kwargs):
+                events.append("hosts")
+                return real_install(*args, **kwargs)
+
+            def initialize(project):
+                events.append("mempalace")
+                return real_initialize(project)
+
+            loaded.install = install_hosts
+            loaded.initialize_mempalace_runtime = initialize
+            return loaded
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ), mock.patch.object(
+                installer, "load_installed_controller", side_effect=load_installed
+            ):
+                installer.install_with_dependencies(project, source, TEST_COMMIT)
+                installed_status = installer.status_with_dependencies(project)
+
+            pointer = json.loads(
+                (project / controller.POINTER_NAME).read_text(encoding="utf-8")
+            )
+            self.assertEqual(["candidate", "hosts", "mempalace", "publish"], events)
+            self.assertEqual("a" * 32, pointer["active"]["generationId"])
+            self.assertEqual("healthy", installed_status["dependencies"]["status"])
+            self.assertEqual([], legacy_repairs)
+            self.assertFalse((project / ".chaos-engine-runtime").exists())
+
+    def test_healthy_same_spec_install_makes_no_candidate_network_calls(self):
+        installer = load_installer()
+        controller = load_controller()
+        builds: list[str] = []
+
+        def prepare(project, specification, core_sha256):
+            generation_id = ("a" if not builds else "b") * 32
+            builds.append(generation_id)
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=generation_id,
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.assertEqual(core_sha256, record["coreSha256"])
+            return record
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=controller.publish_pointer,
+            pointer_records=controller.pointer_records,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                installer.install_with_dependencies(project, source, TEST_COMMIT)
+                pointer_before = (project / controller.POINTER_NAME).read_bytes()
+                installer.install_with_dependencies(project, source, TEST_COMMIT)
+
+            self.assertEqual(["a" * 32], builds)
+            self.assertEqual(
+                pointer_before, (project / controller.POINTER_NAME).read_bytes()
+            )
+
+    def test_remove_generation_validates_full_content_before_deleting(self):
+        controller = load_controller()
+        self.assertTrue(
+            hasattr(controller, "remove_generation"),
+            "safe generation removal is not implemented",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, record = self.generation_fixture(controller, project)
+            uv = next(path for path in generation.rglob("uv*") if path.is_file())
+            original = uv.stat()
+            uv.write_bytes(b"xx")
+            os.utime(uv, ns=(original.st_atime_ns, original.st_mtime_ns))
+
+            with self.assertRaisesRegex(ValueError, "content drift"):
+                controller.remove_generation(project, record)
+
+            self.assertTrue(generation.is_dir())
+
+    def test_failure_before_pointer_restores_core_hosts_and_removes_candidate(self):
+        installer = load_installer()
+        controller = load_controller()
+        builds: list[dict[str, str]] = []
+        original_load_installed = installer.load_installed_controller
+
+        def prepare(project, specification, core_sha256):
+            generation_id = ("a" if not builds else "b") * 32
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=generation_id,
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.assertEqual(core_sha256, record["coreSha256"])
+            builds.append(record)
+            return record
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=controller.publish_pointer,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+        )
+
+        def load_installed(installed_root, name):
+            loaded = original_load_installed(installed_root, name)
+            if name == "hosts":
+                manifest = installer.verify_install(installed_root)
+                if manifest["source"]["commit"] == "2" * 40:
+                    loaded.initialize_mempalace_runtime = mock.Mock(
+                        side_effect=RuntimeError("initialization failed")
+                    )
+            return loaded
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ), mock.patch.object(
+                installer, "load_installed_controller", side_effect=load_installed
+            ):
+                installer.install_with_dependencies(project, source, TEST_COMMIT)
+                pointer_before = (project / controller.POINTER_NAME).read_bytes()
+                core_before = (project / ".chaos-engine/manifest.json").read_bytes()
+                hosts_before = (project / ".chaos-engine-hosts.json").read_bytes()
+                with self.assertRaisesRegex(RuntimeError, "initialization failed"):
+                    installer.install_with_dependencies(
+                        project, source, "2" * 40
+                    )
+
+            self.assertEqual(
+                pointer_before, (project / controller.POINTER_NAME).read_bytes()
+            )
+            self.assertEqual(
+                core_before, (project / ".chaos-engine/manifest.json").read_bytes()
+            )
+            self.assertEqual(
+                hosts_before, (project / ".chaos-engine-hosts.json").read_bytes()
+            )
+            self.assertFalse(
+                (project / controller.GENERATIONS_NAME / ("b" * 32)).exists()
+            )
+
+    def test_failure_after_pointer_restores_only_validated_previous_generation(self):
+        installer = load_installer()
+        controller = load_controller()
+        builds: list[dict[str, str]] = []
+        publications = 0
+
+        def prepare(project, specification, core_sha256):
+            generation_id = ("a" if not builds else "b") * 32
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=generation_id,
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.assertEqual(core_sha256, record["coreSha256"])
+            builds.append(record)
+            return record
+
+        def publish(project, active, **kwargs):
+            nonlocal publications
+            publications += 1
+            result = controller.publish_pointer(project, active, **kwargs)
+            if publications == 2:
+                raise RuntimeError("failure after pointer")
+            return result
+
+        def validated_previous(project, expected_specification_sha256, expected_core_sha256):
+            pointer = controller._read_pointer(project)
+            previous = controller._validate_generation_record(pointer["previous"])
+            controller._validate_selected_generation(
+                project,
+                previous,
+                expected_specification_sha256,
+                expected_core_sha256,
+                verify_installed_core=False,
+            )
+            return previous
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=publish,
+            remove_generation=controller.remove_generation,
+            pointer_records=controller._read_pointer,
+            validated_previous=validated_previous,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                installer.install_with_dependencies(project, source, TEST_COMMIT)
+                old_core = (project / ".chaos-engine/manifest.json").read_bytes()
+                with self.assertRaisesRegex(RuntimeError, "failure after pointer"):
+                    installer.install_with_dependencies(
+                        project, source, "2" * 40
+                    )
+
+            pointer = controller._read_pointer(project)
+            self.assertEqual("a" * 32, pointer["active"]["generationId"])
+            self.assertEqual("b" * 32, pointer["previous"]["generationId"])
+            self.assertEqual(
+                old_core, (project / ".chaos-engine/manifest.json").read_bytes()
+            )
+
+    def test_previous_generation_is_probed_with_exact_launcher_dispatch(self):
+        controller = load_controller()
+        self.assertTrue(
+            hasattr(controller, "validated_previous"),
+            "validated previous-generation probe is not implemented",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, previous = self.generation_fixture(controller, project)
+            self.publish(controller, project, previous)
+            core = project / ".chaos-engine/manifest.json"
+            core.write_text('{"owned":"new"}\n', encoding="utf-8")
+            _, active = self.generation_fixture(
+                controller,
+                project,
+                generation_id="b" * 32,
+                specification_sha256=previous["specificationSha256"],
+            )
+            self.publish(controller, project, active)
+            receipt = json.loads(
+                (generation / controller.RECEIPT_NAME).read_text(encoding="utf-8")
+            )
+            commands: list[list[str]] = []
+
+            def runner(command, _environment):
+                commands.append(command)
+                return SimpleNamespace(stdout="ok\n", stderr="")
+
+            selected = controller.validated_previous(
+                project,
+                previous["specificationSha256"],
+                previous["coreSha256"],
+                runner=runner,
+            )
+
+            probes = {
+                "uv": ["--version"],
+                "mempalace": ["--version"],
+                "mempalace-mcp": ["--help"],
+                "graphify": ["--version"],
+                "memory": ["--help"],
+                "memory-mcp": ["--help"],
+            }
+            expected = {
+                tuple(controller.dispatch_command(generation, receipt, name, arguments))
+                for name, arguments in probes.items()
+            }
+            self.assertEqual(previous, selected)
+            self.assertEqual(expected, {tuple(command) for command in commands})
+
+    def test_active_doctor_probes_exact_launcher_dispatch(self):
+        controller = load_controller()
+        self.assertTrue(
+            hasattr(controller, "probe_active"),
+            "active generation probe is not implemented",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, active = self.generation_fixture(controller, project)
+            self.publish(controller, project, active)
+            receipt = json.loads(
+                (generation / controller.RECEIPT_NAME).read_text(encoding="utf-8")
+            )
+            commands: list[list[str]] = []
+
+            def runner(command, _environment):
+                commands.append(command)
+                return SimpleNamespace(stdout="ok\n", stderr="")
+
+            controller.probe_active(
+                project,
+                active["specificationSha256"],
+                active["coreSha256"],
+                runner=runner,
+            )
+            probes = {
+                "uv": ["--version"],
+                "mempalace": ["--version"],
+                "mempalace-mcp": ["--help"],
+                "graphify": ["--version"],
+                "memory": ["--help"],
+                "memory-mcp": ["--help"],
+            }
+            self.assertEqual(
+                {
+                    tuple(
+                        controller.dispatch_command(
+                            generation, receipt, name, arguments
+                        )
+                    )
+                    for name, arguments in probes.items()
+                },
+                {tuple(command) for command in commands},
+            )
+
+    def test_successful_activation_retains_exactly_one_previous_generation(self):
+        installer = load_installer()
+        controller = load_controller()
+        identifiers = iter(("a" * 32, "b" * 32, "c" * 32))
+
+        def prepare(project, specification, core_sha256):
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=next(identifiers),
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.assertEqual(core_sha256, record["coreSha256"])
+            return record
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=controller.publish_pointer,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+            validated_previous=lambda *_args, **_kwargs: self.fail(
+                "rollback was not expected"
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                for commit in ("1" * 40, "2" * 40, "3" * 40):
+                    installer.install_with_dependencies(project, source, commit)
+
+            pointer = controller.pointer_records(project)
+            self.assertEqual("c" * 32, pointer["active"]["generationId"])
+            self.assertEqual("b" * 32, pointer["previous"]["generationId"])
+            self.assertEqual(
+                {"b" * 32, "c" * 32},
+                {
+                    path.name
+                    for path in (project / controller.GENERATIONS_NAME).iterdir()
+                },
+            )
+
+    def test_missing_managed_tool_builds_complete_candidate_without_invalid_previous(self):
+        installer = load_installer()
+        controller = load_controller()
+        identifiers = iter(("a" * 32, "b" * 32))
+
+        def prepare(project, specification, core_sha256):
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=next(identifiers),
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.assertEqual(core_sha256, record["coreSha256"])
+            return record
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=controller.publish_pointer,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                installer.install_with_dependencies(project, source, TEST_COMMIT)
+                first = project / controller.GENERATIONS_NAME / ("a" * 32)
+                receipt = json.loads(
+                    (first / controller.RECEIPT_NAME).read_text(encoding="utf-8")
+                )
+                graphify = first / receipt["tools"]["graphify"]["dispatch"][
+                    "interpreter"
+                ]
+                graphify.unlink()
+                installer.install_with_dependencies(project, source, TEST_COMMIT)
+
+            pointer = controller.pointer_records(project)
+            self.assertEqual("b" * 32, pointer["active"]["generationId"])
+            self.assertIsNone(pointer["previous"])
+
+    def test_offline_rollback_validates_previous_before_core_swap(self):
+        installer = load_installer()
+        controller = load_controller()
+        identifiers = iter(("a" * 32, "b" * 32))
+        validations: list[str] = []
+
+        def prepare(project, specification, core_sha256):
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=next(identifiers),
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.assertEqual(core_sha256, record["coreSha256"])
+            return record
+
+        def validated_previous(
+            project, expected_specification_sha256, expected_core_sha256
+        ):
+            manifest = installer.verify_install(project / installer.INSTALL_DIRECTORY)
+            expected_commit = ("2" if not validations else "1") * 40
+            self.assertEqual(expected_commit, manifest["source"]["commit"])
+            validations.append("before-core-swap")
+            return controller.validated_previous(
+                project,
+                expected_specification_sha256,
+                expected_core_sha256,
+                runner=lambda *_args: SimpleNamespace(stdout="ok\n", stderr=""),
+            )
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=controller.publish_pointer,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+            validated_previous=validated_previous,
+            repair=lambda *_args, **_kwargs: self.fail(
+                "legacy flat-runtime repair was called"
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                installer.install_with_dependencies(project, source, "1" * 40)
+                installer.install_with_dependencies(project, source, "2" * 40)
+                installer.rollback(project)
+
+            pointer = controller.pointer_records(project)
+            self.assertEqual(["before-core-swap"], validations)
+            self.assertEqual("1" * 40, installer.status(project)["commit"])
+            self.assertEqual("a" * 32, pointer["active"]["generationId"])
+            self.assertEqual("b" * 32, pointer["previous"]["generationId"])
+            previous = project / controller.GENERATIONS_NAME / ("b" * 32)
+            receipt = json.loads(
+                (previous / controller.RECEIPT_NAME).read_text(encoding="utf-8")
+            )
+            graphify = previous / receipt["tools"]["graphify"]["dispatch"][
+                "interpreter"
+            ]
+            graphify.unlink()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                with self.assertRaisesRegex(ValueError, "unexpected or missing"):
+                    installer.rollback(project)
+            self.assertEqual("1" * 40, installer.status(project)["commit"])
+            self.assertIsNotNone(installer.read_cross_rollback_journal(project))
+
+    def test_generation_rollback_resumes_after_core_swap_before_pointer(self):
+        installer = load_installer()
+        controller = load_controller()
+        identifiers = iter(("a" * 32, "b" * 32))
+
+        def prepare(project, specification, core_sha256):
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=next(identifiers),
+                specification_sha256=controller.specification_digest(specification),
+            )
+            return record
+
+        def validated_previous(
+            project, expected_specification_sha256, expected_core_sha256
+        ):
+            return controller.validated_previous(
+                project,
+                expected_specification_sha256,
+                expected_core_sha256,
+                runner=lambda *_args: SimpleNamespace(stdout="ok\n", stderr=""),
+            )
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=controller.publish_pointer,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+            validated_previous=validated_previous,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                installer.install_with_dependencies(project, source, "1" * 40)
+                installer.install_with_dependencies(project, source, "2" * 40)
+                installer.write_cross_rollback_journal(project, "1" * 40, "2" * 40)
+                installer.rollback(project, _locked=True)
+                self.assertEqual("1" * 40, installer.status(project)["commit"])
+                self.assertEqual(
+                    "b" * 32,
+                    controller.pointer_records(project)["active"]["generationId"],
+                )
+                installer.rollback(project)
+
+            pointer = controller.pointer_records(project)
+            self.assertEqual("1" * 40, installer.status(project)["commit"])
+            self.assertEqual("a" * 32, pointer["active"]["generationId"])
 
     def test_generation_ancestor_and_interpreter_links_fail_closed(self):
         module = load_controller()
