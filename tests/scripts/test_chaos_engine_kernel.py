@@ -179,9 +179,21 @@ class ChaosEngineKernelTest(unittest.TestCase):
         raw = {"hook_event_name": "PreToolUse", "session_id": "s"}
         for host in ("codex", "claude"):
             with self.subTest(host=host), mock.patch.dict(
-                os.environ, {"SHAFT_GUARD_HOST": host}, clear=False
+                os.environ, {"CHAOS_ENGINE_HOST": host}, clear=False
             ):
                 self.assertEqual(host, self.kernel.normalize_event(raw).host)
+
+    def test_repository_guard_keeps_legacy_host_environment_outside_portable_kernel(self):
+        from scripts.agents import guard as repository_guard
+
+        raw = {"hook_event_name": "PreToolUse", "session_id": "s"}
+        with mock.patch.dict(
+            os.environ,
+            {"SHAFT_GUARD_HOST": "claude", "CHAOS_ENGINE_HOST": "codex"},
+            clear=False,
+        ):
+            self.assertEqual("codex", self.kernel.normalize_event(raw).host)
+            self.assertEqual("claude", repository_guard.hook_host(raw))
 
     def test_missing_session_never_uses_shared_state(self):
         mutation = self.kernel.evaluate(

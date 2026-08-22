@@ -5,6 +5,7 @@
     "portable": {
       "profile": "portable",
       "forbiddenTokens": ["shaft", "mohab", "act-as-mohab", "act as mohab"],
+      "runtimeFiles": ["hooks/kernel.py", "hooks/lifecycle.py"],
       "components": {
         "core": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
         "skills": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
@@ -17,6 +18,7 @@
     "repository": {
       "profile": "shaft",
       "forbiddenTokens": [],
+      "runtimeFiles": ["hooks/kernel.py", "hooks/lifecycle.py"],
       "components": {
         "core": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
         "skills": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},

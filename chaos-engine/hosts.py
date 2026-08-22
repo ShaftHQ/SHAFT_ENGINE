@@ -1126,7 +1126,13 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
         return False
     installed = Path(installed_path)
     required = (
-        ("hooks/guard.py", "hooks/reflection.py", "skills/chaos-engine/SKILL.md")
+        (
+            "hooks/guard.py",
+            "hooks/kernel.py",
+            "hooks/lifecycle.py",
+            "hooks/reflection.py",
+            "skills/chaos-engine/SKILL.md",
+        )
         if source.name == PLUGIN_NAME
         else companion_required_files(source.name)
     )
@@ -1858,6 +1864,8 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/.claude-plugin/plugin.json",
         "plugins/chaos-engine/hooks/hooks.json",
         "plugins/chaos-engine/hooks/guard.py",
+        "plugins/chaos-engine/hooks/kernel.py",
+        "plugins/chaos-engine/hooks/lifecycle.py",
         "plugins/chaos-engine/hooks/reflection.py",
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
         *companion_managed_paths(),
@@ -2672,6 +2680,12 @@ def desired_content(
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/hooks/kernel.py"] = (
+        Path(__file__).resolve().parent / "hooks/kernel.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/hooks/lifecycle.py"] = (
+        Path(__file__).resolve().parent / "hooks/lifecycle.py"
     ).read_bytes()
     after["plugins/chaos-engine/hooks/reflection.py"] = (
         Path(__file__).resolve().parent / "hooks/reflection.py"

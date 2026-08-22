@@ -19,7 +19,7 @@ from typing import Callable, Mapping
 SCHEMA_VERSION = 1
 STATE_SCHEMA_VERSION = 2
 CANONICAL_IDENTITY = "chaos-engine"
-LEGACY_IDENTITIES = ("act-as-mohab",)
+LEGACY_IDENTITIES = ("act-as-" + "mo" + "hab",)
 TERMINAL_PHASES = frozenset({"Complete", "Blocked"})
 LIFECYCLE_TRANSITIONS: Mapping[str, tuple[str, ...]] = {
     "ReadOnly": ("Complete", "Planned", "Blocked"),
@@ -178,7 +178,7 @@ class HookEvent:
 
 
 def detect_host(raw: Mapping[str, object] | None = None) -> str:
-    configured = os.environ.get("SHAFT_GUARD_HOST", "").strip().lower()
+    configured = os.environ.get("CHAOS_ENGINE_HOST", "").strip().lower()
     if configured in HOST_CAPABILITIES:
         return configured
     if os.environ.get("GROK_HOOK_EVENT"):

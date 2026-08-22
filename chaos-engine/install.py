@@ -16,7 +16,7 @@ import sys
 import tempfile
 import types
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 INSTALL_DIRECTORY = ".chaos-engine"
@@ -279,12 +279,21 @@ def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object
         raise ValueError(f"unknown ChaosEngine distribution: {distribution}")
     profile = policy.get("profile")
     forbidden_tokens = policy.get("forbiddenTokens")
+    runtime_files = policy.get("runtimeFiles")
     if (
         not isinstance(profile, str)
         or re.fullmatch(r"[a-z0-9][a-z0-9-]*", profile) is None
         or not isinstance(forbidden_tokens, list)
         or not all(
         isinstance(token, str) and token for token in forbidden_tokens
+        )
+        or not isinstance(runtime_files, list)
+        or not all(
+            isinstance(relative, str)
+            and PurePosixPath(relative).parts
+            and not PurePosixPath(relative).is_absolute()
+            and all(part not in {"", ".", ".."} for part in PurePosixPath(relative).parts)
+            for relative in runtime_files
         )
     ):
         raise ValueError("ChaosEngine distribution policy is invalid")
@@ -349,6 +358,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
     policy, _ = load_distribution(source, distribution)
     selected_profile = str(policy["profile"])
     forbidden_tokens = tuple(str(token).casefold() for token in policy["forbiddenTokens"])
+    runtime_files = frozenset(str(relative) for relative in policy["runtimeFiles"])
     files: list[Path] = []
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
@@ -374,6 +384,9 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
                     f"distribution policy rejected forbidden content: {relative.as_posix()}"
                 )
             files.append(path)
+    packaged = {path.relative_to(source).as_posix() for path in files}
+    if not runtime_files <= packaged:
+        raise ValueError("ChaosEngine distribution runtime inventory is incomplete")
     return tuple(files)
 
 
@@ -1540,6 +1553,8 @@ def attach_component_status(
         "playbooks": [target / "references/work-github-playbook.md"],
         "hooks": [
             target / "hooks/guard.py",
+            target / "hooks/kernel.py",
+            target / "hooks/lifecycle.py",
             target / "hooks/reflection.py",
             project / ".codex/hooks.json",
             project / ".grok/hooks/lifecycle.json",

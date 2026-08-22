@@ -317,6 +317,72 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 root.joinpath("plugins/chaos-engine/.codex-plugin/plugin.json").read_bytes(),
             )
 
+    def test_failed_host_upgrade_restores_runtime_modules_and_preserves_foreign_files(self):
+        module = load(HOSTS, "chaos_engine_runtime_upgrade_rollback")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+            module.install(project, core_commit="1" * 40)
+            hooks = project / "plugins/chaos-engine/hooks"
+            runtime_paths = (hooks / "kernel.py", hooks / "lifecycle.py")
+            prior = {path: path.read_bytes() for path in runtime_paths}
+            foreign = hooks / "foreign.py"
+            foreign.write_bytes(b"foreign-owned\n")
+            real_desired_content = module.desired_content
+            real_atomic_write = module.atomic_write
+
+            def changed_content(*args, **kwargs):
+                desired = real_desired_content(*args, **kwargs)
+                desired["plugins/chaos-engine/hooks/kernel.py"] = b"new kernel\n"
+                desired["plugins/chaos-engine/hooks/lifecycle.py"] = b"new lifecycle\n"
+                desired["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = b"trigger\n"
+                return desired
+
+            def fail_after_runtime_modules(root, path, content, before):
+                relative = path.relative_to(root).as_posix()
+                if relative == "plugins/chaos-engine/skills/chaos-engine/SKILL.md":
+                    raise OSError("injected host upgrade failure")
+                return real_atomic_write(root, path, content, before)
+
+            with mock.patch.object(module, "desired_content", side_effect=changed_content):
+                with mock.patch.object(module, "atomic_write", side_effect=fail_after_runtime_modules):
+                    with self.assertRaisesRegex(OSError, "injected host upgrade failure"):
+                        module.install(project, core_commit="2" * 40)
+
+            for path, expected in prior.items():
+                self.assertEqual(expected, path.read_bytes(), path.name)
+            self.assertEqual(b"foreign-owned\n", foreign.read_bytes())
+
+    def test_cached_chaos_plugin_requires_both_runtime_modules(self):
+        module = load(HOSTS, "chaos_engine_cached_runtime_inventory")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source/chaos-engine"
+            installed = root / "installed/chaos-engine"
+            required = (
+                "hooks/guard.py",
+                "hooks/kernel.py",
+                "hooks/lifecycle.py",
+                "hooks/reflection.py",
+                "skills/chaos-engine/SKILL.md",
+            )
+            for relative in required:
+                source_path = source / relative
+                installed_path = installed / relative
+                source_path.parent.mkdir(parents=True, exist_ok=True)
+                installed_path.parent.mkdir(parents=True, exist_ok=True)
+                source_path.write_text(relative, encoding="utf-8")
+                installed_path.write_text(relative, encoding="utf-8")
+
+            self.assertTrue(module.cached_plugin_matches(str(installed), source))
+            for relative in ("hooks/kernel.py", "hooks/lifecycle.py"):
+                missing = installed / relative
+                missing.unlink()
+                self.assertFalse(module.cached_plugin_matches(str(installed), source), relative)
+                missing.write_text(relative, encoding="utf-8")
+
     def setUp(self):
         self.runtime_state = tempfile.TemporaryDirectory()
         self.runtime_environment = mock.patch.dict(
@@ -425,6 +491,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/.claude-plugin/plugin.json",
                 "plugins/chaos-engine/hooks/hooks.json",
                 "plugins/chaos-engine/hooks/guard.py",
+                "plugins/chaos-engine/hooks/kernel.py",
+                "plugins/chaos-engine/hooks/lifecycle.py",
                 "plugins/chaos-engine/hooks/reflection.py",
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
                 ".grok/hooks/lifecycle.json",
@@ -482,6 +550,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     project.joinpath(path).read_text(errors="ignore") for path in required
                 ),
             )
+            for name in ("kernel.py", "lifecycle.py"):
+                self.assertEqual(
+                    (ROOT / "chaos-engine/hooks" / name).read_bytes(),
+                    (project / "plugins/chaos-engine/hooks" / name).read_bytes(),
+                )
             memory_config = json.loads(project.joinpath(".memory/config.json").read_text())
             self.assertEqual(5, memory_config["version"])
             self.assertEqual({"version", "project", "memory"}, set(memory_config))

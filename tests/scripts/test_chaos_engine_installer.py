@@ -640,6 +640,12 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             manifest = json.loads((install_root / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual("portable", manifest["distribution"]["id"])
             self.assertRegex(manifest["distribution"]["policySha256"], r"^[0-9a-f]{64}$")
+            runtime_files = set(
+                json.loads((SOURCE / "distributions.json").read_text(encoding="utf-8"))[
+                    "distributions"
+                ]["portable"]["runtimeFiles"]
+            )
+            self.assertEqual({"hooks/kernel.py", "hooks/lifecycle.py"}, runtime_files)
             owned_text = "\n".join(
                 path.read_text(encoding="utf-8", errors="ignore")
                 for path in install_root.rglob("*")
@@ -653,8 +659,14 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertNotIn("mohab", owned_paths)
             self.assertNotIn("mohab", owned_text)
             hook = install_root / "hooks/guard.py"
-            self.assertTrue((install_root / "hooks/reflection.py").is_file())
-            self.assertTrue((install_root / "hooks/lifecycle.py").is_file())
+            for relative in (
+                "hooks/kernel.py",
+                "hooks/lifecycle.py",
+                "hooks/reflection.py",
+            ):
+                installed = install_root / relative
+                self.assertTrue(installed.is_file(), relative)
+                self.assertEqual(sha256(installed), manifest["files"][relative])
             (project / "lifecycle.py").write_text(
                 "raise RuntimeError('consumer lifecycle shadow imported')\n",
                 encoding="utf-8",
