@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import shutil
+import stat
 import subprocess  # nosec B404 - fixed list-form dependency commands from tracked spec.
 import sys
 from datetime import datetime, timedelta, timezone
@@ -140,7 +141,11 @@ def sha256(path: Path) -> str:
 
 
 def json_integrity(value: dict[str, object]) -> str:
-    body = {key: item for key, item in value.items() if key != "integritySha256"}
+    body = {
+        key: item
+        for key, item in value.items()
+        if key not in {"integritySha256", "receiptIntegritySha256"}
+    }
     encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
 
@@ -187,9 +192,9 @@ def publish_pointer(
     }
     pointer["integritySha256"] = json_integrity(pointer)
     path = project / POINTER_NAME
-    temporary = project / f"{POINTER_NAME}.tmp"
-    if is_link_or_reparse(path) or temporary.exists() or is_link_or_reparse(temporary):
-        raise ValueError("dependency pointer is a link, reparse point, or collision")
+    temporary = project / f"{POINTER_NAME}.tmp.{transaction}.{secrets.token_hex(8)}"
+    if is_link_or_reparse(path):
+        raise ValueError("dependency pointer is a link or reparse point")
     descriptor = os.open(
         temporary,
         os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
@@ -202,29 +207,107 @@ def publish_pointer(
             stream.flush()
             os.fsync(stream.fileno())
         temporary.replace(path)
+        if os.name != "nt":
+            directory = os.open(project, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
     finally:
         if temporary.exists() and not is_link_or_reparse(temporary):
             temporary.unlink()
     return pointer
 
 
-def _bounded_json(path: Path, label: str) -> dict[str, object]:
-    if is_link_or_reparse(path):
-        raise ValueError(f"dependency {label} is a link or reparse point")
+def _relative_parts(relative: str, label: str) -> tuple[str, ...]:
+    path = Path(relative)
+    if path.is_absolute() or not path.parts or ".." in path.parts:
+        raise ValueError(f"dependency {label} path is unsafe")
+    return path.parts
+
+
+def _open_regular_relative(root: Path, relative: str, label: str) -> int:
+    """Open a regular descendant without following POSIX links in any component."""
+    parts = _relative_parts(relative, label)
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    binary = getattr(os, "O_BINARY", 0)
+    if os.name != "nt" and os.open in os.supports_dir_fd:
+        directory = os.open(
+            root,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow,
+        )
+        try:
+            for part in parts[:-1]:
+                child = os.open(
+                    part,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow,
+                    dir_fd=directory,
+                )
+                os.close(directory)
+                directory = child
+            descriptor = os.open(
+                parts[-1], os.O_RDONLY | binary | nofollow, dir_fd=directory
+            )
+        except OSError as error:
+            raise ValueError(f"dependency {label} has an unsafe ancestor or link") from error
+        finally:
+            os.close(directory)
+    else:
+        current = root
+        for part in parts:
+            current /= part
+            if is_link_or_reparse(current):
+                raise ValueError(f"dependency {label} has an unsafe ancestor or link")
+        try:
+            descriptor = os.open(current, os.O_RDONLY | binary | nofollow)
+        except OSError as error:
+            raise ValueError(f"dependency {label} is missing or unsafe") from error
+    opened = os.fstat(descriptor)
+    if not stat.S_ISREG(opened.st_mode):
+        os.close(descriptor)
+        raise ValueError(f"dependency {label} is not a regular file")
+    return descriptor
+
+
+def _read_regular_relative(
+    root: Path, relative: str, label: str, limit: int | None = None
+) -> bytes:
+    descriptor = _open_regular_relative(root, relative, label)
     try:
-        if path.stat().st_size > MAX_CONTROL_BYTES:
+        opened = os.fstat(descriptor)
+        if limit is not None and opened.st_size > limit:
             raise ValueError(f"dependency {label} is too large")
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+        chunks: list[bytes] = []
+        remaining = None if limit is None else limit + 1
+        while remaining is None or remaining > 0:
+            chunk = os.read(descriptor, 1024 * 1024 if remaining is None else min(1024 * 1024, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if remaining is not None:
+                remaining -= len(chunk)
+        data = b"".join(chunks)
+        if limit is not None and len(data) > limit:
+            raise ValueError(f"dependency {label} is too large")
+        return data
+    finally:
+        os.close(descriptor)
+
+
+def _bounded_json(root: Path, relative: str, label: str) -> tuple[dict[str, object], bytes]:
+    try:
+        data = _read_regular_relative(root, relative, label, MAX_CONTROL_BYTES)
+        value = json.loads(data)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"dependency {label} is missing or invalid") from error
     if not isinstance(value, dict):
         raise ValueError(f"dependency {label} is invalid")
-    return value
+    return value, data
 
 
 def active_generation(project: Path) -> tuple[Path, dict[str, object]]:
     project = project.absolute()
-    pointer = _bounded_json(project / POINTER_NAME, "pointer")
+    pointer, _ = _bounded_json(project, POINTER_NAME, "pointer")
     if (
         pointer.get("schemaVersion") != POINTER_SCHEMA
         or HEX_ID.fullmatch(str(pointer.get("transactionId", ""))) is None
@@ -235,13 +318,24 @@ def active_generation(project: Path) -> tuple[Path, dict[str, object]]:
     if pointer.get("previous") is not None:
         _validate_generation_record(pointer["previous"])
     generation = project / GENERATIONS_NAME / active["generationId"]
-    if is_link_or_reparse(generation) or not generation.is_dir():
-        raise ValueError("dependency active generation is missing or unsafe")
-    receipt = generation / RECEIPT_NAME
-    if is_link_or_reparse(receipt) or not receipt.is_file():
-        raise ValueError("dependency generation receipt is missing or unsafe")
-    if sha256(receipt) != active["receiptSha256"]:
+    receipt, receipt_bytes = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+    )
+    if hashlib.sha256(receipt_bytes).hexdigest() != active["receiptSha256"]:
         raise ValueError("dependency generation receipt digest drift detected")
+    if receipt.get("receiptIntegritySha256") != json_integrity(receipt):
+        raise ValueError("dependency generation receipt integrity drift detected")
+    if receipt.get("specificationSha256") != active["specificationSha256"]:
+        raise ValueError("dependency generation specification digest drift detected")
+    if receipt.get("coreSha256") != active["coreSha256"]:
+        raise ValueError("dependency generation core digest drift detected")
+    core = _read_regular_relative(
+        project, ".chaos-engine/manifest.json", "installed core manifest", MAX_CONTROL_BYTES
+    )
+    if hashlib.sha256(core).hexdigest() != active["coreSha256"]:
+        raise ValueError("dependency installed core digest drift detected")
     return generation, pointer
 
 
@@ -260,15 +354,25 @@ def dispatch_command(
         relative = dispatch.get("interpreter")
         distribution = dispatch.get("distribution")
         entrypoint = dispatch.get("entrypoint")
-        if not all(isinstance(item, str) and item for item in (relative, distribution, entrypoint)):
+        expected_digest = dispatch.get("interpreterSha256")
+        if not all(
+            isinstance(item, str) and item
+            for item in (relative, distribution, entrypoint, expected_digest)
+        ) or HEX_DIGEST.fullmatch(str(expected_digest)) is None:
             raise ValueError(f"dependency Python dispatch is invalid: {tool}")
         interpreter = generation / str(relative)
-        if (
-            Path(str(relative)).is_absolute()
-            or ".." in Path(str(relative)).parts
-            or not interpreter.is_file()
-        ):
-            raise ValueError(f"dependency Python interpreter is invalid: {tool}")
+        try:
+            actual_digest = hashlib.sha256(
+                _read_regular_relative(
+                    generation, str(relative), f"Python interpreter for {tool}"
+                )
+            ).hexdigest()
+        except ValueError as error:
+            raise ValueError(
+                f"dependency Python interpreter is unsafe or a link: {tool}"
+            ) from error
+        if actual_digest != expected_digest:
+            raise ValueError(f"dependency Python interpreter drift detected: {tool}")
         return [
             str(interpreter),
             "-c",

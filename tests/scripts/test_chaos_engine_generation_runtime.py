@@ -7,6 +7,7 @@ import json
 import os
 import tempfile
 import unittest
+import unittest.mock as mock
 from pathlib import Path
 
 
@@ -26,6 +27,31 @@ def load_controller():
 
 
 class GenerationRuntimeTests(unittest.TestCase):
+    @staticmethod
+    def generation_fixture(module, project: Path) -> tuple[Path, dict[str, str]]:
+        core = project / ".chaos-engine/manifest.json"
+        core.parent.mkdir()
+        core.write_text('{"owned":true}\n', encoding="utf-8")
+        generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
+        generation.mkdir(parents=True)
+        receipt_value = {
+            "schemaVersion": 2,
+            "specificationSha256": "b" * 64,
+            "coreSha256": module.sha256(core),
+            "tools": {},
+        }
+        receipt_value["receiptIntegritySha256"] = module.json_integrity(
+            receipt_value
+        )
+        receipt = generation / "receipt.json"
+        receipt.write_text(json.dumps(receipt_value) + "\n", encoding="utf-8")
+        return generation, {
+            "generationId": "a" * 32,
+            "specificationSha256": "b" * 64,
+            "coreSha256": module.sha256(core),
+            "receiptSha256": module.sha256(receipt),
+        }
+
     def test_pointer_selects_only_a_strict_generation_identifier(self):
         module = load_controller()
         self.assertTrue(
@@ -34,16 +60,7 @@ class GenerationRuntimeTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
-            generation.mkdir(parents=True)
-            receipt = generation / "receipt.json"
-            receipt.write_text("{}\n", encoding="utf-8")
-            active = {
-                "generationId": "a" * 32,
-                "specificationSha256": "b" * 64,
-                "coreSha256": "c" * 64,
-                "receiptSha256": module.sha256(receipt),
-            }
+            generation, active = self.generation_fixture(module, project)
             module.publish_pointer(project, active, None, transaction_id="d" * 32)
 
             selected, pointer = module.active_generation(project)
@@ -60,6 +77,98 @@ class GenerationRuntimeTests(unittest.TestCase):
             value["integritySha256"] = module.json_integrity(value)
             pointer_path.write_text(json.dumps(value), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "generation identifier"):
+                module.active_generation(project)
+
+    def test_generation_ancestor_and_interpreter_links_fail_closed(self):
+        module = load_controller()
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            project.mkdir()
+            outside = root / "outside"
+            outside.mkdir()
+            try:
+                (project / ".chaos-engine-runtime-generations").symlink_to(
+                    outside, target_is_directory=True
+                )
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+            generation, active = self.generation_fixture(module, project)
+            module.publish_pointer(project, active, None, transaction_id="d" * 32)
+
+            with self.assertRaisesRegex(ValueError, "ancestor|link|reparse"):
+                module.active_generation(project)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            generation = Path(temporary) / "generation"
+            generation.mkdir()
+            outside = Path(temporary) / "python"
+            outside.write_bytes(b"python")
+            interpreter = generation / "uv-tools/mempalace/bin/python"
+            interpreter.parent.mkdir(parents=True)
+            interpreter.symlink_to(outside)
+            receipt = {
+                "tools": {
+                    "mempalace": {
+                        "dispatch": {
+                            "kind": "python",
+                            "interpreter": "uv-tools/mempalace/bin/python",
+                            "interpreterSha256": module.sha256(outside),
+                            "distribution": "mempalace",
+                            "entrypoint": "mempalace",
+                        }
+                    }
+                }
+            }
+            with self.assertRaisesRegex(ValueError, "interpreter.*link|reparse|unsafe"):
+                module.dispatch_command(generation, receipt, "mempalace", [])
+
+    def test_controls_are_bounded_and_stale_temporary_never_blocks_publish(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            _, active = self.generation_fixture(module, project)
+            stale = project / ".chaos-engine-runtime-current.json.tmp"
+            stale.write_text("interrupted\n", encoding="utf-8")
+
+            module.publish_pointer(project, active, None, transaction_id="d" * 32)
+
+            pointer = project / ".chaos-engine-runtime-current.json"
+            pointer.write_bytes(b"{" + b" " * module.MAX_CONTROL_BYTES + b"}")
+            with mock.patch.object(
+                module.Path,
+                "read_text",
+                side_effect=AssertionError("bounded reader must not call read_text"),
+            ):
+                with self.assertRaisesRegex(ValueError, "too large"):
+                    module.active_generation(project)
+
+    def test_pointer_digests_bind_receipt_and_installed_core(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, active = self.generation_fixture(module, project)
+            module.publish_pointer(project, active, None, transaction_id="d" * 32)
+
+            receipt_path = generation / "receipt.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["specificationSha256"] = "e" * 64
+            receipt["receiptIntegritySha256"] = module.json_integrity(receipt)
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+            pointer = json.loads(
+                (project / ".chaos-engine-runtime-current.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            pointer["active"]["receiptSha256"] = module.sha256(receipt_path)
+            pointer["integritySha256"] = module.json_integrity(pointer)
+            (project / ".chaos-engine-runtime-current.json").write_text(
+                json.dumps(pointer), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(ValueError, "specification digest"):
                 module.active_generation(project)
 
     def test_linked_pointer_is_rejected_before_read(self):
@@ -92,6 +201,7 @@ class GenerationRuntimeTests(unittest.TestCase):
                         "dispatch": {
                             "kind": "python",
                             "interpreter": "uv-tools/mempalace/bin/python",
+                            "interpreterSha256": module.sha256(interpreter),
                             "distribution": "mempalace",
                             "entrypoint": "mempalace",
                         }
