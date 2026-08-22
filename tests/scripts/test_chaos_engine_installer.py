@@ -56,9 +56,11 @@ class LegacyDependencyController:
     )
 
     def __init__(self, controller):
+        """Wrap a controller while hiding generation-era capabilities."""
         self._controller = controller
 
     def __getattr__(self, name):
+        """Delegate capabilities that existed before immutable generations."""
         if name in self.GENERATION_CAPABILITIES:
             raise AttributeError(name)
         return getattr(self._controller, name)

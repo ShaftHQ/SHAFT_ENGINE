@@ -440,6 +440,7 @@ class Effect:
     phase: str = ""
 
     def __post_init__(self) -> None:
+        """Reject effects that cannot be scoped to a session."""
         if not self.session_id.strip():
             raise ValueError("effect requires a non-empty session identity")
 
@@ -600,8 +601,9 @@ def validate_rules(rules: tuple[Rule, ...]) -> list[str]:
 
 
 def validate_lifecycle(
-    transitions: Mapping[str, tuple[str, ...]] = LIFECYCLE_TRANSITIONS,
+    transitions: Mapping[str, tuple[str, ...]] | None = None,
 ) -> list[str]:
+    transitions = LIFECYCLE_TRANSITIONS if transitions is None else transitions
     errors: list[str] = []
     phases = set(transitions)
     for phase, targets in transitions.items():
@@ -808,6 +810,7 @@ def _v1_effect_key(values: tuple[str, ...]) -> str:
 
 class EffectJournal:
     def __init__(self, path: Path, lock_timeout: float = 5.0):
+        """Create a bounded, process-safe journal for one local path."""
         self.path = path
         self.lock_path = path.with_suffix(path.suffix + ".lock")
         self.lock_timeout = lock_timeout
@@ -871,7 +874,8 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal JSON at line {line_number}"
                 ) from error
-            if not isinstance(item, dict) or type(item.get("schemaVersion")) is not int:
+            schema_version = item.get("schemaVersion") if isinstance(item, dict) else None
+            if not isinstance(item, dict) or not isinstance(schema_version, int) or isinstance(schema_version, bool):
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
@@ -891,7 +895,7 @@ class EffectJournal:
             ]
             if item["schemaVersion"] == 3:
                 required_strings.append("phase")
-            if any(type(item.get(field)) is not str for field in required_strings):
+            if any(not isinstance(item.get(field), str) for field in required_strings):
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
@@ -973,7 +977,8 @@ def evaluate_session(
     snapshot: HarnessSnapshot | None = None,
     rules: tuple[Rule, ...] = RULES,
 ) -> EvaluationReport:
-    """Evaluate and persist one session transition under the journal lock.
+    """
+    Evaluate and persist one session transition under the journal lock.
 
     Native hosts do not send lifecycle phases. The first event starts at
     ReadOnly; later events load the last authenticated v2 phase. Appending the

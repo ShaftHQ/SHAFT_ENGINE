@@ -195,6 +195,83 @@ def _validate_generation_record(value: object) -> dict[str, str]:
     return record
 
 
+def _select_previous(project: Path, active: dict[str, str]) -> dict[str, str] | None:
+    pointer_path = project / POINTER_NAME
+    if not (pointer_path.exists() or is_link_or_reparse(pointer_path)):
+        return None
+    current = _read_pointer(project)
+    current_active = _validate_generation_record(current["active"])
+    try:
+        _validate_selected_generation(
+            project,
+            current_active,
+            current_active["specificationSha256"],
+            current_active["coreSha256"],
+            verify_installed_core=False,
+        )
+    except (OSError, ValueError):
+        current_active = active
+    if current_active != active:
+        return current_active
+    if current.get("previous") is None:
+        return None
+    previous = _validate_generation_record(current["previous"])
+    try:
+        _validate_selected_generation(
+            project,
+            previous,
+            previous["specificationSha256"],
+            previous["coreSha256"],
+            verify_installed_core=False,
+        )
+    except (OSError, ValueError):
+        return None
+    return previous
+
+
+def _persist_pointer(
+    project: Path, pointer: dict[str, object], transaction: str
+) -> dict[str, object]:
+    path = project / POINTER_NAME
+    temporary = project / f"{POINTER_NAME}.tmp.{transaction}.{secrets.token_hex(8)}"
+    if is_link_or_reparse(path):
+        raise ValueError("dependency pointer is a link or reparse point")
+    directory = None
+    if os.name != "nt":
+        directory = os.open(project, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    descriptor = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(pointer, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+        if directory is not None:
+            try:
+                os.fsync(directory)
+            except OSError:
+                # Replacement is commit point; a durability warning cannot be rolled back.
+                persisted, _ = _bounded_json(project, POINTER_NAME, "pointer")
+                if persisted != pointer:
+                    raise
+                result = dict(pointer)
+                result["publicationStatus"] = "committed-not-durable"
+                return result
+    finally:
+        if temporary.exists() and not is_link_or_reparse(temporary):
+            temporary.unlink()
+        if directory is not None:
+            os.close(directory)
+    result = dict(pointer)
+    result["publicationStatus"] = "durable"
+    return result
+
+
 def publish_pointer(
     project: Path,
     active: dict[str, str],
@@ -218,38 +295,7 @@ def publish_pointer(
         expected_core_sha256,
         verify_installed_core=True,
     )
-    previous = None
-    pointer_path = project / POINTER_NAME
-    if pointer_path.exists() or is_link_or_reparse(pointer_path):
-        current = _read_pointer(project)
-        current_active = _validate_generation_record(current["active"])
-        current_valid = True
-        try:
-            _validate_selected_generation(
-                project,
-                current_active,
-                current_active["specificationSha256"],
-                current_active["coreSha256"],
-                verify_installed_core=False,
-            )
-        except (OSError, ValueError):
-            current_valid = False
-        if current_valid and current_active != active:
-            previous = current_active
-        elif current.get("previous") is not None:
-            tracked_previous = _validate_generation_record(current["previous"])
-            try:
-                _validate_selected_generation(
-                    project,
-                    tracked_previous,
-                    tracked_previous["specificationSha256"],
-                    tracked_previous["coreSha256"],
-                    verify_installed_core=False,
-                )
-            except (OSError, ValueError):
-                previous = None
-            else:
-                previous = tracked_previous
+    previous = _select_previous(project, active)
     transaction = transaction_id or secrets.token_hex(16)
     if HEX_ID.fullmatch(transaction) is None:
         raise ValueError("dependency transaction identifier is invalid")
@@ -260,44 +306,7 @@ def publish_pointer(
         "previous": previous,
     }
     persisted_pointer["integritySha256"] = json_integrity(persisted_pointer)
-    path = project / POINTER_NAME
-    temporary = project / f"{POINTER_NAME}.tmp.{transaction}.{secrets.token_hex(8)}"
-    if is_link_or_reparse(path):
-        raise ValueError("dependency pointer is a link or reparse point")
-    directory = None
-    if os.name != "nt":
-        directory = os.open(project, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    descriptor = os.open(
-        temporary,
-        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
-        0o600,
-    )
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            json.dump(persisted_pointer, stream, indent=2, sort_keys=True)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        temporary.replace(path)
-        if directory is not None:
-            try:
-                os.fsync(directory)
-            except OSError:
-                # Replacement is commit point; a durability warning cannot be rolled back.
-                persisted, _ = _bounded_json(project, POINTER_NAME, "pointer")
-                if persisted != persisted_pointer:
-                    raise
-                result = dict(persisted_pointer)
-                result["publicationStatus"] = "committed-not-durable"
-                return result
-    finally:
-        if temporary.exists() and not is_link_or_reparse(temporary):
-            temporary.unlink()
-        if directory is not None:
-            os.close(directory)
-    result = dict(persisted_pointer)
-    result["publicationStatus"] = "durable"
-    return result
+    return _persist_pointer(project, persisted_pointer, transaction)
 
 
 def _relative_parts(relative: str, label: str) -> tuple[str, ...]:
@@ -1238,6 +1247,130 @@ def _crosscheck_dispatch_ownership(
             raise ValueError(f"dependency dispatch ownership digest drift detected: {name}")
 
 
+def _install_candidate_payload(
+    project: Path,
+    generation: Path,
+    transaction: Path,
+    specification: dict[str, object],
+    core_sha256: str,
+    generation_name: str,
+    command_runner,
+    validate_holds,
+    checked_at: datetime,
+) -> dict[str, str]:
+    environment = generation_environment(generation, transaction)
+    completed: dict[str, list[str]] = {}
+    for tool, commands in generation_install_plan(generation, specification).items():
+        completed[tool] = []
+        for command in commands:
+            validate_holds()
+            try:
+                result = command_runner(command, environment)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
+            validate_holds()
+            completed[tool].append((result.stdout or result.stderr).strip())
+    canonicalize_runtime_links(generation)
+    records = _generation_dispatches(generation)
+    for name, arguments in {
+        "uv": ["--version"],
+        "mempalace": ["--version"],
+        "mempalace-mcp": ["--help"],
+        "graphify": ["--version"],
+        "memory": ["--help"],
+        "memory-mcp": ["--help"],
+    }.items():
+        validate_holds()
+        try:
+            result = command_runner(
+                dispatch_command(generation, {"tools": records}, name, arguments),
+                environment,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise RuntimeError(f"{name} entrypoint probe failed") from error
+        validate_holds()
+        _verify_dispatch_set(generation, records)
+        records[name]["resolved"] = (result.stdout or result.stderr).strip()
+    ownership = sealed_ownership_record(generation)
+    _crosscheck_dispatch_ownership(ownership, records)
+    receipt: dict[str, object] = {
+        "schemaVersion": 2,
+        "runtimeContractVersion": 3,
+        "checkedAt": checked_at.isoformat(),
+        "specificationSha256": specification_digest(specification),
+        "coreSha256": core_sha256,
+        "environment": {
+            key: (
+                value
+                if key in {"UV_LINK_MODE", "PIP_NO_CACHE_DIR", "PYTHONDONTWRITEBYTECODE"}
+                else Path(value).relative_to(generation).as_posix()
+            )
+            for key, value in environment.items()
+            if key
+            not in {"UV_CACHE_DIR", "UV_TOOL_BIN_DIR", "UV_PYTHON_BIN_DIR", "NPM_CONFIG_CACHE"}
+        },
+        "installed": completed,
+        "tools": records,
+        "ownership": ownership,
+    }
+    receipt["receiptIntegritySha256"] = json_integrity(receipt)
+    receipt_path = generation / RECEIPT_NAME
+    receipt_path.write_text(
+        json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    record = {
+        "generationId": generation_name,
+        "specificationSha256": specification_digest(specification),
+        "coreSha256": core_sha256,
+        "receiptSha256": sha256(receipt_path),
+    }
+    _validate_selected_generation(
+        project,
+        record,
+        record["specificationSha256"],
+        core_sha256,
+        verify_installed_core=True,
+    )
+    return record
+
+
+def _cleanup_candidate_paths(removals, holds: ExitStack, failed: bool) -> None:
+    try:
+        if os.name != "nt":
+            try:
+                for _, name, parent_hold, child_hold, identity in removals:
+                    if identity is None or parent_hold is None:
+                        continue
+                    opened_here = None
+                    if child_hold is None:
+                        descriptor = os.open(
+                            name,
+                            os.O_RDONLY
+                            | getattr(os, "O_DIRECTORY", 0)
+                            | getattr(os, "O_NOFOLLOW", 0),
+                            dir_fd=parent_hold[0],
+                        )
+                        state = os.fstat(descriptor)
+                        child_hold = (descriptor, (state.st_dev, state.st_ino))
+                        opened_here = descriptor
+                    try:
+                        _delete_held_child(parent_hold, name, child_hold, identity)
+                    finally:
+                        if opened_here is not None:
+                            os.close(opened_here)
+            finally:
+                holds.close()
+        else:
+            holds.close()
+            for path, _, _, _, identity in removals:
+                if identity is not None:
+                    _delete_windows_tree(path, identity)
+    except Exception:
+        if not failed:
+            raise
+
+
 def prepare_candidate(
     project: Path,
     specification: dict[str, object],
@@ -1248,7 +1381,8 @@ def prepare_candidate(
     generation_id: str | None = None,
     transaction_id: str | None = None,
 ) -> dict[str, str]:
-    """Build once at final path.
+    """
+    Build once at final path.
 
     Concurrent path substitution is contained with held no-follow identities. A
     same-user installer subprocess remains trusted: ambient write authority can
@@ -1338,82 +1472,17 @@ def prepare_candidate(
             for path, held, label in held_paths:
                 _assert_held_directory(path, held, label)
 
-        environment = generation_environment(generation, transaction)
-        completed: dict[str, list[str]] = {}
-        for tool, commands in generation_install_plan(generation, specification).items():
-            completed[tool] = []
-            for command in commands:
-                validate_holds()
-                try:
-                    result = command_runner(command, environment)
-                except (OSError, subprocess.SubprocessError) as error:
-                    raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
-                validate_holds()
-                completed[tool].append((result.stdout or result.stderr).strip())
-        canonicalize_runtime_links(generation)
-        records = _generation_dispatches(generation)
-        probes = {
-            "uv": ["--version"],
-            "mempalace": ["--version"],
-            "mempalace-mcp": ["--help"],
-            "graphify": ["--version"],
-            "memory": ["--help"],
-            "memory-mcp": ["--help"],
-        }
-        for name, arguments in probes.items():
-            validate_holds()
-            try:
-                result = command_runner(
-                    dispatch_command(generation, {"tools": records}, name, arguments),
-                    environment,
-                )
-            except (OSError, subprocess.SubprocessError) as error:
-                raise RuntimeError(f"{name} entrypoint probe failed") from error
-            validate_holds()
-            _verify_dispatch_set(generation, records)
-            records[name]["resolved"] = (result.stdout or result.stderr).strip()
-        ownership = sealed_ownership_record(generation)
-        _crosscheck_dispatch_ownership(ownership, records)
-        receipt: dict[str, object] = {
-            "schemaVersion": 2,
-            "runtimeContractVersion": 3,
-            "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
-            "specificationSha256": specification_digest(specification),
-            "coreSha256": core_sha256,
-            "environment": {
-                key: (
-                    value
-                    if key in {"UV_LINK_MODE", "PIP_NO_CACHE_DIR", "PYTHONDONTWRITEBYTECODE"}
-                    else Path(value).relative_to(generation).as_posix()
-                )
-                for key, value in environment.items()
-                if key
-                not in {"UV_CACHE_DIR", "UV_TOOL_BIN_DIR", "UV_PYTHON_BIN_DIR", "NPM_CONFIG_CACHE"}
-            },
-            "installed": completed,
-            "tools": records,
-            "ownership": ownership,
-        }
-        receipt["receiptIntegritySha256"] = json_integrity(receipt)
-        receipt_path = generation / RECEIPT_NAME
-        receipt_path.write_text(
-            json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n",
-            encoding="utf-8",
-        )
-        record = {
-            "generationId": generation_name,
-            "specificationSha256": specification_digest(specification),
-            "coreSha256": core_sha256,
-            "receiptSha256": sha256(receipt_path),
-        }
-        _validate_selected_generation(
+        return _install_candidate_payload(
             project,
-            record,
-            record["specificationSha256"],
+            generation,
+            transaction,
+            specification,
             core_sha256,
-            verify_installed_core=True,
+            generation_name,
+            command_runner,
+            validate_holds,
+            now or datetime.now(timezone.utc),
         )
-        return record
     finally:
         failed = sys.exc_info()[0] is not None
         removals = (
@@ -1432,39 +1501,7 @@ def prepare_candidate(
                 created_generation if failed else None,
             ),
         )
-        try:
-            if os.name != "nt":
-                try:
-                    for _, name, parent_hold, child_hold, identity in removals:
-                        if identity is None or parent_hold is None:
-                            continue
-                        opened_here = None
-                        if child_hold is None:
-                            descriptor = os.open(
-                                name,
-                                os.O_RDONLY
-                                | getattr(os, "O_DIRECTORY", 0)
-                                | getattr(os, "O_NOFOLLOW", 0),
-                                dir_fd=parent_hold[0],
-                            )
-                            state = os.fstat(descriptor)
-                            child_hold = (descriptor, (state.st_dev, state.st_ino))
-                            opened_here = descriptor
-                        try:
-                            _delete_held_child(parent_hold, name, child_hold, identity)
-                        finally:
-                            if opened_here is not None:
-                                os.close(opened_here)
-                finally:
-                    holds.close()
-            else:
-                holds.close()
-                for path, _, _, _, identity in removals:
-                    if identity is not None:
-                        _delete_windows_tree(path, identity)
-        except Exception:
-            if not failed:
-                raise
+        _cleanup_candidate_paths(removals, holds, failed)
 
 
 def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
@@ -1808,21 +1845,9 @@ def verify_sealed_ownership(
             raise ValueError("dependency sealed generation content drift detected")
 
 
-def _remove_sealed_generation_contents(
-    generation: Path,
-    ownership: dict[str, object],
-    receipt_sha256: str,
-) -> bool:
-    """Remove only receipt-owned entries; retain a nonempty generation as quarantine."""
-    files = ownership["files"]
-    identities = ownership["identities"]
-    directories = ownership["directories"]
-    links = ownership["links"]
-    if not isinstance(files, dict) or not isinstance(identities, dict):
-        raise ValueError("dependency sealed generation ownership is invalid")
-    if not isinstance(directories, list) or not valid_link_records(links):
-        raise ValueError("dependency sealed generation ownership is invalid")
-
+def _capture_removal_files(
+    generation: Path, files: dict, identities: dict
+) -> dict[str, dict[str, int]]:
     captured: dict[str, dict[str, int]] = {}
     for relative, expected_digest in files.items():
         expected_identity = identities.get(relative)
@@ -1840,14 +1865,10 @@ def _remove_sealed_generation_contents(
         ):
             raise ValueError("dependency sealed generation changed before removal")
         captured[relative] = identity
+    return captured
 
-    receipt_bytes = _read_regular_relative(
-        generation, RECEIPT_NAME, "generation removal receipt", MAX_RECEIPT_BYTES
-    )
-    if hashlib.sha256(receipt_bytes).hexdigest() != receipt_sha256:
-        raise ValueError("dependency generation receipt changed before removal")
-    receipt_identity = _file_identity(generation / RECEIPT_NAME)
 
+def _validate_removal_links(generation: Path, links: list[dict[str, str]]) -> None:
     for link in links:
         relative = str(link["path"])
         path = generation / relative
@@ -1861,6 +1882,10 @@ def _remove_sealed_generation_contents(
         else:
             raise ValueError("dependency sealed generation link is missing before removal")
 
+
+def _remove_captured_files(
+    generation: Path, captured: dict[str, dict[str, int]]
+) -> None:
     for relative, identity in captured.items():
         path = generation / relative
         current = _file_identity(path)
@@ -1868,6 +1893,8 @@ def _remove_sealed_generation_contents(
             raise ValueError("dependency sealed generation changed during removal")
         path.unlink()
 
+
+def _remove_owned_links(generation: Path, links: list[dict[str, str]]) -> None:
     for link in sorted(links, key=lambda item: str(item["path"]), reverse=True):
         path = generation / str(link["path"])
         if path.is_symlink():
@@ -1875,10 +1902,8 @@ def _remove_sealed_generation_contents(
         else:
             path.rmdir()
 
-    if _file_identity(generation / RECEIPT_NAME) != receipt_identity:
-        raise ValueError("dependency generation receipt changed during removal")
-    (generation / RECEIPT_NAME).unlink()
 
+def _remove_generated_caches(generation: Path) -> set[str]:
     generated_directories: set[str] = set()
     for path in reversed(runtime_entries(generation)):
         relative = path.relative_to(generation).as_posix()
@@ -1888,12 +1913,12 @@ def _remove_sealed_generation_contents(
             path.unlink()
         elif path.is_dir() and is_generated_python_cache(relative, directory=True):
             generated_directories.add(relative)
+    return generated_directories
 
-    removable_directories = {
-        str(relative) for relative in directories if isinstance(relative, str)
-    } | generated_directories
+
+def _remove_empty_directories(generation: Path, directories: set[str]) -> bool:
     for relative in sorted(
-        removable_directories, key=lambda value: (value.count("/"), value), reverse=True
+        directories, key=lambda value: (value.count("/"), value), reverse=True
     ):
         path = generation / relative
         if path.is_dir() and not is_link_or_reparse(path):
@@ -1909,6 +1934,46 @@ def _remove_sealed_generation_contents(
             raise
         return False
     return True
+
+
+def _remove_sealed_generation_contents(
+    generation: Path,
+    ownership: dict[str, object],
+    receipt_sha256: str,
+) -> bool:
+    """Remove only receipt-owned entries; retain a nonempty generation as quarantine."""
+    files = ownership["files"]
+    identities = ownership["identities"]
+    directories = ownership["directories"]
+    links = ownership["links"]
+    if not isinstance(files, dict) or not isinstance(identities, dict):
+        raise ValueError("dependency sealed generation ownership is invalid")
+    if not isinstance(directories, list) or not valid_link_records(links):
+        raise ValueError("dependency sealed generation ownership is invalid")
+
+    captured = _capture_removal_files(generation, files, identities)
+
+    receipt_bytes = _read_regular_relative(
+        generation, RECEIPT_NAME, "generation removal receipt", MAX_RECEIPT_BYTES
+    )
+    if hashlib.sha256(receipt_bytes).hexdigest() != receipt_sha256:
+        raise ValueError("dependency generation receipt changed before removal")
+    receipt_identity = _file_identity(generation / RECEIPT_NAME)
+
+    _validate_removal_links(generation, links)
+    _remove_captured_files(generation, captured)
+    _remove_owned_links(generation, links)
+
+    if _file_identity(generation / RECEIPT_NAME) != receipt_identity:
+        raise ValueError("dependency generation receipt changed during removal")
+    (generation / RECEIPT_NAME).unlink()
+
+    generated_directories = _remove_generated_caches(generation)
+
+    removable_directories = {
+        str(relative) for relative in directories if isinstance(relative, str)
+    } | generated_directories
+    return _remove_empty_directories(generation, removable_directories)
 
 
 def remove_generation(project: Path, record: dict[str, str]) -> None:

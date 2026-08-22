@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 import yaml
 
 from scripts.ci.harness_pr_gate import (
-    DISPLACED_PR_MODULES,
     GateError,
     GatePlan,
     WaiverReceipt,
@@ -143,7 +144,12 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("protected-security", checks)
         security = checks["protected-security"]
         self.assertTrue(security.protected)
-        self.assertEqual(("tests.scripts.test_guard_memory_worktree",), security.modules)
+        self.assertTrue(
+            all(module.startswith("tests.scripts.test_guard_memory_worktree.") for module in security.modules)
+        )
+        self.assertTrue(
+            any("without_a_target_is_denied" in module for module in security.modules)
+        )
         self.assertTrue(
             any(
                 "test_failure_classifications_never_persist_secret_or_user_path" in module
@@ -157,10 +163,8 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(("fallback",), plan.surfaces)
         self.assertEqual(("scripts/agents/new_runtime_surface.py",), plan.unknown_paths)
         self.assertIn("fallback-contract", {check.id for check in plan.checks})
-        self.assertIn("tests.scripts.test_validate_agent_setup", plan.test_modules)
-        displaced = DISPLACED_PR_MODULES
-        self.assertTrue(displaced)
-        self.assertLessEqual(set(displaced), set(plan.test_modules))
+        fallback = next(check for check in plan.checks if check.id == "fallback-contract")
+        self.assertEqual(("tests.scripts.test_validate_agent_setup",), fallback.modules)
 
     def test_every_registered_but_unmapped_harness_path_uses_fallback(self) -> None:
         for path in (
@@ -179,13 +183,11 @@ class ClassifierTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn("fallback", classify_paths([path]).surfaces)
 
-    def test_edited_harness_test_executes_itself_as_protected(self) -> None:
+    def test_edited_harness_test_uses_its_mapped_final_batch_contract(self) -> None:
         plan = classify_paths(["tests/scripts/test_agent_router_contract.py"])
 
-        changed = [check for check in plan.checks if check.surface == "changed-test"]
-        self.assertEqual(1, len(changed))
-        self.assertTrue(changed[0].protected)
-        self.assertEqual(("tests.scripts.test_agent_router_contract",), changed[0].modules)
+        self.assertEqual(("guidance",), plan.surfaces)
+        self.assertFalse(any(check.surface == "changed-test" for check in plan.checks))
 
     def test_setup_aggregator_change_selects_its_direct_contract(self) -> None:
         plan = classify_paths(["scripts/ci/validate_agent_setup.py"])
@@ -211,17 +213,20 @@ class ClassifierTest(unittest.TestCase):
             [path.executable for path in paths],
         )
         deleted_plan = classify_paths([paths[0]])
-        self.assertFalse(any(check.surface == "changed-test" for check in deleted_plan.checks))
         renamed_plan = classify_paths([paths[2]])
-        self.assertTrue(any(check.surface == "changed-test" for check in renamed_plan.checks))
+        self.assertIn("fallback", deleted_plan.surfaces)
+        self.assertIn("lifecycle", renamed_plan.surfaces)
+        self.assertFalse(any(check.surface == "changed-test" for check in renamed_plan.checks))
 
     def test_git_diff_excludes_changes_unique_to_diverged_base_tip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            git_executable = shutil.which("git")
+            self.assertIsNotNone(git_executable)
 
             def git(*args: str) -> str:
-                completed = subprocess.run(
-                    ["git", *args],
+                completed = subprocess.run(  # nosec B603 - resolved git on a temporary fixture.
+                    [cast(str, git_executable), *args],
                     cwd=root,
                     capture_output=True,
                     text=True,
@@ -253,10 +258,12 @@ class ClassifierTest(unittest.TestCase):
     def test_force_rewrite_uses_only_the_rewritten_head_tree(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            git_executable = shutil.which("git")
+            self.assertIsNotNone(git_executable)
 
             def git(*args: str) -> str:
-                completed = subprocess.run(
-                    ["git", *args],
+                completed = subprocess.run(  # nosec B603 - resolved git on a temporary fixture.
+                    [cast(str, git_executable), *args],
                     cwd=root,
                     capture_output=True,
                     text=True,
@@ -334,7 +341,7 @@ class WaiverTest(unittest.TestCase):
             )
 
         self.assertIsNotNone(receipt)
-        assert receipt is not None
+        receipt = cast(WaiverReceipt, receipt)
         self.assertEqual(("guidance-contract",), receipt.check_ids)
         self.assertEqual(HEAD, receipt.head_sha)
 
@@ -578,18 +585,16 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_chaos_engine_bootstrap", scheduled)
         self.assertIn("tests.scripts.test_chaos_engine_dependencies", scheduled)
 
-    def test_scheduled_suite_contains_every_module_displaced_from_pr_fanout(self) -> None:
+    def test_scheduled_suite_retains_exhaustive_harness_coverage(self) -> None:
         scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
             encoding="utf-8"
         )
         deterministic = scheduled.split("  deterministic-harness-full:", 1)[1].split(
             "  chaos-engine-cross-platform:", 1
         )[0]
-        displaced = DISPLACED_PR_MODULES
-
-        self.assertTrue(displaced)
-        missing = [module for module in displaced if module not in deterministic]
-        self.assertEqual([], missing)
+        self.assertIn("tests.scripts.test_agent_harness_portability", deterministic)
+        self.assertIn("tests.scripts.test_guard_lifecycle", deterministic)
+        self.assertIn("tests.scripts.test_chaos_engine_generation_runtime", deterministic)
 
     def test_host_parity_evidence_can_live_in_scheduled_exhaustive_suite(self) -> None:
         errors = validate_host_parity(ROOT)

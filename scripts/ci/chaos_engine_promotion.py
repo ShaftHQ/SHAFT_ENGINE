@@ -99,7 +99,7 @@ def expected_keys() -> set[tuple[str, str, int, str]]:
 
 
 def _finite_number(value: object, *, integer: bool = False) -> bool:
-    if type(value) not in ({int} if integer else {int, float}):
+    if isinstance(value, bool) or not isinstance(value, int if integer else (int, float)):
         return False
     return value >= 0 and (integer or math.isfinite(float(value)))
 
@@ -111,26 +111,30 @@ def validate_receipt(value: object) -> dict[str, object]:
         raise ValueError("promotion receipt schema is unsupported")
     if value["host"] not in HOSTS or value["scenario"] not in SCENARIOS:
         raise ValueError("promotion receipt host or scenario is unknown")
-    if type(value["trial"]) is not int or not 1 <= value["trial"] <= TRIALS:
+    if (
+        not isinstance(value["trial"], int)
+        or isinstance(value["trial"], bool)
+        or not 1 <= value["trial"] <= TRIALS
+    ):
         raise ValueError("promotion receipt trial is invalid")
     if value["variant"] not in VARIANTS:
         raise ValueError("promotion receipt variant is invalid")
     if value["client"] != value["host"]:
         raise ValueError("promotion receipt client binding is invalid")
     if (
-        type(value["clientVersion"]) is not str
+        not isinstance(value["clientVersion"], str)
         or not value["clientVersion"].strip()
         or len(value["clientVersion"].encode("utf-8")) > 256
-        or type(value["revision"]) is not str
+        or not isinstance(value["revision"], str)
         or re.fullmatch(r"[0-9a-f]{40}", value["revision"]) is None
         or any(
-            type(value[field]) is not str
+            not isinstance(value[field], str)
             or re.fullmatch(r"[0-9a-f]{64}", value[field]) is None
             for field in ("driverSha256", "commandSha256")
         )
     ):
         raise ValueError("promotion receipt driver binding is invalid")
-    if type(value["completed"]) is not bool or type(value["safe"]) is not bool:
+    if not isinstance(value["completed"], bool) or not isinstance(value["safe"], bool):
         raise ValueError("promotion receipt outcome is invalid")
     for field in ("tokens", "retries", "denials", "repeatedStates"):
         if not _finite_number(value[field], integer=True):

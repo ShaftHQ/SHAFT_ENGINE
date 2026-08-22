@@ -8,6 +8,7 @@ import fnmatch
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess  # nosec B404 - executes fixed unittest commands without a shell.
 import sys
@@ -81,69 +82,6 @@ WAIVER_FENCE = re.compile(
     r"```chaos-engine-waiver[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL
 )
 
-# Exact modules displaced from the former pull-request fan-out. Unknown executable
-# harness surfaces run this deterministic fallback; scheduled acceptance preserves it.
-DISPLACED_PR_MODULES = (
-    "tests.scripts.test_act_as_mohab_runtime",
-    "tests.scripts.test_agent_harness_adherence",
-    "tests.scripts.test_agent_harness_portability",
-    "tests.scripts.test_agent_harness_reachability",
-    "tests.scripts.test_agent_plugin_client_smoke",
-    "tests.scripts.test_agent_plugin_release",
-    "tests.scripts.test_agent_router_contract",
-    "tests.scripts.test_agnix_conformance",
-    "tests.scripts.test_assemble_act_as_mohab_plugin",
-    "tests.scripts.test_assemble_shaft_skills_plugin",
-    "tests.scripts.test_build_retry",
-    "tests.scripts.test_chaos_engine_bootstrap",
-    "tests.scripts.test_chaos_engine_dependencies",
-    "tests.scripts.test_chaos_engine_generation_runtime",
-    "tests.scripts.test_chaos_engine_hook",
-    "tests.scripts.test_chaos_engine_hosts",
-    "tests.scripts.test_chaos_engine_installer",
-    "tests.scripts.test_chaos_engine_learning",
-    "tests.scripts.test_chaos_engine_live_installer_acceptance",
-    "tests.scripts.test_chaos_engine_promotion",
-    "tests.scripts.test_chaos_engine_portable_core",
-    "tests.scripts.test_chaos_engine_research",
-    "tests.scripts.test_delivery_status",
-    "tests.scripts.test_extract_allure_failures",
-    "tests.scripts.test_github_client",
-    "tests.scripts.test_graphify_maintenance",
-    "tests.scripts.test_guard_external_corpus",
-    "tests.scripts.test_guard_lifecycle",
-    "tests.scripts.test_guard_memory_worktree",
-    "tests.scripts.test_guard_nul_corruption",
-    "tests.scripts.test_intellij_recording_powershell",
-    "tests.scripts.test_issue_filing",
-    "tests.scripts.test_knowledge_stores",
-    "tests.scripts.test_planning_contract",
-    "tests.scripts.test_pr_audit",
-    "tests.scripts.test_repository_context",
-    "tests.scripts.test_resolve_graph_out",
-    "tests.scripts.test_resolve_mempalace",
-    "tests.scripts.test_shaft_knowledge_refresh",
-    "tests.scripts.test_shaft_skill_candidate_intake",
-    "tests.scripts.test_shaft_skill_cli_examples",
-    "tests.scripts.test_shaft_skill_quality",
-    "tests.scripts.test_shaft_skill_routing_eval",
-    "tests.scripts.test_shaft_skills_content",
-    "tests.scripts.test_sync_user_harness",
-    "tests.scripts.test_validate_agent_guidance",
-    "tests.scripts.test_validate_chaos_engine_readme",
-    "tests.scripts.test_validate_agent_ownership",
-    "tests.scripts.test_validate_agent_plugins",
-    "tests.scripts.test_validate_agent_setup",
-    "tests.scripts.test_validate_red_before_green",
-    "tests.scripts.test_validate_skills",
-    "tests.scripts.test_watch_pr_checks",
-    "tests.scripts.test_worktree_hygiene",
-)
-DISPLACED_PR_TEST_PATHS = frozenset(
-    module.replace(".", "/") + ".py" for module in DISPLACED_PR_MODULES
-)
-
-
 CHECKS = {
     "kernel-contract": Check(
         "kernel-contract", "kernel", ("tests.scripts.test_chaos_engine_kernel",), True
@@ -164,6 +102,11 @@ CHECKS = {
     ),
     "skill-contract": Check(
         "skill-contract", "guidance", ("tests.scripts.test_validate_skills",)
+    ),
+    "guidance-reachability-contract": Check(
+        "guidance-reachability-contract",
+        "guidance",
+        ("tests.scripts.test_agent_harness_reachability",),
     ),
     "plugin-contract": Check(
         "plugin-contract",
@@ -204,12 +147,7 @@ CHECKS = {
     "fallback-contract": Check(
         "fallback-contract",
         "fallback",
-        DISPLACED_PR_MODULES,
-    ),
-    "fallback-reachability": Check(
-        "fallback-reachability",
-        "fallback",
-        ("tests.scripts.test_agent_harness_reachability",),
+        ("tests.scripts.test_validate_agent_setup",),
     ),
     "protected-ownership": Check(
         "protected-ownership",
@@ -232,7 +170,12 @@ CHECKS = {
     "protected-security": Check(
         "protected-security",
         "lifecycle",
-        ("tests.scripts.test_guard_memory_worktree",),
+        (
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_memory_write_from_a_linked_worktree_without_a_target_is_denied",
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_memory_patch_write_from_a_linked_worktree_is_denied_too",
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_a_write_targeted_at_another_tree_is_still_denied",
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_the_refusal_does_not_claim_where_the_write_would_land",
+        ),
         True,
     ),
     "protected-installer-acceptance": Check(
@@ -258,14 +201,18 @@ SURFACE_CHECKS = {
     "kernel": ("kernel-contract",),
     "lifecycle": ("lifecycle-contract", "protected-security"),
     "hosts": ("host-contract",),
-    "guidance": ("guidance-contract", "skill-contract"),
+    "guidance": (
+        "guidance-contract",
+        "skill-contract",
+        "guidance-reachability-contract",
+    ),
     "plugins": ("plugin-contract", "plugin-quality-contract"),
     "retrieval": ("retrieval-contract", "graph-resolver-contract"),
     "ci": ("ci-contract", "setup-aggregator-contract"),
     "installer": ("protected-installer-acceptance", "protected-rollback"),
     "documentation": ("documentation-inventory-contract",),
     "promotion": ("promotion-contract",),
-    "fallback": ("fallback-contract", "fallback-reachability"),
+    "fallback": ("fallback-contract",),
 }
 
 SURFACE_PATTERNS = {
@@ -423,9 +370,7 @@ HARNESS_PATTERNS = (
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
-    changed_tests: list[Check] = []
     for raw_path in paths:
-        executable = getattr(raw_path, "executable", True)
         path = raw_path.replace("\\", "/")
         while path.startswith("./"):
             path = path[2:]
@@ -448,24 +393,14 @@ def classify_paths(paths: list[str]) -> GatePlan:
                 matched = True
         harness_path = (
             path in HARNESS_FILES
-            or path in DISPLACED_PR_TEST_PATHS
             or path.startswith(HARNESS_PREFIXES)
             or any(fnmatch.fnmatchcase(path, pattern) for pattern in HARNESS_PATTERNS)
         )
-        if (
-            harness_path
-            and executable
-            and path.startswith("tests/scripts/test_")
-            and path.endswith(".py")
-        ):
-            module = ".".join(PurePosixPath(path).with_suffix("").parts)
-            check_id = "protected-changed-test-" + PurePosixPath(path).stem.replace("_", "-")
-            changed_tests.append(Check(check_id, "changed-test", (module,), True))
         if harness_path and not matched:
             unknown.append(path)
     if unknown and "fallback" not in selected:
         selected.append("fallback")
-    if not selected and not changed_tests:
+    if not selected:
         return GatePlan()
 
     check_ids = [check_id for surface in selected for check_id in SURFACE_CHECKS[surface]]
@@ -476,15 +411,12 @@ def classify_paths(paths: list[str]) -> GatePlan:
         tuple(selected),
         (
             *tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids)),
-            *tuple({check.id: check for check in changed_tests}.values()),
         ),
         tuple(sorted(set(unknown))),
     )
 
 
-def parse_waiver(
-    body: str, *, now: datetime | None = None, head_sha: str = ""
-) -> WaiverReceipt | None:
+def _waiver_payload(body: str) -> dict[str, object] | None:
     matches = WAIVER_FENCE.findall(body)
     if not matches:
         if "chaos-engine-waiver" in body:
@@ -509,6 +441,10 @@ def parse_waiver(
         raise GateError("waiver fields must exactly match schema")
     if payload["schema"] != 1:
         raise GateError("unsupported waiver schema")
+    return payload
+
+
+def _waiver_check_ids(payload: dict[str, object]) -> tuple[str, ...]:
     check_ids = payload["allowed_check_ids"]
     if (
         not isinstance(check_ids, list)
@@ -526,6 +462,10 @@ def parse_waiver(
     unknown = sorted(set(check_ids) - waivable)
     if unknown:
         raise GateError("unknown waiver check IDs: " + ", ".join(unknown))
+    return tuple(check_ids)
+
+
+def _waiver_expiry(payload: dict[str, object], current: datetime) -> datetime:
     for field in ("rationale", "replacement_proof"):
         value = payload[field]
         if not isinstance(value, str) or not value.strip():
@@ -536,14 +476,31 @@ def parse_waiver(
         raise GateError("waiver expires_at must be ISO-8601") from error
     if expiry.tzinfo is None:
         raise GateError("waiver expires_at must include a timezone")
-    current = now or datetime.now(timezone.utc)
     expiry = expiry.astimezone(timezone.utc)
     current = current.astimezone(timezone.utc)
     if expiry <= current:
         raise GateError("waiver has expired")
     if expiry > current + timedelta(days=14):
         raise GateError("waiver expiry exceeds 14 days")
-    return WaiverReceipt(head_sha, tuple(check_ids), expiry)
+    return expiry
+
+
+def parse_waiver(
+    body: str, *, now: datetime | None = None, head_sha: str = ""
+) -> WaiverReceipt | None:
+    payload = _waiver_payload(body)
+    if payload is None:
+        return None
+    check_ids = _waiver_check_ids(payload)
+    expiry = _waiver_expiry(payload, now or datetime.now(timezone.utc))
+    return WaiverReceipt(head_sha, check_ids, expiry)
+
+
+def _required_executable(name: str) -> str:
+    resolved = shutil.which(name)
+    if resolved is None:
+        raise GateError(f"required executable is unavailable: {name}")
+    return resolved
 
 
 def render_json(plan: GatePlan, *, head_sha: str, budget_seconds: int) -> str:
@@ -584,7 +541,7 @@ def render_json(plan: GatePlan, *, head_sha: str, budget_seconds: int) -> str:
 def changed_paths(root: Path, base: str, head: str) -> list[ChangedPath]:
     completed = subprocess.run(  # nosec B603 - fixed read-only git invocation.
         [
-            "git",
+            _required_executable("git"),
             "diff",
             "--merge-base",
             "--diff-filter=ACDMRT",
@@ -682,7 +639,7 @@ def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int
     except subprocess.TimeoutExpired:
         if windows:
             subprocess.run(  # nosec B603 - fixed Windows process-tree termination.
-                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                [_required_executable("taskkill"), "/PID", str(process.pid), "/T", "/F"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=10,
@@ -692,6 +649,7 @@ def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int
             try:
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
+                # The process group exited after the timeout observation.
                 pass
         try:
             process.wait(timeout=10)

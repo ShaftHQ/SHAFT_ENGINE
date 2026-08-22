@@ -69,6 +69,7 @@ HEX_REVISION = re.compile(r"[0-9a-f]{40}")
 
 class TrialCollectionError(RuntimeError):
     def __init__(self, code: str):
+        """Create a stable, secret-free terminal collection error."""
         super().__init__(code)
         self.code = code
 
@@ -92,7 +93,7 @@ def _list_argument(value: object, host: str, variant: str) -> tuple[str, ...]:
     if (
         not isinstance(value, list)
         or not 1 <= len(value) <= 32
-        or any(type(item) is not str or not item or "\0" in item for item in value)
+        or any(not isinstance(item, str) or not item or "\0" in item for item in value)
     ):
         raise TrialCollectionError(f"command-invalid:{host}:{variant}")
     return tuple(value)
@@ -148,14 +149,16 @@ def _terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
     if process.poll() is not None:
         return
     if os.name == "nt":
-        subprocess.run(  # nosec B603 B607 - fixed platform process-tree cleanup.
-            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-            check=False,
-        )
+        taskkill = shutil.which("taskkill")
+        if taskkill is not None:
+            subprocess.run(  # nosec B603 - resolved platform process-tree cleanup.
+                [taskkill, "/PID", str(process.pid), "/T", "/F"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
     else:
         try:
             os.killpg(process.pid, signal.SIGKILL)
@@ -167,6 +170,58 @@ def _terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
     except ProcessLookupError:
         # Tree termination may have already reaped the process.
         pass
+
+
+def _drain_output(
+    stream,
+    sink: bytearray,
+    total: list[int],
+    lock: threading.Lock,
+    overflow: threading.Event,
+) -> None:
+    try:
+        while chunk := stream.read(4096):
+            with lock:
+                remaining = MAX_OUTPUT_BYTES - total[0]
+                if remaining > 0:
+                    sink.extend(chunk[:remaining])
+                    total[0] += min(len(chunk), remaining)
+                if len(chunk) > remaining:
+                    overflow.set()
+                    return
+    finally:
+        stream.close()
+
+
+def _send_request(process: subprocess.Popen[bytes], request: bytes) -> None:
+    if process.stdin is None:
+        return
+    try:
+        process.stdin.write(request)
+        process.stdin.flush()
+    except BrokenPipeError:
+        # Early child exit is classified from its status and bounded output.
+        pass
+    finally:
+        process.stdin.close()
+
+
+def _wait_bounded(
+    process: subprocess.Popen[bytes],
+    overflow: threading.Event,
+    timeout: float,
+    code: str,
+) -> int:
+    deadline = time.monotonic() + timeout
+    while process.poll() is None and not overflow.is_set():
+        if time.monotonic() >= deadline:
+            _terminate_process_tree(process)
+            raise TrialCollectionError(f"{code}-timeout")
+        time.sleep(0.01)
+    if overflow.is_set():
+        _terminate_process_tree(process)
+        raise TrialCollectionError(f"{code}-output-oversized")
+    return process.wait(timeout=5)
 
 
 def _run_bounded(
@@ -193,51 +248,27 @@ def _run_bounded(
         raise TrialCollectionError(f"{code}-execution-failed") from error
     stdout = bytearray()
     stderr = bytearray()
-    total = 0
+    total = [0]
     lock = threading.Lock()
     overflow = threading.Event()
 
-    def drain(stream, sink: bytearray) -> None:
-        nonlocal total
-        try:
-            while chunk := stream.read(4096):
-                with lock:
-                    remaining = MAX_OUTPUT_BYTES - total
-                    if remaining > 0:
-                        sink.extend(chunk[:remaining])
-                        total += min(len(chunk), remaining)
-                    if len(chunk) > remaining:
-                        overflow.set()
-                        return
-        finally:
-            stream.close()
-
     threads = [
-        threading.Thread(target=drain, args=(process.stdout, stdout), daemon=True),
-        threading.Thread(target=drain, args=(process.stderr, stderr), daemon=True),
+        threading.Thread(
+            target=_drain_output,
+            args=(process.stdout, stdout, total, lock, overflow),
+            daemon=True,
+        ),
+        threading.Thread(
+            target=_drain_output,
+            args=(process.stderr, stderr, total, lock, overflow),
+            daemon=True,
+        ),
     ]
     for thread in threads:
         thread.start()
     try:
-        if process.stdin is not None:
-            try:
-                process.stdin.write(request)
-                process.stdin.flush()
-            except BrokenPipeError:
-                # Early child exit is classified from its status and bounded output.
-                pass
-            finally:
-                process.stdin.close()
-        deadline = time.monotonic() + timeout
-        while process.poll() is None and not overflow.is_set():
-            if time.monotonic() >= deadline:
-                _terminate_process_tree(process)
-                raise TrialCollectionError(f"{code}-timeout")
-            time.sleep(0.01)
-        if overflow.is_set():
-            _terminate_process_tree(process)
-            raise TrialCollectionError(f"{code}-output-oversized")
-        return_code = process.wait(timeout=5)
+        _send_request(process, request)
+        return_code = _wait_bounded(process, overflow, timeout, code)
     except (Exception, KeyboardInterrupt, SystemExit):
         _terminate_process_tree(process)
         raise
@@ -274,12 +305,12 @@ def _driver_spec(host: str, variant: str, environment: Mapping[str, str]) -> Dri
     if (
         value["schemaVersion"] != 1
         or value["client"] != host
-        or type(client_version) is not str
+        or not isinstance(client_version, str)
         or not client_version.strip()
         or host not in client_version.casefold()
         or len(client_version.encode("utf-8")) > 256
         or any(ord(character) < 32 for character in client_version)
-        or type(driver_sha256) is not str
+        or not isinstance(driver_sha256, str)
         or HEX_DIGEST.fullmatch(driver_sha256) is None
         or HEX_REVISION.fullmatch(revision) is None
     ):

@@ -1494,6 +1494,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     pointer = controller.pointer_records(project)
                     candidate_published = pointer.get("active") == candidate
                 except (OSError, ValueError):
+                    # Compensation continues from the last authenticated state.
                     pass
             if candidate_published and old_specification_sha256 and old_core_sha256:
                 try:

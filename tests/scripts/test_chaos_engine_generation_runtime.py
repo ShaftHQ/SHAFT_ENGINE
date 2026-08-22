@@ -1542,8 +1542,10 @@ class GenerationRuntimeTests(unittest.TestCase):
             exact.mkdir(parents=True)
             (exact / "python.exe").write_bytes(b"managed-python")
             alias = generation / "uv-python/cpython-3.10-windows-x86_64-none"
-            result = subprocess.run(
-                ["cmd.exe", "/d", "/c", "mklink", "/J", str(alias), str(exact)],
+            command = shutil.which("cmd.exe")
+            self.assertIsNotNone(command)
+            result = subprocess.run(  # nosec B603 - resolved cmd creates a fixture junction.
+                [str(command), "/d", "/c", "mklink", "/J", str(alias), str(exact)],
                 capture_output=True,
                 text=True,
                 check=False,

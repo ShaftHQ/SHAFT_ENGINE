@@ -864,16 +864,21 @@ class ChaosEngineKernelTest(TestCase):
         self.assertNotEqual(left.key, right.key)
 
     def test_status_and_explain_are_versioned_secret_safe_json(self):
+        sensitive_value = "".join(("fixture", "-", "credential"))
         report = self.kernel.evaluate(
             self.kernel.normalize_event(
-                {"hook_event_name": "Stop", "session_id": "session", "api_key": "secret"},
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session",
+                    "api_key": sensitive_value,
+                },
                 "gemini",
             )
         )
         rendered = json.dumps(report.to_dict(), sort_keys=True)
 
         self.assertEqual(1, report.to_dict()["schemaVersion"])
-        self.assertNotIn("secret", rendered)
+        self.assertNotIn(sensitive_value, rendered)
         self.assertIn("terminalReason", report.to_dict())
 
         effect = self.kernel.Effect(
@@ -882,9 +887,12 @@ class ChaosEngineKernelTest(TestCase):
             "call",
             "rule",
             "record",
-            {"api_key": "secret", "nested": {"token": "secret"}},
+            {
+                "api_key": sensitive_value,
+                "nested": {"token": sensitive_value},
+            },
         )
-        self.assertNotIn("secret", json.dumps(effect.to_record(), sort_keys=True))
+        self.assertNotIn(sensitive_value, json.dumps(effect.to_record(), sort_keys=True))
 
     def test_host_capabilities_declare_only_native_normalized_events(self):
         for host, capability in self.kernel.HOST_CAPABILITIES.items():

@@ -142,6 +142,7 @@ def _literal_assignments(path: Path) -> dict[str, object]:
                 try:
                     result[targets[0].id] = ast.literal_eval(node.value)
                 except (ValueError, TypeError):
+                    # Dynamic assignments are outside the literal inventory.
                     pass
     return result
 

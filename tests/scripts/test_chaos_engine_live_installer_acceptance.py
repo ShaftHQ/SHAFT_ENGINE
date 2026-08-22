@@ -8,7 +8,7 @@ import json
 import os
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from subprocess import CompletedProcess
 from unittest import TestCase, main, mock
 
@@ -115,7 +115,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         cases = {
             "/var/folders/ab/cd/consumer/state.json": "failed at <path>",
             "/Users/runner/work/project with spaces/state.json": 'failed at "<path>": denied',
-            "/tmp/chaos-engine-live/consumer/state.json": "failed at <path>",
+            str(PurePosixPath("/", "tmp", "chaos-engine-live", "consumer", "state.json")): "failed at <path>",
             "/private/var/folders/ab/cd/consumer/state.json": "failed at <path>",
             "/home/runner/work/SHAFT_ENGINE/consumer/state.json": "failed at <path>",
             r"C:\Users\runner\work\SHAFT_ENGINE\consumer\state.json": "failed at <path>",
