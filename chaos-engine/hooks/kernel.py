@@ -446,7 +446,14 @@ class Effect:
     @property
     def key(self) -> str:
         rendered = json.dumps(
-            [self.session_id, self.event, self.tool_call_id, self.rule, self.effect],
+            [
+                self.session_id,
+                self.event,
+                self.tool_call_id,
+                self.rule,
+                self.effect,
+                self.phase,
+            ],
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -463,13 +470,18 @@ class Effect:
             "rule": self.rule,
             "effect": self.effect,
             "payloadDigest": hashlib.sha256(
-                json.dumps(self.payload, sort_keys=True, default=str).encode("utf-8")
+                json.dumps(
+                    {"payload": self.payload, "phase": self.phase},
+                    sort_keys=True,
+                    default=str,
+                    separators=(",", ":"),
+                ).encode("utf-8")
             ).hexdigest(),
+            "phase": self.phase,
         }
         if self.phase:
             if self.phase not in LIFECYCLE_TRANSITIONS:
                 raise ValueError("effect lifecycle phase is invalid")
-            record["phase"] = self.phase
         return record
 
 
@@ -780,7 +792,8 @@ class JournalCorruptionError(ValueError):
     pass
 
 
-_EFFECT_FIELDS = ("sessionId", "event", "toolCallId", "rule", "effect")
+_EFFECT_FIELDS_V1 = ("sessionId", "event", "toolCallId", "rule", "effect")
+_EFFECT_FIELDS = (*_EFFECT_FIELDS_V1, "phase")
 _CONTROL_CHARACTER = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -866,7 +879,7 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
-            required_strings = (
+            required_strings = [
                 "identity",
                 "idempotencyKey",
                 "sessionId",
@@ -875,12 +888,15 @@ class EffectJournal:
                 "rule",
                 "effect",
                 "payloadDigest",
-            )
+            ]
+            if item["schemaVersion"] == 2:
+                required_strings.append("phase")
             if any(type(item.get(field)) is not str for field in required_strings):
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
-            effect_values = tuple(str(item[field]) for field in _EFFECT_FIELDS)
+            fields = _EFFECT_FIELDS_V1 if item["schemaVersion"] == 1 else _EFFECT_FIELDS
+            effect_values = tuple(str(item[field]) for field in fields)
             if item["schemaVersion"] == 1:
                 if any(_CONTROL_CHARACTER.search(value) for value in effect_values):
                     raise JournalCorruptionError(
@@ -904,10 +920,8 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
-            phase = item.get("phase")
-            if phase is not None and (
-                type(phase) is not str or phase not in LIFECYCLE_TRANSITIONS
-            ):
+            phase = item.get("phase", "")
+            if phase and phase not in LIFECYCLE_TRANSITIONS:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
@@ -922,16 +936,18 @@ class EffectJournal:
             return self._records_unlocked(session_id)
 
     def _append_unlocked(self, effect: Effect) -> bool:
-        effect_values = (
-            effect.session_id,
-            effect.event,
-            effect.tool_call_id,
-            effect.rule,
-            effect.effect,
-        )
+        effect_values = tuple(str(effect.to_record()[field]) for field in _EFFECT_FIELDS)
         if any(
             item.get("idempotencyKey") == effect.key
-            or tuple(str(item[field]) for field in _EFFECT_FIELDS) == effect_values
+            or (
+                item.get("schemaVersion") == 2
+                and tuple(str(item[field]) for field in _EFFECT_FIELDS) == effect_values
+            )
+            or (
+                item.get("schemaVersion") == 1
+                and tuple(str(item[field]) for field in _EFFECT_FIELDS_V1)
+                == effect_values[:-1]
+            )
             for item in self._records_unlocked(effect.session_id)
         ):
             return False

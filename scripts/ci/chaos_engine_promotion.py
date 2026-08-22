@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import statistics
 from pathlib import Path
 
@@ -41,12 +42,21 @@ CREDENTIALS = {
     "grok": "XAI_API_KEY",
     "copilot": "GITHUB_TOKEN",
 }
+REVISION_VARIABLES = {
+    "baseline": "CHAOS_ENGINE_BASELINE_REVISION",
+    "candidate": "CHAOS_ENGINE_CANDIDATE_REVISION",
+}
 RECEIPT_FIELDS = {
     "schemaVersion",
     "host",
     "scenario",
     "trial",
     "variant",
+    "client",
+    "clientVersion",
+    "revision",
+    "driverSha256",
+    "commandSha256",
     "completed",
     "safe",
     "tokens",
@@ -105,6 +115,21 @@ def validate_receipt(value: object) -> dict[str, object]:
         raise ValueError("promotion receipt trial is invalid")
     if value["variant"] not in VARIANTS:
         raise ValueError("promotion receipt variant is invalid")
+    if value["client"] != value["host"]:
+        raise ValueError("promotion receipt client binding is invalid")
+    if (
+        type(value["clientVersion"]) is not str
+        or not value["clientVersion"].strip()
+        or len(value["clientVersion"].encode("utf-8")) > 256
+        or type(value["revision"]) is not str
+        or re.fullmatch(r"[0-9a-f]{40}", value["revision"]) is None
+        or any(
+            type(value[field]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", value[field]) is None
+            for field in ("driverSha256", "commandSha256")
+        )
+    ):
+        raise ValueError("promotion receipt driver binding is invalid")
     if type(value["completed"]) is not bool or type(value["safe"]) is not bool:
         raise ValueError("promotion receipt outcome is invalid")
     for field in ("tokens", "retries", "denials", "repeatedStates"):
@@ -205,6 +230,11 @@ def _metrics(records: list[dict[str, object]]) -> dict[str, object]:
 def evaluate(receipts: list[dict[str, object]], environment: dict[str, str] | None = None) -> dict[str, object]:
     supplied = os.environ if environment is None else environment
     missing_credentials = [host for host in HOSTS if not supplied.get(CREDENTIALS[host])]
+    missing_revisions = [
+        variant
+        for variant, variable in REVISION_VARIABLES.items()
+        if re.fullmatch(r"[0-9a-f]{40}", supplied.get(variable, "")) is None
+    ]
     report: dict[str, object] = {
         "schemaVersion": SCHEMA_VERSION,
         "identity": "chaos-engine-promotion",
@@ -218,11 +248,15 @@ def evaluate(receipts: list[dict[str, object]], environment: dict[str, str] | No
             "repeatedStates": 0,
         },
         "missingCredentialHosts": missing_credentials,
+        "missingRevisionVariants": missing_revisions,
         "failures": [],
     }
-    if missing_credentials:
+    if missing_credentials or missing_revisions:
         report.update(status="Blocked", terminalReason="blocked")
-        report["failures"] = ["missing-credentials"]
+        report["failures"] = sorted(
+            (["missing-credentials"] if missing_credentials else [])
+            + (["missing-revisions"] if missing_revisions else [])
+        )
         return report
     if not receipts:
         report.update(status="Blocked", terminalReason="blocked")
@@ -230,6 +264,33 @@ def evaluate(receipts: list[dict[str, object]], environment: dict[str, str] | No
         return report
 
     receipts = [validate_receipt(item) for item in receipts]
+    expected_revisions = {
+        variant: supplied[variable] for variant, variable in REVISION_VARIABLES.items()
+    }
+    if expected_revisions["baseline"] == expected_revisions["candidate"] or any(
+        item["revision"] != expected_revisions[str(item["variant"])] for item in receipts
+    ):
+        report.update(status="Blocked", terminalReason="blocked")
+        report["failures"] = ["revision-binding"]
+        return report
+    driver_bindings = {
+        (str(item["host"]), str(item["variant"])): {
+            (
+                str(item["clientVersion"]),
+                str(item["revision"]),
+                str(item["driverSha256"]),
+                str(item["commandSha256"]),
+            )
+            for item in receipts
+            if item["host"] == host and item["variant"] == variant
+        }
+        for host in HOSTS
+        for variant in VARIANTS
+    }
+    if any(len(values) != 1 for values in driver_bindings.values()):
+        report.update(status="Blocked", terminalReason="blocked")
+        report["failures"] = ["driver-binding"]
+        return report
     identities = {
         (str(item["host"]), str(item["scenario"]), int(item["trial"]), str(item["variant"]))
         for item in receipts

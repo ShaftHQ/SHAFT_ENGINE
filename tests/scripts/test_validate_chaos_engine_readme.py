@@ -84,7 +84,7 @@ class ChaosEngineReadmeInventoryTest(unittest.TestCase):
             readme = root / "chaos-engine/README.md"
             content = readme.read_text(encoding="utf-8").replace(
                 "Intent[Write rollback intent] --> Previous[Authenticate prior core and hosts]",
-                "Intent[Write rollback intent --> Previous[Authenticate prior core and hosts]",
+                "Intent[[Write rollback intent] --> Previous[Authenticate prior core and hosts]",
                 1,
             )
             readme.write_text(content, encoding="utf-8")

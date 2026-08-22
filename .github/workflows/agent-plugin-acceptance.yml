@@ -307,6 +307,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
+          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
           CHAOS_ENGINE_BASELINE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CODEX_COMMAND }}
           CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND }}
           CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND }}
@@ -331,6 +333,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
+          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
         run: >-
           python scripts/ci/chaos_engine_promotion.py
           --receipts chaos-engine-promotion-receipts

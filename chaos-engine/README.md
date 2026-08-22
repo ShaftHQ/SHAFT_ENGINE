@@ -201,6 +201,8 @@ bootstrap, install, status, doctor, rollback, or uninstall.
 
 ```mermaid
 flowchart TD
+    accTitle: Runtime dependency graph
+    accDescr: Platform prerequisites feed the transactional installer and its pinned project-local runtime tools.
     Shell["PowerShell 7+ or POSIX shell + curl"] --> Py["Python 3.10+"]
     Py --> Installer["ChaosEngine bootstrap + transactional installer<br/>Python standard library only"]
     Node["Node.js + npm"] --> Installer
@@ -219,6 +221,8 @@ generation for offline rollback; uninstall removes only receipt-owned paths.
 
 ```mermaid
 flowchart LR
+    accTitle: Canonical host adapter topology
+    accDescr: One canonical skill and kernel project thin guidance and lifecycle adapters into five supported hosts.
     K["Canonical chaos-engine skill"] --> C["Caveman skill<br/>pinned 0.1.0"]
     K --> P["Ponytail skill<br/>pinned 0.1.0"]
     K --> Profile["portable or selected project profile"]
@@ -379,6 +383,17 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | Memory, MemPalace, and Graphify state | Persist canonical data or derived indexes. | .gitignore; hosts.py | generated and never tracked | project local | owned tools | project or derived single writer | doctor reports recovery-required |
 | reports, caches, and evaluation receipts | Carry bounded diagnostics without transcripts or secrets. | .gitignore; chaos_engine_promotion.py | generated and never tracked | local and CI | requesting command | ephemeral evidence owner | missing evidence blocks promotion |
 <!-- inventory:generated-assets:end -->
+
+### Promotion driver contract
+
+The scheduled/manual evaluator accepts one protected JSON driver specification per
+host and variant. Each specification declares schema version 1, the exact client,
+list-form `argv` and `versionArgv`, an exact client-version string, and the SHA-256
+of the resolved native driver. The runner verifies that identity once, binds every
+receipt to the driver and the baseline or exact candidate revision, streams output
+through a 64 KiB combined bound, and gives the child only its own host credential.
+A missing credential, revision, driver, version, or binding produces a terminal
+Blocked report; raw output and transcripts are never published.
 
 ## Installation, lifecycle, and ownership flows
 

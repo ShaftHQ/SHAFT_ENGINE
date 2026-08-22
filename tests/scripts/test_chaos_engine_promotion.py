@@ -37,6 +37,11 @@ def receipt(host: str, scenario: str, trial: int, variant: str) -> dict[str, obj
         "scenario": scenario,
         "trial": trial,
         "variant": variant,
+        "client": host,
+        "clientVersion": "pinned-client-1",
+        "revision": ("b" if candidate else "a") * 40,
+        "driverSha256": ("d" if candidate else "c") * 64,
+        "commandSha256": ("f" if candidate else "e") * 64,
         "completed": True,
         "safe": True,
         "tokens": 40 if candidate else 100,
@@ -59,7 +64,11 @@ def complete_matrix() -> list[dict[str, object]]:
 
 
 def credentials() -> dict[str, str]:
-    return {name: "present-but-never-rendered" for name in MODULE.CREDENTIALS.values()}
+    return {
+        **{name: "present-but-never-rendered" for name in MODULE.CREDENTIALS.values()},
+        MODULE.REVISION_VARIABLES["baseline"]: "a" * 40,
+        MODULE.REVISION_VARIABLES["candidate"]: "b" * 40,
+    }
 
 
 class ChaosEnginePromotionTest(unittest.TestCase):
@@ -138,7 +147,19 @@ class ChaosEnginePromotionTest(unittest.TestCase):
                 self.assertEqual(1, MODULE.main())
             self.assertEqual("Blocked", json.loads(output.read_text())["status"])
 
-    def test_trial_runner_uses_list_commands_and_emits_no_transcript(self):
+    def test_unbound_python_stub_cannot_pose_as_a_native_driver(self):
+        environment = {
+            **credentials(),
+            TRIAL_MODULE.command_variable("codex", "candidate"): json.dumps(
+                [sys.executable, "-c", "print('{}')"]
+            ),
+        }
+        with self.assertRaisesRegex(
+            TRIAL_MODULE.TrialCollectionError, "command-invalid"
+        ):
+            TRIAL_MODULE._driver_spec("codex", "candidate", environment)
+
+    def test_trial_runner_binds_driver_and_revision_and_isolates_credentials(self):
         summary = {
             "completed": True,
             "safe": True,
@@ -148,28 +169,67 @@ class ChaosEnginePromotionTest(unittest.TestCase):
             "repeatedStates": 0,
             "terminalReason": "Complete",
         }
-        command = [
-            sys.executable,
-            "-c",
-            "import json; print(json.dumps(" + repr(summary) + "))",
-        ]
         environment = {
             **os.environ,
-            TRIAL_MODULE.command_variable("codex", "candidate"): json.dumps(command),
+            **credentials(),
         }
-
-        value = TRIAL_MODULE.run_trial(
-            "codex",
-            MODULE.SCENARIOS[0],
-            1,
-            "candidate",
-            environment,
-            timeout=30,
+        driver = TRIAL_MODULE.DriverSpec(
+            host="codex",
+            variant="candidate",
+            argv=("codex", "exec"),
+            version_argv=("codex", "--version"),
+            client_version="codex-cli 1",
+            revision="b" * 40,
+            driver_sha256="c" * 64,
+            command_sha256="d" * 64,
         )
+        observed: dict[str, object] = {}
+
+        def bounded(command, request, child_environment, **options):
+            payload = json.loads(request)
+            observed.update(
+                command=command,
+                request=payload,
+                environment=dict(child_environment),
+                options=options,
+            )
+            return 0, json.dumps({**summary, "binding": payload["binding"]}).encode(), b""
+
+        with mock.patch.object(TRIAL_MODULE, "_run_bounded", side_effect=bounded):
+            value = TRIAL_MODULE.run_trial(
+                "codex",
+                MODULE.SCENARIOS[0],
+                1,
+                "candidate",
+                environment,
+                timeout=30,
+                spec=driver,
+            )
 
         self.assertEqual(set(MODULE.RECEIPT_FIELDS), set(value))
         self.assertNotIn("transcript", json.dumps(value).casefold())
         self.assertGreaterEqual(value["latencyMs"], 0)
+        self.assertEqual("b" * 40, value["revision"])
+        self.assertEqual("present-but-never-rendered", observed["environment"]["OPENAI_API_KEY"])
+        self.assertNotIn("ANTHROPIC_API_KEY", observed["environment"])
+        self.assertNotIn("GITHUB_TOKEN", observed["environment"])
+
+    def test_trial_process_output_is_bounded_while_the_process_runs(self):
+        command = (
+            sys.executable,
+            "-c",
+            f"import os; os.write(1, b'x' * {TRIAL_MODULE.MAX_OUTPUT_BYTES + 1})",
+        )
+        with self.assertRaisesRegex(
+            TRIAL_MODULE.TrialCollectionError, "output-oversized"
+        ):
+            TRIAL_MODULE._run_bounded(
+                command,
+                b"",
+                TRIAL_MODULE._child_environment("codex", credentials(), include_credential=True),
+                timeout=30,
+                code="test-trial",
+            )
 
     def test_scheduled_workflow_collects_live_receipts_before_enforcing_report(self):
         workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
@@ -179,6 +239,8 @@ class ChaosEnginePromotionTest(unittest.TestCase):
         self.assertIn("chaos_engine_promotion_trials.py", workflow)
         self.assertIn("--receipts chaos-engine-promotion-receipts", workflow)
         self.assertIn("continue-on-error: true", workflow)
+        self.assertIn("CHAOS_ENGINE_BASELINE_REVISION", workflow)
+        self.assertIn("CHAOS_ENGINE_CANDIDATE_REVISION", workflow)
 
 
 if __name__ == "__main__":

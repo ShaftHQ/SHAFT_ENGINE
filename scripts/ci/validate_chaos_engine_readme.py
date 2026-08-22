@@ -28,10 +28,7 @@ REQUIRED_DIAGRAMS = {
 }
 MERMAID_FENCE = re.compile(r"```mermaid[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL)
 MERMAID_DIRECTIVE = re.compile(r"(?:flowchart\s+(?:TB|TD|BT|RL|LR)|stateDiagram-v2)")
-MERMAID_NODE = r"(?:\[\*\]|[A-Za-z][A-Za-z0-9_]*(?:\[[^\]\r\n]+\]|\{[^}\r\n]+\})?)"
-MERMAID_EDGE = re.compile(
-    rf"{MERMAID_NODE}\s*(?:-->|-\.->)(?:\|[^|\r\n]+\|\s*)?{MERMAID_NODE}"
-)
+MERMAID_IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
 
 
 def _escape(value: object) -> str:
@@ -242,6 +239,54 @@ def rendered_inventory(root: Path = ROOT) -> str:
     return "\n\n".join(parts)
 
 
+def _skip_spaces(value: str, position: int) -> int:
+    while position < len(value) and value[position] in " \t":
+        position += 1
+    return position
+
+
+def _parse_mermaid_node(value: str, position: int) -> int:
+    position = _skip_spaces(value, position)
+    if value.startswith("[*]", position):
+        return position + 3
+    identifier = MERMAID_IDENTIFIER.match(value, position)
+    if identifier is None:
+        raise ValueError("node identifier")
+    position = identifier.end()
+    if position == len(value) or value[position] not in "[{":
+        return position
+    opener = value[position]
+    doubled = opener == "[" and value.startswith("[[", position)
+    closing = "]]" if doubled else "]" if opener == "[" else "}"
+    content_start = position + (2 if doubled else 1)
+    content_end = value.find(closing, content_start)
+    if content_end < 0:
+        raise ValueError("unclosed node")
+    content = value[content_start:content_end]
+    if not content.strip() or any(character in content for character in "[]{}"):
+        raise ValueError("invalid node label")
+    if content[0] in "\"'" and (len(content) < 2 or content[-1] != content[0]):
+        raise ValueError("unclosed quoted node label")
+    return content_end + len(closing)
+
+
+def _parse_mermaid_edge(value: str) -> None:
+    position = _parse_mermaid_node(value, 0)
+    position = _skip_spaces(value, position)
+    arrow = next((token for token in ("-.->", "-->") if value.startswith(token, position)), None)
+    if arrow is None:
+        raise ValueError("edge operator")
+    position = _skip_spaces(value, position + len(arrow))
+    if position < len(value) and value[position] == "|":
+        end = value.find("|", position + 1)
+        if end < 0 or not value[position + 1 : end].strip():
+            raise ValueError("edge label")
+        position = _skip_spaces(value, end + 1)
+    position = _parse_mermaid_node(value, position)
+    if _skip_spaces(value, position) != len(value):
+        raise ValueError("trailing Mermaid syntax")
+
+
 def _parse_mermaid(readme: str) -> tuple[set[str], list[str]]:
     blocks = MERMAID_FENCE.findall(readme)
     errors: list[str] = []
@@ -269,7 +314,9 @@ def _parse_mermaid(readme: str) -> tuple[set[str], list[str]]:
                 if not line.partition(":")[2].strip():
                     errors.append(f"Mermaid syntax block {index} has a blank accDescr")
                 continue
-            if MERMAID_EDGE.fullmatch(line) is None:
+            try:
+                _parse_mermaid_edge(line)
+            except ValueError:
                 errors.append(f"Mermaid syntax block {index} has an invalid statement")
         if title_count != 1 or description_count != 1:
             errors.append(

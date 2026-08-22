@@ -297,6 +297,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/hosts.py",
         ".claude/settings.json",
         ".codex/hooks.json",
+        ".github/hooks/*.json",
         "tests/scripts/test_chaos_engine_hosts.py",
     ),
     "lifecycle": (
@@ -371,6 +372,7 @@ HARNESS_PREFIXES = (
     ".claude/",
     ".codex/",
     ".github/instructions/",
+    ".github/hooks/",
     ".github/skills/",
     ".github/workflows/",
     ".memory/",

@@ -97,6 +97,15 @@ class ClassifierTest(unittest.TestCase):
             plan.test_modules,
         )
 
+    def test_copilot_repository_hook_selects_host_contract(self) -> None:
+        plan = classify_paths([".github/hooks/chaos-engine.json"])
+
+        self.assertEqual(("hosts",), plan.surfaces)
+        self.assertEqual(
+            ("host-contract", "protected-ownership", "protected-secret-safety"),
+            tuple(check.id for check in plan.checks),
+        )
+
     def test_installer_change_keeps_5299_acceptance_and_rollback_protected(self) -> None:
         plan = classify_paths(["chaos-engine/dependencies.py"])
 

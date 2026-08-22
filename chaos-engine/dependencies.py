@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 from contextlib import ExitStack, contextmanager, nullcontext
+import ctypes.wintypes
+import errno
 import hashlib
 import json
 import os
@@ -330,24 +332,24 @@ def _hold_directory(path: Path, label: str):
     """Hold directory identity; Windows handle denies rename/delete while in use."""
     path = _trusted_root(path, label)
     if os.name == "nt":
-        import ctypes
-        import ctypes.wintypes as wintypes
-
         class FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
-            _fields_ = [("FileAttributes", wintypes.DWORD), ("ReparseTag", wintypes.DWORD)]
+            _fields_ = [
+                ("FileAttributes", ctypes.wintypes.DWORD),
+                ("ReparseTag", ctypes.wintypes.DWORD),
+            ]
 
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         create_file = kernel32.CreateFileW
         create_file.argtypes = [
-            wintypes.LPCWSTR,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            wintypes.LPVOID,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            wintypes.HANDLE,
+            ctypes.wintypes.LPCWSTR,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.LPVOID,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.HANDLE,
         ]
-        create_file.restype = wintypes.HANDLE
+        create_file.restype = ctypes.wintypes.HANDLE
         handle = create_file(
             str(path),
             0x80000000,
@@ -518,25 +520,26 @@ def _open_regular_relative(root: Path, relative: str, label: str) -> int:
 
 def _open_windows_regular(root: Path, path: Path, label: str) -> int:
     """Open final Windows file without following it; validate kernel-resolved location."""
-    import ctypes
-    import ctypes.wintypes as wintypes
     import msvcrt
 
     class FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
-        _fields_ = [("FileAttributes", wintypes.DWORD), ("ReparseTag", wintypes.DWORD)]
+        _fields_ = [
+            ("FileAttributes", ctypes.wintypes.DWORD),
+            ("ReparseTag", ctypes.wintypes.DWORD),
+        ]
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     create_file = kernel32.CreateFileW
     create_file.argtypes = [
-        wintypes.LPCWSTR,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.LPVOID,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.HANDLE,
+        ctypes.wintypes.LPCWSTR,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.LPVOID,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.HANDLE,
     ]
-    create_file.restype = wintypes.HANDLE
+    create_file.restype = ctypes.wintypes.HANDLE
     invalid = ctypes.c_void_p(-1).value
     handle = invalid
     error_number = 0
@@ -1804,6 +1807,109 @@ def verify_sealed_ownership(
             raise ValueError("dependency sealed generation content drift detected")
 
 
+def _remove_sealed_generation_contents(
+    generation: Path,
+    ownership: dict[str, object],
+    receipt_sha256: str,
+) -> bool:
+    """Remove only receipt-owned entries; retain a nonempty generation as quarantine."""
+    files = ownership["files"]
+    identities = ownership["identities"]
+    directories = ownership["directories"]
+    links = ownership["links"]
+    if not isinstance(files, dict) or not isinstance(identities, dict):
+        raise ValueError("dependency sealed generation ownership is invalid")
+    if not isinstance(directories, list) or not valid_link_records(links):
+        raise ValueError("dependency sealed generation ownership is invalid")
+
+    captured: dict[str, dict[str, int]] = {}
+    for relative, expected_digest in files.items():
+        expected_identity = identities.get(relative)
+        if not isinstance(relative, str) or not isinstance(expected_identity, dict):
+            raise ValueError("dependency sealed generation ownership is invalid")
+        digest, identity = _capture_regular_relative(
+            generation,
+            relative,
+            f"sealed generation removal file {relative}",
+            expected_identity.get("size"),
+        )
+        immutable = {"size", "mode", "device", "inode"}
+        if digest != expected_digest or any(
+            identity.get(key) != expected_identity.get(key) for key in immutable
+        ):
+            raise ValueError("dependency sealed generation changed before removal")
+        captured[relative] = identity
+
+    receipt_bytes = _read_regular_relative(
+        generation, RECEIPT_NAME, "generation removal receipt", MAX_RECEIPT_BYTES
+    )
+    if hashlib.sha256(receipt_bytes).hexdigest() != receipt_sha256:
+        raise ValueError("dependency generation receipt changed before removal")
+    receipt_identity = _file_identity(generation / RECEIPT_NAME)
+
+    for link in links:
+        relative = str(link["path"])
+        path = generation / relative
+        if path.is_symlink():
+            if os.readlink(path) != link["target"]:
+                raise ValueError("dependency sealed generation link changed before removal")
+            _managed_link_target(generation, path)
+        elif is_link_or_reparse(path):
+            if _windows_uv_junction_record(generation, path) != link:
+                raise ValueError("dependency sealed generation link changed before removal")
+        else:
+            raise ValueError("dependency sealed generation link is missing before removal")
+
+    for relative, identity in captured.items():
+        path = generation / relative
+        current = _file_identity(path)
+        if any(current.get(key) != identity.get(key) for key in ("size", "mode", "device", "inode")):
+            raise ValueError("dependency sealed generation changed during removal")
+        path.unlink()
+
+    for link in sorted(links, key=lambda item: str(item["path"]), reverse=True):
+        path = generation / str(link["path"])
+        if path.is_symlink():
+            path.unlink()
+        else:
+            path.rmdir()
+
+    if _file_identity(generation / RECEIPT_NAME) != receipt_identity:
+        raise ValueError("dependency generation receipt changed during removal")
+    (generation / RECEIPT_NAME).unlink()
+
+    generated_directories: set[str] = set()
+    for path in reversed(runtime_entries(generation)):
+        relative = path.relative_to(generation).as_posix()
+        if is_link_or_reparse(path):
+            continue
+        if path.is_file() and is_generated_python_cache(relative):
+            path.unlink()
+        elif path.is_dir() and is_generated_python_cache(relative, directory=True):
+            generated_directories.add(relative)
+
+    removable_directories = {
+        str(relative) for relative in directories if isinstance(relative, str)
+    } | generated_directories
+    for relative in sorted(
+        removable_directories, key=lambda value: (value.count("/"), value), reverse=True
+    ):
+        path = generation / relative
+        if path.is_dir() and not is_link_or_reparse(path):
+            try:
+                path.rmdir()
+            except OSError as error:
+                if error.errno not in {errno.ENOTEMPTY, errno.EEXIST}:
+                    raise
+    try:
+        generation.rmdir()
+    except OSError as error:
+        if error.errno not in {errno.ENOTEMPTY, errno.EEXIST}:
+            raise
+        return False
+    return True
+
+
 def remove_generation(project: Path, record: dict[str, str]) -> None:
     """Delete one unselected verified generation without following path links."""
     project = _trusted_root(project.absolute(), "project")
@@ -1826,16 +1932,22 @@ def remove_generation(project: Path, record: dict[str, str]) -> None:
         "generation receipt",
         MAX_RECEIPT_BYTES,
     )
-    verify_sealed_ownership(generation, receipt["ownership"], full=True)
     generations = project / GENERATIONS_NAME
     with ExitStack() as holds:
         parent = holds.enter_context(_hold_directory(generations, "generation container"))
         child = holds.enter_context(_hold_directory(generation, "retired generation"))
         expected = child[1]
-        if os.name != "nt":
-            _delete_held_child(parent, record["generationId"], child, expected)
-            return
-    _delete_windows_tree(generation, expected)
+        named = os.stat(record["generationId"], dir_fd=parent[0], follow_symlinks=False) if (
+            os.name != "nt" and isinstance(parent[0], int)
+        ) else os.stat(generation, follow_symlinks=False)
+        if (named.st_dev, named.st_ino) != expected:
+            raise ValueError("dependency generation identity changed before removal")
+        verify_sealed_ownership(generation, receipt["ownership"], full=True)
+    _remove_sealed_generation_contents(
+        generation,
+        receipt["ownership"],
+        record["receiptSha256"],
+    )
 
 
 def _pointer_generation_records(pointer: dict[str, object]) -> list[dict[str, str]]:

@@ -431,6 +431,35 @@ class GenerationRuntimeTests(unittest.TestCase):
 
             self.assertTrue(generation.is_dir())
 
+    def test_generation_removal_retains_foreign_file_arriving_after_validation(self):
+        controller = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, record = self.generation_fixture(controller, project)
+            original = controller.verify_sealed_ownership
+            injected = False
+
+            def verify(runtime, ownership, *, full=False):
+                nonlocal injected
+                original(runtime, ownership, full=full)
+                if full and not injected:
+                    injected = True
+                    (runtime / "late-operator-note.txt").write_text(
+                        "preserve\n", encoding="utf-8"
+                    )
+
+            with mock.patch.object(controller, "verify_sealed_ownership", side_effect=verify):
+                controller.remove_generation(project, record)
+
+            self.assertEqual(
+                "preserve\n",
+                (generation / "late-operator-note.txt").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                ["late-operator-note.txt"],
+                [path.name for path in generation.iterdir()],
+            )
+
     def test_failure_before_pointer_restores_core_hosts_and_removes_candidate(self):
         installer = load_installer()
         controller = load_controller()

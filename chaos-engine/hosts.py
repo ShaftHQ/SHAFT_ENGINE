@@ -2309,7 +2309,7 @@ def chaos_guard_locator_command(*, windows: bool, host: str) -> str:
     return (
         f'{interpreter} -c "import os,pathlib,runpy;'
         f"os.environ['CHAOS_ENGINE_HOST']='{host}';"
-        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py');"
+        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');"
         "p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) "
         "for rel in cands if (root/rel).is_file()),None);"
         "runpy.run_path(str(p),run_name='__main__') if p else print('{}')\""

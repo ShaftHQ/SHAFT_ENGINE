@@ -852,6 +852,31 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
 
+    def test_source_repository_registers_copilot_hooks_through_kernel_launcher(self):
+        document = json.loads(
+            (ROOT / ".github/hooks/chaos-engine.json").read_text(encoding="utf-8")
+        )
+        expected = {
+            "sessionStart",
+            "userPromptSubmitted",
+            "preToolUse",
+            "postToolUse",
+            "postToolUseFailure",
+            "agentStop",
+            "subagentStop",
+            "preCompact",
+            "sessionEnd",
+        }
+
+        self.assertEqual(1, document["version"])
+        self.assertEqual(expected, set(document["hooks"]))
+        for handlers in document["hooks"].values():
+            self.assertEqual(1, len(handlers))
+            self.assertEqual(
+                "node chaos-engine/hooks/launch.js copilot", handlers[0]["bash"]
+            )
+            self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
+
     def test_grok_hooks_preserve_unrelated_events(self):
         module = load(HOSTS, "chaos_engine_grok_hook_merge")
         with tempfile.TemporaryDirectory() as temporary:

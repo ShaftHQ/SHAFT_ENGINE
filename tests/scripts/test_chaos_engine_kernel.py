@@ -723,6 +723,40 @@ class ChaosEngineKernelTest(TestCase):
             with self.assertRaises(ValueError):
                 self.kernel.Effect("", "PreToolUse", "call", "rule", "record")
 
+    def test_effect_phase_is_part_of_integrity_and_idempotency_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "journal.jsonl"
+            journal = self.kernel.EffectJournal(path)
+            planned = self.kernel.Effect(
+                "session",
+                "UserPromptSubmit",
+                "event",
+                "CE_LIFECYCLE_STATE",
+                "lifecycle-phase",
+                phase="Planned",
+            )
+            approved = self.kernel.Effect(
+                "session",
+                "UserPromptSubmit",
+                "event",
+                "CE_LIFECYCLE_STATE",
+                "lifecycle-phase",
+                phase="Approved",
+            )
+
+            self.assertTrue(journal.append(planned))
+            self.assertTrue(journal.append(approved))
+            self.assertNotEqual(planned.key, approved.key)
+
+            records = journal.records("session")
+            records[-1]["phase"] = "Blocked"
+            path.write_text(
+                "\n".join(json.dumps(item, sort_keys=True) for item in records) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(self.kernel.JournalCorruptionError, "invalid"):
+                journal.records("session")
+
     def test_effect_journal_fails_closed_on_corruption_and_lock_timeout(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state-v2.jsonl"

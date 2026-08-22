@@ -11,6 +11,7 @@ function guardPath() {
     for (const relative of [
       ".chaos-engine/hooks/guard.py",
       "plugins/chaos-engine/hooks/guard.py",
+      "chaos-engine/hooks/guard.py",
     ]) {
       const candidate = path.join(root, relative);
       if (fs.existsSync(candidate)) return candidate;
