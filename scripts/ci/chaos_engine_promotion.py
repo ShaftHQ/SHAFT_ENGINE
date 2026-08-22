@@ -274,7 +274,7 @@ def evaluate(receipts: list[dict[str, object]], environment: dict[str, str] | No
         report["failures"] = ["revision-binding"]
         return report
     driver_bindings = {
-        (str(item["host"]), str(item["variant"])): {
+        (host, variant): {
             (
                 str(item["clientVersion"]),
                 str(item["revision"]),

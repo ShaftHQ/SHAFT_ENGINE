@@ -1010,7 +1010,9 @@ def mempalace_runtime_status(project: Path):
             budget["harness_reachability"]["element_globs"],
         )
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        self.assertIn("tests.scripts.test_chaos_engine_dependencies", workflow)
+        self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
+        gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
+        self.assertIn("tests.scripts.test_chaos_engine_dependencies", gate)
 
 
 if __name__ == "__main__":

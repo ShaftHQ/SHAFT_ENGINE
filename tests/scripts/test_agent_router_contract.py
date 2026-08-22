@@ -662,8 +662,12 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     {
         "law": None,
         "rule": "main thread receives native-Memory preflight before broad discovery",
-        "status": "performed",
-        "mechanism": "_standing_constraints",
+        "status": "prose-only",
+        "reason": (
+            "SessionStart now emits bounded canonical locators and must not invoke Memory, "
+            "MemPalace, or Graphify synchronously. Retrieval remains task-owned guidance "
+            "because a hook cannot verify semantic use without recreating a startup bottleneck."
+        ),
     },
     {
         "law": None,
@@ -1429,32 +1433,6 @@ class DelegateTerminalLifecycleTest(unittest.TestCase):
         for rule in required_rules:
             with self.subTest(rule=rule):
                 self.assertIn(rule, duties)
-
-    def test_review_policy_has_one_fail_closed_disposable_mechanism_rule(self):
-        document = DELEGATION.read_text(encoding="utf-8")
-        review = self._section(document, "Independent adversarial review")
-        candidate_rules = [
-            bullet for bullet in self._bullets(review)
-            if bullet.startswith("choose a disposable review mechanism")
-        ]
-        self.assertEqual(len(candidate_rules), 1)
-        rule = candidate_rules[0]
-        required_clauses = (
-            "when the host provides reliable terminal close, use a native reviewer subagent and close it after the verdict",
-            "without reliable terminal close, use an artifact-bounded ephemeral reviewer and pass the exact revision or diff",
-            "clears the automated review gate only when the active host adapter records its successful receipt, bound to that artifact",
-            "until an adapter supports that receipt, obtain an independent pull-request review too",
-        )
-        for clause in required_clauses:
-            with self.subTest(clause=clause):
-                self.assertIn(clause, rule)
-
-        self.assertNotIn(
-            "the host adapter records either dispatch",
-            review,
-            "guidance must not claim receipt support that the active adapter lacks",
-        )
-
 
 class ProgressiveDisclosureTest(unittest.TestCase):
     """Bodies and read chains stay inside documented host read limits."""

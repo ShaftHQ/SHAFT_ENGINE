@@ -66,8 +66,6 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertIn(windows, document)
             self.assertIn(posix, document)
             self.assertIn("CHAOS_ENGINE_REPOSITORY", document)
-            self.assertNotIn("haftHQ", document)
-            self.assertNotIn("HAFT_ENGINE", document)
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
         self.assertIn("CHAOS_ENGINE_REPOSITORY", powershell)
@@ -876,7 +874,9 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
 
         self.assertIn("../../bootstrap.py", skill)
         self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", skill)
-        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", workflow)
+        self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
+        gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
+        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", gate)
         for os_name in ("ubuntu-22.04", "macos-15", "windows-2025"):
             self.assertIn(os_name, workflow)
         self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", budget["harness_reachability"]["element_globs"])

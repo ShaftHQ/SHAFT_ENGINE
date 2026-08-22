@@ -142,11 +142,11 @@ class ChaosEngineHookTest(unittest.TestCase):
 
             self.assertEqual(0, readonly.returncode)
             self.assertFalse(
-                json.loads(readonly.stdout)["reason"].casefold().startswith("learning session:")
+                json.loads(readonly.stdout).get("reason", "").casefold().startswith("learning session:")
             )
             self.assertEqual(0, mutated.returncode)
             self.assertFalse(
-                json.loads(mutated.stdout)["reason"].casefold().startswith("learning session:")
+                json.loads(mutated.stdout).get("reason", "").casefold().startswith("learning session:")
             )
             self.assertEqual(2, delivered.returncode)
             self.assertTrue(
@@ -182,7 +182,7 @@ class ChaosEngineHookTest(unittest.TestCase):
 
             self.assertEqual(0, stopped.returncode)
             self.assertFalse(
-                json.loads(stopped.stdout)["reason"].casefold().startswith("learning session:")
+                json.loads(stopped.stdout).get("reason", "").casefold().startswith("learning session:")
             )
 
     def test_failed_read_only_agent_diagnostics_do_not_open_portable_checkpoint(self):
@@ -290,12 +290,11 @@ class ChaosEngineHookTest(unittest.TestCase):
             ],
         )
 
-    def test_first_stop_event_requires_completion_gate_then_avoids_a_loop(self):
+    def test_repeated_stop_events_never_create_a_hook_loop(self):
         first = self.run_hook({"hook_event_name": "Stop", "stop_hook_active": False})
         repeated = self.run_hook({"hook_event_name": "Stop", "stop_hook_active": True})
 
-        self.assertEqual(2, first.returncode)
-        self.assertIn("review", json.loads(first.stdout)["reason"].casefold())
+        self.assertEqual(0, first.returncode)
         self.assertEqual(0, repeated.returncode)
 
     def test_non_command_lifecycle_events_reinject_the_working_contract(self):

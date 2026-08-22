@@ -405,9 +405,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             def load_for_doctor(root, name):
                 if name == "hosts":
                     return controller
-                dependency_controller = original_load(root, name)
-                dependency_controller.doctor = dependency_controller.status
-                return dependency_controller
+                loaded = original_load(root, name)
+                if name == "dependencies":
+                    loaded.doctor = loaded.status
+                return loaded
 
             with mock.patch.object(
                 MODULE,
@@ -518,6 +519,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 provisioner=lambda *_args, **_kwargs: None,
             )
             controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
                 "retrieval_configs_healthy",
@@ -525,7 +527,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 result = MODULE.status_with_dependencies(project)
 
@@ -543,6 +547,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 provisioner=lambda *_args, **_kwargs: None,
             )
             controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
                 "retrieval_runtime_healthy",
@@ -550,7 +555,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 result = MODULE.doctor_with_dependencies(project, verify_clients=False)
 
@@ -571,6 +578,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 provisioner=lambda *_args, **_kwargs: None,
             )
             controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
                 "retrieval_runtime_healthy",
@@ -582,7 +590,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 result = MODULE.doctor_with_dependencies(project, verify_clients=False)
 
@@ -628,7 +638,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 passive = MODULE.status_with_dependencies(project)
 
@@ -761,7 +773,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     "distributions"
                 ]["portable"]["runtimeFiles"]
             )
-            self.assertEqual({"hooks/kernel.py", "hooks/lifecycle.py"}, runtime_files)
+            self.assertEqual(
+                {"hooks/kernel.py", "hooks/launch.js", "hooks/lifecycle.py"},
+                runtime_files,
+            )
             owned_text = "\n".join(
                 path.read_text(encoding="utf-8", errors="ignore")
                 for path in install_root.rglob("*")
@@ -835,7 +850,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ):
                 vendor = install_root / relative
                 self.assertTrue(vendor.is_file(), relative)
-                self.assertIn(vendor.read_text(encoding="utf-8"), installed_context)
+                self.assertIn(relative, installed_context)
+                self.assertNotIn(vendor.read_text(encoding="utf-8"), installed_context)
             self.assertIn("caveman=ultra; ponytail=ultra", installed_context)
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
@@ -2485,7 +2501,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             budget["harness_reachability"]["element_globs"],
         )
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        self.assertIn("tests.scripts.test_chaos_engine_installer", workflow)
+        self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
+        gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
+        self.assertIn("tests.scripts.test_chaos_engine_installer", gate)
 
 
 if __name__ == "__main__":

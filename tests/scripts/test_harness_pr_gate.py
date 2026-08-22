@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import yaml
 
+from scripts.ci import harness_pr_gate as harness_gate
 from scripts.ci.harness_pr_gate import (
     GateError,
     GatePlan,
@@ -496,7 +497,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertEqual(
             ["scheduled-exhaustive", "release-promotion"], payload["deferred_classes"]
         )
-        self.assertEqual("change-scoped", payload["checks"][0]["class"])
+        self.assertEqual("blocking-protected-invariant", payload["checks"][0]["class"])
         self.assertIn("-m unittest", payload["checks"][0]["reproduction_command"])
         self.assertNotIn("pr_body", payload)
         self.assertNotIn("replacement_proof", payload)
@@ -505,7 +506,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
             payload["safe_history_update_command"],
         )
 
-    def test_runner_applies_only_exact_non_protected_failed_check_waiver(self) -> None:
+    def test_runner_never_applies_a_waiver_to_a_protected_failed_check(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
         receipt = WaiverReceipt(
             HEAD,
@@ -526,9 +527,9 @@ class OutputAndWorkflowTest(unittest.TestCase):
                 waiver=receipt,
             )
 
-        self.assertEqual(0, exit_code)
-        self.assertEqual("waived", payload["checks"][0]["status"])
-        self.assertEqual(["kernel-contract"], payload["waiver"]["applied_check_ids"])
+        self.assertEqual(1, exit_code)
+        self.assertEqual("failed", payload["checks"][0]["status"])
+        self.assertEqual([], payload["waiver"]["applied_check_ids"])
 
     def test_timeout_is_never_waived(self) -> None:
         plan = GatePlan(("kernel",), (classify_paths(["chaos-engine/hooks/kernel.py"]).checks[0],))

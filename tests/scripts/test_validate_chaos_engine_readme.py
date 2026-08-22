@@ -18,7 +18,7 @@ class ChaosEngineReadmeInventoryTest(unittest.TestCase):
         self.assertEqual([], validate(ROOT))
         sections = inventory_sections(ROOT)
 
-        self.assertIn("uv 0.11.29", sections["managed-dependencies"])
+        self.assertIn("uv==0.11.29", sections["managed-dependencies"])
         self.assertIn("tree-sitter-sql==0.3.11", sections["managed-dependencies"])
         for skill in ("chaos-engine", "caveman", "ponytail", "local-coding-delegate", "work-item"):
             self.assertIn(skill, sections["skills"])
