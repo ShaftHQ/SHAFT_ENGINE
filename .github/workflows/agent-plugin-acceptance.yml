@@ -43,11 +43,13 @@ jobs:
           tests.scripts.test_build_retry
           tests.scripts.test_chaos_engine_bootstrap
           tests.scripts.test_chaos_engine_dependencies
+          tests.scripts.test_chaos_engine_generation_runtime
           tests.scripts.test_chaos_engine_hook
           tests.scripts.test_chaos_engine_hosts
           tests.scripts.test_chaos_engine_installer
           tests.scripts.test_chaos_engine_kernel
           tests.scripts.test_chaos_engine_learning
+          tests.scripts.test_chaos_engine_live_installer_acceptance
           tests.scripts.test_chaos_engine_portable_core
           tests.scripts.test_chaos_engine_research
           tests.scripts.test_delivery_status
@@ -114,6 +116,41 @@ jobs:
           tests.scripts.test_chaos_engine_installer
           tests.scripts.test_chaos_engine_install_wrappers
           -v
+
+  chaos-engine-live-installer:
+    name: Live immutable installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Run real fresh, offline, upgrade, repair, and rollback sequence
+        run: >-
+          python scripts/ci/chaos_engine_live_installer_acceptance.py
+          --output chaos-engine-live-installer-evidence.json
+      - name: Upload live installer evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: chaos-engine-live-installer-${{ matrix.os }}
+          path: chaos-engine-live-installer-evidence.json
+          if-no-files-found: error
+          retention-days: 30
 
   harness-platform-contracts:
     name: Harness platform contracts (${{ matrix.os }})

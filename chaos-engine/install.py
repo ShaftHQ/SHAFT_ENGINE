@@ -1427,14 +1427,17 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     )
                 except (OSError, ValueError):
                     retired_generation = None
-                controller.publish_pointer(
+                published_pointer = controller.publish_pointer(
                     project,
                     candidate,
                     expected_specification_sha256=specification_sha256,
                     expected_core_sha256=core_sha256,
                 )
                 candidate_published = True
-                if retired_generation is not None:
+                if retired_generation is not None and retired_generation not in (
+                    published_pointer["active"],
+                    published_pointer.get("previous"),
+                ):
                     controller.remove_generation(project, retired_generation)
         except BaseException as error:
             compensation_errors: list[BaseException] = []

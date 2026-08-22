@@ -641,6 +641,66 @@ class GenerationRuntimeTests(unittest.TestCase):
                 },
             )
 
+    def test_repair_after_upgrade_retains_last_valid_previous_generation(self):
+        installer = load_installer()
+        controller = load_controller()
+        identifiers = iter(("a" * 32, "b" * 32, "c" * 32))
+        records: list[dict[str, str]] = []
+
+        def prepare(project, specification, core_sha256):
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=next(identifiers),
+                specification_sha256=controller.specification_digest(specification),
+            )
+            records.append(record)
+            return record
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=controller.publish_pointer,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+            validated_previous=controller.validated_previous,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                installer.install_with_dependencies(project, source, "1" * 40)
+                installer.install_with_dependencies(project, source, "2" * 40)
+                damaged = project / controller.GENERATIONS_NAME / ("b" * 32)
+                receipt = json.loads(
+                    (damaged / controller.RECEIPT_NAME).read_text(encoding="utf-8")
+                )
+                for tool in ("graphify", "mempalace"):
+                    (damaged / receipt["tools"][tool]["dispatch"]["interpreter"]).unlink()
+
+                installer.install_with_dependencies(project, source, "2" * 40)
+
+            pointer = controller.pointer_records(project)
+            self.assertEqual("c" * 32, pointer["active"]["generationId"])
+            self.assertEqual("a" * 32, pointer["previous"]["generationId"])
+            self.assertNotIn(records[1], (pointer["active"], pointer["previous"]))
+            self.assertTrue(damaged.is_dir(), "unsafe damaged generation was deleted")
+            controller.validated_previous(
+                project,
+                records[0]["specificationSha256"],
+                records[0]["coreSha256"],
+                runner=lambda *_args: SimpleNamespace(stdout="ok\n", stderr=""),
+            )
+
     def test_missing_managed_tool_builds_complete_candidate_without_invalid_previous(self):
         installer = load_installer()
         controller = load_controller()
