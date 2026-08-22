@@ -28,11 +28,64 @@ jobs:
         run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Run exhaustive deterministic harness suites
         shell: bash
+        run: >-
+          python -m unittest
+          tests.scripts.test_act_as_mohab_runtime
+          tests.scripts.test_agent_harness_adherence
+          tests.scripts.test_agent_harness_portability
+          tests.scripts.test_agent_harness_reachability
+          tests.scripts.test_agent_plugin_client_smoke
+          tests.scripts.test_agent_plugin_release
+          tests.scripts.test_agent_router_contract
+          tests.scripts.test_agnix_conformance
+          tests.scripts.test_assemble_act_as_mohab_plugin
+          tests.scripts.test_assemble_shaft_skills_plugin
+          tests.scripts.test_build_retry
+          tests.scripts.test_chaos_engine_bootstrap
+          tests.scripts.test_chaos_engine_dependencies
+          tests.scripts.test_chaos_engine_hook
+          tests.scripts.test_chaos_engine_hosts
+          tests.scripts.test_chaos_engine_installer
+          tests.scripts.test_chaos_engine_kernel
+          tests.scripts.test_chaos_engine_learning
+          tests.scripts.test_chaos_engine_portable_core
+          tests.scripts.test_chaos_engine_research
+          tests.scripts.test_delivery_status
+          tests.scripts.test_extract_allure_failures
+          tests.scripts.test_github_client
+          tests.scripts.test_graphify_maintenance
+          tests.scripts.test_guard_external_corpus
+          tests.scripts.test_guard_lifecycle
+          tests.scripts.test_guard_memory_worktree
+          tests.scripts.test_guard_nul_corruption
+          tests.scripts.test_harness_pr_gate
+          tests.scripts.test_intellij_recording_powershell
+          tests.scripts.test_issue_filing
+          tests.scripts.test_knowledge_stores
+          tests.scripts.test_planning_contract
+          tests.scripts.test_pr_audit
+          tests.scripts.test_repository_context
+          tests.scripts.test_resolve_graph_out
+          tests.scripts.test_resolve_mempalace
+          tests.scripts.test_shaft_knowledge_refresh
+          tests.scripts.test_shaft_skill_candidate_intake
+          tests.scripts.test_shaft_skill_cli_examples
+          tests.scripts.test_shaft_skill_quality
+          tests.scripts.test_shaft_skill_routing_eval
+          tests.scripts.test_shaft_skills_content
+          tests.scripts.test_sync_user_harness
+          tests.scripts.test_validate_agent_guidance
+          tests.scripts.test_validate_agent_ownership
+          tests.scripts.test_validate_agent_plugins
+          tests.scripts.test_validate_agent_setup
+          tests.scripts.test_validate_red_before_green
+          tests.scripts.test_validate_skills
+          tests.scripts.test_validate_workflow_timeouts
+          tests.scripts.test_watch_pr_checks
+          tests.scripts.test_worktree_hygiene
+          -v
+      - name: Validate full harness aggregation
         run: |
-          python -m unittest discover -s tests/scripts -p 'test_agent_*.py' -v
-          python -m unittest discover -s tests/scripts -p 'test_chaos_engine_*.py' -v
-          python -m unittest discover -s tests/scripts -p 'test_guard*.py' -v
-          python -m unittest tests.scripts.test_worktree_hygiene -v
           python scripts/ci/validate_agent_setup.py --skip-external
 
   chaos-engine-cross-platform:

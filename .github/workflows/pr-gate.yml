@@ -318,6 +318,9 @@ jobs:
     if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 6
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -329,15 +332,35 @@ jobs:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
         run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
+      - name: Fetch immutable pull-request review records
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            query='query($owner:String!,$name:String!,$number:Int!,$endCursor:String){repository(owner:$owner,name:$name){pullRequest(number:$number){reviews(first:100,after:$endCursor){nodes{databaseId author{login} body state submittedAt lastEditedAt commit{oid}}pageInfo{hasNextPage endCursor}}}}}'
+            gh api graphql --paginate \
+              -f query="$query" \
+              -F owner="${GITHUB_REPOSITORY%%/*}" \
+              -F name="${GITHUB_REPOSITORY#*/}" \
+              -F number="${{ github.event.pull_request.number }}" \
+              --jq '.data.repository.pullRequest.reviews.nodes[] | {id:.databaseId,user:{login:.author.login},body,state,submitted_at:.submittedAt,last_edited_at:.lastEditedAt,commit_id:.commit.oid}' \
+              | jq -s '.' > "$REVIEWS_PATH"
+          else
+            printf '[]\n' > "$REVIEWS_PATH"
+          fi
       - name: Run bounded changed-surface harness gate
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
         run: >-
           python scripts/ci/harness_pr_gate.py
           --base "$BASE_SHA"
           --head "$HEAD_SHA"
-          --event "$GITHUB_EVENT_PATH"
+          --reviews "$REVIEWS_PATH"
           --budget-seconds 240
           --output harness-pr-gate.json
       - name: Upload harness gate receipt

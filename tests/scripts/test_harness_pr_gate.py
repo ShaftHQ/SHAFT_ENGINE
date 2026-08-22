@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+import scripts.ci.harness_pr_gate as harness_gate
 from scripts.ci.harness_pr_gate import (
     GateError,
     GatePlan,
@@ -30,15 +31,33 @@ NOW = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
 def waiver_body(**overrides: object) -> str:
     payload: dict[str, object] = {
         "schema": 1,
-        "head_sha": HEAD,
-        "check_ids": ["kernel-contract"],
+        "allowed_check_ids": ["kernel-contract"],
         "expires_at": "2026-08-29T12:00:00Z",
-        "owner_authorization": "@MohabMohie approved",
         "rationale": "Legacy router shape is replaced by the lifecycle kernel contract.",
         "replacement_proof": "py -3 -m unittest tests.scripts.test_chaos_engine_kernel -v",
     }
     payload.update(overrides)
     return f"PR prose\n\n```chaos-engine-waiver\n{json.dumps(payload)}\n```\n"
+
+
+def review_record(**overrides: object) -> dict[str, object]:
+    review: dict[str, object] = {
+        "id": 42,
+        "user": {"login": "MohabMohie"},
+        "body": waiver_body(),
+        "state": "COMMENTED",
+        "submitted_at": "2026-08-22T11:00:00Z",
+        "last_edited_at": None,
+        "commit_id": HEAD,
+    }
+    review.update(overrides)
+    return review
+
+
+def write_reviews(directory: str, reviews: list[dict[str, object]]) -> Path:
+    path = Path(directory) / "reviews.json"
+    path.write_text(json.dumps(reviews), encoding="utf-8")
+    return path
 
 
 class ClassifierTest(unittest.TestCase):
@@ -66,6 +85,25 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_chaos_engine_bootstrap", plan.test_modules)
         self.assertIn("tests.scripts.test_chaos_engine_dependencies", plan.test_modules)
 
+    def test_every_installer_manifest_uses_protected_installer_checks(self) -> None:
+        manifests = (
+            "chaos-engine/dependencies.json",
+            "chaos-engine/distributions.json",
+            "chaos-engine/profiles/portable/profile.json",
+            "chaos-engine/profiles/shaft/profile.json",
+            "chaos-engine/vendor/caveman/PIN.json",
+            "chaos-engine/vendor/ponytail/PIN.json",
+            "chaos-engine/vendor/caveman/src/hooks/package.json",
+            "chaos-engine/vendor/ponytail/hooks/claude-codex-hooks.json",
+        )
+        for path in manifests:
+            with self.subTest(path=path):
+                plan = classify_paths([path])
+                self.assertIn("installer", plan.surfaces)
+                protected = {check.id for check in plan.checks if check.protected}
+                self.assertIn("protected-installer-acceptance", protected)
+                self.assertIn("protected-rollback", protected)
+
     def test_guard_owner_change_runs_non_waivable_security_check(self) -> None:
         plan = classify_paths(["scripts/agents/guard.py"])
 
@@ -88,6 +126,9 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(("scripts/agents/new_runtime_surface.py",), plan.unknown_paths)
         self.assertIn("fallback-contract", {check.id for check in plan.checks})
         self.assertIn("tests.scripts.test_validate_agent_setup", plan.test_modules)
+        displaced = getattr(harness_gate, "DISPLACED_PR_MODULES", ())
+        self.assertTrue(displaced)
+        self.assertLessEqual(set(displaced), set(plan.test_modules))
 
     def test_every_registered_but_unmapped_harness_path_uses_fallback(self) -> None:
         for path in (
@@ -132,6 +173,7 @@ class ClassifierTest(unittest.TestCase):
 
         self.assertIn("--diff-filter=ACDMRT", run.call_args.args[0])
         self.assertIn("--name-status", run.call_args.args[0])
+        self.assertIn("--merge-base", run.call_args.args[0])
         self.assertEqual(
             [False, False, True, True],
             [path.executable for path in paths],
@@ -140,6 +182,41 @@ class ClassifierTest(unittest.TestCase):
         self.assertFalse(any(check.surface == "changed-test" for check in deleted_plan.checks))
         renamed_plan = classify_paths([paths[2]])
         self.assertTrue(any(check.surface == "changed-test" for check in renamed_plan.checks))
+
+    def test_git_diff_excludes_changes_unique_to_diverged_base_tip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(
+                    ["git", *args],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "--initial-branch=main")
+            git("config", "user.name", "Harness Test")
+            git("config", "user.email", "harness@example.invalid")
+            (root / "shared.txt").write_text("shared\n", encoding="utf-8")
+            git("add", "shared.txt")
+            git("commit", "-m", "shared")
+            git("switch", "-c", "candidate")
+            (root / "candidate-only.txt").write_text("candidate\n", encoding="utf-8")
+            git("add", "candidate-only.txt")
+            git("commit", "-m", "candidate")
+            head = git("rev-parse", "HEAD")
+            git("switch", "main")
+            (root / "base-only.txt").write_text("base\n", encoding="utf-8")
+            git("add", "base-only.txt")
+            git("commit", "-m", "base")
+            base = git("rev-parse", "HEAD")
+
+            paths = changed_paths(root, base, head)
+
+        self.assertEqual(["candidate-only.txt"], list(paths))
 
     def test_non_harness_path_selects_no_harness_checks(self) -> None:
         plan = classify_paths(["shaft-engine/src/main/java/example/Thing.java"])
@@ -159,7 +236,10 @@ class ClassifierTest(unittest.TestCase):
 
 class WaiverTest(unittest.TestCase):
     def test_valid_receipt_is_exact_head_check_specific_and_expiring(self) -> None:
-        receipt = parse_waiver(waiver_body(), expected_head=HEAD, now=NOW)
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = event_waiver(
+                write_reviews(directory, [review_record()]), HEAD, now=NOW
+            )
 
         self.assertIsNotNone(receipt)
         assert receipt is not None
@@ -168,19 +248,17 @@ class WaiverTest(unittest.TestCase):
 
     def test_stale_malformed_blanket_and_blank_receipts_fail_closed(self) -> None:
         cases = (
-            waiver_body(head_sha="b" * 40),
-            waiver_body(check_ids=["*"]),
+            waiver_body(allowed_check_ids=["*"]),
             waiver_body(expires_at="2026-08-21T12:00:00Z"),
             waiver_body(rationale=" "),
             waiver_body(replacement_proof=""),
-            waiver_body(owner_authorization="approved"),
             "```chaos-engine-waiver\n{broken\n```",
             waiver_body() + waiver_body(),
         )
         for body in cases:
             with self.subTest(body=body[:80]):
                 with self.assertRaises(GateError):
-                    parse_waiver(body, expected_head=HEAD, now=NOW)
+                    parse_waiver(body, now=NOW)
 
     def test_protected_categories_can_never_be_waived(self) -> None:
         protected = (
@@ -196,25 +274,48 @@ class WaiverTest(unittest.TestCase):
             with self.subTest(check_id=check_id):
                 with self.assertRaises(GateError):
                     parse_waiver(
-                        waiver_body(check_ids=[check_id]),
-                        expected_head=HEAD,
+                        waiver_body(allowed_check_ids=[check_id]),
                         now=NOW,
                     )
 
-    def test_event_rejects_forgeable_marker_from_non_owner_pr_author(self) -> None:
-        event = {
+    def test_only_owner_review_on_exact_head_can_authorize(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            non_owner = review_record(user={"login": "outside-contributor"})
+            stale_owner = review_record(commit_id="b" * 40)
+            path = write_reviews(directory, [non_owner, stale_owner])
+            self.assertIsNone(event_waiver(path, HEAD, now=NOW))
+
+    def test_pr_author_or_editor_body_cannot_authorize(self) -> None:
+        forgeable_event = {
             "pull_request": {
                 "body": waiver_body(),
                 "head": {"sha": HEAD},
-                "user": {"login": "outside-contributor"},
-                "author_association": "CONTRIBUTOR",
+                "user": {"login": "MohabMohie"},
+                "author_association": "OWNER",
             }
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "event.json"
-            path.write_text(json.dumps(event), encoding="utf-8")
+            path.write_text(json.dumps(forgeable_event), encoding="utf-8")
             with self.assertRaises(GateError):
-                event_waiver(path, HEAD)
+                event_waiver(path, HEAD, now=NOW)
+
+    def test_owner_review_must_be_submitted_and_unambiguous(self) -> None:
+        invalid = (
+            review_record(state="PENDING", submitted_at=None),
+            review_record(state="DISMISSED"),
+            review_record(
+                body=waiver_body(allowed_check_ids=["host-contract"]),
+                last_edited_at="2026-08-22T11:30:00Z",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = write_reviews(directory, list(invalid))
+            self.assertIsNone(event_waiver(path, HEAD, now=NOW))
+
+            path = write_reviews(directory, [review_record(), review_record(id=43)])
+            with self.assertRaises(GateError):
+                event_waiver(path, HEAD, now=NOW)
 
 
 class OutputAndWorkflowTest(unittest.TestCase):
@@ -288,6 +389,12 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertNotIn("npm install --global", agent_job)
         self.assertNotIn("tests.scripts.test_agent_plugin_client_smoke", agent_job)
         self.assertNotIn("matrix:", agent_job)
+        self.assertIn("pull-requests: read", agent_job)
+        self.assertIn("set -euo pipefail", agent_job)
+        self.assertIn("gh api graphql", agent_job)
+        self.assertIn("lastEditedAt", agent_job)
+        self.assertIn("--reviews", agent_job)
+        self.assertNotIn("--event", agent_job)
         self.assertIn("'scripts/ci/harness_pr_gate.py'", pr_gate)
         self.assertIn("'tests/scripts/test_harness_pr_gate.py'", pr_gate)
         self.assertIn("schedule:", scheduled)
@@ -298,6 +405,19 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_build_retry", scheduled)
         self.assertIn("tests.scripts.test_chaos_engine_bootstrap", scheduled)
         self.assertIn("tests.scripts.test_chaos_engine_dependencies", scheduled)
+
+    def test_scheduled_suite_contains_every_module_displaced_from_pr_fanout(self) -> None:
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
+        deterministic = scheduled.split("  deterministic-harness-full:", 1)[1].split(
+            "  chaos-engine-cross-platform:", 1
+        )[0]
+        displaced = getattr(harness_gate, "DISPLACED_PR_MODULES", ())
+
+        self.assertTrue(displaced)
+        missing = [module for module in displaced if module not in deterministic]
+        self.assertEqual([], missing)
 
     def test_host_parity_evidence_can_live_in_scheduled_exhaustive_suite(self) -> None:
         errors = validate_host_parity(ROOT)

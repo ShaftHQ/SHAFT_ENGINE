@@ -74,9 +74,64 @@ PROTECTED_IDS = frozenset(
         "protected-confirmed-correctness",
     }
 )
-OWNER_AUTHORIZATION = "@MohabMohie approved"
+WAIVER_OWNER = "MohabMohie"
 WAIVER_FENCE = re.compile(
     r"```chaos-engine-waiver[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL
+)
+
+# Exact modules displaced from the former pull-request fan-out. Unknown executable
+# harness surfaces run this deterministic fallback; scheduled acceptance preserves it.
+DISPLACED_PR_MODULES = (
+    "tests.scripts.test_act_as_mohab_runtime",
+    "tests.scripts.test_agent_harness_adherence",
+    "tests.scripts.test_agent_harness_portability",
+    "tests.scripts.test_agent_harness_reachability",
+    "tests.scripts.test_agent_plugin_client_smoke",
+    "tests.scripts.test_agent_plugin_release",
+    "tests.scripts.test_agent_router_contract",
+    "tests.scripts.test_agnix_conformance",
+    "tests.scripts.test_assemble_act_as_mohab_plugin",
+    "tests.scripts.test_assemble_shaft_skills_plugin",
+    "tests.scripts.test_build_retry",
+    "tests.scripts.test_chaos_engine_bootstrap",
+    "tests.scripts.test_chaos_engine_dependencies",
+    "tests.scripts.test_chaos_engine_hook",
+    "tests.scripts.test_chaos_engine_hosts",
+    "tests.scripts.test_chaos_engine_installer",
+    "tests.scripts.test_chaos_engine_learning",
+    "tests.scripts.test_chaos_engine_portable_core",
+    "tests.scripts.test_chaos_engine_research",
+    "tests.scripts.test_delivery_status",
+    "tests.scripts.test_extract_allure_failures",
+    "tests.scripts.test_github_client",
+    "tests.scripts.test_graphify_maintenance",
+    "tests.scripts.test_guard_external_corpus",
+    "tests.scripts.test_guard_lifecycle",
+    "tests.scripts.test_guard_memory_worktree",
+    "tests.scripts.test_guard_nul_corruption",
+    "tests.scripts.test_intellij_recording_powershell",
+    "tests.scripts.test_issue_filing",
+    "tests.scripts.test_knowledge_stores",
+    "tests.scripts.test_planning_contract",
+    "tests.scripts.test_pr_audit",
+    "tests.scripts.test_repository_context",
+    "tests.scripts.test_resolve_graph_out",
+    "tests.scripts.test_resolve_mempalace",
+    "tests.scripts.test_shaft_knowledge_refresh",
+    "tests.scripts.test_shaft_skill_candidate_intake",
+    "tests.scripts.test_shaft_skill_cli_examples",
+    "tests.scripts.test_shaft_skill_quality",
+    "tests.scripts.test_shaft_skill_routing_eval",
+    "tests.scripts.test_shaft_skills_content",
+    "tests.scripts.test_sync_user_harness",
+    "tests.scripts.test_validate_agent_guidance",
+    "tests.scripts.test_validate_agent_ownership",
+    "tests.scripts.test_validate_agent_plugins",
+    "tests.scripts.test_validate_agent_setup",
+    "tests.scripts.test_validate_red_before_green",
+    "tests.scripts.test_validate_skills",
+    "tests.scripts.test_watch_pr_checks",
+    "tests.scripts.test_worktree_hygiene",
 )
 
 
@@ -129,7 +184,7 @@ CHECKS = {
     "fallback-contract": Check(
         "fallback-contract",
         "fallback",
-        ("tests.scripts.test_validate_agent_setup",),
+        DISPLACED_PR_MODULES,
     ),
     "fallback-reachability": Check(
         "fallback-reachability",
@@ -196,10 +251,16 @@ SURFACE_PATTERNS = {
     ),
     "installer": (
         "chaos-engine/bootstrap.py",
+        "chaos-engine/dependencies.json",
         "chaos-engine/dependencies.py",
+        "chaos-engine/distributions.json",
         "chaos-engine/install.py",
         "chaos-engine/install.sh",
         "chaos-engine/install.ps1",
+        "chaos-engine/profiles/*/profile.json",
+        "chaos-engine/vendor/*/PIN.json",
+        "chaos-engine/vendor/*/hooks/*.json",
+        "chaos-engine/vendor/*/src/hooks/package.json",
         "tests/scripts/test_chaos_engine_bootstrap.py",
         "tests/scripts/test_chaos_engine_dependencies.py",
         "tests/scripts/test_chaos_engine_installer.py",
@@ -382,7 +443,7 @@ def classify_paths(paths: list[str]) -> GatePlan:
 
 
 def parse_waiver(
-    body: str, *, expected_head: str, now: datetime | None = None
+    body: str, *, now: datetime | None = None, head_sha: str = ""
 ) -> WaiverReceipt | None:
     matches = WAIVER_FENCE.findall(body)
     if not matches:
@@ -399,10 +460,8 @@ def parse_waiver(
         raise GateError("waiver must be a JSON object")
     required = {
         "schema",
-        "head_sha",
-        "check_ids",
+        "allowed_check_ids",
         "expires_at",
-        "owner_authorization",
         "rationale",
         "replacement_proof",
     }
@@ -410,12 +469,7 @@ def parse_waiver(
         raise GateError("waiver fields must exactly match schema")
     if payload["schema"] != 1:
         raise GateError("unsupported waiver schema")
-    head_sha = payload["head_sha"]
-    if not isinstance(head_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", head_sha):
-        raise GateError("waiver head_sha must be a full lowercase SHA")
-    if head_sha != expected_head:
-        raise GateError("waiver is stale for this PR head")
-    check_ids = payload["check_ids"]
+    check_ids = payload["allowed_check_ids"]
     if (
         not isinstance(check_ids, list)
         or not check_ids
@@ -423,7 +477,7 @@ def parse_waiver(
         or any(not isinstance(item, str) or not item for item in check_ids)
         or len(check_ids) != len(set(check_ids))
     ):
-        raise GateError("waiver check_ids must be 1-8 unique exact IDs")
+        raise GateError("waiver allowed_check_ids must be 1-8 unique exact IDs")
     if any("*" in item for item in check_ids):
         raise GateError("blanket waiver IDs are forbidden")
     if any(item in PROTECTED_IDS or item.startswith("protected-") for item in check_ids):
@@ -432,8 +486,6 @@ def parse_waiver(
     unknown = sorted(set(check_ids) - waivable)
     if unknown:
         raise GateError("unknown waiver check IDs: " + ", ".join(unknown))
-    if payload["owner_authorization"] != OWNER_AUTHORIZATION:
-        raise GateError("owner authorization marker is invalid")
     for field in ("rationale", "replacement_proof"):
         value = payload[field]
         if not isinstance(value, str) or not value.strip():
@@ -482,7 +534,16 @@ def render_json(plan: GatePlan, *, head_sha: str, budget_seconds: int) -> str:
 
 def changed_paths(root: Path, base: str, head: str) -> list[ChangedPath]:
     completed = subprocess.run(  # nosec B603 - fixed read-only git invocation.
-        ["git", "diff", "--diff-filter=ACDMRT", "--name-status", "-z", base, head],
+        [
+            "git",
+            "diff",
+            "--merge-base",
+            "--diff-filter=ACDMRT",
+            "--name-status",
+            "-z",
+            base,
+            head,
+        ],
         cwd=root,
         capture_output=True,
         text=True,
@@ -517,27 +578,42 @@ def changed_paths(root: Path, base: str, head: str) -> list[ChangedPath]:
     return paths
 
 
-def event_waiver(event_path: Path | None, expected_head: str) -> WaiverReceipt | None:
-    if event_path is None:
+def event_waiver(
+    reviews_path: Path | None,
+    expected_head: str,
+    *,
+    now: datetime | None = None,
+) -> WaiverReceipt | None:
+    """Load one owner-authored, submitted review receipt for the exact PR head."""
+    if reviews_path is None:
         return None
     try:
-        event = json.loads(event_path.read_text(encoding="utf-8"))
-        pull_request = event.get("pull_request")
-        if not pull_request:
-            return None
-        event_head = pull_request["head"]["sha"]
-        body = pull_request.get("body") or ""
-        author = pull_request["user"]["login"]
-        association = pull_request["author_association"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-        raise GateError("GitHub event JSON is malformed") from error
-    if event_head != expected_head:
-        raise GateError("event head does not match requested head")
-    if author != "MohabMohie" or association not in {"OWNER", "MEMBER"}:
-        if "chaos-engine-waiver" in body:
-            raise GateError("waiver requires an owner-authored pull request")
-        return None
-    return parse_waiver(body, expected_head=expected_head)
+        reviews = json.loads(reviews_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise GateError("GitHub review JSON is malformed") from error
+    if not isinstance(reviews, list):
+        raise GateError("GitHub review JSON must be an array")
+    receipts: list[WaiverReceipt] = []
+    for review in reviews:
+        if not isinstance(review, dict):
+            raise GateError("GitHub review JSON contains a malformed review")
+        user = review.get("user")
+        author = user.get("login") if isinstance(user, dict) else None
+        if (
+            author != WAIVER_OWNER
+            or review.get("commit_id") != expected_head
+            or review.get("state") not in {"APPROVED", "COMMENTED"}
+            or not review.get("submitted_at")
+            or review.get("last_edited_at") is not None
+        ):
+            continue
+        body = review.get("body") or ""
+        receipt = parse_waiver(str(body), now=now, head_sha=expected_head)
+        if receipt is not None:
+            receipts.append(receipt)
+    if len(receipts) > 1:
+        raise GateError("exactly one owner waiver review is allowed for this head")
+    return receipts[0] if receipts else None
 
 
 def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int | None]:
@@ -671,7 +747,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
-    parser.add_argument("--event", type=Path)
+    parser.add_argument("--reviews", type=Path)
     parser.add_argument("--budget-seconds", type=int, default=240)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -694,7 +770,7 @@ def main() -> int:
             )
             exit_code = 0
         else:
-            waiver = event_waiver(args.event, args.head)
+            waiver = event_waiver(args.reviews, args.head)
             payload, exit_code = run_plan(
                 root,
                 plan,
