@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import re
@@ -444,8 +445,13 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
     if not isinstance(matrix, dict):
         return [issue("host-parity-schema", relative.as_posix(), "top level must be an object")]
     errors: list[dict[str, str]] = []
-    workflow_path = root / ".github/workflows/pr-gate.yml"
-    workflow = workflow_path.read_text(encoding="utf-8") if workflow_path.is_file() else ""
+    workflow_paths = (
+        root / ".github/workflows/pr-gate.yml",
+        root / ".github/workflows/agent-plugin-acceptance.yml",
+    )
+    workflows = "\n".join(
+        path.read_text(encoding="utf-8") for path in workflow_paths if path.is_file()
+    )
     raw_capabilities = matrix.get("capabilities", [])
     capabilities = raw_capabilities if isinstance(raw_capabilities, list) else []
     valid_rows = [
@@ -464,7 +470,7 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
         if not re.fullmatch(r"[a-z][a-z0-9_]*", item["id"]):
             errors.append(issue("host-parity-schema", relative.as_posix(), f"invalid capability id: {item['id']!r}"))
         errors.extend(parity_evidence_errors(item, root, relative))
-        errors.extend(parity_check_errors(item, root, relative, workflow))
+        errors.extend(parity_check_errors(item, root, relative, workflows))
         if item.get("mode") not in {"shared", "equivalent", "substitution"}:
             errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')}.mode is invalid"))
         if item.get("mode") == "substitution" and not item.get("note"):
@@ -494,9 +500,9 @@ def parity_evidence_errors(item: dict, root: Path, relative: Path) -> list[dict[
 
 
 def parity_check_errors(
-    item: dict, root: Path, relative: Path, workflow: str
+    item: dict, root: Path, relative: Path, workflows: str
 ) -> list[dict[str, str]]:
-    """Check that one capability row names a real test that PR Gate actually runs."""
+    """Check that a capability names a real PR-focused or scheduled-full test."""
     check = item.get("check")
     if not isinstance(check, str) or check.count("::") != 1:
         return [issue("host-parity-path", relative.as_posix(), f"{item['id']}.check must name file.py::test_method")]
@@ -512,8 +518,19 @@ def parity_check_errors(
     source = (root / check_path).read_text(encoding="utf-8") if valid_check else ""
     if not valid_check or not re.search(rf"(?m)^\s+def {re.escape(check_name)}\(", source):
         return [issue("host-parity-path", relative.as_posix(), f"{item['id']}.check is not a runnable test: {check!r}")]
-    if ".".join(check_path.with_suffix("").parts) not in workflow:
-        return [issue("host-parity-ci", relative.as_posix(), f"{item['id']}.check is not run by PR Gate: {check!r}")]
+    module = ".".join(check_path.with_suffix("").parts)
+    discovery_patterns = re.findall(
+        r"unittest\s+discover[^\n]*?-p\s+['\"]([^'\"]+)['\"]", workflows
+    )
+    discovered = any(fnmatch.fnmatchcase(check_path.name, pattern) for pattern in discovery_patterns)
+    if module not in workflows and not discovered:
+        return [
+            issue(
+                "host-parity-ci",
+                relative.as_posix(),
+                f"{item['id']}.check is not run by focused PR or scheduled full gate: {check!r}",
+            )
+        ]
     return []
 
 
