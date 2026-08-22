@@ -11,6 +11,7 @@ import unittest
 import unittest.mock as mock
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -433,6 +434,82 @@ class GenerationRuntimeTests(unittest.TestCase):
                 ValueError, "path.*unsafe|interpreter.*unsafe|metadata.*invalid"
             ):
                 module.dispatch_command(generation, receipt, "graphify", [])
+
+    def test_candidate_builds_once_at_final_path_with_transaction_local_caches(self):
+        module = load_controller()
+        self.assertTrue(
+            hasattr(module, "prepare_candidate"),
+            "immutable generation preparation is not implemented",
+        )
+        specification = json.loads(
+            (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine/manifest.json"
+            core.parent.mkdir()
+            core.write_text('{"owned":true}\n', encoding="utf-8")
+            commands = []
+            environments = []
+
+            def runner(command, environment):
+                commands.append(command)
+                environments.append(dict(environment))
+                generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
+                scripts = "Scripts" if os.name == "nt" else "bin"
+                python_name = "python.exe" if os.name == "nt" else "python"
+                uv_name = "uv.exe" if os.name == "nt" else "uv"
+                if command[1:3] == ["-m", "venv"]:
+                    python = generation / f"bootstrap/{scripts}/{python_name}"
+                    python.parent.mkdir(parents=True, exist_ok=True)
+                    python.write_bytes(b"python")
+                if "pip" in command and "install" in command:
+                    uv = generation / f"bootstrap/{scripts}/{uv_name}"
+                    uv.parent.mkdir(parents=True, exist_ok=True)
+                    uv.write_bytes(b"uv")
+                if command[1:3] == ["tool", "install"]:
+                    environment_name = "graphifyy" if "graphifyy" in command[-1] else "mempalace"
+                    python = generation / f"uv-tools/{environment_name}/{scripts}/{python_name}"
+                    python.parent.mkdir(parents=True, exist_ok=True)
+                    python.write_bytes(f"python-{environment_name}".encode())
+                if "npm" in Path(command[0]).name and "install" in command:
+                    for name, suffix in (
+                        ("memory", "dist/cli/main.js"),
+                        ("memory-mcp", "dist/mcp/server.js"),
+                    ):
+                        script = generation / f"npm/node_modules/@aictx/memory/{suffix}"
+                        script.parent.mkdir(parents=True, exist_ok=True)
+                        script.write_text(f"// {name}\n", encoding="utf-8")
+                return SimpleNamespace(stdout="ok\n", stderr="")
+
+            record = module.prepare_candidate(
+                project,
+                specification,
+                module.sha256(core),
+                runner=runner,
+                generation_id="a" * 32,
+                transaction_id="d" * 32,
+            )
+
+            generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
+            self.assertEqual("a" * 32, record["generationId"])
+            self.assertTrue((generation / "receipt.json").is_file())
+            self.assertFalse((project / ".chaos-engine-runtime-current.json").exists())
+            self.assertFalse((generation / "uv-cache").exists())
+            self.assertFalse((generation / "bin").exists())
+            self.assertFalse((project / ".chaos-engine-runtime-transactions").exists())
+            self.assertTrue(any("--no-cache" in command for command in commands))
+            self.assertTrue(
+                any("--python" in command and "3.10" in command for command in commands)
+            )
+            self.assertTrue(
+                all(
+                    not value.startswith(str(generation))
+                    for environment in environments
+                    for key, value in environment.items()
+                    if key in {"UV_CACHE_DIR", "UV_TOOL_BIN_DIR", "NPM_CONFIG_CACHE"}
+                )
+            )
 
 
 if __name__ == "__main__":

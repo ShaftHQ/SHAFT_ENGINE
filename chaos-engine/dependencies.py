@@ -683,7 +683,262 @@ def dispatch_command(
             str(entrypoint),
             *arguments,
         ]
+    if dispatch.get("kind") == "executable":
+        relative = str(dispatch["path"])
+        digest = _digest_regular_relative(
+            generation,
+            relative,
+            f"executable for {tool}",
+            dispatch["size"],  # type: ignore[arg-type]
+        )
+        if digest != dispatch["sha256"]:
+            raise ValueError(f"dependency executable drift detected: {tool}")
+        return [str(generation / relative), *arguments]
+    if dispatch.get("kind") == "npm":
+        relative = str(dispatch["script"])
+        digest = _digest_regular_relative(
+            generation,
+            relative,
+            f"npm script for {tool}",
+            dispatch["scriptSize"],  # type: ignore[arg-type]
+        )
+        if digest != dispatch["scriptSha256"]:
+            raise ValueError(f"dependency npm script drift detected: {tool}")
+        node = shutil.which("node")
+        if node is None:
+            raise ValueError("Node.js is required to run the Memory tool")
+        return [node, str(generation / relative), *arguments]
     raise ValueError(f"dependency tool dispatch kind is unsupported: {tool}")
+
+
+def generation_environment(generation: Path, transaction: Path) -> dict[str, str]:
+    return {
+        "UV_TOOL_DIR": str(generation / "uv-tools"),
+        "UV_TOOL_BIN_DIR": str(transaction / "bin"),
+        "UV_CACHE_DIR": str(transaction / "uv-cache"),
+        "UV_PYTHON_INSTALL_DIR": str(generation / "uv-python"),
+        "UV_PYTHON_BIN_DIR": str(transaction / "python-bin"),
+        "UV_LINK_MODE": "copy",
+        "NPM_CONFIG_PREFIX": str(generation / "npm"),
+        "NPM_CONFIG_CACHE": str(transaction / "npm-cache"),
+        "PIP_NO_CACHE_DIR": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+
+
+def generation_install_plan(
+    generation: Path, specification: dict[str, object]
+) -> dict[str, list[list[str]]]:
+    tools = specification.get("tools")
+    if specification.get("schemaVersion") != 1 or not isinstance(tools, dict):
+        raise ValueError("dependency specification schema is unsupported")
+    scripts = "Scripts" if os.name == "nt" else "bin"
+    bootstrap = generation / "bootstrap"
+    python = executable(bootstrap / scripts, "python")
+    uv = executable(bootstrap / scripts, "uv")
+    npm = shutil.which("npm")
+    if npm is None:
+        raise ValueError("Node.js npm is required to install the Memory tool")
+    graphify = tools.get("graphify")
+    if not isinstance(graphify, dict):
+        raise ValueError("graphify dependency specification is invalid")
+    return {
+        "uv": [
+            [sys.executable, "-m", "venv", "--copies", str(bootstrap)],
+            [python, "-m", "pip", "install", "--no-cache-dir", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
+        ],
+        "mempalace": [[
+            uv,
+            "tool",
+            "install",
+            "--no-cache",
+            "--managed-python",
+            "--python",
+            "3.10",
+            "--link-mode",
+            "copy",
+            str(tools["mempalace"]["package"]),  # type: ignore[index]
+        ]],
+        "graphify": [[
+            uv,
+            "tool",
+            "install",
+            "--no-cache",
+            "--managed-python",
+            "--python",
+            "3.10",
+            "--link-mode",
+            "copy",
+            "--with",
+            str(graphify["with"][0]),  # type: ignore[index]
+            str(graphify["package"]),
+        ]],
+        "memory": [[
+            npm,
+            "install",
+            "--ignore-scripts",
+            "--prefix",
+            str(generation / "npm"),
+            str(tools["memory"]["package"]),  # type: ignore[index]
+        ]],
+    }
+
+
+def _generation_dispatches(generation: Path) -> dict[str, dict[str, object]]:
+    scripts = "Scripts" if os.name == "nt" else "bin"
+    python_name = "python.exe" if os.name == "nt" else "python"
+    uv_name = "uv.exe" if os.name == "nt" else "uv"
+
+    def file_record(path: Path) -> tuple[str, int]:
+        if is_link_or_reparse(path) or not path.is_file():
+            raise ValueError(f"dependency entrypoint is missing or unsafe: {path}")
+        return sha256(path), path.stat().st_size
+
+    uv = generation / f"bootstrap/{scripts}/{uv_name}"
+    uv_digest, uv_size = file_record(uv)
+    records: dict[str, dict[str, object]] = {
+        "uv": {"dispatch": {"kind": "executable", "path": uv.relative_to(generation).as_posix(), "sha256": uv_digest, "size": uv_size}}
+    }
+    for name, environment, distribution in (
+        ("mempalace", "mempalace", "mempalace"),
+        ("mempalace-mcp", "mempalace", "mempalace"),
+        ("graphify", "graphifyy", "graphifyy"),
+    ):
+        interpreter = generation / f"uv-tools/{environment}/{scripts}/{python_name}"
+        digest, size = file_record(interpreter)
+        records[name] = {"dispatch": {
+            "kind": "python",
+            "interpreter": interpreter.relative_to(generation).as_posix(),
+            "interpreterSha256": digest,
+            "interpreterSize": size,
+            "distribution": distribution,
+            "entrypoint": name,
+        }}
+    for name, suffix in (
+        ("memory", "dist/cli/main.js"),
+        ("memory-mcp", "dist/mcp/server.js"),
+    ):
+        script = generation / f"npm/node_modules/@aictx/memory/{suffix}"
+        digest, size = file_record(script)
+        records[name] = {"dispatch": {
+            "kind": "npm",
+            "script": script.relative_to(generation).as_posix(),
+            "scriptSha256": digest,
+            "scriptSize": size,
+            "entrypoint": name,
+        }}
+    return records
+
+
+def prepare_candidate(
+    project: Path,
+    specification: dict[str, object],
+    core_sha256: str,
+    *,
+    runner=None,
+    now: datetime | None = None,
+    generation_id: str | None = None,
+    transaction_id: str | None = None,
+) -> dict[str, str]:
+    """Build and probe one complete immutable generation at its final path."""
+    project = _trusted_root(project.absolute(), "project")
+    command_runner = runner or run_command
+    generation_name = generation_id or secrets.token_hex(16)
+    transaction_name = transaction_id or secrets.token_hex(16)
+    if HEX_ID.fullmatch(generation_name) is None or HEX_ID.fullmatch(transaction_name) is None:
+        raise ValueError("dependency generation or transaction identifier is invalid")
+    if HEX_DIGEST.fullmatch(core_sha256) is None:
+        raise ValueError("dependency core digest is invalid")
+    core = _read_regular_relative(
+        project, ".chaos-engine/manifest.json", "installed core manifest", MAX_CONTROL_BYTES
+    )
+    if hashlib.sha256(core).hexdigest() != core_sha256:
+        raise ValueError("dependency installed core digest drift detected")
+    generations = project / GENERATIONS_NAME
+    transactions = project / ".chaos-engine-runtime-transactions"
+    generations.mkdir(exist_ok=True)
+    transactions.mkdir(exist_ok=True)
+    generation = generations / generation_name
+    transaction = transactions / transaction_name
+    if any(path.exists() or is_link_or_reparse(path) for path in (generation, transaction)):
+        raise ValueError("dependency generation or transaction collision")
+    generation.mkdir()
+    transaction.mkdir()
+    environment = generation_environment(generation, transaction)
+    completed: dict[str, list[str]] = {}
+    try:
+        for tool, commands in generation_install_plan(generation, specification).items():
+            completed[tool] = []
+            for command in commands:
+                try:
+                    result = command_runner(command, environment)
+                except (OSError, subprocess.SubprocessError) as error:
+                    raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
+                completed[tool].append((result.stdout or result.stderr).strip())
+        records = _generation_dispatches(generation)
+        probes = {
+            "uv": ["--version"],
+            "mempalace": ["--version"],
+            "mempalace-mcp": ["--help"],
+            "graphify": ["--version"],
+            "memory": ["--help"],
+            "memory-mcp": ["--help"],
+        }
+        for name, arguments in probes.items():
+            try:
+                result = command_runner(
+                    dispatch_command(generation, {"tools": records}, name, arguments),
+                    environment,
+                )
+            except (OSError, subprocess.SubprocessError) as error:
+                raise RuntimeError(f"{name} entrypoint probe failed") from error
+            records[name]["resolved"] = (result.stdout or result.stderr).strip()
+        receipt: dict[str, object] = {
+            "schemaVersion": 2,
+            "runtimeContractVersion": 3,
+            "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
+            "specificationSha256": specification_digest(specification),
+            "coreSha256": core_sha256,
+            "environment": {
+                key: (
+                    value
+                    if key in {"UV_LINK_MODE", "PIP_NO_CACHE_DIR", "PYTHONDONTWRITEBYTECODE"}
+                    else Path(value).relative_to(generation).as_posix()
+                )
+                for key, value in environment.items()
+                if key
+                not in {"UV_CACHE_DIR", "UV_TOOL_BIN_DIR", "UV_PYTHON_BIN_DIR", "NPM_CONFIG_CACHE"}
+            },
+            "installed": completed,
+            "tools": records,
+            "ownership": ownership_record(generation),
+        }
+        receipt["receiptIntegritySha256"] = json_integrity(receipt)
+        receipt_path = generation / RECEIPT_NAME
+        receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        record = {
+            "generationId": generation_name,
+            "specificationSha256": specification_digest(specification),
+            "coreSha256": core_sha256,
+            "receiptSha256": sha256(receipt_path),
+        }
+        _validate_selected_generation(
+            project,
+            record,
+            record["specificationSha256"],
+            core_sha256,
+            verify_installed_core=True,
+        )
+        return record
+    except BaseException:
+        if generation.exists() and not is_link_or_reparse(generation):
+            shutil.rmtree(generation)
+        raise
+    finally:
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        if transactions.exists() and not any(transactions.iterdir()):
+            transactions.rmdir()
 
 
 def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
