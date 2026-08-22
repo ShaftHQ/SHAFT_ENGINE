@@ -10,9 +10,8 @@ import sys
 import tempfile
 import threading
 import time
-import unittest
 from pathlib import Path
-from unittest import mock
+from unittest import TestCase, main, mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,7 +28,7 @@ def load_kernel():
     return module
 
 
-class ChaosEngineKernelTest(unittest.TestCase):
+class ChaosEngineKernelTest(TestCase):
     def setUp(self):
         self.kernel = load_kernel()
 
@@ -645,7 +644,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
         self.assertEqual("unknown", snapshot.fact("slow"))
         self.assertEqual(["slow"], calls)
 
-    def test_snapshot_base_exception_still_signals_and_commits_unknown(self):
+    def test_snapshot_provider_exit_still_signals_and_commits_unknown(self):
         calls = []
 
         def provider():
@@ -796,4 +795,4 @@ class ChaosEngineKernelTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

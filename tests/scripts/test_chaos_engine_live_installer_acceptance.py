@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import os
 import sys
 import tempfile
-import unittest
 from pathlib import Path
 from subprocess import CompletedProcess
-from unittest import mock
+from unittest import TestCase, main, mock
 
 import yaml
 
@@ -34,7 +34,7 @@ def load_acceptance():
     return module
 
 
-class ChaosEngineLiveInstallerAcceptanceTest(unittest.TestCase):
+class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
     def test_runner_contract_is_bounded_and_standard_library_only(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
@@ -47,12 +47,10 @@ class ChaosEngineLiveInstallerAcceptanceTest(unittest.TestCase):
         self.assertGreater(module.PHASE_TIMEOUT_SECONDS, 0)
         self.assertLessEqual(module.PHASE_TIMEOUT_SECONDS, 900)
         imported = set()
-        for node in module.ast.walk(
-            module.ast.parse(SCRIPT.read_text(encoding="utf-8"))
-        ):
-            if isinstance(node, module.ast.Import):
+        for node in ast.walk(ast.parse(SCRIPT.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
                 imported.update(alias.name.split(".", 1)[0] for alias in node.names)
-            elif isinstance(node, module.ast.ImportFrom) and node.module:
+            elif isinstance(node, ast.ImportFrom) and node.module:
                 imported.add(node.module.split(".", 1)[0])
         self.assertTrue(imported <= sys.stdlib_module_names, imported - sys.stdlib_module_names)
 
@@ -227,4 +225,4 @@ class ChaosEngineLiveInstallerAcceptanceTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

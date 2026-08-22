@@ -11,7 +11,6 @@ from unittest.mock import patch
 
 import yaml
 
-import scripts.ci.harness_pr_gate as harness_gate
 from scripts.ci.harness_pr_gate import (
     GateError,
     GatePlan,

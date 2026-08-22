@@ -332,7 +332,8 @@ class HarnessSnapshot:
         try:
             if provider is not None:
                 value = provider()
-        except BaseException:
+        except (Exception, KeyboardInterrupt, SystemExit):
+            # Provider failures are facts, not authority to break the lifecycle caller.
             pass
         finally:
             with self._lock:
@@ -361,7 +362,7 @@ class HarnessSnapshot:
                     name=f"chaos-engine-fact-{name}",
                     daemon=True,
                 ).start()
-            except BaseException:
+            except Exception:
                 with self._lock:
                     self._cache.setdefault(name, "unknown")
                     if self._inflight.get(name) is flight:

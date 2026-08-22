@@ -329,7 +329,7 @@ def _hold_directory(path: Path, label: str):
     path = _trusted_root(path, label)
     if os.name == "nt":
         import ctypes
-        from ctypes import wintypes
+        import ctypes.wintypes as wintypes
 
         class FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
             _fields_ = [("FileAttributes", wintypes.DWORD), ("ReparseTag", wintypes.DWORD)]
@@ -517,8 +517,8 @@ def _open_regular_relative(root: Path, relative: str, label: str) -> int:
 def _open_windows_regular(root: Path, path: Path, label: str) -> int:
     """Open final Windows file without following it; validate kernel-resolved location."""
     import ctypes
+    import ctypes.wintypes as wintypes
     import msvcrt
-    from ctypes import wintypes
 
     class FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
         _fields_ = [("FileAttributes", wintypes.DWORD), ("ReparseTag", wintypes.DWORD)]
@@ -1452,7 +1452,7 @@ def prepare_candidate(
                 for path, _, _, _, identity in removals:
                     if identity is not None:
                         _delete_windows_tree(path, identity)
-        except BaseException:
+        except Exception:
             if not failed:
                 raise
 

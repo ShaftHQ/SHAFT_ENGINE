@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import ast
 import json
 import os
 import platform
@@ -414,7 +413,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     try:
         run_acceptance(args.source, evidence)
-    except BaseException as error:
+    except Exception as error:
         evidence["failure"] = {"type": type(error).__name__, "detail": sanitize(error)}
         write_evidence(args.output, evidence)
         return 1
