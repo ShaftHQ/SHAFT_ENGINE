@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -29,30 +30,74 @@ def load_controller():
 
 class GenerationRuntimeTests(unittest.TestCase):
     @staticmethod
+    def publish(module, project: Path, active: dict[str, str]):
+        return module.publish_pointer(
+            project,
+            active,
+            transaction_id="d" * 32,
+            expected_specification_sha256=active["specificationSha256"],
+            expected_core_sha256=active["coreSha256"],
+        )
+
+    @staticmethod
+    def select(module, project: Path, active: dict[str, str]):
+        return module.active_generation(
+            project,
+            expected_specification_sha256=active["specificationSha256"],
+            expected_core_sha256=active["coreSha256"],
+        )
+
+    @staticmethod
     def generation_fixture(module, project: Path) -> tuple[Path, dict[str, str]]:
         core = project / ".chaos-engine/manifest.json"
         core.parent.mkdir()
         core.write_text('{"owned":true}\n', encoding="utf-8")
         generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
         generation.mkdir(parents=True)
-        interpreter = generation / "uv-tools/shared/bin/python"
-        interpreter.parent.mkdir(parents=True)
-        interpreter.write_bytes(b"python")
+        scripts = "Scripts" if os.name == "nt" else "bin"
+        python_name = "python.exe" if os.name == "nt" else "python"
+        uv_name = "uv.exe" if os.name == "nt" else "uv"
         dispatches = {}
-        for name in (
-            "uv",
-            "mempalace",
-            "mempalace-mcp",
-            "graphify",
-            "memory",
-            "memory-mcp",
+        uv = generation / f"bootstrap/{scripts}/{uv_name}"
+        uv.parent.mkdir(parents=True)
+        uv.write_bytes(b"uv")
+        dispatches["uv"] = {
+            "dispatch": {
+                "kind": "executable",
+                "path": uv.relative_to(generation).as_posix(),
+                "sha256": module.sha256(uv),
+                "size": uv.stat().st_size,
+            }
+        }
+        for name, environment, distribution in (
+            ("mempalace", "mempalace", "mempalace"),
+            ("mempalace-mcp", "mempalace", "mempalace"),
+            ("graphify", "graphifyy", "graphifyy"),
         ):
+            interpreter = generation / f"uv-tools/{environment}/{scripts}/{python_name}"
+            interpreter.parent.mkdir(parents=True, exist_ok=True)
+            interpreter.write_bytes(f"python-{environment}".encode())
             dispatches[name] = {
                 "dispatch": {
                     "kind": "python",
-                    "interpreter": "uv-tools/shared/bin/python",
+                    "interpreter": interpreter.relative_to(generation).as_posix(),
                     "interpreterSha256": module.sha256(interpreter),
-                    "distribution": "mempalace",
+                    "interpreterSize": interpreter.stat().st_size,
+                    "distribution": distribution,
+                    "entrypoint": name,
+                }
+            }
+        for name in ("memory", "memory-mcp"):
+            suffix = "dist/cli/main.js" if name == "memory" else "dist/mcp/server.js"
+            script = generation / f"npm/node_modules/@aictx/memory/{suffix}"
+            script.parent.mkdir(parents=True, exist_ok=True)
+            script.write_text("process.exit(0);\n", encoding="utf-8")
+            dispatches[name] = {
+                "dispatch": {
+                    "kind": "npm",
+                    "script": script.relative_to(generation).as_posix(),
+                    "scriptSha256": module.sha256(script),
+                    "scriptSize": script.stat().st_size,
                     "entrypoint": name,
                 }
             }
@@ -93,9 +138,9 @@ class GenerationRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             generation, active = self.generation_fixture(module, project)
-            module.publish_pointer(project, active, None, transaction_id="d" * 32)
+            self.publish(module, project, active)
 
-            selected, pointer = module.active_generation(project)
+            selected, pointer = self.select(module, project, active)
 
             self.assertEqual(generation, selected)
             self.assertEqual(active, pointer["active"])
@@ -109,7 +154,7 @@ class GenerationRuntimeTests(unittest.TestCase):
             value["integritySha256"] = module.json_integrity(value)
             pointer_path.write_text(json.dumps(value), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "generation identifier"):
-                module.active_generation(project)
+                self.select(module, project, active)
 
     def test_generation_ancestor_and_interpreter_links_fail_closed(self):
         module = load_controller()
@@ -128,17 +173,18 @@ class GenerationRuntimeTests(unittest.TestCase):
             except OSError as error:
                 self.skipTest(f"symlinks unavailable: {error}")
             generation, active = self.generation_fixture(module, project)
-            module.publish_pointer(project, active, None, transaction_id="d" * 32)
-
             with self.assertRaisesRegex(ValueError, "ancestor|link|reparse"):
-                module.active_generation(project)
+                self.publish(module, project, active)
 
         with tempfile.TemporaryDirectory() as temporary:
             generation = Path(temporary) / "generation"
             generation.mkdir()
             outside = Path(temporary) / "python"
             outside.write_bytes(b"python")
-            interpreter = generation / "uv-tools/mempalace/bin/python"
+            scripts = "Scripts" if os.name == "nt" else "bin"
+            python_name = "python.exe" if os.name == "nt" else "python"
+            relative_interpreter = f"uv-tools/mempalace/{scripts}/{python_name}"
+            interpreter = generation / relative_interpreter
             interpreter.parent.mkdir(parents=True)
             interpreter.symlink_to(outside)
             receipt = {
@@ -146,8 +192,9 @@ class GenerationRuntimeTests(unittest.TestCase):
                     "mempalace": {
                         "dispatch": {
                             "kind": "python",
-                            "interpreter": "uv-tools/mempalace/bin/python",
+                            "interpreter": relative_interpreter,
                             "interpreterSha256": module.sha256(outside),
+                            "interpreterSize": outside.stat().st_size,
                             "distribution": "mempalace",
                             "entrypoint": "mempalace",
                         }
@@ -165,7 +212,7 @@ class GenerationRuntimeTests(unittest.TestCase):
             stale = project / ".chaos-engine-runtime-current.json.tmp"
             stale.write_text("interrupted\n", encoding="utf-8")
 
-            module.publish_pointer(project, active, None, transaction_id="d" * 32)
+            self.publish(module, project, active)
 
             pointer = project / ".chaos-engine-runtime-current.json"
             pointer.write_bytes(b"{" + b" " * module.MAX_CONTROL_BYTES + b"}")
@@ -175,14 +222,14 @@ class GenerationRuntimeTests(unittest.TestCase):
                 side_effect=AssertionError("bounded reader must not call read_text"),
             ):
                 with self.assertRaisesRegex(ValueError, "too large"):
-                    module.active_generation(project)
+                    self.select(module, project, active)
 
     def test_pointer_digests_bind_receipt_and_installed_core(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             generation, active = self.generation_fixture(module, project)
-            module.publish_pointer(project, active, None, transaction_id="d" * 32)
+            self.publish(module, project, active)
 
             receipt_path = generation / "receipt.json"
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -201,7 +248,35 @@ class GenerationRuntimeTests(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "specification digest"):
-                module.active_generation(project)
+                self.select(module, project, active)
+
+    def test_publish_derives_previous_and_rejects_untracked_candidate(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            first, active = self.generation_fixture(module, project)
+            self.publish(module, project, active)
+            second = first.with_name("e" * 32)
+            shutil.copytree(first, second)
+            replacement = {
+                **active,
+                "generationId": "e" * 32,
+                "receiptSha256": module.sha256(second / "receipt.json"),
+            }
+
+            result = self.publish(module, project, replacement)
+            selected, pointer = self.select(module, project, replacement)
+
+            self.assertEqual(second, selected)
+            self.assertEqual(active, pointer["previous"])
+            self.assertEqual("durable", result["publicationStatus"])
+            with self.assertRaisesRegex(ValueError, "requested specification"):
+                module.publish_pointer(
+                    project,
+                    replacement,
+                    expected_specification_sha256="f" * 64,
+                    expected_core_sha256=replacement["coreSha256"],
+                )
 
     def test_structurally_incomplete_receipt_is_never_active(self):
         module = load_controller()
@@ -214,10 +289,8 @@ class GenerationRuntimeTests(unittest.TestCase):
             receipt["receiptIntegritySha256"] = module.json_integrity(receipt)
             receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
             active["receiptSha256"] = module.sha256(receipt_path)
-            module.publish_pointer(project, active, None, transaction_id="d" * 32)
-
             with self.assertRaisesRegex(ValueError, "receipt schema|tool metadata"):
-                module.active_generation(project)
+                self.publish(module, project, active)
 
     def test_linked_pointer_is_rejected_before_read(self):
         module = load_controller()
@@ -234,7 +307,11 @@ class GenerationRuntimeTests(unittest.TestCase):
                 self.skipTest(f"symlinks unavailable: {error}")
 
             with self.assertRaisesRegex(ValueError, "pointer.*link|reparse"):
-                module.active_generation(project)
+                module.active_generation(
+                    project,
+                    expected_specification_sha256="b" * 64,
+                    expected_core_sha256="c" * 64,
+                )
 
     def test_linked_project_or_generation_root_is_rejected(self):
         module = load_controller()
@@ -245,14 +322,14 @@ class GenerationRuntimeTests(unittest.TestCase):
             real = root / "real"
             real.mkdir()
             generation, active = self.generation_fixture(module, real)
-            module.publish_pointer(real, active, None, transaction_id="d" * 32)
+            self.publish(module, real, active)
             linked = root / "linked"
             try:
                 linked.symlink_to(real, target_is_directory=True)
             except OSError as error:
                 self.skipTest(f"symlinks unavailable: {error}")
             with self.assertRaisesRegex(ValueError, "root.*unsafe|ancestor|link"):
-                module.active_generation(linked)
+                self.select(module, linked, active)
 
             generation_link = root / "generation-link"
             generation_link.symlink_to(generation, target_is_directory=True)
@@ -277,18 +354,20 @@ class GenerationRuntimeTests(unittest.TestCase):
                 return real_fsync(descriptor)
 
             with mock.patch.object(module.os, "fsync", side_effect=fail_directory_fsync):
-                pointer = module.publish_pointer(
-                    project, active, None, transaction_id="d" * 32
-                )
+                pointer = self.publish(module, project, active)
 
             self.assertEqual("d" * 32, pointer["transactionId"])
-            self.assertEqual(generation, module.active_generation(project)[0])
+            self.assertEqual("committed-not-durable", pointer["publicationStatus"])
+            self.assertEqual(generation, self.select(module, project, active)[0])
 
     def test_dispatch_uses_recorded_environment_python_not_a_uv_shim(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
             generation = Path(temporary)
-            interpreter = generation / "uv-tools/mempalace/bin/python"
+            scripts = "Scripts" if os.name == "nt" else "bin"
+            python_name = "python.exe" if os.name == "nt" else "python"
+            relative_interpreter = f"uv-tools/mempalace/{scripts}/{python_name}"
+            interpreter = generation / relative_interpreter
             interpreter.parent.mkdir(parents=True)
             interpreter.write_bytes(b"python")
             receipt = {
@@ -296,8 +375,9 @@ class GenerationRuntimeTests(unittest.TestCase):
                     "mempalace": {
                         "dispatch": {
                             "kind": "python",
-                            "interpreter": "uv-tools/mempalace/bin/python",
+                            "interpreter": relative_interpreter,
                             "interpreterSha256": module.sha256(interpreter),
+                            "interpreterSize": interpreter.stat().st_size,
                             "distribution": "mempalace",
                             "entrypoint": "mempalace",
                         }
@@ -312,6 +392,17 @@ class GenerationRuntimeTests(unittest.TestCase):
             self.assertIn("importlib.metadata", command[2])
             self.assertEqual(["mempalace", "mempalace", "--version"], command[3:])
             self.assertNotIn(str(generation / "bin/mempalace"), command)
+
+            receipt["tools"]["mempalace"]["dispatch"]["distribution"] = "foreign"
+            with self.assertRaisesRegex(ValueError, "metadata.*invalid"):
+                module.dispatch_command(generation, receipt, "mempalace", [])
+
+            receipt["tools"]["mempalace"]["dispatch"]["distribution"] = "mempalace"
+            receipt["tools"]["mempalace"]["dispatch"]["interpreterSize"] = (
+                module.MAX_EXECUTABLE_BYTES + 1
+            )
+            with self.assertRaisesRegex(ValueError, "metadata.*invalid"):
+                module.dispatch_command(generation, receipt, "mempalace", [])
 
     @unittest.skipUnless(os.name == "nt", "Windows rooted-path rule")
     def test_windows_rooted_interpreter_path_cannot_escape_generation(self):
@@ -330,6 +421,7 @@ class GenerationRuntimeTests(unittest.TestCase):
                             "kind": "python",
                             "interpreter": rooted,
                             "interpreterSha256": module.sha256(outside),
+                            "interpreterSize": outside.stat().st_size,
                             "distribution": "graphifyy",
                             "entrypoint": "graphify",
                         }
@@ -337,7 +429,9 @@ class GenerationRuntimeTests(unittest.TestCase):
                 }
             }
 
-            with self.assertRaisesRegex(ValueError, "path.*unsafe|interpreter.*unsafe"):
+            with self.assertRaisesRegex(
+                ValueError, "path.*unsafe|interpreter.*unsafe|metadata.*invalid"
+            ):
                 module.dispatch_command(generation, receipt, "graphify", [])
 
 
