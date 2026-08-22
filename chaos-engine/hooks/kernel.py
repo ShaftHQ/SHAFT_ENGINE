@@ -159,6 +159,27 @@ TOOL_ALIASES = {
     "apply_patch": "apply_patch",
 }
 
+_DIRECT_MUTATION_TOOLS = frozenset(
+    {
+        "applypatch",
+        "copy",
+        "create",
+        "delete",
+        "edit",
+        "mkdir",
+        "move",
+        "notebookedit",
+        "touch",
+        "write",
+    }
+)
+_READ_ONLY_SHELL_COMMAND = re.compile(
+    r"(?:git\s+(?:status|diff|log|show|rev-parse|ls-files|ls-tree|cat-file)\b[^;&|>`\r\n]*|"
+    r"gh\s+(?:(?:issue|pr)\s+(?:view|list|status|checks|diff)|status)\b[^;&|>`\r\n]*|"
+    r"(?:get-content|test-path|resolve-path|pwd)\b[^;&|>`\r\n]*)",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True)
 class HookEvent:
@@ -211,17 +232,15 @@ def _tool_name(value: object) -> str:
 
 
 def _is_mutation(tool_name: str, tool_input: Mapping[str, object]) -> bool:
-    if tool_name in {"Write", "Edit", "NotebookEdit", "apply_patch"}:
+    compact_name = re.sub(r"[^a-z]", "", tool_name.casefold())
+    if compact_name in _DIRECT_MUTATION_TOOLS:
         return True
-    command = str(tool_input.get("command") or tool_input.get("cmd") or "")
-    return bool(
-        re.search(
-            r"\b(?:git\s+(?:add|commit|push|merge|rebase|reset|checkout|switch|clean)|"
-            r"set-content|add-content|remove-item|new-item|out-file|touch|rm|mv|cp)\b",
-            command,
-            re.IGNORECASE,
-        )
-    )
+    command = str(tool_input.get("command") or tool_input.get("cmd") or "").strip()
+    if not command:
+        return False
+    # Shell syntax is open-ended. Only a narrow, anchored read-only grammar is
+    # safe to exempt; unknown commands fail closed as possible mutations.
+    return _READ_ONLY_SHELL_COMMAND.fullmatch(command) is None
 
 
 def normalize_event(raw: Mapping[str, object], host: str | None = None) -> HookEvent:
@@ -281,23 +300,28 @@ def normalize_hook_input(raw: Mapping[str, object]) -> dict[str, object]:
 class HarnessSnapshot:
     providers: Mapping[str, Callable[[], object]] = field(default_factory=dict)
     _cache: dict[str, object] = field(default_factory=dict, init=False, repr=False)
-    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    _lock: threading.RLock = field(default_factory=threading.RLock, init=False, repr=False)
+    _resolving: set[str] = field(default_factory=set, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.providers = MappingProxyType(dict(self.providers))
 
     def fact(self, name: str) -> object:
         with self._lock:
-            if name not in self._cache:
-                provider = self.providers.get(name)
-                if provider is None:
-                    self._cache[name] = "unknown"
-                else:
-                    try:
-                        self._cache[name] = provider()
-                    except Exception:
-                        self._cache[name] = "unknown"
-            return self._cache[name]
+            if name in self._cache:
+                return self._cache[name]
+            if name in self._resolving:
+                return "unknown"
+            provider = self.providers.get(name)
+            self._resolving.add(name)
+            try:
+                value = "unknown" if provider is None else provider()
+            except Exception:
+                value = "unknown"
+            finally:
+                self._resolving.remove(name)
+            self._cache[name] = value
+            return value
 
     @property
     def used_facts(self) -> tuple[str, ...]:
@@ -314,6 +338,7 @@ class Rule:
     remedy: str | None
     terminal: bool
     predicate: Callable[[HookEvent, HarnessSnapshot], bool] = field(compare=False, repr=False)
+    remedy_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -391,6 +416,7 @@ RULES = (
         remedy="Retry from a host event carrying a unique session identity.",
         terminal=False,
         predicate=lambda event, _snapshot: not event.session_id and event.stateful_mutation,
+        remedy_code="retry_with_session",
     ),
     Rule(
         code="CE_SESSION_MISSING_STOP",
@@ -407,20 +433,27 @@ RULES = (
 def validate_rules(rules: tuple[Rule, ...]) -> list[str]:
     errors: list[str] = []
     codes: set[str] = set()
-    decisions: dict[tuple[str, int], str] = {}
-    for rule in rules:
+    satisfying_remedies = {"retry_with_session"}
+    for index, rule in enumerate(rules):
         if rule.code in codes:
             errors.append(f"duplicate rule code: {rule.code}")
         codes.add(rule.code)
-        key = (rule.event, rule.priority)
-        prior = decisions.get(key)
-        if prior is not None and prior != rule.decision:
-            errors.append(
-                f"conflicting decisions at event {rule.event} priority {rule.priority}"
-            )
-        decisions[key] = rule.decision
-        if rule.decision == "deny" and not rule.terminal and not rule.remedy:
-            errors.append(f"nonterminal denial lacks remedy: {rule.code}")
+        for prior in rules[:index]:
+            events_overlap = rule.event == prior.event or "*" in {rule.event, prior.event}
+            if (
+                events_overlap
+                and rule.priority == prior.priority
+                and rule.decision != prior.decision
+            ):
+                scope = "wildcard overlap" if "*" in {rule.event, prior.event} else rule.event
+                errors.append(
+                    f"conflicting decisions at {scope} priority {rule.priority}"
+                )
+        if rule.decision == "deny" and not rule.terminal:
+            if not rule.remedy:
+                errors.append(f"nonterminal denial lacks remedy: {rule.code}")
+            if rule.remedy_code not in satisfying_remedies:
+                errors.append(f"nonterminal denial lacks satisfiable remedy: {rule.code}")
     return errors
 
 
@@ -491,16 +524,34 @@ def evaluate(
                 "CE_SESSION_REQUIRED": "Stateful lifecycle enforcement requires a unique session identity.",
                 "CE_SESSION_MISSING_STOP": "Stop allowed without state lookup because host omitted session identity.",
             }.get(rule.code, rule.code)
+            next_phase = (
+                "Blocked"
+                if rule.terminal and rule.decision == "deny"
+                else "Complete"
+                if rule.terminal and rule.decision == "allow"
+                else current_phase
+            )
+            if (
+                next_phase != current_phase
+                and next_phase not in LIFECYCLE_TRANSITIONS[current_phase]
+            ):
+                return EvaluationReport(
+                    host=event.host,
+                    event=event.name,
+                    phase=current_phase,
+                    decision="deny",
+                    diagnostic_code="CE_INVALID_TRANSITION",
+                    reason=(
+                        f"Lifecycle transition {current_phase} to {next_phase} is not declared."
+                    ),
+                    remedy="Request one declared transition from the current phase.",
+                    terminal_reason=None,
+                    facts_used=observed.used_facts,
+                )
             return EvaluationReport(
                 host=event.host,
                 event=event.name,
-                phase=(
-                    "Blocked"
-                    if rule.terminal and rule.decision == "deny"
-                    else "Complete"
-                    if rule.terminal and rule.decision == "allow"
-                    else current_phase
-                ),
+                phase=next_phase,
                 decision=rule.decision,
                 diagnostic_code=rule.code,
                 reason=reason,
@@ -611,10 +662,45 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal JSON at line {line_number}"
                 ) from error
-            if not isinstance(item, dict) or item.get("schemaVersion") not in {1, 2}:
+            if not isinstance(item, dict) or type(item.get("schemaVersion")) is not int:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
+            if item["schemaVersion"] not in {1, 2}:
+                raise JournalCorruptionError(
+                    f"invalid effect journal record at line {line_number}"
+                )
+            if item["schemaVersion"] == 2:
+                required_strings = (
+                    "identity",
+                    "idempotencyKey",
+                    "sessionId",
+                    "event",
+                    "toolCallId",
+                    "rule",
+                    "effect",
+                    "payloadDigest",
+                )
+                if any(type(item.get(field)) is not str for field in required_strings):
+                    raise JournalCorruptionError(
+                        f"invalid effect journal record at line {line_number}"
+                    )
+                expected_key = hashlib.sha256(
+                    "\0".join(
+                        str(item[field])
+                        for field in ("sessionId", "event", "toolCallId", "rule", "effect")
+                    ).encode("utf-8")
+                ).hexdigest()
+                digest = str(item["payloadDigest"])
+                if (
+                    item["identity"] != CANONICAL_IDENTITY
+                    or not str(item["sessionId"]).strip()
+                    or item["idempotencyKey"] != expected_key
+                    or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                ):
+                    raise JournalCorruptionError(
+                        f"invalid effect journal record at line {line_number}"
+                    )
             if item.get("sessionId") == session_id:
                 records.append(item)
         return records
