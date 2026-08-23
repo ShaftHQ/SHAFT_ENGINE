@@ -1342,7 +1342,7 @@ def load_dependency_controller(installed_root: Path):
     return load_installed_controller(installed_root, "dependencies")
 
 
-def ensure_maven_tools(
+def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
     target: Path, specification: dict[str, object], *, runner=subprocess.run
 ) -> tuple[Path, Path]:
     hosts = load_installed_controller(target, "hosts")

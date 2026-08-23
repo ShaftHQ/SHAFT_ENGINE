@@ -1,11 +1,10 @@
 import importlib.util
 import json
 import tempfile
-import unittest
 import io
 import zipfile
 import tarfile
-from unittest import mock
+from unittest import TestCase, main, mock
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -17,7 +16,8 @@ def load(name: str):
     path = ROOT / "chaos-engine" / f"{name}.py"
     spec = importlib.util.spec_from_file_location(f"chaos_engine_{name}_managed", path)
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
+    if spec.loader is None:
+        raise RuntimeError(f"no module loader for {path}")
     spec.loader.exec_module(module)
     return module
 
@@ -27,7 +27,7 @@ INSTALLER = load("install")
 HOSTS = load("hosts")
 
 
-class ManagedRuntimeManifestTest(unittest.TestCase):
+class ManagedRuntimeManifestTest(TestCase):
     def setUp(self):
         self.specification = json.loads(
             (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
@@ -171,7 +171,7 @@ class ManagedRuntimeManifestTest(unittest.TestCase):
             self.assertEqual(str(generation / "node/lib/node_modules/npm/bin/npm-cli.js"), memory[1])
 
 
-class ManagedRuntimeCliTest(unittest.TestCase):
+class ManagedRuntimeCliTest(TestCase):
     def test_wrappers_bootstrap_uv_and_forward_maven_tools(self):
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
@@ -309,4 +309,4 @@ class ManagedRuntimeCliTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
