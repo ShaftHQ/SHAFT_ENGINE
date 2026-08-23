@@ -116,13 +116,16 @@ def default_mempalace_wing(project_name: str) -> str:
 
 def project_identity_name(project: Path) -> str:
     """Return the repository identity, independent of a checkout/worktree folder name."""
-    result = subprocess.run(  # nosec B603 B607 - fixed git query, no shell.
-        ["git", "-C", str(project), "config", "--get", "remote.origin.url"],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=5,
-    )
+    try:
+        result = subprocess.run(  # nosec B603 B607 - fixed git query, no shell.
+            ["git", "-C", str(project), "config", "--get", "remote.origin.url"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return project.name
     if result.returncode == 0:
         remote = result.stdout.strip().rstrip("/\\")
         candidate = re.split(r"[/\\:]", remote)[-1]

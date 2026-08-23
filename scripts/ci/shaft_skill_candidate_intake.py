@@ -179,7 +179,9 @@ def quarantine_command(
     roots = [root.resolve(strict=False) for root in PROTECTED_ROOTS]
     if not all(path.is_dir() for path in (candidate, fixtures, output)):
         raise ValueError("candidate, fixtures, and output must be existing directories")
-    if not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
+    digest = r"sha256:[0-9a-f]{64}"
+    digest_reference = rf"[a-z0-9][a-z0-9._:/-]*@{digest}"
+    if not re.fullmatch(rf"(?:{digest}|{digest_reference})", image):
         raise ValueError("trial image must use an immutable sha256 digest")
     if not argv or not all(isinstance(part, str) and part for part in argv):
         raise ValueError("trial argv must contain non-empty strings")
