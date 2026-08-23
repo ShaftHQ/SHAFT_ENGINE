@@ -55,14 +55,14 @@ as a path relative to the settings file, and resolve `hooks/guard.py` from the
 installed tree (`.chaos-engine/hooks/guard.py` or
 `plugins/chaos-engine/hooks/guard.py`).
 
-Tool matching is owned by [`hooks/matchers.json`](../hooks/matchers.json). Preventive matching includes
+Tool matching is owned by [`hooks/matchers.json`](../hooks/matchers.json). Preventive and observational matching include
 only surfaces that can be denied usefully: mutation-capable shell execution,
 file writes, dispatch, and memory/store writes. Read, search, web research, and
-plan/TODO tools do not start a PreToolUse process because no current rule can
-deny them successfully. Their PostToolUse and PostToolUseFailure events remain
-matched where the outcome supplies research, test, mutation, delivery, memory,
-or repeated-failure evidence. A future preventive rule for a read-only surface
-must restore that surface to the preventive matcher with a contract test.
+plan/TODO tools do not start a hook process because their outcomes own no safety
+decision or durable lifecycle state. Research-first remains one compact
+SessionStart instruction; it is not reconstructed from host-specific tool
+observations or enforced on every mutation. A future rule for a read-only
+surface must restore only the lifecycle events it needs with a contract test.
 Gemini, Claude, Codex, and Grok use native matcher fields. Copilot's workspace
 hook format has no matcher field, so `hooks/launch.js` applies the same policy
 before starting Python.

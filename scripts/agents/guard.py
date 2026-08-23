@@ -3067,55 +3067,6 @@ def _act_as_mohab_root(cwd: object) -> str | None:
         current = parent
 
 
-def check_r25_research_before_implementation(
-    hook_input: dict, tool_name: str, context: _InvocationContext | None = None
-) -> str | None:
-    """Fail closed when an implementation tool arrives before the ordered receipt."""
-    tool_input = hook_input.get("tool_input")
-    if context is None:
-        context = _invocation_context(hook_input, tool_name)
-    if not context.mutation:
-        return None
-    cwd = _hook_working_directory(hook_input)
-    root = _act_as_mohab_root(cwd)
-    if not root:
-        return None
-    if tool_name in _FILE_MUTATION_TOOLS or tool_name in _SHELL_TOOLS:
-        targets = context.targets
-        if targets and all(not _path_is_inside(path, root, cwd) for path in targets):
-            return None
-    events = ledger_events(hook_input)
-    if _is_plan_receipt_command(
-        str(
-            (tool_input if isinstance(tool_input, dict) else {}).get("command")
-            or (tool_input if isinstance(tool_input, dict) else {}).get("cmd")
-            or ""
-        )
-    ):
-        required_prefix = IMPLEMENTATION_PREFLIGHT_EVENTS[:-1]
-        cursor = -1
-        for required in required_prefix:
-            try:
-                cursor = events.index(required, cursor + 1)
-            except ValueError:
-                break
-        else:
-            return None
-    cursor = -1
-    for required in IMPLEMENTATION_PREFLIGHT_EVENTS:
-        try:
-            cursor = events.index(required, cursor + 1)
-        except ValueError:
-            return (
-                "R25 research-first blocked: implementation requires the ordered "
-                "session receipt before mutation. Missing or late event: "
-                f"{required}. Required order: "
-                + ", ".join(IMPLEMENTATION_PREFLIGHT_EVENTS)
-                + ". Complete the live query or plan action; do not forge the ledger."
-            )
-    return None
-
-
 def _unpushed_commit_count(branch: str, cwd: object = None) -> int | None:
     """Commits on `branch` that exist on no remote, or None if unanswerable.
 
@@ -4525,11 +4476,6 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
-    reason = check_r25_research_before_implementation(hook_input, tool_name, context)
-    if reason is not None:
-        _record_guard_block_and_deny(hook_input, reason, host)
-        return 0
-
     if commands:
         command_tool = "PowerShell" if tool_name == "functions.exec" else tool_name
         for invocation in context.invocations:
@@ -4656,11 +4602,6 @@ def run_posttooluse(hook_input: dict) -> int:
             )
             if issue_reference:
                 ledger_record(hook_input, issue_reference)
-    if not result_failed:
-        for event in _research_preflight_events(
-            tool_name, hook_input.get("tool_input"), result, commands
-        ):
-            ledger_record(hook_input, event)
     return 0
 
 
@@ -5895,7 +5836,6 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r21_run_state_not_recorded": "run_required_action_self_test",
     "check_r22_dispatch_adapter": "run_required_action_self_test",
     "check_r24_foreign_worktree_left_behind": "run_required_action_self_test",
-    "check_r25_research_before_implementation": "run_required_action_self_test",
     "check_r28_pr_audit_before_arming": "run_required_action_self_test",
     "check_r29_delivery_complete": "run_required_action_self_test",
     "check_r30_merge_authority_before_arming": "run_required_action_self_test",
@@ -6043,24 +5983,6 @@ def run_required_action_self_test() -> int:
             failures.append(description)
 
     write = {"cwd": ".", "tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
-
-    # R25: every implementation mutation needs the live ordered research receipt.
-    check(
-        "R25 blocks an implementation write with no research receipt",
-        _with_stubs(
-            {"ledger_events": lambda payload: []},
-            lambda: check_r25_research_before_implementation(write, "Write"),
-        )
-        is not None,
-    )
-    check(
-        "R25 allows an implementation write after the ordered research receipt",
-        _with_stubs(
-            {"ledger_events": lambda payload: list(RESEARCH_PREFLIGHT_EVENTS)},
-            lambda: check_r25_research_before_implementation(write, "Write"),
-        )
-        is None,
-    )
 
     # R22: only a host adapter can deliver the mandatory entrypoint to a delegate.
     check(

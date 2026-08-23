@@ -912,26 +912,6 @@ class CommitObservationTest(unittest.TestCase):
         self.assertEqual(runner.call_args.kwargs["timeout"], 0.125)
 
 
-class ResearchPreflightAdvisoryStoreTest(unittest.TestCase):
-    """R25 store policy is independent of the broad Stop-rule fixture."""
-
-    def test_store_events_are_advisory_for_a_complete_non_store_receipt(self):
-        advisory = {"query-native-memory", "query-mempalace", "query-graphify"}
-        required = [
-            event for event in guard.RESEARCH_PREFLIGHT_EVENTS if event not in advisory
-        ]
-        payload = {
-            "cwd": ".",
-            "session_id": "research-first-test",
-            "tool_name": "Write",
-            "tool_input": {},
-        }
-        with patch("scripts.agents.guard.ledger_events", return_value=required):
-            self.assertIsNone(
-                guard.check_r25_research_before_implementation(payload, "Write")
-            )
-
-
 class DelegatePreflightRedTest(unittest.TestCase):
     """#4570's missing delegate and learning-session behavior."""
 
@@ -1083,50 +1063,6 @@ class GuardLifecycleTest(unittest.TestCase):
         ):
             self.assertIn(required, context)
 
-    def payload(self) -> dict:
-        return {
-            "cwd": ".",
-            "session_id": "research-first-test",
-            "tool_name": "Write",
-            "tool_input": {"file_path": ".agents/skills/act-as-mohab/SKILL.md"},
-        }
-
-    def test_write_without_a_receipt_is_blocked(self):
-        with patch("scripts.agents.guard.ledger_events", return_value=[]):
-            reason = guard.check_r25_research_before_implementation(self.payload(), "Write")
-        self.assertIn("research-first", reason.lower())
-        self.assertIn("read-live-files", reason)
-
-    def test_each_missing_or_late_receipt_event_blocks_the_mutation(self):
-        required = guard.IMPLEMENTATION_PREFLIGHT_EVENTS
-        for missing in required:
-            with self.subTest(missing=missing):
-                events = [event for event in required if event != missing]
-                with patch("scripts.agents.guard.ledger_events", return_value=events):
-                    self.assertIsNotNone(
-                        guard.check_r25_research_before_implementation(self.payload(), "Write")
-                    )
-        late = [*required[1:], required[0]]
-        with patch("scripts.agents.guard.ledger_events", return_value=late):
-            self.assertIsNotNone(
-                guard.check_r25_research_before_implementation(self.payload(), "Write")
-            )
-
-    def test_complete_ordered_receipt_allows_the_mutation(self):
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
-        ):
-            self.assertIsNone(
-                guard.check_r25_research_before_implementation(self.payload(), "Write")
-            )
-
-    def test_analysis_tools_are_not_blocked(self):
-        with patch("scripts.agents.guard.ledger_events", return_value=[]):
-            self.assertIsNone(
-                guard.check_r25_research_before_implementation(self.payload(), "Read")
-            )
-
     def test_live_tool_events_map_to_the_receipt_vocabulary(self):
         fixtures = (
             ("Read", {"file_path": "src/Main.java"}, None, "read-live-files"),
@@ -1227,23 +1163,10 @@ class GuardLifecycleTest(unittest.TestCase):
             'await tools.update_plan({metadata:{explanation:"Compare proven approaches"},'
             'plan:[{step:"Implement",status:"in_progress"}]});',
         )
-        required_prefix = list(guard.IMPLEMENTATION_PREFLIGHT_EVENTS[:3])
         for invalid_source in invalid_sources:
             with self.subTest(invalid_source=invalid_source):
                 events = guard._research_preflight_events("functions.exec", invalid_source, {})
                 self.assertEqual(events, ())
-                with patch.object(
-                    guard,
-                    "ledger_events",
-                    return_value=[*required_prefix, *events],
-                ), patch.object(
-                    guard, "_act_as_mohab_root", return_value=str(Path.cwd())
-                ), patch.object(guard, "_path_is_inside", return_value=True):
-                    self.assertIsNotNone(
-                        guard.check_r25_research_before_implementation(
-                            self.payload(), "Write"
-                        )
-                    )
 
     def test_shell_command_maps_research_clis_in_command_order(self):
         self.assertEqual(
@@ -1454,7 +1377,7 @@ class GuardLifecycleTest(unittest.TestCase):
                 )
         self.assertEqual(observed, [])
 
-    def test_portable_hook_matchers_skip_read_only_pre_calls_but_observe_outcomes(self):
+    def test_portable_hook_matchers_skip_research_only_calls(self):
         plan_surfaces = (
             "update_plan",
             "enter_plan_mode",
@@ -1474,12 +1397,17 @@ class GuardLifecycleTest(unittest.TestCase):
                 post = hooks["PostToolUse"][0]["matcher"]
                 for tool in read_only_surfaces:
                     self.assertIsNone(re.fullmatch(pre, tool), tool)
-                    self.assertIsNotNone(re.fullmatch(post, tool), tool)
+                    self.assertIsNone(re.fullmatch(post, tool), tool)
                 for tool in ("apply_patch", "PowerShell"):
                     self.assertIsNotNone(re.fullmatch(pre, tool), tool)
                 for tool in ("Task", "Agent", "spawn_agent"):
                     self.assertIsNotNone(re.fullmatch(pre, tool), tool)
                     self.assertIsNone(re.fullmatch(post, tool), tool)
+
+    def test_pretooluse_does_not_dispatch_research_preflight(self):
+        source = inspect.getsource(guard.run_pretooluse)
+
+        self.assertNotIn("check_r25_research_before_implementation", source)
 
     def test_redirect_detection_is_quote_aware(self):
         quoted = 'rg -n "Map<String, List<Integer>>" shaft-engine'
@@ -1569,37 +1497,6 @@ class GuardLifecycleTest(unittest.TestCase):
             guard._implementation_targets("apply_patch", patch_input),
         )
 
-    def test_every_live_mutation_lane_requires_the_receipt(self):
-        fixtures = (
-            ("PowerShell", {"command": "Set-Content scripts/x.py changed"}),
-            ("exec_command", {"cmd": "Set-Content scripts/x.py changed"}),
-            ("functions.exec", 'const p = "x"; await tools.apply_patch(p);'),
-            (
-                "functions.exec",
-                'await tools.exec_command({cmd:"echo safe"}); '
-                "const bad = 'git reset --hard HEAD~1'; "
-                "await tools.exec_command({cmd: bad});",
-            ),
-            (
-                "mcp__shaft_memory__remember_memory",
-                {"content": "durable"},
-            ),
-            ("PowerShell", {"command": "Clear-Content scripts/x.py"}),
-            ("PowerShell", {"command": "Copy-Item source.txt scripts/x.py"}),
-            ("PowerShell", {"command": "Rename-Item old.txt scripts/x.py"}),
-            ("Bash", {"command": "printf changed > scripts/x.py"}),
-            ("mcp__shaft-memory__remember_memory", {"content": "durable"}),
-            ("mcp__mempalace__mempalace_delete_drawer", {"drawer_id": "x"}),
-            ("PowerShell", {"command": "gh api --method PATCH repos/o/r -f x=y"}),
-        )
-        for tool_name, tool_input in fixtures:
-            with self.subTest(tool_name=tool_name, tool_input=tool_input):
-                payload = {"cwd": ".", "tool_input": tool_input}
-                with patch("scripts.agents.guard.ledger_events", return_value=[]):
-                    self.assertIsNotNone(
-                        guard.check_r25_research_before_implementation(payload, tool_name)
-                    )
-
     def test_apply_patch_shares_default_branch_and_outside_target_scoping(self):
         inside = {
             "cwd": ".",
@@ -1616,10 +1513,6 @@ class GuardLifecycleTest(unittest.TestCase):
             ):
                 self.assertIsNotNone(guard.check_r19_fresh_base(inside, "apply_patch"))
                 self.assertIsNone(guard.check_r19_fresh_base(outside, "apply_patch"))
-        with patch("scripts.agents.guard.ledger_events", return_value=[]):
-            self.assertIsNone(
-                guard.check_r25_research_before_implementation(outside, "apply_patch")
-            )
         wrapped = {
             "cwd": ".",
             "tool_input": 'const p = "patch"; await tools.apply_patch(p);',
@@ -1633,7 +1526,7 @@ class GuardLifecycleTest(unittest.TestCase):
                     guard.check_r19_fresh_base(wrapped, "functions.exec")
                 )
 
-    def test_only_successful_post_tool_events_certify_research(self):
+    def test_post_tool_events_do_not_build_a_research_receipt(self):
         payload = {
             "cwd": ".",
             "session_id": "post-tool-receipt",
@@ -1647,9 +1540,9 @@ class GuardLifecycleTest(unittest.TestCase):
 
         with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
             self.assertEqual(guard.run_posttooluse(payload), 0)
-        self.assertEqual(observed, ["read-live-files", "load-routed-skill"])
+        self.assertEqual(observed, [])
 
-    def test_successful_shell_research_is_recorded_in_command_order(self):
+    def test_successful_shell_research_is_not_recorded(self):
         payload = {
             "cwd": ".",
             "session_id": "ordered-shell-receipt",
@@ -1662,16 +1555,7 @@ class GuardLifecycleTest(unittest.TestCase):
         observed = []
         with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
             guard.run_posttooluse(payload)
-        self.assertEqual(
-            observed,
-            [
-                "query-graphify",
-                "query-mempalace",
-                "query-native-memory",
-                "read-live-files",
-                "load-routed-skill",
-            ],
-        )
+        self.assertEqual(observed, [])
 
     def test_only_explicit_primary_source_research_counts_as_authoritative(self):
         generic = guard._research_preflight_events(
@@ -1858,38 +1742,6 @@ class GuardLifecycleTest(unittest.TestCase):
             with patch("scripts.agents.guard._repository_root", return_value=root):
                 self.assertIsNotNone(guard.check_r19_fresh_base(inside, "PowerShell"))
                 self.assertIsNone(guard.check_r19_fresh_base(outside, "PowerShell"))
-        with patch("scripts.agents.guard.ledger_events", return_value=[]):
-            self.assertIsNone(
-                guard.check_r25_research_before_implementation(outside, "PowerShell")
-            )
-
-    def test_issue_backed_plan_comment_completes_its_own_receipt_after_success(self):
-        command = (
-            "gh issue comment 4666 --body 'Implementation plan and executable specification'"
-        )
-        payload = {"cwd": ".", "tool_input": {"command": command}}
-        first_seven = list(guard.RESEARCH_PREFLIGHT_EVENTS[:-1])
-        with patch("scripts.agents.guard.ledger_events", return_value=first_seven):
-            self.assertIsNone(
-                guard.check_r25_research_before_implementation(payload, "PowerShell")
-            )
-        observed = []
-        with patch(
-            "scripts.agents.guard.ledger_record",
-            side_effect=lambda _payload, event: observed.append(event),
-        ):
-            guard.run_posttooluse(
-                {**payload, "tool_name": "PowerShell", "session_id": "issue-plan"}
-            )
-        self.assertIn("record-plan", observed)
-
-        unrelated = {"cwd": ".", "tool_input": {"command": "gh issue comment 4666 --body status"}}
-        with patch("scripts.agents.guard.ledger_events", return_value=first_seven):
-            self.assertIsNotNone(
-                guard.check_r25_research_before_implementation(unrelated, "PowerShell")
-            )
-
-
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)
     @patch(
         "scripts.agents.guard._worktree_report",
@@ -2724,7 +2576,6 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
             mock.patch.object(guard, "_checkpoint_identity", side_effect=identity),
             mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True),
             mock.patch.object(guard, "check_r19_fresh_base", return_value=None),
-            mock.patch.object(guard, "check_r25_research_before_implementation", return_value=None),
             mock.patch.object(guard, "check_r30_merge_authority_before_arming", return_value=None),
             redirect_stdout(stream),
         ):
@@ -2748,7 +2599,6 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
                     mock.patch.object(guard, "_checkpoint_identity", side_effect=identity),
                     mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True),
                     mock.patch.object(guard, "check_r19_fresh_base", return_value=None),
-                    mock.patch.object(guard, "check_r25_research_before_implementation", return_value=None),
                     mock.patch.object(guard, "check_r30_merge_authority_before_arming", return_value=None),
                     redirect_stdout(stream),
                 ):
