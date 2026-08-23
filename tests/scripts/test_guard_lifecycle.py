@@ -2607,6 +2607,37 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
 
         self.assertEqual("", stream.getvalue())
 
+    def test_literal_directory_change_supplies_missing_native_hook_workdir(self):
+        def identity(hook_input):
+            repository = "consumer/project" if hook_input.get("cwd") == "C:/task" else "other/project"
+            return repository, "ChaosEngine/task", "a" * 40
+
+        for prefix in ("Set-Location -LiteralPath 'C:/task';", "cd C:/task &&"):
+            with self.subTest(prefix=prefix):
+                stream = io.StringIO()
+                with (
+                    mock.patch.object(guard, "_checkpoint_identity", side_effect=identity),
+                    mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True),
+                    mock.patch.object(guard, "check_r19_fresh_base", return_value=None),
+                    mock.patch.object(guard, "check_r25_research_before_implementation", return_value=None),
+                    mock.patch.object(guard, "check_r30_merge_authority_before_arming", return_value=None),
+                    redirect_stdout(stream),
+                ):
+                    guard.run_pretooluse({
+                        "tool_name": "Bash",
+                        "cwd": "C:/outer",
+                        "tool_input": {
+                            "command": f"{prefix} gh pr merge 17 --repo consumer/project --auto --merge"
+                        },
+                    })
+
+                self.assertEqual("", stream.getvalue())
+
+        self.assertEqual(
+            "C:/outer",
+            guard._literal_shell_workdir("Set-Location $task; gh pr merge 17 --auto --merge", "C:/outer"),
+        )
+
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):
     """R30: no PR merge mutation without recorded exact-head user authority."""

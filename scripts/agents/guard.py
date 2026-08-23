@@ -2162,6 +2162,37 @@ class _LiteralInvocation(NamedTuple):
     unresolved: bool
 
 
+def _literal_shell_workdir(command: str, fallback: str | None) -> str | None:
+    """Use one leading literal directory change when native hooks omit workdir."""
+    segments, separators = _top_level_shell_parts(command)
+    directory_heads = {"cd", "set-location", "push-location"}
+    changes = [
+        index
+        for index, segment in enumerate(segments)
+        if (tokens := _segment_tokens(segment)) and tokens[0].lower() in directory_heads
+    ]
+    if changes != [0] or len(segments) < 2 or separators[0] not in {";", "&&", "\n", "\r"}:
+        return fallback
+    tokens = _segment_tokens(segments[0])
+    arguments = tokens[1:]
+    if tokens[0].lower() in {"set-location", "push-location"}:
+        if len(arguments) == 2 and arguments[0].lower() in {"-path", "-literalpath"}:
+            value = arguments[1]
+        elif len(arguments) == 1 and not arguments[0].startswith("-"):
+            value = arguments[0]
+        else:
+            return fallback
+    elif len(arguments) == 1 and not arguments[0].startswith("-"):
+        value = arguments[0]
+    else:
+        return fallback
+    if not value or any(marker in value for marker in ("$", "`", "*", "?", "{", "}")):
+        return fallback
+    if os.path.isabs(value):
+        return value
+    return os.path.realpath(os.path.join(fallback or os.getcwd(), value))
+
+
 def _wrapped_exec_invocations(
     source: str, fallback_workdir: str | None = None
 ) -> tuple[_LiteralInvocation, ...]:
@@ -2212,6 +2243,7 @@ def _wrapped_exec_invocations(
             return ()
         if workdir is not None and (not isinstance(workdir, str) or not workdir.strip()):
             return ()
+        workdir = _literal_shell_workdir(command, workdir)
         mutation, targets, unresolved = _shell_mutation_analysis(command)
         invocations.append(
             _LiteralInvocation(command, workdir, mutation, targets, unresolved)
@@ -2263,6 +2295,7 @@ def _functions_exec_invocations(
         workdir = details.get("workdir")
         if not isinstance(workdir, str) or not workdir.strip():
             workdir = fallback_workdir
+        workdir = _literal_shell_workdir(direct, workdir)
         mutation, targets, unresolved = _shell_mutation_analysis(direct)
         return (_LiteralInvocation(direct, workdir, mutation, targets, unresolved),)
     return _wrapped_exec_invocations(_functions_exec_source(tool_input), fallback_workdir)
@@ -4216,6 +4249,7 @@ def _literal_invocations(
         workdir = details.get("workdir")
         if not isinstance(workdir, str) or not workdir.strip():
             workdir = cwd
+        workdir = _literal_shell_workdir(command, workdir)
         mutation, targets, unresolved = _shell_mutation_analysis(command)
         return (_LiteralInvocation(command, workdir, mutation, targets, unresolved),)
     if tool_name == "functions.exec":

@@ -76,6 +76,12 @@ like redirection, cross-worktree writes to inherit the caller's branch, release
 note previews to look like release mutations, and fabricated wrapper text to
 look like successful research.
 
+Some native shell hook protocols report only the session cwd and omit the
+execution tool's workdir. A cross-worktree command on those hosts must start
+with one literal `cd`, `Set-Location`, or `Push-Location`. The guard uses that
+directory for the paired invocation; dynamic or repeated directory changes do
+not override the fail-closed fallback.
+
 ## Companions
 
 Caveman and Ponytail remain pinned vendor files. Do not rewrite or truncate
