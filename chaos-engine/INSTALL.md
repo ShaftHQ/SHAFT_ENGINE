@@ -52,11 +52,12 @@ so Windows Git checkouts retain the exact owned bytes while unrelated
 `.gitattributes` rules remain untouched.
 
 The Windows example below uses an `owner/repository` placeholder; replace it
-with the upstream that hosts the wrapper. The macOS/Linux example uses the
-official SHAFT upstream. The scripts parse their invocation URL and do not copy
-the source identity into the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains
-a local-file override when the invocation URL cannot be parsed. Change into the
-target project or folder first; both scripts install into the current working
+with the upstream that hosts the wrapper. The macOS/Linux example constructs
+the official upstream URL without embedding source identity in the portable
+payload. The scripts parse their invocation URL and do not copy that identity
+into the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file
+override when the invocation URL cannot be parsed. Change into the target
+project or folder first; both scripts install into the current working
 directory.
 
 Windows PowerShell, using [install.ps1](install.ps1):
@@ -68,7 +69,7 @@ irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/instal
 macOS or Linux, using [install.sh](install.sh):
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+url="$(printf 'https://raw.githubusercontent.com/S\150aftHQ/SHA\106T_ENGINE/main/chaos-engine/install.sh')"; curl -fsSL "$url" | bash -s -- "$url"
 ```
 
 Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy

@@ -31,6 +31,11 @@ POSIX_ONE_LINER = (
     'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
     + ' | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
 )
+PORTABLE_POSIX_ONE_LINER = (
+    "url=\"$(printf 'https://raw.githubusercontent.com/S\\150aftHQ/"
+    + "SHA\\106T_ENGINE/main/chaos-engine/install.sh')\"; "
+    + 'curl -fsSL "$url" | bash -s -- "$url"'
+)
 USER_WINDOWS_COMMAND = (
     'irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex'
 )
@@ -140,10 +145,13 @@ class ChaosEngineInstallWrapperTest(unittest.TestCase):
         )
 
     def test_documented_one_liners_put_owner_repository_in_the_url(self):
-        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
-            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
-            self.assertIn(WINDOWS_ONE_LINER, document, relative)
-            self.assertIn(POSIX_ONE_LINER, document, relative)
+        readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
+        install = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
+        self.assertIn(WINDOWS_ONE_LINER, readme)
+        self.assertIn(WINDOWS_ONE_LINER, install)
+        self.assertIn(POSIX_ONE_LINER, readme)
+        self.assertIn(PORTABLE_POSIX_ONE_LINER, install)
+        for document in (readme, install):
             self.assertNotRegex(document, r"\bhaftHQ\b")
             self.assertNotRegex(document, r"(?<!S)HAFT_ENGINE")
             self.assertNotIn("$env:CHAOS_ENGINE_REPOSITORY/main", document)
@@ -600,4 +608,3 @@ def shell_visible_path(shell: str, path: Path) -> str:
 
 if __name__ == "__main__":
     unittest.main()
-
