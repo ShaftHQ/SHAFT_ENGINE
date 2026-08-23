@@ -3362,6 +3362,22 @@ def _standalone_receipt_command(command: str) -> str:
     return command
 
 
+def _allowed_receipt_runtimes(hook_input: dict) -> set[Path]:
+    """Trust canonical controllers from hook source and effective worktree."""
+    roots = {Path(_harness_root())}
+    repository = _repository_root(_hook_working_directory(hook_input))
+    if repository:
+        roots.add(Path(repository))
+    return {
+        path.resolve()
+        for root in roots
+        for path in (
+            root / "scripts/agents/act_as_mohab_cli.py",
+            root / "bin/act-as-mohab.pyz",
+        )
+    }
+
+
 def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
     """Bind one successful standalone canonical audit command to its exact receipt."""
     command = _standalone_receipt_command(command)
@@ -3384,10 +3400,7 @@ def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
     runtime_path = Path(runtime_token)
     if not runtime_path.is_absolute():
         runtime_path = Path(_hook_working_directory(hook_input) or ".") / runtime_path
-    allowed_runtimes = {
-        (Path(_harness_root()) / "scripts/agents/act_as_mohab_cli.py").resolve(),
-        (Path(_harness_root()) / "bin/act-as-mohab.pyz").resolve(),
-    }
+    allowed_runtimes = _allowed_receipt_runtimes(hook_input)
     if (
         runtime_name not in {"act_as_mohab_cli.py", "act-as-mohab.pyz"}
         or runtime_path.resolve() not in allowed_runtimes
@@ -3441,10 +3454,7 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     runtime_path = Path(runtime_token)
     if not runtime_path.is_absolute():
         runtime_path = Path(_hook_working_directory(hook_input) or ".") / runtime_path
-    allowed_runtimes = {
-        (Path(_harness_root()) / "scripts/agents/act_as_mohab_cli.py").resolve(),
-        (Path(_harness_root()) / "bin/act-as-mohab.pyz").resolve(),
-    }
+    allowed_runtimes = _allowed_receipt_runtimes(hook_input)
     if runtime_name not in {"act_as_mohab_cli.py", "act-as-mohab.pyz"} or runtime_path.resolve() not in allowed_runtimes or not trusted_head or not _trusted_executable_token(tokens[0].strip("\"'")) or head_name not in {
         "py", "py.exe", "python", "python.exe", "python3", "python3.exe"
     }:
@@ -3616,10 +3626,7 @@ def _successful_authority_event(hook_input: dict, command: str) -> str | None:
     trusted_head = shutil.which(tokens[0].strip("\"'")) if tokens else None
     if not runtime_path.is_absolute():
         runtime_path = Path(_hook_working_directory(hook_input) or ".") / runtime_path
-    allowed = {
-        (Path(_harness_root()) / "scripts/agents/act_as_mohab_cli.py").resolve(),
-        (Path(_harness_root()) / "bin/act-as-mohab.pyz").resolve(),
-    }
+    allowed = _allowed_receipt_runtimes(hook_input)
     if runtime_path.resolve() not in allowed or not trusted_head or not _trusted_executable_token(tokens[0].strip("\"'")) or head_name not in {
         "py", "py.exe", "python", "python.exe", "python3", "python3.exe"
     }:

@@ -2674,6 +2674,38 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
         dynamic = "Set-Location $task; py -3 scripts/agents/act_as_mohab_cli.py pr-audit"
         self.assertEqual(dynamic, guard._standalone_receipt_command(dynamic))
 
+    def test_receipt_controller_is_trusted_from_effective_task_worktree(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = Path(temporary) / "task"
+            source = Path(temporary) / "source"
+            receipt_path = Path(temporary) / "receipt.json"
+            task.mkdir()
+            source.mkdir()
+            identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+            receipt_path.write_text(json.dumps({
+                "decision": "allow",
+                "repository": identity[0],
+                "pullRequest": 17,
+                "headOid": identity[2],
+            }), encoding="utf-8")
+            runtime = task / "scripts/agents/act_as_mohab_cli.py"
+            command = (
+                f'py -3 "{runtime}" pr-audit --pr 17 '
+                f'--receipt-out "{receipt_path}"'
+            )
+
+            with (
+                mock.patch.object(guard, "_harness_root", return_value=str(source)),
+                mock.patch.object(guard, "_repository_root", return_value=str(task)),
+                mock.patch.object(guard, "_checkpoint_identity", return_value=identity),
+            ):
+                event = guard._successful_pr_audit_event(
+                    {"cwd": str(task)}, command
+                )
+
+            self.assertIsNotNone(event)
+            self.assertTrue(event.startswith("pr-audit:consumer/project:17:"))
+
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):
     """R30: no PR merge mutation without recorded exact-head user authority."""
