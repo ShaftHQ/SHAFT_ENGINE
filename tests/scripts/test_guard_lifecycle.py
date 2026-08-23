@@ -2001,9 +2001,7 @@ class SessionStartRetrievalIsolationTest(unittest.TestCase):
             [
                 sys.executable,
                 "-c",
-                "import sys; import scripts.agents.guard; "
-                "print('scripts.agents.learning_session' in sys.modules); "
-                "print('scripts.agents.repository_context' in sys.modules)",
+                "import sys; import scripts.agents.guard; print('scripts.agents.learning_session' in sys.modules); print('scripts.agents.repository_context' in sys.modules)",
             ],
             cwd=Path(__file__).resolve().parents[2],
             capture_output=True,

@@ -4508,7 +4508,6 @@ def run_posttooluse(hook_input: dict) -> int:
     commands = tuple(
         invocation.command for invocation in invocations if invocation.command
     )
-    mutation = any(invocation.mutation for invocation in invocations)
 
     result_failed = hook_input.get("hook_event_name") == "PostToolUseFailure" or bool(
         isinstance(result, dict)
