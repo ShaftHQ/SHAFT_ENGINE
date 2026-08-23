@@ -965,7 +965,12 @@ jobs:
         with:
           python-version: "3.13"
       - name: Run installer UX contracts
-        run: python -m unittest tests.scripts.test_chaos_engine_installer_ux tests.scripts.test_chaos_engine_live_installer_acceptance -v
+        run: >-
+          python -m unittest
+          tests.scripts.test_chaos_engine_installer_ux
+          tests.scripts.test_chaos_engine_bootstrap
+          tests.scripts.test_chaos_engine_install_wrappers
+          tests.scripts.test_chaos_engine_live_installer_acceptance -v
       - name: Run fresh-install acceptance
         run: python scripts/ci/chaos_engine_live_installer_acceptance.py --output chaos-engine-live-installer-evidence.json
       - name: Upload fresh-install evidence

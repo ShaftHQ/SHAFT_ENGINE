@@ -1377,6 +1377,8 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             with tempfile.TemporaryDirectory(prefix=".temurin-", dir=cache.parent) as scratch_name:
                 scratch = Path(scratch_name)
                 url = str(artifact["url"])
+                if confirmer is not None:
+                    confirmer(f"Download Maven Tools Java runtime from {url}")
                 if reporter is not None:
                     reporter.start("Install Maven Tools", detail=url)
                 archive = scratch / ("temurin.zip" if url.endswith(".zip") else "temurin.tar.gz")
@@ -1422,12 +1424,16 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         source = Path(source_name) / "source"
         git = shutil.which("git")
         if git:
+            if confirmer is not None:
+                confirmer("Download Maven Tools source with git")
             runner([git, "clone", "--filter=blob:none", "--no-checkout", "https://github.com/arvindand/maven-tools-mcp.git", str(source)], check=True, timeout=300)
             runner([git, "-C", str(source), "checkout", "--detach", hosts.MAVEN_TOOLS_MCP_COMMIT], check=True, timeout=120)
         else:
             source.mkdir()
             archive = Path(source_name) / "source.zip"
             source_artifact = specification["runtimes"]["maven-tools-source"]  # type: ignore[index]
+            if confirmer is not None:
+                confirmer(f"Download Maven Tools source from {source_artifact['url']}")  # type: ignore[index]
             if reporter is not None:
                 reporter.start("Install Maven Tools", detail=str(source_artifact["url"]))  # type: ignore[index]
             dependencies._download_artifact(
@@ -1440,6 +1446,8 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             raise ValueError("Maven Tools upstream wrapper is missing")
         environment = os.environ.copy()
         environment["JAVA_HOME"] = str(java.parent.parent)
+        if confirmer is not None:
+            confirmer("Build and install Maven Tools")
         runner([str(wrapper), "-B", "clean", "verify", "-Pfull"], cwd=source, env=environment, check=True, timeout=900)
         built = source / f"target/maven-tools-mcp-{hosts.MAVEN_TOOLS_MCP_VERSION}.jar"
         if not built.is_file() or built.stat().st_size == 0:

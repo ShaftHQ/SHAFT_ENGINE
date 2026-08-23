@@ -109,8 +109,22 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("needs.changes.outputs.chaos_installer == 'true'", block)
         self.assertIn("os: [ubuntu-22.04, macos-15, windows-2025]", block)
         self.assertIn("scripts/ci/chaos_engine_live_installer_acceptance.py", block)
+        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", block)
+        self.assertIn("tests.scripts.test_chaos_engine_install_wrappers", block)
         summary = workflow[workflow.index("  summary:"):]
         self.assertIn("- chaos-installer-acceptance", summary)
+
+    def test_confirmation_callbacks_reach_dependencies_maven_and_activation(self):
+        bootstrap = (ROOT / "chaos-engine/bootstrap.py").read_text(encoding="utf-8")
+        installer = (ROOT / "chaos-engine/install.py").read_text(encoding="utf-8")
+        dependencies = (ROOT / "chaos-engine/dependencies.py").read_text(encoding="utf-8")
+        hosts = (ROOT / "chaos-engine/hosts.py").read_text(encoding="utf-8")
+        self.assertIn("reporter=reporter", bootstrap)
+        self.assertIn("confirmer=confirm", bootstrap)
+        self.assertIn("confirmer=confirmer", installer)
+        self.assertIn("Download {name} runtime", dependencies)
+        self.assertIn("Install {tool} package", dependencies)
+        self.assertIn("Activate {name} plugin for {client}", hosts)
 
 
 if __name__ == "__main__":

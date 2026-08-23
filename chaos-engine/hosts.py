@@ -1262,6 +1262,7 @@ def activate_detected_plugins(
     *,
     runner=subprocess.run,
     which=shutil.which,
+    confirmer=None,
 ) -> dict[str, object]:
     """Register and install the project plugin for detected native clients."""
     project = project.resolve()
@@ -1306,6 +1307,8 @@ def activate_detected_plugins(
             selected_client = lambda name, selected=client, path=executable: path if name == selected else None
             current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
             if current["marketplace"] != "healthy":
+                if confirmer is not None:
+                    confirmer(f"Register {client} plugin marketplace")
                 client_command(
                     executable,
                     marketplace_commands[client]["marketplace"],
@@ -1319,9 +1322,13 @@ def activate_detected_plugins(
                 state = plugin_states.get(name) if isinstance(plugin_states, dict) else "absent"
                 commands = activation_commands(root, str(contract["id"]))
                 if state == "absent":
+                    if confirmer is not None:
+                        confirmer(f"Activate {name} plugin for {client}")
                     client_command(executable, commands[client]["install"], project, runner=runner)
                     created_plugins.append(f"{client}:{name}")
                 elif state == "stale":
+                    if confirmer is not None:
+                        confirmer(f"Replace stale {name} plugin for {client}")
                     client_command(executable, commands[client]["remove"], project, runner=runner)
                     client_command(executable, commands[client]["install"], project, runner=runner)
             verified = detected_plugin_status(project, runner=runner, which=selected_client)[client]

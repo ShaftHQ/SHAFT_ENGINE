@@ -212,7 +212,7 @@ def _extract_runtime_archive(archive: Path, destination: Path) -> None:
 
 def provision_generation_runtimes(
     generation: Path, transaction: Path, specification: dict[str, object], *,
-    opener=urllib.request.urlopen, reporter=None,
+    opener=urllib.request.urlopen, reporter=None, confirmer=None,
 ) -> None:
     platform_key()
     for name in ("uv", "node"):
@@ -221,6 +221,8 @@ def provision_generation_runtimes(
             ".tar.xz" if str(artifact["url"]).endswith(".tar.xz") else ".tar.gz"
         )
         archive = transaction / f"{name}{suffix}"
+        if confirmer is not None:
+            confirmer(f"Download {name} runtime from {artifact['url']}")
         _download_artifact(
             str(artifact["url"]), archive, str(artifact["sha256"]), opener,
             reporter=reporter,
@@ -1480,12 +1482,16 @@ def _install_candidate_payload(
     command_runner,
     validate_holds,
     checked_at: datetime,
+    confirmer=None,
 ) -> dict[str, str]:
     environment = generation_environment(generation, transaction)
     completed: dict[str, list[str]] = {}
     for tool, commands in generation_install_plan(generation, specification).items():
         completed[tool] = []
         for command in commands:
+            if confirmer is not None:
+                package = next((item for item in reversed(command) if not item.startswith("-")), tool)
+                confirmer(f"Install {tool} package {package}")
             validate_holds()
             try:
                 result = command_runner(command, environment)
@@ -1702,7 +1708,8 @@ def prepare_candidate(
 
         if runner is None:
             provision_generation_runtimes(
-                generation, transaction, specification, reporter=reporter
+                generation, transaction, specification, reporter=reporter,
+                confirmer=confirmer,
             )
             validate_holds()
 
@@ -1716,6 +1723,7 @@ def prepare_candidate(
             command_runner,
             validate_holds,
             now or datetime.now(timezone.utc),
+            confirmer=confirmer,
         )
         succeeded = True
         return result
