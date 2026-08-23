@@ -238,6 +238,8 @@ class ChaosEnginePromotionTest(TestCase):
         self.assertIn("chaos_engine_promotion_trials.py", workflow)
         self.assertIn("--receipts chaos-engine-promotion-receipts", workflow)
         self.assertIn("continue-on-error: true", workflow)
+        self.assertIn("id: promotion-preflight", workflow)
+        self.assertIn("protected-inputs-unavailable", workflow)
         self.assertIn("CHAOS_ENGINE_BASELINE_REVISION", workflow)
         self.assertIn("CHAOS_ENGINE_CANDIDATE_REVISION", workflow)
 

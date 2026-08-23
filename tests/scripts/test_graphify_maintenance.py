@@ -495,6 +495,7 @@ class GraphifyMaintenanceTest(TestCase):
         module = self.load_module()
         output = primary / "graphify-out"
         events = []
+        resolve_executable = shutil.which
 
         def run_fixture_stage(name, command, root):
             events.append(name)
@@ -533,6 +534,12 @@ class GraphifyMaintenanceTest(TestCase):
         refresh_error = None
         with mock.patch.object(
             module, "run_stage", side_effect=run_fixture_stage
+        ), mock.patch.object(
+            module.shutil,
+            "which",
+            side_effect=lambda name: (
+                sys.executable if name == "uv" else resolve_executable(name)
+            ),
         ), redirect_stdout(io.StringIO()):
             try:
                 module.refresh(primary, Path("graphify-out"))

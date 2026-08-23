@@ -2011,19 +2011,18 @@ def host_anchor_path(project: Path, *, create: bool = False) -> Path:
     token = installed_host_token(project)
     if token is None:
         token = secrets.token_hex(32)
-    while True:
-        path = project / f"{ACTIVE_ANCHOR_PREFIX}{token}"
-        validate_path(project, path)
-        try:
-            descriptor = os.open(
-                path,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
-                0o600,
-            )
-        except FileExistsError as error:
-            raise ValueError(f"ChaosEngine host anchor collision: {path}") from error
-        os.close(descriptor)
-        return path
+    path = project / f"{ACTIVE_ANCHOR_PREFIX}{token}"
+    validate_path(project, path)
+    try:
+        descriptor = os.open(
+            path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+            0o600,
+        )
+    except FileExistsError as error:
+        raise ValueError(f"ChaosEngine host anchor collision: {path}") from error
+    os.close(descriptor)
+    return path
 
 
 def host_anchor(project: Path, *, create: bool = False) -> bytes:

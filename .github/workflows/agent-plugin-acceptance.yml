@@ -304,8 +304,58 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
+      - name: Check protected promotion inputs
+        id: promotion-preflight
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
+          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import json
+          import os
+          from pathlib import Path
+
+          source = Path("scripts/ci/chaos_engine_promotion.py")
+          spec = importlib.util.spec_from_file_location("promotion_preflight", source)
+          if spec is None or spec.loader is None:
+              raise SystemExit("promotion evaluator could not be loaded")
+          promotion = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(promotion)
+          report = promotion.evaluate([], dict(os.environ))
+          ready = not report["missingCredentialHosts"] and not report["missingRevisionVariants"]
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"ready={str(ready).lower()}\n")
+          if not ready:
+              Path("chaos-engine-promotion-evidence.json").write_text(
+                  json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n",
+                  encoding="utf-8",
+              )
+              Path("chaos-engine-promotion-trial-status.json").write_text(
+                  json.dumps(
+                      {
+                          "failureCode": "protected-inputs-unavailable",
+                          "identity": "chaos-engine-promotion-trials",
+                          "schemaVersion": 1,
+                          "status": "Blocked",
+                          "terminalReason": "blocked",
+                      },
+                      sort_keys=True,
+                      separators=(",", ":"),
+                  ) + "\n",
+                  encoding="utf-8",
+              )
+              print("promotion remains blocked because protected evaluation inputs are unavailable")
+          PY
       - name: Collect paired live trial receipts
         id: promotion-trials
+        if: steps.promotion-preflight.outputs.ready == 'true'
         continue-on-error: true
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -332,7 +382,7 @@ jobs:
           --workers 10
           --timeout 90
       - name: Evaluate and enforce promotion thresholds
-        if: always()
+        if: ${{ always() && steps.promotion-preflight.outputs.ready == 'true' }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

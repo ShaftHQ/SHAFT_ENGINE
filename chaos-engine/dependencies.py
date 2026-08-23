@@ -642,10 +642,17 @@ def _capture_regular_relative(
     digest = hashlib.sha256()
     try:
         before = os.fstat(descriptor)
+        if before.st_size > MAX_EXECUTABLE_BYTES:
+            raise ValueError(f"dependency {label} is too large")
         if expected_size is not None and before.st_size != expected_size:
             raise ValueError(f"dependency {label} size drift detected")
-        while chunk := os.read(descriptor, 1024 * 1024):
+        remaining = before.st_size
+        while remaining > 0:
+            chunk = os.read(descriptor, min(1024 * 1024, remaining))
+            if not chunk:
+                break
             digest.update(chunk)
+            remaining -= len(chunk)
         after = os.fstat(descriptor)
         identity = lambda item: (
             item.st_dev,
