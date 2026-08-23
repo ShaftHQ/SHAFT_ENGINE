@@ -1802,6 +1802,38 @@ class GuardLifecycleTest(unittest.TestCase):
                     guard._research_preflight_events("functions.exec", source, failed),
                 )
 
+    def test_direct_web_accepts_only_successful_content_primary_result(self):
+        tool_input = {
+            "open": [
+                {
+                    "ref_id":
+                    "https://raw.githubusercontent.com/openai/codex/main/README.md"
+                }
+            ]
+        }
+        result = {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "https://raw.githubusercontent.com/openai/codex/main/README.md",
+                }
+            ]
+        }
+        self.assertIn(
+            "authoritative-online-research",
+            guard._research_preflight_events("web__run", tool_input, result),
+        )
+        for failed in (
+            {**result, "isError": True},
+            {**result, "status": "failed"},
+            {**result, "exit_code": 1},
+        ):
+            with self.subTest(failed=failed):
+                self.assertNotIn(
+                    "authoritative-online-research",
+                    guard._research_preflight_events("web__run", tool_input, failed),
+                )
+
     def test_raw_github_host_is_exact_not_suffix_spoofable(self):
         self.assertTrue(
             guard._has_primary_source_url(

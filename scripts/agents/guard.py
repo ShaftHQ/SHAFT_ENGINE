@@ -2566,8 +2566,10 @@ def _research_preflight_events(
         if tool_name == "web__run"
         else tool_result
     )
-    if tool_name in {"WebSearch", "WebFetch", "web__run"} and _has_primary_source_url(
-        web_evidence
+    if (
+        tool_name in {"WebSearch", "WebFetch", "web__run"}
+        and (tool_name != "web__run" or _wrapped_web_result_successful(tool_result))
+        and _has_primary_source_url(web_evidence)
     ):
         events.append("authoritative-online-research")
     if tool_name == "update_plan":
