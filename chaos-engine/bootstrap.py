@@ -256,10 +256,13 @@ def install_latest(
     repository: str,
     branch: str | None = None,
     skip_tools: bool = False,
+    with_maven_tools: bool = False,
     distribution: str | None = None,
     opener=urllib.request.urlopen,
     provisioner=None,
 ) -> dict[str, object]:
+    if skip_tools and with_maven_tools:
+        raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
     project = Path(project).resolve()
     if not project.is_dir():
         raise ValueError(f"project is not a directory: {project}")
@@ -295,6 +298,7 @@ def install_latest(
                 provisioner=provisioner,
                 source_record=provenance,
                 distribution=distribution,
+                with_maven_tools=with_maven_tools,
             )
     if skip_tools or provisioner is not None:
         return {"status": "installed", "root": str(target), "commit": commit}
@@ -327,6 +331,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--branch")
     result.add_argument("--distribution")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
+    result.add_argument("--with-maven-tools", action="store_true")
     return result
 
 
@@ -338,6 +343,7 @@ def main() -> int:
             repository=args.repository,
             branch=args.branch,
             skip_tools=args.skip_tools,
+            with_maven_tools=args.with_maven_tools,
             distribution=args.distribution,
         )
     except (OSError, RuntimeError, ValueError) as error:

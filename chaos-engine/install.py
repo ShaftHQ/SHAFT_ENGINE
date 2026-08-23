@@ -12,6 +12,7 @@ import re
 import runpy
 import secrets
 import shutil
+import subprocess  # nosec B404 - fixed list-form Maven build commands.
 import sys
 import tempfile
 import types
@@ -74,7 +75,7 @@ def legacy_capability_policy() -> dict[str, dict[str, str]]:
         owner="project", scope="repository", lifecycle="derived-single-writer", taskImpact="advisory"
     )
     result["maven-tools-mcp"].update(
-        owner="user", scope="user", lifecycle="user-managed-cache", taskImpact="optional"
+        owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
     )
     return _validated_capabilities(result)
 
@@ -1181,6 +1182,10 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                     project,
                     core_commit=desired_commit,
                     capability_policy_digest=desired_manifest.get("capabilityPolicySha256"),
+                    dependency_runtime=(
+                        project / getattr(previous_dependencies, "GENERATIONS_NAME", ".chaos-engine-runtime-generations") / generation_previous["generationId"]
+                        if generation_previous is not None else None
+                    ),
                 )
                 restored_host_receipt, _ = previous_hosts.read_receipt(project)
                 if isinstance(restored_host_receipt.get("clientActivation"), dict):
@@ -1337,6 +1342,116 @@ def load_dependency_controller(installed_root: Path):
     return load_installed_controller(installed_root, "dependencies")
 
 
+def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
+    target: Path, specification: dict[str, object], *, runner=subprocess.run
+) -> tuple[Path, Path]:
+    hosts = load_installed_controller(target, "hosts")
+    existing = hosts.discover_maven_tools_runtime()
+    if existing is not None:
+        if not hosts.probe_maven_tools_runtime(*existing):
+            raise ValueError("Maven Tools MCP initialization/tools-list probe failed")
+        return existing
+    dependencies = load_dependency_controller(target)
+    java_candidates = []
+    configured = os.environ.get("CHAOSENGINE_JAVA")
+    java_home = os.environ.get("JAVA_HOME")
+    path_java = shutil.which("java")
+    if configured:
+        java_candidates.append(Path(configured).expanduser())
+    if java_home:
+        java_candidates.append(Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java"))
+    if path_java:
+        java_candidates.append(Path(path_java))
+    java = next((item.resolve() for item in java_candidates if item.is_file() and hosts.java_major(item.resolve()) == 25), None)
+    if java is None:
+        artifact = dependencies.select_runtime_artifact(specification, "temurin")
+        cache = hosts.maven_tools_cache_root().parent / "temurin" / "25.0.4+7" / dependencies.platform_key()
+        java_relative = Path(
+            "bin/java.exe" if os.name == "nt" else
+            "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
+        )
+        java = cache / java_relative
+        if not java.is_file():
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory(prefix=".temurin-", dir=cache.parent) as scratch_name:
+                scratch = Path(scratch_name)
+                url = str(artifact["url"])
+                archive = scratch / ("temurin.zip" if url.endswith(".zip") else "temurin.tar.gz")
+                dependencies._download_artifact(url, archive, str(artifact["sha256"]))
+                staged = scratch / "runtime"
+                dependencies._extract_runtime_archive(archive, staged)
+                candidate_java = staged / java_relative
+                if not candidate_java.is_file() or hosts.java_major(candidate_java) != 25:
+                    raise ValueError("managed Temurin Java 25 probe failed")
+                host_platform = dependencies.platform_key()
+                runtime_receipt = {
+                    "schemaVersion": 1,
+                    "runtime": "temurin",
+                    "version": "25.0.4+7",
+                    "hostPlatform": host_platform,
+                    "artifactArchitecture": str(artifact.get("artifactArchitecture", host_platform.split("-", 1)[1])),
+                    "emulated": bool(artifact.get("emulated", False)),
+                    "java": java_relative.as_posix(),
+                    "javaSha256": file_sha256(candidate_java),
+                }
+                (staged / hosts.TEMURIN_RECEIPT).write_text(
+                    json.dumps(runtime_receipt, sort_keys=True) + "\n", encoding="utf-8"
+                )
+                try:
+                    staged.replace(cache)
+                except OSError:
+                    if not cache.is_dir():
+                        raise
+            java = cache / java_relative
+        if hosts.verified_managed_temurin(java, dependencies.platform_key()) is None:
+            raise ValueError("managed Temurin Java 25 probe failed")
+    cache_status = hosts.maven_tools_cache_status()
+    if cache_status["status"] == "healthy":
+        runtime = hosts.discover_maven_tools_runtime()
+        if runtime is None:
+            raise ValueError("Maven Tools MCP cache Java probe failed")
+        return runtime
+    if cache_status["status"] != "absent":
+        raise ValueError("Maven Tools MCP cache is invalid")
+    cache_root = hosts.maven_tools_cache_root()
+    cache_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".maven-tools-source-") as source_name:
+        source = Path(source_name) / "source"
+        git = shutil.which("git")
+        if git:
+            runner([git, "clone", "--filter=blob:none", "--no-checkout", "https://github.com/arvindand/maven-tools-mcp.git", str(source)], check=True, timeout=300)
+            runner([git, "-C", str(source), "checkout", "--detach", hosts.MAVEN_TOOLS_MCP_COMMIT], check=True, timeout=120)
+        else:
+            source.mkdir()
+            archive = Path(source_name) / "source.zip"
+            source_artifact = specification["runtimes"]["maven-tools-source"]  # type: ignore[index]
+            dependencies._download_artifact(
+                str(source_artifact["url"]), archive, str(source_artifact["sha256"]),  # type: ignore[index]
+            )
+            source.rmdir()
+            dependencies._extract_runtime_archive(archive, source)
+        wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
+        if not wrapper.is_file():
+            raise ValueError("Maven Tools upstream wrapper is missing")
+        environment = os.environ.copy()
+        environment["JAVA_HOME"] = str(java.parent.parent)
+        runner([str(wrapper), "-B", "clean", "verify", "-Pfull"], cwd=source, env=environment, check=True, timeout=900)
+        built = source / f"target/maven-tools-mcp-{hosts.MAVEN_TOOLS_MCP_VERSION}.jar"
+        if not built.is_file() or built.stat().st_size == 0:
+            raise ValueError("Maven Tools build did not produce the pinned JAR")
+        with tempfile.TemporaryDirectory(prefix=".publishing-", dir=cache_root) as staging_name:
+            staging = Path(staging_name)
+            jar = staging / built.name
+            shutil.copyfile(built, jar)
+            receipt = {"version": hosts.MAVEN_TOOLS_MCP_VERSION, "commit": hosts.MAVEN_TOOLS_MCP_COMMIT, "jar": jar.name, "sha256": file_sha256(jar)}
+            (staging / hosts.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+            hosts.publish_maven_tools_cache(staging)
+    runtime = hosts.discover_maven_tools_runtime()
+    if runtime is None or not hosts.probe_maven_tools_runtime(*runtime):
+        raise ValueError("Maven Tools MCP publication probe failed")
+    return runtime
+
+
 def installed_kernel_status(installed_root: Path) -> dict[str, object]:
     """Report canonical kernel health and declared host coverage."""
     try:
@@ -1375,6 +1490,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     provisioner=None,
     source_record: dict[str, str] | None = None,
     distribution: str = DEFAULT_DISTRIBUTION,
+    with_maven_tools: bool = False,
 ) -> Path:
     project = project.resolve()
     generation_mode = provisioner is None
@@ -1445,6 +1561,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         try:
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")
+            if with_maven_tools:
+                ensure_maven_tools(target, specification)
             if generation_mode:
                 specification_sha256 = controller.specification_digest(specification)
                 core_sha256 = file_sha256(target / MANIFEST_NAME)
@@ -1458,10 +1576,23 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     candidate = controller.prepare_candidate(
                         project, specification, core_sha256
                     )
+                if candidate is not None:
+                    dependency_generation = project / getattr(
+                        controller, "GENERATIONS_NAME", ".chaos-engine-runtime-generations"
+                    ) / candidate["generationId"]
+                else:
+                    dependency_generation = controller.active_generation(
+                        project,
+                        expected_specification_sha256=specification_sha256,
+                        expected_core_sha256=core_sha256,
+                    )[0]
+            else:
+                dependency_generation = None
             host_controller.install(
                 project,
                 core_commit=commit,
                 capability_policy_digest=installed_manifest.get("capabilityPolicySha256"),
+                dependency_runtime=dependency_generation,
             )
             host_created = not host_existed
             if not generation_mode:
@@ -1719,6 +1850,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                     "generationId": pointer["active"]["generationId"],
                     "path": str(generation),
                 }
+                receipt = json.loads((generation / getattr(controller, "RECEIPT_NAME", "receipt.json")).read_text(encoding="utf-8"))
+                if isinstance(receipt.get("runtimes"), dict):
+                    result["dependencies"]["runtimes"] = receipt["runtimes"]
                 attach_component_status(
                     result, project, target, "healthy", host_controller
                 )
@@ -2078,6 +2212,7 @@ def parser() -> argparse.ArgumentParser:
     install_command.add_argument("--commit", required=True)
     install_command.add_argument("--distribution", default=DEFAULT_DISTRIBUTION)
     install_command.add_argument("--skip-tools", action="store_true")
+    install_command.add_argument("--with-maven-tools", action="store_true")
     for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
         command.add_argument("--project", required=True, type=Path)
@@ -2105,9 +2240,15 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
+def validate_install_options(args: argparse.Namespace) -> None:
+    if getattr(args, "skip_tools", False) and getattr(args, "with_maven_tools", False):
+        raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
+
+
 def main() -> int:
     args = parser().parse_args()
     try:
+        validate_install_options(args)
         if args.command == "install":
             target = (
                 install(
@@ -2122,6 +2263,7 @@ def main() -> int:
                     args.source,
                     args.commit,
                     distribution=args.distribution,
+                    with_maven_tools=args.with_maven_tools,
                 )
             )
             result: object = {"status": "installed", "root": str(target)}

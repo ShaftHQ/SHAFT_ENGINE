@@ -24,7 +24,7 @@ events and point them at the installed ChaosEngine guard:
 | `PreToolUse` | Deny catastrophic or out-of-contract tool use. Hold work that owes a reflection receipt. |
 | `PostToolUse` | Record mutation, delivery, and outcome for reflection. |
 | `PostToolUseFailure` | Record the failure and inject a pending reflection checkpoint when one is owed. |
-| `Stop` | Collect incomplete delivery duties once without manufacturing work. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. `stop_hook_active` lets the retry proceed. |
+| `Stop` | Collect incomplete delivery duties once without manufacturing work. Plan Mode stays read-only: it may finish in a pre-dirty or unverifiable checkout without inheriting unrelated delivery, synchronization, tracking, cleanup, or Learning Session duties; confirmed NUL corruption still blocks with preservation guidance. Normal completion ownership applies to task-created mutation. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. `stop_hook_active` lets the retry proceed. |
 | `SubagentStop` | Apply delegate-owned completion duties only. Never start or inherit the root terminal Learning Session. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
 
 A host with no hook primitive cannot enforce this table. Say so in the install

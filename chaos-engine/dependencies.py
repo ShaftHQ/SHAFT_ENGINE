@@ -10,15 +10,19 @@ import errno
 import hashlib
 import json
 import os
+import platform
 import re
 import secrets
 import shutil
 import stat
 import subprocess  # nosec B404 - fixed list-form dependency commands from tracked spec.
 import sys
+import tarfile
 import time
+import urllib.request
+import zipfile
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 RECEIPT_SCHEMA = 1
@@ -37,6 +41,8 @@ MAX_CONTROL_BYTES = 4 * 1024 * 1024
 # Pinned uv 0.11.29 + Graphify/MemPalace ownership is ~6.74 MiB compact.
 MAX_RECEIPT_BYTES = 8 * 1024 * 1024
 MAX_EXECUTABLE_BYTES = 256 * 1024 * 1024
+MAX_RUNTIME_ARCHIVE_BYTES = 256 * 1024 * 1024
+MAX_RUNTIME_EXPANDED_BYTES = 1024 * 1024 * 1024
 HEX_ID = re.compile(r"[0-9a-f]{32}")
 HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
 REQUIRED_DISPATCHES = {
@@ -62,6 +68,160 @@ PYTHON_DISPATCH = (
     "if e.group=='console_scripts' and e.name==sys.argv[2]);"
     "sys.argv=[sys.argv[2],*sys.argv[3:]];raise SystemExit(e.load()())"
 )
+SUPPORTED_PLATFORMS = (
+    "windows-x64", "windows-arm64", "linux-x64", "linux-arm64",
+    "macos-x64", "macos-arm64",
+)
+
+
+def platform_key(*, system: str | None = None, machine: str | None = None) -> str:
+    systems = {"windows": "windows", "linux": "linux", "darwin": "macos", "macos": "macos"}
+    machines = {"x86_64": "x64", "amd64": "x64", "x64": "x64", "aarch64": "arm64", "arm64": "arm64"}
+    system_name = systems.get((system or platform.system()).casefold())
+    machine_name = machines.get((machine or platform.machine()).casefold())
+    key = f"{system_name}-{machine_name}"
+    if system_name is None or machine_name is None or key not in SUPPORTED_PLATFORMS:
+        raise ValueError(f"unsupported platform: {system or platform.system()}/{machine or platform.machine()}")
+    return key
+
+
+def select_runtime_artifact(
+    specification: dict[str, object], runtime: str, *, system: str | None = None,
+    machine: str | None = None,
+) -> dict[str, object]:
+    runtimes = specification.get("runtimes")
+    selected = runtimes.get(runtime) if isinstance(runtimes, dict) else None
+    artifacts = selected.get("artifacts") if isinstance(selected, dict) else None
+    artifact = artifacts.get(platform_key(system=system, machine=machine)) if isinstance(artifacts, dict) else None
+    if not isinstance(artifact, dict):
+        raise ValueError(f"runtime artifact is missing: {runtime}")
+    url, digest = artifact.get("url"), artifact.get("sha256")
+    if not isinstance(url, str) or not url.startswith("https://") or not isinstance(digest, str) or HEX_DIGEST.fullmatch(digest) is None:
+        raise ValueError(f"runtime artifact is invalid: {runtime}")
+    return dict(artifact)
+
+
+def validate_runtime_specification(specification: dict[str, object]) -> None:
+    if specification.get("schemaVersion") != 2:
+        raise ValueError("dependency specification schema is unsupported")
+    runtimes = specification.get("runtimes")
+    if not isinstance(runtimes, dict):
+        raise ValueError("dependency runtime specification is invalid")
+    for name in ("uv", "node", "temurin"):
+        runtime = runtimes.get(name)
+        artifacts = runtime.get("artifacts") if isinstance(runtime, dict) else None
+        if not isinstance(artifacts, dict) or set(artifacts) != set(SUPPORTED_PLATFORMS):
+            raise ValueError(f"dependency runtime artifact matrix is invalid: {name}")
+        for key in SUPPORTED_PLATFORMS:
+            select_runtime_artifact(
+                specification, name, system=key.split("-")[0], machine=key.split("-")[1]
+            )
+    platform_key()
+
+
+def node_dispatch(generation: Path, script: Path) -> dict[str, object]:
+    node = generation / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+    return {
+        "kind": "node",
+        "executable": node.relative_to(generation).as_posix(),
+        "executableSha256": sha256(node),
+        "executableSize": node.stat().st_size,
+        "script": script.relative_to(generation).as_posix(),
+        "scriptSha256": sha256(script),
+        "scriptSize": script.stat().st_size,
+    }
+
+
+def _download_artifact(url: str, destination: Path, expected: str, opener=urllib.request.urlopen) -> None:
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with opener(url, timeout=60) as response, destination.open("xb") as stream:
+            while chunk := response.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_RUNTIME_ARCHIVE_BYTES:
+                    raise ValueError("runtime artifact exceeds the download limit")
+                digest.update(chunk)
+                stream.write(chunk)
+        if digest.hexdigest() != expected:
+            raise ValueError("runtime artifact checksum verification failed")
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+
+
+def _safe_archive_members(archive: Path) -> list[tuple[str, bytes, int]]:
+    result: list[tuple[str, bytes, int]] = []
+    total = 0
+    if archive.suffix == ".zip":
+        with zipfile.ZipFile(archive) as bundle:
+            for member in bundle.infolist():
+                mode = member.external_attr >> 16
+                if stat.S_ISLNK(mode):
+                    raise ValueError("runtime archive contains a link")
+                if member.is_dir():
+                    continue
+                total += member.file_size
+                if total > MAX_RUNTIME_EXPANDED_BYTES:
+                    raise ValueError("runtime archive expands beyond the size limit")
+                result.append((member.filename, bundle.read(member), mode))
+    else:
+        with tarfile.open(archive, "r:*") as bundle:
+            for member in bundle.getmembers():
+                if member.issym() or member.islnk():
+                    base = PurePosixPath(member.name).parent if member.issym() else PurePosixPath()
+                    target = PurePosixPath(os.path.normpath(str(base / member.linkname)).replace("\\", "/"))
+                    if target.is_absolute() or not target.parts or ".." in target.parts:
+                        raise ValueError("runtime archive contains an unsafe link")
+                    continue
+                if not (member.isfile() or member.isdir()):
+                    raise ValueError("runtime archive contains an unsafe entry")
+                if member.isdir():
+                    continue
+                total += member.size
+                if total > MAX_RUNTIME_EXPANDED_BYTES:
+                    raise ValueError("runtime archive expands beyond the size limit")
+                stream = bundle.extractfile(member)
+                if stream is None:
+                    raise ValueError("runtime archive entry is unreadable")
+                result.append((member.name, stream.read(), member.mode))
+    return result
+
+
+def _extract_runtime_archive(archive: Path, destination: Path) -> None:
+    members = _safe_archive_members(archive)
+    if not members:
+        raise ValueError("runtime archive is empty")
+    split = [Path(name.replace("\\", "/")).parts for name, _, _ in members]
+    if any(not parts or Path(*parts).is_absolute() or ".." in parts for parts in split):
+        raise ValueError("runtime archive contains an unsafe path")
+    strip = 1 if len({parts[0] for parts in split}) == 1 and all(len(parts) > 1 for parts in split) else 0
+    destination.mkdir(parents=True)
+    for (name, payload, mode), parts in zip(members, split):
+        relative = Path(*parts[strip:])
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        if os.name != "nt" and mode & stat.S_IXUSR:
+            target.chmod(target.stat().st_mode | stat.S_IXUSR)
+
+
+def provision_generation_runtimes(
+    generation: Path, transaction: Path, specification: dict[str, object], *, opener=urllib.request.urlopen
+) -> None:
+    platform_key()
+    for name in ("uv", "node"):
+        artifact = select_runtime_artifact(specification, name)
+        suffix = ".zip" if str(artifact["url"]).endswith(".zip") else (
+            ".tar.xz" if str(artifact["url"]).endswith(".tar.xz") else ".tar.gz"
+        )
+        archive = transaction / f"{name}{suffix}"
+        _download_artifact(str(artifact["url"]), archive, str(artifact["sha256"]), opener)
+        destination = (
+            generation / "bootstrap" / ("Scripts" if os.name == "nt" else "bin")
+            if name == "uv" else generation / "node"
+        )
+        _extract_runtime_archive(archive, destination)
 
 
 class DanglingRuntimeLink(ValueError):
@@ -706,9 +866,11 @@ def _validate_generation_receipt(receipt: dict[str, object]) -> None:
         "ownership",
         "receiptIntegritySha256",
     }
+    modern = receipt.get("schemaVersion") == 3 and receipt.get("runtimeContractVersion") == 4
+    if modern:
+        required.add("runtimes")
     if (
-        receipt.get("schemaVersion") != 2
-        or receipt.get("runtimeContractVersion") != 3
+        not (modern or (receipt.get("schemaVersion") == 2 and receipt.get("runtimeContractVersion") == 3))
         or set(receipt) != required
         or HEX_DIGEST.fullmatch(str(receipt.get("specificationSha256", ""))) is None
         or HEX_DIGEST.fullmatch(str(receipt.get("coreSha256", ""))) is None
@@ -717,6 +879,8 @@ def _validate_generation_receipt(receipt: dict[str, object]) -> None:
         or not isinstance(receipt.get("ownership"), dict)
     ):
         raise ValueError("dependency generation receipt schema is invalid")
+    if modern and not isinstance(receipt.get("runtimes"), dict):
+        raise ValueError("dependency generation runtime metadata is invalid")
     ownership = receipt["ownership"]
     if (
         set(ownership) != {"directories", "files", "links", "sha256", "identities"}
@@ -779,15 +943,28 @@ def _validate_dispatch_metadata(name: str, value: object) -> dict[str, object]:
         digest, size = value.get("interpreterSha256"), value.get("interpreterSize")
     elif name in {"memory", "memory-mcp"}:
         suffix = "dist/cli/main.js" if name == "memory" else "dist/mcp/server.js"
+        if value.get("kind") == "npm":
+            expected = {
+                "kind": "npm", "script": f"npm/node_modules/@aictx/memory/{suffix}",
+                "entrypoint": name,
+            }
+            required = set(expected) | {"scriptSha256", "scriptSize"}
+            if set(value) != required or any(value.get(key) != item for key, item in expected.items()):
+                raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+            digest, size = value.get("scriptSha256"), value.get("scriptSize")
+            if not isinstance(digest, str) or HEX_DIGEST.fullmatch(digest) is None or not isinstance(size, int) or not 0 < size <= MAX_EXECUTABLE_BYTES:
+                raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+            return value
         expected = {
-            "kind": "npm",
+            "kind": "node",
+            "executable": "node/node.exe" if os.name == "nt" else "node/bin/node",
             "script": f"npm/node_modules/@aictx/memory/{suffix}",
             "entrypoint": name,
         }
-        required = set(expected) | {"scriptSha256", "scriptSize"}
+        required = set(expected) | {"executableSha256", "executableSize", "scriptSha256", "scriptSize"}
         if set(value) != required or any(value.get(key) != item for key, item in expected.items()):
             raise ValueError(f"dependency generation tool metadata is invalid: {name}")
-        digest, size = value.get("scriptSha256"), value.get("scriptSize")
+        digest, size = value.get("executableSha256"), value.get("executableSize")
     else:
         raise ValueError(f"dependency generation tool metadata is invalid: {name}")
     if (
@@ -1061,7 +1238,13 @@ def dispatch_command(
         if digest != dispatch["sha256"]:
             raise ValueError(f"dependency executable drift detected: {tool}")
         return [str(generation / relative), *arguments]
-    if dispatch.get("kind") == "npm":
+    if dispatch.get("kind") == "node":
+        executable_relative = str(dispatch["executable"])
+        executable_digest = _digest_regular_relative(
+            generation, executable_relative, f"Node executable for {tool}", dispatch["executableSize"]  # type: ignore[arg-type]
+        )
+        if executable_digest != dispatch["executableSha256"]:
+            raise ValueError(f"dependency Node executable drift detected: {tool}")
         relative = str(dispatch["script"])
         digest = _digest_regular_relative(
             generation,
@@ -1071,8 +1254,15 @@ def dispatch_command(
         )
         if digest != dispatch["scriptSha256"]:
             raise ValueError(f"dependency npm script drift detected: {tool}")
-        node = shutil.which("node") or "node"
-        return [node, str(generation / relative), *arguments]
+        return [str(generation / executable_relative), str(generation / relative), *arguments]
+    if dispatch.get("kind") == "npm":
+        relative = str(dispatch["script"])
+        digest = _digest_regular_relative(
+            generation, relative, f"npm script for {tool}", dispatch["scriptSize"]  # type: ignore[arg-type]
+        )
+        if digest != dispatch["scriptSha256"]:
+            raise ValueError(f"dependency npm script drift detected: {tool}")
+        return [shutil.which("node") or "node", str(generation / relative), *arguments]
     raise ValueError(f"dependency tool dispatch kind is unsupported: {tool}")
 
 
@@ -1095,23 +1285,25 @@ def generation_install_plan(
     generation: Path, specification: dict[str, object]
 ) -> dict[str, list[list[str]]]:
     tools = specification.get("tools")
-    if specification.get("schemaVersion") != 1 or not isinstance(tools, dict):
+    if specification.get("schemaVersion") != 2 or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
     scripts = "Scripts" if os.name == "nt" else "bin"
     bootstrap = generation / "bootstrap"
-    python = executable(bootstrap / scripts, "python")
     uv = executable(bootstrap / scripts, "uv")
-    npm = shutil.which("npm")
-    if npm is None:
-        raise ValueError("Node.js npm is required to install the Memory tool")
+    node = executable(generation / ("node" if os.name == "nt" else "node/bin"), "node")
+    npm_cli = generation / (
+        "node/node_modules/npm/bin/npm-cli.js" if os.name == "nt"
+        else "node/lib/node_modules/npm/bin/npm-cli.js"
+    )
     graphify = tools.get("graphify")
     if not isinstance(graphify, dict):
         raise ValueError("graphify dependency specification is invalid")
+    uv_commands = [[uv, "--version"]] if Path(uv).is_file() else [
+        [sys.executable, "-m", "venv", "--copies", str(bootstrap)],
+        [executable(bootstrap / scripts, "python"), "-m", "pip", "install", "--no-cache-dir", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
+    ]
     return {
-        "uv": [
-            [sys.executable, "-m", "venv", "--copies", str(bootstrap)],
-            [python, "-m", "pip", "install", "--no-cache-dir", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
-        ],
+        "uv": uv_commands,
         "mempalace": [[
             uv,
             "tool",
@@ -1139,7 +1331,8 @@ def generation_install_plan(
             str(graphify["package"]),
         ]],
         "memory": [[
-            npm,
+            node,
+            str(npm_cli),
             "install",
             "--ignore-scripts",
             "--prefix",
@@ -1198,13 +1391,14 @@ def _generation_dispatches(generation: Path) -> dict[str, dict[str, object]]:
     ):
         script = generation / f"npm/node_modules/@aictx/memory/{suffix}"
         digest, size = file_record(script)
-        records[name] = {"dispatch": {
-            "kind": "npm",
-            "script": script.relative_to(generation).as_posix(),
-            "scriptSha256": digest,
-            "scriptSize": size,
-            "entrypoint": name,
-        }}
+        node = generation / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+        records[name] = {"dispatch": (
+            {**node_dispatch(generation, script), "entrypoint": name}
+            if node.is_file() else {
+                "kind": "npm", "script": script.relative_to(generation).as_posix(),
+                "scriptSha256": digest, "scriptSize": size, "entrypoint": name,
+            }
+        )}
     return records
 
 
@@ -1219,12 +1413,14 @@ def _verify_dispatch_set(
                 dispatch["interpreterSha256"],
                 dispatch["interpreterSize"],
             )
-        elif dispatch["kind"] == "npm":
+        elif dispatch["kind"] == "node":
             path, digest, size = (
-                dispatch["script"],
-                dispatch["scriptSha256"],
-                dispatch["scriptSize"],
+                dispatch["executable"],
+                dispatch["executableSha256"],
+                dispatch["executableSize"],
             )
+        elif dispatch["kind"] == "npm":
+            path, digest, size = dispatch["script"], dispatch["scriptSha256"], dispatch["scriptSize"]
         else:
             path, digest, size = dispatch["path"], dispatch["sha256"], dispatch["size"]
         actual = _digest_regular_relative(
@@ -1256,6 +1452,8 @@ def _crosscheck_dispatch_ownership(
                 for link in links
             ):
                 raise ValueError(f"dependency dispatch ownership link drift detected: {name}")
+        elif kind == "node":
+            path, digest = dispatch["executable"], dispatch["executableSha256"]
         elif kind == "npm":
             path, digest = dispatch["script"], dispatch["scriptSha256"]
         else:
@@ -1311,8 +1509,8 @@ def _install_candidate_payload(
     ownership = sealed_ownership_record(generation)
     _crosscheck_dispatch_ownership(ownership, records)
     receipt: dict[str, object] = {
-        "schemaVersion": 2,
-        "runtimeContractVersion": 3,
+        "schemaVersion": 3,
+        "runtimeContractVersion": 4,
         "checkedAt": checked_at.isoformat(),
         "specificationSha256": specification_digest(specification),
         "coreSha256": core_sha256,
@@ -1327,6 +1525,14 @@ def _install_candidate_payload(
             not in {"UV_CACHE_DIR", "UV_TOOL_BIN_DIR", "UV_PYTHON_BIN_DIR", "NPM_CONFIG_CACHE"}
         },
         "installed": completed,
+        "runtimes": {
+            name: {
+                "version": specification["runtimes"][name]["version"],  # type: ignore[index]
+                "platform": platform_key(),
+                **select_runtime_artifact(specification, name),
+            }
+            for name in ("uv", "node")
+        },
         "tools": records,
         "ownership": ownership,
     }
@@ -1483,6 +1689,10 @@ def prepare_candidate(
         def validate_holds() -> None:
             for path, held, label in held_paths:
                 _assert_held_directory(path, held, label)
+
+        if runner is None:
+            provision_generation_runtimes(generation, transaction, specification)
+            validate_holds()
 
         result = _install_candidate_payload(
             project,
@@ -2125,15 +2335,13 @@ def finalize_generation_remove(project: Path) -> None:
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
     tools = specification.get("tools")
-    if specification.get("schemaVersion") != 1 or not isinstance(tools, dict):
+    if specification.get("schemaVersion") != 2 or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
     environment = runtime / "bootstrap"
     scripts = environment / ("Scripts" if os.name == "nt" else "bin")
     uv = executable(scripts, "uv")
     npm_prefix = runtime / "npm"
-    npm = shutil.which("npm")
-    if npm is None:
-        raise ValueError("Node.js npm is required to install the Memory tool")
+    npm = npm_executable(runtime / ("node" if os.name == "nt" else "node/bin"), "npm")
     graphify = tools["graphify"]
     if not isinstance(graphify, dict):
         raise ValueError("graphify dependency specification is invalid")
@@ -2184,6 +2392,7 @@ def load_specification(path: Path) -> dict[str, object]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError("dependency specification must be an object")
+    validate_runtime_specification(value)
     return value
 
 

@@ -72,6 +72,36 @@ macOS or Linux, using [install.sh](install.sh):
 url="$(printf 'https://raw.githubusercontent.com/S\150aftHQ/SHA\106T_ENGINE/main/chaos-engine/install.sh')"; curl -fsSL "$url" | bash -s -- "$url"
 ```
 
+Python is not required before either command. When no Python 3 executable is
+available, the wrapper downloads the pinned uv 0.11.29 standalone binary for
+Windows, Linux, or macOS on x64 or arm64, verifies its SHA-256, and uses its
+managed Python 3.10 to run the bootstrap. The installed generation owns pinned
+Node.js 24.19.0 for Memory; ambient Node and npm are not part of the runtime
+contract. Unsupported platforms and checksum failures stop before activation,
+leaving the prior generation active.
+
+Pass `--with-maven-tools` to install the optional Maven Tools MCP together with
+the project tools. It cannot be combined with `--skip-tools`. Java resolution
+prefers `CHAOSENGINE_JAVA`, then `JAVA_HOME`, then `PATH`; an unsuitable or
+missing Java triggers the verified Temurin 25.0.4+7 cache flow. Windows arm64
+uses the official Windows x64 Temurin artifact through Windows 11 x64
+emulation and fails closed if the Java 25 probe cannot execute. Project
+uninstall removes project-owned Python and Node generations but retains the
+shared Maven Tools cache; `cache purge --component maven-tools-mcp --version
+3.2.0` removes only exact receipt-verified cache content.
+
+POSIX:
+
+```bash
+url="https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"; curl -fsSL "$url" | bash -s -- "$url" --with-maven-tools
+```
+
+PowerShell:
+
+```powershell
+$installer = irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1"; & ([scriptblock]::Create($installer)) -WithMavenTools
+```
+
 Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy
 requires review before execution. The bootstrap resolves the default branch to
 an immutable commit and downloads only its validated `chaos-engine/` subtree;
@@ -131,7 +161,7 @@ upstream from the consumer repository.
 `status` and `doctor` report every component with its `owner`, `scope`,
 `lifecycle`, and `taskImpact`. Memory, MemPalace, and Graphify are advisory to
 ordinary tasks but remain strict in `doctor`; an unhealthy selected store still
-returns `recovery-required`. The optional Maven Tools MCP cache is user-owned
+returns `recovery-required`. The optional Maven Tools MCP cache is installer-owned
 and does not make project health fail.
 
 ## Optional native Maven Tools MCP
@@ -140,17 +170,14 @@ Do not put `docker run -i --rm` in a default stdio MCP configuration. Each
 active client owns its own stdio server process, so a Docker-backed declaration
 creates one container per client and keeps Docker Desktop and its VM resident.
 
-When Maven Tools MCP is wanted, the installing agent must use the upstream
-native JAR flow instead:
+`--with-maven-tools` performs the pinned native JAR flow:
 
-1. Resolve a real Java 25 executable from `CHAOSENGINE_JAVA`, `JAVA_HOME`, or
-   `PATH`; never write a copied example path.
-2. Clone `https://github.com/arvindand/maven-tools-mcp.git`, check out detached
-   commit `4475ff6c61f23ea9a93cb6d5665a63235ef2ef36`, and run `mvnw.cmd clean
-   verify -Pfull` on Windows or `./mvnw clean verify -Pfull` elsewhere. The
-   wrapper supplies Maven; Java 25 and Git are prerequisites. Upstream does not
-   publish a JAR release asset, so do not invent a download URL or silently
-   fall back to Docker.
+1. Resolve Java 25 from `CHAOSENGINE_JAVA`, `JAVA_HOME`, or `PATH`, otherwise
+   download and checksum-verify the selected Temurin 25.0.4+7 artifact.
+2. Prefer host Git for `arvindand/maven-tools-mcp` commit
+   `4475ff6c61f23ea9a93cb6d5665a63235ef2ef36`. Without Git, download the
+   checksum-pinned exact-commit archive. Build through the upstream Maven
+   wrapper with its `full` profile; Docker itself is not required at runtime.
 3. Stage `maven-tools-mcp-3.2.0.jar` under a fresh unique directory on the same
    filesystem as the current user's data directory, then publish that directory
    with a no-overwrite rename to
@@ -162,10 +189,9 @@ native JAR flow instead:
    the installed filename, and `sha256` = the lowercase SHA-256 of its bytes.
    Discovery recomputes the digest and rejects a missing, malformed, stale, or
    differently pinned receipt. The version directory is an immutable,
-   user-managed cache: parallel projects may read the verified pair, while
+   receipt-owned shared cache: parallel projects may read the verified pair, while
    project uninstall never changes or removes it.
-4. Run the ChaosEngine bootstrap again. Host installation discovers both files
-   and atomically rewrites `.mcp.json`, `.gemini/settings.json`, and
+4. Host installation discovers both files and atomically rewrites `.mcp.json`, `.gemini/settings.json`, and
    `.codex/config.toml` with their resolved absolute paths. Upgrades repeat
    discovery, so another user's Java or data path is never inherited.
 5. Start a fresh client session and prove both the MCP initialize and tools/list

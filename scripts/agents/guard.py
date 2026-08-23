@@ -1966,6 +1966,7 @@ _PRIMARY_SOURCE_HOSTS = frozenset(
     {
         "docs.github.com",
         "github.com",
+        "raw.githubusercontent.com",
         "learn.microsoft.com",
         "docs.python.org",
         "docs.oracle.com",
@@ -2545,7 +2546,7 @@ def _research_preflight_events(
         events.extend(_functions_exec_plan_events(source))
         if (
             _wrapped_web_result_is_forwarded(source)
-            and _tool_result_explicitly_successful(tool_result)
+            and _wrapped_web_result_successful(tool_result)
             and _has_primary_source_url(tool_result)
         ):
             events.append("authoritative-online-research")
@@ -2565,8 +2566,10 @@ def _research_preflight_events(
         if tool_name == "web__run"
         else tool_result
     )
-    if tool_name in {"WebSearch", "WebFetch", "web__run"} and _has_primary_source_url(
-        web_evidence
+    if (
+        tool_name in {"WebSearch", "WebFetch", "web__run"}
+        and (tool_name != "web__run" or _wrapped_web_result_successful(tool_result))
+        and _has_primary_source_url(web_evidence)
     ):
         events.append("authoritative-online-research")
     if tool_name == "update_plan":
@@ -4059,6 +4062,23 @@ def _tool_result_explicitly_successful(tool_result: object) -> bool:
     if status and status not in successful_statuses:
         return False
     if not exit_present and not status:
+        return False
+    return not any(
+        tool_result.get(field) is not None and tool_result.get(field) != ""
+        for field in ("stderr", "error")
+    )
+
+
+def _wrapped_web_result_successful(tool_result: object) -> bool:
+    """Accept normal web results while rejecting every explicit failure signal."""
+    if not isinstance(tool_result, dict) or tool_result.get("isError") is True:
+        return False
+    status = str(tool_result.get("status", "")).strip().lower()
+    if status and status not in {"ok", "success", "succeeded", "completed"}:
+        return False
+    if (
+        "exit_code" in tool_result or "exitCode" in tool_result
+    ) and tool_result.get("exit_code", tool_result.get("exitCode")) != 0:
         return False
     return not any(
         tool_result.get(field) is not None and tool_result.get(field) != ""
@@ -5564,6 +5584,26 @@ def run_stop(hook_input: dict) -> int:
         )
         if elapsed is None or elapsed <= 60 * 60:
             return 0
+    permission_mode = str(
+        hook_input.get("permission_mode", hook_input.get("permissionMode", ""))
+    ).strip().lower()
+    if permission_mode == "plan":
+        report = _worktree_report(_hook_working_directory(hook_input))
+        current = next(
+            (
+                item
+                for item in (report or {}).get("worktrees", [])
+                if item.get("is_current")
+            ),
+            None,
+        )
+        if current is not None and current.get("state") == "corrupt":
+            reason = (
+                "Current worktree contains NUL-corrupt files. Preserve healthy work and "
+                "restore only confirmed corrupt paths before continuing."
+            )
+            print(json.dumps({"decision": "block", "reason": reason}))
+        return 0
     reflection_reason = _terminal_reflection_reason(hook_input)
     if reflection_reason is not None:
         print(json.dumps({"decision": "block", "reason": reflection_reason}))

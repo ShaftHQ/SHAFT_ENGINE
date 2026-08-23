@@ -87,12 +87,17 @@ EOF
   fail "Put owner/repository in the install URL (or set CHAOS_ENGINE_REPOSITORY for a local file run)."
 }
 
+with_maven_tools=
+for argument in "$@"; do
+  [ "$argument" = "--with-maven-tools" ] && with_maven_tools=1
+done
+
 if command -v python3 >/dev/null 2>&1; then
   python="python3"
 elif command -v python >/dev/null 2>&1; then
   python="python"
 else
-  fail "Python 3 is required (python3 or python)."
+  python=
 fi
 
 if command -v curl >/dev/null 2>&1; then
@@ -147,4 +152,32 @@ case "$0" in
     fetch "$bootstrap" "$bootstrap_url"
     ;;
 esac
-"$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+if [ -z "$python" ]; then
+  system=$(uname -s)
+  machine=$(uname -m)
+  case "$system:$machine" in
+    Linux:x86_64) uv_target=x86_64-unknown-linux-gnu; uv_sha=04f8b82f5d47f0512dcd32c67a4a6f16a0ea27c81537c338fd0ad6b23cebe829 ;;
+    Linux:aarch64|Linux:arm64) uv_target=aarch64-unknown-linux-gnu; uv_sha=94500fb064ae3c971a873cba64d94694c50677e0a4dbf78735c80509e7429919 ;;
+    Darwin:x86_64) uv_target=x86_64-apple-darwin; uv_sha=c4c4de482da9ccdd076dc4fb5cfe7b740609029385c72f58606be3153602387d ;;
+    Darwin:arm64) uv_target=aarch64-apple-darwin; uv_sha=61c04acc52a33ef0f331e494bdfbedcdb6c26c6970c022ed3699e5860f8930e3 ;;
+    *) fail "Unsupported ChaosEngine platform: $system/$machine" ;;
+  esac
+  uv_archive="$work/uv.tar.gz"
+  fetch "$uv_archive" "https://github.com/astral-sh/uv/releases/download/0.11.29/uv-${uv_target}.tar.gz"
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual=$(sha256sum "$uv_archive" | cut -d' ' -f1)
+  else
+    actual=$(shasum -a 256 "$uv_archive" | cut -d' ' -f1)
+  fi
+  [ "$actual" = "$uv_sha" ] || fail "uv download checksum verification failed"
+  tar -xzf "$uv_archive" -C "$work"
+  uv="$work/uv-${uv_target}/uv"
+  [ -x "$uv" ] || fail "uv archive is missing its executable"
+  export UV_PYTHON_INSTALL_DIR="$work/python"
+  "$uv" python install 3.10 --no-progress
+  set -- "$uv" run --no-project --managed-python --python 3.10 "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+else
+  set -- "$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+fi
+[ -n "$with_maven_tools" ] && set -- "$@" --with-maven-tools
+"$@"

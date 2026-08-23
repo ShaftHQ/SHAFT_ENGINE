@@ -204,15 +204,14 @@ bootstrap, install, status, doctor, rollback, or uninstall.
 flowchart TD
     accTitle: Runtime dependency graph
     accDescr: Platform prerequisites feed the transactional installer and its pinned project-local runtime tools.
-    Shell["PowerShell 7+ or POSIX shell + curl"] --> Py["Python 3.10+"]
-    Py --> Installer["ChaosEngine bootstrap + transactional installer<br/>Python standard library only"]
-    Node["Node.js + npm"] --> Installer
-    Installer --> UV["uv 0.11.29"]
+    Shell["PowerShell or POSIX shell + downloader"] --> Installer["ChaosEngine bootstrap + transactional installer"]
+    Installer --> UV["verified uv 0.11.29"]
     UV --> ManagedPython["uv-managed Python 3.10"]
     ManagedPython --> MP["mempalace 3.7.1<br/>mempalace + mempalace-mcp"]
     ManagedPython --> GF["graphifyy 0.9.43<br/>tree-sitter-sql 0.3.11"]
+    Installer --> Node["verified Node.js 24.19.0 + npm"]
     Node --> MEM["@aictx/memory 0.2.1<br/>memory + memory-mcp"]
-    Git["Git + Java 25<br/>optional"] --> Maven["Maven Tools MCP 3.2.0<br/>optional user cache"]
+    Installer --> Maven["Maven Tools MCP 3.2.0<br/>optional receipt-owned shared cache"]
 ```
 
 Missing or damaged `uv`, Graphify, MemPalace, or Memory entries trigger an
@@ -238,11 +237,11 @@ flowchart LR
 
 Tracked prerequisites and optional boundaries:
 
-- Required: writable target directory, network for fresh install/upgrade,
-  Python 3.10+, Node.js with npm, and PowerShell or POSIX shell with `curl`.
-- Installed automatically: pinned uv; uv-managed Python 3.10; Graphify;
-  MemPalace; Memory; six stable tool entrypoints.
-- Optional: Git and Java 25 only for native Maven Tools MCP build/cache.
+- Required: writable target directory, network for fresh install/upgrade, and
+  PowerShell or POSIX shell with `curl` or `wget`.
+- Installed automatically: pinned uv; uv-managed Python 3.10; Node.js 24.19.0;
+  Graphify; MemPalace; Memory; six stable tool entrypoints.
+- Optional: `--with-maven-tools` manages Git/archive retrieval and Java 25.
 - Generated and never tracked: dependency generations, receipts, caches,
   Graphify output, MemPalace indexes, Memory runtime indexes, reports, secrets.
 - Canonical skills: `chaos-engine`, `caveman`, `ponytail`; project profiles and
@@ -259,12 +258,12 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 <!-- inventory:prerequisites:start -->
 | Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Python 3.10+ | Run bootstrap, installer, kernel, and tools. | install.ps1; install.sh | required | Windows, Linux, macOS | operator | consumer environment | install stops before mutation |
+| Python 3.10+ | Run bootstrap, installer, kernel, and tools. | install.ps1; install.sh; dependencies.json | managed | Windows, Linux, macOS | verified uv 0.11.29 | immutable dependency generation | install stops before activation |
 | PowerShell or POSIX shell | Launch the reviewed bootstrap wrapper. | install.ps1; install.sh | required | platform native | operating system | consumer environment | bootstrap does not start |
 | curl or wget | Download immutable source on POSIX. | install.sh | required on POSIX | Linux, macOS | operator | consumer environment | download fails closed |
-| Node.js and npm | Provision Memory and launch Gemini hooks. | dependencies.json; hooks/launch.js | required | Windows, Linux, macOS | operator | consumer environment | dependency generation is not published |
+| Node.js and npm | Provision Memory and launch JavaScript hooks. | dependencies.json; hooks/launch.js | managed | Windows, Linux, macOS | immutable generation installer | installer receipt | dependency generation is not published |
 | network | Resolve source and provision a fresh or upgraded generation. | bootstrap.py; dependencies.py | required for fresh install or upgrade | Windows, Linux, macOS | operator | prior verified generation remains active |
-| Git and Java 25 | Build optional Maven Tools MCP cache. | hosts.py | optional | Windows, Linux, macOS | operator | optional component reports absent |
+| Git and Java 25 | Build optional Maven Tools MCP cache. | dependencies.json; install.py; hosts.py | optional and managed with `--with-maven-tools` | Windows, Linux, macOS | installer | receipt-owned shared cache | optional component reports absent |
 <!-- inventory:prerequisites:end -->
 
 ### Python Libraries
@@ -290,8 +289,9 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | msvcrt | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | os | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | pathlib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
-| platform | Portable runtime standard-library dependency. | chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| platform | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | posixpath | Portable runtime standard-library dependency. | chaos-engine/hooks/guard.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| queue | Portable runtime standard-library dependency. | chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | re | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | runpy | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/install.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | secrets | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
@@ -299,15 +299,16 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | shutil | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | sqlite3 | Portable runtime standard-library dependency. | chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | stat | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
-| subprocess | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| subprocess | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | sys | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| tarfile | Portable runtime standard-library dependency. | chaos-engine/dependencies.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | tempfile | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/reflection.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
-| threading | Portable runtime standard-library dependency. | chaos-engine/hooks/kernel.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| threading | Portable runtime standard-library dependency. | chaos-engine/hooks/kernel.py, chaos-engine/hosts.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | time | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | types | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/kernel.py, chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | typing | Portable runtime standard-library dependency. | chaos-engine/hooks/kernel.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
-| urllib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
-| zipfile | Portable runtime standard-library dependency. | chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| urllib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| zipfile | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 <!-- inventory:python-libraries:end -->
 
 ### Managed Dependencies

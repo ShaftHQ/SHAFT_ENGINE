@@ -261,7 +261,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             for name in ("memory", "mempalace", "graphify"):
                 self.assertEqual("advisory", result["components"][name]["taskImpact"])
             self.assertEqual("optional", result["components"]["maven-tools-mcp"]["taskImpact"])
-            self.assertEqual("user-managed-cache", result["components"]["maven-tools-mcp"]["lifecycle"])
+            self.assertEqual("receipt-owned", result["components"]["maven-tools-mcp"]["lifecycle"])
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual(manifest["capabilityPolicySha256"], host_receipt["capabilityPolicySha256"])
             self.assertEqual(manifest["capabilities"], MODULE.legacy_capability_policy())
