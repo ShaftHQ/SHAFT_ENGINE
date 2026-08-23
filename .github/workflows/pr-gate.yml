@@ -68,6 +68,7 @@ jobs:
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
+      chaos_installer: ${{ steps.filter.outputs.chaos_installer }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -76,6 +77,24 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
+            chaos_installer:
+              - 'chaos-engine/bootstrap.py'
+              - 'chaos-engine/install.py'
+              - 'chaos-engine/install.sh'
+              - 'chaos-engine/install.ps1'
+              - 'chaos-engine/hosts.py'
+              - 'chaos-engine/dependencies.py'
+              - 'chaos-engine/dependencies.json'
+              - 'chaos-engine/distributions.json'
+              - 'chaos-engine/profiles/*/profile.json'
+              - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
+              - 'tests/scripts/test_chaos_engine_bootstrap.py'
+              - 'tests/scripts/test_chaos_engine_dependencies.py'
+              - 'tests/scripts/test_chaos_engine_generation_runtime.py'
+              - 'tests/scripts/test_chaos_engine_installer.py'
+              - 'tests/scripts/test_chaos_engine_install_wrappers.py'
+              - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
+              - 'tests/scripts/test_chaos_engine_installer_ux.py'
             docs:
               - "**/*.md"
               - "**/*.mdx"
@@ -926,6 +945,42 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: echo "review=$(python3 scripts/ci/dependency_review_changes.py "$BASE_SHA" "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
 
+  chaos-installer-acceptance:
+    name: ChaosEngine fresh installer (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.chaos_installer == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Run installer UX contracts
+        run: >-
+          python -m unittest
+          tests.scripts.test_chaos_engine_installer_ux
+          tests.scripts.test_chaos_engine_bootstrap
+          tests.scripts.test_chaos_engine_install_wrappers -v
+      - name: Run fresh-install acceptance
+        run: python scripts/ci/chaos_engine_live_installer_acceptance.py --output chaos-engine-live-installer-evidence.json
+      - name: Upload fresh-install evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: chaos-engine-live-installer-${{ matrix.os }}
+          path: chaos-engine-live-installer-evidence.json
+          if-no-files-found: error
+
   summary:
     name: PR Gate Summary
     needs:
@@ -945,6 +1000,7 @@ jobs:
       - pr-body-autoclose-guard
       - dependency-changes
       - dependency-review
+      - chaos-installer-acceptance
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5
@@ -967,6 +1023,7 @@ jobs:
           PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
           DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
+          CHAOS_INSTALLER_RESULT: ${{ needs.chaos-installer-acceptance.result }}
         run: |
           set -uo pipefail
 
@@ -989,6 +1046,7 @@ jobs:
             echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
             echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
+            echo "| chaos-installer-acceptance | ${CHAOS_INSTALLER_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "${RELEASE_GOVERNANCE_RESULT}" != "success" ]; then
@@ -1002,7 +1060,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

@@ -1343,7 +1343,8 @@ def load_dependency_controller(installed_root: Path):
 
 
 def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
-    target: Path, specification: dict[str, object], *, runner=subprocess.run
+    target: Path, specification: dict[str, object], *, runner=subprocess.run,
+    reporter=None, confirmer=None,
 ) -> tuple[Path, Path]:
     hosts = load_installed_controller(target, "hosts")
     existing = hosts.discover_maven_tools_runtime()
@@ -1376,6 +1377,10 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             with tempfile.TemporaryDirectory(prefix=".temurin-", dir=cache.parent) as scratch_name:
                 scratch = Path(scratch_name)
                 url = str(artifact["url"])
+                if confirmer is not None:
+                    confirmer(f"Download Maven Tools Java runtime from {url}")
+                if reporter is not None:
+                    reporter.start("Install Maven Tools", detail=url)
                 archive = scratch / ("temurin.zip" if url.endswith(".zip") else "temurin.tar.gz")
                 dependencies._download_artifact(url, archive, str(artifact["sha256"]))
                 staged = scratch / "runtime"
@@ -1419,12 +1424,18 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         source = Path(source_name) / "source"
         git = shutil.which("git")
         if git:
+            if confirmer is not None:
+                confirmer("Download Maven Tools source with git")
             runner([git, "clone", "--filter=blob:none", "--no-checkout", "https://github.com/arvindand/maven-tools-mcp.git", str(source)], check=True, timeout=300)
             runner([git, "-C", str(source), "checkout", "--detach", hosts.MAVEN_TOOLS_MCP_COMMIT], check=True, timeout=120)
         else:
             source.mkdir()
             archive = Path(source_name) / "source.zip"
             source_artifact = specification["runtimes"]["maven-tools-source"]  # type: ignore[index]
+            if confirmer is not None:
+                confirmer(f"Download Maven Tools source from {source_artifact['url']}")  # type: ignore[index]
+            if reporter is not None:
+                reporter.start("Install Maven Tools", detail=str(source_artifact["url"]))  # type: ignore[index]
             dependencies._download_artifact(
                 str(source_artifact["url"]), archive, str(source_artifact["sha256"]),  # type: ignore[index]
             )
@@ -1435,6 +1446,8 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             raise ValueError("Maven Tools upstream wrapper is missing")
         environment = os.environ.copy()
         environment["JAVA_HOME"] = str(java.parent.parent)
+        if confirmer is not None:
+            confirmer("Build and install Maven Tools")
         runner([str(wrapper), "-B", "clean", "verify", "-Pfull"], cwd=source, env=environment, check=True, timeout=900)
         built = source / f"target/maven-tools-mcp-{hosts.MAVEN_TOOLS_MCP_VERSION}.jar"
         if not built.is_file() or built.stat().st_size == 0:
@@ -1491,6 +1504,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     source_record: dict[str, str] | None = None,
     distribution: str = DEFAULT_DISTRIBUTION,
     with_maven_tools: bool = False,
+    reporter=None,
+    confirmer=None,
 ) -> Path:
     project = project.resolve()
     generation_mode = provisioner is None
@@ -1562,7 +1577,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")
             if with_maven_tools:
-                ensure_maven_tools(target, specification)
+                ensure_maven_tools(
+                    target, specification, reporter=reporter, confirmer=confirmer
+                )
             if generation_mode:
                 specification_sha256 = controller.specification_digest(specification)
                 core_sha256 = file_sha256(target / MANIFEST_NAME)
@@ -1573,8 +1590,13 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                         expected_core_sha256=core_sha256,
                     )
                 except (OSError, ValueError):
+                    callback_options = {}
+                    if reporter is not None:
+                        callback_options["reporter"] = reporter
+                    if confirmer is not None:
+                        callback_options["confirmer"] = confirmer
                     candidate = controller.prepare_candidate(
-                        project, specification, core_sha256
+                        project, specification, core_sha256, **callback_options
                     )
                 if candidate is not None:
                     dependency_generation = project / getattr(
