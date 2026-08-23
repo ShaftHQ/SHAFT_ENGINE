@@ -3604,6 +3604,16 @@ def check_r28_pr_audit_before_arming(
     """Require one fresh complete feedback receipt before Ready or auto-merge."""
     if tool_name not in ("Bash", "PowerShell") or not command:
         return None
+    if (
+        tool_name == "PowerShell"
+        and r'\"' in command
+        and re.search(r"\bgh\s+pr\s+(?:ready|merge)\b", command, re.IGNORECASE)
+    ):
+        return (
+            "R28 blocked: PowerShell backslash-escaped double quotes are ambiguous "
+            "and can hide a ready or merge command. Use PowerShell backticks, single "
+            "quotes, or a body file instead."
+        )
     environment_repository = _command_scoped_gh_repository(command)
     for segment in _command_segments(command):
         rest = _tokens_after_head(segment, frozenset({"gh"}))

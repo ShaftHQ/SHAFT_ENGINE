@@ -2573,6 +2573,15 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
         with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
             self.assertIn("repository", guard.check_r28_pr_audit_before_arming("gh pr merge 17 --repo other/project --auto --merge", "PowerShell", {}))
 
+    def test_powershell_backslash_quote_cannot_hide_ready_or_merge(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        command = r'py -3 -c "probe=\"; gh pr ready 17 --repo consumer/project; #\""'
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
+            reason = guard.check_r28_pr_audit_before_arming(command, "PowerShell", {})
+
+        self.assertIsNotNone(reason)
+        self.assertIn("backslash-escaped", reason)
+
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):
     """R30: no PR merge mutation without recorded exact-head user authority."""
