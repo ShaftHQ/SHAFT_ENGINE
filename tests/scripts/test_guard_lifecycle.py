@@ -2638,6 +2638,42 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
             guard._literal_shell_workdir("Set-Location $task; gh pr merge 17 --auto --merge", "C:/outer"),
         )
 
+    def test_post_receipt_evidence_uses_literal_directory_change_workdir(self):
+        command = (
+            "Set-Location -LiteralPath 'C:/task'; "
+            "py -3 scripts/agents/act_as_mohab_cli.py pr-audit --pr 17 "
+            "--receipt-out receipt.json"
+        )
+
+        def audit_event(hook_input, _command):
+            self.assertEqual("C:/task", hook_input.get("cwd"))
+            return "pr-audit:consumer/project:17:" + "a" * 40 + ":digest"
+
+        with (
+            mock.patch.object(guard, "_successful_pr_audit_event", side_effect=audit_event),
+            mock.patch.object(guard, "_successful_delivery_event", return_value=None),
+            mock.patch.object(guard, "_successful_authority_event", return_value=None),
+            mock.patch.object(guard, "ledger_record") as record,
+            mock.patch.object(guard._reflection, "record_activity"),
+        ):
+            guard.run_posttooluse({
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Bash",
+                "cwd": "C:/outer",
+                "tool_input": {"command": command},
+                "tool_response": {"exit_code": 0},
+            })
+
+        record.assert_any_call(
+            mock.ANY, "pr-audit:consumer/project:17:" + "a" * 40 + ":digest"
+        )
+        self.assertEqual(
+            command.partition(";")[2].strip(),
+            guard._standalone_receipt_command(command),
+        )
+        dynamic = "Set-Location $task; py -3 scripts/agents/act_as_mohab_cli.py pr-audit"
+        self.assertEqual(dynamic, guard._standalone_receipt_command(dynamic))
+
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):
     """R30: no PR merge mutation without recorded exact-head user authority."""

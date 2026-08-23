@@ -3354,8 +3354,17 @@ def _trusted_executable_token(token: str) -> bool:
     )
 
 
+def _standalone_receipt_command(command: str) -> str:
+    """Drop one verified literal directory prefix before receipt validation."""
+    segments = _command_segments(command)
+    if len(segments) == 2 and _literal_shell_workdir(command, None):
+        return segments[1].strip()
+    return command
+
+
 def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
     """Bind one successful standalone canonical audit command to its exact receipt."""
+    command = _standalone_receipt_command(command)
     segments = _command_segments(command)
     if len(segments) != 1:
         return None
@@ -3414,6 +3423,7 @@ def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
 
 def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     """Record only one successful canonical delivery-status allow receipt."""
+    command = _standalone_receipt_command(command)
     segments = _command_segments(command)
     if len(segments) != 1:
         return None
@@ -3590,6 +3600,7 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
 
 def _successful_authority_event(hook_input: dict, command: str) -> str | None:
     """Record only canonical exact-head merge-authority validation."""
+    command = _standalone_receipt_command(command)
     segments = _command_segments(command)
     if len(segments) != 1:
         return None
@@ -4542,9 +4553,17 @@ def run_posttooluse(hook_input: dict) -> int:
     tool_name = hook_input.get("tool_name", "")
     result = hook_input.get("tool_response", hook_input.get("tool_result"))
     invocations = _literal_invocations(hook_input, tool_name)
-    commands = tuple(
-        invocation.command for invocation in invocations if invocation.command
+    command_contexts = tuple(
+        (
+            invocation.command,
+            {**hook_input, "cwd": invocation.workdir}
+            if invocation.workdir
+            else hook_input,
+        )
+        for invocation in invocations
+        if invocation.command
     )
+    commands = tuple(command for command, _ in command_contexts)
 
     result_failed = hook_input.get("hook_event_name") == "PostToolUseFailure" or bool(
         isinstance(result, dict)
@@ -4572,8 +4591,8 @@ def run_posttooluse(hook_input: dict) -> int:
         _is_implementation_mutation(tool_name, hook_input.get("tool_input"))
         or any(
             _is_git_commit_command(command)
-            or _successful_delivery_event(hook_input, command)
-            for command in commands
+            or _successful_delivery_event(invocation_hook, command)
+            for command, invocation_hook in command_contexts
         )
     ):
         _reflection.record_activity(
@@ -4583,30 +4602,30 @@ def run_posttooluse(hook_input: dict) -> int:
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
     ):
         ledger_record(hook_input, "memory-write")
-    for command in commands:
+    for command, invocation_hook in command_contexts:
         if not result_failed and _is_git_commit_command(command):
             ledger_record(hook_input, "commit")
         if not result_failed and _is_learning_write_command(command):
             ledger_record(hook_input, "memory-write")
         if not result_failed:
-            audit_event = _successful_pr_audit_event(hook_input, command)
+            audit_event = _successful_pr_audit_event(invocation_hook, command)
             if audit_event:
                 ledger_record(hook_input, audit_event)
-            delivery_event = _successful_delivery_event(hook_input, command)
+            delivery_event = _successful_delivery_event(invocation_hook, command)
             if delivery_event:
                 ledger_record(hook_input, delivery_event)
-            authority_event = _successful_authority_event(hook_input, command)
+            authority_event = _successful_authority_event(invocation_hook, command)
             if authority_event:
                 ledger_record(hook_input, authority_event)
             for learning_event in _learning_session_events(hook_input, command):
                 ledger_record(hook_input, learning_event)
             issue_event = _standalone_issue_created_event(
-                command, result, _hook_working_directory(hook_input)
+                command, result, _hook_working_directory(invocation_hook)
             )
             if issue_event:
                 ledger_record(hook_input, issue_event)
             issue_reference = _tracked_issue_reference_event(
-                command, result, _hook_working_directory(hook_input)
+                command, result, _hook_working_directory(invocation_hook)
             )
             if issue_reference:
                 ledger_record(hook_input, issue_reference)
