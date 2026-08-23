@@ -27,7 +27,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Task|Agent|Read|Grep|Bash|PowerShell|shell_command|Write|Edit|NotebookEdit|apply_patch|WebSearch|WebFetch|web__run|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__shaft-memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Task|Agent|spawn_agent|collaboration[.]spawn_agent|task|agent|Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|store|mcp__[^|]*memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)",
         "hooks": [
           {
             "type": "command",
@@ -40,7 +40,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|Read|Grep|Glob|Skill|read_file|read_many_files|list_directory|glob|grep_search|search_file_content|WebSearch|WebFetch|web__run|google_web_search|web_fetch|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__[^|]*memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",
@@ -53,7 +53,7 @@
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|Read|Grep|Glob|Skill|read_file|read_many_files|list_directory|glob|grep_search|search_file_content|WebSearch|WebFetch|web__run|google_web_search|web_fetch|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__[^|]*memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",

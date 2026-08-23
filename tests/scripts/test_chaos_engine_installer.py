@@ -776,7 +776,12 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 ]["portable"]["runtimeFiles"]
             )
             self.assertEqual(
-                {"hooks/kernel.py", "hooks/launch.js", "hooks/lifecycle.py"},
+                {
+                    "hooks/kernel.py",
+                    "hooks/launch.js",
+                    "hooks/lifecycle.py",
+                    "hooks/matchers.json",
+                },
                 runtime_files,
             )
             owned_text = "\n".join(

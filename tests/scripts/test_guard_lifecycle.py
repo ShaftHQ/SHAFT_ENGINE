@@ -1454,7 +1454,7 @@ class GuardLifecycleTest(unittest.TestCase):
                 )
         self.assertEqual(observed, [])
 
-    def test_portable_hook_matchers_observe_receipt_and_mutation_tools(self):
+    def test_portable_hook_matchers_skip_read_only_pre_calls_but_observe_outcomes(self):
         plan_surfaces = (
             "update_plan",
             "enter_plan_mode",
@@ -1464,26 +1464,110 @@ class GuardLifecycleTest(unittest.TestCase):
             "todo_write",
             "TodoWrite",
         )
+        read_only_surfaces = ("Read", "Grep", "WebSearch", "WebFetch", "web__run", *plan_surfaces)
         for relative in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(relative=relative):
-                text = (Path(__file__).resolve().parents[2] / relative).read_text(
-                    encoding="utf-8"
-                )
-                for tool in ("Read", "WebSearch", "WebFetch", "apply_patch", *plan_surfaces):
-                    self.assertIn(tool, text)
-                self.assertIn("PostToolUse", text)
-        codex = (Path(__file__).resolve().parents[2] / ".codex/hooks.json").read_text(
-            encoding="utf-8"
+                hooks = json.loads(
+                    (Path(__file__).resolve().parents[2] / relative).read_text(encoding="utf-8")
+                )["hooks"]
+                pre = hooks["PreToolUse"][0]["matcher"]
+                post = hooks["PostToolUse"][0]["matcher"]
+                for tool in read_only_surfaces:
+                    self.assertIsNone(re.fullmatch(pre, tool), tool)
+                    self.assertIsNotNone(re.fullmatch(post, tool), tool)
+                for tool in ("apply_patch", "PowerShell"):
+                    self.assertIsNotNone(re.fullmatch(pre, tool), tool)
+                for tool in ("Task", "Agent", "spawn_agent"):
+                    self.assertIsNotNone(re.fullmatch(pre, tool), tool)
+                    self.assertIsNone(re.fullmatch(post, tool), tool)
+
+    def test_redirect_detection_is_quote_aware(self):
+        quoted = 'rg -n "Map<String, List<Integer>>" shaft-engine'
+        redirected = 'rg -n "Map<String, List<Integer>>" shaft-engine > matches.txt'
+
+        self.assertFalse(guard._shell_is_mutation(quoted))
+        self.assertEqual((), guard._shell_mutation_targets(quoted))
+        self.assertTrue(guard._shell_is_mutation(redirected))
+        self.assertEqual(("matches.txt",), guard._shell_mutation_targets(redirected))
+
+    def test_powershell_named_paths_and_literal_variables_are_static_targets(self):
+        self.assertEqual(
+            ("scripts/out.txt",),
+            guard._shell_mutation_targets("Set-Content -LiteralPath scripts/out.txt -Value x"),
         )
-        self.assertIn("exec_command", codex)
-        self.assertIn("functions[.]exec", codex)
-        self.assertIn("shaft[-_]memory", codex)
-        hooks = json.loads(codex)["hooks"]
-        self.assertIn("functions[.]exec", hooks["PreToolUse"][0]["matcher"])
-        self.assertIn("functions[.]exec", hooks["PostToolUse"][0]["matcher"])
-        for tool in plan_surfaces:
-            self.assertIn(tool, hooks["PreToolUse"][0]["matcher"])
-            self.assertIn(tool, hooks["PostToolUse"][0]["matcher"])
+        self.assertEqual(
+            ("scripts/out.txt",),
+            guard._shell_mutation_targets("$receipt = 'scripts/out.txt'; Out-File -FilePath $receipt"),
+        )
+        context = guard._invocation_context(
+            {
+                "cwd": ".",
+                "tool_input": {"command": "Set-Content -Path $dynamic -Value x"},
+            },
+            "PowerShell",
+        )
+        self.assertTrue(context.unresolved)
+
+    def test_generate_notes_preview_is_the_only_read_only_gh_post(self):
+        preview = "gh api --method POST repos/ShaftHQ/SHAFT_ENGINE/releases/generate-notes -f tag_name=x"
+        release = "gh api --method POST repos/ShaftHQ/SHAFT_ENGINE/releases -f tag_name=x"
+
+        self.assertFalse(guard._shell_is_mutation(preview))
+        self.assertTrue(guard._shell_is_mutation(release))
+        self.assertTrue(guard._shell_is_mutation("gh api --method PATCH repos/ShaftHQ/SHAFT_ENGINE/releases/1"))
+
+    def test_one_successful_forwarded_wrapped_web_result_certifies_research(self):
+        source = (
+            'const result = await tools.web__run({open:[{ref_id:"https://docs.github.com/en/rest/releases/releases"}]}); '
+            "text(result);"
+        )
+        result = {
+            "status": "completed",
+            "content": [{"type": "text", "text": "https://docs.github.com/en/rest/releases/releases"}],
+        }
+        self.assertIn(
+            "authoritative-online-research",
+            guard._research_preflight_events("functions.exec", source, result),
+        )
+        counterexamples = (
+            'await tools.web__run({open:[]}); text("https://docs.github.com/en/rest/releases/releases");',
+            'const result = await tools.web__run(dynamic); text(result);',
+            'const first = await tools.web__run({open:[]}); const second = await tools.web__run({open:[]}); text(first);',
+            'const result = await tools.web__run({open:[]}); text({url:"https://docs.github.com/en/rest/releases/releases"});',
+        )
+        for candidate in counterexamples:
+            with self.subTest(candidate=candidate):
+                self.assertNotIn(
+                    "authoritative-online-research",
+                    guard._research_preflight_events("functions.exec", candidate, result),
+                )
+
+    def test_observational_post_event_avoids_effect_journal(self):
+        payload = {
+            "hook_event_name": "PostToolUse",
+            "session_id": "pure-post",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "AGENTS.md"},
+        }
+        with patch("scripts.agents.guard._kernel_core") as kernel:
+            kernel = kernel.return_value
+            normalized = mock.Mock(target_phase="")
+            normalized.name = "PostToolUse"
+            kernel.normalize_event.return_value = normalized
+            kernel.evaluate.return_value = mock.Mock(decision="allow")
+            kernel.EffectJournal.side_effect = AssertionError("journal should not be opened")
+
+            report = guard._evaluate_kernel_event(payload, "codex")
+
+        self.assertEqual(kernel.evaluate.return_value, report)
+        kernel.evaluate.assert_called_once_with(normalized)
+
+    def test_apply_patch_string_targets_the_named_worktree_not_hook_cwd(self):
+        patch_input = "*** Update File: C:/task-worktree/scripts/x.py\n"
+        self.assertEqual(
+            ("C:/task-worktree/scripts/x.py",),
+            guard._implementation_targets("apply_patch", patch_input),
+        )
 
     def test_every_live_mutation_lane_requires_the_receipt(self):
         fixtures = (
@@ -1911,6 +1995,21 @@ class SessionStartRetrievalIsolationTest(unittest.TestCase):
         self.assertNotIn("memory load", context.casefold())
         self.assertNotIn("wake-up", context.casefold())
         self.assertIn("untrusted evidence", context)
+
+    def test_cold_guard_import_defers_learning_and_repository_context(self):
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; import scripts.agents.guard; print('scripts.agents.learning_session' in sys.modules); print('scripts.agents.repository_context' in sys.modules)",
+            ],
+            cwd=Path(__file__).resolve().parents[2],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertEqual(["False", "False"], completed.stdout.splitlines())
 
 
 
@@ -2471,6 +2570,141 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
             self.assertIn("audit", guard.check_r28_pr_audit_before_arming("gh pr ready 17", "PowerShell", {}))
         with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
             self.assertIn("repository", guard.check_r28_pr_audit_before_arming("gh pr merge 17 --repo other/project --auto --merge", "PowerShell", {}))
+
+    def test_powershell_backslash_quote_cannot_hide_ready_or_merge(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        command = r'py -3 -c "probe=\"; gh pr ready 17 --repo consumer/project; #\""'
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
+            reason = guard.check_r28_pr_audit_before_arming(command, "PowerShell", {})
+
+        self.assertIsNotNone(reason)
+        self.assertIn("backslash-escaped", reason)
+
+    def test_wrapped_merge_uses_its_literal_workdir_for_audit_identity(self):
+        source = (
+            'await tools.exec_command({cmd:"gh pr merge 17 --repo consumer/project '
+            '--auto --merge", workdir:"C:/task"});'
+        )
+
+        def identity(hook_input):
+            repository = "consumer/project" if hook_input.get("cwd") == "C:/task" else "other/project"
+            return repository, "ChaosEngine/task", "a" * 40
+
+        stream = io.StringIO()
+        with (
+            mock.patch.object(guard, "_checkpoint_identity", side_effect=identity),
+            mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True),
+            mock.patch.object(guard, "check_r19_fresh_base", return_value=None),
+            mock.patch.object(guard, "check_r25_research_before_implementation", return_value=None),
+            mock.patch.object(guard, "check_r30_merge_authority_before_arming", return_value=None),
+            redirect_stdout(stream),
+        ):
+            guard.run_pretooluse({
+                "tool_name": "functions.exec",
+                "cwd": "C:/outer",
+                "tool_input": source,
+            })
+
+        self.assertEqual("", stream.getvalue())
+
+    def test_literal_directory_change_supplies_missing_native_hook_workdir(self):
+        def identity(hook_input):
+            repository = "consumer/project" if hook_input.get("cwd") == "C:/task" else "other/project"
+            return repository, "ChaosEngine/task", "a" * 40
+
+        for prefix in ("Set-Location -LiteralPath 'C:/task';", "cd C:/task &&"):
+            with self.subTest(prefix=prefix):
+                stream = io.StringIO()
+                with (
+                    mock.patch.object(guard, "_checkpoint_identity", side_effect=identity),
+                    mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True),
+                    mock.patch.object(guard, "check_r19_fresh_base", return_value=None),
+                    mock.patch.object(guard, "check_r25_research_before_implementation", return_value=None),
+                    mock.patch.object(guard, "check_r30_merge_authority_before_arming", return_value=None),
+                    redirect_stdout(stream),
+                ):
+                    guard.run_pretooluse({
+                        "tool_name": "Bash",
+                        "cwd": "C:/outer",
+                        "tool_input": {
+                            "command": f"{prefix} gh pr merge 17 --repo consumer/project --auto --merge"
+                        },
+                    })
+
+                self.assertEqual("", stream.getvalue())
+
+        self.assertEqual(
+            "C:/outer",
+            guard._literal_shell_workdir("Set-Location $task; gh pr merge 17 --auto --merge", "C:/outer"),
+        )
+
+    def test_post_receipt_evidence_uses_literal_directory_change_workdir(self):
+        command = (
+            "Set-Location -LiteralPath 'C:/task'; "
+            "py -3 scripts/agents/act_as_mohab_cli.py pr-audit --pr 17 "
+            "--receipt-out receipt.json"
+        )
+
+        def audit_event(hook_input, _command):
+            self.assertEqual("C:/task", hook_input.get("cwd"))
+            return "pr-audit:consumer/project:17:" + "a" * 40 + ":digest"
+
+        with (
+            mock.patch.object(guard, "_successful_pr_audit_event", side_effect=audit_event),
+            mock.patch.object(guard, "_successful_delivery_event", return_value=None),
+            mock.patch.object(guard, "_successful_authority_event", return_value=None),
+            mock.patch.object(guard, "ledger_record") as record,
+            mock.patch.object(guard._reflection, "record_activity"),
+        ):
+            guard.run_posttooluse({
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Bash",
+                "cwd": "C:/outer",
+                "tool_input": {"command": command},
+                "tool_response": {"exit_code": 0},
+            })
+
+        record.assert_any_call(
+            mock.ANY, "pr-audit:consumer/project:17:" + "a" * 40 + ":digest"
+        )
+        self.assertEqual(
+            command.partition(";")[2].strip(),
+            guard._standalone_receipt_command(command),
+        )
+        dynamic = "Set-Location $task; py -3 scripts/agents/act_as_mohab_cli.py pr-audit"
+        self.assertEqual(dynamic, guard._standalone_receipt_command(dynamic))
+
+    def test_receipt_controller_is_trusted_from_effective_task_worktree(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = Path(temporary) / "task"
+            source = Path(temporary) / "source"
+            receipt_path = Path(temporary) / "receipt.json"
+            task.mkdir()
+            source.mkdir()
+            identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+            receipt_path.write_text(json.dumps({
+                "decision": "allow",
+                "repository": identity[0],
+                "pullRequest": 17,
+                "headOid": identity[2],
+            }), encoding="utf-8")
+            runtime = task / "scripts/agents/act_as_mohab_cli.py"
+            command = (
+                f'py -3 "{runtime}" pr-audit --pr 17 '
+                f'--receipt-out "{receipt_path}"'
+            )
+
+            with (
+                mock.patch.object(guard, "_harness_root", return_value=str(source)),
+                mock.patch.object(guard, "_repository_root", return_value=str(task)),
+                mock.patch.object(guard, "_checkpoint_identity", return_value=identity),
+            ):
+                event = guard._successful_pr_audit_event(
+                    {"cwd": str(task)}, command
+                )
+
+            self.assertIsNotNone(event)
+            self.assertTrue(event.startswith("pr-audit:consumer/project:17:"))
 
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):

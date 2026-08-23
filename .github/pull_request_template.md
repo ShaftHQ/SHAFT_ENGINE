@@ -16,6 +16,10 @@
 
 > Check all that apply.
 
+> Apply exactly one release-note classification label to every human-authored
+> PR: `breaking-change`, `enhancement`, `bug`, or `skip-release-notes`.
+> `regression` is supplemental and does not replace the required classification.
+
 - [ ] 🐛 Bug fix (non-breaking change that fixes an issue)
 - [ ] 🚀 New feature (non-breaking change that adds functionality)
 - [ ] 💥 Breaking change (fix or feature that would cause existing tests to fail)

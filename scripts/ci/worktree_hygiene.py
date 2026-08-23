@@ -68,6 +68,7 @@ FOREIGN_WORKTREE_STALE_HOURS = 12
 # Keep activity inspection bounded like the NUL scan. A truncated list still
 # has a known activity floor; it is not silently treated as unknown.
 MAX_ACTIVITY_PATHS = 2000
+PROTECTED_BRANCH_NAMES = frozenset({"gh-pages"})
 
 ADVISORY_STATES = (
     "corrupt",
@@ -371,7 +372,10 @@ def _remote_only_branch_names(
     return [
         name
         for name in names
-        if name and name not in (upstream_branch, "HEAD") and name not in worktree_branches
+        if name
+        and name not in (upstream_branch, "HEAD")
+        and name.casefold() not in PROTECTED_BRANCH_NAMES
+        and name not in worktree_branches
     ]
 
 
@@ -827,7 +831,7 @@ def _cleanup_identity_blockers(
     if entry.get("branch") != owned_branch:
         blockers.append("branch-mismatch")
     normalized_branch = owned_branch.casefold()
-    if normalized_branch in {"origin", "gh-pages"} or normalized_branch.startswith(
+    if normalized_branch in {"origin", *PROTECTED_BRANCH_NAMES} or normalized_branch.startswith(
         ("origin/", "refs/remotes/origin/")
     ):
         blockers.append("protected-branch")

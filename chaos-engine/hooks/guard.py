@@ -455,8 +455,12 @@ def _command_guard_state(
     functions_source: str, functions_direct: str, session_id: str,
 ) -> tuple[bool, bool, str]:
     receipt_command = any(reflection_recovery(candidate) for candidate in commands)
-    mutation = tool_name in {"Write", "Edit", "apply_patch"} or any(
+    mutation = (
+        tool_name in {"Write", "Edit", "apply_patch"}
+        or bool(re.search(r"\btools\.(?:apply_patch|store)\s*\(", functions_source))
+        or any(
         mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
+        )
     )
     checkpoint = reflection.pending_checkpoint(session_id)
     unchanged_test = _unchanged_test_requested(event, commands, tool_name, session_id)
@@ -497,12 +501,14 @@ def _run_event(event: dict, _host: str) -> int:
     kernel_event = dict(event)
     kernel_event["session_id"] = session_id
     kernel_event["agent_id"] = ""
-    kernel_journal = _kernel.EffectJournal(
-        reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl")
-    )
-    kernel_report = _kernel.evaluate_session(
-        _kernel.normalize_event(kernel_event, _host), kernel_journal
-    )
+    normalized_kernel_event = _kernel.normalize_event(kernel_event, _host)
+    if event_name in {"PostToolUse", "PostToolUseFailure"} and not normalized_kernel_event.target_phase:
+        kernel_report = _kernel.evaluate(normalized_kernel_event)
+    else:
+        kernel_journal = _kernel.EffectJournal(
+            reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl")
+        )
+        kernel_report = _kernel.evaluate_session(normalized_kernel_event, kernel_journal)
     if kernel_report.decision == "deny":
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
         return 2

@@ -7,6 +7,7 @@ import errno
 import hashlib
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess  # nosec B404 - fixed Git acceptance commands.
@@ -364,7 +365,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             required = (
                 "hooks/guard.py",
                 "hooks/kernel.py",
+                "hooks/launch.js",
                 "hooks/lifecycle.py",
+                "hooks/matchers.json",
                 "hooks/reflection.py",
                 "skills/chaos-engine/SKILL.md",
             )
@@ -377,7 +380,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 installed_path.write_text(relative, encoding="utf-8")
 
             self.assertTrue(module.cached_plugin_matches(str(installed), source))
-            for relative in ("hooks/kernel.py", "hooks/lifecycle.py"):
+            for relative in (
+                "hooks/kernel.py",
+                "hooks/launch.js",
+                "hooks/lifecycle.py",
+                "hooks/matchers.json",
+            ):
                 missing = installed / relative
                 missing.unlink()
                 self.assertFalse(module.cached_plugin_matches(str(installed), source), relative)
@@ -759,6 +767,36 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertEqual({}, json.loads(completed.stdout))
+
+    def test_generated_host_hooks_share_preventive_and_observational_matchers(self):
+        module = load(HOSTS, "chaos_engine_hook_matchers")
+        preventive = module.PRE_TOOL_MATCHER
+        observational = module.POST_TOOL_MATCHER
+
+        for tool in ("Read", "Grep", "WebSearch", "WebFetch", "web__run", "update_plan"):
+            self.assertIsNone(re.fullmatch(preventive, tool), tool)
+            self.assertIsNotNone(re.fullmatch(observational, tool), tool)
+        for tool in ("Bash", "PowerShell", "apply_patch", "Write", "spawn_agent"):
+            self.assertIsNotNone(re.fullmatch(preventive, tool), tool)
+
+        for host in ("codex", "claude", "grok"):
+            hooks = json.loads(module.lifecycle_hooks_document(host))["hooks"]
+            self.assertEqual(preventive, hooks["PreToolUse"][0]["matcher"])
+            self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
+
+        for relative in (".codex/hooks.json", ".claude/settings.json"):
+            hooks = json.loads((ROOT / relative).read_text(encoding="utf-8"))["hooks"]
+            self.assertEqual(preventive, hooks["PreToolUse"][0]["matcher"])
+            self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
+            self.assertEqual(observational, hooks["PostToolUseFailure"][0]["matcher"])
+
+        gemini = json.loads(module.gemini_hooks_document())["hooks"]
+        self.assertEqual(preventive, gemini["BeforeTool"][0]["matcher"])
+        self.assertEqual(observational, gemini["AfterTool"][0]["matcher"])
+
+        launcher = (ROOT / "chaos-engine/hooks/launch.js").read_text(encoding="utf-8")
+        self.assertLess(launcher.index("matchesHook()"), launcher.index("guardPath();"))
+        self.assertIn("matchers.json", launcher)
 
     def test_plugin_marketplace_preserves_unrelated_entries(self):
         module = load(HOSTS, "chaos_engine_marketplace_merge")

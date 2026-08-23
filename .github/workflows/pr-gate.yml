@@ -27,6 +27,7 @@ name: PR Gate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [ main ]
 
@@ -38,6 +39,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-governance:
+    name: Release-note governance
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Test and validate release-note governance
+        run: |
+          python3 -m unittest tests.scripts.test_validate_release_notes -v
+          python3 scripts/ci/validate_release_notes.py --event "$GITHUB_EVENT_PATH"
+
   changes:
     name: Detect changed paths
     runs-on: ubuntu-22.04
@@ -916,6 +929,7 @@ jobs:
   summary:
     name: PR Gate Summary
     needs:
+      - release-governance
       - changes
       - docs-boundary
       - agent-guidance
@@ -937,6 +951,7 @@ jobs:
     steps:
       - name: Evaluate leg results
         env:
+          RELEASE_GOVERNANCE_RESULT: ${{ needs.release-governance.result }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_RESULT: ${{ needs.docs-boundary.result }}
           AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
@@ -958,6 +973,7 @@ jobs:
           {
             echo "| Leg | Result |"
             echo "| --- | --- |"
+            echo "| release-governance | ${RELEASE_GOVERNANCE_RESULT} |"
             echo "| changes | ${CHANGES_RESULT} |"
             echo "| docs-boundary | ${DOCS_RESULT} |"
             echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
@@ -974,6 +990,11 @@ jobs:
             echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${RELEASE_GOVERNANCE_RESULT}" != "success" ]; then
+            echo "::error::release-governance job did not succeed (${RELEASE_GOVERNANCE_RESULT})"
+            exit 1
+          fi
 
           if [ "${CHANGES_RESULT}" != "success" ]; then
             echo "::error::changes job did not succeed (${CHANGES_RESULT})"
