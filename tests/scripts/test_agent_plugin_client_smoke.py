@@ -780,7 +780,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         agent_evidence_upload = live.split(
             "      - name: Upload structured compatibility evidence", 1
         )[1].split("\n      - name:", 1)[0]
-        self.assertIn("retention-days: 30", agent_evidence_upload)
+        self.assertIn("retention-days: 4", agent_evidence_upload)
         for client in CLIENTS.values():
             self.assertIn(client["npm_package"], live)
 

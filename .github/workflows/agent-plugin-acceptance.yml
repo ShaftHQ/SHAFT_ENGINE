@@ -157,7 +157,7 @@ jobs:
           name: chaos-engine-live-installer-${{ matrix.os }}
           path: chaos-engine-live-installer-evidence.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 4
 
   harness-platform-contracts:
     name: Harness platform contracts (${{ matrix.os }})
@@ -229,7 +229,7 @@ jobs:
           name: agnix-conformance-evidence
           path: agnix-conformance-evidence.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 4
 
   external-guardrail-corpus:
     name: Pinned external guardrail corpus
@@ -253,7 +253,7 @@ jobs:
           name: external-guardrail-corpus-evidence
           path: external-guardrail-corpus-evidence.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 4
 
   native-client-load:
     name: Claude and Codex live skill load
@@ -291,7 +291,7 @@ jobs:
           name: agent-plugin-live-acceptance-evidence
           path: agent-plugin-client-evidence.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 4
 
   chaos-engine-promotion:
     name: Five-host promotion evaluator
@@ -355,4 +355,4 @@ jobs:
             chaos-engine-promotion-trial-status.json
             chaos-engine-promotion-receipts
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 4

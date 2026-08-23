@@ -209,7 +209,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         uploads = [step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7"]
         self.assertEqual(1, len(uploads))
         self.assertEqual("always()", uploads[0]["if"])
-        self.assertEqual(30, uploads[0]["with"]["retention-days"])
+        self.assertEqual(4, uploads[0]["with"]["retention-days"])
         self.assertEqual("error", uploads[0]["with"]["if-no-files-found"])
 
     def test_generation_runtime_is_reachable_from_protected_and_scheduled_suites(self):

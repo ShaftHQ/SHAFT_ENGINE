@@ -11,7 +11,7 @@
     "reference": "docker.io/library/ubuntu@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea",
     "id": "sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea"
   },
-  "expected_files_checked": 47,
+  "expected_files_checked": 79,
   "artifacts": [
     {
       "platform": "linux-x86_64",

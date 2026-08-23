@@ -61,7 +61,7 @@ class AgnixConformanceTest(unittest.TestCase):
         )
         self.assertEqual(
             {(row["rule"], row["expected_count"]) for row in contract["allowlisted_findings"]},
-            {("CC-HK-008", 5), ("XML-001", 1)},
+            {("XML-001", 1)},
         )
 
     def test_contract_rejects_missing_sibling_bad_digest_unpinned_image_and_broad_allowlist(self):
