@@ -120,7 +120,7 @@ class AgnixConformanceTest(unittest.TestCase):
             "--format json",
         ):
             self.assertIn(required, rendered)
-        self.assertIn(contract["image"]["id"], command)
+        self.assertIn(contract["image"]["reference"], command)
 
     def test_only_exact_allowlisted_errors_pass_and_count_drift_fails(self):
         contract = load_contract(ROOT)
