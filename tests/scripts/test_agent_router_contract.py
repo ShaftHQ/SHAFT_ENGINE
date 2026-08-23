@@ -19,7 +19,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.ci.harness_pr_gate import classify_paths
 from scripts.ci.validate_agent_guidance import (
     expand_reported_globs,
     require_glob_list,
