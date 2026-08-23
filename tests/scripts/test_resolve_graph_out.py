@@ -186,14 +186,17 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertIn("manifest changed after revision marker", completed.stderr)
 
     def test_pr_gate_and_guidance_use_the_freshness_check(self):
-        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
         guidance = GRAPHIFY_GUIDANCE.read_text(encoding="utf-8")
         readme = (ROOT / "tools/repository-map/README.md").read_text(encoding="utf-8")
 
-        self.assertIn("tests.scripts.test_resolve_graph_out", workflow)
-        self.assertIn("tests.scripts.test_graphify_maintenance", workflow)
-        self.assertIn("'tests/scripts/test_graphify_maintenance.py'", workflow)
-        self.assertIn("'tools/repository-map/README.md'", workflow)
+        self.assertIn("tests.scripts.test_resolve_graph_out", scheduled)
+        self.assertIn("tests.scripts.test_graphify_maintenance", scheduled)
+        self.assertIn("'tests/scripts/test_graphify_maintenance.py'", pr_gate)
+        self.assertIn("'tools/repository-map/README.md'", pr_gate)
         self.assertIn("stale", guidance.lower())
         self.assertIn("graphify_maintenance.py refresh", readme)
         self.assertIn("Do not run `graphify hook install`", readme)

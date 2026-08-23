@@ -861,7 +861,7 @@ def collect_runtime_launch_evidence(package_root: Path) -> dict:
             for tool in responses[1]["result"]["tools"]
             if isinstance(tool, dict) and isinstance(tool.get("name"), str)
         }
-        expected = {"repository_context", "watch_pr_checks", "checkpoint_status"}
+        expected = {"repository_context", "watch_pr_checks"}
         successful = completed.returncode == 0 and len(responses) == 2 and expected <= names
     except (json.JSONDecodeError, IndexError, KeyError, TypeError):
         successful = False

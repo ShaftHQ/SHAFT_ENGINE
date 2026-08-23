@@ -43,6 +43,19 @@
       "owner": "scripts/ci/validate_agent_setup.py",
       "terms": ["validate_repository", "collect_metrics", "collect_worktree_metrics"]
     },
+    "promotion evaluation": {
+      "owner": "scripts/ci/chaos_engine_promotion.py",
+      "terms": ["case_manifest", "validate_receipt", "pairedTrials", "individualRuns"],
+      "allowed": [
+        "scripts/ci/chaos_engine_promotion_trials.py",
+        "tests/scripts/test_chaos_engine_promotion.py"
+      ]
+    },
+    "ChaosEngine README inventory": {
+      "owner": "scripts/ci/validate_chaos_engine_readme.py",
+      "terms": ["inventory_sections", "rendered_inventory", "REQUIRED_DIAGRAMS"],
+      "allowed": ["tests/scripts/test_validate_chaos_engine_readme.py"]
+    },
     "Markdown harness map": {
       "owner": ".agents/skills/README.md",
       "terms": ["Every harness element", "reachable from the entrypoint", "assertions themselves are unit tests"]

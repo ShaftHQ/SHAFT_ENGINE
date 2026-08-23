@@ -40,7 +40,6 @@ LENS = CORE_REFERENCES / "verification-gap-lens.md"
 CONSULT = CORE_REFERENCES / "consult-first.md"
 RESEARCH_RECEIPT = CORE_REFERENCES / "research-receipt.md"
 ETHICAL_CONDUCT = CORE_REFERENCES / "ethical-conduct.md"
-TDD_REF = CORE_REFERENCES / "tdd.md"
 VENDOR_CAVEMAN = ROOT / "chaos-engine/vendor/caveman/skills/caveman/SKILL.md"
 VENDOR_PONYTAIL = ROOT / "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
@@ -57,7 +56,6 @@ REDIRECT_STUB_MAX_CHARS = 250
 # Sections that own a pinned clause, by heading prefix.
 IRON_LAWS = "iron laws"
 RED_FLAGS = "red flags"
-TDD = "test-driven development"
 GAP_SHAPES = "the four gap shapes"
 BINDING = "proving a check binds"
 REVIEW = "independent adversarial review"
@@ -75,21 +73,10 @@ ETHICS = "ethical conduct"
 PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (ENTRYPOINT, IRON_LAWS, "evidence over inference"),
     (ENTRYPOINT, IRON_LAWS, "inspect or run before claiming"),
-    (ENTRYPOINT, IRON_LAWS, "no production code before an observed failing test"),
+    (ENTRYPOINT, IRON_LAWS, "complete implementation before its consolidated check phase"),
     (ENTRYPOINT, IRON_LAWS, "never weaken, delete, or rewrite a test to reach green"),
     (ENTRYPOINT, IRON_LAWS, "never claim a check you did not run"),
-    # #4545 defect 1. Law 6 required a review per "behavior-changing step" and
-    # nothing defines a step, so the rule had no countable trigger and nobody
-    # could say how many a change owed. Measured: #4539 carried 24 commits and
-    # eleven new enforcement rules and received zero reviews until the owner
-    # asked for one. The per-pull-request floor is weaker in principle and
-    # strictly stronger in practice, because a pull request can be counted.
-    (ENTRYPOINT, IRON_LAWS, "every pull request gets at least one before it is armed"),
-    (TDD_REF, TDD, "only an expected assertion failure"),
-    (TDD_REF, TDD, "a pass or setup, syntax, or environment error is not red"),
-    (TDD_REF, TDD, "revert that new code and restart"),
-    (TDD_REF, TDD, "asserts nothing, prints instead of asserting, or mocks the behavior under test"),
-    (TDD_REF, TDD, "never backfill tests after implementation"),
+    (ENTRYPOINT, IRON_LAWS, "run at most two rounds only after complete implementation"),
     (ENTRYPOINT, RED_FLAGS, "the check covers it"),
     (LENS, GAP_SHAPES, "unbound-check gap"),
     (LENS, BINDING, "apply it, run it, read the failure, revert"),
@@ -141,10 +128,8 @@ class PlanArtifactRoutingTest(unittest.TestCase):
 # `numbering_defects` reads a list as 1..N, so it sees an item removed from the
 # middle -- 1, 2, 4 -- and cannot see one removed from the end, because 1, 2 is
 # as contiguous as 1, 2, 3. The clause pins were meant to cover that, and here
-# they do not: `PINNED_CLAUSES` binds iron laws 2, 3, 4 and 5, so laws 1 and 6
-# have no pin, and law 6 is the last item. Deleting the rule that requires an
-# independent adversarial review passed the numbering check and every clause
-# pin at once, reported by nothing.
+# a removed final item is still contiguous. The count binds list shape while
+# clause checks bind selected high-value behavior.
 #
 # A count rather than two more clause pins, for two reasons. A clause pin binds
 # words, and words get rewritten for good reasons, so pinning every law by text
@@ -159,7 +144,6 @@ class PlanArtifactRoutingTest(unittest.TestCase):
 # that is not pinned.
 PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
     (ENTRYPOINT, IRON_LAWS): 6,
-    (TDD_REF, TDD): 3,
     (LENS, GAP_SHAPES): 4,
 }
 
@@ -602,27 +586,6 @@ class EthicalConductContractTest(unittest.TestCase):
 # for prose-only rows and is checked for substance, because "n/a" is non-empty
 # and says nothing.
 #
-# `scope` is the fourth field and the newest, from #4567 item 7. A status says
-# what *kind* of enforcement a rule has and deliberately says nothing about how
-# much of the repository that enforcement reaches, and for law 3 the difference
-# is most of the work: `_PRODUCTION_PATH` matches `src/main/` only, so R12
-# could not fire once on the 3138-line branch #4554, where `guard.py` and its
-# tests were 76% of the diff. `gated` was true and read as more than it meant.
-#
-# It is a separate field rather than a qualified status because the status
-# vocabulary is mechanical -- `REGISTRY_STATUSES` is a closed set and
-# `test_every_row_is_honestly_classified` keys on `== "gated"` to look the
-# mechanism up in `run_pretooluse` -- so a value like "gated (src/main only)"
-# would not be a status at all, it would be a status that matches nothing and
-# quietly exempts its own row from both dispatch checks. `scope` qualifies a
-# true status the way `reason` qualifies `prose-only`, and it is pinned against
-# what the mechanism actually matches rather than left as prose.
-#
-# The recorded gap is deliberately not closed by widening `_PRODUCTION_PATH`.
-# That would gate every guidance and script edit behind an observed test run --
-# a rule firing on correct work, the shape this whole registry exists to stop
-# claiming.
-#
 # Deliberately NOT required: that prose-only be empty, or that the registry be
 # non-empty. `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-
 # that-will-be-weakened` records what that produces -- guards that are each
@@ -654,16 +617,12 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": 3,
-        "rule": "no production code before an observed failing test",
-        "status": "gated",
-        "mechanism": "check_r12_test_before_production",
-        "scope": (
-            "Compiled source under a module's src/main/ only. Everything else the "
-            "entrypoint exempts itself -- but that exemption is by directory, so it "
-            "also covers scripts/agents/guard.py, a 3,800-line enforcement program "
-            "whose defects this harness keeps finding. On #4554 R12 could not fire "
-            "once: zero files under src/main/, against 2,214 lines of guard and test "
-            "churn. Outside src/main/ law 3 is enforced by nothing here."
+        "rule": "complete implementation before its consolidated Check phase",
+        "status": "prose-only",
+        "reason": (
+            "A hook sees one action at a time and cannot know whether the approved "
+            "scope is complete. Enforcing intermediate tests would recreate the "
+            "micro-validation loop this lifecycle explicitly removed."
         ),
     },
     {
@@ -691,15 +650,23 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": 6,
-        "rule": "independent adversarial review before the next step, and once per pull request before arming",
-        "status": "gated",
-        "mechanism": "check_r15_review_before_arming",
+        "rule": "planning-selected terminal adversarial review after the final scope commit",
+        "status": "prose-only",
+        "reason": (
+            "Review is an owner-selected planning decision and semantic activity. A "
+            "hook cannot authenticate its quality or force it without recreating the "
+            "retired reviewer-dispatch ledger and action deadlock."
+        ),
     },
     {
         "law": None,
         "rule": "main thread receives native-Memory preflight before broad discovery",
-        "status": "performed",
-        "mechanism": "_standing_constraints",
+        "status": "prose-only",
+        "reason": (
+            "SessionStart now emits bounded canonical locators and must not invoke Memory, "
+            "MemPalace, or Graphify synchronously. Retrieval remains task-owned guidance "
+            "because a hook cannot verify semantic use without recreating a startup bottleneck."
+        ),
     },
     {
         "law": None,
@@ -736,12 +703,6 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": None,
-        "rule": "arm auto-merge once the review gate passes, then watch until merged",
-        "status": "reports",
-        "mechanism": "check_r17_unarmed_pull_request",
-    },
-    {
-        "law": None,
         "rule": "push before the session can end; unpushed work is unrecoverable",
         "status": "reports",
         "mechanism": "check_r18_unpushed_work",
@@ -771,11 +732,11 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": None,
-        "rule": "complete the executable specification before RED/GREEN and record it remotely before commit",
+        "rule": "complete the executable specification before implementation and record it remotely before the first implementing commit",
         "status": "prose-only",
         "reason": (
             "A deterministic local hook cannot infer semantic risk or prove that a "
-            "remote issue comment preceded RED/GREEN or a commit before a diff or "
+            "remote issue comment preceded implementation or a commit before a diff or "
             "action exists. Runtime enforcement caused false positives and new trust "
             "failures, so CI enforces the source-controlled structure and wording only."
         ),
@@ -790,10 +751,8 @@ REGISTRY_STATUSES = frozenset({"performed", "gated", "reports", "prose-only"})
 # This is a denylist, so it is incomplete by construction and the tests below
 # say so rather than implying coverage. Every entry past the first block was
 # added because it was demonstrated to walk through the list, not guessed at.
-# It stays as tight as the demonstrations allow: the TDD section legitimately
-# carves out documentation with "may skip test-first", and a list wide enough
-# to catch that phrasing would push an author to obscure a correct exemption in
-# order to pass -- the failure this check exists to prevent, inverted.
+# It stays as tight as the demonstrated weakenings allow. A wider list would
+# report legitimate conditional guidance and push authors to obscure it.
 EXEMPTION_MARKERS = (
     "unless",
     "except",
@@ -839,7 +798,7 @@ def rule_blocks(section: str) -> list[str]:
     This is the scope an exemption is judged against, and neither obvious
     alternative works. Sentence scope misses `"...did not run. Routine checks
     are exempt."`, because the escape hatch is a *new* sentence. Section scope
-    reports the TDD section's legitimate documentation carve-out. The rule item
+    reports legitimate conditional guidance in neighboring rules. The rule item
     is the unit an author actually edits, and both weakenings named in #4467
     land inside the very law they weaken.
     """
@@ -1474,32 +1433,6 @@ class DelegateTerminalLifecycleTest(unittest.TestCase):
             with self.subTest(rule=rule):
                 self.assertIn(rule, duties)
 
-    def test_review_policy_has_one_fail_closed_disposable_mechanism_rule(self):
-        document = DELEGATION.read_text(encoding="utf-8")
-        review = self._section(document, "Independent adversarial review")
-        candidate_rules = [
-            bullet for bullet in self._bullets(review)
-            if bullet.startswith("choose a disposable review mechanism")
-        ]
-        self.assertEqual(len(candidate_rules), 1)
-        rule = candidate_rules[0]
-        required_clauses = (
-            "when the host provides reliable terminal close, use a native reviewer subagent and close it after the verdict",
-            "without reliable terminal close, use an artifact-bounded ephemeral reviewer and pass the exact revision or diff",
-            "clears the automated review gate only when the active host adapter records its successful receipt, bound to that artifact",
-            "until an adapter supports that receipt, obtain an independent pull-request review too",
-        )
-        for clause in required_clauses:
-            with self.subTest(clause=clause):
-                self.assertIn(clause, rule)
-
-        self.assertNotIn(
-            "the host adapter records either dispatch",
-            review,
-            "guidance must not claim receipt support that the active adapter lacks",
-        )
-
-
 class ProgressiveDisclosureTest(unittest.TestCase):
     """Bodies and read chains stay inside documented host read limits."""
 
@@ -1719,11 +1652,11 @@ class HostParityTest(unittest.TestCase):
         )
         self.assertIn("limit_sources", budget, "each ceiling must name its documented source")
 
-    def test_always_loaded_ceiling_keeps_a_documented_quarter_cap_reserve(self):
+    def test_always_loaded_ceiling_is_the_kernel_16_kib_contract(self):
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
-        self.assertEqual(budget["max_always_loaded_body_chars"], 24_576)
+        self.assertEqual(budget["max_always_loaded_body_chars"], 16_384)
         source = budget["limit_sources"]["max_always_loaded_body_chars"]
-        for clause in ("32768", "75 percent", "8192", "UTF-8 bytes"):
+        for clause in ("16 KiB", "every supported host"):
             with self.subTest(clause=clause):
                 self.assertIn(clause, source)
 
@@ -1806,11 +1739,16 @@ class CiGateIsBlockingTest(unittest.TestCase):
             "tests/scripts/test_validate_agent_plugins.py",
         ):
             self.assertIn(required, guarded, f"guidance filter misses {required}")
-        commands = " ".join(
-            str(step.get("run", "")) for step in workflow["jobs"]["agent-guidance"]["steps"]
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
         )
-        self.assertIn("tests.scripts.test_agent_plugin_release", commands)
-        self.assertIn("tests.scripts.test_validate_agent_plugins", commands)
+        for path in (
+            "tests/scripts/test_agent_plugin_release.py",
+            "tests/scripts/test_validate_agent_plugins.py",
+        ):
+            with self.subTest(path=path):
+                module = f"tests.scripts.{Path(path).stem}"
+                self.assertIn(module, scheduled)
 
     def test_dependency_review_runs_only_for_dependency_bearing_diffs(self):
         yaml = __import__("yaml")
@@ -1850,25 +1788,20 @@ class CiGateIsBlockingTest(unittest.TestCase):
         )
 
     def test_coverage_continue_on_error_pin_runs_in_agent_guidance_gate(self):
-        # #5172: deleting continue-on-error must fail required CI, not only a
-        # local module the Agent Guidance Gate never runs.
+        # #5172: deleting continue-on-error must fail both changed-surface CI
+        # and scheduled exhaustive acceptance.
         pin_def = "def test_required_pr_gate_coverage_uploads_continue_on_error"
-        yaml = __import__("yaml")
-        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
-        commands = " ".join(
-            str(step.get("run", "")) for step in workflow["jobs"]["agent-guidance"]["steps"]
-        )
-        owners = []
+        owners: list[tuple[str, str]] = []
         for path in (ROOT / "tests" / "scripts").glob("test_*.py"):
             if pin_def in path.read_text(encoding="utf-8"):
-                owners.append(f"tests.scripts.{path.stem}")
+                owners.append((path.relative_to(ROOT).as_posix(), f"tests.scripts.{path.stem}"))
         self.assertTrue(owners, "continue-on-error coverage pin is missing")
-        missing = [module for module in owners if module not in commands]
-        self.assertEqual(
-            missing,
-            [],
-            "coverage continue-on-error pin must live in an Agent Guidance Gate unittest module",
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
         )
+        for path, module in owners:
+            with self.subTest(module=module):
+                self.assertIn(module, scheduled)
 
     def test_required_pr_gate_coverage_uploads_continue_on_error(self):
         # #5050 / #5172: codecov-action downloads before the composite's
@@ -2362,9 +2295,7 @@ class DisciplineTest(unittest.TestCase):
     """Rules the published failure evidence says an agent will otherwise break.
 
     This repository's own selection history is the argument for pinning them by
-    phrase. Rules that were only asserted got traded away -- the guard's rule
-    numbering still skips R4 through R7, and two of the deleted ones were TDD
-    and Graphify nudges. Rules with a failing check behind them survived.
+    phrase. Rules with executable checks behind them survived ordinary drift.
 
     Each pin below asserts the clause that carries the rule, inside the section
     that owns it -- a pin that passes on any prose is decoration.
@@ -2414,8 +2345,8 @@ class DisciplineTest(unittest.TestCase):
     and brittle -- "at your discretion" and "use judgment" were markers while
     "at your own judgement" still walked through. More importantly, a rule can
     be gutted with no hedge vocabulary at all, and none of these are reported:
-    a scope-narrowing prefix ("For public API changes: no production code
-    before an observed failing test"); an `### Exceptions` subsection after the
+    a scope-narrowing prefix ("For small changes: complete implementation
+    before its consolidated Check phase"); an `### Exceptions` subsection after the
     laws; a definition elsewhere in the file that redefines a term the law
     depends on; a permissive restatement in the law's own item ("Relaying a
     delegate's result is fine"); or demoting the whole section under a
@@ -2468,17 +2399,11 @@ class DisciplineTest(unittest.TestCase):
         # The law must also name the act that produces evidence, not just the value.
         self.assert_clause_holds("inspect or run before claiming")
 
-    def test_entrypoint_pins_no_production_code_before_an_observed_failing_test(self):
-        """Iron law 3, unpinned until now.
-
-        "Observed" is the load-bearing word and the one an edit optimising for
-        bytes would drop first. Without it the law reads as "write a test
-        first", which a test that was never executed satisfies -- and a test
-        nobody ran is exactly how a suite fills with assertions that never
-        could have failed.
-        """
-        # Dropping "observed" downgrades the law to "write a test first".
-        self.assert_clause_holds("no production code before an observed failing test")
+    def test_entrypoint_pins_final_batch_before_check(self):
+        """Iron law 3 keeps tests and validation out of the implementation batch."""
+        self.assert_clause_holds(
+            "complete implementation before its consolidated check phase"
+        )
 
     def test_entrypoint_pins_never_claiming_an_unrun_check(self):
         """Iron law 5, unpinned until now.
@@ -2491,42 +2416,6 @@ class DisciplineTest(unittest.TestCase):
         """
         self.assert_clause_holds("never claim a check you did not run")
 
-    def test_entrypoint_pins_what_does_and_does_not_count_as_red(self):
-        """The RED definition, unpinned until now.
-
-        Iron law 3 is unenforceable without it. An import error, a syntax
-        error, or a missing fixture all produce a red run, and accepting one as
-        RED means the "failing test" was never evidence of missing behaviour --
-        it was evidence of a broken harness. The exclusion list is therefore
-        the substance of the rule, not commentary on it, and so is the
-        instruction to revert when production code was written first: without
-        it, "restart" is advice rather than a step.
-        """
-        self.assertEqual(
-            len(headed_sections(TDD_REF.read_text(encoding="utf-8"), TDD)),
-            1,
-            "tdd reference needs exactly one TDD section",
-        )
-        # RED has to be narrowed to an assertion failure, or any red run qualifies.
-        self.assert_clause_holds("only an expected assertion failure")
-        # The exclusions are the rule; without them a broken harness reads as RED.
-        self.assert_clause_holds("a pass or setup, syntax, or environment error is not red")
-        # Code-first needs a stated remedy, not just disapproval.
-        self.assert_clause_holds("revert that new code and restart")
-
-    def test_entrypoint_pins_what_counts_as_a_test_at_all(self):
-        """The two TDD clauses #4467 found unpinned.
-
-        The first is the definition every other TDD rule rests on: without it a
-        tautological assertion satisfies RED and GREEN both, and the whole cycle
-        can be walked through while verifying nothing. The second closes the
-        cheapest way to claim the cycle without running it -- write the code,
-        write the test afterwards, and report TDD.
-        """
-        self.assert_clause_holds(
-            "asserts nothing, prints instead of asserting, or mocks the behavior under test"
-        )
-        self.assert_clause_holds("never backfill tests after implementation")
 
     def test_entrypoint_forbids_weakening_a_test_to_reach_green(self):
         """Iron law 4.
@@ -2890,60 +2779,6 @@ class DisciplineTest(unittest.TestCase):
                     f"{mechanism} is claimed as the mechanism and is not defined in guard.py",
                 )
 
-    def test_a_narrowed_row_records_what_its_mechanism_does_not_reach(self):
-        """`scope` is honest only while it carries substance, exactly like `reason`."""
-        for row in REQUIRED_ACTION_REGISTRY:
-            if "scope" not in row:
-                continue
-            with self.subTest(rule=row["rule"][:50]):
-                self.assertIn(
-                    row["status"],
-                    ("gated", "reports", "performed"),
-                    "only an enforced row has a reach to qualify",
-                )
-                self.assertGreaterEqual(
-                    len(row["scope"].split()), 12, "state what the mechanism does not reach"
-                )
-
-    def test_law_threes_recorded_scope_is_the_one_its_mechanism_enforces(self):
-        """The claim binds to behaviour, so widening R12 cannot leave it stale.
-
-        #4567 item 7. The row reads `gated`, which is mechanically true, and on
-        #4554 -- 3138 lines, 20 files, zero of them under `src/main/` -- the
-        mechanism could not fire once. The `scope` field records that, and this
-        pins the record against `_PRODUCTION_PATH` itself rather than against a
-        sentence somebody has to remember to update.
-
-        Deliberately fails if `_PRODUCTION_PATH` is widened. Widening is a real
-        option #4567 weighs and rejects, because gating every guidance and
-        script edit behind an observed test run is a rule that fires on correct
-        work. If it is ever taken anyway, the registry must stop claiming
-        `src/main/` in the same commit, and this is what makes that happen.
-        """
-        from scripts.agents import guard
-
-        row = next(row for row in REQUIRED_ACTION_REGISTRY if row["law"] == 3)
-        self.assertIn(
-            "src/main/",
-            row.get("scope", ""),
-            "law 3 reads gated and its mechanism reaches src/main/ only; "
-            "the row has to say so",
-        )
-        self.assertTrue(
-            guard._PRODUCTION_PATH.search("shaft-engine/src/main/java/A.java"),
-            "the mechanism no longer matches the paths its scope claims",
-        )
-        for outside in (
-            "scripts/agents/guard.py",
-            "tests/scripts/test_guard_lifecycle.py",
-            ".agents/skills/act-as-mohab/SKILL.md",
-            ".github/workflows/pr-gate.yml",
-        ):
-            with self.subTest(path=outside):
-                self.assertIsNone(
-                    guard._PRODUCTION_PATH.search(outside),
-                    f"R12 now reaches {outside}; the registry's recorded scope is stale",
-                )
 
     def test_every_prose_only_row_records_why(self):
         """The third status is honest only while it carries its reason."""
@@ -3029,45 +2864,14 @@ class DisciplineTest(unittest.TestCase):
                 self.assertEqual(found, expected)
 
     def test_deleting_the_last_law_is_reported(self):
-        """#4534: an end-deletion is contiguous, and the last law has no pin.
-
-        `numbering_defects` reads 1..N, so removing an item from the *middle*
-        leaves a gap it catches while removing the item at the *end* leaves
-        1, 2, 3 becoming 1, 2 -- still contiguous, still 1..N, silent. The
-        module already said so honestly; what it did not say is what that
-        costs here.
-
-        `PINNED_CLAUSES` pins iron laws 2, 3, 4 and 5. Laws 1 and 6 carry no
-        clause pin, and law 6 is the last item -- so deleting the rule that
-        requires an independent adversarial review passes the numbering check
-        and every clause pin at once. The one rule whose absence nothing else
-        in the harness would notice is exactly the one the structure could not
-        see going.
-
-        Fixed with a count rather than by pinning those two clauses. A clause
-        pin binds the words, and words get rewritten for good reasons; a count
-        binds the shape, which is what an end-deletion changes. It also fails
-        for a law added without review, which no clause pin can do.
-        """
+        """An end deletion stays contiguous, so the section count must catch it."""
         source = ENTRYPOINT.read_text(encoding="utf-8")
         mutated = re.sub(r"(?m)^6\. [^\n]*\n(?:[ \t]+[^\n]*\n)*", "", source, count=1)
         self.assertNotEqual(mutated, source, "the mutation did not apply")
-        self.assertEqual(
-            self.law_numbers(mutated),
-            [1, 2, 3, 4, 5],
-            "the point of this test is that the remaining list stays contiguous",
-        )
-        self.assertNotIn(
-            "independent adversarial review", mutated.lower(), "the law must be gone"
-        )
-        self.assertEqual(
-            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
-            [],
-            "an end-deletion is not a numbering defect, which is why this test exists",
-        )
+        self.assertEqual(self.law_numbers(mutated), [1, 2, 3, 4, 5])
         self.assertTrue(
             clause_defects({ENTRYPOINT: mutated}),
-            "deleting the last iron law must be reported by something",
+            "deleting the last iron law must be reported",
         )
 
     def test_adding_a_law_nobody_pinned_is_reported(self):
@@ -3165,23 +2969,20 @@ class DisciplineTest(unittest.TestCase):
                     "a clause moved out of its own section is not reported",
                 )
 
-    def test_the_two_weakenings_named_in_the_review_are_reported(self):
-        """The literal counter-examples from #4467, not a paraphrase of them.
-
-        One qualifies inside the sentence and one appends a whole new sentence,
-        which is why the exemption scan is judged per rule item rather than per
-        sentence.
-        """
+    def test_final_batch_weakenings_are_reported(self):
         cases = (
             ("never claim a check you did not run", ". Routine checks are exempt"),
-            ("no production code before an observed failing test", ", unless time is short"),
+            (
+                "complete implementation before its consolidated check phase",
+                ", unless the change is large",
+            ),
         )
         for clause, insertion in cases:
             with self.subTest(clause=clause):
                 self.assert_reports(
                     self.mutate(ENTRYPOINT, clause, insertion),
                     clause,
-                    f"the review's own counter-example passes: {insertion!r}",
+                    f"the weakening passes: {insertion!r}",
                 )
 
     def test_red_flags_name_the_sentence_that_ships_a_check_protecting_nothing(self):
@@ -3221,18 +3022,15 @@ class DisciplineTest(unittest.TestCase):
     def test_delegation_states_the_parallel_agent_cap(self):
         self.assertRegex(compact(DELEGATION), r"(?:four|4) (?:active |concurrent |parallel |writing )*agents")
 
-    def test_delegation_requires_an_independent_adversarial_review_per_step(self):
+    def test_delegation_bounds_optional_terminal_review(self):
         content = compact(DELEGATION)
-        self.assertIn("adversarial", content)
+        self.assertIn("optional", content)
+        self.assertIn("after final scope commit", content)
+        self.assertRegex(content, r"at most two|no more than two")
         self.assertRegex(
             content,
             r"never the author|separate agent|independent",
-            "the reviewer must be independent of the author",
-        )
-        self.assertRegex(
-            content,
-            r"refute",
-            "the reviewer must be prompted to refute, not to approve",
+            "enabled review must remain independent",
         )
 
 
@@ -3363,12 +3161,16 @@ class ExecutableSpecificationStructureTest(unittest.TestCase):
                 header = next((line for line in block.splitlines() if line.startswith("|")), "")
                 self.assertEqual(tuple(cell.strip() for cell in header.strip("|").split("|")), columns)
 
-    def test_registry_honestly_marks_semantic_risk_and_remote_ordering_prose_only(self):
-        rows = [row for row in REQUIRED_ACTION_REGISTRY if "executable specification" in row["rule"]]
+    def test_registry_marks_executable_specification_ordering_prose_only(self):
+        rows = [
+            row
+            for row in REQUIRED_ACTION_REGISTRY
+            if "executable specification" in row["rule"]
+        ]
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["status"], "prose-only")
-        self.assertIn("before red/green", rows[0]["rule"].lower())
-        self.assertIn("before commit", rows[0]["rule"].lower())
+        self.assertIn("before implementation", rows[0]["rule"].lower())
+        self.assertIn("before the first implementing commit", rows[0]["rule"].lower())
         reason = rows[0]["reason"].lower()
         self.assertIn("semantic risk", reason)
         self.assertIn("remote", reason)

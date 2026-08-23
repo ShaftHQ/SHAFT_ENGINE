@@ -116,13 +116,16 @@ def default_mempalace_wing(project_name: str) -> str:
 
 def project_identity_name(project: Path) -> str:
     """Return the repository identity, independent of a checkout/worktree folder name."""
-    result = subprocess.run(  # nosec B603 B607 - fixed git query, no shell.
-        ["git", "-C", str(project), "config", "--get", "remote.origin.url"],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=5,
-    )
+    try:
+        result = subprocess.run(  # nosec B603 B607 - fixed git query, no shell.
+            ["git", "-C", str(project), "config", "--get", "remote.origin.url"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return project.name
     if result.returncode == 0:
         remote = result.stdout.strip().rstrip("/\\")
         candidate = re.split(r"[/\\:]", remote)[-1]
@@ -1126,7 +1129,13 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
         return False
     installed = Path(installed_path)
     required = (
-        ("hooks/guard.py", "hooks/reflection.py", "skills/chaos-engine/SKILL.md")
+        (
+            "hooks/guard.py",
+            "hooks/kernel.py",
+            "hooks/lifecycle.py",
+            "hooks/reflection.py",
+            "skills/chaos-engine/SKILL.md",
+        )
         if source.name == PLUGIN_NAME
         else companion_required_files(source.name)
     )
@@ -1858,11 +1867,15 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/.claude-plugin/plugin.json",
         "plugins/chaos-engine/hooks/hooks.json",
         "plugins/chaos-engine/hooks/guard.py",
+        "plugins/chaos-engine/hooks/kernel.py",
+        "plugins/chaos-engine/hooks/launch.js",
+        "plugins/chaos-engine/hooks/lifecycle.py",
         "plugins/chaos-engine/hooks/reflection.py",
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
         *companion_managed_paths(),
         ".codex/hooks.json",
         ".grok/hooks/lifecycle.json",
+        ".github/hooks/chaos-engine.json",
         ".claude/settings.json",
         ".claude/agents/chaos-engine-orchestrator.md",
         ".claude/agents/chaos-engine-implementer.md",
@@ -1998,19 +2011,18 @@ def host_anchor_path(project: Path, *, create: bool = False) -> Path:
     token = installed_host_token(project)
     if token is None:
         token = secrets.token_hex(32)
-    while True:
-        path = project / f"{ACTIVE_ANCHOR_PREFIX}{token}"
-        validate_path(project, path)
-        try:
-            descriptor = os.open(
-                path,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
-                0o600,
-            )
-        except FileExistsError as error:
-            raise ValueError(f"ChaosEngine host anchor collision: {path}") from error
-        os.close(descriptor)
-        return path
+    path = project / f"{ACTIVE_ANCHOR_PREFIX}{token}"
+    validate_path(project, path)
+    try:
+        descriptor = os.open(
+            path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+            0o600,
+        )
+    except FileExistsError as error:
+        raise ValueError(f"ChaosEngine host anchor collision: {path}") from error
+    os.close(descriptor)
+    return path
 
 
 def host_anchor(project: Path, *, create: bool = False) -> bytes:
@@ -2291,28 +2303,110 @@ REQUIRED_HOOK_EVENTS = (
     "Stop",
     "SubagentStop",
 )
+CLAUDE_HOOK_EVENTS = (*REQUIRED_HOOK_EVENTS, "PreCompact", "SessionEnd")
 
 
-def chaos_guard_locator_command(*, windows: bool) -> str:
+def chaos_guard_locator_command(*, windows: bool, host: str) -> str:
     interpreter = "py -3" if windows else "python3"
     return (
-        f'{interpreter} -c "import pathlib,runpy;'
-        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py');"
+        f'{interpreter} -c "import os,pathlib,runpy;'
+        f"os.environ['CHAOS_ENGINE_HOST']='{host}';"
+        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');"
         "p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) "
         "for rel in cands if (root/rel).is_file()),None);"
         "runpy.run_path(str(p),run_name='__main__') if p else print('{}')\""
     )
 
 
-def lifecycle_hooks_document() -> bytes:
+def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None) -> bytes:
     handler = {
         "type": "command",
-        "command": chaos_guard_locator_command(windows=False),
-        "commandWindows": chaos_guard_locator_command(windows=True),
+        "command": chaos_guard_locator_command(windows=False, host=host),
+        "commandWindows": chaos_guard_locator_command(windows=True, host=host),
         "timeout": 30,
     }
-    hooks = {event: [{"hooks": [handler]}] for event in REQUIRED_HOOK_EVENTS}
+    defaults = CLAUDE_HOOK_EVENTS if host == "claude" else REQUIRED_HOOK_EVENTS
+    selected = events or {event: event for event in defaults}
+    hooks = {native: [{"hooks": [handler]}] for native in selected}
     return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
+
+
+def copilot_hooks_document() -> bytes:
+    handler = {
+        "type": "command",
+        "bash": chaos_guard_locator_command(windows=False, host="copilot"),
+        "powershell": chaos_guard_locator_command(windows=True, host="copilot"),
+        "timeoutSec": 30,
+    }
+    hooks = {
+        event: [handler]
+        for event in (
+            "sessionStart",
+            "userPromptSubmitted",
+            "preToolUse",
+            "postToolUse",
+            "postToolUseFailure",
+            "agentStop",
+            "subagentStop",
+            "preCompact",
+            "sessionEnd",
+        )
+    }
+    return (json.dumps({"version": 1, "hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
+
+
+def gemini_hooks_document() -> bytes:
+    handler = {
+        "type": "command",
+        "command": "node .chaos-engine/hooks/launch.js gemini",
+        "name": "ChaosEngine lifecycle",
+        "timeout": 30000,
+    }
+    hooks = {
+        event: [{"hooks": [handler]}]
+        for event in (
+            "SessionStart",
+            "BeforeAgent",
+            "BeforeTool",
+            "AfterTool",
+            "AfterAgent",
+            "PreCompress",
+            "SessionEnd",
+        )
+    }
+    return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
+
+
+def copilot_hook_content(before: bytes | None) -> bytes:
+    desired = json.loads(copilot_hooks_document())
+    if before is None:
+        return (json.dumps(desired, indent=2, sort_keys=True) + "\n").encode()
+    try:
+        existing = json.loads(before)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Copilot hook configuration") from error
+    hooks = existing.get("hooks") if isinstance(existing, dict) else None
+    if existing.get("version") != 1 or not isinstance(hooks, dict):
+        raise ValueError("ChaosEngine Copilot hook collision")
+    for event, entries in list(hooks.items()):
+        if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
+            raise ValueError("ChaosEngine Copilot hook collision")
+        hooks[event] = [
+            entry
+            for entry in entries
+            if not any(
+                chaos_hook_command(entry.get(field))
+                for field in ("bash", "powershell", "command")
+            )
+        ]
+        if not hooks[event]:
+            del hooks[event]
+    for event, entries in desired["hooks"].items():
+        current = hooks.setdefault(event, [])
+        for entry in entries:
+            if entry not in current:
+                current.append(entry)
+    return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
 def chaos_hook_command(command: object) -> bool:
@@ -2323,6 +2417,8 @@ def chaos_hook_command(command: object) -> bool:
         "scripts/agents/guard.py",
         ".chaos-engine/hooks/guard.py",
         "plugins/chaos-engine/hooks/guard.py",
+        ".chaos-engine/hooks/launch.js",
+        "plugins/chaos-engine/hooks/launch.js",
         "${CLAUDE_PLUGIN_ROOT}/hooks/guard.py",
     )
     for token_parts in tokens:
@@ -2344,9 +2440,12 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
         existing = json.loads(before) if before is not None else {"hooks": {}}
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"invalid {label} hook configuration") from error
-    if not isinstance(existing, dict) or not isinstance(existing.get("hooks"), dict):
+    if not isinstance(existing, dict):
         raise ValueError(f"invalid {label} hook configuration")
-    for event, groups in list(existing["hooks"].items()):
+    hooks = existing.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise ValueError(f"invalid {label} hook configuration")
+    for event, groups in list(hooks.items()):
         if not isinstance(groups, list):
             raise ValueError(f"invalid {label} hook configuration")
         retained_groups = []
@@ -2364,10 +2463,32 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
                 retained_group["hooks"] = retained_hooks
                 retained_groups.append(retained_group)
         if retained_groups:
-            existing["hooks"][event] = retained_groups
+            hooks[event] = retained_groups
         else:
-            del existing["hooks"][event]
+            del hooks[event]
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
+
+
+def replace_owned_text_block(
+    existing: str, start: str, end: str, block: str, label: str
+) -> bytes:
+    """Upgrade one marker-owned block while preserving all foreign text."""
+    start_count = existing.count(start)
+    end_count = existing.count(end)
+    if start_count == end_count == 0:
+        separator = "\n" if existing and not existing.endswith("\n") else ""
+        return (existing + separator + block).encode()
+    if start_count != 1 or end_count != 1:
+        raise ValueError(f"ChaosEngine {label} collision")
+    begin = existing.index(start)
+    finish = existing.index(end, begin) + len(end)
+    if finish < begin:
+        raise ValueError(f"ChaosEngine {label} collision")
+    if finish < len(existing) and existing[finish] == "\r":
+        finish += 1
+    if finish < len(existing) and existing[finish] == "\n":
+        finish += 1
+    return (existing[:begin] + block + existing[finish:]).encode()
 
 
 def gitignore_content(before: bytes | None) -> bytes:
@@ -2378,6 +2499,8 @@ def gitignore_content(before: bytes | None) -> bytes:
     block = (
         f"{GITIGNORE_START}\n"
         ".chaos-engine-runtime/\n.chaos-engine-runtime.lock\n.chaos-engine-runtime.*\n.chaos-engine-state/\n"
+        ".chaos-engine-runtime-current.json\n.chaos-engine-runtime-current.json.*\n"
+        ".chaos-engine-runtime-generations/\n.chaos-engine-runtime-transactions/\n"
         ".chaos-engine.lock\n.chaos-engine.transaction.json\n"
         ".chaos-engine.backup/\n.chaos-engine.backup.*/\n"
         ".chaos-engine-cross-rollback/\n.chaos-engine-uninstall-*\n"
@@ -2395,7 +2518,8 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!.grok/\n!.grok/hooks/\n!.grok/hooks/*.json\n"
         "!.gemini/\n!.gemini/settings.json\n!.gemini/skills/\n"
         "!.gemini/skills/chaos-engine/\n!.gemini/skills/chaos-engine/**\n"
-        "!.github/\n!.github/copilot-instructions.md\n!.github/skills/\n"
+        "!.github/\n!.github/copilot-instructions.md\n!.github/hooks/\n"
+        "!.github/hooks/chaos-engine.json\n!.github/skills/\n"
         "!.github/skills/chaos-engine/\n!.github/skills/chaos-engine/**\n"
         "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
         "!plugins/caveman/\n!plugins/caveman/**\n"
@@ -2404,12 +2528,9 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
-    if GITIGNORE_START in existing or GITIGNORE_END in existing:
-        if block not in existing:
-            raise ValueError("ChaosEngine gitignore collision")
-        return before  # type: ignore[return-value]
-    separator = "\n" if existing and not existing.endswith("\n") else ""
-    return (existing + separator + block).encode()
+    return replace_owned_text_block(
+        existing, GITIGNORE_START, GITIGNORE_END, block, "gitignore"
+    )
 
 
 def gitattributes_content(before: bytes | None) -> bytes:
@@ -2427,6 +2548,7 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.codex/** text eol=lf\n"
         f"{repository_root_anchor}.grok/hooks/** text eol=lf\n"
         f"{repository_root_anchor}.gemini/** text eol=lf\n"
+        f"{repository_root_anchor}.github/hooks/** text eol=lf\n"
         f"{repository_root_anchor}.github/copilot-instructions.md text eol=lf\n"
         f"{repository_root_anchor}.github/skills/chaos-engine/** text eol=lf\n"
         f"{repository_root_anchor}.mcp.json text eol=lf\n"
@@ -2442,12 +2564,9 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.gitattributes text eol=lf\n"
         f"{GITATTRIBUTES_END}\n"
     )
-    if GITATTRIBUTES_START in existing or GITATTRIBUTES_END in existing:
-        if block not in existing:
-            raise ValueError("ChaosEngine gitattributes collision")
-        return before  # type: ignore[return-value]
-    separator = "\n" if existing and not existing.endswith("\n") else ""
-    return (existing + separator + block).encode()
+    return replace_owned_text_block(
+        existing, GITATTRIBUTES_START, GITATTRIBUTES_END, block, "gitattributes"
+    )
 
 
 def desired_content(
@@ -2656,7 +2775,7 @@ def desired_content(
         )
         + "\n"
     ).encode()
-    desired_hooks = lifecycle_hooks_document()
+    desired_hooks = lifecycle_hooks_document("codex")
     after["plugins/chaos-engine/hooks/hooks.json"] = (
         json.dumps({"hooks": {}}, indent=2, sort_keys=True) + "\n"
     ).encode()
@@ -2667,11 +2786,23 @@ def desired_content(
     )
     after[".grok/hooks/lifecycle.json"] = hook_content(
         without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
-        desired_hooks,
+        lifecycle_hooks_document("grok"),
         "Grok",
+    )
+    after[".github/hooks/chaos-engine.json"] = copilot_hook_content(
+        before[".github/hooks/chaos-engine.json"]
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/hooks/kernel.py"] = (
+        Path(__file__).resolve().parent / "hooks/kernel.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/hooks/launch.js"] = (
+        Path(__file__).resolve().parent / "hooks/launch.js"
+    ).read_bytes()
+    after["plugins/chaos-engine/hooks/lifecycle.py"] = (
+        Path(__file__).resolve().parent / "hooks/lifecycle.py"
     ).read_bytes()
     after["plugins/chaos-engine/hooks/reflection.py"] = (
         Path(__file__).resolve().parent / "hooks/reflection.py"
@@ -2683,7 +2814,7 @@ def desired_content(
     ).encode()
     claude_settings = hook_content(
         without_chaos_hooks(before[".claude/settings.json"], "Claude"),
-        desired_hooks,
+        lifecycle_hooks_document("claude"),
         "Claude",
     )
     try:
@@ -2819,7 +2950,7 @@ def desired_content(
     )
     roles = {
         "orchestrator": "Own planning, architecture, synthesis, and final verification.",
-        "implementer": "Implement one bounded specification with test-driven development.",
+        "implementer": "Implement one bounded specification before consolidated validation.",
         "reviewer": "Perform an independent read-only adversarial review; never edit.",
         "tester": "Reproduce behavior and produce regression and acceptance evidence.",
         "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
@@ -2907,8 +3038,11 @@ def desired_content(
         INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
     )
     after[".mcp.json"] = json_content(before[".mcp.json"], maven_runtime)
-    after[".gemini/settings.json"] = json_content(
-        before[".gemini/settings.json"], maven_runtime
+    gemini_settings = json_content(before[".gemini/settings.json"], maven_runtime)
+    after[".gemini/settings.json"] = hook_content(
+        without_chaos_hooks(gemini_settings, "Gemini"),
+        gemini_hooks_document(),
+        "Gemini",
     )
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime

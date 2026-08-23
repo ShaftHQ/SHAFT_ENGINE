@@ -12,7 +12,6 @@ from pathlib import Path
 from unittest import mock
 
 from scripts.agents import act_as_mohab_cli
-from scripts.agents.act_as_mohab_cli import checkpoint_status
 from scripts.agents.repository_context import RepositoryContext, RepositoryContextError
 from scripts.ci.assemble_act_as_mohab_plugin import assemble
 
@@ -114,7 +113,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stderr)
         for command in (
-            "repository-context", "watch-pr-checks", "checkpoint-status", "plan-validate",
+            "repository-context", "watch-pr-checks", "plan-validate",
             "pr-audit", "delivery-status", "issue-plan", "issue-create", "issue-labels",
             "issue-transition", "mcp"
             , "merge-authority"
@@ -182,7 +181,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         tools = {tool["name"] for tool in responses[1]["result"]["tools"]}
         self.assertEqual(
             {
-                "repository_context", "watch_pr_checks", "checkpoint_status", "plan_validate",
+                "repository_context", "watch_pr_checks", "plan_validate",
                 "pr_audit",
                 "delivery_status",
                 "issue_plan",
@@ -194,131 +193,6 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         self.assertEqual(str(consumer.resolve()), payload["root"])
         self.assertEqual(self.package_root.resolve(), launch_cwd)
 
-    def test_checkpoint_status_selects_only_an_exact_head_pull_request(self):
-        context = RepositoryContext("consumer/project", self.base, None)
-        calls = []
-
-        def runner(command, **_kwargs):
-            calls.append(command)
-            if "rev-parse" in command:
-                return subprocess.CompletedProcess(command, 0, stdout="abc123\n", stderr="")
-            return subprocess.CompletedProcess(
-                command,
-                0,
-                stdout=json.dumps(
-                    [[
-                        {
-                            "number": number,
-                            "html_url": f"https://github.com/consumer/project/pull/{number}",
-                            "state": "open",
-                            "draft": False,
-                            "head": {"sha": "old"},
-                        }
-                        for number in range(1, 102)
-                    ]
-                    + [
-                        {
-                            "number": 102,
-                            "html_url": "https://github.com/consumer/project/pull/102",
-                            "state": "closed",
-                            "draft": False,
-                            "head": {"sha": "abc123"},
-                        },
-                        {
-                            "number": 103,
-                            "html_url": "https://github.com/consumer/project/pull/103",
-                            "state": "open",
-                            "draft": True,
-                            "head": {"sha": "abc123"},
-                        },
-                    ]]
-                ),
-                stderr="",
-            )
-
-        status = checkpoint_status(
-            context,
-            runner=runner,
-            executable_resolver=lambda name: name,
-        )
-
-        self.assertEqual("abc123", status["head"])
-        self.assertEqual(103, status["pullRequest"]["number"])
-        self.assertIn("repos/consumer/project/commits/abc123/pulls", calls[1])
-        self.assertIn("--paginate", calls[1])
-
-        def no_exact_open_pull_request(command, **_kwargs):
-            if "rev-parse" in command:
-                return subprocess.CompletedProcess(command, 0, stdout="abc123\n", stderr="")
-            return subprocess.CompletedProcess(
-                command,
-                0,
-                stdout=json.dumps(
-                    [[
-                        {
-                            "number": 1, "html_url": "https://example.test/pull/1",
-                            "state": "closed", "draft": False, "head": {"sha": "abc123"},
-                        },
-                        {
-                            "number": 2, "html_url": "https://example.test/pull/2",
-                            "state": "open", "draft": False, "head": {"sha": "different"},
-                        },
-                    ]]
-                ),
-                stderr="",
-            )
-
-        self.assertIsNone(
-            checkpoint_status(
-                context,
-                runner=no_exact_open_pull_request,
-                executable_resolver=lambda name: name,
-            )["pullRequest"]
-        )
-
-        with self.assertRaises(RepositoryContextError):
-            checkpoint_status(
-                context,
-                runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
-                executable_resolver=lambda name: name,
-            )
-
-    def test_checkpoint_status_slurps_and_validates_every_api_page(self):
-        context = RepositoryContext("consumer/project", self.base, None)
-        exact = {
-            "number": 104,
-            "html_url": "https://github.com/consumer/project/pull/104",
-            "state": "open",
-            "draft": False,
-            "head": {"sha": "abc123"},
-        }
-
-        def runner(command, **_kwargs):
-            if "rev-parse" in command:
-                return subprocess.CompletedProcess(command, 0, stdout="abc123\n", stderr="")
-            # Without --slurp gh emits one JSON document per page.  With it,
-            # those same pages become one JSON array that can be validated.
-            stdout = json.dumps([[], [exact]]) if "--slurp" in command else f"[]\n{json.dumps([exact])}\n"
-            return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
-
-        try:
-            status = checkpoint_status(context, runner=runner, executable_resolver=lambda name: name)
-        except RepositoryContextError as error:
-            self.fail(f"multi-page checkpoint lookup must succeed: {error}")
-        self.assertEqual(104, status["pullRequest"]["number"])
-
-        for malformed in ([{"not": "a page"}], [[1]], [[{"state": "open", "head": []}]]):
-            def malformed_runner(command, **_kwargs):
-                if "rev-parse" in command:
-                    return subprocess.CompletedProcess(command, 0, stdout="abc123\n", stderr="")
-                return subprocess.CompletedProcess(command, 0, stdout=json.dumps(malformed), stderr="")
-
-            with self.subTest(malformed=malformed), self.assertRaises(RepositoryContextError):
-                checkpoint_status(
-                    context,
-                    runner=malformed_runner,
-                    executable_resolver=lambda name: name,
-                )
 
     def test_mcp_returns_errors_and_continues_after_untrusted_request_shapes(self):
         runtime = self.assemble_runtime()

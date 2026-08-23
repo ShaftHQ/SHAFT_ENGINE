@@ -3,7 +3,7 @@
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
-## 4. Review before you commit — every time
+## 4. Implement, check, review, deliver
 
 Rule every open design choice on the issue before the first implementing commit;
 a ticket that reaches code still choosing between candidate fixes converts that
@@ -15,45 +15,17 @@ and cost four.
 
 A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
-Commit one reviewed sub-item at a time using the repository's normal message
-convention, including its issue number.
+Complete approved scope and create its final scope commit before any local
+validation or review. Triage automated CI, annotations, bots, and PR comments;
+batch-fix applicable findings. Then run planning-approved adversarial review,
+at most two rounds, followed by extra local tests. Do not stop behavior work
+for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
 
-### Every retained checkpoint: make delivery visible immediately
-
-After the first reviewed implementation commit succeeds and remains at `HEAD`,
-stop behavior work and make that exact checkpoint visible before another
-behavior change or commit. Repeat this gate after every later retained commit:
-
-1. Resolve repository identity from the active worktree, then bind the full
-   `HEAD` SHA and implementation branch. Never infer an issue number from a
-   branch name.
-2. Push the branch and create or discover its open draft or ready PR. PR
-   creation always names `--base` explicitly; stacked and dependent work uses
-   its intended branch base, never an assumed default branch.
-3. Require the PR to cover the exact checkpoint SHA. Persist its canonical
-   `baseRefName`, PR identity, and `closingIssuesReferences`; those closing
-   references, not branch text, supply the issue mapping. GitHub ignores
-   closing keywords when a PR targets a non-default stacked base. Only in that
-   state, an explicit, unambiguous same-repository closing keyword in the PR
-   body supplies the fallback issue mapping until the stack reaches the
-   default branch; titles, branch names, ordinary references, and malformed or
-   cross-repository clauses never do.
-4. Update the PR body for that exact head with nonempty `## Summary`, `## Checks`,
-   and `## Continuation` sections. Visible Continuation text states the full
-   current `Head:`, plus meaningful `State:`, `Blockers:`, and `Next action:`
-   fields so a new owner can resume without reconstructing the session. Hidden
-   comments and code blocks do not count. Keep the linked tracker current as
-   later commits land.
-
-Read-only work, failed commit attempts, and sessions with no retained
-implementation commit owe no PR. For an already-running session whose first
-checkpoint predates this rule, perform steps 1–3 before resuming behavior. An
-older-head PR does not repair the state: push/update it until its head is exact.
-If the exact PR lacks a closing issue reference, add one. If GitHub is
-unavailable, report that concrete blocker and retry; do not treat unknown as no
-PR or continue accumulating commits. The guard leaves the inspection, push,
-explicit-base PR creation/update, and narrowly defined checkpoint-repair paths
-available while this duty is pending.
+After the implementation batch is ready, resolve repository identity from the
+active worktree, bind the full `HEAD` SHA and branch, push, and create or update
+the PR with an explicit base. Persist its `baseRefName`, PR identity, and
+`closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
+`## Continuation` sections current for the delivered head.
 
 ## 5. Docs, catalog, and screenshots — only where real
 
@@ -97,7 +69,7 @@ corpus with zero unmeasured rules and no regression. The record is a
 consistency summary, not proof that commands ran or reviewers are authentic.
 Independently derive the live diff, rerun tests, and verify review artifacts.
 Use `promote` to record intent only for the exact evaluated commit after the
-normal pull-request review gate; the normal GitHub workflow must still perform
+selected terminal assurance; normal GitHub workflow must still perform
 and verify the merge. Kernel-tier changes require
 two independent reviewer keys, correctness/reproduction/safety lenses, and two
 independent runs on the same commit and corpus. If a promoted change regresses,
@@ -107,8 +79,8 @@ performs and verifies the repair or revert.
 
 ## 7. Push, PR, green, merge, compact
 
-- For work not already covered by the first-checkpoint rule, push the branch and
-  open the agreed PR shape with a
+- After the implementation and Check/Act batch, push the branch and open or
+  update the agreed PR shape with a
   description that lists each sub-item and its commit. Keep that description
   current as later commits land.
 - Verify `closingIssuesReferences` after opening: GitHub matches closing words
@@ -127,26 +99,48 @@ conflicting, and stale; a watcher observes only green and red.
 This repository uses merge commits so a delivered branch remains identifiable
 by ancestry. Squash and rebase merging are disabled; do not substitute them.
 
-1. **Clear every GitHub comment before arming.** Read and address every open
+An owner-authorized history correction binds the expected remote tip and uses
+`git push --force-with-lease origin HEAD:<branch>`; unguarded `--force` is never
+safe. A rewrite-only gate waiver is machine-readable, names exact non-protected
+check IDs, the exact head SHA, replacement proof, owner review, and an expiry.
+It records `waived`, never `passed`. Security, ownership, corruption, rollback,
+secret-safety, installer acceptance, and confirmed correctness checks cannot be
+waived. An authorized merge bypass likewise records the obsolete checks waived
+and focused proofs observed; it must not represent remote checks as green.
+
+1. **Clear every GitHub comment before acceptance.** Read and address every open
    review thread, inline review comment, conversation comment, check annotation,
    and bot finding (including code-quality and security bots). A green check is
    not evidence that its comments were handled. Reply or resolve only after the
    finding is fixed, ruled non-applicable with evidence, or filed as explicitly
    approved follow-up work. Re-query GitHub after the final push and require zero
    unhandled comments before continuing.
-2. **Arm** after the review and comment gates: `gh pr merge <n> --auto --merge`.
-3. **Watch** from the target repository with
+2. **Require the exact head to be fully green before acceptance.** Every required
+   and protected check must be complete and successful for the bound head SHA;
+   pending, red, conflicting, or stale is not green. Apply only the exact-head,
+   non-protected waiver rules above.
+3. **Run final holistic acceptance last.** Do not execute final holistic
+   acceptance until the current exact head is fully green and no bot finding,
+   review thread, inline comment, conversation comment, or annotation remains
+   unresolved. Map the approved initial plan and every closing ticket to the
+   user-facing affected flows. This is the final assurance action before arming
+   auto-merge. If the head or remote feedback changes afterward, the receipt is
+   stale: clear only that new observable state, then run one replacement
+   acceptance against the new exact head. Unchanged state never triggers a retry.
+4. **Arm** immediately after that acceptance remains current:
+   `gh pr merge <n> --auto --merge`.
+5. **Watch** from the target repository with
    `gh pr checks <n> --watch --fail-fast`. Pass `--repo` for an explicit
    cross-repository target.
-4. **Ask for unseen states** with `gh pr view <n> --json
+6. **Ask for unseen states** with `gh pr view <n> --json
    mergeStateStatus,mergedAt`; `DIRTY` conflicts and `BEHIND` stale heads need
    action even when no event fires.
-5. **Fix** red checks, failed tests, review comments, and bot findings on the
+7. **Fix** red checks, failed tests, review comments, and bot findings on the
    branch, or merge the fetched configured upstream default branch for a
    conflict or stale head, then return to watch. Never force-push away
    owner-visible history. Any new push restarts the comment gate before
    auto-merge may remain armed.
-6. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
+8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
 
 ## 8. Report
 

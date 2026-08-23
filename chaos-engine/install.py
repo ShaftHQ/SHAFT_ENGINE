@@ -16,12 +16,14 @@ import sys
 import tempfile
 import types
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 INSTALL_DIRECTORY = ".chaos-engine"
 MANIFEST_NAME = "manifest.json"
 SCHEMA_VERSION = 1
+DIAGNOSTIC_SCHEMA_VERSION = 1
+CANONICAL_IDENTITY = "chaos-engine"
 DEFAULT_DISTRIBUTION = "portable"
 DISTRIBUTIONS_NAME = "distributions.json"
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
@@ -141,6 +143,20 @@ def is_link_or_reparse(path: Path) -> bool:
     except FileNotFoundError:
         return False
     return bool(attributes & 0x400)
+
+
+def dependency_tombstone_entries(root: Path) -> list[Path]:
+    entries: list[Path] = []
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        with os.scandir(directory) as children:
+            paths = sorted((Path(child.path) for child in children), reverse=True)
+        for path in paths:
+            entries.append(path)
+            if not is_link_or_reparse(path) and path.is_dir():
+                pending.append(path)
+    return sorted(entries)
 
 
 def reject_link_or_reparse(path: Path) -> None:
@@ -265,12 +281,21 @@ def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object
         raise ValueError(f"unknown ChaosEngine distribution: {distribution}")
     profile = policy.get("profile")
     forbidden_tokens = policy.get("forbiddenTokens")
+    runtime_files = policy.get("runtimeFiles")
     if (
         not isinstance(profile, str)
         or re.fullmatch(r"[a-z0-9][a-z0-9-]*", profile) is None
         or not isinstance(forbidden_tokens, list)
         or not all(
         isinstance(token, str) and token for token in forbidden_tokens
+        )
+        or not isinstance(runtime_files, list)
+        or not all(
+            isinstance(relative, str)
+            and PurePosixPath(relative).parts
+            and not PurePosixPath(relative).is_absolute()
+            and all(part not in {"", ".", ".."} for part in PurePosixPath(relative).parts)
+            for relative in runtime_files
         )
     ):
         raise ValueError("ChaosEngine distribution policy is invalid")
@@ -321,6 +346,7 @@ def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, d
 
 def is_origin_only(relative: Path) -> bool:
     return relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
+        "README.md",
         "RESEARCH.md",
         "STANDALONE.md",
     }
@@ -335,6 +361,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
     policy, _ = load_distribution(source, distribution)
     selected_profile = str(policy["profile"])
     forbidden_tokens = tuple(str(token).casefold() for token in policy["forbiddenTokens"])
+    runtime_files = frozenset(str(relative) for relative in policy["runtimeFiles"])
     files: list[Path] = []
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
@@ -360,6 +387,9 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
                     f"distribution policy rejected forbidden content: {relative.as_posix()}"
                 )
             files.append(path)
+    packaged = {path.relative_to(source).as_posix() for path in files}
+    if not runtime_files <= packaged:
+        raise ValueError("ChaosEngine distribution runtime inventory is incomplete")
     return tuple(files)
 
 
@@ -1103,6 +1133,45 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             )
             if not valid_phase:
                 raise ValueError("rollback state does not match the recorded phase")
+            generation_previous = None
+            generation_pointer_already_published = False
+            previous_specification_sha256 = None
+            previous_core_sha256 = None
+            current_dependencies = load_dependency_controller(target)
+            desired_root = target if target_commit == desired_commit else backup
+            previous_dependencies = load_dependency_controller(desired_root)
+            if hasattr(current_dependencies, "validated_previous") and hasattr(
+                previous_dependencies, "publish_pointer"
+            ):
+                previous_specification = previous_dependencies.load_specification(
+                    desired_root / "dependencies.json"
+                )
+                previous_specification_sha256 = (
+                    previous_dependencies.specification_digest(previous_specification)
+                )
+                previous_core_sha256 = file_sha256(desired_root / MANIFEST_NAME)
+                pointer = current_dependencies.pointer_records(project)
+                active_record = pointer["active"]
+                if (
+                    active_record["specificationSha256"]
+                    == previous_specification_sha256
+                    and active_record["coreSha256"] == previous_core_sha256
+                ):
+                    _, authenticated_pointer = current_dependencies.active_generation(
+                        project,
+                        expected_specification_sha256=previous_specification_sha256,
+                        expected_core_sha256=previous_core_sha256,
+                    )
+                    if authenticated_pointer["active"] != active_record:
+                        raise ValueError("dependency pointer changed during rollback recovery")
+                    generation_previous = active_record
+                    generation_pointer_already_published = True
+                else:
+                    generation_previous = current_dependencies.validated_previous(
+                        project,
+                        previous_specification_sha256,
+                        previous_core_sha256,
+                    )
             if target_commit != desired_commit:
                 rollback(project, _locked=True)
             try:
@@ -1117,11 +1186,46 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 if isinstance(restored_host_receipt.get("clientActivation"), dict):
                     previous_hosts.activate_detected_plugins(project)
                 previous_dependencies = load_dependency_controller(target)
-                repair = provisioner or previous_dependencies.repair
-                repair(
-                    project / ".chaos-engine-runtime",
-                    previous_dependencies.load_specification(target / "dependencies.json"),
-                )
+                if (
+                    generation_previous is not None
+                    and not generation_pointer_already_published
+                ):
+                    previous_dependencies.publish_pointer(
+                        project,
+                        generation_previous,
+                        expected_specification_sha256=previous_specification_sha256,
+                        expected_core_sha256=previous_core_sha256,
+                    )
+                else:
+                    runtime = project / ".chaos-engine-runtime"
+                    removed_newer_runtime = False
+                    if not hasattr(previous_dependencies, "RUNTIME_CONTRACT_VERSION"):
+                        removed_newer_runtime = not runtime.exists()
+                        if runtime.exists():
+                            current_dependencies = load_dependency_controller(backup)
+                            current_receipt = current_dependencies.read_receipt(runtime)
+                            ownership = current_receipt.get("ownership")
+                            links = (
+                                ownership.get("links", [])
+                                if isinstance(ownership, dict)
+                                else None
+                            )
+                            if links:
+                                current_dependencies.remove(
+                                    runtime,
+                                    current_dependencies.load_specification(
+                                        backup / "dependencies.json"
+                                    ),
+                                )
+                                removed_newer_runtime = True
+                    if not removed_newer_runtime:
+                        repair = provisioner or previous_dependencies.repair
+                        repair(
+                            runtime,
+                            previous_dependencies.load_specification(
+                                target / "dependencies.json"
+                            ),
+                        )
             except BaseException:
                 raise
             transaction_path = project / CROSS_ROLLBACK_JOURNAL_NAME
@@ -1233,6 +1337,37 @@ def load_dependency_controller(installed_root: Path):
     return load_installed_controller(installed_root, "dependencies")
 
 
+def installed_kernel_status(installed_root: Path) -> dict[str, object]:
+    """Report canonical kernel health and declared host coverage."""
+    try:
+        kernel = load_installed_controller(installed_root / "hooks", "kernel")
+        errors = [*kernel.validate_lifecycle(), *kernel.validate_rules(kernel.RULES)]
+        hosts = sorted(kernel.HOST_CAPABILITIES)
+        if hosts != ["claude", "codex", "copilot", "gemini", "grok"]:
+            errors.append("kernel host capability matrix is incomplete")
+        return {
+            "status": "healthy" if not errors else "recovery-required",
+            "schemaVersion": kernel.SCHEMA_VERSION,
+            "hosts": hosts,
+            "capabilities": {
+                host: {
+                    "events": list(kernel.HOST_CAPABILITIES[host].supported_events),
+                    "strictJsonStdout": getattr(
+                        kernel.HOST_CAPABILITIES[host], "strict_json_stdout", True
+                    ),
+                    "liveGate": getattr(kernel.HOST_CAPABILITIES[host], "live_gate", False),
+                    "staticSurfaces": list(
+                        getattr(kernel.HOST_CAPABILITIES[host], "static_surfaces", ())
+                    ),
+                }
+                for host in hosts
+            },
+            "errors": errors,
+        }
+    except (OSError, RuntimeError, ValueError) as error:
+        return {"status": "recovery-required", "errors": [str(error)]}
+
+
 def install_with_dependencies(  # noqa: MC0001 - owned resources share one compensation boundary.
     project: Path,
     source: Path,
@@ -1242,6 +1377,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     distribution: str = DEFAULT_DISTRIBUTION,
 ) -> Path:
     project = project.resolve()
+    generation_mode = provisioner is None
     with project_lock(project):
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
@@ -1249,6 +1385,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         old_commit = None
         old_manifest = None
         host_snapshot = None
+        old_specification_sha256 = None
+        old_core_sha256 = None
         if current.exists():
             old_manifest = inspect_current_install(current)
             if old_manifest is not None:
@@ -1257,6 +1395,24 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 host_receipt_path = project / old_host_controller.RECEIPT_NAME
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
                     host_snapshot = old_host_controller.snapshot(project)
+                if generation_mode:
+                    try:
+                        old_dependencies = load_dependency_controller(current)
+                        old_specification = old_dependencies.load_specification(
+                            current / "dependencies.json"
+                        )
+                        old_specification_sha256 = old_dependencies.specification_digest(
+                            old_specification
+                        )
+                        old_core_sha256 = file_sha256(current / MANIFEST_NAME)
+                        old_dependencies.active_generation(
+                            project,
+                            expected_specification_sha256=old_specification_sha256,
+                            expected_core_sha256=old_core_sha256,
+                        )
+                    except (OSError, ValueError):
+                        old_specification_sha256 = None
+                        old_core_sha256 = None
         target = install(
             project,
             source,
@@ -1283,21 +1439,79 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         runtime_existed = runtime.exists() or is_link_or_reparse(runtime)
         controller = None
         specification = None
+        candidate = None
+        retired_generation = None
+        candidate_published = False
         try:
+            controller = load_dependency_controller(target)
+            specification = controller.load_specification(target / "dependencies.json")
+            if generation_mode:
+                specification_sha256 = controller.specification_digest(specification)
+                core_sha256 = file_sha256(target / MANIFEST_NAME)
+                try:
+                    controller.active_generation(
+                        project,
+                        expected_specification_sha256=specification_sha256,
+                        expected_core_sha256=core_sha256,
+                    )
+                except (OSError, ValueError):
+                    candidate = controller.prepare_candidate(
+                        project, specification, core_sha256
+                    )
             host_controller.install(
                 project,
                 core_commit=commit,
                 capability_policy_digest=installed_manifest.get("capabilityPolicySha256"),
             )
             host_created = not host_existed
-            controller = load_dependency_controller(target)
-            specification = controller.load_specification(target / "dependencies.json")
-            provision = provisioner or controller.repair
-            provision(runtime, specification)
+            if not generation_mode:
+                provisioner(runtime, specification)
             host_controller.initialize_mempalace_runtime(project)
+            if candidate is not None:
+                try:
+                    retired_generation = controller.pointer_records(project).get(
+                        "previous"
+                    )
+                except (OSError, ValueError):
+                    retired_generation = None
+                published_pointer = controller.publish_pointer(
+                    project,
+                    candidate,
+                    expected_specification_sha256=specification_sha256,
+                    expected_core_sha256=core_sha256,
+                )
+                candidate_published = True
+                if retired_generation is not None and retired_generation not in (
+                    published_pointer["active"],
+                    published_pointer.get("previous"),
+                ):
+                    controller.remove_generation(project, retired_generation)
         except BaseException as error:
             compensation_errors: list[BaseException] = []
-            if (
+            restore_generation = None
+            if candidate is not None and not candidate_published:
+                try:
+                    pointer = controller.pointer_records(project)
+                    candidate_published = pointer.get("active") == candidate
+                except (OSError, ValueError):
+                    # Compensation continues from the last authenticated state.
+                    pass
+            if candidate_published and old_specification_sha256 and old_core_sha256:
+                try:
+                    restore_generation = controller.validated_previous(
+                        project,
+                        expected_specification_sha256=old_specification_sha256,
+                        expected_core_sha256=old_core_sha256,
+                    )
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            can_compensate = not candidate_published or restore_generation is not None
+            if candidate is not None and not candidate_published:
+                try:
+                    controller.remove_generation(project, candidate)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            if can_compensate and (
                 not runtime_existed
                 and runtime.exists()
                 and controller is not None
@@ -1307,26 +1521,39 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     controller.remove(runtime, specification)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            if host_snapshot is not None:
+            if can_compensate and host_snapshot is not None:
                 try:
                     host_controller.restore_snapshot(project, host_snapshot)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            elif host_created:
+            elif can_compensate and host_created:
                 try:
                     host_controller.uninstall(project)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            try:
-                backup_path = project / BACKUP_NAME
-                if old_commit is None and try_verify_install(backup_path) is not None:
-                    rollback(project, _locked=True)
-                elif old_commit is None:
-                    uninstall(project, expected_commit=commit, _locked=True)
-                elif core_changed and backup_path.exists():
-                    rollback(project, _locked=True)
-            except BaseException as cleanup_error:
-                compensation_errors.append(cleanup_error)
+            if can_compensate:
+                try:
+                    backup_path = project / BACKUP_NAME
+                    if old_commit is None and try_verify_install(backup_path) is not None:
+                        rollback(project, _locked=True)
+                    elif old_commit is None:
+                        uninstall(project, expected_commit=commit, _locked=True)
+                    elif core_changed and backup_path.exists():
+                        rollback(project, _locked=True)
+                    if restore_generation is not None:
+                        controller.publish_pointer(
+                            project,
+                            restore_generation,
+                            expected_specification_sha256=old_specification_sha256,
+                            expected_core_sha256=old_core_sha256,
+                        )
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            elif old_commit is not None:
+                try:
+                    write_cross_rollback_journal(project, old_commit, commit)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
             if compensation_errors:
                 if len(compensation_errors) == 1:
                     raise compensation_errors[0] from error
@@ -1361,10 +1588,16 @@ def attach_component_status(
         "playbooks": [target / "references/work-github-playbook.md"],
         "hooks": [
             target / "hooks/guard.py",
+            target / "hooks/kernel.py",
+            target / "hooks/launch.js",
+            target / "hooks/lifecycle.py",
             target / "hooks/reflection.py",
             project / ".codex/hooks.json",
             project / ".grok/hooks/lifecycle.json",
+            project / ".gemini/settings.json",
+            project / ".github/hooks/chaos-engine.json",
             project / "plugins/chaos-engine/hooks/hooks.json",
+            project / "plugins/chaos-engine/hooks/launch.js",
             project / "plugins/caveman/src/hooks/caveman-activate.js",
             project / "plugins/caveman/src/hooks/caveman-mode-tracker.js",
             project / "plugins/ponytail/hooks/ponytail-activate.js",
@@ -1435,6 +1668,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 "distribution": str(manifest["distribution"]["id"]),  # type: ignore[index]
                 "policySha256": str(manifest["distribution"]["policySha256"]),  # type: ignore[index]
             }
+            result["kernel"] = installed_kernel_status(target)
+            if result["kernel"]["status"] != "healthy":  # type: ignore[index]
+                result["status"] = "recovery-required"
             host_controller = load_installed_controller(target, "hosts")
             pending_rollback = read_cross_rollback_journal(project)
             if pending_rollback is not None:
@@ -1457,6 +1693,34 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 result["dependencies"] = {"status": "recovery-required"}
                 attach_component_status(
                     result, project, target, "recovery-required", host_controller
+                )
+                return result
+            pointer_path = project / ".chaos-engine-runtime-current.json"
+            if pointer_path.exists() or is_link_or_reparse(pointer_path):
+                controller = load_dependency_controller(target)
+                specification = controller.load_specification(
+                    target / "dependencies.json"
+                )
+                generation, pointer = controller.active_generation(
+                    project,
+                    expected_specification_sha256=controller.specification_digest(
+                        specification
+                    ),
+                    expected_core_sha256=file_sha256(target / MANIFEST_NAME),
+                )
+                if active_probes:
+                    controller.probe_active(
+                        project,
+                        controller.specification_digest(specification),
+                        file_sha256(target / MANIFEST_NAME),
+                    )
+                result["dependencies"] = {
+                    "status": "healthy",
+                    "generationId": pointer["active"]["generationId"],
+                    "path": str(generation),
+                }
+                attach_component_status(
+                    result, project, target, "healthy", host_controller
                 )
                 return result
             if not runtime.exists():
@@ -1507,6 +1771,124 @@ def doctor_with_dependencies(
     return result
 
 
+_SECRET_FIELD = re.compile(
+    r"(?:authorization|credential|password|private.?key|secret|token)", re.IGNORECASE
+)
+_URL_CREDENTIAL = re.compile(r"(?P<scheme>[a-z][a-z0-9+.-]*://)[^/@\s]+@", re.IGNORECASE)
+_DIAGNOSTIC_FIELDS = {
+    "status": {
+        "schemaVersion", "identity", "kind", "status", "commit", "distribution",
+        "policySha256", "kernel", "hosts", "dependencies", "components",
+    },
+    "doctor": {
+        "schemaVersion", "identity", "kind", "status", "commit", "distribution",
+        "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
+    },
+    "explain": {
+        "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
+        "diagnosticCode", "reason", "remedy", "factsUsed", "effects", "terminalReason",
+    },
+}
+_DIAGNOSTIC_REQUIRED_FIELDS = {
+    kind: frozenset(fields) for kind, fields in _DIAGNOSTIC_FIELDS.items()
+}
+
+
+def _diagnostic_value(value: object, project: Path) -> object:
+    """Return bounded, canonical JSON data without paths or credential-shaped fields."""
+    if isinstance(value, dict):
+        result: dict[str, object] = {}
+        for key in sorted(str(item) for item in value):
+            if key in {"path", "root"} or _SECRET_FIELD.search(key):
+                continue
+            result[key] = _diagnostic_value(value[key], project)
+        return result
+    if isinstance(value, list):
+        return [_diagnostic_value(item, project) for item in value]
+    if isinstance(value, tuple):
+        return [_diagnostic_value(item, project) for item in value]
+    if isinstance(value, str):
+        rendered = _URL_CREDENTIAL.sub(r"\g<scheme><redacted>@", value)
+        replacements = ((str(project.resolve()), "<project>"), (str(Path.home()), "<home>"))
+        for source, replacement in replacements:
+            if source:
+                rendered = rendered.replace(source, replacement)
+                rendered = rendered.replace(source.replace("\\", "/"), replacement)
+        return rendered[:2048]
+    if value is None or type(value) in {bool, int, float}:
+        return value
+    return type(value).__name__
+
+
+def validate_diagnostic_json(document: object) -> dict[str, object]:
+    """Reject schema drift, including compatibility fields removed from JSON v1."""
+    if not isinstance(document, dict) or document.get("schemaVersion") != 1:
+        raise ValueError("diagnostic JSON schema v1 is invalid")
+    kind = document.get("kind")
+    allowed = _DIAGNOSTIC_FIELDS.get(str(kind))
+    if allowed is None or set(document) - allowed:
+        raise ValueError("diagnostic JSON contains unknown or removed fields")
+    required = {"schemaVersion", "identity", "kind"}
+    if not required <= set(document) or document.get("identity") != CANONICAL_IDENTITY:
+        raise ValueError("diagnostic JSON identity is invalid")
+    missing = _DIAGNOSTIC_REQUIRED_FIELDS[str(kind)] - set(document)
+    if missing:
+        raise ValueError(
+            "diagnostic JSON is missing required fields: " + ", ".join(sorted(missing))
+        )
+    return document
+
+
+def status_json(project: Path, *, active_probes: bool = False) -> dict[str, object]:
+    """Expose the stable secret-free status JSON v1 contract."""
+    state = (
+        doctor_with_dependencies(project)
+        if active_probes
+        else status_with_dependencies(project)
+    )
+    return validate_diagnostic_json({
+        "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
+        "identity": CANONICAL_IDENTITY,
+        "kind": "doctor" if active_probes else "status",
+        **_diagnostic_value(state, project.resolve()),  # type: ignore[arg-type]
+    })
+
+
+def explain_json(
+    project: Path,
+    event: str,
+    *,
+    host: str,
+    session_id: str = "diagnostic-session",
+    phase: str = "ReadOnly",
+    target_phase: str = "",
+    cancelled: bool = False,
+    timed_out: bool = False,
+) -> dict[str, object]:
+    """Evaluate one declarative event without reading ambient session state."""
+    target = project.resolve() / INSTALL_DIRECTORY
+    verify_install(target)
+    kernel = load_installed_controller(target / "hooks", "kernel")
+    if host not in kernel.HOST_CAPABILITIES:
+        raise ValueError("unsupported diagnostic host")
+    normalized = kernel.normalize_event(
+        {
+            "hook_event_name": event,
+            "session_id": session_id,
+            "phase": phase,
+            "target_phase": target_phase,
+            "cancelled": cancelled,
+            "timed_out": timed_out,
+        },
+        host,
+    )
+    report = kernel.evaluate(normalized).to_dict()
+    return validate_diagnostic_json({
+        **_diagnostic_value(report, project.resolve()),  # type: ignore[arg-type]
+        "kind": "explain",
+    })
+
+
 def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, and core teardown.
     project: Path,
 ) -> None:
@@ -1530,6 +1912,13 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
                 receipt, _ = host_controller.read_receipt(project)
                 if receipt["phase"] != "removing":
                     raise ValueError("host removal is not prepared for absent-core recovery")
+            generation_controller = load_source_controller("dependencies")
+            generation_pointer = project / generation_controller.POINTER_NAME
+            generation_removing = project / generation_controller.POINTER_REMOVING_NAME
+            if generation_pointer.exists() or is_link_or_reparse(generation_pointer):
+                raise ValueError("dependency generation removal is not prepared")
+            if generation_removing.exists() or is_link_or_reparse(generation_removing):
+                generation_controller.finalize_generation_remove(project)
             with dependency_runtime_lock(runtime):
                 if removing.exists():
                     finalize_dependency_tombstone(removing)
@@ -1543,20 +1932,42 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
         controller = load_dependency_controller(target)
         host_controller = load_installed_controller(target, "hosts")
         specification = controller.load_specification(target / "dependencies.json")
+        generation_pointer = project / controller.POINTER_NAME
+        generation_removing = project / controller.POINTER_REMOVING_NAME
+        if generation_removing.exists() or is_link_or_reparse(generation_removing):
+            raise ValueError("dependency generation removal recovery is required")
+        generation_mode = generation_pointer.exists() or is_link_or_reparse(generation_pointer)
+        if generation_mode and (runtime.exists() or is_link_or_reparse(runtime)):
+            raise ValueError("mixed dependency runtime ownership requires recovery")
         preflight_uninstall(project)
         manifest = verify_install(target)
         commit = str(manifest["source"]["commit"])
         prepared = False
+        generation_prepared = False
         host_prepared = False
         try:
             host_controller.prepare_uninstall(project)
             host_prepared = True
-            if runtime.exists() or is_link_or_reparse(runtime):
+            if generation_mode:
+                controller.prepare_generation_remove(
+                    project,
+                    expected_specification_sha256=controller.specification_digest(
+                        specification
+                    ),
+                    expected_core_sha256=file_sha256(target / MANIFEST_NAME),
+                )
+                generation_prepared = True
+            elif runtime.exists() or is_link_or_reparse(runtime):
                 controller.prepare_remove(runtime, specification)
                 prepared = True
             uninstall(project, expected_commit=commit, _locked=True)
         except BaseException as error:
             compensation_errors: list[BaseException] = []
+            if generation_prepared:
+                try:
+                    controller.cancel_generation_remove(project)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
             if prepared:
                 try:
                     controller.cancel_remove(runtime)
@@ -1575,6 +1986,8 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
             raise
         if prepared or removing.exists():
             controller.finalize_remove(runtime, specification)
+        if generation_prepared:
+            controller.finalize_generation_remove(project)
         host_controller.finalize_uninstall(project)
 
 
@@ -1584,9 +1997,10 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     if not any(removing.iterdir()):
         removing.rmdir()
         return
-    for path in removing.rglob("*"):
-        if is_link_or_reparse(path):
-            raise ValueError("dependency removal contains a link or reparse point")
+    entries = dependency_tombstone_entries(removing)
+    for path in entries:
+        if is_link_or_reparse(path) and not path.is_symlink():
+            raise ValueError("dependency removal contains an unsupported reparse point")
     receipt_path = removing / "receipt.json"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     integrity = receipt.pop("receiptIntegritySha256", None)
@@ -1596,12 +2010,34 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     ownership = receipt.get("ownership")
     files = ownership.get("files") if isinstance(ownership, dict) else None
     directories = ownership.get("directories") if isinstance(ownership, dict) else None
-    if not isinstance(files, dict) or not isinstance(directories, list):
+    links = ownership.get("links", []) if isinstance(ownership, dict) else None
+    if (
+        not isinstance(files, dict)
+        or not isinstance(directories, list)
+        or not isinstance(links, list)
+        or not all(
+            isinstance(link, dict)
+            and set(link) == {"path", "target"}
+            and isinstance(link["path"], str)
+            and isinstance(link["target"], str)
+            for link in links
+        )
+    ):
         raise ValueError("dependency removal ownership record is invalid")
+    expected_links = {link["path"]: link["target"] for link in links}
+    present_links = {
+        path.relative_to(removing).as_posix(): os.readlink(path)
+        for path in entries
+        if path.is_symlink()
+    }
+    if not set(present_links) <= set(expected_links) or any(
+        expected_links[path] != target for path, target in present_links.items()
+    ):
+        raise ValueError("dependency removal link ownership drift detected")
     present_files = {
         path.relative_to(removing).as_posix()
-        for path in removing.rglob("*")
-        if path.is_file() and path != receipt_path
+        for path in entries
+        if not is_link_or_reparse(path) and path.is_file() and path != receipt_path
     }
     if not present_files <= set(files):
         raise ValueError("dependency removal contains an unowned file")
@@ -1610,15 +2046,21 @@ def finalize_dependency_tombstone(removing: Path) -> None:
         if file_sha256(path) != files[relative]:
             raise ValueError("dependency removal ownership drift detected")
         path.unlink()
+    for relative in sorted(present_links):
+        (removing / relative).unlink()
     present_directories = {
         path.relative_to(removing).as_posix()
-        for path in removing.rglob("*")
-        if path.is_dir()
+        for path in entries
+        if not is_link_or_reparse(path) and path.is_dir()
     }
     if not present_directories <= set(directories):
         raise ValueError("dependency removal directory ownership drift detected")
     for directory in sorted(
-        (path for path in removing.rglob("*") if path.is_dir()),
+        (
+            path
+            for path in entries
+            if not is_link_or_reparse(path) and path.is_dir()
+        ),
         key=lambda path: len(path.parts),
         reverse=True,
     ):
@@ -1639,6 +2081,20 @@ def parser() -> argparse.ArgumentParser:
     for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
         command.add_argument("--project", required=True, type=Path)
+        if name in {"status", "doctor"}:
+            command.add_argument("--json", action="store_true")
+    explain = commands.add_parser("explain")
+    explain.add_argument("event")
+    explain.add_argument("--project", required=True, type=Path)
+    explain.add_argument(
+        "--host", choices=("codex", "claude", "gemini", "grok", "copilot"), required=True
+    )
+    explain.add_argument("--session", default="diagnostic-session")
+    explain.add_argument("--phase", default="ReadOnly")
+    explain.add_argument("--target-phase", default="")
+    explain.add_argument("--cancelled", action="store_true")
+    explain.add_argument("--timeout", action="store_true")
+    explain.add_argument("--json", action="store_true")
     cache = commands.add_parser("cache")
     cache_commands = cache.add_subparsers(dest="cache_command", required=True)
     cache_status = cache_commands.add_parser("status")
@@ -1677,18 +2133,45 @@ def main() -> int:
                 else controller.purge_maven_tools_cache(args.version)
             )
         elif args.command == "status":
-            result = status_with_dependencies(args.project)
+            result = status_json(args.project)
         elif args.command == "doctor":
-            result = doctor_with_dependencies(args.project)
+            result = status_json(args.project, active_probes=True)
+        elif args.command == "explain":
+            result = explain_json(
+                args.project,
+                args.event,
+                host=args.host,
+                session_id=args.session,
+                phase=args.phase,
+                target_phase=args.target_phase,
+                cancelled=args.cancelled,
+                timed_out=args.timeout,
+            )
         elif args.command == "rollback":
             result = {"status": "rolled-back", "root": str(rollback(args.project))}
         else:
             uninstall_with_dependencies(args.project)
             result = {"status": "uninstalled"}
     except (OSError, RuntimeError, ValueError) as error:
-        print(str(error), file=sys.stderr)
+        if getattr(args, "json", False):
+            print(
+                json.dumps(
+                    {
+                        "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
+                        "identity": CANONICAL_IDENTITY,
+                        "kind": args.command,
+                        "status": "Blocked",
+                        "diagnosticCode": "CE_DIAGNOSTIC_UNAVAILABLE",
+                        "terminalReason": "blocked",
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+            )
+        else:
+            print(str(error), file=sys.stderr)
         return 1
-    print(json.dumps(result))
+    print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return 0
 
 

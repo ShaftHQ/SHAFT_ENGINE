@@ -21,8 +21,8 @@ does. A single stream skips this file and is worked solo, in sequence.
 6. Create a delivery loop whose done condition is every in-scope ticket
    delivered or explicitly out of scope. Do not stop after a plan, a status
    table, or one PR.
-7. Dispatch bounded specs: exact behavior, files, precedent, exclusions,
-   expected RED, and proof command. Select the most intelligent, default, or
+7. Dispatch bounded specs: exact behavior, files, precedent, exclusions, and
+   deferred consolidated proof command. Select the most intelligent, default, or
    mechanical capability using [delegation](delegation.md), never provider
    identity. After every dispatch, update the live status table.
 8. Stay available for architecture and consult decisions, on the check-in

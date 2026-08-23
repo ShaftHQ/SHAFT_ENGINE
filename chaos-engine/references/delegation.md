@@ -86,8 +86,10 @@ Status values at least: `planned`, `in progress`, `blocked`, `review`,
 
 ## Independent adversarial review
 
-Every behavior-changing step ends with a review before the next step starts. The
-property that makes it work is independence, so it is not optional:
+Review is optional and selected explicitly during planning; recommend it and
+default it on. If approved, review complete pull-request implementation only
+after final scope commit plus automated CI/comment fixes. Never review
+individual implementation steps. Independence remains mandatory when enabled:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal
@@ -95,7 +97,7 @@ property that makes it work is independence, so it is not optional:
   reliable terminal close, use an artifact-bounded ephemeral reviewer and pass
   the exact revision or diff plus its directly required guidance as immutable
   input. It must not depend on repository shell access to discover the artifact.
-  Such a review clears the automated review gate only when the active host
+  When review is enabled, such a review records a valid receipt only when active host
   adapter records its successful receipt, bound to that artifact. Until an
   adapter supports that receipt, obtain an independent pull-request review too;
   prose claiming the one-shot review happened is not evidence.
@@ -111,9 +113,8 @@ property that makes it work is independence, so it is not optional:
   search that misses because the tree is wrong returns a clean no-match, which
   is indistinguishable from a real absence and is the most confident wrong
   answer a review can produce.
-- Depth scales with the step, matching the consult triage: one reviewer for
-  bounded reversible work; three reviewers with distinct lenses (correctness,
-  does-it-reproduce, blast radius) for hard-to-reverse or cross-cutting change.
+- Depth scales with the pull request, matching consult triage. Use one reviewer
+  with correctness, reproduction, and blast-radius lenses.
 - Escalate to the most intelligent model for a new subsystem, a migration, a
   dependency swap, or any decision that is expensive to unwind.
 
@@ -144,7 +145,7 @@ a row that already exists.
 
 | Class | Shape | What catches it now |
 | --- | --- | --- |
-| `vacuous-check` | a test, pin or self-test that cannot fail | `validate_red_before_green.py`, and the `setUp`-patch pin in `test_agent_router_contract.py` |
+| `vacuous-check` | a test, pin or self-test that cannot fail | mutation checks and the `setUp`-patch pin in `test_agent_router_contract.py` |
 | `unspecified-predicate` | the rule re-guesses a decision the ticket never made | nothing -- it needs a ruling on the issue |
 | `credit-not-in-diff` | prose credits work the diff does not contain | the credit scan in `validate_pr_closing_keywords.py` |
 | `sibling-left` | the instance was fixed and its twin was not | the docstring duplicate scan in `validate_agent_guidance.py` |
@@ -152,18 +153,12 @@ a row that already exists.
 | `live-state-in-tests` | the test's answer depends on the machine | `StopTestsAreIndependentOfLiveStateTest` |
 | `wrong-width-check` | the command measured is not the command that matters | nothing -- see #4559 item 3 |
 
-### When the loop stops
+### Review disposition
 
-The loop stops at the first round with **zero blocking findings**. Every
-remaining finding is ticketed, never carried. Fixes to that final round's own
-findings ship without a new round unless a fix is itself blocking. Three rounds
-is the hard ceiling; continuing past it needs an explicit owner instruction on
-the pull request. Measured on #4554: blocking yield ran 14, 5, 0, 0, and
-stopping at the first zero would have merged the same content about two hours
-earlier.
-
-Every round after the first is scoped to the diff since the last verdict, never
-a full-branch re-read.
+Run no more than two rounds. Batch-fix first-round confirmed findings at the
+end, then use a second round only to assess those fixes. Never exceed two or
+restart full review. A finding that changes architecture returns work to
+planning. Extra local tests run only after this terminal review stage.
 
 Post the findings as a pull-request review, not only in chat. Findings that live
 only in a transcript die with the session, which is how the same class gets
@@ -177,8 +172,8 @@ carries it:
 > Load the canonical ChaosEngine entrypoint before all other work. Evidence over
 > inference: read or run before claiming. Stay inside assigned scope; report
 > adjacent findings. Cite repository-relative `file:line` evidence. Behavior
-> changes use observed RED, minimal implementation, observed GREEN. Never claim
-> an unrun check. Escalate architecture or ambiguity instead of deciding it.
+> complete the bounded implementation before consolidated validation. Never
+> claim an unrun check. Escalate architecture or ambiguity instead of deciding it.
 > Report failures plainly. Before waiting or after a material finding, send a
 > substantive handoff: done evidence, current step, blockers, and whether a
 > decision is needed.

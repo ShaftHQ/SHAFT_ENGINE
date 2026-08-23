@@ -39,6 +39,46 @@ def load_module(path: Path):
     return module
 
 
+class LegacyDependencyController:
+    """Expose an installed controller through the pre-generation test seam."""
+
+    GENERATION_CAPABILITIES = frozenset(
+        {
+            "active_generation",
+            "generation_environment",
+            "generation_install_plan",
+            "pointer_records",
+            "prepare_candidate",
+            "publish_pointer",
+            "remove_generation",
+            "validated_previous",
+        }
+    )
+
+    def __init__(self, controller):
+        """Wrap a controller while hiding generation-era capabilities."""
+        self._controller = controller
+
+    def __getattr__(self, name):
+        """Delegate capabilities that existed before immutable generations."""
+        if name in self.GENERATION_CAPABILITIES:
+            raise AttributeError(name)
+        return getattr(self._controller, name)
+
+
+def legacy_dependency_controller_fixture():
+    load_controller = MODULE.load_dependency_controller
+
+    def load_without_generation_capabilities(installed_root: Path):
+        return LegacyDependencyController(load_controller(installed_root))
+
+    return mock.patch.object(
+        MODULE,
+        "load_dependency_controller",
+        side_effect=load_without_generation_capabilities,
+    )
+
+
 class ChaosEngineDependenciesRunner:
     def __init__(self, runtime: Path):
         self.runtime = runtime
@@ -95,6 +135,14 @@ def create_chroma_state(path: Path) -> None:
 
 
 class ChaosEngineInstallerTest(unittest.TestCase):
+    def symlink_or_skip(self, target: Path | str, link: Path) -> None:
+        try:
+            link.symlink_to(target)
+        except OSError as error:
+            if os.name == "nt" and getattr(error, "winerror", None) == 1314:
+                self.skipTest("Windows symlink privilege is unavailable")
+            raise
+
     def test_cache_commands_are_public_and_component_scoped(self):
         status = MODULE.parser().parse_args(
             ["cache", "status", "--component", "maven-tools-mcp"]
@@ -108,6 +156,84 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
         self.assertEqual(("cache", "status", "maven-tools-mcp"), (status.command, status.cache_command, status.component))
         self.assertEqual("3.2.0", purge.version)
+
+    def test_status_and_explain_json_v1_are_deterministic_and_secret_free(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+
+            with mock.patch.object(
+                MODULE,
+                "status_with_dependencies",
+                return_value={
+                    "status": "healthy",
+                    "commit": TEST_COMMIT,
+                    "distribution": "portable",
+                    "policySha256": "a" * 64,
+                    "path": str(project / "private"),
+                    "apiToken": "do-not-render",
+                    "kernel": {"url": "https://user:password@example.invalid/path"},
+                    "hosts": {"status": "healthy"},
+                    "dependencies": {"status": "healthy"},
+                    "components": {},
+                },
+            ):
+                first = MODULE.status_json(project)
+                second = MODULE.status_json(project)
+            explained = MODULE.explain_json(
+                project,
+                "Stop",
+                host="codex",
+                session_id="diagnostic",
+            )
+
+            self.assertEqual(first, second)
+            self.assertEqual(
+                (1, "chaos-engine", "status"),
+                (first["schemaVersion"], first["identity"], first["kind"]),
+            )
+            rendered = json.dumps(first, sort_keys=True)
+            self.assertNotIn(str(project), rendered)
+            self.assertNotIn("do-not-render", rendered)
+            self.assertNotIn("user:password", rendered)
+            self.assertEqual(
+                (1, "chaos-engine", "explain", "complete"),
+                (
+                    explained["schemaVersion"],
+                    explained["identity"],
+                    explained["kind"],
+                    explained["terminalReason"],
+                ),
+            )
+            removed = dict(first)
+            removed["legacyStatus"] = "healthy"
+            with self.assertRaisesRegex(ValueError, "removed fields"):
+                MODULE.validate_diagnostic_json(removed)
+            for document, field in ((first, "status"), (explained, "decision")):
+                with self.subTest(kind=document["kind"], field=field):
+                    missing = dict(document)
+                    missing.pop(field)
+                    with self.assertRaisesRegex(ValueError, "required fields"):
+                        MODULE.validate_diagnostic_json(missing)
+
+            parsed = MODULE.parser().parse_args(
+                [
+                    "explain",
+                    "Stop",
+                    "--project",
+                    str(project),
+                    "--host",
+                    "copilot",
+                    "--json",
+                ]
+            )
+            self.assertTrue(parsed.json)
 
     def test_status_exposes_validated_capability_metadata_for_every_component(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -281,9 +407,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             def load_for_doctor(root, name):
                 if name == "hosts":
                     return controller
-                dependency_controller = original_load(root, name)
-                dependency_controller.doctor = dependency_controller.status
-                return dependency_controller
+                loaded = original_load(root, name)
+                if name == "dependencies":
+                    loaded.doctor = loaded.status
+                return loaded
 
             with mock.patch.object(
                 MODULE,
@@ -351,7 +478,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_install_initializes_fresh_mempalace_without_receipt_ownership(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "consumer"
+            project = Path(temporary).resolve() / "consumer"
             project.mkdir()
             original_load = MODULE.load_installed_controller
             controllers = []
@@ -394,6 +521,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 provisioner=lambda *_args, **_kwargs: None,
             )
             controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
                 "retrieval_configs_healthy",
@@ -401,7 +529,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 result = MODULE.status_with_dependencies(project)
 
@@ -419,6 +549,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 provisioner=lambda *_args, **_kwargs: None,
             )
             controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
                 "retrieval_runtime_healthy",
@@ -426,7 +557,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 result = MODULE.doctor_with_dependencies(project, verify_clients=False)
 
@@ -447,6 +580,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 provisioner=lambda *_args, **_kwargs: None,
             )
             controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
                 "retrieval_runtime_healthy",
@@ -458,7 +592,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 result = MODULE.doctor_with_dependencies(project, verify_clients=False)
 
@@ -467,7 +603,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_status_maps_legacy_mempalace_classifier_without_launching(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "consumer"
+            project = Path(temporary).resolve() / "consumer"
             project.mkdir()
             original_load = MODULE.load_installed_controller
             controllers = []
@@ -504,7 +640,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with mock.patch.object(
                 MODULE,
                 "load_installed_controller",
-                return_value=controller,
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
             ):
                 passive = MODULE.status_with_dependencies(project)
 
@@ -632,6 +770,15 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             manifest = json.loads((install_root / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual("portable", manifest["distribution"]["id"])
             self.assertRegex(manifest["distribution"]["policySha256"], r"^[0-9a-f]{64}$")
+            runtime_files = set(
+                json.loads((SOURCE / "distributions.json").read_text(encoding="utf-8"))[
+                    "distributions"
+                ]["portable"]["runtimeFiles"]
+            )
+            self.assertEqual(
+                {"hooks/kernel.py", "hooks/launch.js", "hooks/lifecycle.py"},
+                runtime_files,
+            )
             owned_text = "\n".join(
                 path.read_text(encoding="utf-8", errors="ignore")
                 for path in install_root.rglob("*")
@@ -645,8 +792,14 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertNotIn("mohab", owned_paths)
             self.assertNotIn("mohab", owned_text)
             hook = install_root / "hooks/guard.py"
-            self.assertTrue((install_root / "hooks/reflection.py").is_file())
-            self.assertTrue((install_root / "hooks/lifecycle.py").is_file())
+            for relative in (
+                "hooks/kernel.py",
+                "hooks/lifecycle.py",
+                "hooks/reflection.py",
+            ):
+                installed = install_root / relative
+                self.assertTrue(installed.is_file(), relative)
+                self.assertEqual(sha256(installed), manifest["files"][relative])
             (project / "lifecycle.py").write_text(
                 "raise RuntimeError('consumer lifecycle shadow imported')\n",
                 encoding="utf-8",
@@ -699,7 +852,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ):
                 vendor = install_root / relative
                 self.assertTrue(vendor.is_file(), relative)
-                self.assertIn(vendor.read_text(encoding="utf-8"), installed_context)
+                self.assertIn(relative, installed_context)
+                self.assertNotIn(vendor.read_text(encoding="utf-8"), installed_context)
             self.assertIn("caveman=ultra; ponytail=ultra", installed_context)
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
@@ -888,6 +1042,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         )
         self.assertNotIn("RESEARCH.md", relatives)
         self.assertNotIn("STANDALONE.md", relatives)
+        self.assertNotIn("README.md", relatives)
+        self.assertTrue((SOURCE / "README.md").is_file())
         self.assertTrue((SOURCE / "STANDALONE.md").is_file())
         self.assertTrue(any(relative.startswith("assets/memory-v5/") for relative in relatives))
         self.assertIn("INSTALL.md", relatives)
@@ -927,7 +1083,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_default_install_provisions_every_dependency_in_a_project_local_runtime(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "consumer"
+            project = Path(temporary).resolve() / "consumer"
             project.mkdir()
             calls = []
 
@@ -952,6 +1108,223 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertTrue(project.joinpath(".gemini/skills/chaos-engine/SKILL.md").is_file())
             self.assertTrue(project.joinpath(".github/skills/chaos-engine/SKILL.md").is_file())
             self.assertIn("chaosengine-memory", project.joinpath(".mcp.json").read_text())
+
+    def test_public_install_repairs_a_missing_managed_tool_on_normal_upgrade(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(runtime),
+                )
+
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=provision,
+                distribution="repository",
+            )
+            graphify = Path(
+                dependency_module.executable(
+                    project / ".chaos-engine-runtime/bin", "graphify"
+                )
+            )
+            graphify.unlink()
+
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=provision,
+                distribution="repository",
+            )
+
+            self.assertTrue(graphify.is_file())
+            self.assertEqual(
+                "healthy", MODULE.status_with_dependencies(project)["dependencies"]["status"]
+            )
+
+    def test_absent_core_recovery_removes_owned_links_without_following_targets(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        specification = dependency_module.load_specification(SOURCE / "dependencies.json")
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+
+            def runner(command, environment):
+                del environment
+                executable = Path(command[0])
+                if command[1:3] == ["tool", "install"] and command[-1].startswith(
+                    "graphifyy=="
+                ):
+                    target = runtime / "uv-tools/graphifyy/bin/graphify"
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text("tool\n", encoding="utf-8")
+                    link = runtime / "bin/graphify"
+                    link.parent.mkdir(parents=True, exist_ok=True)
+                    self.symlink_or_skip(target, link)
+                if not executable.exists() and executable.is_relative_to(runtime.parent):
+                    executable.parent.mkdir(parents=True, exist_ok=True)
+                    executable.write_text("tool\n", encoding="utf-8")
+                return SimpleNamespace(stdout="tool 1.0\n", stderr="")
+
+            dependency_module.repair(runtime, specification, runner=runner)
+            removing = runtime.with_name(f"{runtime.name}.removing")
+            runtime.replace(removing)
+
+            MODULE.finalize_dependency_tombstone(removing)
+
+            self.assertFalse(removing.exists())
+
+    def test_real_controller_rollback_accepts_new_runtime_receipt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            legacy_source = copy_source(root / "legacy-source")
+            legacy_dependencies = legacy_source / "dependencies.py"
+            text = legacy_dependencies.read_text(encoding="utf-8")
+            legacy_text = text.replace(
+                "RUNTIME_CONTRACT_VERSION = 2\n", ""
+            ).replace(
+                '        "runtimeContractVersion": RUNTIME_CONTRACT_VERSION,\n', ""
+            ).replace(
+                '    encoded = json.dumps(\n'
+                '        {"runtimeContractVersion": RUNTIME_CONTRACT_VERSION, "specification": tool_specification},\n'
+                '        sort_keys=True,\n'
+                '        separators=(",", ":"),\n'
+                '    ).encode()\n',
+                '    encoded = json.dumps(tool_specification, sort_keys=True, separators=(",", ":")).encode()\n',
+            ).replace(
+                '        contract_changed = receipt.get("runtimeContractVersion") != RUNTIME_CONTRACT_VERSION\n'
+                '        return (\n'
+                '            "specification-stale"\n'
+                '            if specification_changed or capability_changed or contract_changed\n'
+                '            else "healthy"\n'
+                '        )\n',
+                '        return "specification-stale" if specification_changed or capability_changed else "healthy"\n',
+            ).replace(
+                '    if (\n'
+                '        specification is not None\n'
+                '        and receipt.get("runtimeContractVersion") != RUNTIME_CONTRACT_VERSION\n'
+                '    ):\n'
+                '        raise ValueError("dependency runtime contract drift detected")\n',
+                "",
+            ).replace(
+                '            state = runtime_ownership_state(runtime, current, specification)\n'
+                '            if state == "healthy" and not force:\n',
+                '            verify_receipt(runtime, current)\n'
+                '            if not force:\n',
+            )
+            self.assertNotEqual(text, legacy_text)
+            legacy_dependencies.write_text(legacy_text, encoding="utf-8")
+            legacy_module = load_module(legacy_dependencies)
+            current_module = load_module(SOURCE / "dependencies.py")
+
+            def legacy_provision(runtime, specification):
+                return legacy_module.repair(
+                    runtime,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(runtime),
+                )
+
+            def current_provision(runtime, specification):
+                base_runner = ChaosEngineDependenciesRunner(runtime)
+
+                def linked_runner(command, environment):
+                    if command[1:3] == ["tool", "install"] and command[-1].startswith(
+                        "graphifyy=="
+                    ):
+                        target = runtime / "uv-tools/graphifyy/bin/graphify"
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_text("tool\n", encoding="utf-8")
+                        link = runtime / "bin/graphify"
+                        link.parent.mkdir(parents=True, exist_ok=True)
+                        if not link.exists() and not link.is_symlink():
+                            self.symlink_or_skip(target, link)
+                    return base_runner(command, environment)
+
+                return current_module.repair(
+                    runtime,
+                    specification,
+                    runner=linked_runner,
+                )
+
+            rollback_calls = []
+
+            MODULE.install_with_dependencies(
+                project,
+                legacy_source,
+                "1" * 40,
+                provisioner=legacy_provision,
+                distribution="repository",
+            )
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                "2" * 40,
+                provisioner=current_provision,
+                distribution="repository",
+            )
+
+            def rollback_provision(runtime, specification):
+                rollback_calls.append(runtime)
+                previous = MODULE.load_dependency_controller(project / ".chaos-engine")
+                self.assertFalse(hasattr(previous, "RUNTIME_CONTRACT_VERSION"))
+                self.assertNotIn(
+                    "links",
+                    json.loads((runtime / "receipt.json").read_text(encoding="utf-8"))[
+                        "ownership"
+                    ],
+                )
+
+                def legacy_ownership_record(root):
+                    files = {}
+                    directories = []
+                    for path in sorted(root.rglob("*")):
+                        relative = path.relative_to(root).as_posix()
+                        if previous.is_link_or_reparse(path):
+                            raise ValueError(
+                                f"dependency runtime contains a link: {relative}"
+                            )
+                        if path.is_dir():
+                            if not previous.is_generated_python_cache(
+                                relative, directory=True
+                            ):
+                                directories.append(relative)
+                        elif path.is_file() and relative != previous.RECEIPT_NAME:
+                            if not previous.is_generated_python_cache(relative):
+                                files[relative] = previous.sha256(path)
+                    return {
+                        "directories": directories,
+                        "files": files,
+                        "sha256": previous.ownership_digest(files),
+                    }
+
+                previous.ownership_record = legacy_ownership_record
+                self.assertNotIn("links", previous.ownership_record(runtime))
+                previous.verify_receipt(
+                    runtime, previous.read_receipt(runtime), specification
+                )
+                return previous.repair(
+                    runtime,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(runtime),
+                )
+
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=rollback_provision)
+
+            self.assertEqual([], rollback_calls)
+            status = MODULE.status_with_dependencies(project)
+            self.assertEqual("1" * 40, status["commit"])
+            self.assertEqual("absent", status["dependencies"]["status"])
+            self.assertEqual("healthy", status["hosts"]["status"])
+            self.assertFalse((project / MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
 
     def test_status_reports_dependency_freshness_without_mutating_it(self):
         dependency_module = load_module(SOURCE / "dependencies.py")
@@ -1185,7 +1558,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
             )
 
-            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
 
             self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
             self.assertEqual(
@@ -1216,7 +1590,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
             MODULE.rollback(project, _locked=True)
 
-            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
 
             self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
             self.assertFalse(project.joinpath(MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
@@ -1310,7 +1685,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             transaction.joinpath("journal.json").unlink()
             transaction.rmdir()
 
-            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
 
             self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
 
@@ -1640,7 +2016,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             manifest = json.loads((repaired / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(host_token, manifest["hostToken"])
             self.assertEqual("2" * 40, manifest["source"]["commit"])
-            self.assertNotIn(b"\r\n", (repaired / "README.md").read_bytes())
+            self.assertNotIn(b"\r\n", (repaired / "profiles/README.md").read_bytes())
             self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
             self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
 
@@ -1869,7 +2245,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_rollback_second_swap_failure_preserves_both_verified_trees(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             project = root / "consumer"
             project.mkdir()
             source = copy_source(root / "source")
@@ -2127,7 +2503,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             budget["harness_reachability"]["element_globs"],
         )
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        self.assertIn("tests.scripts.test_chaos_engine_installer", workflow)
+        self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
+        gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
+        self.assertIn("tests.scripts.test_chaos_engine_installer", gate)
 
 
 if __name__ == "__main__":

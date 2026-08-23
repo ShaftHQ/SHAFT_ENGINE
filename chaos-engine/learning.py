@@ -20,6 +20,7 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 QUEUE_NAME = "queue.json"
 LOCK_NAME = ".queue.lock"
+LOCK_TIMEOUT_SECONDS = 5.0
 ALLOWED_KEYS = {
     "category",
     "title",
@@ -90,16 +91,31 @@ def _file_learning_lock(state: Path):
             import msvcrt
 
             stream.seek(0)
+            deadline = time.monotonic() + LOCK_TIMEOUT_SECONDS
             while True:
                 try:
                     msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
                     break
-                except OSError:
-                    time.sleep(0.05)
+                except OSError as error:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError(
+                            f"ChaosEngine learning lock timed out after {LOCK_TIMEOUT_SECONDS}s"
+                        ) from error
+                    time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
         else:
             import fcntl
 
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+            deadline = time.monotonic() + LOCK_TIMEOUT_SECONDS
+            while True:
+                try:
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError as error:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError(
+                            f"ChaosEngine learning lock timed out after {LOCK_TIMEOUT_SECONDS}s"
+                        ) from error
+                    time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
         named = os.stat(lock, follow_symlinks=False)
         if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
             raise ValueError("ChaosEngine learning lock ownership drift detected")
@@ -121,9 +137,15 @@ def _file_learning_lock(state: Path):
 
 @contextmanager
 def learning_lock(state: Path):
-    with THREAD_LOCK:
+    if not THREAD_LOCK.acquire(timeout=LOCK_TIMEOUT_SECONDS):
+        raise TimeoutError(
+            f"ChaosEngine learning thread lock timed out after {LOCK_TIMEOUT_SECONDS}s"
+        )
+    try:
         with _file_learning_lock(state):
             yield
+    finally:
+        THREAD_LOCK.release()
 
 
 def canonical(value: object) -> bytes:

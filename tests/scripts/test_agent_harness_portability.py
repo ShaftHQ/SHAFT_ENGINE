@@ -444,8 +444,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         content = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
-        for heading in ("### Companions", "### Test-driven development"):
-            self.assertIn(heading, content)
+        self.assertIn("### Companions", content)
         for retired_link in (
             "references/caveman.md",
             "references/ponytail.md",
@@ -624,20 +623,18 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_hook_configs_share_one_cwd_independent_lifecycle_contract(self):
         claude_hooks = hook_groups(ROOT / ".claude/settings.json")
         codex_hooks = hook_groups(ROOT / ".codex/hooks.json")
-        self.assertEqual(set(claude_hooks), set(codex_hooks))
+        common = {
+            "PreToolUse",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "SessionStart",
+            "Stop",
+            "SubagentStop",
+            "UserPromptSubmit",
+        }
+        self.assertEqual(common, set(codex_hooks))
+        self.assertEqual(common | {"PreCompact", "SessionEnd"}, set(claude_hooks))
         for hooks in (claude_hooks, codex_hooks):
-            self.assertEqual(
-                set(hooks),
-                {
-                    "PreToolUse",
-                    "PostToolUse",
-                    "PostToolUseFailure",
-                    "SessionStart",
-                    "Stop",
-                    "SubagentStop",
-                    "UserPromptSubmit",
-                },
-            )
             commands = {
                 handler["command"]
                 for groups in hooks.values()
@@ -655,6 +652,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 input=json.dumps(
                     {
                         "hook_event_name": "PreToolUse",
+                        "session_id": "portable-hook-contract",
                         "tool_name": "shell_command",
                         "tool_input": {"command": "mvn test"},
                     }
@@ -750,6 +748,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         payload = json.dumps(
             {
                 "hook_event_name": "PreToolUse",
+                "session_id": "windows-nested-hook",
                 "tool_name": "shell_command",
                 "tool_input": {"command": "mvn test"},
             }
@@ -791,19 +790,31 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             self.assertNotIn(removed, source)
         for payload in (
-            {"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
             {
                 "hook_event_name": "PreToolUse",
+                "session_id": "outside-contract-read",
+                "tool_name": "Read",
+                "tool_input": {},
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "session_id": "outside-contract-write",
                 "tool_name": "Write",
                 "tool_input": {"file_path": str(Path(tempfile.gettempdir()) / "guard-scratch.txt")},
             },
             {
                 "hook_event_name": "PreToolUse",
+                "session_id": "outside-contract-skill",
                 "tool_name": "Skill",
                 "tool_input": {"skill": "work-github"},
                 "agent_type": "coder",
             },
-            {"hook_event_name": "PostToolUse", "tool_name": "Read", "tool_input": {}},
+            {
+                "hook_event_name": "PostToolUse",
+                "session_id": "outside-contract-post",
+                "tool_name": "Read",
+                "tool_input": {},
+            },
         ):
             completed = self.run_guard_completed(payload, "claude")
             self.assertEqual(json.loads(completed.stdout), {})
@@ -835,6 +846,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             completed = self.run_guard_completed(
                 {
                     "hook_event_name": "PreToolUse",
+                    "session_id": "default-branch-write",
                     "tool_name": "Write",
                     "cwd": str(repository),
                     "tool_input": {"file_path": "Example.java"},

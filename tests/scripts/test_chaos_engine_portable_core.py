@@ -316,6 +316,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertTrue((CORE / "STANDALONE.md").is_file())
         self.assertTrue((CORE / "RESEARCH.md").is_file())
         self.assertTrue(INSTALLER.is_origin_only(Path("STANDALONE.md")))
+        self.assertTrue(INSTALLER.is_origin_only(Path("README.md")))
         sources = sorted(
             path
             for path in CORE.rglob("*")
@@ -353,9 +354,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("Default intensity remains each companion's own", skill)
         self.assertIn("yield to the companions", lowered)
         compact_hooks = " ".join(hooks.casefold().split())
-        self.assertIn(
-            "still apply companions through the entrypoint load", compact_hooks
-        )
+        self.assertIn("apply companions through entrypoint load", compact_hooks)
         self.assertNotIn("load on invoke", lowered)
         self.assertNotIn("Keep prose natural", agents)
         self.assertIn("Caveman", agents)
@@ -843,7 +842,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             ],
         )
 
-    def test_portable_contract_is_scanned_and_run_by_pull_request_ci(self):
+    def test_portable_contract_is_scanned_and_run_by_scheduled_acceptance(self):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
         )
@@ -853,7 +852,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "tests/scripts/test_chaos_engine_portable_core.py",
             budget["harness_reachability"]["element_globs"],
         )
-        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("tests.scripts.test_chaos_engine_portable_core", workflow)
 
     def test_planning_keeps_asking_follow_ups_then_runs_unattended(self):

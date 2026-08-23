@@ -102,13 +102,17 @@ jobs:
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(validate_repository(repository_root), [])
 
-    def test_agent_guidance_job_allows_expanded_cross_host_history_suite(self):
+    def test_agent_guidance_job_enforces_the_fast_changed_surface_budget(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
             (repository_root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         )
-        timeout = workflow["jobs"]["agent-guidance"].get("timeout-minutes", 0)
-        self.assertGreaterEqual(timeout, 15)
+        job = workflow["jobs"]["agent-guidance"]
+        commands = " ".join(str(step.get("run", "")) for step in job["steps"])
+        self.assertLessEqual(job.get("timeout-minutes", 999), 6)
+        self.assertIn("scripts/ci/harness_pr_gate.py", commands)
+        self.assertIn("--budget-seconds 240", commands)
+        self.assertNotIn("matrix", job)
 
     def test_capture_browser_e2e_job_allows_prerequisite_and_browser_runtime_headroom(self):
         repository_root = Path(__file__).resolve().parents[2]

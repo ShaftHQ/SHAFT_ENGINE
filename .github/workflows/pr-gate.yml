@@ -50,6 +50,8 @@ jobs:
       templates: ${{ steps.filter.outputs.templates }}
       javacore: ${{ steps.filter.outputs.javacore }}
       dependencies: ${{ steps.filter.outputs.dependencies }}
+      module_boundary: ${{ steps.filter.outputs.module_boundary }}
+      pr_gate: ${{ steps.filter.outputs.pr_gate }}
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
@@ -88,6 +90,9 @@ jobs:
               - '.claude-plugin/marketplace.json'
               - '.memory/**'
               - 'scripts/agents/**'
+              - 'scripts/ci/harness_pr_gate.py'
+              - 'scripts/ci/chaos_engine_promotion.py'
+              - 'scripts/ci/validate_chaos_engine_readme.py'
               - 'scripts/ci/validate_agent_setup.py'
               - 'scripts/ci/validate_agent_ownership.py'
               - 'scripts/ci/agent_ownership.json'
@@ -104,7 +109,6 @@ jobs:
               - 'scripts/ci/agnix_conformance.json'
               - 'scripts/ci/external_guardrail_corpus.py'
               - 'scripts/ci/external_guardrail_corpus.json'
-              - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
               - 'tools/repository-map/README.md'
@@ -128,7 +132,6 @@ jobs:
               - 'tests/scripts/test_guard_memory_worktree.py'
               - 'tests/scripts/test_guard_lifecycle.py'
               - 'tests/scripts/test_guard*.py'
-              - 'tests/scripts/test_validate_red_before_green.py'
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_ownership.py'
               - 'tests/scripts/test_validate_agent_plugins.py'
@@ -155,6 +158,9 @@ jobs:
               - 'tests/scripts/test_shaft_skill_candidate_intake.py'
               - 'tests/scripts/test_agnix_conformance.py'
               - 'tests/scripts/test_agent_plugin_client_smoke.py'
+              - 'tests/scripts/test_harness_pr_gate.py'
+              - 'tests/scripts/test_chaos_engine_promotion.py'
+              - 'tests/scripts/test_validate_chaos_engine_readme.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
               # what build_retry.sh needs (issue #4445).
@@ -257,10 +263,14 @@ jobs:
               - 'tests/scripts/test_ocr_infrastructure_boundary.py'
               - 'tests/scripts/test_lighthouse_infrastructure_boundary.py'
               - 'tests/scripts/test_android_infrastructure_boundary.py'
-            infra:
+            # A definition-only edit must validate this workflow without
+            # fanning out product builds. Shared actions remain `infra`
+            # because their steps execute inside every product job below.
+            pr_gate:
               - '.github/workflows/pr-gate.yml'
+            infra:
               # Composite actions this gate's jobs call (issue #4440 added
-              # cache-maven-repo): editing one changes what every java job here
+              # cache-maven-repo): editing one changes what every Java job here
               # actually runs, so it has to re-run them.
               - '.github/actions/**'
             # Issue #4081's regression guard (scripts/ci/validate_workflow_timeouts.py):
@@ -306,20 +316,19 @@ jobs:
       - name: Validate documentation boundaries
         run: python3 scripts/ci/validate_documentation_boundaries.py
 
-  # Guards the agent harness: router reachability, host parity, character
-  # budgets derived from documented host limits, and skill hygiene.
-  # --skip-external omits the pinned Memory CLI and git diff checks, which
-  # need npm state a PR runner does not carry.
+  # Fast harness gate. The repository-owned classifier selects changed-surface
+  # tests, protected invariants, and a safe fallback for unknown harness files.
+  # Full cross-platform, native-client, and exhaustive suites run in
+  # agent-plugin-acceptance.yml on schedule or workflow_dispatch.
   agent-guidance:
-    name: Agent Guidance Gate (${{ matrix.os }})
+    name: Agent Guidance Gate
     needs: changes
-    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, windows-2025]
+    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -331,164 +340,44 @@ jobs:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
         run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
-      - name: Set up Node.js 24 for native client smoke
-        uses: actions/setup-node@v7
-        with:
-          node-version: '24'
-      - name: Install pinned native plugin clients
-        run: npm install --global '@anthropic-ai/claude-code@2.1.223' '@openai/codex@0.146.0'
-      - name: Run agent harness unit tests
-        run: >-
-          python -m unittest
-          tests.scripts.test_agent_router_contract
-          tests.scripts.test_agent_harness_portability
-          tests.scripts.test_agent_harness_adherence
-          tests.scripts.test_agent_harness_reachability
-          tests.scripts.test_chaos_engine_portable_core
-          # Source: tests/scripts/test_chaos_engine_installer.py
-          tests.scripts.test_chaos_engine_installer
-          # Source: tests/scripts/test_chaos_engine_dependencies.py
-          tests.scripts.test_chaos_engine_dependencies
-          # Source: tests/scripts/test_chaos_engine_hosts.py
-          tests.scripts.test_chaos_engine_hosts
-          tests.scripts.test_chaos_engine_hook
-          # Source: tests/scripts/test_chaos_engine_learning.py
-          tests.scripts.test_chaos_engine_learning
-          # Source: tests/scripts/test_chaos_engine_research.py
-          tests.scripts.test_chaos_engine_research
-          tests.scripts.test_guard_nul_corruption
-          tests.scripts.test_guard_memory_worktree
-          tests.scripts.test_guard_lifecycle
-          tests.scripts.test_guard_external_corpus
-          tests.scripts.test_validate_red_before_green
-          tests.scripts.test_validate_agent_guidance
-          # Source: tests/scripts/test_validate_agent_ownership.py
-          tests.scripts.test_validate_agent_ownership
-          tests.scripts.test_validate_agent_plugins
-          tests.scripts.test_agent_plugin_release
-          tests.scripts.test_agent_plugin_client_smoke
-          tests.scripts.test_assemble_act_as_mohab_plugin
-          tests.scripts.test_repository_context
-          tests.scripts.test_github_client
-          tests.scripts.test_pr_audit
-          tests.scripts.test_delivery_status
-          tests.scripts.test_issue_filing
-          tests.scripts.test_planning_contract
-          tests.scripts.test_watch_pr_checks
-          tests.scripts.test_act_as_mohab_runtime
-          tests.scripts.test_assemble_shaft_skills_plugin
-          tests.scripts.test_validate_agent_setup
-          tests.scripts.test_intellij_recording_powershell
-          tests.scripts.test_validate_skills
-          tests.scripts.test_sync_user_harness
-          tests.scripts.test_shaft_skills_content
-          tests.scripts.test_shaft_skill_cli_examples
-          tests.scripts.test_shaft_skill_quality
-          tests.scripts.test_shaft_skill_routing_eval
-          tests.scripts.test_shaft_skill_candidate_intake
-          tests.scripts.test_agnix_conformance
-          tests.scripts.test_worktree_hygiene
-          tests.scripts.test_resolve_graph_out
-          tests.scripts.test_resolve_mempalace
-          tests.scripts.test_knowledge_stores
-          tests.scripts.test_graphify_maintenance
-          tests.scripts.test_shaft_knowledge_refresh
-          tests.scripts.test_build_retry
-          tests.scripts.test_extract_allure_failures
-          -v
-      - name: Validate observed RED for new guard tests
-        if: github.event_name == 'pull_request'
+      - name: Fetch immutable pull-request review records
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
         run: |
-          history_file=$(mktemp)
-          paths_file=$(mktemp)
-          trap 'rm -f "$history_file" "$paths_file"' EXIT
-          if ! git cat-file -e "$BASE_SHA:scripts/ci/validate_red_before_green.py" 2>/dev/null; then
-            git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/ci/validate_red_before_green.py > "$history_file"
-            if [[ ! -s "$history_file" ]]; then
-              echo "RED validator is absent from the base and the PR." >&2
-              exit 1
-            fi
-            IFS= read -r bootstrap < "$history_file"
-            git rev-parse "$bootstrap^" > "$paths_file"
-            IFS= read -r BASE_SHA < "$paths_file"
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            query='query($owner:String!,$name:String!,$number:Int!,$endCursor:String){repository(owner:$owner,name:$name){pullRequest(number:$number){reviews(first:100,after:$endCursor){nodes{databaseId author{login} body state submittedAt lastEditedAt commit{oid}}pageInfo{hasNextPage endCursor}}}}}'
+            gh api graphql --paginate \
+              -f query="$query" \
+              -F owner="${GITHUB_REPOSITORY%%/*}" \
+              -F name="${GITHUB_REPOSITORY#*/}" \
+              -F number="${{ github.event.pull_request.number }}" \
+              --jq '.data.repository.pullRequest.reviews.nodes[] | {id:.databaseId,user:{login:.author.login},body,state,submitted_at:.submittedAt,last_edited_at:.lastEditedAt,commit_id:.commit.oid}' \
+              | jq -s '.' > "$REVIEWS_PATH"
+          else
+            printf '[]\n' > "$REVIEWS_PATH"
           fi
-          git diff --diff-filter=AMR --name-only "$BASE_SHA" "$HEAD_SHA" -- ':(glob)tests/scripts/test_guard*.py' > "$paths_file"
-          while IFS= read -r test_path; do
-            [[ -z "$test_path" ]] && continue
-            python scripts/ci/validate_red_before_green.py \
-              --parent-revision "$BASE_SHA" \
-              --child-support-path scripts/agents/reflection.py \
-              --child-support-path chaos-engine/hooks/reflection.py \
-              "$HEAD_SHA" scripts/agents/guard.py "$test_path"
-          done < "$paths_file"
-      - name: Report orphaned guard docstring claims
-        if: github.event_name == 'pull_request'
-        shell: bash
+      - name: Run bounded changed-surface harness gate
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py | while IFS= read -r revision; do
-            python scripts/ci/validate_agent_guidance.py --docstring-siblings "$revision" scripts/agents/guard.py
-          done
-      - name: Validate agent guidance budgets and routing
-        run: python scripts/ci/validate_agent_setup.py --skip-external
-      - name: Validate SHAFT skill inventory and quality evidence
-        run: python scripts/ci/shaft_skill_quality.py
-      - name: Validate SHAFT routing corpus and native evals
-        run: python scripts/ci/shaft_skill_routing_eval.py
-      - name: Validate quarantined SHAFT skill-candidate intake
-        run: python scripts/ci/shaft_skill_candidate_intake.py
-      - name: Validate pinned agnix promotion contract
-        run: python scripts/ci/agnix_conformance.py --check-contract
-      - name: Collect unauthenticated native client evidence
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
         run: >-
-          python scripts/ci/agent_plugin_client_smoke.py --mode smoke
-          --output agent-plugin-client-evidence.json
-      - name: Collect act-as-mohab package and runtime evidence
-        run: >-
-          python scripts/ci/agent_plugin_client_smoke.py --mode smoke
-          --package act-as-mohab
-          --output agent-plugin-client-evidence-act-as-mohab.json
-      - name: Upload native client smoke evidence
+          python scripts/ci/harness_pr_gate.py
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --reviews "$REVIEWS_PATH"
+          --budget-seconds 240
+          --output harness-pr-gate.json
+      - name: Upload harness gate receipt
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: agent-plugin-client-smoke-${{ runner.os }}
-          path: agent-plugin-client-evidence*.json
+          name: harness-pr-gate
+          path: harness-pr-gate.json
           if-no-files-found: error
-      - name: Run the portable PreToolUse guard self-test
-        run: python scripts/agents/guard.py --self-test
-
-  chaos-engine-acceptance:
-    name: ChaosEngine acceptance (${{ matrix.os }})
-    needs: changes
-    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-15, windows-2025]
-    steps:
-      - name: Enable Windows long paths
-        if: runner.os == 'Windows'
-        run: git config --global core.longpaths true
-      - name: Checkout Code
-        uses: actions/checkout@v7
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-      - name: Run latest-main bootstrap acceptance
-        run: >-
-          python -m unittest
-          tests.scripts.test_chaos_engine_bootstrap
-          -v
 
   # intellij-plugin.yml runs two independent PR jobs today (installer
   # verification across three OSes, and the Gradle plugin build); both are
@@ -1030,7 +919,6 @@ jobs:
       - changes
       - docs-boundary
       - agent-guidance
-      - chaos-engine-acceptance
       - installer-verify
       - intellij-build
       - cli
@@ -1052,7 +940,6 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_RESULT: ${{ needs.docs-boundary.result }}
           AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
-          CHAOS_ENGINE_ACCEPTANCE_RESULT: ${{ needs.chaos-engine-acceptance.result }}
           INTELLIJ_VERIFY_RESULT: ${{ needs.installer-verify.result }}
           INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
           CLI_RESULT: ${{ needs.cli.result }}
@@ -1074,7 +961,6 @@ jobs:
             echo "| changes | ${CHANGES_RESULT} |"
             echo "| docs-boundary | ${DOCS_RESULT} |"
             echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
-            echo "| chaos-engine-acceptance | ${CHAOS_ENGINE_ACCEPTANCE_RESULT} |"
             echo "| installer-verify | ${INTELLIJ_VERIFY_RESULT} |"
             echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
             echo "| cli | ${CLI_RESULT} |"
@@ -1095,7 +981,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${CHAOS_ENGINE_ACCEPTANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

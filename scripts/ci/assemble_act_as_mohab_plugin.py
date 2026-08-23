@@ -9,7 +9,18 @@ import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
-PORTABLE_SOURCE_SUFFIXES = {".md", ".LICENSE", ".json", ".yaml", ".yml", ".py", ".svg", ".js"}
+PORTABLE_SOURCE_SUFFIXES = {
+    ".md",
+    ".LICENSE",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".py",
+    ".svg",
+    ".js",
+    ".ps1",
+    ".sh",
+}
 RELEASE_FILES = (
     (Path("LICENSE"), Path("LICENSE")),
     (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),

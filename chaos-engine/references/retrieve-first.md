@@ -40,8 +40,8 @@ only after a live authoritative source confirms it. SessionStart deliberately
 injects no Memory or MemPalace prose, because untargeted recall has neither the
 task scope nor the evidence needed to earn authority.
 
-`memory load` compiles a whole context pack and will exceed a tool-result
-budget on a store of any size; `memory search` is the one to reach for.
+Use a bounded `memory search`, then inspect only the selected records. Never
+compile or inject a whole-store context pack.
 
 ## Bounded retrieval
 
@@ -52,9 +52,8 @@ with a concrete irrelevance reason, or `degraded`. Do not skip the attempt.
 When a store can answer a concrete question, query it before broad discovery.
 Allow one attempt through the existing host timeout, with no retries, repair,
 refresh, mining, checkpointing, polling, or watching. Ordinary tasks launch no
-background store processes. Preserve bounded SessionStart Memory summaries and
-the MemPalace wake-up as best-effort preload only; any failure is silent to task
-control.
+background store processes. SessionStart launches no optional retrieval tool
+and injects only tracked locators; any store failure is silent to task control.
 
 Install, upgrade, explicit maintenance, `status`, and `doctor` are not ordinary
 retrieval. They remain strict, and an unhealthy selected component still makes

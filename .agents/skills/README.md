@@ -58,10 +58,10 @@ sequenceDiagram
     E-->>A: iron laws, triage, red flags
     A->>A: triage in two lines
     A->>G: load the gate at the selected depth
-    G-->>A: approach, invariants, research receipt, RED check
+    G-->>A: approach, invariants, research receipt
     A->>W: proceed at the routed surface
-    W-->>A: change plus evidence
-    A->>A: independent adversarial review
+    W-->>A: complete implementation and final scope commit
+    A->>A: automated findings, optional terminal review, local tests
     A-->>U: outcome, checks run, what was refuted
 ```
 
@@ -76,7 +76,7 @@ flowchart TD
     Q{"How many independent<br/>work streams?"}
     Q -->|one| S["<b>Solo</b><br/>implement it yourself, in sequence"]
     Q -->|"two or more"| O["<b>Orchestrate</b><br/>one agent per stream, up to four"]
-    S --> RV["independent adversarial review<br/><i>always a separate agent</i>"]
+    S --> RV["terminal assurance only<br/>optional review, max two"]
     O --> OW["main thread implements nothing<br/>and stays reachable"]
     OW --> RV
 ```
@@ -86,10 +86,12 @@ needed. Orchestrating keeps the main thread free to answer the owner and
 re-spec a delegate. A reviewer is never counted as a work stream, so review does
 not turn a solo session into an orchestrated one.
 
-## Delivery loop
+## Delivery cycle
 
-Every phase that changes behaviour ends with a review by an agent that did not
-write it, prompted to refute rather than approve. Depth follows the same triage.
+Finish full approved implementation and final scope commit, then fix automated
+CI/comment findings. Run planning-approved adversarial review at most twice,
+then extra local tests. No microstep review, test, validation, commit, push, or
+delivery loops interrupt work.
 
 ```mermaid
 flowchart LR
@@ -215,10 +217,11 @@ the plumbing differs.
 | --- | --- |
 | Codex | Reads `AGENTS.md`, discovers the repository [ChaosEngine adapter](chaos-engine/SKILL.md) natively — with [metadata](chaos-engine/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
 | Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/chaos-engine/SKILL.md` redirects to the canonical body and `.claude/agents/*.md` carry the roles. |
-| Copilot | Reads `.github/copilot-instructions.md`; `.github/skills/*` and `.github/instructions/*` redirect to the same playbooks. |
-| Grok | Reads `AGENTS.md` plus the Claude-compatible adapter. |
+| Gemini | Reads `GEMINI.md`, follows `.gemini/skills/chaos-engine/SKILL.md`, and executes native lifecycle hooks from `.gemini/settings.json`. |
+| Grok | Reads `AGENTS.md` and executes `.grok/hooks/lifecycle.json`. |
+| Copilot | Reads `.github/copilot-instructions.md`; `.github/skills/*` redirects to canonical playbooks; Copilot CLI and cloud agent execute `.github/hooks/chaos-engine.json`. |
 
-Those four rows are the harness's only inbound edges: each points *into* the
+Those five rows are the harness's only inbound edges: each points *into* the
 entrypoint and carries no policy of its own, which is why the entrypoint links
 this page rather than linking back to them one by one. They are listed here so
 an agent on any host can see which surfaces exist and confirm they are thin.
@@ -235,7 +238,9 @@ file is added, moved or deleted, which is the only way a map stays true.
 | --- | --- |
 | Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; compatibility alias `.agents/skills/act-as-mohab/SKILL.md` with `.agents/skills/act-as-mohab/agents/openai.yaml`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
 | Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/chaos-engine/SKILL.md`; compatibility alias `.claude/skills/act-as-mohab/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
-| Copilot | `.github/copilot-instructions.md`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; the redirect pack indexed by `.github/skills/README.md` |
+| Gemini | `GEMINI.md`; `.gemini/settings.json`; `.gemini/skills/chaos-engine/SKILL.md` |
+| Grok | `AGENTS.md`; `.grok/hooks/lifecycle.json` |
+| Copilot | `.github/copilot-instructions.md`; `.github/hooks/chaos-engine.json`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; redirect pack indexed by `.github/skills/README.md` |
 | Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |
 
 Copilot's redirect pack is one file per repository playbook. Each is a short
@@ -295,7 +300,7 @@ does not know they exist meets them as an interruption instead of a tool.
 | Learning controller | `scripts/agents/learning_session.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
 | Retrieval servers | `.mcp.json`, `.codex/config.toml`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
 | Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
-| Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/act_as_mohab_cli.py` | Resolve the caller's repository and expose bounded PR watching, checkpoint status, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
+| Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/act_as_mohab_cli.py` | Resolve the caller's repository and expose bounded PR watching, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
 | PR watcher adapter | `scripts/ci/watch_pr_checks.py` | Keeps the historical source-tree command as a thin adapter to canonical repository operations. |
 | Worktree survey | `scripts/ci/worktree_hygiene.py` | Reports which worktrees are safe to remove and which hold work nobody will come back for. |
 | Local gate | `scripts/ci/local_gate.py` | Runs the pull-request gate's checks before you push, so a red run costs a minute instead of a round trip. |

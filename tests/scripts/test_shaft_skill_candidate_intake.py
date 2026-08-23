@@ -501,11 +501,13 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
                 canonical_roots=[],
             )
 
-    def test_pr_gate_runs_candidate_intake_tests_and_validator(self):
-        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+    def test_scheduled_acceptance_runs_candidate_intake_contract(self):
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
 
-        self.assertIn("tests.scripts.test_shaft_skill_candidate_intake", pr_gate)
-        self.assertIn("python scripts/ci/shaft_skill_candidate_intake.py", pr_gate)
+        self.assertIn("tests.scripts.test_shaft_skill_candidate_intake", scheduled)
+        self.assertIn("python scripts/ci/agnix_conformance.py", scheduled)
 
 
 if __name__ == "__main__":

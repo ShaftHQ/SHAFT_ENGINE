@@ -1,6 +1,6 @@
 {
   "limit_sources": {
-    "max_always_loaded_body_chars": "Legacy key name: measured as LF-normalized UTF-8 bytes because Codex project_doc_max_bytes is 32768 bytes (documented default). Set to 75 percent (24576), retaining an 8192-byte quarter-cap reserve so no host approaches truncation.",
+    "max_always_loaded_body_chars": "Legacy key name: measured as LF-normalized UTF-8 bytes. ChaosEngine caps aggregate always-loaded guidance at 16 KiB across every supported host.",
     "max_skill_listing_chars": "Codex renders its skill listing within a small fixed character budget and drops entries on overflow; Claude Code allots roughly 1 percent of the context window. 4000 is a conservative floor across both. NOT a quoted constant -- treat as this repository's own ceiling, re-derive if a host publishes an exact figure.",
     "max_description_chars": "Agent Skills spec caps description at 1024 characters. Capped far tighter at 220 because descriptions are always resident for every skill on every task, and the longest description in this repository is 197 characters.",
     "max_skill_md_bytes": "Agent Skills spec recommends a SKILL.md body under 5000 tokens. Tokens are not directly measurable here, so this is a deliberately coarse character proxy and max_skill_md_lines below is the primary gate.",
@@ -8,7 +8,7 @@
     "measurement": "Use the documented unit: UTF-8 bytes, characters, or lines. Where only a token limit exists (max_skill_md_bytes) the character figure is an explicit coarse proxy, not a measurement. Text counts are LF-normalized via read_text().",
     "file_budgets": "A key may be a literal path or a glob; a glob binds each matched file on its own and never their sum. The references cap is 16384 bytes per on-demand file; it remains deliberately independent from the always-loaded ceiling. A task loads SEVERAL references, not one -- routing.md itself sends every dispatch through delegation.md and roles.md -- so this bounds the worst single file rather than a session total. #4458 decided against a pool spanning that surface, because under a pool the only way to fund one file's growth is deleting unrelated prose that no session loads. Under a per-file cap the file that grew is the file that pays and the fix is to split it, though a split half is usually reached from the other. Incentive locality is the whole claim; do not read a session total into it. The cap does not limit aggregate reference growth, so many files can grow together without failure. #3745 item 2 designated references/ the UNCOUNTED relief valve for oversized skill bodies; it is counted now, but per file and at a ceiling no skill body would hit, so the valve stays open."
   },
-  "max_always_loaded_body_chars": 24576,
+  "max_always_loaded_body_chars": 16384,
   "max_skill_listing_chars": 4000,
   "file_budgets": {
     "AGENTS.md": {
@@ -52,6 +52,10 @@
       "CLAUDE.md",
       ".agents/skills/chaos-engine/SKILL.md"
     ],
+    "gemini": [
+      "AGENTS.md",
+      ".agents/skills/chaos-engine/SKILL.md"
+    ],
     "copilot": [
       "AGENTS.md",
       ".github/copilot-instructions.md",
@@ -71,6 +75,9 @@
     "grok": [
       ".claude/skills/*/SKILL.md",
       ".claude/agents/*.md"
+    ],
+    "gemini": [
+      ".agents/skills/*/SKILL.md"
     ],
     "copilot": [
       ".github/skills/*/SKILL.md",
@@ -237,7 +244,7 @@
     ],
     "exemptions_note": "Empty, and that is the result rather than a placeholder. #4488 asked for a deliberate decision on the enforcement layer and the inbound adapters, the two categories with a real case for exemption; both were made reachable instead, so no category needs one. The mechanism stays because the next element may not be reachable, and it is exercised by a fixture in tests/scripts/test_agent_harness_reachability.py rather than by live data -- an exemption list is the one place a number can be made to look good without doing the work.",
     "exemptions": [],
-    "memory_store_note": "The store splits into a contract and its data, and only the contract is an element. .memory/config.json and .memory/schema/* define what the store is and validate every write, so they are named in routing.md and reachable like any other instrument. The 736 objects under .memory/memory/** and .memory/relations/** are data the memory CLI owns: they are reached by `memory load`, `memory search` and `memory inspect`, and the standing constraints among them are injected by guard.py's SessionStart hook before the first tool call (#4540) -- reached by a performed mechanism rather than by a link. They are deliberately not elements. Requiring 736 markdown links would be noise, and an exemption entry would be worse: an empty exemption list is the healthy end state, not a symptom (gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened). Note that .memory/** was already inside pr-gate.yml's agent_guidance path filter -- the repository classified the store as agent guidance before this boundary did, the same argument that brought .github/skills/** in."
+    "memory_store_note": "The store splits into a contract and its data, and only the contract is an element. .memory/config.json and .memory/schema/* define what the store is and validate every write, so they are named in routing.md and reachable like any other instrument. The 736 objects under .memory/memory/** and .memory/relations/** are data the memory CLI owns: they are reached on demand by `memory search` followed by targeted `memory inspect`, never by SessionStart. They are deliberately not elements. Requiring 736 markdown links would be noise, and an exemption entry would be worse: an empty exemption list is the healthy end state, not a symptom (gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened). Note that .memory/** was already inside pr-gate.yml's agent_guidance path filter -- the repository classified the store as agent guidance before this boundary did, the same argument that brought .github/skills/** in."
   },
   "reference_scan_globs": [
     "AGENTS.md",
@@ -295,7 +302,7 @@
       "message": "automatic remote PR creation"
     },
     {
-      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable|gemini|gemma|deepseek|qwen|llama|mistral|codex-[\\w.]+|gpt-?[0-9][\\w.]*|grok-?[0-9][\\w.]*|o[1-9][\\w.]*-(?:mini|preview))\\b",
+      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable|gemini-(?:[0-9][\\w.-]*|pro|flash)|gemma|deepseek|qwen|llama|mistral|codex-[\\w.]+|gpt-?[0-9][\\w.]*|grok-?[0-9][\\w.]*|o[1-9][\\w.]*-(?:mini|preview))\\b",
       "message": "named model or product instead of a capability level"
     }
   ],

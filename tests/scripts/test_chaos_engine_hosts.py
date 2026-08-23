@@ -317,6 +317,72 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 root.joinpath("plugins/chaos-engine/.codex-plugin/plugin.json").read_bytes(),
             )
 
+    def test_failed_host_upgrade_restores_runtime_modules_and_preserves_foreign_files(self):
+        module = load(HOSTS, "chaos_engine_runtime_upgrade_rollback")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+            module.install(project, core_commit="1" * 40)
+            hooks = project / "plugins/chaos-engine/hooks"
+            runtime_paths = (hooks / "kernel.py", hooks / "lifecycle.py")
+            prior = {path: path.read_bytes() for path in runtime_paths}
+            foreign = hooks / "foreign.py"
+            foreign.write_bytes(b"foreign-owned\n")
+            real_desired_content = module.desired_content
+            real_atomic_write = module.atomic_write
+
+            def changed_content(*args, **kwargs):
+                desired = real_desired_content(*args, **kwargs)
+                desired["plugins/chaos-engine/hooks/kernel.py"] = b"new kernel\n"
+                desired["plugins/chaos-engine/hooks/lifecycle.py"] = b"new lifecycle\n"
+                desired["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = b"trigger\n"
+                return desired
+
+            def fail_after_runtime_modules(root, path, content, before):
+                relative = path.relative_to(root).as_posix()
+                if relative == "plugins/chaos-engine/skills/chaos-engine/SKILL.md":
+                    raise OSError("injected host upgrade failure")
+                return real_atomic_write(root, path, content, before)
+
+            with mock.patch.object(module, "desired_content", side_effect=changed_content):
+                with mock.patch.object(module, "atomic_write", side_effect=fail_after_runtime_modules):
+                    with self.assertRaisesRegex(OSError, "injected host upgrade failure"):
+                        module.install(project, core_commit="2" * 40)
+
+            for path, expected in prior.items():
+                self.assertEqual(expected, path.read_bytes(), path.name)
+            self.assertEqual(b"foreign-owned\n", foreign.read_bytes())
+
+    def test_cached_chaos_plugin_requires_both_runtime_modules(self):
+        module = load(HOSTS, "chaos_engine_cached_runtime_inventory")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source/chaos-engine"
+            installed = root / "installed/chaos-engine"
+            required = (
+                "hooks/guard.py",
+                "hooks/kernel.py",
+                "hooks/lifecycle.py",
+                "hooks/reflection.py",
+                "skills/chaos-engine/SKILL.md",
+            )
+            for relative in required:
+                source_path = source / relative
+                installed_path = installed / relative
+                source_path.parent.mkdir(parents=True, exist_ok=True)
+                installed_path.parent.mkdir(parents=True, exist_ok=True)
+                source_path.write_text(relative, encoding="utf-8")
+                installed_path.write_text(relative, encoding="utf-8")
+
+            self.assertTrue(module.cached_plugin_matches(str(installed), source))
+            for relative in ("hooks/kernel.py", "hooks/lifecycle.py"):
+                missing = installed / relative
+                missing.unlink()
+                self.assertFalse(module.cached_plugin_matches(str(installed), source), relative)
+                missing.write_text(relative, encoding="utf-8")
+
     def setUp(self):
         self.runtime_state = tempfile.TemporaryDirectory()
         self.runtime_environment = mock.patch.dict(
@@ -413,7 +479,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
             legacy_plugin_hooks = project / "plugins/chaos-engine/hooks/hooks.json"
             legacy_plugin_hooks.parent.mkdir(parents=True)
-            legacy_plugin_hooks.write_bytes(module.lifecycle_hooks_document())
+            legacy_plugin_hooks.write_bytes(module.lifecycle_hooks_document("codex"))
 
             receipt = module.install(project)
 
@@ -425,9 +491,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/.claude-plugin/plugin.json",
                 "plugins/chaos-engine/hooks/hooks.json",
                 "plugins/chaos-engine/hooks/guard.py",
+                "plugins/chaos-engine/hooks/kernel.py",
+                "plugins/chaos-engine/hooks/lifecycle.py",
                 "plugins/chaos-engine/hooks/reflection.py",
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
                 ".grok/hooks/lifecycle.json",
+                ".github/hooks/chaos-engine.json",
                 "plugins/caveman/.codex-plugin/plugin.json",
                 "plugins/caveman/.claude-plugin/plugin.json",
                 "plugins/caveman/skills/caveman/SKILL.md",
@@ -482,6 +551,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     project.joinpath(path).read_text(errors="ignore") for path in required
                 ),
             )
+            for name in ("kernel.py", "lifecycle.py"):
+                self.assertEqual(
+                    (ROOT / "chaos-engine/hooks" / name).read_bytes(),
+                    (project / "plugins/chaos-engine/hooks" / name).read_bytes(),
+                )
             memory_config = json.loads(project.joinpath(".memory/config.json").read_text())
             self.assertEqual(5, memory_config["version"])
             self.assertEqual({"version", "project", "memory"}, set(memory_config))
@@ -494,6 +568,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn(".chaos-engine-runtime/", ignores)
             self.assertIn(".chaos-engine.lock", ignores)
             self.assertIn(".chaos-engine-runtime.lock", ignores)
+            self.assertIn(".chaos-engine-runtime-current.json", ignores)
+            self.assertIn(".chaos-engine-runtime-generations/", ignores)
+            self.assertIn(".chaos-engine-runtime-transactions/", ignores)
             self.assertIn(".chaos-engine.backup/", ignores)
             self.assertIn(".chaos-engine-owned-directory", ignores)
             self.assertGreater(
@@ -541,7 +618,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             claude_lifecycle = json.loads(
                 project.joinpath(".claude/settings.json").read_text()
             )["hooks"]
-            for document in (lifecycle, grok_lifecycle, claude_lifecycle):
+            for document in (lifecycle, grok_lifecycle):
                 self.assertEqual(required_events, set(document))
                 for event in required_events:
                     self.assertEqual(1, len(document[event]), event)
@@ -553,17 +630,50 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         or "plugins/chaos-engine/hooks/guard.py" in command,
                         event,
                     )
+            claude_events = required_events | {"PreCompact", "SessionEnd"}
+            self.assertEqual(claude_events, set(claude_lifecycle))
+            for event in claude_events:
+                self.assertEqual(1, len(claude_lifecycle[event]), event)
+                self.assertEqual(1, len(claude_lifecycle[event][0]["hooks"]), event)
             for manifest_path in (
                 "plugins/chaos-engine/.codex-plugin/plugin.json",
                 "plugins/chaos-engine/.claude-plugin/plugin.json",
             ):
                 manifest = json.loads(project.joinpath(manifest_path).read_text())
                 self.assertNotIn("hooks", manifest)
-            self.assertNotIn(
-                "hooks",
-                json.loads(project.joinpath(".gemini/settings.json").read_text()),
+            gemini_lifecycle = json.loads(
+                project.joinpath(".gemini/settings.json").read_text()
+            )["hooks"]
+            self.assertEqual(
+                {
+                    "SessionStart",
+                    "BeforeAgent",
+                    "BeforeTool",
+                    "AfterTool",
+                    "AfterAgent",
+                    "PreCompress",
+                    "SessionEnd",
+                },
+                set(gemini_lifecycle),
             )
-            self.assertFalse(project.joinpath(".github/hooks.json").exists())
+            copilot_lifecycle = json.loads(
+                project.joinpath(".github/hooks/chaos-engine.json").read_text()
+            )
+            self.assertEqual(1, copilot_lifecycle["version"])
+            self.assertEqual(
+                {
+                    "sessionStart",
+                    "userPromptSubmitted",
+                    "preToolUse",
+                    "postToolUse",
+                    "postToolUseFailure",
+                    "agentStop",
+                    "subagentStop",
+                    "preCompact",
+                    "sessionEnd",
+                },
+                set(copilot_lifecycle["hooks"]),
+            )
             installed_hook = project / "plugins/chaos-engine/hooks/guard.py"
             hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
@@ -632,7 +742,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_lifecycle_hook_is_a_noop_outside_an_installed_project(self):
         module = load(HOSTS, "chaos_engine_hook_noop")
-        document = json.loads(module.lifecycle_hooks_document())
+        document = json.loads(module.lifecycle_hooks_document("codex"))
         handler = document["hooks"]["PreToolUse"][0]["hooks"][0]
         command = handler["commandWindows"] if os.name == "nt" else handler["command"]
 
@@ -742,6 +852,31 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
 
+    def test_source_repository_registers_copilot_hooks_through_kernel_launcher(self):
+        document = json.loads(
+            (ROOT / ".github/hooks/chaos-engine.json").read_text(encoding="utf-8")
+        )
+        expected = {
+            "sessionStart",
+            "userPromptSubmitted",
+            "preToolUse",
+            "postToolUse",
+            "postToolUseFailure",
+            "agentStop",
+            "subagentStop",
+            "preCompact",
+            "sessionEnd",
+        }
+
+        self.assertEqual(1, document["version"])
+        self.assertEqual(expected, set(document["hooks"]))
+        for handlers in document["hooks"].values():
+            self.assertEqual(1, len(handlers))
+            self.assertEqual(
+                "node chaos-engine/hooks/launch.js copilot", handlers[0]["bash"]
+            )
+            self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
+
     def test_grok_hooks_preserve_unrelated_events(self):
         module = load(HOSTS, "chaos_engine_grok_hook_merge")
         with tempfile.TemporaryDirectory() as temporary:
@@ -758,6 +893,37 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
             self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
             self.assertIn("Stop", merged["hooks"])
+            module.uninstall(project)
+            self.assertEqual(original, json.loads(hook_path.read_text()))
+
+    def test_copilot_cli_hooks_preserve_foreign_handlers_and_metadata(self):
+        module = load(HOSTS, "chaos_engine_copilot_hook_merge")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            hook_path = project / ".github/hooks/chaos-engine.json"
+            hook_path.parent.mkdir(parents=True)
+            original = {
+                "version": 1,
+                "ownerMetadata": {"preserve": True},
+                "hooks": {
+                    "SessionStart": [
+                        {"type": "command", "bash": "python tools/user-hook.py"}
+                    ]
+                },
+            }
+            hook_path.write_text(json.dumps(original), encoding="utf-8")
+
+            module.install(project)
+            merged = json.loads(hook_path.read_text())
+            self.assertEqual({"preserve": True}, merged["ownerMetadata"])
+            self.assertEqual(
+                "python tools/user-hook.py", merged["hooks"]["SessionStart"][0]["bash"]
+            )
+            self.assertEqual(1, len(merged["hooks"]["SessionStart"]))
+            self.assertIn("sessionStart", merged["hooks"])
+            self.assertIn("preToolUse", merged["hooks"])
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
 
@@ -1744,13 +1910,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 with mock.patch.dict(
                     os.environ,
                     {
-                        "LOCALAPPDATA": str(root / "data"),
-                        "XDG_DATA_HOME": str(root / "other-data"),
                         "CHAOSENGINE_JAVA": str(java),
                         "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": "",
                     },
                     clear=False,
-                ), mock.patch.object(module.os, "name", "nt"):
+                ), mock.patch.object(
+                    module, "maven_tools_data_root", return_value=root / "data"
+                ):
                     self.assertEqual(
                         (java.resolve(), jar.resolve()),
                         module.discover_maven_tools_runtime(),
@@ -2656,22 +2822,19 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 },
             )
 
-    def test_tool_launcher_resolves_runtime_after_project_move(self):
+    def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")
         with tempfile.TemporaryDirectory() as temporary:
-            first = Path(temporary) / "first"
-            second = Path(temporary) / "moved project"
-            core = first / ".chaos-engine"
-            runtime = first / ".chaos-engine-runtime"
+            project = Path(temporary) / "legacy project"
+            core = project / ".chaos-engine"
+            runtime = project / ".chaos-engine-runtime"
             core.mkdir(parents=True)
             runtime.joinpath("bin").mkdir(parents=True)
             command = runtime / "bin" / ("graphify.exe" if os.name == "nt" else "graphify")
             command.write_text("tool\n", encoding="utf-8")
-            first.replace(second)
 
-            resolved = module.resolve_command(second / ".chaos-engine", "graphify")
-
-            self.assertEqual(second / ".chaos-engine-runtime/bin" / command.name, resolved)
+            with self.assertRaisesRegex(ValueError, "dependency controller"):
+                module.resolve_command(core, "graphify")
 
     def test_tool_launcher_suppresses_runtime_bytecode_caches(self):
         module = load(TOOL, "chaos_engine_tool_environment")
@@ -2699,7 +2862,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             budget["harness_reachability"]["element_globs"],
         )
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        self.assertIn("tests.scripts.test_chaos_engine_hosts", workflow)
+        self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
+        gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
+        self.assertIn("tests.scripts.test_chaos_engine_hosts", gate)
 
 
 class HostReceiptImageTest(unittest.TestCase):

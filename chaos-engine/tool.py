@@ -10,14 +10,7 @@ import sys
 from pathlib import Path
 
 
-TOOLS = {
-    "uv": ("bootstrap", "uv"),
-    "mempalace": ("bin", "mempalace"),
-    "mempalace-mcp": ("bin", "mempalace-mcp"),
-    "graphify": ("bin", "graphify"),
-    "memory": ("npm/node_modules/.bin", "memory"),
-    "memory-mcp": ("npm/node_modules/.bin", "memory-mcp"),
-}
+TOOLS = {"uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}
 
 
 def load_host_controller(installed_root: Path):
@@ -50,20 +43,17 @@ def guard_mempalace_mcp(installed_root: Path, arguments: list[str]) -> None:
         )
 
 
-def resolve_command(installed_root: Path, tool: str) -> Path:
+def resolve_command(
+    installed_root: Path, tool: str, arguments: list[str] | None = None
+) -> list[str]:
     if tool not in TOOLS:
         raise ValueError(f"unsupported ChaosEngine tool: {tool}")
     project = installed_root.resolve().parent
-    directory, name = TOOLS[tool]
-    if tool == "uv":
-        directory = f"bootstrap/{'Scripts' if os.name == 'nt' else 'bin'}"
-    suffix = ".cmd" if os.name == "nt" and tool.startswith("memory") else ""
-    if os.name == "nt" and tool in {"uv", "mempalace", "mempalace-mcp", "graphify"}:
-        suffix = ".exe"
-    command = project / ".chaos-engine-runtime" / directory / f"{name}{suffix}"
-    if not command.is_file():
-        raise ValueError(f"ChaosEngine tool is not installed: {command}")
-    return command
+    path = installed_root / "dependencies.py"
+    if not path.is_file():
+        raise ValueError("ChaosEngine dependency controller could not be loaded")
+    controller = runpy.run_path(str(path), run_name="_chaos_engine_runtime_dependencies")
+    return controller["active_dispatch"](project, tool, arguments or [])
 
 
 def main() -> int:
@@ -76,11 +66,16 @@ def main() -> int:
         arguments = sys.argv[2:]
         if tool == "mempalace-mcp":
             guard_mempalace_mcp(installed_root, arguments)
-        command = resolve_command(installed_root, tool)
+        command = resolve_command(installed_root, tool, arguments)
         environment = os.environ.copy()
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        invocation = (
+            command
+            if isinstance(command, list)
+            else [str(command), *arguments]  # Compatibility for injected legacy tests.
+        )
         return subprocess.call(  # nosec B603
-            [str(command), *arguments],
+            invocation,
             env=environment,
         )
     except (OSError, RuntimeError, ValueError) as error:

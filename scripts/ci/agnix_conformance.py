@@ -266,7 +266,7 @@ def build_trial_command(candidate_root: Path, fixtures_root: Path, output_root: 
         candidate_root,
         fixtures_root,
         output_root,
-        contract["image"]["id"],
+        contract["image"]["reference"],
         ["/usr/bin/env", "DO_NOT_TRACK=1", "/candidate/agnix", "--format", "json", "/fixtures"],
     )
 
@@ -407,7 +407,7 @@ def run_conformance(
         candidate_root,
         fixtures_root,
         output_root,
-        contract["image"]["id"],
+        contract["image"]["reference"],
         ["/usr/bin/env", "DO_NOT_TRACK=1", "/candidate/agnix", "telemetry", "status"],
     )
     telemetry = runner(  # nosec B603 - argv is fixed after contract validation.
@@ -431,7 +431,7 @@ def run_conformance(
             candidate_root,
             evaluation_root,
             output_root,
-            contract["image"]["id"],
+            contract["image"]["reference"],
             [
                 "/usr/bin/env",
                 "DO_NOT_TRACK=1",

@@ -20,13 +20,25 @@ def _load_sibling(module_name: str):
     if specification is None or specification.loader is None:
         raise RuntimeError(f"ChaosEngine {module_name} module is unavailable")
     module = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(module)
+    previous = sys.modules.get(specification.name)
+    sys.modules[specification.name] = module
+    try:
+        specification.loader.exec_module(module)
+    except (Exception, KeyboardInterrupt, SystemExit):
+        if previous is None:
+            sys.modules.pop(specification.name, None)
+        else:
+            sys.modules[specification.name] = previous
+        raise
     return module
 
 
 _lifecycle = _load_sibling("lifecycle")
 if _lifecycle is None:
     raise RuntimeError("ChaosEngine lifecycle core is unavailable")
+_kernel = _load_sibling("kernel")
+if _kernel is None:
+    raise RuntimeError("ChaosEngine policy kernel is unavailable")
 reflection = _load_sibling("reflection")
 if reflection is None:  # Repository adapter fallback for a source-only layout.
     repository_root = Path(__file__).resolve().parents[2]
@@ -478,6 +490,18 @@ def _run_event(event: dict, _host: str) -> int:
     session_id = reflection.scope_session_id(
         root_session_id, event.get("agent_id") or event.get("agentId")
     )
+    kernel_event = dict(event)
+    kernel_event["session_id"] = session_id
+    kernel_event["agent_id"] = ""
+    kernel_journal = _kernel.EffectJournal(
+        reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl")
+    )
+    kernel_report = _kernel.evaluate_session(
+        _kernel.normalize_event(kernel_event, _host), kernel_journal
+    )
+    if kernel_report.decision == "deny":
+        print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
+        return 2
     if event_name == "SessionStart":
         token = reflection.record_session_start(session_id)
     else:
@@ -508,7 +532,13 @@ def _run_event(event: dict, _host: str) -> int:
 
 def main() -> int:
     callbacks = {event: _run_event for event in _lifecycle.LIFECYCLE_EVENTS}
-    return _lifecycle.run_hook_protocol(sys.stdin.read(), callbacks)
+    return _lifecycle.run_hook_protocol(
+        sys.stdin.read(),
+        callbacks,
+        normalize=_kernel.normalize_hook_input,
+        host_for_input=_kernel.detect_host,
+        adapt_output=_kernel.adapt_hook_output,
+    )
 
 
 if __name__ == "__main__":

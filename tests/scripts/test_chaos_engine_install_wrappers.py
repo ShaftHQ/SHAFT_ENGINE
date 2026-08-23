@@ -144,7 +144,7 @@ class ChaosEngineInstallWrapperTest(unittest.TestCase):
             document = ROOT.joinpath(relative).read_text(encoding="utf-8")
             self.assertIn(WINDOWS_ONE_LINER, document, relative)
             self.assertIn(POSIX_ONE_LINER, document, relative)
-            self.assertNotIn("haftHQ", document)
+            self.assertNotRegex(document, r"\bhaftHQ\b")
             self.assertNotIn("HAFT_ENGINE", document)
             self.assertNotIn("$env:CHAOS_ENGINE_REPOSITORY/main", document)
 

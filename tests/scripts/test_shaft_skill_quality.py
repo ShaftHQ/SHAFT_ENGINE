@@ -229,10 +229,13 @@ class ShaftSkillQualityTest(unittest.TestCase):
         workflow = (repository_root / ".github/workflows/pr-gate.yml").read_text(
             encoding="utf-8"
         )
+        from scripts.ci.harness_pr_gate import classify_paths
 
         self.assertIn("scripts/ci/shaft_skill_quality.py", workflow)
-        self.assertIn("tests.scripts.test_shaft_skill_quality", workflow)
-        self.assertIn("python scripts/ci/shaft_skill_quality.py", workflow)
+        self.assertIn("scripts/ci/harness_pr_gate.py", workflow)
+        plan = classify_paths(["scripts/ci/shaft_skill_quality.py"])
+        quality = next(check for check in plan.checks if check.id == "plugin-quality-contract")
+        self.assertEqual(("tests.scripts.test_shaft_skill_quality",), quality.modules)
 
     def assertDefect(self, code: str):
         defects = validate_repository(self.root)

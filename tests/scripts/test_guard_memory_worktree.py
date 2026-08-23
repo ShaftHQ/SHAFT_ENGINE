@@ -32,6 +32,7 @@ import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import sys
 import tempfile
 import unittest
+import uuid
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
@@ -65,7 +66,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
         self.container = Path(self.temporary_directory.name)
         self.primary = self.container / "primary"
         self.primary.mkdir()
-        git(self.primary, "init", "-q", "-b", "main", ".")
+        git(self.primary, "init", "-q", "-b", "ChaosEngine/primary-fixture", ".")
         git(self.primary, "config", "user.email", "harness@example.invalid")
         git(self.primary, "config", "user.name", "Harness")
         (self.primary / "notes.md").write_text("committed\n", encoding="utf-8")
@@ -81,6 +82,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
             "-b",
             "ChaosEngine/fixture",
         )
+        self.session_id = f"memory-worktree-{uuid.uuid4().hex}"
 
     def tearDown(self):
         self.temporary_directory.cleanup()
@@ -89,7 +91,11 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
         self, tool_name: str, cwd: Path, tool_input: dict | None = None
     ) -> dict | None:
         """Return the guard's hook output for one PreToolUse call, or None."""
-        hook_input = {"tool_name": tool_name, "cwd": str(cwd)}
+        hook_input = {
+            "tool_name": tool_name,
+            "cwd": str(cwd),
+            "session_id": self.session_id,
+        }
         if tool_input is not None:
             hook_input["tool_input"] = tool_input
         buffer = io.StringIO()
@@ -204,6 +210,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
                 "tool_name": "mcp__shaft-memory__remember_memory",
                 "tool_input": {"task": "t", "project_root": "."},
                 "cwd": str(self.linked),
+                "session_id": self.session_id,
             }
         )
         completed = subprocess.run(  # nosec B603 B607 - the repository's own guard.
@@ -454,6 +461,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
                 "tool_name": "mcp__shaft-memory__remember_memory",
                 "tool_input": {"task": "t"},
                 "cwd": str(self.linked),
+                "session_id": self.session_id,
             }
         )
         completed = subprocess.run(  # nosec B603 B607 - the repository's own guard.
@@ -476,6 +484,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
                 "tool_name": "mcp__shaft-memory__remember_memory",
                 "tool_input": {"task": "t", "project_root": str(self.linked)},
                 "cwd": str(self.linked),
+                "session_id": self.session_id,
             }
         )
         completed = subprocess.run(  # nosec B603 B607 - the repository's own guard.
@@ -511,6 +520,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
                     {
                         "tool_name": "mcp__shaft-memory__remember_memory",
                         "tool_input": {"task": "t"},
+                        "session_id": self.session_id,
                     }
                 )
             self.assertEqual(buffer.getvalue().strip(), "")
@@ -522,6 +532,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
                     {
                         "tool_name": "mcp__shaft-memory__remember_memory",
                         "tool_input": {"task": "t"},
+                        "session_id": self.session_id,
                     }
                 )
             self.assertIn("R11", buffer.getvalue())

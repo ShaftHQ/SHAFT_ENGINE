@@ -14,17 +14,24 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RESOLVE_MEMPALACE = REPO_ROOT / "tools/repository-map/resolve_mempalace.py"
 RESOLVE_GRAPH_OUT = REPO_ROOT / "tools/repository-map/resolve_graph_out.py"
+STORE_TIMEOUT_SECONDS = 30
 
 
 def run_python(script: Path, arguments: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     """Run one repository-owned Python helper without a shell."""
-    return subprocess.run(  # nosec B603
-        [sys.executable, str(script), *arguments],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        return subprocess.run(  # nosec B603
+            [sys.executable, str(script), *arguments],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=STORE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError(
+            f"knowledge-store resolver timed out after {STORE_TIMEOUT_SECONDS}s"
+        ) from error
 
 
 def configured_wing(cwd: Path) -> str | None:
@@ -56,11 +63,17 @@ def run_mempalace(palace: str, arguments: list[str], cwd: Path) -> int:
     executable = shutil.which("mempalace")
     if executable is None:
         raise RuntimeError("mempalace is not on PATH")
-    completed = subprocess.run(  # nosec B603
-        [executable, "--palace", palace, "--backend", "sqlite_exact", *arguments],
-        cwd=cwd,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(  # nosec B603
+            [executable, "--palace", palace, "--backend", "sqlite_exact", *arguments],
+            cwd=cwd,
+            check=False,
+            timeout=STORE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError(
+            f"MemPalace query timed out after {STORE_TIMEOUT_SECONDS}s"
+        ) from error
     return completed.returncode
 
 

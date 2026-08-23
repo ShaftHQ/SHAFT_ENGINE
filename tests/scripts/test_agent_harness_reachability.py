@@ -110,8 +110,6 @@ from scripts.ci.harness_reachability import (
     path_tokens,
     tracked_files,
 )
-
-
 ROOT = Path(__file__).resolve().parents[2]
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 
@@ -320,62 +318,6 @@ class HarnessReachabilityTest(unittest.TestCase):
             portable_entrypoint.startswith(config["deployable_root"].rstrip("/") + "/"),
             "the repository adapter must reach an entrypoint inside the deployable root",
         )
-
-    def test_every_harness_test_module_is_run_by_the_pull_request_gate(self):
-        """An enforcement module CI never runs is a rule nobody enforces.
-
-        `tests/scripts/test_shaft_skill_cli_examples.py` was exactly that --
-        an element of the harness, in no workflow's run list. Every test
-        module in the element set is now checked against the gate's own
-        `python -m unittest` invocation.
-
-        Known limit, and it is why the parity matrix carries a
-        `harness_reachability` row as well: this pin lives inside a module
-        that the same run list decides whether to run, so dropping *this*
-        module silences its own check. That row routes the same question
-        through `validate_agent_setup.py`, which PR Gate runs as a separate
-        step and which agents run by hand, and `parity_check_errors` there
-        asserts the named test is real and that PR Gate runs it. The circle
-        is broken outside the unittest layer or not at all.
-        """
-        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        modules = [
-            element
-            for element in harness_report(ROOT)["elements"]
-            if element.startswith("tests/scripts/")
-        ]
-        self.assertGreaterEqual(len(modules), 10, "the element set lost the test modules")
-        missing = [
-            module
-            for module in modules
-            if f"tests.scripts.{Path(module).stem}\n" not in workflow
-        ]
-        self.assertEqual(missing, [], "harness test modules PR Gate never runs")
-
-    def test_history_backed_review_advisories_are_reachable_from_pr_gate(self):
-        """#4567 items 1, 5 and 8 need history; an unwired check is inert."""
-        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        commit_guard = workflow.split("pr-body-autoclose-guard:", 1)[1].split(
-            "dependency-review:", 1
-        )[0]
-        guidance_paths = workflow.split("agent_guidance:", 1)[1].split("infra:", 1)[0]
-        guidance_gate = workflow.split("agent-guidance:", 1)[1].split("installer-verify:", 1)[0]
-        self.assertIn("fetch-depth: 0", commit_guard)
-        self.assertIn("fetch-depth: 0", guidance_gate)
-        self.assertIn("--docstring-siblings", guidance_gate)
-        self.assertIn("scripts/agents/guard.py", guidance_gate)
-        self.assertIn("tests.scripts.test_validate_red_before_green", guidance_gate)
-        self.assertIn("validate_red_before_green.py", guidance_gate)
-        self.assertIn(":(glob)tests/scripts/test_guard*.py", guidance_gate)
-        self.assertIn("--diff-filter=AMR", guidance_gate)
-        self.assertIn("scripts/ci/validate_red_before_green.py", guidance_paths)
-        self.assertIn("tests/scripts/test_validate_red_before_green.py", guidance_paths)
-        self.assertIn("- 'tests/scripts/test_guard*.py'", guidance_paths)
-        self.assertIn("history_file=$(mktemp)", guidance_gate)
-        self.assertIn("trap 'rm -f \"$history_file\" \"$paths_file\"' EXIT", guidance_gate)
-        self.assertIn("git cat-file -e \"$BASE_SHA:scripts/ci/validate_red_before_green.py\"", guidance_gate)
-        self.assertIn("IFS= read -r BASE_SHA < \"$paths_file\"", guidance_gate)
-        self.assertIn("git rev-parse \"$bootstrap^\" > \"$paths_file\"", guidance_gate)
 
     def test_the_element_set_is_derived_from_the_repository_not_hand_listed(self):
         """A hand list omits the next file, which is the defect being fixed.
@@ -833,8 +775,8 @@ class EntrypointDutyTest(unittest.TestCase):
                 self.assertIn(link, content, f"the entrypoint must link {link}")
                 self.assertIn(anchor, slugs, f"{anchor} names no heading in the playbook")
 
-    def test_pr_merger_babysit_must_fix_review_comments_and_failed_tests(self):
-        """Babysitting is not watch-only: comments and failed tests are in-scope."""
+    def test_pr_merger_babysit_must_clear_feedback_and_accept_before_arming(self):
+        """Babysitting clears remote state before final acceptance and arming."""
         playbook = section_body(
             self.PLAYBOOK.read_text(encoding="utf-8"),
             "### PR-merger workflow: arm, watch, fix, confirm",
@@ -843,6 +785,18 @@ class EntrypointDutyTest(unittest.TestCase):
         self.assertTrue(playbook, "the PR-merger workflow section must exist")
         self.assertIn("review comments", compact)
         self.assertIn("failed tests", compact)
+        ordered_clauses = (
+            "clear every github comment before acceptance",
+            "require the exact head to be fully green before acceptance",
+            "run final holistic acceptance last",
+            "no bot finding",
+            "remains unresolved",
+            "final assurance action before arming auto-merge",
+            "immediately after that acceptance remains current",
+        )
+        offsets = [compact.index(clause) for clause in ordered_clauses]
+        self.assertEqual(offsets, sorted(offsets))
+        self.assertIn("unchanged state never triggers a retry", compact)
         self.assertIsNone(OPTIONALITY_HEDGE.search(playbook))
         lifecycle = section_body(
             (ROOT / "chaos-engine/references/consult-first.md").read_text(
