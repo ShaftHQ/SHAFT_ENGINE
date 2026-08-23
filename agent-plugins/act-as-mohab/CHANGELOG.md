@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.3.20260820 - 2026-08-20
+
+- Add immutable installer generations, repair, rollback, managed dependency
+  provisioning, and portable lifecycle kernel support across five hosts.
+- Replace incremental harness enforcement with fast changed-surface PR checks
+  and scheduled/manual exhaustive acceptance.
+
 ## 10.3.20260817 - 2026-08-17
 
 - Align the bundled package version with the canonical SHAFT engine release.

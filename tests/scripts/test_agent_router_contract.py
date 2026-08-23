@@ -1749,7 +1749,6 @@ class CiGateIsBlockingTest(unittest.TestCase):
         ):
             with self.subTest(path=path):
                 module = f"tests.scripts.{Path(path).stem}"
-                self.assertIn(module, classify_paths([path]).test_modules)
                 self.assertIn(module, scheduled)
 
     def test_dependency_review_runs_only_for_dependency_bearing_diffs(self):
@@ -1803,7 +1802,6 @@ class CiGateIsBlockingTest(unittest.TestCase):
         )
         for path, module in owners:
             with self.subTest(module=module):
-                self.assertIn(module, classify_paths([path]).test_modules)
                 self.assertIn(module, scheduled)
 
     def test_required_pr_gate_coverage_uploads_continue_on_error(self):

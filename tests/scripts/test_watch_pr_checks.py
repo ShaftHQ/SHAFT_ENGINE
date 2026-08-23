@@ -331,9 +331,10 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
                 self.assertEqual("", stdout.getvalue())
                 self.assertIn("unparseable JSON", stderr.getvalue())
 
-    def test_pr_gate_runs_every_repository_runtime_test(self):
+    def test_scheduled_acceptance_runs_every_repository_runtime_test(self):
         workflow = (
-            Path(__file__).resolve().parents[2] / ".github/workflows/pr-gate.yml"
+            Path(__file__).resolve().parents[2]
+            / ".github/workflows/agent-plugin-acceptance.yml"
         ).read_text(encoding="utf-8")
         for module in (
             "tests.scripts.test_repository_context",
@@ -341,12 +342,6 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
             "tests.scripts.test_act_as_mohab_runtime",
         ):
             self.assertIn(module, workflow)
-        for path in (
-            "tests/scripts/test_repository_context.py",
-            "tests/scripts/test_watch_pr_checks.py",
-            "tests/scripts/test_act_as_mohab_runtime.py",
-        ):
-            self.assertIn(path, workflow)
 
 
 if __name__ == "__main__":

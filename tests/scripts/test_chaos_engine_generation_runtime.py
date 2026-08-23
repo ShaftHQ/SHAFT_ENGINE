@@ -1349,7 +1349,7 @@ class GenerationRuntimeTests(unittest.TestCase):
             def mutate_after_hash(descriptor, size):
                 nonlocal mutated
                 chunk = real_read(descriptor, size)
-                if not chunk and not mutated:
+                if chunk and not mutated:
                     mutated = True
                     owned.write_bytes(b"changed!")
                     os.utime(owned, ns=(original.st_atime_ns, original.st_mtime_ns))

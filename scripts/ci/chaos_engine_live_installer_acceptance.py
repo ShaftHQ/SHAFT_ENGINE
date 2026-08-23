@@ -44,6 +44,7 @@ ABSOLUTE_ROOT = re.compile(
 PATH_DELIMITERS = frozenset(";,:\r\n\t\"'<>{}[]()")
 SANITIZER_INPUT_LIMIT = 8192
 SANITIZER_OUTPUT_LIMIT = 500
+SANITIZER_TRUNCATION_MARKER = "\n...<truncated>...\n"
 
 
 def clean_environment(base: dict[str, str] | None = None) -> dict[str, str]:
@@ -136,7 +137,11 @@ def sanitize(value: object) -> str:
     text = _redact_absolute_paths(text)
     for index, url in enumerate(urls):
         text = text.replace(f"\x00chaos-url-{index}\x00", url)
-    return text[:SANITIZER_OUTPUT_LIMIT]
+    if len(text) <= SANITIZER_OUTPUT_LIMIT:
+        return text
+    tail_size = SANITIZER_OUTPUT_LIMIT // 2
+    head_size = SANITIZER_OUTPUT_LIMIT - tail_size - len(SANITIZER_TRUNCATION_MARKER)
+    return text[:head_size] + SANITIZER_TRUNCATION_MARKER + text[-tail_size:]
 
 
 def run_checked(

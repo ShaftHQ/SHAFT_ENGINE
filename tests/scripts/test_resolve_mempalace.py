@@ -91,7 +91,10 @@ class ResolveMempalaceTest(unittest.TestCase):
         self.assertIn("SHAFT_MEMPALACE must not be blank", completed.stderr)
 
     def test_pr_gate_and_guidance_name_the_resolver_and_operator_command(self):
-        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
         readme = (ROOT / "tools/repository-map/README.md").read_text(encoding="utf-8")
         entrypoint = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
             encoding="utf-8"
@@ -100,9 +103,9 @@ class ResolveMempalaceTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("tests.scripts.test_resolve_mempalace", workflow)
-        self.assertIn("tests.scripts.test_knowledge_stores", workflow)
-        self.assertIn("'tools/repository-map/resolve_mempalace.py'", workflow)
+        self.assertIn("tests.scripts.test_resolve_mempalace", scheduled)
+        self.assertIn("tests.scripts.test_knowledge_stores", scheduled)
+        self.assertIn("'tools/repository-map/resolve_mempalace.py'", pr_gate)
         self.assertIn("resolve_mempalace.py", readme)
         self.assertIn("scripts/agents/knowledge_stores.py", readme)
         self.assertIn("scripts/agents/knowledge_stores.py", entrypoint)

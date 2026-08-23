@@ -41,21 +41,15 @@
     ".codex/agents",
     ".github/copilot-instructions.md",
     ".memory/events.jsonl",
+    "chaos-engine",
+    "scripts/ci/agent_ownership.json",
     "scripts/agents"
   ],
   "allowlisted_findings": [
     {
-      "rule": "CC-HK-008",
-      "level": "error",
-      "path": "fixtures/.claude/settings.json",
-      "message": "Script file not found at 'pathlib,runpy;p=next(p/scripts/agents/guard.py' (resolved to '/fixtures/pathlib,runpy;p=next(p/scripts/agents/guard.py')",
-      "expected_count": 5,
-      "reason": "agnix 0.48.0 tokenizes SHAFT's Python -c hook launcher as a script path; repository hook reachability is owned by existing harness tests."
-    },
-    {
       "rule": "XML-001",
       "level": "error",
-      "path": "fixtures/.agents/skills/act-as-mohab/references/work-github-playbook.md",
+      "path": "fixtures/chaos-engine/references/work-github-playbook.md",
       "message": "Unclosed XML tag '<n>'",
       "expected_count": 1,
       "reason": "The GitHub playbook uses <n> as a documented issue-number metavariable, not XML."

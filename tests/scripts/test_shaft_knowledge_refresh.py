@@ -429,7 +429,10 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
     def test_installer_owns_clone_rotates_logs_and_migrates_legacy_task(self):
         installer = (ROOT / "tools/agent-infra/install-agent-tasks.ps1").read_text(encoding="utf-8")
         wrapper = (ROOT / "tools/agent-infra/graphify-refresh.cmd").read_text(encoding="utf-8")
-        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
         for value in (
             "git clone", "shaft.maintenanceOwner", ".shaft-nightly-maintenance.json",
             "SHAFT-Nightly-Knowledge-Refresh", "-AllowStartIfOnBatteries",
@@ -462,8 +465,8 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
         self.assertIn('set "SHAFT_MAINTENANCE_HOME=%~dp0..\\.."', wrapper)
         self.assertNotIn("tools\\agent-infra\\shaft_knowledge_refresh.py", wrapper)
         self.assertIn("shaft-knowledge-refresh.previous.log", wrapper)
-        self.assertIn("tests.scripts.test_shaft_knowledge_refresh", workflow)
-        self.assertIn("tools/agent-infra/shaft_knowledge_refresh.py", workflow)
+        self.assertIn("tests.scripts.test_shaft_knowledge_refresh", scheduled)
+        self.assertIn("tools/agent-infra/shaft_knowledge_refresh.py", pr_gate)
         preflight = installer.index("--validate-home-only")
         first_write = installer.index("New-ExclusiveDirectory -Path $lexicalHome")
         acl = installer.index("Assert-ExclusiveMaintenanceAcl $homePath")

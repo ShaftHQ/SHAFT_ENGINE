@@ -711,7 +711,6 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
     def test_repository_docs_and_workflows_pin_the_contract(self):
         root = Path(__file__).resolve().parents[2]
         compatibility = (root / "agent-plugins/shaft-skills/COMPATIBILITY.md").read_text(encoding="utf-8")
-        pr_gate = (root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         live = (root / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
         workflow_readme = (root / ".github/workflows/README.md").read_text(encoding="utf-8")
 
@@ -719,10 +718,9 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
             self.assertIn(heading, compatibility)
         self.assertIn("Claude Code 2.1.223", compatibility)
         self.assertIn("Codex CLI 0.146.0", compatibility)
-        self.assertIn("tests.scripts.test_agent_plugin_client_smoke", pr_gate)
-        self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode smoke", pr_gate)
-        self.assertIn("--package act-as-mohab", pr_gate)
-        self.assertIn("tests.scripts.test_shaft_skill_routing_eval", pr_gate)
+        self.assertIn("tests.scripts.test_agent_plugin_client_smoke", live)
+        self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode live", live)
+        self.assertIn("tests.scripts.test_shaft_skill_routing_eval", live)
 
     def test_act_as_mohab_is_discovered_installed_and_launched_from_package_config(self):
         from scripts.ci.assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
@@ -755,7 +753,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         pr_gate = (root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         live = (root / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
         workflow_readme = (root / ".github/workflows/README.md").read_text(encoding="utf-8")
-        self.assertIn("python scripts/ci/shaft_skill_routing_eval.py", pr_gate)
+        self.assertIn("tests.scripts.test_shaft_skill_routing_eval", live)
         guidance_filter = pr_gate.split("            agent_guidance:\n", 1)[1].split(
             "              # Reachability elements:", 1
         )[0]
@@ -779,12 +777,11 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("          OPENAI_API_KEY", live_step)
         self.assertIn("if: always()", live)
         self.assertIn("actions/upload-artifact@v7", live)
-        agent_evidence_upload = pr_gate.split(
-            "      - name: Upload native client smoke evidence", 1
+        agent_evidence_upload = live.split(
+            "      - name: Upload structured compatibility evidence", 1
         )[1].split("\n      - name:", 1)[0]
-        self.assertNotIn("retention-days:", agent_evidence_upload)
+        self.assertIn("retention-days: 30", agent_evidence_upload)
         for client in CLIENTS.values():
-            self.assertIn(client["npm_package"], pr_gate)
             self.assertIn(client["npm_package"], live)
 
 

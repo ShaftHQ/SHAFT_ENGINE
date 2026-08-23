@@ -816,14 +816,12 @@ def _read_pointer(project: Path) -> dict[str, object]:
     return _read_pointer_at(project, POINTER_NAME)
 
 
-def _validate_selected_generation(
+def _authenticate_selected_generation(
     project: Path,
     active: dict[str, str],
     expected_specification_sha256: str,
     expected_core_sha256: str,
-    *,
-    verify_installed_core: bool,
-) -> Path:
+) -> tuple[Path, dict[str, object]]:
     if (
         HEX_DIGEST.fullmatch(expected_specification_sha256) is None
         or HEX_DIGEST.fullmatch(expected_core_sha256) is None
@@ -847,6 +845,23 @@ def _validate_selected_generation(
         raise ValueError("dependency generation specification digest drift detected")
     if receipt.get("coreSha256") != expected_core_sha256:
         raise ValueError("dependency generation core digest drift detected")
+    return generation, receipt
+
+
+def _validate_selected_generation(
+    project: Path,
+    active: dict[str, str],
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+    *,
+    verify_installed_core: bool,
+) -> Path:
+    generation, receipt = _authenticate_selected_generation(
+        project,
+        active,
+        expected_specification_sha256,
+        expected_core_sha256,
+    )
     verify_sealed_ownership(generation, receipt["ownership"])
     if verify_installed_core:
         core = _read_regular_relative(
@@ -964,18 +979,11 @@ def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]
     project = project.absolute()
     pointer = _read_pointer(project)
     active = _validate_generation_record(pointer.get("active"))
-    generation = _validate_selected_generation(
+    generation, receipt = _authenticate_selected_generation(
         project,
         active,
         active["specificationSha256"],
         active["coreSha256"],
-        verify_installed_core=False,
-    )
-    receipt, _ = _bounded_json(
-        project,
-        f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
-        "generation receipt",
-        MAX_RECEIPT_BYTES,
     )
     return dispatch_command(generation, receipt, tool, arguments)
 
