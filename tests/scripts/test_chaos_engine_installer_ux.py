@@ -4,11 +4,10 @@ import importlib.util
 import inspect
 import io
 import json
-import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[2]
 def load(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
+    if spec.loader is None:
+        raise ImportError(f"cannot load {path}")
     spec.loader.exec_module(module)
     return module
 
@@ -80,12 +80,12 @@ class InstallerUxTests(unittest.TestCase):
         self.assertFalse(signature.parameters["interactive"].default)
 
     def test_cli_keeps_json_on_stdout_and_ux_on_stderr(self):
-        result = {"status": "installed", "root": "/tmp/project", "commit": "a" * 40}
+        result = {"status": "installed", "root": "/project", "commit": "a" * 40}
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with mock.patch.object(BOOTSTRAP, "install_latest", return_value=result), mock.patch.object(
+        with unittest.mock.patch.object(BOOTSTRAP, "install_latest", return_value=result), unittest.mock.patch.object(
             BOOTSTRAP.sys, "stdout", stdout
-        ), mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), mock.patch.object(
+        ), unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.object(
             BOOTSTRAP.sys, "argv", ["bootstrap.py", "--project", ".", "--repository", "owner/repo"]
         ):
             self.assertEqual(0, BOOTSTRAP.main())

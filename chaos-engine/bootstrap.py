@@ -51,6 +51,7 @@ class InstallReporter:
     """Dependency-free installer status renderer; UX always goes to stderr."""
 
     def __init__(self, *, stream=None, clock=time.monotonic):
+        """Initialize reporting against the supplied output stream and clock."""
         self.stream = sys.stderr if stream is None else stream
         self.clock = clock
         self.started = clock()
@@ -110,13 +111,10 @@ def confirm_operation(operation: str, *, input_stream, output) -> None:
 def interactive_terminal():
     path = "CONIN$" if os.name == "nt" else "/dev/tty"
     try:
-        stream = open(path, "r", encoding="utf-8")  # noqa: PTH123 - controlling terminal path.
+        with open(path, "r", encoding="utf-8") as stream:  # noqa: PTH123 - controlling terminal path.
+            yield stream
     except OSError as error:
         raise RuntimeError("interactive mode requires a usable controlling terminal") from error
-    try:
-        yield stream
-    finally:
-        stream.close()
 
 
 def parse_retry_after(value: str) -> float | None:
