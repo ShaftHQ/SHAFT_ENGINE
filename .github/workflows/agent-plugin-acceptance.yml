@@ -205,7 +205,8 @@ jobs:
           tar -xzf "$trial_root/evaluation.tar.gz" -C "$trial_root/evaluation" --strip-components=1
           test -f "$trial_root/evaluation/tests/eval.yaml"
           docker pull "$AGNIX_IMAGE_REFERENCE"
-          test "$(docker image inspect --format '{{.Id}}' "$AGNIX_IMAGE_REFERENCE")" = "$AGNIX_IMAGE_ID"
+          test "${AGNIX_IMAGE_REFERENCE##*@}" = "$AGNIX_IMAGE_ID"
+          docker image inspect "$AGNIX_IMAGE_REFERENCE" >/dev/null
           python scripts/ci/agnix_conformance.py \
             --stage-source . \
             --fixtures-root "$trial_root/fixtures"

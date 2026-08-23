@@ -353,15 +353,16 @@ class AgnixConformanceTest(unittest.TestCase):
         self.assertFalse(report["evaluation"]["accepted"])
         self.assertEqual(report["evaluation"]["precision"], 0.94)
 
-    def test_pr_gate_workflow_and_docs_reach_the_promotion(self):
+    def test_scheduled_workflow_and_docs_reach_the_promotion(self):
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         acceptance = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
             encoding="utf-8"
         )
         guidance = (ROOT / ".agents/skills/README.md").read_text(encoding="utf-8")
 
-        self.assertIn("tests.scripts.test_agnix_conformance", pr_gate)
-        self.assertIn("python scripts/ci/agnix_conformance.py --check-contract", pr_gate)
+        self.assertNotIn("tests.scripts.test_agnix_conformance", pr_gate)
+        self.assertNotIn("python scripts/ci/agnix_conformance.py --check-contract", pr_gate)
+        self.assertIn("tests.scripts.test_agnix_conformance", acceptance)
         self.assertIn("agnix-conformance", acceptance)
         self.assertIn("--github-env", acceptance)
         self.assertNotIn(

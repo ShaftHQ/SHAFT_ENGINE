@@ -360,8 +360,12 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = parser().parse_args()
     try:
-        receipts = load_receipts(arguments.receipts) if arguments.receipts else []
-        report = evaluate(receipts)
+        preflight = evaluate([], os.environ)
+        if preflight["missingCredentialHosts"] or preflight["missingRevisionVariants"]:
+            report = preflight
+        else:
+            receipts = load_receipts(arguments.receipts) if arguments.receipts else []
+            report = evaluate(receipts)
     except (OSError, ValueError) as error:
         report = {
             "schemaVersion": SCHEMA_VERSION,

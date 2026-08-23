@@ -1406,6 +1406,7 @@ def prepare_candidate(
     transaction_hold = None
     candidate_hold = None
     candidate_transaction_hold = None
+    succeeded = False
     try:
         project_hold = holds.enter_context(_hold_directory(project, "project"))
         project_descriptor = project_hold[0]
@@ -1466,7 +1467,7 @@ def prepare_candidate(
             for path, held, label in held_paths:
                 _assert_held_directory(path, held, label)
 
-        return _install_candidate_payload(
+        result = _install_candidate_payload(
             project,
             generation,
             transaction,
@@ -1477,8 +1478,10 @@ def prepare_candidate(
             validate_holds,
             now or datetime.now(timezone.utc),
         )
+        succeeded = True
+        return result
     finally:
-        failed = sys.exc_info()[0] is not None
+        failed = not succeeded
         removals = (
             (
                 transaction,

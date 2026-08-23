@@ -478,7 +478,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_install_initializes_fresh_mempalace_without_receipt_ownership(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "consumer"
+            project = Path(temporary).resolve() / "consumer"
             project.mkdir()
             original_load = MODULE.load_installed_controller
             controllers = []
@@ -603,7 +603,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_status_maps_legacy_mempalace_classifier_without_launching(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "consumer"
+            project = Path(temporary).resolve() / "consumer"
             project.mkdir()
             original_load = MODULE.load_installed_controller
             controllers = []
@@ -1083,7 +1083,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_default_install_provisions_every_dependency_in_a_project_local_runtime(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "consumer"
+            project = Path(temporary).resolve() / "consumer"
             project.mkdir()
             calls = []
 
@@ -2245,7 +2245,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
     def test_rollback_second_swap_failure_preserves_both_verified_trees(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             project = root / "consumer"
             project.mkdir()
             source = copy_source(root / "source")
