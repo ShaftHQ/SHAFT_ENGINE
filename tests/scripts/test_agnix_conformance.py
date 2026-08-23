@@ -136,7 +136,10 @@ class AgnixConformanceTest(unittest.TestCase):
                 for _ in range(allowlist["expected_count"])
             )
 
-        report = assess_diagnostics({"files_checked": 47, "diagnostics": diagnostics}, contract)
+        expected_files = contract["expected_files_checked"]
+        report = assess_diagnostics(
+            {"files_checked": expected_files, "diagnostics": diagnostics}, contract
+        )
         self.assertTrue(report["accepted"])
         self.assertEqual(report["unexpected_errors"], [])
 
@@ -144,17 +147,17 @@ class AgnixConformanceTest(unittest.TestCase):
         nested_substitution[0]["file"] = "nested/" + nested_substitution[0]["file"]
         self.assertFalse(
             assess_diagnostics(
-                {"files_checked": 47, "diagnostics": nested_substitution}, contract
+                {"files_checked": expected_files, "diagnostics": nested_substitution}, contract
             )["accepted"]
         )
         self.assertFalse(
-            assess_diagnostics({"files_checked": 46, "diagnostics": diagnostics}, contract)[
-                "accepted"
-            ]
+            assess_diagnostics(
+                {"files_checked": expected_files - 1, "diagnostics": diagnostics}, contract
+            )["accepted"]
         )
 
         missing = assess_diagnostics(
-            {"files_checked": 47, "diagnostics": diagnostics[:-1]}, contract
+            {"files_checked": expected_files, "diagnostics": diagnostics[:-1]}, contract
         )
         self.assertFalse(missing["accepted"])
         self.assertTrue(missing["allowlist_count_mismatches"])
@@ -164,7 +167,9 @@ class AgnixConformanceTest(unittest.TestCase):
             {"file": "AGENTS.md", "rule": "NEW-001", "level": "error", "message": "new"}
         )
         self.assertFalse(
-            assess_diagnostics({"files_checked": 47, "diagnostics": extra}, contract)["accepted"]
+            assess_diagnostics(
+                {"files_checked": expected_files, "diagnostics": extra}, contract
+            )["accepted"]
         )
         unknown_level = copy.deepcopy(diagnostics)
         unknown_level.append(
@@ -172,7 +177,7 @@ class AgnixConformanceTest(unittest.TestCase):
         )
         self.assertFalse(
             assess_diagnostics(
-                {"files_checked": 47, "diagnostics": unknown_level}, contract
+                {"files_checked": expected_files, "diagnostics": unknown_level}, contract
             )["accepted"]
         )
 
@@ -311,7 +316,15 @@ class AgnixConformanceTest(unittest.TestCase):
             [], 0, "Configured: disabled\nEffective: disabled\n", ""
         )
         lint = subprocess.CompletedProcess(
-            [], 1, json.dumps({"files_checked": 47, "diagnostics": diagnostics}), ""
+            [],
+            1,
+            json.dumps(
+                {
+                    "files_checked": contract["expected_files_checked"],
+                    "diagnostics": diagnostics,
+                }
+            ),
+            "",
         )
         low_efficacy = subprocess.CompletedProcess(
             [],
