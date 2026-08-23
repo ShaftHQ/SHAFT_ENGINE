@@ -12,6 +12,7 @@ import shutil
 import signal
 import subprocess  # nosec B404 - executes fixed unittest commands without a shell.
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -621,41 +622,72 @@ def event_waiver(
     return receipts[0] if receipts else None
 
 
-def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int | None]:
-    """Run one check with no captured output and terminate its process tree on timeout."""
-    windows = os.name == "nt"
-    process = subprocess.Popen(  # nosec B603 - fixed unittest command without a shell.
-        command,
-        cwd=root,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT,
-        start_new_session=not windows,
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0,
+def _failure_tail(stream, root: Path, limit: int = 4096) -> str:
+    """Return a bounded redacted tail for one failed check."""
+    stream.flush()
+    size = stream.tell()
+    stream.seek(max(0, size - limit * 2))
+    text = stream.read(limit * 2).decode("utf-8", errors="replace")
+    for value in {str(root), str(Path.home()), tempfile.gettempdir()}:
+        if value:
+            text = text.replace(value, "<path>")
+    for name, value in os.environ.items():
+        if re.search(r"TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY", name, re.I) and len(value) >= 4:
+            text = text.replace(value, "<redacted>")
+    text = re.sub(r"(https?://)[^\s/@]+@", r"\1<redacted>@", text, flags=re.I)
+    text = re.sub(
+        r"(?i)(token|secret|password|api[_-]?key|private[_-]?key)(\s*[:=]\s*)\S+",
+        r"\1\2<redacted>",
+        text,
     )
-    try:
-        exit_code = process.wait(timeout=timeout)
-        return ("passed" if exit_code == 0 else "failed"), exit_code
-    except subprocess.TimeoutExpired:
-        if windows:
-            subprocess.run(  # nosec B603 - fixed Windows process-tree termination.
-                [_required_executable("taskkill"), "/PID", str(process.pid), "/T", "/F"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=10,
-                check=False,
-            )
-        else:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                # The process group exited after the timeout observation.
-                pass
+    return text[-limit:].strip()
+
+
+def _emit_failure_tail(stream, root: Path) -> None:
+    detail = _failure_tail(stream, root)
+    if detail:
+        print(f"harness-pr-gate bounded failure tail:\n{detail}", file=sys.stderr)
+
+
+def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int | None]:
+    """Run one quiet check, exposing only a bounded redacted tail on failure."""
+    windows = os.name == "nt"
+    with tempfile.TemporaryFile() as output:
+        process = subprocess.Popen(  # nosec B603 - fixed unittest command without a shell.
+            command,
+            cwd=root,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            start_new_session=not windows,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0,
+        )
         try:
-            process.wait(timeout=10)
+            exit_code = process.wait(timeout=timeout)
+            if exit_code:
+                _emit_failure_tail(output, root)
+            return ("passed" if exit_code == 0 else "failed"), exit_code
         except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-        return "timeout", None
+            if windows:
+                subprocess.run(  # nosec B603 - fixed Windows process-tree termination.
+                    [_required_executable("taskkill"), "/PID", str(process.pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=10,
+                    check=False,
+                )
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    # The process group exited after the timeout observation.
+                    pass
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            _emit_failure_tail(output, root)
+            return "timeout", None
 
 
 def run_plan(

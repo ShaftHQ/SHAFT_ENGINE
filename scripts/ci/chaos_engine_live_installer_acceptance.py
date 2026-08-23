@@ -235,14 +235,21 @@ def probe_mempalace_mcp(tool: Path, project: Path) -> None:
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     installed = project / ".chaos-engine"
-    doctor = json.loads(
+    status = json.loads(
         run_checked(
-            [sys.executable, str(installed / "install.py"), "doctor", "--project", str(project)],
+            [
+                sys.executable,
+                str(installed / "install.py"),
+                "status",
+                "--project",
+                str(project),
+                "--json",
+            ],
             cwd=project,
         ).stdout
     )
-    if doctor.get("status") != "healthy" or doctor.get("commit") != expected_commit:
-        raise RuntimeError("doctor did not report expected healthy commit")
+    if status.get("status") != "healthy" or status.get("commit") != expected_commit:
+        raise RuntimeError("status did not report expected healthy commit")
 
     tool = installed / "tool.py"
     dispatches: dict[str, str] = {}
@@ -290,7 +297,7 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     if transactions.exists() and any(transactions.iterdir()):
         raise RuntimeError("transaction state remains after activation")
     return {
-        "doctor": "healthy",
+        "status": "healthy",
         "dispatches": dispatches,
         "active": str(active["generationId"]),
         "previous": None if previous is None else str(previous["generationId"]),
