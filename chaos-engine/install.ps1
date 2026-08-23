@@ -4,12 +4,15 @@
 [CmdletBinding()]
 param(
     [switch]$ParseOnly,
-    [switch]$WithMavenTools
+    [switch]$WithMavenTools,
+    [switch]$Interactive
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $script:ChaosEngineInvocationLine = [string]$MyInvocation.Line
+[Console]::Error.WriteLine("  /\  CHAOSENGINE`n /  \ transparent automation")
+$env:CHAOS_ENGINE_BRAND_SHOWN = "1"
 
 function Get-ChaosEnginePython {
     $py = Get-Command py -ErrorAction SilentlyContinue
@@ -238,6 +241,8 @@ if ($ParseOnly) {
     return
 }
 
+$interactiveRequested = $Interactive -or $env:CHAOS_ENGINE_INTERACTIVE -eq "1"
+
 $source = Resolve-ChaosEngineSource
 $repository = [string]$source.Repository
 $branch = [string]$env:CHAOS_ENGINE_BRANCH
@@ -277,7 +282,17 @@ $work = Join-Path ([System.IO.Path]::GetTempPath()) ("chaos-engine-bootstrap-" +
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
     $bootstrap = Join-Path $work "bootstrap.py"
-    Write-Output "Installing ChaosEngine into $project from $repository@$branch"
+    [Console]::Error.WriteLine("Installing ChaosEngine into $project from $repository@$branch")
+    if ($interactiveRequested) {
+        if ([Console]::IsInputRedirected) {
+            throw "interactive mode requires a usable controlling terminal"
+        }
+        $answer = Read-Host "Confirm Download bootstrap from $bootstrapUrl? [y/N]"
+        if ($answer.ToLowerInvariant() -notin @("y", "yes")) {
+            throw "ChaosEngine installation cancelled before Download bootstrap"
+        }
+    }
+    [Console]::Error.WriteLine("Download: $bootstrapUrl")
     if ($null -ne $localBootstrap) {
         Copy-Item -LiteralPath $localBootstrap -Destination $bootstrap
     }
@@ -287,6 +302,7 @@ try {
     }
     $arguments = @($bootstrap, "--project", $project, "--repository", $repository, "--branch", $branch)
     if ($WithMavenTools) { $arguments += "--with-maven-tools" }
+    if ($interactiveRequested) { $arguments += "--interactive" }
     if ($null -eq $python) {
         $uv = Install-ChaosEngineUv $work
         $env:UV_PYTHON_INSTALL_DIR = Join-Path $work "python"

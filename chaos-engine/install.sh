@@ -4,6 +4,9 @@
 #   curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
 set -eu
 
+printf '  /\\  CHAOSENGINE\n /  \\ transparent automation\n' >&2
+export CHAOS_ENGINE_BRAND_SHOWN=1
+
 fail() {
   echo "$1" >&2
   exit 1
@@ -88,8 +91,10 @@ EOF
 }
 
 with_maven_tools=
+interactive=
 for argument in "$@"; do
   [ "$argument" = "--with-maven-tools" ] && with_maven_tools=1
+  [ "$argument" = "--interactive" ] && interactive=1
 done
 
 if command -v python3 >/dev/null 2>&1; then
@@ -138,7 +143,14 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 bootstrap="$work/bootstrap.py"
-echo "Installing ChaosEngine into ${project} from ${repository}@${branch}"
+echo "Installing ChaosEngine into ${project} from ${repository}@${branch}" >&2
+if [ -n "$interactive" ]; then
+  [ -r /dev/tty ] || fail "interactive mode requires a usable controlling terminal"
+  printf 'Confirm Download bootstrap from %s? [y/N] ' "$bootstrap_url" >/dev/tty
+  IFS= read -r answer </dev/tty || fail "interactive mode requires a usable controlling terminal"
+  case $(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]') in y|yes) ;; *) fail "ChaosEngine installation cancelled before Download bootstrap" ;; esac
+fi
+echo "Download: ${bootstrap_url}" >&2
 case "$0" in
   */install.sh|install.sh)
     script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -180,4 +192,5 @@ else
   set -- "$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 fi
 [ -n "$with_maven_tools" ] && set -- "$@" --with-maven-tools
+[ -n "$interactive" ] && set -- "$@" "--interactive"
 "$@"

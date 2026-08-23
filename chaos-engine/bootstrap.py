@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import email.utils
 import hashlib
 import json
@@ -30,6 +31,92 @@ MAX_READ_ATTEMPTS = 4
 MAX_RETRY_AFTER_SECONDS = 60.0
 RETRY_BASE_SECONDS = 1.0
 TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+BRAND = "  /\\  CHAOSENGINE\n /  \\ transparent automation\n"
+STAGE_WEIGHTS = {
+    "Resolve source": 1,
+    "Download source": 2,
+    "Install core": 2,
+    "Provision dependencies": 4,
+    "Install Maven Tools": 3,
+    "Verify installation": 1,
+    "Activate clients": 1,
+}
+
+
+class InstallCancelled(RuntimeError):
+    """Raised before an operation when interactive confirmation is declined."""
+
+
+class InstallReporter:
+    """Dependency-free installer status renderer; UX always goes to stderr."""
+
+    def __init__(self, *, stream=None, clock=time.monotonic):
+        self.stream = sys.stderr if stream is None else stream
+        self.clock = clock
+        self.started = clock()
+        self.completed_operations: list[str] = []
+        self.remaining_operations: tuple[str, ...] = ()
+        if os.environ.get("CHAOS_ENGINE_BRAND_SHOWN") != "1":
+            self.stream.write(BRAND)
+            self.stream.flush()
+
+    def _duration(self, seconds: float) -> str:
+        seconds = max(0, round(seconds))
+        minutes, seconds = divmod(seconds, 60)
+        return f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
+
+    def _status(self, current: str, remaining: tuple[str, ...], detail: str | None) -> str:
+        remaining = tuple(item for item in remaining if item not in self.completed_operations)
+        elapsed = max(0.0, self.clock() - self.started)
+        completed_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.completed_operations)
+        remaining_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in remaining)
+        eta = elapsed * remaining_weight / completed_weight if completed_weight else 0
+        pieces = [f"Current: {current}"]
+        if self.completed_operations:
+            pieces.append(f"Completed: {', '.join(self.completed_operations)}")
+        pieces.append(f"Remaining: {', '.join(remaining) if remaining else 'none'}")
+        pieces.append(f"Elapsed: {self._duration(elapsed)}")
+        pieces.append(f"ETA: {self._duration(eta) if completed_weight else 'calculating'}")
+        if detail:
+            pieces.append(f"Download: {detail}" if detail.startswith(("http://", "https://")) else detail)
+        return " | ".join(pieces)
+
+    def start(
+        self, operation: str, *, remaining: tuple[str, ...] | None = None,
+        detail: str | None = None,
+    ) -> None:
+        if remaining is not None:
+            self.remaining_operations = remaining
+        line = self._status(operation, self.remaining_operations, detail)
+        self.stream.write(("\r" if self.stream.isatty() else "") + line + ("" if self.stream.isatty() else "\n"))
+        self.stream.flush()
+
+    def complete(self, operation: str, *, remaining: tuple[str, ...] = ()) -> None:
+        if operation not in self.completed_operations:
+            self.completed_operations.append(operation)
+        line = self._status(operation, remaining, None)
+        self.stream.write(("\r" if self.stream.isatty() else "") + line + "\n")
+        self.stream.flush()
+
+
+def confirm_operation(operation: str, *, input_stream, output) -> None:
+    output.write(f"Confirm {operation}? [y/N] ")
+    output.flush()
+    if input_stream.readline().strip().casefold() not in {"y", "yes"}:
+        raise InstallCancelled(f"ChaosEngine installation cancelled before {operation}")
+
+
+@contextmanager
+def interactive_terminal():
+    path = "CONIN$" if os.name == "nt" else "/dev/tty"
+    try:
+        stream = open(path, "r", encoding="utf-8")  # noqa: PTH123 - controlling terminal path.
+    except OSError as error:
+        raise RuntimeError("interactive mode requires a usable controlling terminal") from error
+    try:
+        yield stream
+    finally:
+        stream.close()
 
 
 def parse_retry_after(value: str) -> float | None:
@@ -260,16 +347,46 @@ def install_latest(
     distribution: str | None = None,
     opener=urllib.request.urlopen,
     provisioner=None,
+    interactive: bool = False,
+    reporter: InstallReporter | None = None,
+    terminal_factory=interactive_terminal,
 ) -> dict[str, object]:
     if skip_tools and with_maven_tools:
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
     project = Path(project).resolve()
     if not project.is_dir():
         raise ValueError(f"project is not a directory: {project}")
+    reporter = reporter or InstallReporter()
+    try:
+        terminal_context = terminal_factory() if interactive else None
+        if terminal_context is not None:
+            terminal_input = terminal_context.__enter__()
+        else:
+            terminal_input = None
+    except OSError as error:
+        raise RuntimeError("interactive mode requires a usable controlling terminal") from error
+    def confirm(name: str) -> None:
+        if terminal_input is not None:
+            confirm_operation(name, input_stream=terminal_input, output=reporter.stream)
+    operations = ["Resolve source", "Download source", "Install core"]
+    if not skip_tools:
+        operations.extend(("Provision dependencies", "Verify installation", "Activate clients"))
+    if with_maven_tools:
+        operations.insert(-2, "Install Maven Tools")
+    remaining = lambda name: tuple(operations[operations.index(name) + 1 :])
     prior_install = (project / ".chaos-engine").exists()
-    commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
-    with tempfile.TemporaryDirectory(prefix="chaos-engine-bootstrap-") as temporary:
-        source = download_source(repository, commit, Path(temporary), opener=opener)
+    temporary = None
+    try:
+        confirm("Resolve source")
+        reporter.start("Resolve source", remaining=remaining("Resolve source"))
+        commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
+        reporter.complete("Resolve source", remaining=remaining("Resolve source"))
+        temporary = tempfile.TemporaryDirectory(prefix="chaos-engine-bootstrap-")
+        source_url = f"https://github.com/{repository}/tree/{commit}/chaos-engine"
+        confirm("Download source")
+        reporter.start("Download source", remaining=remaining("Download source"), detail=source_url)
+        source = download_source(repository, commit, Path(temporary.name), opener=opener)
+        reporter.complete("Download source", remaining=remaining("Download source"))
         installer = load_installer(source)
         distribution = resolve_distribution(installer, project, source, distribution)
         if distribution == "portable":
@@ -286,11 +403,17 @@ def install_latest(
                 "branch": resolved_branch,
                 "commit": commit,
             }
+        confirm("Install core")
+        reporter.start("Install core", remaining=remaining("Install core"))
         if skip_tools:
             target = installer.install(
                 project, source, commit, source_record=provenance, distribution=distribution
             )
         else:
+            confirm("Provision dependencies")
+            reporter.start("Provision dependencies", remaining=remaining("Provision dependencies"))
+            if with_maven_tools:
+                confirm("Install Maven Tools")
             target = installer.install_with_dependencies(
                 project,
                 source,
@@ -299,22 +422,48 @@ def install_latest(
                 source_record=provenance,
                 distribution=distribution,
                 with_maven_tools=with_maven_tools,
+                reporter=reporter,
+                confirmer=confirm,
             )
+            if with_maven_tools:
+                reporter.complete(
+                    "Install Maven Tools", remaining=remaining("Install Maven Tools")
+                )
+            reporter.complete("Provision dependencies", remaining=remaining("Provision dependencies"))
+        reporter.complete("Install core", remaining=remaining("Install core"))
+        temporary.cleanup()
+    except BaseException:
+        if temporary is not None:
+            temporary.cleanup()
+        if terminal_context is not None:
+            terminal_context.__exit__(*sys.exc_info())
+        raise
     if skip_tools or provisioner is not None:
+        if terminal_context is not None:
+            terminal_context.__exit__(None, None, None)
         return {"status": "installed", "root": str(target), "commit": commit}
     host_controller = installer.load_installed_controller(target, "hosts")
     try:
+        reporter.start("Verify installation", remaining=remaining("Verify installation"))
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
         if doctor.get("status") != "healthy":
             raise RuntimeError("ChaosEngine doctor did not report a healthy installation")
+        reporter.complete("Verify installation", remaining=remaining("Verify installation"))
+        confirm("Activate clients")
+        reporter.start("Activate clients", remaining=remaining("Activate clients"))
         clients = host_controller.activate_detected_plugins(project)
+        reporter.complete("Activate clients", remaining=())
         doctor["clients"] = clients.get("clients", {})
     except BaseException:
         if prior_install and (project / ".chaos-engine.backup").exists():
             installer.rollback(project)
         else:
             installer.uninstall_with_dependencies(project)
+        if terminal_context is not None:
+            terminal_context.__exit__(*sys.exc_info())
         raise
+    if terminal_context is not None:
+        terminal_context.__exit__(None, None, None)
     return {
         "status": "installed",
         "root": str(target),
@@ -332,10 +481,12 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--distribution")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
     result.add_argument("--with-maven-tools", action="store_true")
+    result.add_argument("--interactive", action="store_true")
     return result
 
 
 def main() -> int:
+    reporter = InstallReporter()
     args = parser().parse_args()
     try:
         result = install_latest(
@@ -345,6 +496,8 @@ def main() -> int:
             skip_tools=args.skip_tools,
             with_maven_tools=args.with_maven_tools,
             distribution=args.distribution,
+            interactive=args.interactive,
+            reporter=reporter,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)

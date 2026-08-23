@@ -132,7 +132,11 @@ def node_dispatch(generation: Path, script: Path) -> dict[str, object]:
     }
 
 
-def _download_artifact(url: str, destination: Path, expected: str, opener=urllib.request.urlopen) -> None:
+def _download_artifact(
+    url: str, destination: Path, expected: str, opener=urllib.request.urlopen, *, reporter=None
+) -> None:
+    if reporter is not None:
+        reporter.start("Provision dependencies", detail=url)
     digest = hashlib.sha256()
     total = 0
     try:
@@ -207,7 +211,8 @@ def _extract_runtime_archive(archive: Path, destination: Path) -> None:
 
 
 def provision_generation_runtimes(
-    generation: Path, transaction: Path, specification: dict[str, object], *, opener=urllib.request.urlopen
+    generation: Path, transaction: Path, specification: dict[str, object], *,
+    opener=urllib.request.urlopen, reporter=None,
 ) -> None:
     platform_key()
     for name in ("uv", "node"):
@@ -216,7 +221,10 @@ def provision_generation_runtimes(
             ".tar.xz" if str(artifact["url"]).endswith(".tar.xz") else ".tar.gz"
         )
         archive = transaction / f"{name}{suffix}"
-        _download_artifact(str(artifact["url"]), archive, str(artifact["sha256"]), opener)
+        _download_artifact(
+            str(artifact["url"]), archive, str(artifact["sha256"]), opener,
+            reporter=reporter,
+        )
         destination = (
             generation / "bootstrap" / ("Scripts" if os.name == "nt" else "bin")
             if name == "uv" else generation / "node"
@@ -1603,6 +1611,8 @@ def prepare_candidate(
     now: datetime | None = None,
     generation_id: str | None = None,
     transaction_id: str | None = None,
+    reporter=None,
+    confirmer=None,
 ) -> dict[str, str]:
     """Build once at the final path with held no-follow identities."""
     project = _trusted_root(project.absolute(), "project")
@@ -1691,7 +1701,9 @@ def prepare_candidate(
                 _assert_held_directory(path, held, label)
 
         if runner is None:
-            provision_generation_runtimes(generation, transaction, specification)
+            provision_generation_runtimes(
+                generation, transaction, specification, reporter=reporter
+            )
             validate_holds()
 
         result = _install_candidate_payload(
