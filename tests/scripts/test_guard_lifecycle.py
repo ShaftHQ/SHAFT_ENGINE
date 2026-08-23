@@ -1772,6 +1772,48 @@ class GuardLifecycleTest(unittest.TestCase):
             ),
         )
 
+    def test_wrapped_web_accepts_content_only_primary_result(self):
+        source = (
+            "const result = await tools.web__run({open:[{ref_id:"
+            "'https://raw.githubusercontent.com/openai/codex/main/README.md'}]}); "
+            "text(result);"
+        )
+        result = {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "https://raw.githubusercontent.com/openai/codex/main/README.md",
+                }
+            ]
+        }
+        self.assertIn(
+            "authoritative-online-research",
+            guard._research_preflight_events("functions.exec", source, result),
+        )
+        for failed in (
+            {**result, "isError": True},
+            {**result, "status": "failed"},
+            {**result, "exit_code": 1},
+            {**result, "error": "network failed"},
+        ):
+            with self.subTest(failed=failed):
+                self.assertNotIn(
+                    "authoritative-online-research",
+                    guard._research_preflight_events("functions.exec", source, failed),
+                )
+
+    def test_raw_github_host_is_exact_not_suffix_spoofable(self):
+        self.assertTrue(
+            guard._has_primary_source_url(
+                {"url": "https://raw.githubusercontent.com/openai/codex/main/README.md"}
+            )
+        )
+        self.assertFalse(
+            guard._has_primary_source_url(
+                {"url": "https://raw.githubusercontent.com.evil.invalid/openai/codex"}
+            )
+        )
+
     def test_shell_file_targets_share_main_and_outside_scoping(self):
         inside = {"cwd": ".", "tool_input": {"command": "Set-Content scripts/x.py x"}}
         outside_path = os.path.join(tempfile.gettempdir(), "research-scratch.txt")
@@ -2011,6 +2053,61 @@ class SessionStartRetrievalIsolationTest(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertEqual(["False", "False"], completed.stdout.splitlines())
 
+class PlanModeStopTests(unittest.TestCase):
+    """#5315 keeps read-only Plan Mode outside mutation-owned Stop duties."""
+
+    def stop_output(self, state):
+        report = (
+            None
+            if state is None
+            else {"worktrees": [{"is_current": True, "state": state}]}
+        )
+        stream = io.StringIO()
+        with patch(
+            "scripts.agents.guard._worktree_report", return_value=report
+        ), redirect_stdout(stream):
+            self.assertEqual(0, guard.run_stop({"cwd": ".", "permission_mode": "plan"}))
+        return stream.getvalue()
+
+    def test_plan_mode_ignores_completion_states_and_unverifiable_report(self):
+        for state in ("clean", "uncommitted", "pending", "abandoned", "unknown", None):
+            with self.subTest(state=state):
+                self.assertEqual("", self.stop_output(state))
+
+    def test_plan_mode_blocks_confirmed_nul_corruption_only(self):
+        rendered = self.stop_output("corrupt")
+        self.assertIn("NUL-corrupt", rendered)
+        self.assertNotIn("Learning Session", rendered)
+        self.assertNotIn("pull request", rendered)
+
+    def test_non_plan_permission_modes_keep_completion_checks(self):
+        report = {"worktrees": [{"is_current": True, "state": "uncommitted"}]}
+        for mode in (None, "acceptEdits", "dontAsk"):
+            payload = {"cwd": "."}
+            if mode is not None:
+                payload["permission_mode"] = mode
+            with self.subTest(mode=mode), patch(
+                "scripts.agents.guard._worktree_report", return_value=report
+            ), patch(
+                "scripts.agents.guard.check_r16_learning_session", return_value=None
+            ), patch(
+                "scripts.agents.guard.check_r18_unpushed_work", return_value=None
+            ), patch(
+                "scripts.agents.guard.check_r20_user_harness_drift", return_value=None
+            ), patch(
+                "scripts.agents.guard.check_r21_run_state_not_recorded", return_value=None
+            ), patch(
+                "scripts.agents.guard.check_r24_foreign_worktree_left_behind",
+                return_value=None,
+            ), patch(
+                "scripts.agents.guard.check_r29_delivery_complete", return_value=None
+            ), patch(
+                "scripts.agents.guard._terminal_reflection_reason", return_value=None
+            ):
+                stream = io.StringIO()
+                with redirect_stdout(stream):
+                    guard.run_stop(payload)
+                self.assertIn("uncommitted work", stream.getvalue())
 
 
 if __name__ == "__main__":
