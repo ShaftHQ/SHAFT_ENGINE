@@ -82,6 +82,7 @@ jobs:
               - 'chaos-engine/install.py'
               - 'chaos-engine/install.sh'
               - 'chaos-engine/install.ps1'
+              - 'chaos-engine/hosts.py'
               - 'chaos-engine/dependencies.py'
               - 'chaos-engine/dependencies.json'
               - 'chaos-engine/distributions.json'

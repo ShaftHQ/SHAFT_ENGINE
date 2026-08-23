@@ -104,6 +104,7 @@ class InstallerUxTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         self.assertIn("chaos_installer: ${{ steps.filter.outputs.chaos_installer }}", workflow)
         self.assertIn("chaos-engine/bootstrap.py", workflow)
+        self.assertIn("chaos-engine/hosts.py", workflow)
         self.assertIn("tests/scripts/test_chaos_engine_installer_ux.py", workflow)
         block = workflow[workflow.index("  chaos-installer-acceptance:"):workflow.index("  summary:")]
         self.assertIn("needs.changes.outputs.chaos_installer == 'true'", block)
