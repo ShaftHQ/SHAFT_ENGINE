@@ -28,8 +28,8 @@ WINDOWS_ONE_LINER = (
     'irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex'
 )
 POSIX_ONE_LINER = (
-    'curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
-    + ' | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
+    'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
+    + ' | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
 )
 USER_WINDOWS_COMMAND = (
     'irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex'
@@ -145,7 +145,7 @@ class ChaosEngineInstallWrapperTest(unittest.TestCase):
             self.assertIn(WINDOWS_ONE_LINER, document, relative)
             self.assertIn(POSIX_ONE_LINER, document, relative)
             self.assertNotRegex(document, r"\bhaftHQ\b")
-            self.assertNotIn("HAFT_ENGINE", document)
+            self.assertNotRegex(document, r"(?<!S)HAFT_ENGINE")
             self.assertNotIn("$env:CHAOS_ENGINE_REPOSITORY/main", document)
 
     def test_shaft_profile_keeps_the_real_url_without_an_env_preamble(self):

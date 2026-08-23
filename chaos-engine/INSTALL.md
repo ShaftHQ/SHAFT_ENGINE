@@ -66,7 +66,7 @@ irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/instal
 macOS or Linux, using [install.sh](install.sh):
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
+curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
 
 Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy

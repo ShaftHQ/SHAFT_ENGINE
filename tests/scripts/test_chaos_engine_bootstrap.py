@@ -58,8 +58,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
     def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
         windows = 'irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex'
         posix = (
-            'curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
-            + ' | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
+            'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
+            + ' | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
         )
         for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
             document = ROOT.joinpath(relative).read_text(encoding="utf-8")

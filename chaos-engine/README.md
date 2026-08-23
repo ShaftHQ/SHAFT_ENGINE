@@ -88,7 +88,7 @@ irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/instal
 macOS or Linux:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
+curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
 
 Inspect [install.ps1](install.ps1), [install.sh](install.sh), and
