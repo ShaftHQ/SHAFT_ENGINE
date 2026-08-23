@@ -142,7 +142,7 @@ def run_hook_protocol(
         if not isinstance(output, dict):
             raise ValueError("adapted hook output is not a JSON object")
         json.dumps(output, allow_nan=False)
-    except Exception as error:
+    except (Exception, KeyboardInterrupt, SystemExit) as error:
         print(f"Hook protocol error: {error}", file=sys.stderr)
         output = fallback(event_name, host)
         result = 0

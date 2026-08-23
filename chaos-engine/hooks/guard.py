@@ -375,6 +375,10 @@ def _command_is_destructive(command: str) -> bool:
 
 
 def _stop_block_reason(event: dict, session_id: str) -> str:
+    if event.get("hook_event_name") == "SubagentStop" or bool(
+        event.get("stop_hook_active") or event.get("stopHookActive")
+    ):
+        return ""
     elapsed = reflection.session_elapsed_seconds(session_id)
     if elapsed is not None and elapsed > 3600 and not reflection.has_valid_terminal_receipt(session_id):
         return "Terminal reflection required before this session can stop."

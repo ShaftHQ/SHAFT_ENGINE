@@ -291,11 +291,50 @@ class ChaosEngineHookTest(unittest.TestCase):
         )
 
     def test_repeated_stop_events_never_create_a_hook_loop(self):
-        first = self.run_hook({"hook_event_name": "Stop", "stop_hook_active": False})
-        repeated = self.run_hook({"hook_event_name": "Stop", "stop_hook_active": True})
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            with patch.dict(os.environ, environment):
+                reflection.record_session_start(
+                    "portable-repeated-stop", "2020-01-01T00:00:00+00:00"
+                )
+            repeated = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "portable-repeated-stop",
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
 
-        self.assertEqual(0, first.returncode)
         self.assertEqual(0, repeated.returncode)
+        self.assertNotEqual("block", json.loads(repeated.stdout).get("decision"))
+
+    def test_portable_subagent_stop_never_inherits_root_learning_session(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "portable-subagent-stop"
+            self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {
+                        "command": "py -3 scripts/agents/act_as_mohab_cli.py delivery-status --manifest m --receipt-out r"
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "SubagentStop",
+                    "session_id": session,
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+
+        self.assertEqual(0, stopped.returncode)
+        self.assertNotEqual("block", json.loads(stopped.stdout).get("decision"))
 
     def test_non_command_lifecycle_events_reinject_the_working_contract(self):
         for event_name in ("UserPromptSubmit", "PostToolUse"):

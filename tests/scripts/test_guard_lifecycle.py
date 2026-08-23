@@ -2274,6 +2274,23 @@ class HookJsonProtocolTest(unittest.TestCase):
             [expected] * 6 + [block] * 2 + ["{}\n"] * 3 + [grok_deny],
         )
 
+    def test_main_contains_system_exit_with_a_deny(self):
+        with patch.object(guard, "run_pretooluse", side_effect=SystemExit(7)):
+            output = self.invoke(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Write",
+                    "session_id": "system-exit-callback",
+                }
+            )
+
+        decision = json.loads(output)["hookSpecificOutput"]
+        self.assertEqual("deny", decision["permissionDecision"])
+        self.assertEqual(
+            "Lifecycle hook produced invalid JSON output.",
+            decision["permissionDecisionReason"],
+        )
+
     def test_main_frames_empty_malformed_nonobject_and_unknown_input(self):
         recursive = self.invoke("[" * 20_000 + "0" + "]" * 20_000)
         observed = [
@@ -2639,6 +2656,21 @@ class LearningSessionStopGateTest(unittest.TestCase):
                     guard.run_stop({"cwd": ".", "session_id": "s", "stop_hook_active": True}), 0
                 )
             self.assertEqual(output.getvalue().strip(), "")
+
+    def test_the_second_stop_attempt_skips_terminal_reflection_too(self):
+        output = io.StringIO()
+        with patch(
+            "scripts.agents.guard._terminal_reflection_reason",
+            side_effect=AssertionError("recursive Stop must short-circuit first"),
+        ):
+            with redirect_stdout(output):
+                self.assertEqual(
+                    guard.run_stop(
+                        {"cwd": ".", "session_id": "s", "stop_hook_active": True}
+                    ),
+                    0,
+                )
+        self.assertEqual(output.getvalue(), "")
 
 
 class DelegateStopHookTest(unittest.TestCase):

@@ -5149,11 +5149,11 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
 
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
+    if hook_input.get("stop_hook_active") is True:
+        return 0
     reflection_reason = _terminal_reflection_reason(hook_input)
     if reflection_reason is not None:
         print(json.dumps({"decision": "block", "reason": reflection_reason}))
-        return 0
-    if hook_input.get("stop_hook_active") is True:
         return 0
 
     # Collected, never short-circuited. Returning on the first reason meant
