@@ -112,6 +112,7 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("scripts/ci/chaos_engine_live_installer_acceptance.py", block)
         self.assertIn("tests.scripts.test_chaos_engine_bootstrap", block)
         self.assertIn("tests.scripts.test_chaos_engine_install_wrappers", block)
+        self.assertNotIn("tests.scripts.test_chaos_engine_live_installer_acceptance", block)
         summary = workflow[workflow.index("  summary:"):]
         self.assertIn("- chaos-installer-acceptance", summary)
 

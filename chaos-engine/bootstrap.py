@@ -451,9 +451,10 @@ def install_latest(
         reporter.complete("Verify installation", remaining=remaining("Verify installation"))
         confirm("Activate clients")
         reporter.start("Activate clients", remaining=remaining("Activate clients"))
-        clients = host_controller.activate_detected_plugins(
-            project, confirmer=confirm if interactive else None
-        )
+        if interactive:
+            clients = host_controller.activate_detected_plugins(project, confirmer=confirm)
+        else:
+            clients = host_controller.activate_detected_plugins(project)
         reporter.complete("Activate clients", remaining=())
         doctor["clients"] = clients.get("clients", {})
     except BaseException:
