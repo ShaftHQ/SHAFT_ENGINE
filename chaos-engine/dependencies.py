@@ -653,6 +653,8 @@ def _capture_regular_relative(
                 break
             digest.update(chunk)
             remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise ValueError(f"dependency {label} changed while hashing")
         after = os.fstat(descriptor)
         identity = lambda item: (
             item.st_dev,
