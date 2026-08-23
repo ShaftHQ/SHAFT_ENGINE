@@ -4460,40 +4460,43 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
 
     if commands:
         command_tool = "PowerShell" if tool_name == "functions.exec" else tool_name
-        for command in commands:
+        for invocation in context.invocations:
+            command = invocation.command
+            if not command:
+                continue
+            invocation_hook = (
+                {**hook_input, "cwd": invocation.workdir}
+                if invocation.workdir
+                else hook_input
+            )
+            invocation_cwd = _hook_working_directory(invocation_hook)
             reason = evaluate_command(command)
             if reason is None:
                 reason = check_r9_worktree_add(command, command_tool)
             if reason is None:
-                reason = check_r10_nul_corruption(
-                    command, _hook_working_directory(hook_input)
-                )
+                reason = check_r10_nul_corruption(command, invocation_cwd)
             if reason is None:
-                reason = check_r13_push_before_delete(
-                    command, command_tool, _hook_working_directory(hook_input)
-                )
+                reason = check_r13_push_before_delete(command, command_tool, invocation_cwd)
             if reason is None:
                 reason = check_r15_merge_mode(
-                    command, command_tool, hook_input
+                    command, command_tool, invocation_hook
                 )
             if reason is None:
                 reason = check_r28_pr_audit_before_arming(
-                    command, command_tool, hook_input
+                    command, command_tool, invocation_hook
                 )
             if reason is None:
                 reason = check_r30_merge_authority_before_arming(
-                    command, command_tool, hook_input
+                    command, command_tool, invocation_hook
                 )
             if reason is None:
-                reason = check_r31_learning_session_timing(hook_input, command)
+                reason = check_r31_learning_session_timing(invocation_hook, command)
             if reason is None:
-                reason = check_r14_hard_reset(
-                    command, command_tool, _hook_working_directory(hook_input)
-                )
+                reason = check_r14_hard_reset(command, command_tool, invocation_cwd)
             if reason is not None:
                 _record_guard_block_and_deny(hook_input, reason, host)
                 return 0
-            if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
+            if _updates_a_tracked_issue(command, invocation_cwd):
                 ledger_record(hook_input, "issue-update")
         return 0
 

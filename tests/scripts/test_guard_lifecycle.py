@@ -2580,6 +2580,33 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
         self.assertIsNotNone(reason)
         self.assertIn("backslash-escaped", reason)
 
+    def test_wrapped_merge_uses_its_literal_workdir_for_audit_identity(self):
+        source = (
+            'await tools.exec_command({cmd:"gh pr merge 17 --repo consumer/project '
+            '--auto --merge", workdir:"C:/task"});'
+        )
+
+        def identity(hook_input):
+            repository = "consumer/project" if hook_input.get("cwd") == "C:/task" else "other/project"
+            return repository, "ChaosEngine/task", "a" * 40
+
+        stream = io.StringIO()
+        with (
+            mock.patch.object(guard, "_checkpoint_identity", side_effect=identity),
+            mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True),
+            mock.patch.object(guard, "check_r19_fresh_base", return_value=None),
+            mock.patch.object(guard, "check_r25_research_before_implementation", return_value=None),
+            mock.patch.object(guard, "check_r30_merge_authority_before_arming", return_value=None),
+            redirect_stdout(stream),
+        ):
+            guard.run_pretooluse({
+                "tool_name": "functions.exec",
+                "cwd": "C:/outer",
+                "tool_input": source,
+            })
+
+        self.assertEqual("", stream.getvalue())
+
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):
     """R30: no PR merge mutation without recorded exact-head user authority."""
