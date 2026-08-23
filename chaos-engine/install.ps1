@@ -3,7 +3,8 @@
 #   irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex
 [CmdletBinding()]
 param(
-    [switch]$ParseOnly
+    [switch]$ParseOnly,
+    [switch]$WithMavenTools
 )
 
 Set-StrictMode -Version Latest
@@ -21,7 +22,28 @@ function Get-ChaosEnginePython {
             return @($found.Source)
         }
     }
-    throw "Python 3 is required (py -3, python3, or python)."
+    return $null
+}
+
+function Install-ChaosEngineUv([string]$Work) {
+    $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+    if ($architecture -eq "X64") {
+        $target = "x86_64-pc-windows-msvc"
+        $digest = "a047d55651bc3e0ca24595b25ec4cfcb10f9dca9fb56514e661269b37d4fae68"
+    }
+    elseif ($architecture -eq "Arm64") {
+        $target = "aarch64-pc-windows-msvc"
+        $digest = "55b597ae81bc29531a7c352a1431a8a73cc2755d7a5b9ec454580cbe02e5154f"
+    }
+    else { throw "Unsupported ChaosEngine platform: Windows/$architecture" }
+    $archive = Join-Path $Work "uv.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/astral-sh/uv/releases/download/0.11.29/uv-$target.zip" -OutFile $archive
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+    if ($actual -ne $digest) { throw "uv download checksum verification failed" }
+    Expand-Archive -LiteralPath $archive -DestinationPath $Work
+    $uv = Join-Path $Work "uv.exe"
+    if (-not (Test-Path -LiteralPath $uv -PathType Leaf)) { throw "uv archive is missing its executable" }
+    return $uv
 }
 
 function Get-ChaosEngineHeader([object]$Headers, [string]$Name) {
@@ -263,15 +285,16 @@ try {
         $response = Read-ChaosEngineUrl $bootstrapUrl
         [System.IO.File]::WriteAllText($bootstrap, [string]$response.Content)
     }
-    $invoke = @($python) + @(
-        $bootstrap,
-        "--project",
-        $project,
-        "--repository",
-        $repository,
-        "--branch",
-        $branch
-    )
+    $arguments = @($bootstrap, "--project", $project, "--repository", $repository, "--branch", $branch)
+    if ($WithMavenTools) { $arguments += "--with-maven-tools" }
+    if ($null -eq $python) {
+        $uv = Install-ChaosEngineUv $work
+        $env:UV_PYTHON_INSTALL_DIR = Join-Path $work "python"
+        & $uv python install 3.10 --no-progress
+        if ($LASTEXITCODE -ne 0) { throw "uv-managed Python installation failed" }
+        $invoke = @($uv, "run", "--no-project", "--managed-python", "--python", "3.10") + $arguments
+    }
+    else { $invoke = @($python) + $arguments }
     & $invoke[0] @($invoke[1..($invoke.Length - 1)])
     if ($LASTEXITCODE -ne 0) {
         throw "ChaosEngine bootstrap failed with exit $LASTEXITCODE"

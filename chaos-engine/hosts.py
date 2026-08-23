@@ -11,6 +11,8 @@ import hashlib
 import hmac
 import json
 import os
+import platform
+import queue
 import re
 import secrets
 import shutil
@@ -18,6 +20,7 @@ import sqlite3
 import stat
 import subprocess  # nosec B404 - probes a resolved local Java executable.
 import sys
+import threading
 from pathlib import Path, PurePosixPath
 
 
@@ -1399,6 +1402,7 @@ MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
 MAVEN_TOOLS_MCP_PROFILE = "docker,no-context7"
 MAVEN_TOOLS_CACHE_LOCK = ".cache.lock"
 MAVEN_TOOLS_CACHE_LOCK_MAGIC = b"chaos-engine-maven-tools-cache-lock-v1\n"
+TEMURIN_RECEIPT = "runtime-receipt.json"
 LEGACY_MAVEN_TOOLS_SERVER = {
     "command": "docker",
     "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"],
@@ -1784,12 +1788,21 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     configured_java = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")
     path_java = shutil.which("java")
+    system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    machine = platform.machine().lower()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    managed_root = maven_tools_cache_root().parent / "temurin" / "25.0.4+7" / f"{system}-{architecture}"
+    managed_java = managed_root / (
+        "bin/java.exe" if os.name == "nt" else
+        "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
+    )
     java_candidates = [
         Path(configured_java).expanduser() if configured_java else None,
         Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java")
         if java_home
         else None,
         Path(path_java) if path_java else None,
+        verified_managed_temurin(managed_java, f"{system}-{architecture}"),
     ]
     for candidate in java_candidates:
         if candidate is None or not candidate.is_file():
@@ -1805,16 +1818,99 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     return None
 
 
+def verified_managed_temurin(candidate: Path, host_platform: str) -> Path | None:
+    if not candidate.is_file() or is_link_or_reparse(candidate):
+        return None
+    receipt_path = candidate.parents[3 if sys.platform == "darwin" else 1] / TEMURIN_RECEIPT
+    if not receipt_path.is_file() or is_link_or_reparse(receipt_path):
+        return None
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    expected_architecture = "x64" if host_platform == "windows-arm64" else host_platform.split("-", 1)[1]
+    expected = {
+        "schemaVersion": 1,
+        "runtime": "temurin",
+        "version": "25.0.4+7",
+        "hostPlatform": host_platform,
+        "artifactArchitecture": expected_architecture,
+        "emulated": host_platform == "windows-arm64",
+        "java": candidate.relative_to(receipt_path.parent).as_posix(),
+        "javaSha256": digest,
+    }
+    return candidate.resolve() if receipt == expected and java_major(candidate) == 25 else None
+
+
+def probe_maven_tools_runtime(
+    java: Path,
+    jar: Path,
+    *,
+    popen=subprocess.Popen,
+    timeout: float = 30.0,
+) -> bool:
+    """Require a real MCP initialize and non-empty tools/list exchange."""
+    process = None
+    try:
+        process = popen(  # nosec B603 - both executables are receipt-verified owned paths.
+            [str(java), "-jar", str(jar), f"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+        )
+        if process.stdin is None or process.stdout is None:
+            return False
+
+        def exchange(requests: list[dict[str, object]]) -> dict[str, object]:
+            for request in requests:
+                process.stdin.write(json.dumps(request, separators=(",", ":")) + "\n")
+            process.stdin.flush()
+            received: queue.Queue[str] = queue.Queue(maxsize=1)
+            threading.Thread(
+                target=lambda: received.put(process.stdout.readline()), daemon=True
+            ).start()
+            response = json.loads(received.get(timeout=timeout))
+            return response if isinstance(response, dict) else {}
+
+        initialized = exchange([{
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+                       "clientInfo": {"name": "chaosengine-installer", "version": "1"}},
+        }])
+        if initialized.get("id") != 1 or not isinstance(initialized.get("result"), dict):
+            return False
+        listed = exchange([
+            {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+        ])
+        result = listed.get("result")
+        return listed.get("id") == 2 and isinstance(result, dict) and bool(result.get("tools"))
+    except (OSError, ValueError, json.JSONDecodeError, queue.Empty):
+        return False
+    finally:
+        if process is not None and process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+
+
 def portable_python_server(
-    script_args: list[str], extra: dict[str, object] | None = None
+    script_args: list[str], extra: dict[str, object] | None = None,
+    managed_python: Path | None = None,
 ) -> dict[str, object]:
     posix_command, posix_prefix = interpreter("posix")
     windows_command, windows_prefix = interpreter("nt")
     server: dict[str, object] = {
-        "command": posix_command,
-        "args": [*posix_prefix, *script_args],
-        "commandWindows": windows_command,
-        "argsWindows": [*windows_prefix, *script_args],
+        "command": str(managed_python) if managed_python else posix_command,
+        "args": script_args if managed_python else [*posix_prefix, *script_args],
+        "commandWindows": str(managed_python) if managed_python else windows_command,
+        "argsWindows": script_args if managed_python else [*windows_prefix, *script_args],
         "cwd": ".",
     }
     if extra:
@@ -1825,11 +1921,12 @@ def portable_python_server(
 def owned_servers(
     platform_name: str | None = None,
     maven_runtime: tuple[Path, Path] | None = None,
+    managed_python: Path | None = None,
 ) -> dict[str, dict[str, object]]:
     del platform_name
     servers: dict[str, dict[str, object]] = {
         "chaosengine-memory": portable_python_server(
-            [".chaos-engine/tool.py", "memory-mcp"]
+            [".chaos-engine/tool.py", "memory-mcp"], managed_python=managed_python
         ),
         "chaosengine-mempalace": portable_python_server(
             [
@@ -1841,6 +1938,7 @@ def owned_servers(
                 "sqlite_exact",
             ],
             extra={"env": dict(MEMPALACE_MCP_ENV)},
+            managed_python=managed_python,
         ),
     }
     if maven_runtime is not None:
@@ -2190,7 +2288,8 @@ def legacy_codex_python_block(platform_name: str) -> str:
 
 
 def json_content(
-    before: bytes | None, maven_runtime: tuple[Path, Path] | None = None
+    before: bytes | None, maven_runtime: tuple[Path, Path] | None = None,
+    managed_python: Path | None = None,
 ) -> bytes:
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
@@ -2203,7 +2302,7 @@ def json_content(
         raise ValueError("invalid MCP server configuration")
     if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
         del servers["maven-tools-mcp"]
-    for name, desired in owned_servers(maven_runtime=maven_runtime).items():
+    for name, desired in owned_servers(maven_runtime=maven_runtime, managed_python=managed_python).items():
         if name in servers and not replaceable_owned_server(name, servers[name], desired):
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
         servers[name] = desired
@@ -2214,6 +2313,7 @@ def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
     maven_runtime: tuple[Path, Path] | None = None,
+    managed_python: Path | None = None,
 ) -> bytes:
     try:
         existing = before.decode("utf-8") if before is not None else ""
@@ -2233,6 +2333,9 @@ def codex_content(
     del platform_name
     posix_command, _posix_prefix = interpreter("posix")
     windows_command, _windows_prefix = interpreter("nt")
+    if managed_python is not None:
+        posix_command = windows_command = str(managed_python).replace("\\", "\\\\")
+    windows_prefix = "" if managed_python is not None else '"-3", '
     memory_args = '".chaos-engine/tool.py", "memory-mcp"'
     mempalace_args = (
         '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
@@ -2243,12 +2346,12 @@ def codex_content(
         f'[mcp_servers."chaosengine-memory"]\ncommand = "{posix_command}"\n'
         f"args = [{memory_args}]\n"
         f'commandWindows = "{windows_command}"\n'
-        f'argsWindows = ["-3", {memory_args}]\n'
+        f'argsWindows = [{windows_prefix}{memory_args}]\n'
         'cwd = ".."\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"\n'
         f"args = [{mempalace_args}]\n"
         f'commandWindows = "{windows_command}"\n'
-        f'argsWindows = ["-3", {mempalace_args}]\n'
+        f'argsWindows = [{windows_prefix}{mempalace_args}]\n'
         'cwd = ".."\n'
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
@@ -2272,7 +2375,7 @@ def codex_content(
                 if candidate in existing:
                     return existing.replace(candidate, block).encode()
         raise ValueError("ChaosEngine Codex configuration collision")
-    for name in owned_servers(maven_runtime=maven_runtime):
+    for name in owned_servers(maven_runtime=maven_runtime, managed_python=managed_python):
         if f'mcp_servers."{name}"' in existing or f"mcp_servers.{name}" in existing:
             raise ValueError(f"ChaosEngine Codex server collision: {name}")
     separator = "\n" if existing and not existing.endswith("\n") else ""
@@ -2321,8 +2424,8 @@ def _tool_matchers() -> tuple[str, str]:
 PRE_TOOL_MATCHER, POST_TOOL_MATCHER = _tool_matchers()
 
 
-def chaos_guard_locator_command(*, windows: bool, host: str) -> str:
-    interpreter = "py -3" if windows else "python3"
+def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
+    interpreter = json.dumps(str(managed_python)) if managed_python else ("py -3" if windows else "python3")
     return (
         f'{interpreter} -c "import os,pathlib,runpy;'
         f"os.environ['CHAOS_ENGINE_HOST']='{host}';"
@@ -2333,11 +2436,11 @@ def chaos_guard_locator_command(*, windows: bool, host: str) -> str:
     )
 
 
-def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None) -> bytes:
+def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, managed_python: Path | None = None) -> bytes:
     handler = {
         "type": "command",
-        "command": chaos_guard_locator_command(windows=False, host=host),
-        "commandWindows": chaos_guard_locator_command(windows=True, host=host),
+        "command": chaos_guard_locator_command(windows=False, host=host, managed_python=managed_python),
+        "commandWindows": chaos_guard_locator_command(windows=True, host=host, managed_python=managed_python),
         "timeout": 30,
     }
     defaults = CLAUDE_HOOK_EVENTS if host == "claude" else REQUIRED_HOOK_EVENTS
@@ -2353,11 +2456,12 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None) ->
     return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
 
-def copilot_hooks_document() -> bytes:
+def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
+    node = json.dumps(str(managed_node)) if managed_node else "node"
     handler = {
         "type": "command",
-        "bash": "node .chaos-engine/hooks/launch.js copilot",
-        "powershell": "node .chaos-engine/hooks/launch.js copilot",
+        "bash": f"{node} .chaos-engine/hooks/launch.js copilot",
+        "powershell": f"{node} .chaos-engine/hooks/launch.js copilot",
         "timeoutSec": 30,
     }
     hooks = {
@@ -2377,10 +2481,11 @@ def copilot_hooks_document() -> bytes:
     return (json.dumps({"version": 1, "hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
 
-def gemini_hooks_document() -> bytes:
+def gemini_hooks_document(managed_node: Path | None = None) -> bytes:
+    node = json.dumps(str(managed_node)) if managed_node else "node"
     handler = {
         "type": "command",
-        "command": "node .chaos-engine/hooks/launch.js gemini",
+        "command": f"{node} .chaos-engine/hooks/launch.js gemini",
         "name": "ChaosEngine lifecycle",
         "timeout": 30000,
     }
@@ -2403,8 +2508,8 @@ def gemini_hooks_document() -> bytes:
     return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
 
-def copilot_hook_content(before: bytes | None) -> bytes:
-    desired = json.loads(copilot_hooks_document())
+def copilot_hook_content(before: bytes | None, managed_node: Path | None = None) -> bytes:
+    desired = json.loads(copilot_hooks_document(managed_node))
     if before is None:
         return (json.dumps(desired, indent=2, sort_keys=True) + "\n").encode()
     try:
@@ -2600,9 +2705,16 @@ def desired_content(
     maven_runtime: tuple[Path, Path] | None | bool = False,
     project_name: str = "project",
     plugin_version: str = "1.0.0",
+    dependency_runtime: Path | None = None,
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
+    managed_python = None
+    managed_node = None
+    if dependency_runtime is not None:
+        scripts = "Scripts" if os.name == "nt" else "bin"
+        managed_python = dependency_runtime / "uv-tools/mempalace" / scripts / ("python.exe" if os.name == "nt" else "python")
+        managed_node = dependency_runtime / ("node/node.exe" if os.name == "nt" else "node/bin/node")
     adapters = managed_paths()[:4]
     skill = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
@@ -2801,7 +2913,7 @@ def desired_content(
         )
         + "\n"
     ).encode()
-    desired_hooks = lifecycle_hooks_document("codex")
+    desired_hooks = lifecycle_hooks_document("codex", managed_python=managed_python)
     after["plugins/chaos-engine/hooks/hooks.json"] = (
         json.dumps({"hooks": {}}, indent=2, sort_keys=True) + "\n"
     ).encode()
@@ -2812,11 +2924,11 @@ def desired_content(
     )
     after[".grok/hooks/lifecycle.json"] = hook_content(
         without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
-        lifecycle_hooks_document("grok"),
+        lifecycle_hooks_document("grok", managed_python=managed_python),
         "Grok",
     )
     after[".github/hooks/chaos-engine.json"] = copilot_hook_content(
-        before[".github/hooks/chaos-engine.json"]
+        before[".github/hooks/chaos-engine.json"], managed_node
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
@@ -2843,7 +2955,7 @@ def desired_content(
     ).encode()
     claude_settings = hook_content(
         without_chaos_hooks(before[".claude/settings.json"], "Claude"),
-        lifecycle_hooks_document("claude"),
+        lifecycle_hooks_document("claude", managed_python=managed_python),
         "Claude",
     )
     try:
@@ -3066,15 +3178,15 @@ def desired_content(
         before[".github/copilot-instructions.md"],
         INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
     )
-    after[".mcp.json"] = json_content(before[".mcp.json"], maven_runtime)
-    gemini_settings = json_content(before[".gemini/settings.json"], maven_runtime)
+    after[".mcp.json"] = json_content(before[".mcp.json"], maven_runtime, managed_python)
+    gemini_settings = json_content(before[".gemini/settings.json"], maven_runtime, managed_python)
     after[".gemini/settings.json"] = hook_content(
         without_chaos_hooks(gemini_settings, "Gemini"),
-        gemini_hooks_document(),
+        gemini_hooks_document(managed_node),
         "Gemini",
     )
     after[".codex/config.toml"] = codex_content(
-        before[".codex/config.toml"], maven_runtime=maven_runtime
+        before[".codex/config.toml"], maven_runtime=maven_runtime, managed_python=managed_python
     )
     after[".gitattributes"] = gitattributes_content(before[".gitattributes"])
     return after
@@ -3496,6 +3608,7 @@ def install(
     project: Path,
     core_commit: str | None = None,
     capability_policy_digest: str | None = None,
+    dependency_runtime: Path | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
@@ -3521,6 +3634,7 @@ def install(
                 before,
                 project_name=project_identity_name(project),
                 plugin_version=version,
+                dependency_runtime=dependency_runtime,
             )
             if (
                 after == wanted
@@ -3566,6 +3680,7 @@ def install(
         before,
         project_name=project_identity_name(project),
         plugin_version=version,
+        dependency_runtime=dependency_runtime,
     )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")

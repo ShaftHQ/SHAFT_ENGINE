@@ -167,7 +167,7 @@ def mempalace_runtime_status(project: Path):
             runtime = Path(temporary) / ".chaos-engine-runtime"
             plan = module.install_plan(runtime, specification)
 
-        self.assertEqual(1, specification["schemaVersion"])
+            self.assertEqual(2, specification["schemaVersion"])
         self.assertEqual({"uv", "mempalace", "graphify", "memory"}, set(plan))
         self.assertEqual("uv==0.11.29", plan["uv"][1][-1])
         self.assertIn("mempalace==3.7.1", plan["mempalace"][0])

@@ -1663,7 +1663,7 @@ class GenerationRuntimeTests(unittest.TestCase):
                     python = generation / f"uv-tools/{environment_name}/{scripts}/{python_name}"
                     python.parent.mkdir(parents=True, exist_ok=True)
                     python.write_bytes(f"python-{environment_name}".encode())
-                if "npm" in Path(command[0]).name and "install" in command:
+                if any("npm" in Path(part).name for part in command[:2]) and "install" in command:
                     for name, suffix in (
                         ("memory", "dist/cli/main.js"),
                         ("memory-mcp", "dist/mcp/server.js"),
@@ -1781,7 +1781,7 @@ class GenerationRuntimeTests(unittest.TestCase):
                     path = generation / f"uv-tools/{name}/{scripts}/{python_name}"
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(f"python-{name}".encode())
-                elif "npm" in Path(command[0]).name and "install" in command:
+                elif any("npm" in Path(part).name for part in command[:2]) and "install" in command:
                     for suffix in ("dist/cli/main.js", "dist/mcp/server.js"):
                         path = generation / f"npm/node_modules/@aictx/memory/{suffix}"
                         path.parent.mkdir(parents=True, exist_ok=True)
