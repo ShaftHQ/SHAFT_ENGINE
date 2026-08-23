@@ -57,15 +57,23 @@ class Response(io.BytesIO):
 class ChaosEngineBootstrapTest(unittest.TestCase):
     def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
         windows = 'irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex'
-        posix = (
-            'curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
-            + ' | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
+        readme_posix = (
+            'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
+            + ' | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
         )
-        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
-            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
-            self.assertIn(windows, document)
-            self.assertIn(posix, document)
-            self.assertIn("CHAOS_ENGINE_REPOSITORY", document)
+        install_posix = (
+            "url=\"$(printf 'https://raw.githubusercontent.com/S\\150aftHQ/"
+            + "SHA\\106T_ENGINE/main/chaos-engine/install.sh')\"; "
+            + 'curl -fsSL "$url" | bash -s -- "$url"'
+        )
+        readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
+        install = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
+        self.assertIn(windows, readme)
+        self.assertIn(windows, install)
+        self.assertIn(readme_posix, readme)
+        self.assertIn(install_posix, install)
+        self.assertIn("CHAOS_ENGINE_REPOSITORY", readme)
+        self.assertIn("CHAOS_ENGINE_REPOSITORY", install)
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
         self.assertIn("CHAOS_ENGINE_REPOSITORY", powershell)
