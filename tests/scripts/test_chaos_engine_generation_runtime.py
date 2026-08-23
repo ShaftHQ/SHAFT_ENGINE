@@ -1342,17 +1342,15 @@ class GenerationRuntimeTests(unittest.TestCase):
             runtime = Path(temporary)
             owned = runtime / "owned.bin"
             owned.write_bytes(b"original")
-            original = owned.stat()
             real_read = module.os.read
             mutated = False
 
             def mutate_after_hash(descriptor, size):
                 nonlocal mutated
                 chunk = real_read(descriptor, size)
-                if chunk and not mutated:
+                if not chunk and not mutated:
                     mutated = True
-                    owned.write_bytes(b"changed!")
-                    os.utime(owned, ns=(original.st_atime_ns, original.st_mtime_ns))
+                    owned.write_bytes(b"changed-after-hash")
                 return chunk
 
             with mock.patch.object(module.os, "read", side_effect=mutate_after_hash):
