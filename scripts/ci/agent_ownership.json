@@ -27,6 +27,11 @@
       "owner": "chaos-engine/hosts.py",
       "terms": ["REQUIRED_HOOK_EVENTS", "chaos_guard_locator_command", "lifecycle_hooks_document"]
     },
+    "hook matcher policy": {
+      "owner": "chaos-engine/hooks/matchers.json",
+      "terms": ["preventive", "observational"],
+      "allowed": ["chaos-engine/hosts.py", "chaos-engine/hooks/launch.js", "chaos-engine/references/lifecycle-hooks.md", ".agents/skills/README.md", ".codex/hooks.json", ".claude/settings.json"]
+    },
     "tool dispatch": {
       "owner": "chaos-engine/tool.py",
       "terms": ["load_host_controller", "guard_mempalace_mcp", "resolve_command"]

@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+@Test(singleThreaded = true)
 public class PdfFileManagerDocumentContractTest {
     private final List<Path> temporaryFiles = new ArrayList<>();
 

@@ -60,8 +60,10 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertEqual(0, result.returncode)
         self.assertNotIn(caveman, context)
         self.assertNotIn(ponytail, context)
-        self.assertIn("vendor/caveman/skills/caveman/SKILL.md", context)
-        self.assertIn("vendor/ponytail/skills/ponytail/SKILL.md", context)
+        for name in ("caveman", "ponytail"):
+            locator = f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md"
+            self.assertIn(locator, context)
+            self.assertTrue((ROOT / locator).is_file(), locator)
         self.assertLessEqual(len(result.stdout.encode("utf-8")), 4096)
 
     def test_source_and_portable_session_start_share_exact_companion_context(self):
@@ -82,6 +84,9 @@ class ChaosEngineHookTest(unittest.TestCase):
             line for line in source_context.splitlines() if "Required companion:" in line
         ]
         self.assertEqual(portable_locators, source_locators)
+        for line in source_locators:
+            locator = line.split("`", 2)[1]
+            self.assertTrue((ROOT / locator).is_file(), locator)
         self.assertLessEqual(len(source.stdout.encode("utf-8")), 4096)
 
     def test_shared_lifecycle_core_owns_protocol_dispatch_for_both_launchers(self):

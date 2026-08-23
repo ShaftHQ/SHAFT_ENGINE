@@ -1,6 +1,5 @@
 # .github/release.yml
-# Keep release notes close to GitHub's default auto-generated format.
-# We only exclude noisy bot authors and explicitly skipped PRs.
+# Curate release notes from one required human-PR classification label.
 # Reference: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
 
 changelog:
@@ -13,3 +12,14 @@ changelog:
       - copilot-swe-agent[bot]
     labels:
       - skip-release-notes
+  categories:
+    - title: Breaking Changes
+      labels:
+        - breaking-change
+    - title: Enhancements
+      labels:
+        - enhancement
+    - title: Bug Fixes
+      labels:
+        - bug
+        - regression

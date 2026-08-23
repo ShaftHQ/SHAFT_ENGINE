@@ -1084,6 +1084,17 @@ class WorktreeHygieneTest(unittest.TestCase):
             [],
         )
 
+    def test_gh_pages_deployment_branch_is_never_reported_as_orphaned(self):
+        old_epoch = int(time.time()) - (10 * 86400)
+        self.push_and_remove_worktree("pages", "gh-pages", commit_epoch=old_epoch)
+
+        report = collect_worktree_report(self.main, open_pull_requests=lambda _b: 0)
+
+        self.assertEqual(
+            [item for item in report if item.get("is_remote_only")],
+            [],
+        )
+
 
 class OpenPullRequestLookupTest(unittest.TestCase):
     """The one function that leaves the machine."""

@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+@Test(singleThreaded = true)
 public class HttpContractRecorderTest {
     private Path contractFile;
 

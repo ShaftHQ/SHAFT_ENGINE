@@ -62,6 +62,23 @@ def _read_companion(name: str) -> str | None:
     return None
 
 
+def _workspace_locator(path: Path) -> str:
+    """Return a companion path resolvable from the active project root."""
+    anchors = (
+        Path(".agents/skills/chaos-engine/SKILL.md"),
+        Path(".chaos-engine/skills/chaos-engine/SKILL.md"),
+        Path("chaos-engine/skills/chaos-engine/SKILL.md"),
+    )
+    for root in _search_roots():
+        if not any((root / anchor).is_file() for anchor in anchors):
+            continue
+        try:
+            return path.resolve().relative_to(root.resolve()).as_posix()
+        except (OSError, ValueError):
+            continue
+    return path.as_posix()
+
+
 def session_start_context(token: str | None, activation: str) -> str:
     """Return compact activation; agents load canonical skills from owned paths."""
     parts = [f"ChaosEngine: {activation}"]
@@ -70,12 +87,13 @@ def session_start_context(token: str | None, activation: str) -> str:
     parts.append(ULTRA_SELECTOR)
     for name in COMPANION_NAMES:
         for root in _search_roots():
-            relative = next(
-                (candidate for candidate in _skill_relatives(name) if (root / candidate).is_file()),
+            path = next(
+                (root / candidate for candidate in _skill_relatives(name) if (root / candidate).is_file()),
                 None,
             )
-            if relative is not None:
-                parts.append(f"Required companion: read and follow `{relative}` before responding.")
+            if path is not None:
+                locator = _workspace_locator(path)
+                parts.append(f"Required companion: read and follow `{locator}` before responding.")
                 break
     return "\n\n".join(parts)
 

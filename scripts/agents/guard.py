@@ -77,12 +77,21 @@ from urllib.parse import urlparse
 _HARNESS_IMPORT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _HARNESS_IMPORT_ROOT not in sys.path:
     sys.path.insert(0, _HARNESS_IMPORT_ROOT)
-from scripts.agents import learning_session as _learning_session
 from scripts.agents import reflection as _reflection
-from scripts.agents.repository_context import (
-    RepositoryContextError,
-    resolve_repository_context,
-)
+
+
+@lru_cache(maxsize=1)
+def _learning_session_core():
+    from scripts.agents import learning_session
+
+    return learning_session
+
+
+@lru_cache(maxsize=1)
+def _repository_context_core():
+    from scripts.agents import repository_context
+
+    return repository_context
 
 # ---------------------------------------------------------------------------
 # R1: Maven test scoping + headless execution
@@ -1531,10 +1540,31 @@ _TOOL_ALIASES = {
     "shellcommand": "PowerShell",
     "exec_command": "PowerShell",
     "execcommand": "PowerShell",
+    "runshellcommand": "PowerShell",
+    "run_shell_command": "PowerShell",
+    "runinterminal": "PowerShell",
+    "run_in_terminal": "PowerShell",
     "read": "Read",
+    "readfile": "Read",
+    "read_file": "Read",
+    "readmanyfiles": "Read",
+    "read_many_files": "Read",
     "grep": "Grep",
+    "grepsearch": "Grep",
+    "grep_search": "Grep",
     "edit": "Edit",
+    "editfile": "Edit",
+    "edit_file": "Edit",
+    "replace": "Edit",
+    "replacestringinfile": "Edit",
+    "replace_string_in_file": "Edit",
+    "multireplacestringinfile": "Edit",
+    "multi_replace_string_in_file": "Edit",
     "write": "Write",
+    "writefile": "Write",
+    "write_file": "Write",
+    "createfile": "Write",
+    "create_file": "Write",
     "skill": "Skill",
     "agent": "Agent",
     "applypatch": "apply_patch",
@@ -1669,20 +1699,21 @@ def _learning_session_events(hook_input: dict, command: str) -> list[str]:
         return []
     if supplied_session != hook_input.get("session_id"):
         return []
-    state = _learning_session.default_state_dir()
+    learning_session = _learning_session_core()
+    state = learning_session.default_state_dir()
     try:
         if operation == "finalize":
-            completed = _learning_session.load_session_completion(state, supplied_session)
+            completed = learning_session.load_session_completion(state, supplied_session)
             if completed is not None:
                 return [
                     "learning-session-complete:" + completed["completion_id"]
                 ]
             return []
         operation_id = remaining[remaining.index("--operation-id") + 1]
-        completion = _learning_session.load_completion(state, supplied_session, operation_id)
+        completion = learning_session.load_completion(state, supplied_session, operation_id)
         if completion is None or completion["operation"] != operation:
             return []
-        receipts = _learning_session.load_receipts(state, supplied_session)
+        receipts = learning_session.load_receipts(state, supplied_session)
         if operation == "signal":
             valid = {receipt["incident_hash"] for receipt in receipts}
             if set(completion["incident_hashes"]).issubset(valid):
@@ -1696,7 +1727,7 @@ def _learning_session_events(hook_input: dict, command: str) -> list[str]:
             }
             valid = {
                 candidate["incident_hash"]
-                for candidate in _learning_session.load_candidates(state)
+                for candidate in learning_session.load_candidates(state)
                 if candidate["receipt_ids"]
                 and candidate["receipt_ids"][0] in receipt_ids
                 and receipt_ids[candidate["receipt_ids"][0]]["incident_hash"]
@@ -1707,7 +1738,7 @@ def _learning_session_events(hook_input: dict, command: str) -> list[str]:
             if set(completion["incident_hashes"]).issubset(valid):
                 return [f"learning-assessed:{item}" for item in completion["incident_hashes"]]
         if operation == "attest-none":
-            attestation = _learning_session.load_attestation(state, supplied_session)
+            attestation = learning_session.load_attestation(state, supplied_session)
             if attestation is not None and completion["reason_code"] == attestation["reason_code"]:
                 return [f"learning-none:{attestation['reason_code']}"]
     except (OSError, ValueError, KeyError, TypeError):
@@ -2121,10 +2152,21 @@ def _wrapped_exec_call_objects(source: str) -> tuple[str, ...] | None:
     return None if quote is not None or block_comment else tuple(calls)
 
 
-def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
-    """Extract one literal cmd/command string per unambiguous wrapped call."""
-    commands: list[str] = []
-    key = r'''(?:\b(?:cmd|command)\b|["'](?:cmd|command)["'])'''
+class _LiteralInvocation(NamedTuple):
+    """One statically inspectable tool invocation and its effective write scope."""
+
+    command: str
+    workdir: str | None
+    mutation: bool
+    targets: tuple[str, ...]
+    unresolved: bool
+
+
+def _wrapped_exec_invocations(
+    source: str, fallback_workdir: str | None = None
+) -> tuple[_LiteralInvocation, ...]:
+    """Parse every literal wrapped shell call once, preserving command/workdir pairing."""
+    invocations: list[_LiteralInvocation] = []
     calls = _wrapped_exec_call_objects(source)
     if calls is None:
         return ()
@@ -2132,7 +2174,8 @@ def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
         properties = _top_level_javascript_properties(details)
         if properties is None:
             return ()
-        literals: list[str] = []
+        commands: list[str] = []
+        workdirs: list[str] = []
         for property_text in properties:
             if property_text.startswith(("...", "[")):
                 return ()
@@ -2143,66 +2186,45 @@ def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
             )
             if quoted_key is not None and "\\" in quoted_key.group("key"):
                 return ()
-            match = re.fullmatch(
-                key + r'''\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
-                property_text,
-                re.DOTALL,
-            )
-            if match is not None:
-                literals.append(match.group("literal"))
-                continue
-            if re.match(r'''(?:get|set|async)?\s*''' + key + r'''(?:\s*:|\s*\()''', property_text):
-                return ()
-        if len(literals) != 1:
+            for name, destination in (("cmd", commands), ("command", commands), ("workdir", workdirs)):
+                key = rf'''(?:\b{name}\b|["']{name}["'])'''
+                match = re.fullmatch(
+                    key + r'''\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+                    property_text,
+                    re.DOTALL,
+                )
+                if match is not None:
+                    destination.append(match.group("literal"))
+                    break
+                if re.match(
+                    r'''(?:get|set|async)?\s*''' + key + r'''(?:\s*:|\s*\()''',
+                    property_text,
+                ):
+                    return ()
+        if len(commands) != 1 or len(workdirs) > 1:
             return ()
         try:
-            command = json.loads(literals[0])
+            command = json.loads(commands[0])
+            workdir = json.loads(workdirs[0]) if workdirs else fallback_workdir
         except (json.JSONDecodeError, ValueError):
             return ()
         if not isinstance(command, str) or not command:
             return ()
-        commands.append(command)
-    return tuple(commands)
+        if workdir is not None and (not isinstance(workdir, str) or not workdir.strip()):
+            return ()
+        mutation, targets, unresolved = _shell_mutation_analysis(command)
+        invocations.append(
+            _LiteralInvocation(command, workdir, mutation, targets, unresolved)
+        )
+    return tuple(invocations)
+
+
+def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
+    return tuple(invocation.command for invocation in _wrapped_exec_invocations(source))
 
 
 def _wrapped_exec_workdirs(source: str) -> tuple[str | None, ...]:
-    """Return one literal workdir, or None, per unambiguous wrapped exec call."""
-    calls = _wrapped_exec_call_objects(source)
-    if calls is None:
-        return ()
-    workdirs: list[str | None] = []
-    key = r'''(?:\bworkdir\b|["']workdir["'])'''
-    for details in calls:
-        properties = _top_level_javascript_properties(details)
-        if properties is None:
-            return ()
-        values: list[str] = []
-        for property_text in properties:
-            if property_text.startswith(("...", "[")):
-                return ()
-            match = re.fullmatch(
-                key + r'''\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
-                property_text,
-                re.DOTALL,
-            )
-            if match is not None:
-                values.append(match.group("literal"))
-                continue
-            if re.match(r'''(?:get|set|async)?\s*''' + key + r'''(?:\s*:|\s*\()''', property_text):
-                return ()
-        if len(values) > 1:
-            return ()
-        if not values:
-            workdirs.append(None)
-            continue
-        try:
-            value = json.loads(values[0])
-        except (json.JSONDecodeError, ValueError):
-            return ()
-        if not isinstance(value, str) or not value.strip():
-            return ()
-        workdirs.append(value)
-    return tuple(workdirs)
+    return tuple(invocation.workdir for invocation in _wrapped_exec_invocations(source))
 
 
 def _functions_exec_source(tool_input: object) -> str:
@@ -2227,10 +2249,23 @@ def _functions_exec_direct_command(tool_input: object) -> str:
 
 
 def _functions_exec_commands(tool_input: object) -> tuple[str, ...]:
+    return tuple(
+        invocation.command for invocation in _functions_exec_invocations(tool_input)
+    )
+
+
+def _functions_exec_invocations(
+    tool_input: object, fallback_workdir: str | None = None
+) -> tuple[_LiteralInvocation, ...]:
     direct = _functions_exec_direct_command(tool_input)
     if direct:
-        return (direct,)
-    return _wrapped_exec_commands(_functions_exec_source(tool_input))
+        details = tool_input if isinstance(tool_input, dict) else {}
+        workdir = details.get("workdir")
+        if not isinstance(workdir, str) or not workdir.strip():
+            workdir = fallback_workdir
+        mutation, targets, unresolved = _shell_mutation_analysis(direct)
+        return (_LiteralInvocation(direct, workdir, mutation, targets, unresolved),)
+    return _wrapped_exec_invocations(_functions_exec_source(tool_input), fallback_workdir)
 
 
 def _functions_exec_plan_events(source: str) -> tuple[str, ...]:
@@ -2279,6 +2314,56 @@ def _functions_exec_plan_events(source: str) -> tuple[str, ...]:
 def _wrapped_exec_call_count(source: str) -> int:
     calls = _wrapped_exec_call_objects(source)
     return len(calls) if calls is not None else 1
+
+
+def _wrapped_web_result_is_forwarded(source: str) -> bool:
+    """Accept one literal web call only when its bound result reaches text(...)."""
+    if len(re.findall(r"\btools\.web__run\s*\(", source)) != 1:
+        return False
+    assignment = re.search(
+        r"\b(?:const|let)\s+(?P<name>[A-Za-z_$][\w$]*)\s*=\s*"
+        r"await\s+tools\.web__run\s*\(",
+        source,
+    )
+    if assignment is None:
+        return False
+    opening = assignment.end() - 1
+    depth = 1
+    quote: str | None = None
+    index = opening + 1
+    while index < len(source) and depth:
+        character = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if quote is not None:
+            if quote == "`" and character == "$" and following == "{":
+                return False
+            if character == "\\" and following:
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+            index += 1
+            continue
+        if character in {"'", '"', "`"}:
+            quote = character
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        index += 1
+    if depth or quote is not None:
+        return False
+    arguments = source[opening + 1:index - 1].strip()
+    if not (arguments.startswith("{") and arguments.endswith("}")):
+        return False
+    if _top_level_javascript_properties(arguments[1:-1]) is None:
+        return False
+    name = assignment.group("name")
+    if len(re.findall(rf"\b(?:const|let|var)\s+{re.escape(name)}\b", source)) != 1:
+        return False
+    if re.search(rf"\b{re.escape(name)}\s*=", source[index:]):
+        return False
+    return len(re.findall(rf"\btext\s*\(\s*{re.escape(name)}\s*\)", source[index:])) == 1
 
 
 def _shell_requests_primary_source(segment: str) -> bool:
@@ -2366,7 +2451,10 @@ def _invokes_research_cli(command: str, executable: str, verbs: tuple[str, ...])
 
 
 def _research_preflight_events(
-    tool_name: str, tool_input: object, tool_result: object = None
+    tool_name: str,
+    tool_input: object,
+    tool_result: object = None,
+    literal_commands: tuple[str, ...] | None = None,
 ) -> tuple[str, ...]:
     """Map one successful native-client tool call to receipt events in observed order."""
     details = tool_input if isinstance(tool_input, dict) else {}
@@ -2407,7 +2495,11 @@ def _research_preflight_events(
             if len(segments) == 1 and _shell_requests_primary_source(lowered):
                 events.append("authoritative-online-research")
     if tool_name == "functions.exec":
-        wrapped_commands = _functions_exec_commands(tool_input)
+        wrapped_commands = (
+            _functions_exec_commands(tool_input)
+            if literal_commands is None
+            else literal_commands
+        )
         wrapped_call_count = _wrapped_exec_call_count(source)
         direct_command = _functions_exec_direct_command(tool_input)
         if direct_command or (wrapped_call_count == 1 and len(wrapped_commands) == 1):
@@ -2418,6 +2510,12 @@ def _research_preflight_events(
                 )
             )
         events.extend(_functions_exec_plan_events(source))
+        if (
+            _wrapped_web_result_is_forwarded(source)
+            and _tool_result_explicitly_successful(tool_result)
+            and _has_primary_source_url(tool_result)
+        ):
+            events.append("authoritative-online-research")
     lowered_name = tool_name.lower()
     if ("shaft-memory" in lowered_name or "shaft_memory" in lowered_name) and any(
         verb in lowered_name for verb in ("search", "load", "inspect")
@@ -2533,7 +2631,12 @@ def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ..
         path = details.get("file_path") or details.get("path") or details.get("notebook_path")
         return (str(path),) if path else ()
     if tool_name == "apply_patch":
-        return _patch_header_targets(str(details.get("patch") or details.get("input") or ""))
+        patch_text = (
+            tool_input
+            if isinstance(tool_input, str)
+            else details.get("patch") or details.get("input") or ""
+        )
+        return _patch_header_targets(str(patch_text))
     if tool_name == "functions.exec":
         source = _functions_exec_source(tool_input)
         matches = tuple(
@@ -2559,9 +2662,8 @@ def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ..
     return ()
 
 
-def _shell_mutation_targets(command: str) -> tuple[str, ...]:
-    targets: list[str] = []
-    one_target = {
+_PATH_COMMANDS = frozenset(
+    {
         "set-content",
         "add-content",
         "clear-content",
@@ -2569,44 +2671,202 @@ def _shell_mutation_targets(command: str) -> tuple[str, ...]:
         "remove-item",
         "new-item",
         "out-file",
+        "copy-item",
+        "rename-item",
+        "move-item",
     }
-    destination_target = {"copy-item", "rename-item", "move-item"}
+)
+
+
+def _literal_powershell_assignments(command: str) -> dict[str, str]:
+    assignments: dict[str, str] = {}
+    pattern = re.compile(
+        r'''(?im)(?:^|[;\r\n])\s*\$(?P<name>[A-Za-z_][\w]*)\s*=\s*'''
+        r'''(?P<quote>["'])(?P<value>.*?)(?P=quote)\s*(?=;|\r?$)'''
+    )
+    for match in pattern.finditer(command):
+        assignments[match.group("name").casefold()] = match.group("value")
+    return assignments
+
+
+def _static_path(value: str, assignments: dict[str, str]) -> tuple[str | None, bool]:
+    rendered = value.strip().strip("\"'")
+    if not rendered:
+        return None, True
+    variable = re.fullmatch(r"\$([A-Za-z_][\w]*)", rendered)
+    if variable:
+        resolved = assignments.get(variable.group(1).casefold())
+        return (resolved, False) if resolved is not None else (None, True)
+    if "$" in rendered or "%" in rendered or "$(" in rendered:
+        return None, True
+    return rendered, False
+
+
+def _redirection_targets(segment: str) -> tuple[str, ...]:
+    targets: list[str] = []
+    quote: str | None = None
+    index = 0
+    while index < len(segment):
+        character = segment[index]
+        following = segment[index + 1] if index + 1 < len(segment) else ""
+        if quote is not None:
+            if character in {"\\", "`"} and following:
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+            index += 1
+            continue
+        if character in {"'", '"', "`"}:
+            quote = character
+            index += 1
+            continue
+        if character != ">":
+            index += 1
+            continue
+        if following == "&":
+            index += 2
+            continue
+        index += 2 if following == ">" else 1
+        while index < len(segment) and segment[index].isspace():
+            index += 1
+        if index >= len(segment):
+            break
+        if segment[index] in {"'", '"'}:
+            delimiter = segment[index]
+            start = index + 1
+            index = start
+            while index < len(segment) and segment[index] != delimiter:
+                index += 1
+            if index < len(segment):
+                targets.append(segment[start:index])
+                index += 1
+            continue
+        start = index
+        while index < len(segment) and not segment[index].isspace() and segment[index] not in ";|&":
+            index += 1
+        if index > start:
+            targets.append(segment[start:index])
+    return tuple(targets)
+
+
+def _powershell_path_target(
+    tokens: list[str], head: str, assignments: dict[str, str]
+) -> tuple[str | None, bool]:
+    named = {
+        "-path",
+        "-literalpath",
+        "-filepath",
+        "-destination",
+        "-dest",
+        "-newname",
+    }
+    destination = head in {"copy-item", "rename-item", "move-item"}
+    preferred = {"-destination", "-dest", "-newname"} if destination else {
+        "-path",
+        "-literalpath",
+        "-filepath",
+    }
+    candidates: list[tuple[str, str]] = []
+    for index, token in enumerate(tokens[1:], start=1):
+        lowered = token.casefold()
+        if lowered in named and index + 1 < len(tokens):
+            candidates.append((lowered, tokens[index + 1]))
+        elif any(lowered.startswith(option + ":") for option in named):
+            candidates.append((lowered.split(":", 1)[0], token.split(":", 1)[1]))
+    selected = next((value for option, value in candidates if option in preferred), None)
+    if selected is None:
+        positional = [token for token in tokens[1:] if not token.startswith("-")]
+        if positional:
+            selected = positional[-1] if destination else positional[0]
+    if selected is None:
+        return None, True
+    return _static_path(selected, assignments)
+
+
+def _gh_api_is_mutation(segment: str) -> bool:
+    rest = _tokens_after_head(segment, frozenset({"gh"}))
+    if not rest:
+        return False
+    rest, _repository = _split_gh_global_flags(rest)
+    if not rest or rest[0].casefold() != "api":
+        return False
+    method = "GET"
+    endpoint = ""
+    value_options = {"--method", "-x", "--hostname", "--input", "--cache", "--paginate", "--slurp"}
+    index = 1
+    while index < len(rest):
+        token = rest[index]
+        lowered = token.casefold()
+        if lowered in {"--method", "-x"} and index + 1 < len(rest):
+            method = rest[index + 1].upper()
+            index += 2
+            continue
+        if lowered.startswith("--method="):
+            method = token.split("=", 1)[1].upper()
+            index += 1
+            continue
+        if lowered in value_options and index + 1 < len(rest):
+            index += 2
+            continue
+        if not token.startswith("-") and not endpoint:
+            endpoint = token.strip("\"'").lstrip("/")
+        index += 1
+    if method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return False
+    return not (
+        method == "POST"
+        and re.fullmatch(r"repos/[^/]+/[^/]+/releases/generate-notes", endpoint)
+    )
+
+
+def _shell_mutation_analysis(command: str) -> tuple[bool, tuple[str, ...], bool]:
+    targets: list[str] = []
+    mutation = False
+    unresolved = False
+    assignments = _literal_powershell_assignments(command)
     for segment in _command_segments(command):
         tokens = _segment_tokens(segment)
         if not tokens:
             continue
-        head = tokens[0].lower()
-        if head in one_target and len(tokens) > 1:
-            targets.append(tokens[1])
-        elif head in destination_target and len(tokens) > 2:
-            targets.append(tokens[2])
-        for match in re.finditer(r"(?<![0-9])>(?![>&])\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s]+))", segment):
-            targets.append(next(group for group in match.groups() if group is not None))
-    return tuple(dict.fromkeys(targets))
+        head = tokens[0].casefold()
+        if head in _PATH_COMMANDS:
+            mutation = True
+            target, dynamic = _powershell_path_target(tokens, head, assignments)
+            unresolved = unresolved or dynamic
+            if target is not None:
+                targets.append(target)
+        redirects = _redirection_targets(segment)
+        if redirects:
+            mutation = True
+            for target in redirects:
+                resolved, dynamic = _static_path(target, assignments)
+                unresolved = unresolved or dynamic
+                if resolved is not None:
+                    targets.append(resolved)
+        lowered = segment.casefold()
+        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|checkout|switch|cherry-pick)\b", lowered):
+            mutation = True
+        if _git_branch_is_mutation(segment):
+            mutation = True
+        if _gh_api_is_mutation(segment) or re.search(
+            r"\bgh\s+(?:pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b",
+            lowered,
+        ):
+            mutation = True
+        if re.search(r"\bmemory\s+(?:remember|delete|supersede|patch)\b", lowered):
+            mutation = True
+        if re.search(r"\bmempalace\s+(?:add|delete|mine|sync|sweep|update|checkpoint)\b", lowered):
+            mutation = True
+    return mutation, tuple(dict.fromkeys(targets)), unresolved
+
+
+def _shell_mutation_targets(command: str) -> tuple[str, ...]:
+    return _shell_mutation_analysis(command)[1]
 
 
 def _shell_is_mutation(command: str) -> bool:
-    for segment in _command_segments(command):
-        lowered = segment.lower()
-        if re.search(
-            r"\b(?:set-content|add-content|clear-content|remove-content|out-file|"
-            r"new-item|remove-item|copy-item|rename-item|move-item)\b",
-            lowered,
-        ):
-            return True
-        if re.search(r"(?<![0-9])>(?![>&])", lowered):
-            return True
-        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|checkout|switch|cherry-pick)\b", lowered):
-            return True
-        if _git_branch_is_mutation(segment):
-            return True
-        if re.search(r"\bgh\s+(?:api\b.*--method\s+(?:post|put|patch|delete)|pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b", lowered):
-            return True
-        if re.search(r"\bmemory\s+(?:remember|delete|supersede|patch)\b", lowered):
-            return True
-        if re.search(r"\bmempalace\s+(?:add|delete|mine|sync|sweep|update|checkpoint)\b", lowered):
-            return True
-    return False
+    return _shell_mutation_analysis(command)[0]
 
 
 _GIT_BRANCH_MUTATION_OPTIONS = frozenset(
@@ -2691,13 +2951,13 @@ def _functions_exec_is_mutation(tool_input: object) -> bool:
     if direct:
         return _shell_is_mutation(direct)
     source = _functions_exec_source(tool_input)
-    if re.search(r"\btools\.apply_patch\s*\(", source):
+    if re.search(r"\btools\.(?:apply_patch|store)\s*\(", source):
         return True
     if re.search(r"\btools\.exec_command\s*\(", source):
-        commands = _wrapped_exec_commands(source)
-        if _wrapped_exec_call_count(source) != len(commands):
+        invocations = _wrapped_exec_invocations(source)
+        if _wrapped_exec_call_count(source) != len(invocations):
             return True
-        return any(_shell_is_mutation(command) for command in commands)
+        return any(invocation.mutation for invocation in invocations)
     return False
 
 
@@ -2706,7 +2966,12 @@ def _hook_commands(hook_input: dict, tool_name: str) -> tuple[str, ...]:
         command = _extract_command(hook_input)
         return (command,) if command else ()
     if tool_name == "functions.exec":
-        return _functions_exec_commands(hook_input.get("tool_input", ""))
+        return tuple(
+            invocation.command
+            for invocation in _functions_exec_invocations(
+                hook_input.get("tool_input", ""), _hook_working_directory(hook_input)
+            )
+        )
     return ()
 
 
@@ -2767,18 +3032,20 @@ def _act_as_mohab_root(cwd: object) -> str | None:
 
 
 def check_r25_research_before_implementation(
-    hook_input: dict, tool_name: str
+    hook_input: dict, tool_name: str, context: _InvocationContext | None = None
 ) -> str | None:
     """Fail closed when an implementation tool arrives before the ordered receipt."""
     tool_input = hook_input.get("tool_input")
-    if not _is_implementation_mutation(tool_name, tool_input):
+    if context is None:
+        context = _invocation_context(hook_input, tool_name)
+    if not context.mutation:
         return None
     cwd = _hook_working_directory(hook_input)
     root = _act_as_mohab_root(cwd)
     if not root:
         return None
     if tool_name in _FILE_MUTATION_TOOLS or tool_name in _SHELL_TOOLS:
-        targets = _implementation_targets(tool_name, tool_input)
+        targets = context.targets
         if targets and all(not _path_is_inside(path, root, cwd) for path in targets):
             return None
     events = ledger_events(hook_input)
@@ -3845,14 +4112,15 @@ def _checkpoint_identity(hook_input: dict) -> tuple[str, str, str] | None:
     if not root or not branch or not re.fullmatch(r"[0-9a-fA-F]{40}", head):
         return None
     try:
-        context = resolve_repository_context(
+        repository_context = _repository_context_core()
+        context = repository_context.resolve_repository_context(
             explicit_repo=None,
             pr=None,
             explicit_root=Path(root),
             cwd=Path(root),
             runner=_bounded_repository_context_runner,
         )
-    except (RepositoryContextError, OSError, ValueError):
+    except (repository_context.RepositoryContextError, OSError, ValueError):
         return None
     return context.repo, branch, head.lower()
 
@@ -3866,6 +4134,7 @@ class _InvocationContext(NamedTuple):
     """One normalized repository and mutation view for a guarded invocation."""
 
     cwd: str | None
+    invocations: tuple[_LiteralInvocation, ...]
     targets: tuple[str, ...]
     repositories: tuple[str, ...]
     repository: str | None
@@ -3918,29 +4187,77 @@ def _invocation_workdirs(
         return (str(value),) if isinstance(value, str) and value.strip() else ()
     if tool_name != "functions.exec":
         return ()
-    direct = _functions_exec_direct_command(tool_input)
-    if direct:
-        value = details.get("workdir")
-        return (str(value),) if isinstance(value, str) and value.strip() else ()
-    source = _functions_exec_source(tool_input)
-    workdirs = _wrapped_exec_workdirs(source)
-    if len(workdirs) != _wrapped_exec_call_count(source):
-        return ()
-    return tuple(value or fallback for value in workdirs if value or fallback)
+    invocations = _functions_exec_invocations(tool_input, fallback)
+    return tuple(
+        invocation.workdir for invocation in invocations if invocation.workdir
+    )
+
+
+def _literal_invocations(
+    hook_input: dict, tool_name: str
+) -> tuple[_LiteralInvocation, ...]:
+    cwd = _hook_working_directory(hook_input)
+    tool_input = hook_input.get("tool_input")
+    details = tool_input if isinstance(tool_input, dict) else {}
+    if tool_name in _SHELL_TOOLS:
+        command = str(details.get("command") or details.get("cmd") or "")
+        if not command:
+            return ()
+        workdir = details.get("workdir")
+        if not isinstance(workdir, str) or not workdir.strip():
+            workdir = cwd
+        mutation, targets, unresolved = _shell_mutation_analysis(command)
+        return (_LiteralInvocation(command, workdir, mutation, targets, unresolved),)
+    if tool_name == "functions.exec":
+        source = _functions_exec_source(tool_input)
+        invocations = list(_functions_exec_invocations(tool_input, cwd))
+        exec_calls = len(re.findall(r"\btools\.exec_command\s*\(", source))
+        if exec_calls != sum(bool(invocation.command) for invocation in invocations):
+            invocations.append(_LiteralInvocation("", cwd, True, (), True))
+        patch_calls = len(re.findall(r"\btools\.apply_patch\s*\(", source))
+        if patch_calls:
+            targets = _implementation_targets(tool_name, tool_input)
+            literal_calls = len(
+                re.findall(
+                    r'''\btools\.apply_patch\s*\(\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)\s*\)''',
+                    source,
+                    re.DOTALL,
+                )
+            )
+            invocations.append(
+                _LiteralInvocation("", cwd, True, targets, literal_calls != patch_calls)
+            )
+        if re.search(r"\btools\.store\s*\(", source):
+            invocations.append(_LiteralInvocation("", cwd, True, (), False))
+        return tuple(invocations)
+    mutation = _is_implementation_mutation(tool_name, tool_input)
+    targets = _implementation_targets(tool_name, tool_input)
+    return (
+        (_LiteralInvocation("", cwd, mutation, targets, False),)
+        if mutation or targets
+        else ()
+    )
 
 
 def _invocation_context(hook_input: dict, tool_name: str) -> _InvocationContext:
     """Normalize repository identity once from workdir and mutation targets."""
     cwd = _hook_working_directory(hook_input)
-    tool_input = hook_input.get("tool_input")
-    mutation = _is_implementation_mutation(tool_name, tool_input)
-    targets = _implementation_targets(tool_name, tool_input)
-    workdirs = _invocation_workdirs(tool_name, tool_input, cwd)
-    target_base = workdirs[0] if len(set(workdirs)) == 1 else cwd
+    invocations = _literal_invocations(hook_input, tool_name)
+    mutation = any(invocation.mutation for invocation in invocations)
+    targets = tuple(
+        dict.fromkeys(target for invocation in invocations for target in invocation.targets)
+    )
+    workdirs = tuple(
+        invocation.workdir for invocation in invocations if invocation.workdir
+    )
     target_repositories = tuple(
         dict.fromkeys(
             repository
-            for repository in (_target_repository(target, target_base) for target in targets)
+            for invocation in invocations
+            for repository in (
+                _target_repository(target, invocation.workdir or cwd)
+                for target in invocation.targets
+            )
             if repository
         )
     )
@@ -3951,17 +4268,20 @@ def _invocation_context(hook_input: dict, tool_name: str) -> _InvocationContext:
             if repository
         )
     )
-    repositories = target_repositories or workdir_repositories
+    repositories = target_repositories if targets else workdir_repositories
     cwd_repository = _repository_root(cwd) if not repositories else None
     if not repositories and not targets:
         repositories = (cwd_repository,) if cwd_repository else ()
     ambiguous = len(repositories) > 1
-    unresolved = bool(targets and not repositories and not cwd_repository)
+    unresolved = any(invocation.unresolved for invocation in invocations) or bool(
+        targets and not repositories and not cwd_repository
+    )
     repository = repositories[0] if len(repositories) == 1 else None
     branch_cwd = repository or (workdirs[0] if len(set(workdirs)) == 1 and workdirs else cwd)
     branch = _current_branch(branch_cwd) if branch_cwd else None
     return _InvocationContext(
         cwd=cwd,
+        invocations=invocations,
         targets=targets,
         repositories=repositories,
         repository=repository,
@@ -3998,7 +4318,9 @@ def _path_is_inside(path: object, root: str, cwd: object) -> bool:
     return target == root or target.startswith(root + os.sep)
 
 
-def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
+def check_r19_fresh_base(
+    hook_input: dict, tool_name: str, context: _InvocationContext | None = None
+) -> str | None:
     """Refuse a write while HEAD is the default branch.
 
     Task isolation requires a fresh `ChaosEngine/*` branch cut from fetched
@@ -4038,9 +4360,15 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     the abnormal case -- so an ordinary edit costs exactly the one subprocess
     it cost before, which is what keeps this inside HOOK_BUDGET_SECONDS.
     """
-    context = _invocation_context(hook_input, tool_name)
+    if context is None:
+        context = _invocation_context(hook_input, tool_name)
     if not context.mutation:
         return None
+    if context.unresolved:
+        return (
+            "R19 blocked: a mutation target or wrapped command is dynamic or unresolved. "
+            "Use one literal target per repository so branch ownership can be verified."
+        )
     if tool_name in _SHELL_TOOLS and not context.targets:
         return None
     if context.ambiguous:
@@ -4052,12 +4380,6 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     branch = context.branch
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
-    if context.unresolved:
-        return (
-            f"R19 blocked: HEAD is {branch}, but Git could not resolve the repository "
-            "receiving this mutation. Retry from the target repository after confirming "
-            "its task branch."
-        )
     if context.targets and not context.repository:
         return None
     return (
@@ -4071,16 +4393,31 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
+    context = _invocation_context(hook_input, tool_name)
+    commands = tuple(
+        invocation.command for invocation in context.invocations if invocation.command
+    )
+    if tool_name == "functions.exec" and any(
+        invocation.unresolved and not invocation.command and not invocation.targets
+        for invocation in context.invocations
+    ):
+        _record_guard_block_and_deny(
+            hook_input,
+            "Wrapped exec command cannot inspect a dynamic or unsupported command payload; use one literal cmd string.",
+            host,
+        )
+        return 0
 
     checkpoint = _reflection.pending_checkpoint(_reflection_session_id(hook_input))
     if checkpoint is not None:
-        commands = _hook_commands(hook_input, tool_name)
         if len(commands) == 1 and (
             _reflection_recovery_operation(commands[0])
             or _updates_a_tracked_issue(commands[0], _hook_working_directory(hook_input))
         ):
             return 0
-        if _reflection_blocks_tool(hook_input, tool_name, checkpoint):
+        if _reflection_blocks_tool(
+            hook_input, tool_name, checkpoint, commands, context.mutation
+        ):
             _print_deny(_reflection_block_reason(checkpoint), host)
             return 0
 
@@ -4101,35 +4438,16 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
-    reason = check_r19_fresh_base(hook_input, tool_name)
+    reason = check_r19_fresh_base(hook_input, tool_name, context)
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
-    reason = check_r25_research_before_implementation(hook_input, tool_name)
+    reason = check_r25_research_before_implementation(hook_input, tool_name, context)
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
-    commands = _hook_commands(hook_input, tool_name)
-    functions_input = hook_input.get("tool_input")
-    functions_source = _functions_exec_source(functions_input)
-    functions_direct = _functions_exec_direct_command(functions_input)
-    if (
-        tool_name == "functions.exec"
-        and not functions_direct
-        and (
-            not isinstance(functions_input, (str, dict))
-            or (isinstance(functions_input, dict) and not functions_source)
-            or _wrapped_exec_call_count(functions_source) != len(commands)
-        )
-    ):
-        _record_guard_block_and_deny(
-            hook_input,
-            "Wrapped exec command cannot inspect a dynamic or unsupported command payload; use one literal cmd string.",
-            host,
-        )
-        return 0
     if commands:
         command_tool = "PowerShell" if tool_name == "functions.exec" else tool_name
         for command in commands:
@@ -4176,6 +4494,11 @@ def run_posttooluse(hook_input: dict) -> int:
     """Certify successes and reduce bounded failure outcomes into checkpoints."""
     tool_name = hook_input.get("tool_name", "")
     result = hook_input.get("tool_response", hook_input.get("tool_result"))
+    invocations = _literal_invocations(hook_input, tool_name)
+    commands = tuple(
+        invocation.command for invocation in invocations if invocation.command
+    )
+    mutation = any(invocation.mutation for invocation in invocations)
 
     result_failed = hook_input.get("hook_event_name") == "PostToolUseFailure" or bool(
         isinstance(result, dict)
@@ -4187,16 +4510,15 @@ def run_posttooluse(hook_input: dict) -> int:
         )
     )
     if result_failed:
-        failure = _record_task_failure(hook_input, result)
+        failure = _record_task_failure(hook_input, result, commands)
         checkpoint = _reflection.pending_checkpoint(_reflection_session_id(hook_input))
         if failure and checkpoint:
             print(json.dumps({"additionalContext": _reflection_block_reason(checkpoint)}))
-    commands = _hook_commands(hook_input, tool_name)
     for command in commands:
         if looks_like_a_test_run(command):
             _reflection.record_platform_outcome(
                 _reflection_session_id(hook_input),
-                target=_failure_target(hook_input),
+                target=_failure_target(hook_input, commands),
                 platform=str(hook_input.get("platform") or sys.platform),
                 outcome="failed" if result_failed else "passed",
             )
@@ -4215,7 +4537,7 @@ def run_posttooluse(hook_input: dict) -> int:
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
     ):
         ledger_record(hook_input, "memory-write")
-    for command in _hook_commands(hook_input, tool_name):
+    for command in commands:
         if not result_failed and _is_git_commit_command(command):
             ledger_record(hook_input, "commit")
         if not result_failed and _is_learning_write_command(command):
@@ -4244,7 +4566,7 @@ def run_posttooluse(hook_input: dict) -> int:
                 ledger_record(hook_input, issue_reference)
     if not result_failed:
         for event in _research_preflight_events(
-            tool_name, hook_input.get("tool_input"), result
+            tool_name, hook_input.get("tool_input"), result, commands
         ):
             ledger_record(hook_input, event)
     return 0
@@ -4262,24 +4584,26 @@ def _failure_class(result: object, hook_input: dict) -> str:
     return "tool-failure"
 
 
-def _failure_target(hook_input: dict) -> str:
+def _failure_target(hook_input: dict, commands: tuple[str, ...] = ()) -> str:
     explicit = hook_input.get("target") or hook_input.get("job") or hook_input.get("test")
     if isinstance(explicit, str) and explicit.strip():
         normalized = re.sub(r"\s+", " ", explicit.strip().casefold())
         return "logical-" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:20]
-    command = _extract_command(hook_input)
+    command = commands[0] if commands else _extract_command(hook_input)
     if command:
         normalized = re.sub(r"\s+", " ", command.strip().casefold())
         return "command-" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:20]
     return str(hook_input.get("tool_name") or "unknown")
 
 
-def _read_only_diagnostic(hook_input: dict) -> bool:
+def _read_only_diagnostic(
+    hook_input: dict, commands: tuple[str, ...] | None = None
+) -> bool:
     """Classify bounded discovery failures as observations, never attempts."""
     tool_name = str(hook_input.get("tool_name") or "")
     if tool_name in {"Read", "Grep", "Glob", "WebSearch", "WebFetch", "Skill"}:
         return True
-    commands = _hook_commands(hook_input, tool_name)
+    commands = _hook_commands(hook_input, tool_name) if commands is None else commands
     if not commands:
         return False
     for command in commands:
@@ -4306,16 +4630,18 @@ def _read_only_diagnostic(hook_input: dict) -> bool:
     return True
 
 
-def _record_task_failure(hook_input: dict, result: object = None) -> dict | None:
+def _record_task_failure(
+    hook_input: dict, result: object = None, commands: tuple[str, ...] = ()
+) -> dict | None:
     return _reflection.record_failure(
         _reflection_session_id(hook_input),
         phase="tool-outcome",
-        target=_failure_target(hook_input),
+        target=_failure_target(hook_input, commands),
         failure_class=_failure_class(result, hook_input),
         platform=hook_input.get("platform") or sys.platform,
         invariant=hook_input.get("invariant") or "command-outcome",
         head=hook_input.get("head") or "unknown",
-        attempted=not _read_only_diagnostic(hook_input),
+        attempted=not _read_only_diagnostic(hook_input, commands),
         observation_id=hook_input.get("tool_use_id"),
     )
 
@@ -4349,10 +4675,21 @@ def _reflection_recovery_operation(command: str) -> str | None:
     return operation if "--session-id" in arguments[script_index + 2 :] else None
 
 
-def _reflection_blocks_tool(hook_input: dict, tool_name: str, checkpoint: dict) -> bool:
+def _reflection_blocks_tool(
+    hook_input: dict,
+    tool_name: str,
+    checkpoint: dict,
+    commands: tuple[str, ...] | None = None,
+    mutation: bool | None = None,
+) -> bool:
     if tool_name in {"Read", "Grep", "Glob", "WebSearch", "WebFetch", "Skill"}:
         return False
-    commands = _hook_commands(hook_input, tool_name)
+    commands = _hook_commands(hook_input, tool_name) if commands is None else commands
+    mutation = (
+        _is_implementation_mutation(tool_name, hook_input.get("tool_input"))
+        if mutation is None
+        else mutation
+    )
     if commands:
         for command in commands:
             if _reflection_recovery_operation(command):
@@ -4368,10 +4705,10 @@ def _reflection_blocks_tool(hook_input: dict, tool_name: str, checkpoint: dict) 
                 if _failure_target(hook_input) in active_targets:
                     return True
                 continue
-            if _is_implementation_mutation(tool_name, hook_input.get("tool_input")):
+            if mutation:
                 return True
         return False
-    return _is_implementation_mutation(tool_name, hook_input.get("tool_input"))
+    return mutation
 
 
 def _reflection_block_reason(checkpoint: dict) -> str:
@@ -5150,10 +5487,16 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
-        return 0
+        elapsed = _reflection.session_elapsed_seconds(
+            _reflection_session_id(hook_input)
+        )
+        if elapsed is None or elapsed <= 60 * 60:
+            return 0
     reflection_reason = _terminal_reflection_reason(hook_input)
     if reflection_reason is not None:
         print(json.dumps({"decision": "block", "reason": reflection_reason}))
+        return 0
+    if hook_input.get("stop_hook_active") is True:
         return 0
 
     # Collected, never short-circuited. Returning on the first reason meant
@@ -6308,12 +6651,13 @@ def _evaluate_kernel_event(hook_input: dict, host: str):
     normalized_input["session_id"] = session_id
     normalized_input["agent_id"] = ""
     kernel_host = host if host in kernel.HOST_CAPABILITIES else kernel.detect_host(hook_input)
+    event = kernel.normalize_event(normalized_input, kernel_host)
+    if event.name in {"PostToolUse", "PostToolUseFailure"} and not event.target_phase:
+        return kernel.evaluate(event)
     journal = kernel.EffectJournal(
         _reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl")
     )
-    return kernel.evaluate_session(
-        kernel.normalize_event(normalized_input, kernel_host), journal
-    )
+    return kernel.evaluate_session(event, journal)
 
 
 def run_observational_event(_hook_input: dict) -> int:

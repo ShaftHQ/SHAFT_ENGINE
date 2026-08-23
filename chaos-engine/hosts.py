@@ -1132,7 +1132,9 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
         (
             "hooks/guard.py",
             "hooks/kernel.py",
+            "hooks/launch.js",
             "hooks/lifecycle.py",
+            "hooks/matchers.json",
             "hooks/reflection.py",
             "skills/chaos-engine/SKILL.md",
         )
@@ -1870,6 +1872,7 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/hooks/kernel.py",
         "plugins/chaos-engine/hooks/launch.js",
         "plugins/chaos-engine/hooks/lifecycle.py",
+        "plugins/chaos-engine/hooks/matchers.json",
         "plugins/chaos-engine/hooks/reflection.py",
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
         *companion_managed_paths(),
@@ -2306,6 +2309,18 @@ REQUIRED_HOOK_EVENTS = (
 CLAUDE_HOOK_EVENTS = (*REQUIRED_HOOK_EVENTS, "PreCompact", "SessionEnd")
 
 
+def _tool_matchers() -> tuple[str, str]:
+    policy = json.loads(
+        (Path(__file__).resolve().parent / "hooks/matchers.json").read_text(encoding="utf-8")
+    )
+    preventive = tuple(policy["preventive"])
+    observational = tuple(policy["observational"])
+    return "|".join(preventive), "|".join(observational)
+
+
+PRE_TOOL_MATCHER, POST_TOOL_MATCHER = _tool_matchers()
+
+
 def chaos_guard_locator_command(*, windows: bool, host: str) -> str:
     interpreter = "py -3" if windows else "python3"
     return (
@@ -2327,15 +2342,22 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None) ->
     }
     defaults = CLAUDE_HOOK_EVENTS if host == "claude" else REQUIRED_HOOK_EVENTS
     selected = events or {event: event for event in defaults}
-    hooks = {native: [{"hooks": [handler]}] for native in selected}
+    hooks = {}
+    for native in selected:
+        group = {"hooks": [handler]}
+        if native == "PreToolUse":
+            group["matcher"] = PRE_TOOL_MATCHER
+        elif native in {"PostToolUse", "PostToolUseFailure"}:
+            group["matcher"] = POST_TOOL_MATCHER
+        hooks[native] = [group]
     return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
 
 def copilot_hooks_document() -> bytes:
     handler = {
         "type": "command",
-        "bash": chaos_guard_locator_command(windows=False, host="copilot"),
-        "powershell": chaos_guard_locator_command(windows=True, host="copilot"),
+        "bash": "node .chaos-engine/hooks/launch.js copilot",
+        "powershell": "node .chaos-engine/hooks/launch.js copilot",
         "timeoutSec": 30,
     }
     hooks = {
@@ -2362,9 +2384,8 @@ def gemini_hooks_document() -> bytes:
         "name": "ChaosEngine lifecycle",
         "timeout": 30000,
     }
-    hooks = {
-        event: [{"hooks": [handler]}]
-        for event in (
+    hooks = {}
+    for event in (
             "SessionStart",
             "BeforeAgent",
             "BeforeTool",
@@ -2372,8 +2393,13 @@ def gemini_hooks_document() -> bytes:
             "AfterAgent",
             "PreCompress",
             "SessionEnd",
-        )
-    }
+    ):
+        group = {"hooks": [handler]}
+        if event == "BeforeTool":
+            group["matcher"] = PRE_TOOL_MATCHER
+        elif event == "AfterTool":
+            group["matcher"] = POST_TOOL_MATCHER
+        hooks[event] = [group]
     return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
 
@@ -2803,6 +2829,9 @@ def desired_content(
     ).read_bytes()
     after["plugins/chaos-engine/hooks/lifecycle.py"] = (
         Path(__file__).resolve().parent / "hooks/lifecycle.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/hooks/matchers.json"] = (
+        Path(__file__).resolve().parent / "hooks/matchers.json"
     ).read_bytes()
     after["plugins/chaos-engine/hooks/reflection.py"] = (
         Path(__file__).resolve().parent / "hooks/reflection.py"

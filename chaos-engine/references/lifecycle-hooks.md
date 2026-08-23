@@ -55,10 +55,34 @@ as a path relative to the settings file, and resolve `hooks/guard.py` from the
 installed tree (`.chaos-engine/hooks/guard.py` or
 `plugins/chaos-engine/hooks/guard.py`).
 
+Tool matching is owned by [`hooks/matchers.json`](../hooks/matchers.json). Preventive matching includes
+only surfaces that can be denied usefully: mutation-capable shell execution,
+file writes, dispatch, and memory/store writes. Read, search, web research, and
+plan/TODO tools do not start a PreToolUse process because no current rule can
+deny them successfully. Their PostToolUse and PostToolUseFailure events remain
+matched where the outcome supplies research, test, mutation, delivery, memory,
+or repeated-failure evidence. A future preventive rule for a read-only surface
+must restore that surface to the preventive matcher with a contract test.
+Gemini, Claude, Codex, and Grok use native matcher fields. Copilot's workspace
+hook format has no matcher field, so `hooks/launch.js` applies the same policy
+before starting Python.
+
+The repository guard preserves one normalized literal invocation record for
+each wrapped call: command, effective workdir, mutation status, static targets,
+and unresolved state stay paired. Do not flatten wrapped commands into one text
+blob. Flattening discarded shell quoting, wrapper result flow, target-path
+ownership, and endpoint semantics; that caused quoted `>` search text to look
+like redirection, cross-worktree writes to inherit the caller's branch, release
+note previews to look like release mutations, and fabricated wrapper text to
+look like successful research.
+
 ## Companions
 
 Caveman and Ponytail remain pinned vendor files. Do not rewrite or truncate
-them. Startup injects locators instead of duplicating their full contents.
+them. Startup injects workspace-resolvable locators instead of duplicating
+their full contents. Discovering a file under a nested harness root but
+emitting only that nested root's relative fragment is a harness defect;
+missing companion paths are never silently ignored.
 ChaosEngine selects **ultra** for both. Off only: `stop caveman`,
 `stop ponytail`, or `normal mode`. Host chat and formatting rules that fight
 those vendor files yield to them.
