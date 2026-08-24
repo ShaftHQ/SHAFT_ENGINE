@@ -442,9 +442,8 @@ class InstallerUxTests(unittest.TestCase):
         self.assertLessEqual(len(report), 2000)
 
     def test_failure_cause_redacts_local_paths_and_secret_assignments(self):
-        error = RuntimeError(
-            "failed at /tmp/private/consumer/state.json token=super-secret"
-        )
+        private_path = Path(os.sep) / "private" / "consumer" / "state.json"
+        error = RuntimeError(f"failed at {private_path} token=super-secret")
         stderr = io.StringIO()
         with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
             BOOTSTRAP.emit_install_failure("CE-INSTALL-FAILED", error, "owner/repo")
@@ -457,7 +456,7 @@ class InstallerUxTests(unittest.TestCase):
         body = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)["body"][0]
         self.assertIn("Cause: failed at <path> token=<redacted>", body)
         self.assertNotIn("super-secret", output)
-        self.assertNotIn("/tmp/private", output)
+        self.assertNotIn(str(private_path), output)
 
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")

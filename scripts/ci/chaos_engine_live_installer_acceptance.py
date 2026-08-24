@@ -496,16 +496,24 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     candidate_sha = args.candidate_sha
     if candidate_sha is None:
-        candidate_sha = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
+        git = shutil.which("git")
+        if git is None:
+            raise RuntimeError("git is required to resolve the candidate commit")
+        candidate_sha = subprocess.run(  # nosec B603 - fixed git command and arguments.
+            [git, "rev-parse", "HEAD"], cwd=ROOT, check=True,
             capture_output=True, text=True,
         ).stdout.strip()
     base_sha = args.base_sha
     if base_sha is None:
-        base_sha = subprocess.run(
-            ["git", "rev-parse", "HEAD^"], cwd=ROOT, check=True,
+        git = shutil.which("git")
+        if git is None:
+            raise RuntimeError("git is required to resolve the base commit")
+        base_sha = subprocess.run(  # nosec B603 - fixed git command and arguments.
+            [git, "rev-parse", "HEAD^"], cwd=ROOT, check=True,
             capture_output=True, text=True,
         ).stdout.strip()
+    if COMMIT.fullmatch(candidate_sha) is None or COMMIT.fullmatch(base_sha) is None:
+        raise RuntimeError("candidate and base commits must be exact lowercase SHA-1 values")
     evidence: dict[str, object] = {
         "schemaVersion": 1,
         "accepted": False,

@@ -80,6 +80,7 @@ class InstallHealthError(RuntimeError):
     """Preserve bounded doctor context for recovery output."""
 
     def __init__(self, phase: str, doctor: dict[str, object]):
+        """Capture the failed phase and names of unhealthy components."""
         super().__init__("ChaosEngine doctor did not report a healthy installation")
         self.phase = phase
         components = doctor.get("components", {})
