@@ -2415,8 +2415,9 @@ REQUIRED_HOOK_EVENTS = (
     "PostToolUseFailure",
     "Stop",
     "SubagentStop",
+    "SessionEnd",
 )
-CLAUDE_HOOK_EVENTS = (*REQUIRED_HOOK_EVENTS, "PreCompact", "SessionEnd")
+CLAUDE_HOOK_EVENTS = (*REQUIRED_HOOK_EVENTS, "PreCompact")
 
 
 def _tool_matchers() -> tuple[str, str]:
@@ -2454,7 +2455,10 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, ma
     selected = events or {event: event for event in defaults}
     hooks = {}
     for native in selected:
-        group = {"hooks": [handler]}
+        command = dict(handler)
+        if native == "SessionEnd" and host in {"codex", "grok"}:
+            command["timeout"] = 3
+        group = {"hooks": [command]}
         if native == "PreToolUse":
             group["matcher"] = PRE_TOOL_MATCHER
         elif native in {"PostToolUse", "PostToolUseFailure"}:

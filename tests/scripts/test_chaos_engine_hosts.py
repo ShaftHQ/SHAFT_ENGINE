@@ -618,6 +618,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "PostToolUseFailure",
                 "Stop",
                 "SubagentStop",
+                "SessionEnd",
             }
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
             grok_lifecycle = json.loads(
@@ -638,7 +639,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         or "plugins/chaos-engine/hooks/guard.py" in command,
                         event,
                     )
-            claude_events = required_events | {"PreCompact", "SessionEnd"}
+                self.assertEqual(3, document["SessionEnd"][0]["hooks"][0]["timeout"])
+            claude_events = required_events | {"PreCompact"}
             self.assertEqual(claude_events, set(claude_lifecycle))
             for event in claude_events:
                 self.assertEqual(1, len(claude_lifecycle[event]), event)

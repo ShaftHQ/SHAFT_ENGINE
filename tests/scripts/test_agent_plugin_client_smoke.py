@@ -722,18 +722,18 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode live", live)
         self.assertIn("tests.scripts.test_shaft_skill_routing_eval", live)
 
-    def test_act_as_mohab_is_discovered_installed_and_launched_from_package_config(self):
-        from scripts.ci.assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
+    def test_chaos_engine_is_discovered_installed_and_launched_from_package_config(self):
+        from scripts.ci.assemble_chaos_engine_plugin import assemble as assemble_chaos_engine
 
-        package_root = Path(self.temporary_directory.name) / "act-as-mohab"
-        assemble_act_as_mohab(Path(__file__).resolve().parents[2], package_root)
+        package_root = Path(self.temporary_directory.name) / "chaos-engine"
+        assemble_chaos_engine(Path(__file__).resolve().parents[2], package_root)
         runner = FakeRunner()
-        runner.package_name = "act-as-mohab"
-        runner.installed_plugin = {"id": "act-as-mohab@act-as-mohab", "enabled": True}
-        runner.available_plugin = {"name": "act-as-mohab"}
+        runner.package_name = "chaos-engine"
+        runner.installed_plugin = {"id": "chaos-engine@chaos-engine", "enabled": True}
+        runner.available_plugin = {"name": "chaos-engine"}
 
         evidence = collect_evidence(package_root, runner=runner)
-        self.assertEqual("act-as-mohab", evidence["package"])
+        self.assertEqual("chaos-engine", evidence["package"])
         self.assertEqual(
             {"pass"},
             {
@@ -743,7 +743,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
             },
         )
         selectors = {part for command in runner.commands for part in command}
-        self.assertIn("act-as-mohab@act-as-mohab", selectors)
+        self.assertIn("chaos-engine@chaos-engine", selectors)
 
         self.assertTrue(callable(collect_runtime_launch_evidence))
         launch = collect_runtime_launch_evidence(package_root)

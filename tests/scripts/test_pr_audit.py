@@ -30,7 +30,7 @@ def add_live_reply(snapshot: dict, finding_id: str, suffix: str = "1") -> str:
     url = f"https://github.com/consumer/project/pull/17#issuecomment-{suffix}"
     snapshot["conversationComments"].append({
         "id": f"comment:reply-{suffix}", "url": url, "author": "owner",
-        "body": f"Addressed with verified evidence. <!-- act-as-mohab-disposition:{finding_id} -->",
+        "body": f"Addressed with verified evidence. <!-- chaos-engine-disposition:{finding_id} -->",
     })
     return url
 
@@ -198,11 +198,11 @@ class PullRequestAuditTest(unittest.TestCase):
 
     def test_marker_text_does_not_hide_a_substantive_comment_or_empty_reply(self):
         snapshot = clean_snapshot()
-        snapshot["conversationComments"] = [{"id": "comment:C", "url": "https://github.com/x/y/pull/1#issuecomment-1", "body": "Unfixed security bug <!-- act-as-mohab-disposition:anything -->"}]
+        snapshot["conversationComments"] = [{"id": "comment:C", "url": "https://github.com/x/y/pull/1#issuecomment-1", "body": "Unfixed security bug <!-- chaos-engine-disposition:anything -->"}]
         self.assertEqual("block", audit_snapshot(snapshot, {})["decision"])
         snapshot = clean_snapshot()
         snapshot["reviews"] = [{"id": "review:R", "url": "https://github.com/x/y/pull/1#review-1", "body": "fix", "state": "CHANGES_REQUESTED"}]
-        snapshot["conversationComments"] = [{"id": "comment:C", "url": "https://github.com/x/y/pull/1#issuecomment-2", "body": "<!-- act-as-mohab-disposition:review:R -->"}]
+        snapshot["conversationComments"] = [{"id": "comment:C", "url": "https://github.com/x/y/pull/1#issuecomment-2", "body": "<!-- chaos-engine-disposition:review:R -->"}]
         disposition = {"review:R": {"disposition": "valid", "replyUrl": snapshot["conversationComments"][0]["url"], "resolved": True}}
         self.assertEqual("block", audit_snapshot(snapshot, disposition)["decision"])
 

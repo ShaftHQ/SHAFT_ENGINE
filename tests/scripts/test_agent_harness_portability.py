@@ -417,19 +417,18 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertEqual(
             discovered,
             [
-                ROOT / ".agents/skills/act-as-mohab/SKILL.md",
                 ROOT / ".agents/skills/chaos-engine/SKILL.md",
             ],
         )
 
-    def test_act_as_mohab_has_one_substantive_body_and_relative_adapter(self):
+    def test_chaos_engine_has_one_substantive_body_and_relative_adapter(self):
         canonical = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
-        adapter = ROOT / ".claude/skills/act-as-mohab/SKILL.md"
+        adapter = ROOT / ".claude/skills/chaos-engine/SKILL.md"
         self.assertTrue(canonical.is_file())
         self.assertGreater(len(markdown_body(canonical)), 1000)
         self.assertLess(len(markdown_body(adapter)), 500)
 
-        candidates = [canonical, *ROOT.glob(".*/skills/act-as-mohab/SKILL.md")]
+        candidates = [canonical, *ROOT.glob(".*/skills/chaos-engine/SKILL.md")]
         substantive = [path for path in candidates if len(markdown_body(path)) > 500]
         self.assertEqual(substantive, [canonical])
 
@@ -628,12 +627,13 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             "PostToolUse",
             "PostToolUseFailure",
             "SessionStart",
+            "SessionEnd",
             "Stop",
             "SubagentStop",
             "UserPromptSubmit",
         }
         self.assertEqual(common, set(codex_hooks))
-        self.assertEqual(common | {"PreCompact", "SessionEnd"}, set(claude_hooks))
+        self.assertEqual(common | {"PreCompact"}, set(claude_hooks))
         for hooks in (claude_hooks, codex_hooks):
             commands = {
                 handler["command"]

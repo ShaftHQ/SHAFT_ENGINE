@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.3.20260820 - 2026-08-24
+
+- Breaking: rename the portable plugin, zipapp, and CLI from `act-as-mohab`
+  to `chaos-engine`. Remove the discoverable compatibility-alias skill.
+
 ## 10.3.20260820 - 2026-08-20
 
 - Add immutable installer generations, repair, rollback, managed dependency

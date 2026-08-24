@@ -130,7 +130,7 @@ class ChaosEngineHookTest(unittest.TestCase):
                     "hook_event_name": "PostToolUse",
                     "tool_name": "PowerShell",
                     "tool_input": {
-                        "command": "py -3 scripts/agents/act_as_mohab_cli.py delivery-status --manifest m --receipt-out r"
+                        "command": "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r"
                     },
                     "session_id": "learn-delivered",
                 },
@@ -163,7 +163,7 @@ class ChaosEngineHookTest(unittest.TestCase):
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             session = "learn-complete"
             for command in (
-                "py -3 scripts/agents/act_as_mohab_cli.py delivery-status --manifest m --receipt-out r",
+                "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r",
                 "py -3 scripts/agents/learning_session.py finalize --session-id learn-complete",
             ):
                 self.run_hook(
@@ -323,7 +323,7 @@ class ChaosEngineHookTest(unittest.TestCase):
                     "hook_event_name": "PostToolUse",
                     "tool_name": "PowerShell",
                     "tool_input": {
-                        "command": "py -3 scripts/agents/act_as_mohab_cli.py delivery-status --manifest m --receipt-out r"
+                        "command": "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r"
                     },
                     "session_id": session,
                 },

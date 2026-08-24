@@ -11,9 +11,9 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-from scripts.agents import act_as_mohab_cli
+from scripts.agents import chaos_engine_cli
 from scripts.agents.repository_context import RepositoryContext, RepositoryContextError
-from scripts.ci.assemble_act_as_mohab_plugin import assemble
+from scripts.ci.assemble_chaos_engine_plugin import assemble
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,18 +29,18 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
 
     def assemble_runtime(self) -> Path:
         assemble(ROOT, self.package_root)
-        return self.package_root / "bin/act-as-mohab.pyz"
+        return self.package_root / "bin/chaos-engine.pyz"
 
     def test_issue_labels_returns_success_after_reconciliation(self):
         context = RepositoryContext("consumer/project", ROOT, None)
         payload = {"kind": "label-reconciliation", "applied": True}
         stdout = io.StringIO()
         with (
-            mock.patch.object(act_as_mohab_cli, "context_from_arguments", return_value=context),
-            mock.patch.object(act_as_mohab_cli, "reconcile_labels", return_value=payload),
+            mock.patch.object(chaos_engine_cli, "context_from_arguments", return_value=context),
+            mock.patch.object(chaos_engine_cli, "reconcile_labels", return_value=payload),
             contextlib.redirect_stdout(stdout),
         ):
-            result = act_as_mohab_cli.main(["issue-labels", "--apply"])
+            result = chaos_engine_cli.main(["issue-labels", "--apply"])
 
         self.assertEqual(0, result)
         self.assertEqual(payload, json.loads(stdout.getvalue()))
@@ -49,17 +49,17 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         context = RepositoryContext("consumer/project", ROOT, None)
         stderr = io.StringIO()
         with (
-            mock.patch.object(act_as_mohab_cli, "context_from_arguments", return_value=context),
+            mock.patch.object(chaos_engine_cli, "context_from_arguments", return_value=context),
             mock.patch.object(
-                act_as_mohab_cli,
+                chaos_engine_cli,
                 "reconcile_labels",
-                side_effect=act_as_mohab_cli.GitHubUnavailable("offline"),
+                side_effect=chaos_engine_cli.GitHubUnavailable("offline"),
             ),
             contextlib.redirect_stderr(stderr),
         ):
-            result = act_as_mohab_cli.main(["issue-labels", "--apply"])
+            result = chaos_engine_cli.main(["issue-labels", "--apply"])
 
-        self.assertEqual(act_as_mohab_cli.EXIT_ENVIRONMENT_ERROR, result)
+        self.assertEqual(chaos_engine_cli.EXIT_ENVIRONMENT_ERROR, result)
         self.assertIn("issue filing failed: offline", stderr.getvalue())
 
     def test_delivery_status_passes_complete_repository_context_arguments(self):
@@ -70,16 +70,16 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         allowed = {"decision": "allow"}
         with (
             mock.patch.object(
-                act_as_mohab_cli, "resolve_repository_context", autospec=True,
+                chaos_engine_cli, "resolve_repository_context", autospec=True,
                 return_value=context,
             ) as resolve,
-            mock.patch.object(act_as_mohab_cli, "collect_delivery", return_value=[]),
-            mock.patch.object(act_as_mohab_cli, "inspect_cleanup", return_value={}),
-            mock.patch.object(act_as_mohab_cli, "evaluate_delivery", return_value=allowed),
-            mock.patch.object(act_as_mohab_cli, "local_head", return_value="abc"),
+            mock.patch.object(chaos_engine_cli, "collect_delivery", return_value=[]),
+            mock.patch.object(chaos_engine_cli, "inspect_cleanup", return_value={}),
+            mock.patch.object(chaos_engine_cli, "evaluate_delivery", return_value=allowed),
+            mock.patch.object(chaos_engine_cli, "local_head", return_value="abc"),
         ):
             try:
-                result = act_as_mohab_cli.main([
+                result = chaos_engine_cli.main([
                     "delivery-status", "--manifest", str(manifest),
                     "--root", str(self.base), "--receipt-out", str(receipt),
                 ])
@@ -98,7 +98,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
             self.assertEqual(
                 sorted(archive.namelist()),
                 [
-                    "__main__.py", "act_as_mohab_cli.py", "delivery_status.py", "github_client.py",
+                    "__main__.py", "chaos_engine_cli.py", "delivery_status.py", "github_client.py",
                     "issue_filing.py", "planning_contract.py", "pr_audit.py", "repository_context.py",
                     "watch_pr_checks.py",
                 ],

@@ -935,8 +935,9 @@ class DelegatePreflightRedTest(unittest.TestCase):
             return_value={"worktrees": [], "advisories": ["x" * 9000]},
         ):
             with patch("scripts.agents.guard._sync_advisory", return_value=None):
-                with redirect_stdout(output):
-                    self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
+                with patch("scripts.agents.guard._prepare_session_worktree", return_value=None):
+                    with redirect_stdout(output):
+                        self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
         payload = json.loads(output.getvalue())
         context = payload["hookSpecificOutput"]["additionalContext"]
         self.assertLessEqual(len(output.getvalue().encode("utf-8")), 4096)
@@ -990,6 +991,9 @@ class GuardLifecycleTest(unittest.TestCase):
         to be pending instead of on their subject.
         """
         isolate_stop_rules(self)
+        prepare = patch("scripts.agents.guard._prepare_session_worktree", return_value=None)
+        prepare.start()
+        self.addCleanup(prepare.stop)
 
     def output(self, function, payload: dict) -> dict | None:
         stream = io.StringIO()
@@ -1829,7 +1833,8 @@ class GuardLifecycleTest(unittest.TestCase):
         output = self.output(guard.run_stop, {"cwd": ".", "stop_hook_active": False})
         self.assertEqual(output["decision"], "block")
         self.assertIn("uncommitted", output["reason"])
-        self.assertIn("act-as-mohab", output["reason"])
+        self.assertIn("ChaosEngine", output["reason"])
+        self.assertNotIn("act-as-mohab", output["reason"])
         self.assertNotIn("push", output["reason"].lower())
 
         repeated = self.output(
@@ -1848,7 +1853,8 @@ class GuardLifecycleTest(unittest.TestCase):
         output = self.output(guard.run_stop, {"cwd": "."})
         self.assertEqual(output["decision"], "block")
         reason = output["reason"].lower()
-        self.assertIn("act-as-mohab", reason)
+        self.assertIn("chaosengine", reason)
+        self.assertNotIn("act-as-mohab", reason)
         self.assertNotIn("pull request", reason)
         self.assertNotIn("merge", reason)
 
@@ -1862,7 +1868,8 @@ class GuardLifecycleTest(unittest.TestCase):
     def test_stop_routes_abandoned_work_without_expanding_authority(self, _report):
         output = self.output(guard.run_stop, {"cwd": "."})
         reason = output["reason"].lower()
-        self.assertIn("act-as-mohab", reason)
+        self.assertIn("chaosengine", reason)
+        self.assertNotIn("act-as-mohab", reason)
         self.assertNotIn("pull request", reason)
         self.assertNotIn("merge", reason)
 
@@ -1875,6 +1882,26 @@ class GuardLifecycleTest(unittest.TestCase):
     )
     def test_stop_allows_a_clean_current_worktree(self, _report):
         self.assertIsNone(self.output(guard.run_stop, {"cwd": "."}))
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={
+            "worktrees": [{"is_current": True, "state": "clean"}],
+            "advisories": [],
+        },
+    )
+    def test_stop_does_not_remove_the_session_worktree(self, _report):
+        with patch("scripts.agents.guard._teardown_session_worktree") as teardown:
+            self.assertIsNone(self.output(guard.run_stop, {"cwd": ".", "session_id": "live"}))
+        teardown.assert_not_called()
+
+    def test_session_end_attempts_teardown_once(self):
+        with patch(
+            "scripts.agents.guard._teardown_session_worktree",
+            return_value={"status": "kept"},
+        ) as teardown:
+            self.assertEqual(guard.run_session_end({"cwd": ".", "session_id": "live"}), 0)
+        teardown.assert_called_once()
 
     @patch(
         "scripts.agents.guard._worktree_report",
@@ -1908,6 +1935,8 @@ class SessionStartRetrievalIsolationTest(unittest.TestCase):
             "scripts.agents.guard._worktree_report",
             return_value={"worktrees": [], "advisories": []},
         ), patch("scripts.agents.guard._sync_advisory", return_value=None), patch(
+            "scripts.agents.guard._prepare_session_worktree", return_value=None
+        ), patch(
             "scripts.agents.guard.subprocess.run"
         ) as run:
             stream = io.StringIO()
@@ -2225,7 +2254,7 @@ class HookJsonProtocolTest(unittest.TestCase):
             "PreToolUse": "run_pretooluse",
             "PostToolUse": "run_posttooluse",
             "PreCompact": "run_observational_event",
-            "SessionEnd": "run_observational_event",
+            "SessionEnd": "run_session_end",
         }
         observed = []
         for event, callback in callbacks.items():
@@ -2620,7 +2649,7 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
     def test_post_receipt_evidence_uses_literal_directory_change_workdir(self):
         command = (
             "Set-Location -LiteralPath 'C:/task'; "
-            "py -3 scripts/agents/act_as_mohab_cli.py pr-audit --pr 17 "
+            "py -3 scripts/agents/chaos_engine_cli.py pr-audit --pr 17 "
             "--receipt-out receipt.json"
         )
 
@@ -2650,7 +2679,7 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
             command.partition(";")[2].strip(),
             guard._standalone_receipt_command(command),
         )
-        dynamic = "Set-Location $task; py -3 scripts/agents/act_as_mohab_cli.py pr-audit"
+        dynamic = "Set-Location $task; py -3 scripts/agents/chaos_engine_cli.py pr-audit"
         self.assertEqual(dynamic, guard._standalone_receipt_command(dynamic))
 
     def test_receipt_controller_is_trusted_from_effective_task_worktree(self):
@@ -2667,7 +2696,7 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
                 "pullRequest": 17,
                 "headOid": identity[2],
             }), encoding="utf-8")
-            runtime = task / "scripts/agents/act_as_mohab_cli.py"
+            runtime = task / "scripts/agents/chaos_engine_cli.py"
             command = (
                 f'python3 "{runtime}" pr-audit --pr 17 '
                 f'--receipt-out "{receipt_path}"'
@@ -2699,7 +2728,7 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
                 "pullRequest": 17, "headOid": identity[2],
             }
             canonical.write_text(json.dumps(receipt), encoding="utf-8")
-            runtime = task / "scripts/agents/act_as_mohab_cli.py"
+            runtime = task / "scripts/agents/chaos_engine_cli.py"
             runtime.parent.mkdir(parents=True)
             runtime.write_text("# controller\n", encoding="utf-8")
             command = (
@@ -2710,7 +2739,7 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
             def git_output(arguments, cwd):
                 self.assertEqual(str(task), cwd)
                 self.assertEqual(
-                    ["rev-parse", "--git-path", "act-as-mohab/pr-audit-17.json"], arguments
+                    ["rev-parse", "--git-path", "chaos-engine/pr-audit-17.json"], arguments
                 )
                 return str(canonical)
 
@@ -3311,7 +3340,7 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
     def test_degraded_cleanup_receipt_records_successful_delivery(self):
         identity = ("consumer/project", "main", "b" * 40)
         root = Path(guard.__file__).resolve().parents[2]
-        runtime = root / "scripts/agents/act_as_mohab_cli.py"
+        runtime = root / "scripts/agents/chaos_engine_cli.py"
         with tempfile.TemporaryDirectory() as temporary:
             receipt_path = Path(temporary) / "delivery.json"
             receipt_path.write_text(json.dumps({

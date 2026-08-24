@@ -16,7 +16,7 @@ from typing import Callable, Mapping
 
 try:
     from scripts.ci.assemble_shaft_skills_plugin import assemble
-    from scripts.ci.assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
+    from scripts.ci.assemble_chaos_engine_plugin import assemble as assemble_act_as_mohab
     from scripts.ci.shaft_skill_routing_eval import (
         evaluate_results,
         output_schema,
@@ -24,7 +24,7 @@ try:
     )
 except ModuleNotFoundError:  # Direct script execution places scripts/ci on sys.path.
     from assemble_shaft_skills_plugin import assemble
-    from assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
+    from assemble_chaos_engine_plugin import assemble as assemble_act_as_mohab
     from shaft_skill_routing_eval import evaluate_results, output_schema, package_decision
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -884,7 +884,7 @@ def collect_runtime_launch_evidence(package_root: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("smoke", "live"), default="smoke")
-    parser.add_argument("--package", choices=("shaft-skills", "act-as-mohab"), default="shaft-skills")
+    parser.add_argument("--package", choices=("shaft-skills", "chaos-engine"), default="shaft-skills")
     parser.add_argument("--output", type=Path, default=Path("agent-plugin-client-evidence.json"))
     parser.add_argument("--routing-corpus", type=Path)
     parser.add_argument(
@@ -915,7 +915,7 @@ def main() -> int:
             execution_budget_seconds=arguments.execution_budget_seconds,
             routing_budget_seconds=arguments.routing_budget_seconds,
         )
-        if arguments.package == "act-as-mohab":
+        if arguments.package == "chaos-engine":
             evidence["results"].append(collect_runtime_launch_evidence(package_root))
     arguments.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     for row in evidence["results"]:

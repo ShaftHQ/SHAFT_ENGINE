@@ -13,6 +13,12 @@ commits before mutation. Preserve unique commits unless their discard is
 explicitly authorized. Report mutations, preserved state, and verification.
 Never rewrite remote history as cleanup.
 
+SessionStart may discard uncommitted files only on the primary checkout's
+configured default branch, then create one session-owned sibling worktree.
+SessionEnd may remove that owned worktree after merge is recorded. Neither
+event is repository-scope scavenger cleanup, and neither deletes unique
+commits or leftover dirty task branches.
+
 ### Task scope (default)
 
 Freeze the pre-task baseline. Maintain an append-only ownership manifest during
