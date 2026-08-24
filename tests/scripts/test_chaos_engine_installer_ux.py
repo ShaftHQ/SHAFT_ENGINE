@@ -442,7 +442,11 @@ class InstallerUxTests(unittest.TestCase):
         self.assertLessEqual(len(report), 2000)
 
     def test_failure_cause_redacts_local_paths_and_secret_assignments(self):
-        private_path = Path(os.sep) / "private" / "consumer" / "state.json"
+        private_path = Path(
+            "C:/private/consumer/state.json"
+            if os.name == "nt"
+            else "/private/consumer/state.json"
+        )
         error = RuntimeError(f"failed at {private_path} token=super-secret")
         stderr = io.StringIO()
         with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
