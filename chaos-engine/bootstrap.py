@@ -663,12 +663,13 @@ def install_latest(
             clients = host_controller.activate_detected_plugins(project)
         reporter.complete("Activate clients", remaining=())
         doctor["clients"] = clients.get("clients", {})
-    except BaseException:
+    except BaseException as error:
         reporter.close()
-        if prior_install and (project / ".chaos-engine.backup").exists():
-            installer.rollback(project)
-        else:
-            installer.uninstall_with_dependencies(project)
+        if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
+            if prior_install and (project / ".chaos-engine.backup").exists():
+                installer.rollback(project)
+            else:
+                installer.uninstall_with_dependencies(project)
         if terminal_context is not None:
             terminal_context.__exit__(*sys.exc_info())
         raise

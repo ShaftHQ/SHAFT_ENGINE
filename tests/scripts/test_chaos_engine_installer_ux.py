@@ -97,6 +97,32 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("QUANTUM MANDATE", output)
         self.assertTrue(all(len(line) <= 38 for line in output.splitlines()))
 
+    def test_narrow_width_uses_brand_narrow(self):
+        lines = BOOTSTRAP.brand_lines(width=27, color=False, unicode=False)
+        self.assertEqual(list(BOOTSTRAP.BRAND_NARROW), lines)
+        self.assertIn("/C|*|E/", "\n".join(lines))
+        self.assertNotEqual(
+            BOOTSTRAP.brand_lines(width=27, color=False, unicode=False),
+            BOOTSTRAP.brand_lines(width=28, color=False, unicode=False),
+        )
+        class NarrowTty(io.StringIO):
+            def isatty(self):
+                return True
+
+        stream = NarrowTty()
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"CHAOS_ENGINE_BRAND_SHOWN", "NO_COLOR"}
+        }
+        environment.update({"TERM": "xterm", "COLUMNS": "20", "NO_COLOR": "1"})
+        with unittest.mock.patch.dict(os.environ, environment, clear=True):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            reporter.close()
+        output = stream.getvalue()
+        self.assertIn("/C|*|E/", output)
+        self.assertIn("QUANTUM MANDATE", output)
+
     def test_eta_does_not_grow_while_current_stage_overruns(self):
         class Tty(io.StringIO):
             def isatty(self):
@@ -126,14 +152,19 @@ class InstallerUxTests(unittest.TestCase):
                 clock.now = 2.0
                 reporter.complete("Resolve source", remaining=("Download source", "Install core"))
                 reporter.start("Download source", remaining=("Install core",))
-                previous = eta_seconds(stream.getvalue())
+                previous = None
                 completed_weight = BOOTSTRAP.STAGE_WEIGHTS["Resolve source"]
                 remaining_weight = BOOTSTRAP.STAGE_WEIGHTS["Install core"]
                 for tick in (5.0, 10.0, 20.0):
                     clock.now = tick
                     reporter._render_locked()
                     current = eta_seconds(stream.getvalue())
-                    self.assertLessEqual(current, previous, f"ETA grew {previous} -> {current} at t={tick}")
+                    if previous is None:
+                        self.assertGreater(current, 0)
+                    else:
+                        self.assertLessEqual(
+                            current, previous, f"ETA grew {previous} -> {current} at t={tick}"
+                        )
                     previous = current
                     old = tick * remaining_weight / completed_weight
                     self.assertGreater(old, current)
@@ -150,7 +181,17 @@ class InstallerUxTests(unittest.TestCase):
                 return self.now
 
         stream = io.StringIO()
-        reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=Clock())
+        clock = Clock()
+        reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+        reporter.start(
+            "Resolve source",
+            remaining=("Install core", "Provision dependencies", "Verify installation"),
+        )
+        clock.now = 4.0
+        reporter.complete(
+            "Resolve source",
+            remaining=("Install core", "Provision dependencies", "Verify installation"),
+        )
         reporter.start(
             "Install core",
             remaining=("Provision dependencies", "Verify installation"),
@@ -171,6 +212,19 @@ class InstallerUxTests(unittest.TestCase):
             future + inflight,
             BOOTSTRAP.STAGE_WEIGHTS["Install core"] + BOOTSTRAP.STAGE_WEIGHTS["Verify installation"],
         )
+        rate = 4.0 / BOOTSTRAP.STAGE_WEIGHTS["Resolve source"]
+        with_core = rate * (
+            BOOTSTRAP.STAGE_WEIGHTS["Provision dependencies"]
+            + BOOTSTRAP.STAGE_WEIGHTS["Install core"]
+            + BOOTSTRAP.STAGE_WEIGHTS["Verify installation"]
+        )
+        without_core = rate * (
+            BOOTSTRAP.STAGE_WEIGHTS["Provision dependencies"]
+            + BOOTSTRAP.STAGE_WEIGHTS["Verify installation"]
+        )
+        eta = reporter._eta(clock.now)
+        self.assertEqual(BOOTSTRAP.InstallReporter._duration(reporter, with_core), eta)
+        self.assertNotEqual(BOOTSTRAP.InstallReporter._duration(reporter, without_core), eta)
 
     def test_interactive_confirmation_accepts_only_y_or_yes(self):
         for answer in ("y\n", "YES\n"):
@@ -234,6 +288,13 @@ class InstallerUxTests(unittest.TestCase):
                 continue
             self.assertIn(line, shell)
             self.assertIn(line, powershell)
+        for line in BOOTSTRAP.BRAND_NARROW:
+            self.assertIn(line, shell)
+            self.assertIn(line, powershell)
+        self.assertIn("[ \"$cols\" -lt 28 ]", shell)
+        self.assertIn("$cols -lt 28", powershell)
+        self.assertIn("/C|*|E/", shell)
+        self.assertIn("/C|*|E/", powershell)
 
     def test_main_emits_stable_actionable_error_codes(self):
         cases = (
@@ -293,6 +354,34 @@ class InstallerUxTests(unittest.TestCase):
         self.assertNotIn("Traceback", err)
         self.assertNotRegex(err, r"Traceback \(most recent call last\):[^\n]*tree/")
         self.assertNotIn(f"tree/{'c' * 40}/chaos-engine", err.split("CE-INSTALL-CANCELLED", 1)[-1])
+
+    def test_debug_env_prints_traceback_and_unset_does_not(self):
+        def boom(*_args, **_kwargs):
+            raise RuntimeError("sealed walk exploded")
+
+        def run_main(environment):
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with unittest.mock.patch.dict(os.environ, environment, clear=True):
+                with unittest.mock.patch.object(BOOTSTRAP, "install_latest", boom):
+                    with unittest.mock.patch.object(BOOTSTRAP.sys, "stdout", stdout):
+                        with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                            with unittest.mock.patch.object(
+                                BOOTSTRAP.sys,
+                                "argv",
+                                ["bootstrap.py", "--project", ".", "--repository", "owner/repo"],
+                            ):
+                                self.assertEqual(1, BOOTSTRAP.main())
+            return stderr.getvalue()
+
+        baseline = {key: value for key, value in os.environ.items() if key != "CHAOS_ENGINE_DEBUG"}
+        unset_err = run_main(baseline)
+        self.assertIn("CE-INSTALL-FAILED", unset_err)
+        self.assertNotIn("Traceback", unset_err)
+        debug_err = run_main({**baseline, "CHAOS_ENGINE_DEBUG": "1"})
+        self.assertIn("CE-INSTALL-FAILED", debug_err)
+        self.assertIn("Traceback", debug_err)
+        self.assertIn("sealed walk exploded", debug_err)
 
     def test_unexpected_exception_includes_issue_url_without_traceback(self):
         stdout = io.StringIO()

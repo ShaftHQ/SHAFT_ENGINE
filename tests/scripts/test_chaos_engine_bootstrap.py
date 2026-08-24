@@ -418,6 +418,57 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             installer.rollback.assert_called_once_with(project.resolve())
             installer.uninstall_with_dependencies.assert_not_called()
 
+    def test_cancel_after_successful_core_install_keeps_last_verified_generation(self):
+        module = load()
+        cases = (
+            KeyboardInterrupt(),
+            module.InstallCancelled("ChaosEngine installation cancelled before Activate clients"),
+        )
+        for interrupt in cases:
+            with self.subTest(error=type(interrupt).__name__):
+                with tempfile.TemporaryDirectory() as temporary:
+                    project = Path(temporary) / "project"
+                    project.mkdir()
+                    opener, _ = self.opener([(COMMIT_ONE, "full")])
+                    installer = mock.Mock()
+                    installer.install_with_dependencies.return_value = project / ".chaos-engine"
+                    installer.doctor_with_dependencies.side_effect = interrupt
+                    stdout = io.StringIO()
+                    stderr = io.StringIO()
+                    real_install_latest = module.install_latest
+
+                    def install_latest_with_opener(*args, **kwargs):
+                        kwargs.setdefault("opener", opener)
+                        return real_install_latest(*args, **kwargs)
+
+                    with mock.patch.object(module, "load_installer", return_value=installer):
+                        with mock.patch.object(module, "install_latest", install_latest_with_opener):
+                            with mock.patch.object(module.sys, "stdout", stdout):
+                                with mock.patch.object(module.sys, "stderr", stderr):
+                                    with mock.patch.object(
+                                        module.sys,
+                                        "argv",
+                                        [
+                                            "bootstrap.py",
+                                            "--project",
+                                            str(project),
+                                            "--repository",
+                                            "Example/Project",
+                                            "--branch",
+                                            "main",
+                                        ],
+                                    ):
+                                        self.assertEqual(1, module.main())
+
+                    installer.install_with_dependencies.assert_called_once()
+                    installer.uninstall_with_dependencies.assert_not_called()
+                    installer.rollback.assert_not_called()
+                    err = stderr.getvalue()
+                    self.assertIn("CE-INSTALL-CANCELLED", err)
+                    self.assertIn("Last verified generation was kept.", err)
+                    self.assertIn("Rerun the same install command", err)
+                    self.assertNotIn("Traceback", err)
+
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []
 
