@@ -410,13 +410,18 @@ def run_acceptance(
         project = root / "consumer with spaces Ω"
         project.mkdir()
 
+        def install_and_verify(
+            commit: str, *, require_current_action: bool = True
+        ) -> dict[str, object]:
+            run_public_wrapper(
+                commit, project, require_current_action=require_current_action
+            )
+            return verify_phase(project, commit)
+
         fresh = record_phase(
             evidence,
             "fresh-base-wrapper",
-            lambda: (
-                run_public_wrapper(base_sha, project, require_current_action=False),
-                verify_phase(project, base_sha),
-            )[1],
+            lambda: install_and_verify(base_sha, require_current_action=False),
         )
         first_pointer = (project / ".chaos-engine-runtime-current.json").read_bytes()
         first_generations = sorted(
@@ -441,10 +446,7 @@ def run_acceptance(
         upgrade = record_phase(
             evidence,
             "upgrade-candidate-wrapper",
-            lambda: (
-                run_public_wrapper(candidate_sha, project),
-                verify_phase(project, candidate_sha),
-            )[1],
+            lambda: install_and_verify(candidate_sha),
         )
 
         damaged_id = str(upgrade["active"])
@@ -457,10 +459,7 @@ def run_acceptance(
         repaired = record_phase(
             evidence,
             "repair-candidate-wrapper",
-            lambda: (
-                run_public_wrapper(candidate_sha, project),
-                verify_phase(project, candidate_sha),
-            )[1],
+            lambda: install_and_verify(candidate_sha),
         )
         if repaired["active"] == damaged_id or repaired["previous"] != fresh["active"]:
             raise RuntimeError("repair did not retire damaged active and retain valid A")
