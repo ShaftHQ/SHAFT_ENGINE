@@ -196,6 +196,25 @@ def validate_memory_config(content: bytes) -> None:
         raise ValueError("invalid Memory configuration")
 
 
+def migrate_memory_config(content: bytes) -> bytes:
+    validate_memory_config(content)
+    config = json.loads(content)
+    if config.get("version") == 5:
+        return content if content.endswith(b"\n") else content + b"\n"
+    memory = config["memory"]
+    migrated = {
+        "version": 5,
+        "project": config["project"],
+        "memory": {
+            "autoIndex": memory["autoIndex"],
+            "defaultTokenBudget": memory["defaultTokenBudget"],
+        },
+    }
+    payload = (json.dumps(migrated, indent=2, sort_keys=True) + "\n").encode()
+    validate_memory_config(payload)
+    return payload
+
+
 def memory_schema_assets() -> Path:
     return Path(__file__).resolve().parent / "assets/memory-v5"
 
@@ -3161,8 +3180,7 @@ def desired_content(
             json.dumps(memory_config, indent=2, sort_keys=True) + "\n"
         ).encode()
     else:
-        validate_memory_config(memory_before)
-        after[".memory/config.json"] = memory_before
+        after[".memory/config.json"] = migrate_memory_config(memory_before)
     schema_assets = memory_schema_assets()
     for name in MEMORY_SCHEMA_FILES:
         relative = f".memory/schema/{name}"
