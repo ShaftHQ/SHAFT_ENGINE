@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import tempfile
 import unittest

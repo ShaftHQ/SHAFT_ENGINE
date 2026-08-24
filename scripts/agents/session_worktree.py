@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import subprocess  # nosec B404 - fixed git commands, never a shell.
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -192,6 +193,15 @@ def _unlock(handle) -> None:
         return
 
 
+@contextmanager
+def _session_lock(cwd: Path):
+    handle = _lock(cwd)
+    try:
+        yield handle
+    finally:
+        _unlock(handle)
+
+
 def _relative_to(path: Path, root: Path) -> bool:
     try:
         path.resolve().relative_to(root.resolve())
@@ -219,13 +229,10 @@ def prepare_session(
         cwd = Path(cwd).resolve()
     except OSError:
         return {"status": "skipped", "message": "Session worktree setup skipped: cwd is unreadable."}
-    handle = _lock(cwd)
-    if handle is None:
-        return {"status": "skipped", "message": "Session worktree setup skipped: checkout is locked or unverifiable."}
-    try:
+    with _session_lock(cwd) as handle:
+        if handle is None:
+            return {"status": "skipped", "message": "Session worktree setup skipped: checkout is locked or unverifiable."}
         return _prepare_locked(cwd, session_id, source)
-    finally:
-        _unlock(handle)
 
 
 def _prepare_locked(cwd: Path, session_id: str, source: str) -> dict:
@@ -250,57 +257,15 @@ def _prepare_locked(cwd: Path, session_id: str, source: str) -> dict:
     remotes = (_git(primary, "remote") or "").split()
     if remotes:
         _git(primary, "fetch", "--prune", remotes[0], timeout=FETCH_TIMEOUT_SECONDS)
-    upstream = default_upstream(primary)
-    if upstream is None:
-        return {"status": "skipped", "message": "Session worktree setup skipped: configured upstream is missing."}
-    default_branch = upstream.split("/", 1)[-1]
-    branch = current_branch(primary)
-    dirty = uncommitted_count(primary)
-    if dirty is None:
-        return {"status": "skipped", "message": "Session worktree setup skipped: git status is unverifiable."}
-    if branch is not None and branch != default_branch and dirty > 0:
-        return {
-            "status": "halted",
-            "message": (
-                f"Primary checkout is on leftover branch `{branch}` with {dirty} uncommitted "
-                "file(s). Preserve that work; SessionStart will not discard it or create a "
-                "session worktree."
-            ),
-        }
-    unique = unique_commit_count(primary, upstream)
-    if unique is None:
-        return {"status": "skipped", "message": "Session worktree setup skipped: unique commits are unverifiable."}
-    if unique > 0:
-        return {
-            "status": "halted",
-            "message": (
-                f"Primary checkout carries {unique} commit(s) not on `{upstream}`. "
-                "Unique commits are preserved; SessionStart will not reset them."
-            ),
-        }
-    if branch != default_branch and _git(primary, "checkout", "-q", default_branch) is None:
-        return {"status": "skipped", "message": "Session worktree setup skipped: could not check out the default branch."}
-    if _git(primary, "reset", "--hard", upstream) is None:
-        return {"status": "skipped", "message": "Session worktree setup skipped: could not reset the default branch."}
-    _git(primary, "clean", "-fd")
+    synced = _sync_primary_default(primary)
+    if synced.get("status") != "ok":
+        return synced
+    upstream = synced["upstream"]
     target = worktree_path_for(primary, session_id)
-    if _live_worktree(target):
-        head = (_git(target, "rev-parse", "HEAD") or "").strip()
-    else:
-        if target.exists():
-            return {"status": "skipped", "message": f"Session worktree path `{target}` exists and is not a worktree."}
-        added = _git(
-            primary,
-            "worktree",
-            "add",
-            "--detach",
-            "--",
-            str(target),
-            upstream,
-        )
-        if added is None:
-            return {"status": "skipped", "message": "Session worktree setup skipped: git worktree add failed."}
-        head = (_git(target, "rev-parse", "HEAD") or "").strip()
+    attached = _attach_session_worktree(primary, target, upstream)
+    if attached.get("status") != "ok":
+        return attached
+    head = attached["head"]
     payload = {
         "schemaVersion": SCHEMA_VERSION,
         "sessionId": sanitize_session_id(session_id),
@@ -365,6 +330,54 @@ def _remove_owned_worktree(cwd: Path, payload: dict) -> dict:
         return {"status": "kept", "message": "Session worktree kept: git worktree remove refused."}
     _reset_primary_default(primary)
     return {"status": "removed", "message": f"Removed session worktree `{target}`."}
+
+
+def _sync_primary_default(primary: Path) -> dict:
+    upstream = default_upstream(primary)
+    if upstream is None:
+        return {"status": "skipped", "message": "Session worktree setup skipped: configured upstream is missing."}
+    default_branch = upstream.split("/", 1)[-1]
+    branch = current_branch(primary)
+    dirty = uncommitted_count(primary)
+    if dirty is None:
+        return {"status": "skipped", "message": "Session worktree setup skipped: git status is unverifiable."}
+    if branch is not None and branch != default_branch and dirty > 0:
+        return {
+            "status": "halted",
+            "message": (
+                f"Primary checkout is on leftover branch `{branch}` with {dirty} uncommitted "
+                "file(s). Preserve that work; SessionStart will not discard it or create a "
+                "session worktree."
+            ),
+        }
+    unique = unique_commit_count(primary, upstream)
+    if unique is None:
+        return {"status": "skipped", "message": "Session worktree setup skipped: unique commits are unverifiable."}
+    if unique > 0:
+        return {
+            "status": "halted",
+            "message": (
+                f"Primary checkout carries {unique} commit(s) not on `{upstream}`. "
+                "Unique commits are preserved; SessionStart will not reset them."
+            ),
+        }
+    if branch != default_branch and _git(primary, "checkout", "-q", default_branch) is None:
+        return {"status": "skipped", "message": "Session worktree setup skipped: could not check out the default branch."}
+    if _git(primary, "reset", "--hard", upstream) is None:
+        return {"status": "skipped", "message": "Session worktree setup skipped: could not reset the default branch."}
+    _git(primary, "clean", "-fd")
+    return {"status": "ok", "upstream": upstream}
+
+
+def _attach_session_worktree(primary: Path, target: Path, upstream: str) -> dict:
+    if _live_worktree(target):
+        return {"status": "ok", "head": (_git(target, "rev-parse", "HEAD") or "").strip()}
+    if target.exists():
+        return {"status": "skipped", "message": f"Session worktree path `{target}` exists and is not a worktree."}
+    added = _git(primary, "worktree", "add", "--detach", "--", str(target), upstream)
+    if added is None:
+        return {"status": "skipped", "message": "Session worktree setup skipped: git worktree add failed."}
+    return {"status": "ok", "head": (_git(target, "rev-parse", "HEAD") or "").strip()}
 
 
 def _reset_primary_default(primary: Path) -> None:
