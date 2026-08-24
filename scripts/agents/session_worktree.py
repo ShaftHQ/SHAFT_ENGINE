@@ -99,25 +99,6 @@ def uncommitted_count(cwd: Path) -> int | None:
     return len([line for line in rendered.splitlines() if line.strip()])
 
 
-def _is_ancestor(cwd: Path, commit: str, upstream: str) -> bool | None:
-    try:
-        completed = subprocess.run(  # nosec B603 B607 - fixed git argv.
-            ["git", "-c", "core.longpaths=true", "merge-base", "--is-ancestor", commit, upstream],
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            timeout=GIT_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if completed.returncode == 0:
-        return True
-    if completed.returncode == 1:
-        return False
-    return None
-
-
 def unique_commit_count(cwd: Path, upstream: str) -> int | None:
     rendered = _git(cwd, "rev-list", "--count", f"{upstream}..HEAD")
     if rendered is None:
@@ -159,17 +140,17 @@ def save_manifest(cwd: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _lock(cwd: Path):
+@contextmanager
+def _session_lock(cwd: Path):
     common = git_common_dir(cwd)
     if common is None:
-        return None
+        yield None
+        return
     lock_path = common / "chaos-engine" / "session-setup.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = None
     try:
         handle = os.open(str(lock_path), _LOCK_EXCL, 0o644)
-    except OSError:
-        return None
-    try:
         if os.name == "nt":
             import msvcrt
 
@@ -179,27 +160,14 @@ def _lock(cwd: Path):
 
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
-        os.close(handle)
-        return None
-    return handle
-
-
-def _unlock(handle) -> None:
-    if handle is None:
+        if handle is not None:
+            os.close(handle)
+        yield None
         return
-    try:
-        os.close(handle)
-    except OSError:
-        return
-
-
-@contextmanager
-def _session_lock(cwd: Path):
-    handle = _lock(cwd)
     try:
         yield handle
     finally:
-        _unlock(handle)
+        os.close(handle)
 
 
 def _relative_to(path: Path, root: Path) -> bool:
@@ -411,7 +379,6 @@ def _reap_merged(primary: Path) -> None:
     folder = session_dir(primary)
     if folder is None or not folder.is_dir():
         return
-    upstream = default_upstream(primary)
     for path in folder.glob("*.json"):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -424,6 +391,36 @@ def _reap_merged(primary: Path) -> None:
             continue
         if payload.get("merged"):
             _remove_owned_worktree(primary, payload)
+
+
+def _resolve_tool_path(path: str, *, origin: Path, workdir: str | None) -> Path | None:
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        base = Path(workdir).resolve() if workdir else origin
+        candidate = base / candidate
+    try:
+        return candidate.resolve()
+    except OSError:
+        return None
+
+
+def _primary_mutation_target(
+    path: str,
+    *,
+    origin: Path,
+    workdir: str | None,
+    worktree: Path,
+    primary: Path,
+    common: Path | None,
+) -> bool:
+    resolved = _resolve_tool_path(path, origin=origin, workdir=workdir)
+    if resolved is None:
+        return False
+    if _relative_to(resolved, worktree):
+        return False
+    if common is not None and _relative_to(resolved, common):
+        return False
+    return _relative_to(resolved, primary)
 
 
 def isolation_denial(
@@ -450,40 +447,21 @@ def isolation_denial(
     except (OSError, KeyError):
         return None
     common = git_common_dir(origin)
-    allowed_roots = [worktree]
-    if common is not None:
-        allowed_roots.append(common)
-
-    def allowed(path: str) -> bool:
-        candidate = Path(path)
-        if not candidate.is_absolute():
-            base = Path(workdir).resolve() if workdir else origin
-            candidate = base / candidate
-        try:
-            resolved = candidate.resolve()
-        except OSError:
-            return False
-        return any(_relative_to(resolved, root) for root in allowed_roots)
-
-    def under_primary(path: str) -> bool:
-        candidate = Path(path)
-        if not candidate.is_absolute():
-            base = Path(workdir).resolve() if workdir else origin
-            candidate = base / candidate
-        try:
-            resolved = candidate.resolve()
-        except OSError:
-            return False
-        return _relative_to(resolved, primary) and not allowed(str(resolved))
-
+    kwargs = {
+        "origin": origin,
+        "workdir": workdir,
+        "worktree": worktree,
+        "primary": primary,
+        "common": common,
+    }
     effective_dir = Path(workdir).resolve() if workdir else origin
     if _relative_to(effective_dir, worktree):
-        if any(under_primary(target) for target in targets):
+        if any(_primary_mutation_target(target, **kwargs) for target in targets):
             return _isolation_reason(worktree)
         return None
     if _relative_to(effective_dir, primary):
         return _isolation_reason(worktree)
-    if any(under_primary(target) for target in targets):
+    if any(_primary_mutation_target(target, **kwargs) for target in targets):
         return _isolation_reason(worktree)
     return None
 

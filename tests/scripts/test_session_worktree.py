@@ -148,13 +148,14 @@ class SessionWorktreeTest(unittest.TestCase):
     def test_isolation_allows_non_primary_targets_from_the_session_worktree(self):
         created = sw.prepare_session(self.main, "sess-tmp")
         worktree = Path(created["worktreePath"])
+        outside = str(self.base / "outside.txt")
         self.assertIsNone(
             sw.isolation_denial(
                 cwd=worktree,
                 session_id="sess-tmp",
                 mutation=True,
                 workdir=str(worktree),
-                targets=("/tmp/pr.txt",),
+                targets=(outside,),
             )
         )
         self.assertIsNotNone(
@@ -163,7 +164,7 @@ class SessionWorktreeTest(unittest.TestCase):
                 session_id="sess-tmp",
                 mutation=True,
                 workdir=str(self.main),
-                targets=("/tmp/pr.txt",),
+                targets=(outside,),
             )
         )
 
@@ -178,7 +179,7 @@ class SessionWorktreeTest(unittest.TestCase):
         removed = sw.teardown_session(self.main, "sess-unique-detach")
         self.assertEqual("removed", removed["status"], removed)
         self.assertFalse(worktree.exists())
-        self.assertEqual(git(self.main, "rev-parse", "--verify", f"ChaosEngine/recovered-sess-unique-detach").returncode, 0)
+        self.assertEqual(git(self.main, "rev-parse", "--verify", "ChaosEngine/recovered-sess-unique-detach").returncode, 0)
         self.assertEqual(git(self.main, "rev-parse", "ChaosEngine/recovered-sess-unique-detach").stdout.strip(), head)
 
     def test_second_teardown_after_remove_is_absent(self):
