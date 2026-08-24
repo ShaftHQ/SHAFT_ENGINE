@@ -973,6 +973,8 @@ jobs:
           tests.scripts.test_chaos_engine_bootstrap
           tests.scripts.test_chaos_engine_install_wrappers -v
       - name: Run fresh-install acceptance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: >-
           python scripts/ci/chaos_engine_live_installer_acceptance.py
           --candidate-sha ${{ github.event.pull_request.head.sha }}

@@ -55,6 +55,15 @@ def clean_environment(base: dict[str, str] | None = None) -> dict[str, str]:
     }
 
 
+def download_environment(base: dict[str, str] | None = None) -> dict[str, str]:
+    """Allow only GitHub's scoped CI token into repeated public downloads."""
+    source = base or os.environ
+    environment = clean_environment(source)
+    if source.get("GITHUB_TOKEN"):
+        environment["GITHUB_TOKEN"] = source["GITHUB_TOKEN"]
+    return environment
+
+
 def offline_environment(
     base: dict[str, str] | None = None, *, block_path: bool = False
 ) -> dict[str, str]:
@@ -245,6 +254,7 @@ def run_public_wrapper(
     result = run_checked(
         public_wrapper_command(commit, windows=os.name == "nt"),
         cwd=project,
+        environment=download_environment(),
     )
     if not (project / ".chaos-engine/install.py").is_file():
         raise RuntimeError("public wrapper did not create the installation tree")

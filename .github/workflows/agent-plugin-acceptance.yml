@@ -146,6 +146,8 @@ jobs:
         with:
           python-version: '3.13'
       - name: Run real fresh, offline, upgrade, repair, and rollback sequence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: >-
           python scripts/ci/chaos_engine_live_installer_acceptance.py
           --candidate-sha ${{ github.sha }}
