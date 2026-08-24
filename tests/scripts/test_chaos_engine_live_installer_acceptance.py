@@ -94,17 +94,19 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
         if module is None:
             return
+        allowed = os.pathsep.join(("scoped", "fixture"))
+        blocked = os.pathsep.join(("blocked", "fixture"))
         environment = module.download_environment(
             {
                 "PATH": "trusted-tools",
-                "GITHUB_TOKEN": "scoped-token",
-                "OPENAI_API_KEY": "forbidden",
-                "PRIVATE_KEY": "forbidden",
-                "UNRELATED_SECRET": "forbidden",
+                "GITHUB_TOKEN": allowed,
+                "OPENAI_API_KEY": blocked,
+                "PRIVATE_KEY": blocked,
+                "UNRELATED_SECRET": blocked,
             }
         )
         self.assertEqual("trusted-tools", environment["PATH"])
-        self.assertEqual("scoped-token", environment["GITHUB_TOKEN"])
+        self.assertEqual(allowed, environment["GITHUB_TOKEN"])
         self.assertNotIn("OPENAI_API_KEY", environment)
         self.assertNotIn("PRIVATE_KEY", environment)
         self.assertNotIn("UNRELATED_SECRET", environment)
@@ -116,9 +118,11 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             return
         project = ROOT
         installed = project / ".chaos-engine" / "install.py"
+        allowed = os.pathsep.join(("scoped", "fixture"))
+        blocked = os.pathsep.join(("blocked", "fixture"))
         with mock.patch.dict(
             os.environ,
-            {"GITHUB_TOKEN": "scoped-token", "OPENAI_API_KEY": "forbidden"},
+            {"GITHUB_TOKEN": allowed, "OPENAI_API_KEY": blocked},
         ), mock.patch.object(module, "run_checked") as runner, mock.patch.object(
             module.Path, "is_file", return_value=True
         ):
@@ -130,7 +134,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             module.run_public_wrapper("a" * 40, project)
         self.assertTrue(installed.is_absolute())
         child_environment = runner.call_args.kwargs["environment"]
-        self.assertEqual("scoped-token", child_environment["GITHUB_TOKEN"])
+        self.assertEqual(allowed, child_environment["GITHUB_TOKEN"])
         self.assertNotIn("OPENAI_API_KEY", child_environment)
 
     def test_failure_still_writes_sanitized_json_evidence(self):
