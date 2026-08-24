@@ -508,6 +508,8 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
             raise ValueError("GitHub returned invalid repository metadata")
     if not valid_branch(branch):
         raise ValueError("branch is invalid")
+    if COMMIT.fullmatch(branch) is not None:
+        return branch, branch
     encoded_branch = urllib.parse.quote(branch, safe="")
     document = read_response(
         opener,

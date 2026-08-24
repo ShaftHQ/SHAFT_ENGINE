@@ -55,6 +55,14 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_exact_commit_source_does_not_require_revision_lookup(self):
+        bootstrap = load()
+        opener = mock.Mock(side_effect=AssertionError("network lookup was attempted"))
+        self.assertEqual(
+            (COMMIT_ONE, COMMIT_ONE),
+            bootstrap.resolve_latest("ShaftHQ/SHAFT_ENGINE", COMMIT_ONE, opener),
+        )
+
     def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
         windows = (
             'irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/'
