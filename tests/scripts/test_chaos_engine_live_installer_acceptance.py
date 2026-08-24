@@ -192,6 +192,42 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 staged.joinpath("hooks/kernel.py").read_text(encoding="utf-8"),
             )
 
+    def test_installed_source_stage_excludes_reserved_manifest(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            installed = root / ".chaos-engine"
+            installed.joinpath("hooks").mkdir(parents=True)
+            installed.joinpath("hooks/kernel.py").write_text("owned = True\n", encoding="utf-8")
+            installed.joinpath("manifest.json").write_text("{}\n", encoding="utf-8")
+            staged = module.stage_installed_source(installed, root / "offline-source")
+            self.assertTrue(staged.joinpath("hooks/kernel.py").is_file())
+            self.assertFalse(staged.joinpath("manifest.json").exists())
+
+    def test_candidate_install_uses_public_wrapper_not_install_py(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        sha = "1" * 40
+        posix = module.public_wrapper_command(sha, windows=False)
+        windows = module.public_wrapper_command(sha, windows=True)
+        self.assertIn("install.sh", " ".join(posix))
+        self.assertEqual(2, " ".join(posix).count(module.raw_wrapper_url(sha, windows=False)))
+        self.assertIn("install.ps1", " ".join(windows))
+        self.assertIn("irm", " ".join(windows))
+        self.assertNotIn("install.py", " ".join(posix + windows))
+
+    def test_acceptance_source_has_no_ambient_node_or_direct_installer_shortcut(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn('shutil.which("node")', source)
+        self.assertNotIn('shutil.which("npm")', source)
+        self.assertNotIn("def install_command(", source)
+        self.assertIn("--candidate-sha", source)
+
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         self.assertIn("schedule", workflow[True])

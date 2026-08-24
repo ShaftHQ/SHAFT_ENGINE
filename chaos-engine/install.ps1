@@ -34,7 +34,7 @@ function Write-ChaosEngineBrand {
         else {
             [Console]::Error.WriteLine("  /C|*|E/")
         }
-        [Console]::Error.WriteLine("  QUANTUM MANDATE")
+        [Console]::Error.WriteLine("  Chaos Engine")
         return
     }
     [Console]::Error.WriteLine("  /=====.        +--+     /")
@@ -47,7 +47,7 @@ function Write-ChaosEngineBrand {
     }
     [Console]::Error.WriteLine("  |              |==|  /")
     [Console]::Error.WriteLine("  +=====/        +--+ /")
-    [Console]::Error.WriteLine("      QUANTUM MANDATE")
+    [Console]::Error.WriteLine("         Chaos Engine")
 }
 Write-ChaosEngineBrand
 $env:CHAOS_ENGINE_BRAND_SHOWN = "1"
@@ -321,6 +321,14 @@ New-Item -ItemType Directory -Path $work | Out-Null
 try {
     $bootstrap = Join-Path $work "bootstrap.py"
     [Console]::Error.WriteLine("Installing ChaosEngine into $project from $repository@$branch")
+    [Console]::Error.WriteLine("  [ ] Resolve source")
+    [Console]::Error.WriteLine("  [ ] Download source")
+    [Console]::Error.WriteLine("  [ ] Provision dependencies")
+    [Console]::Error.WriteLine("  [ ] Install core")
+    [Console]::Error.WriteLine("  [ ] Verify installation")
+    [Console]::Error.WriteLine("  [ ] Activate clients")
+    [Console]::Error.WriteLine("")
+    [Console]::Error.WriteLine("Current action: Download bootstrap")
     if ($interactiveRequested) {
         if ([Console]::IsInputRedirected) {
             throw "interactive mode requires a usable controlling terminal"

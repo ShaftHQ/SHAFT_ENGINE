@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import deque
 from contextlib import contextmanager
 import email.utils
 import hashlib
@@ -41,7 +42,7 @@ BRAND_ASCII = (
     "  |  *    /      |==|   /",
     "  |              |==|  /",
     "  +=====/        +--+ /",
-    "      QUANTUM MANDATE",
+    "         Chaos Engine",
 )
 BRAND_UNICODE = (
     "  █▀▀▀▀▄         ┬─┐     ╱",
@@ -49,21 +50,12 @@ BRAND_UNICODE = (
     "  █  ◆    ╱      ├─┤   ╱",
     "  █              ├─┤  ╱",
     "  █▄▄▄▄▀         ┴─┘ ╱",
-    "      QUANTUM MANDATE",
+    "         Chaos Engine",
 )
 BRAND_NARROW = (
     "  /C|*|E/",
-    "  QUANTUM MANDATE",
+    "  Chaos Engine",
 )
-STAGE_WEIGHTS = {
-    "Resolve source": 1,
-    "Download source": 2,
-    "Install core": 2,
-    "Provision dependencies": 4,
-    "Install Maven Tools": 3,
-    "Verify installation": 1,
-    "Activate clients": 1,
-}
 
 
 def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) -> list[str]:
@@ -84,6 +76,20 @@ class InstallCancelled(RuntimeError):
     """Raised before an operation when interactive confirmation is declined."""
 
 
+class InstallHealthError(RuntimeError):
+    """Preserve bounded doctor context for recovery output."""
+
+    def __init__(self, phase: str, doctor: dict[str, object]):
+        super().__init__("ChaosEngine doctor did not report a healthy installation")
+        self.phase = phase
+        components = doctor.get("components", {})
+        self.unhealthy = tuple(
+            name
+            for name, value in components.items()
+            if isinstance(value, dict) and value.get("status") != "healthy"
+        ) if isinstance(components, dict) else ()
+
+
 class InstallReporter:
     """Dependency-free installer status renderer; UX always goes to stderr."""
 
@@ -98,7 +104,11 @@ class InstallReporter:
         self._in_flight: list[str] = []
         self._elapsed_as_current: dict[str, float] = {}
         self._completed_elapsed: dict[str, float] = {}
+        self.history: list[tuple[float, str, str, float]] = []
         self._current_started: float | None = None
+        self._download_total: int | None = None
+        self._downloaded = 0
+        self._download_samples = deque(maxlen=30)
         self.detail: str | None = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -174,6 +184,14 @@ class InstallReporter:
         with self._lock:
             now = self.clock()
             self._pause_current(now)
+            if operation not in {
+                "Download source",
+                "Provision dependencies",
+                "Install Maven Tools",
+            }:
+                self._download_total = None
+                self._downloaded_bytes = 0
+                self._download_samples.clear()
             if remaining is not None:
                 kept = tuple(
                     item
@@ -203,6 +221,7 @@ class InstallReporter:
                     if detail and self._unicode
                     else (f" - {detail}" if detail else "")
                 )
+                self.stream.write(self._truncate(f"Current action: {operation}{suffix}") + "\n")
                 self.stream.write(self._truncate(f"START {operation}{suffix}") + "\n")
                 self.stream.flush()
 
@@ -217,13 +236,46 @@ class InstallReporter:
             if operation not in self.completed_operations:
                 self.completed_operations.append(operation)
             self._completed_elapsed[operation] = self._elapsed_as_current.get(operation, 0.0)
+            duration = self._completed_elapsed[operation]
+            self.history.append((now - self.started, "PASS", operation, duration))
             self.remaining_operations = remaining
             self.detail = None
             if self._tty:
                 self._render_locked()
             else:
                 self.stream.write(f"DONE  {operation}\n")
+                self.stream.write(
+                    f"[+{self._duration(now - self.started)}] PASS {operation} "
+                    f"({self._duration(duration)})\n"
+                )
                 self.stream.flush()
+
+    def begin_download(self, total: int | None, *, detail: str | None = None) -> None:
+        with self._lock:
+            now = self.clock()
+            self._download_total = total if isinstance(total, int) and total > 0 else None
+            self._downloaded = 0
+            self._download_samples.clear()
+            self._download_samples.append((now, 0))
+            if detail:
+                self.detail = detail
+            if self._tty:
+                self._render_locked()
+
+    def downloaded(self, count: int) -> None:
+        if count <= 0:
+            return
+        with self._lock:
+            now = self.clock()
+            self._downloaded += count
+            self._download_samples.append((now, self._downloaded))
+            while (
+                len(self._download_samples) > 2
+                and now - self._download_samples[0][0] > 8.0
+            ):
+                self._download_samples.popleft()
+            if self._tty:
+                self._render_locked()
 
     def _ticker(self) -> None:
         while not self._stop.wait(1.0):
@@ -231,29 +283,30 @@ class InstallReporter:
                 self._render_locked()
 
     def _eta(self, now: float) -> str:
-        completed_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.completed_operations)
-        completed_elapsed = sum(
-            self._completed_elapsed.get(item, 0.0) for item in self.completed_operations
-        )
-        if not completed_weight:
+        rate = self._download_rate()
+        if rate is None or self._download_total is None:
             return "calculating"
-        rate = completed_elapsed / completed_weight
-        future = list(
-            dict.fromkeys(
-                item
-                for item in (*self._in_flight, *self.remaining_operations)
-                if item != self.current_operation and item not in self.completed_operations
-            )
-        )
-        future_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in future)
-        current_remainder = 0.0
-        if self.current_operation:
-            current_weight = STAGE_WEIGHTS.get(self.current_operation, 1)
-            elapsed_on_current = self._elapsed_as_current.get(self.current_operation, 0.0)
-            if self._current_started is not None:
-                elapsed_on_current += max(0.0, now - self._current_started)
-            current_remainder = max(0.0, rate * current_weight - elapsed_on_current)
-        return self._duration(current_remainder + rate * future_weight)
+        return self._duration(max(0, self._download_total - self._downloaded) / rate)
+
+    def _download_rate(self) -> float | None:
+        if len(self._download_samples) < 2:
+            return None
+        started, first = self._download_samples[0]
+        ended, last = self._download_samples[-1]
+        elapsed = ended - started
+        transferred = last - first
+        if elapsed < 1.0 or transferred <= 0:
+            return None
+        return transferred / elapsed
+
+    @staticmethod
+    def _size(value: float) -> str:
+        units = ("B/s", "KiB/s", "MiB/s", "GiB/s")
+        for unit in units[:-1]:
+            if value < 1024:
+                return f"{value:.0f} {unit}"
+            value /= 1024
+        return f"{value:.1f} {units[-1]}"
 
     def _render_locked(self) -> None:
         operations = list(
@@ -281,8 +334,22 @@ class InstallReporter:
         separator = " · " if self._unicode else " | "
         timing = self._truncate(f"  Elapsed {self._duration(elapsed)}{separator}ETA {eta}")
         lines.extend(("", self._paint(timing, "33")))
+        rate = self._download_rate()
+        speed = "calculating" if rate is None else self._size(rate)
+        lines.append(self._truncate(f"  Speed {speed}"))
+        if self.current_operation:
+            lines.append(self._truncate(f"  Current action: {self.current_operation}"))
         if self.detail:
             lines.append(self._truncate(f"  {self.detail}"))
+        if self.history:
+            lines.append("  History:")
+            for ended, result, operation, duration in self.history[-5:]:
+                lines.append(
+                    self._truncate(
+                        f"  [+{self._duration(ended)}] {result} {operation} "
+                        f"({self._duration(duration)})"
+                    )
+                )
         if self._lines:
             self.stream.write(f"\x1b[{self._lines}F")
         rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"
@@ -386,12 +453,22 @@ def read_response(
     *,
     limit: int = MAX_RESPONSE_BYTES,
     sleeper=None,
+    progress=None,
 ) -> bytes:
     sleeper = time.sleep if sleeper is None else sleeper
     for attempt in range(MAX_READ_ATTEMPTS):
         try:
             with opener(request(url), timeout=30) as response:
-                value = response.read(limit + 1)
+                chunks = []
+                total = 0
+                while chunk := response.read(min(64 * 1024, limit + 1 - total)):
+                    chunks.append(chunk)
+                    total += len(chunk)
+                    if progress is not None:
+                        progress(len(chunk))
+                    if total > limit:
+                        break
+                value = b"".join(chunks)
             break
         except (OSError, TimeoutError, urllib.error.URLError) as error:
             try:
@@ -452,6 +529,7 @@ def download_source(
     destination: Path,
     *,
     opener=urllib.request.urlopen,
+    reporter: InstallReporter | None = None,
 ) -> Path:
     """Download only the bounded ChaosEngine subtree, never the whole repository."""
     encoded_repository = "/".join(
@@ -505,6 +583,8 @@ def download_source(
         raise ValueError("ChaosEngine source tree contains too many files")
     if total > MAX_SOURCE_BYTES:
         raise ValueError("ChaosEngine source tree exceeds the download limit")
+    if reporter is not None:
+        reporter.begin_download(total, detail=f"{len(selected)} source files")
 
     source = destination / "chaos-engine"
     source.mkdir()
@@ -514,6 +594,7 @@ def download_source(
             opener,
             f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/chaos-engine/{encoded_path}",
             limit=MAX_FILE_BYTES,
+            progress=None if reporter is None else reporter.downloaded,
         )
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
@@ -589,7 +670,9 @@ def install_latest(
         source_url = f"https://github.com/{repository}/tree/{commit}/chaos-engine"
         confirm("Download source")
         reporter.start("Download source", remaining=remaining("Download source"), detail=source_url)
-        source = download_source(repository, commit, Path(temporary.name), opener=opener)
+        source = download_source(
+            repository, commit, Path(temporary.name), opener=opener, reporter=reporter
+        )
         reporter.complete("Download source", remaining=remaining("Download source"))
         installer = load_installer(source)
         distribution = resolve_distribution(installer, project, source, distribution)
@@ -653,7 +736,7 @@ def install_latest(
         reporter.start("Verify installation", remaining=remaining("Verify installation"))
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
         if doctor.get("status") != "healthy":
-            raise RuntimeError("ChaosEngine doctor did not report a healthy installation")
+            raise InstallHealthError("Verify installation", doctor)
         reporter.complete("Verify installation", remaining=remaining("Verify installation"))
         confirm("Activate clients")
         reporter.start("Activate clients", remaining=remaining("Activate clients"))
@@ -725,10 +808,25 @@ def classify_install_error(error: BaseException) -> str:
 
 def one_line_cause(error: BaseException) -> str:
     text = str(error).strip() or error.__class__.__name__
-    return " ".join(text.split())
+    text = " ".join(text.split())
+    text = re.sub(
+        r"(?<!:)(?:[A-Za-z]:[\\/]|/(?:home|Users|tmp|var|private)/)\S+",
+        "<path>",
+        text,
+    )
+    return re.sub(
+        r"(?i)\b(token|secret|password|api_key)=\S+",
+        lambda match: f"{match.group(1)}=<redacted>",
+        text,
+    )
 
 
-def emit_install_failure(code: str, error: BaseException, repository: str) -> None:
+def emit_install_failure(
+    code: str,
+    error: BaseException,
+    repository: str,
+    reporter: InstallReporter | None = None,
+) -> None:
     print(file=sys.stderr)
     if code == "CE-INSTALL-CANCELLED":
         print(f"{code}: installation interrupted", file=sys.stderr)
@@ -739,10 +837,38 @@ def emit_install_failure(code: str, error: BaseException, repository: str) -> No
     print(file=sys.stderr)
     print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
     prefix = installer_cli_prefix()
-    print(f"Status: {prefix} status", file=sys.stderr)
-    print(f"Doctor: {prefix} doctor", file=sys.stderr)
+    status_command = f"{prefix} status --project . --json"
+    doctor_command = f"{prefix} doctor --project . --json"
+    print(f"Status: {status_command}", file=sys.stderr)
+    print(f"Doctor: {doctor_command}", file=sys.stderr)
     if code != "CE-INSTALL-CANCELLED":
-        print(f"Report: https://github.com/{repository}/issues/new", file=sys.stderr)
+        body = "\n".join(
+            (
+                f"Error code: {code}",
+                f"Cause: {one_line_cause(error)[:240]}",
+                f"Failed phase: {getattr(error, 'phase', None) or (reporter.current_operation if reporter else 'unknown')}",
+                "Unhealthy components: "
+                + (", ".join(getattr(error, "unhealthy", ())) or "not reported"),
+                "Current action: "
+                + ((reporter.current_operation if reporter else None) or "none"),
+                "History: "
+                + (
+                    "; ".join(
+                        f"{result} {operation} ({reporter._duration(duration)})"
+                        for _, result, operation, duration in reporter.history[-5:]
+                    )
+                    if reporter and reporter.history
+                    else "none"
+                ),
+                f"Platform: {sys.platform}",
+                f"Status command: {status_command}",
+                f"Doctor command: {doctor_command}",
+            )
+        )
+        query = urllib.parse.urlencode(
+            {"title": f"[ChaosEngine installer] {code}", "body": body[:1200]}
+        )
+        print(f"Report: https://github.com/{repository}/issues/new?{query}", file=sys.stderr)
     if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
         traceback.print_exc()
 
@@ -765,7 +891,9 @@ def main() -> int:
         if isinstance(error, SystemExit):
             raise
         reporter.close()
-        emit_install_failure(classify_install_error(error), error, args.repository)
+        emit_install_failure(
+            classify_install_error(error), error, args.repository, reporter=reporter
+        )
         return 1
     reporter.close()
     print(json.dumps(result, sort_keys=True))

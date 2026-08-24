@@ -56,16 +56,15 @@ class Response(io.BytesIO):
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
     def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
-        windows = 'irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex'
+        windows = (
+            'irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/'
+            + 'chaos-engine/install.ps1" | iex'
+        )
         readme_posix = (
             'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
             + ' | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
         )
-        install_posix = (
-            "url=\"$(printf 'https://raw.githubusercontent.com/S\\150aftHQ/"
-            + "SHA\\106T_ENGINE/main/chaos-engine/install.sh')\"; "
-            + 'curl -fsSL "$url" | bash -s -- "$url"'
-        )
+        install_posix = readme_posix
         readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
         install = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
         self.assertIn(windows, readme)

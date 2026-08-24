@@ -168,12 +168,28 @@ def _download_artifact(
     total = 0
     try:
         with opener(url, timeout=60) as response, destination.open("xb") as stream:
+            length = None
+            headers = getattr(response, "headers", None)
+            if headers is not None:
+                try:
+                    candidate = int(headers.get("Content-Length", ""))
+                    length = (
+                        candidate
+                        if 0 < candidate <= MAX_RUNTIME_ARCHIVE_BYTES
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    length = None
+            if reporter is not None:
+                reporter.begin_download(length, detail=url)
             while chunk := response.read(1024 * 1024):
                 total += len(chunk)
                 if total > MAX_RUNTIME_ARCHIVE_BYTES:
                     raise ValueError("runtime artifact exceeds the download limit")
                 digest.update(chunk)
                 stream.write(chunk)
+                if reporter is not None:
+                    reporter.downloaded(len(chunk))
         if digest.hexdigest() != expected:
             raise ValueError("runtime artifact checksum verification failed")
     except BaseException:

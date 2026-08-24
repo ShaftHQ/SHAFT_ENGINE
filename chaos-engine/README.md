@@ -83,7 +83,7 @@ install into the current working directory.
 Windows PowerShell:
 
 ```powershell
-irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex
+irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
 ```
 
 macOS or Linux:
@@ -273,7 +273,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | argparse | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/reflection.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | base64 | Portable runtime standard-library dependency. | chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
-| collections | Portable runtime standard-library dependency. | chaos-engine/hooks/lifecycle.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| collections | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/lifecycle.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | contextlib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | ctypes | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
 | dataclasses | Portable runtime standard-library dependency. | chaos-engine/hooks/kernel.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |

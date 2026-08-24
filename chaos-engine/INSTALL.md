@@ -63,13 +63,13 @@ directory.
 Windows PowerShell, using [install.ps1](install.ps1):
 
 ```powershell
-irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex
+irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
 ```
 
 macOS or Linux, using [install.sh](install.sh):
 
 ```bash
-url="$(printf 'https://raw.githubusercontent.com/S\150aftHQ/SHA\106T_ENGINE/main/chaos-engine/install.sh')"; curl -fsSL "$url" | bash -s -- "$url"
+curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
 
 Python is not required before either command. When no Python 3 executable is
