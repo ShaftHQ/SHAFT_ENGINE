@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import platform
@@ -182,12 +183,15 @@ def stage_source(source: Path, destination: Path) -> Path:
     return destination
 
 
-def stage_installed_source(installed: Path, destination: Path) -> Path:
-    shutil.copytree(
-        installed,
-        destination,
-        ignore=shutil.ignore_patterns("manifest.json", "__pycache__", "*.pyc"),
+def download_commit_source(installed: Path, commit: str, destination: Path) -> Path:
+    specification = importlib.util.spec_from_file_location(
+        "chaos_engine_acceptance_bootstrap", installed / "bootstrap.py"
     )
+    if specification is None or specification.loader is None:
+        raise RuntimeError("installed bootstrap could not be loaded")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    module.download_source("ShaftHQ/SHAFT_ENGINE", commit, destination)
     return destination
 
 
@@ -404,8 +408,8 @@ def run_acceptance(
         first_generations = sorted(
             path.name for path in (project / ".chaos-engine-runtime-generations").iterdir()
         )
-        offline_source = stage_installed_source(
-            project / ".chaos-engine", root / "offline-base-source"
+        offline_source = download_commit_source(
+            project / ".chaos-engine", base_sha, root / "offline-base-source"
         )
 
         def healthy_rerun() -> dict[str, object]:
