@@ -2669,7 +2669,7 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
             }), encoding="utf-8")
             runtime = task / "scripts/agents/act_as_mohab_cli.py"
             command = (
-                f'py -3 "{runtime}" pr-audit --pr 17 '
+                f'python3 "{runtime}" pr-audit --pr 17 '
                 f'--receipt-out "{receipt_path}"'
             )
 
@@ -2677,6 +2677,8 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
                 mock.patch.object(guard, "_harness_root", return_value=str(source)),
                 mock.patch.object(guard, "_repository_root", return_value=str(task)),
                 mock.patch.object(guard, "_checkpoint_identity", return_value=identity),
+                mock.patch.object(guard, "_git_output", return_value=str(receipt_path)),
+                mock.patch.object(guard, "_trusted_executable_token", return_value=True),
             ):
                 event = guard._successful_pr_audit_event(
                     {"cwd": str(task)}, command
@@ -2684,6 +2686,48 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
 
             self.assertIsNotNone(event)
             self.assertTrue(event.startswith("pr-audit:consumer/project:17:"))
+
+    def test_posttooluse_ignores_literal_receipt_identity_and_uses_git_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = Path(temporary) / "task"
+            canonical = Path(temporary) / "git" / "act-as-mohab" / "pr-audit-17.json"
+            task.mkdir()
+            canonical.parent.mkdir(parents=True)
+            identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+            receipt = {
+                "decision": "allow", "repository": identity[0],
+                "pullRequest": 17, "headOid": identity[2],
+            }
+            canonical.write_text(json.dumps(receipt), encoding="utf-8")
+            runtime = task / "scripts/agents/act_as_mohab_cli.py"
+            runtime.parent.mkdir(parents=True)
+            runtime.write_text("# controller\n", encoding="utf-8")
+            command = (
+                f'python3 "{runtime}" pr-audit --pr 17 '
+                f'--receipt-out "{task / "decoy.json"}"'
+            )
+
+            def git_output(arguments, cwd):
+                self.assertEqual(str(task), cwd)
+                self.assertEqual(
+                    ["rev-parse", "--git-path", "act-as-mohab/pr-audit-17.json"], arguments
+                )
+                return str(canonical)
+
+            with (
+                mock.patch.object(guard, "_harness_root", return_value=str(task)),
+                mock.patch.object(guard, "_repository_root", return_value=str(task)),
+                mock.patch.object(guard, "_checkpoint_identity", return_value=identity),
+                mock.patch.object(guard, "_git_output", side_effect=git_output),
+                mock.patch.object(guard, "_trusted_executable_token", return_value=True),
+                mock.patch.object(guard.shutil, "which", return_value="/usr/bin/python3"),
+            ):
+                event = guard._successful_pr_audit_event({"cwd": str(task)}, command)
+
+            self.assertIsNotNone(event)
+            self.assertTrue(event.endswith(hashlib.sha256(
+                (json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n").encode()
+            ).hexdigest()))
 
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):

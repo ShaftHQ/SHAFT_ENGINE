@@ -2833,10 +2833,15 @@ def desired_content(
             raise ValueError("invalid Claude marketplace configuration") from error
         if (
             not isinstance(claude_marketplace, dict)
-            or claude_marketplace.get("name") != "chaos-engine-project"
+            or not isinstance(claude_marketplace.get("name"), str)
+            or not claude_marketplace["name"].strip()
             or not isinstance(claude_marketplace.get("plugins"), list)
+            or any(
+                not isinstance(item, dict) or not isinstance(item.get("name"), str)
+                for item in claude_marketplace.get("plugins", [])
+            )
         ):
-            raise ValueError("ChaosEngine Claude marketplace collision")
+            raise ValueError("invalid Claude marketplace configuration")
     existing_claude_plugin = next(
         (
             item
@@ -2975,18 +2980,19 @@ def desired_content(
     marketplaces = settings.setdefault("extraKnownMarketplaces", {})
     if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
         raise ValueError("invalid Claude settings")
-    plugin_id = "chaos-engine@chaos-engine-project"
+    claude_marketplace_name = claude_marketplace["name"]
+    plugin_id = f"chaos-engine@{claude_marketplace_name}"
     if plugin_id in enabled and enabled[plugin_id] is not True:
         raise ValueError("ChaosEngine Claude plugin collision")
     desired_marketplace = {
         "source": {"source": "directory", "path": "."}
     }
-    if "chaos-engine-project" in marketplaces and marketplaces["chaos-engine-project"] != desired_marketplace:
+    if claude_marketplace_name in marketplaces and marketplaces[claude_marketplace_name] != desired_marketplace:
         raise ValueError("ChaosEngine Claude marketplace collision")
     enabled[plugin_id] = True
-    enabled["caveman@chaos-engine-project"] = True
-    enabled["ponytail@chaos-engine-project"] = True
-    marketplaces["chaos-engine-project"] = desired_marketplace
+    enabled[f"caveman@{claude_marketplace_name}"] = True
+    enabled[f"ponytail@{claude_marketplace_name}"] = True
+    marketplaces[claude_marketplace_name] = desired_marketplace
     after[".claude/settings.json"] = (
         json.dumps(settings, indent=2, sort_keys=True) + "\n"
     ).encode()

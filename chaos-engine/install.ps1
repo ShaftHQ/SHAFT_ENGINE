@@ -241,7 +241,7 @@ if ($ParseOnly) {
     return
 }
 
-$interactiveRequested = $Interactive -or $env:CHAOS_ENGINE_INTERACTIVE -eq "1"
+$interactiveRequested = $Interactive
 
 $source = Resolve-ChaosEngineSource
 $repository = [string]$source.Repository

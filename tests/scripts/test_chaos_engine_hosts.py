@@ -983,7 +983,31 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertEqual("python tools/my-guard.py", cleaned["hooks"]["PreToolUse"][0]["hooks"][0]["command"])
         self.assertIn("Custom", cleaned["hooks"])
 
-    def test_unrelated_claude_marketplace_fails_closed_without_mutation(self):
+    def test_unrelated_claude_marketplace_coexists_and_uninstall_restores_exact_bytes(self):
+        module = load(HOSTS, "chaos_engine_claude_marketplace_coexistence")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            path = project / ".claude-plugin/marketplace.json"
+            path.parent.mkdir(parents=True)
+            original = b'{\n  "name": "user-marketplace",\n  "owner": {"name": "User"},\n  "custom": true,\n  "plugins": [{"name": "user-plugin", "source": "./user"}]\n}\n'
+            path.write_bytes(original)
+
+            module.install(project)
+            installed = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual("user-marketplace", installed["name"])
+            self.assertEqual({"name": "User"}, installed["owner"])
+            self.assertTrue(installed["custom"])
+            self.assertEqual("user-plugin", installed["plugins"][0]["name"])
+            self.assertEqual(
+                ["chaos-engine", module.CAVEMAN_PLUGIN_NAME, module.PONYTAIL_PLUGIN_NAME],
+                [item["name"] for item in installed["plugins"][1:]],
+            )
+            module.uninstall(project)
+            self.assertEqual(original, path.read_bytes())
+
+    def test_conflicting_claude_plugin_fails_closed_without_mutation(self):
         module = load(HOSTS, "chaos_engine_claude_marketplace_collision")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
@@ -991,12 +1015,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
             path = project / ".claude-plugin/marketplace.json"
             path.parent.mkdir(parents=True)
-            original = {"name": "user-marketplace", "plugins": []}
-            path.write_text(json.dumps(original), encoding="utf-8")
-
+            original = b'{"name":"user-marketplace","plugins":[{"name":"chaos-engine","source":"./foreign"}]}'
+            path.write_bytes(original)
             with self.assertRaisesRegex(ValueError, "Claude marketplace collision"):
                 module.install(project)
-            self.assertEqual(original, json.loads(path.read_text()))
+            self.assertEqual(original, path.read_bytes())
             self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
 
     def test_gitignore_reincludes_tracked_memory_config_under_existing_parent_rule(self):
