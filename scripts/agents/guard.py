@@ -1580,8 +1580,18 @@ def normalize_hook_input(raw: dict) -> dict:
     for source, target in _FIELD_ALIASES.items():
         if target not in normalized and source in raw:
             normalized[target] = raw[source]
-    if not normalized.get("hook_event_name") and os.environ.get("GROK_HOOK_EVENT"):
+    is_grok = hook_host(raw) == "grok"
+    if is_grok and not normalized.get("hook_event_name") and os.environ.get("GROK_HOOK_EVENT"):
         normalized["hook_event_name"] = os.environ["GROK_HOOK_EVENT"]
+    if is_grok and not normalized.get("session_id") and os.environ.get("GROK_SESSION_ID"):
+        normalized["session_id"] = os.environ["GROK_SESSION_ID"]
+    if is_grok:
+        normalized["hook_event_name"] = {
+            "session_start": "SessionStart", "user_prompt_submit": "UserPromptSubmit",
+            "pre_tool_use": "PreToolUse", "post_tool_use": "PostToolUse",
+            "post_tool_use_failure": "PostToolUseFailure", "stop": "Stop",
+            "subagent_stop": "SubagentStop", "session_end": "SessionEnd",
+        }.get(str(normalized.get("hook_event_name") or ""), normalized.get("hook_event_name"))
 
     tool_input = normalized.get("tool_input")
     if isinstance(tool_input, dict):
@@ -6760,6 +6770,8 @@ def _prepare_hook(hook_input: dict) -> None:
     """Apply source-only budget and ledger policy before shared dispatch."""
     start_hook_budget()
     _ledger_path(hook_input)
+    if hook_input.get("hook_event_name") not in {"SessionStart", "SubagentStop", "SessionEnd"}:
+        _reflection.record_session_start(_reflection_session_id(hook_input), estimated=True)
 
 
 def _evaluate_kernel_event(hook_input: dict, host: str):

@@ -74,6 +74,40 @@ class ChaosEngineKernelTest(TestCase):
             {"git status"},
         )
 
+    def test_grok_official_environment_fallback_normalizes_snake_case(self):
+        aliases = {
+            "session_start": "SessionStart",
+            "user_prompt_submit": "UserPromptSubmit",
+            "pre_tool_use": "PreToolUse",
+            "post_tool_use": "PostToolUse",
+            "post_tool_use_failure": "PostToolUseFailure",
+            "stop": "Stop",
+            "subagent_stop": "SubagentStop",
+            "session_end": "SessionEnd",
+        }
+        for native, canonical in aliases.items():
+            with self.subTest(native=native), mock.patch.dict(
+                os.environ,
+                {"GROK_HOOK_EVENT": native, "GROK_SESSION_ID": "grok-session"},
+                clear=False,
+            ):
+                event = self.kernel.normalize_event({}, "grok")
+                self.assertEqual(canonical, event.name)
+                self.assertEqual("grok-session", event.session_id)
+
+    def test_grok_payload_wins_and_environment_never_leaks_to_other_hosts(self):
+        with mock.patch.dict(
+            os.environ,
+            {"GROK_HOOK_EVENT": "stop", "GROK_SESSION_ID": "environment"},
+            clear=False,
+        ):
+            event = self.kernel.normalize_event(
+                {"hookEventName": "pre_tool_use", "sessionId": "payload"}, "grok"
+            )
+            other = self.kernel.normalize_event({}, "codex")
+        self.assertEqual(("PreToolUse", "payload"), (event.name, event.session_id))
+        self.assertEqual(("", ""), (other.name, other.session_id))
+
     def test_copilot_json_tool_args_preserve_mutation(self):
         event = self.kernel.normalize_event(
             {

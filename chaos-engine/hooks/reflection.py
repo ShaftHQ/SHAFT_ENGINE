@@ -179,7 +179,9 @@ def entries(session_id: str) -> list[dict]:
     return found
 
 
-def record_session_start(session_id: str, observed_at: str | None = None) -> str | None:
+def record_session_start(
+    session_id: str, observed_at: str | None = None, *, estimated: bool = False
+) -> str | None:
     token = _ensure_session_token(session_id)
     if token is None:
         return None
@@ -191,6 +193,7 @@ def record_session_start(session_id: str, observed_at: str | None = None) -> str
             "schemaVersion": SCHEMA_VERSION,
             "kind": "session-start",
             "observedAt": observed_at or datetime.now(UTC).isoformat(),
+            **({"estimated": True} if estimated else {}),
         },
     )
     return token if recorded else None

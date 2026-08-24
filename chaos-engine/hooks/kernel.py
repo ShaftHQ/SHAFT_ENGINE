@@ -134,6 +134,14 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             postToolUse="PostToolUse",
             agentStop="Stop",
             sessionEnd="SessionEnd",
+            session_start="SessionStart",
+            user_prompt_submit="UserPromptSubmit",
+            pre_tool_use="PreToolUse",
+            post_tool_use="PostToolUse",
+            post_tool_use_failure="PostToolUseFailure",
+            stop="Stop",
+            subagent_stop="SubagentStop",
+            session_end="SessionEnd",
         ),
         GROK_EVENTS,
     ),
@@ -276,8 +284,10 @@ def normalize_event(raw: Mapping[str, object], host: str | None = None) -> HookE
     for source, target in FIELD_ALIASES.items():
         if target not in normalized and source in normalized:
             normalized[target] = normalized[source]
-    if not normalized.get("hook_event_name") and os.environ.get("GROK_HOOK_EVENT"):
+    if selected == "grok" and not normalized.get("hook_event_name") and os.environ.get("GROK_HOOK_EVENT"):
         normalized["hook_event_name"] = os.environ["GROK_HOOK_EVENT"]
+    if selected == "grok" and not normalized.get("session_id") and os.environ.get("GROK_SESSION_ID"):
+        normalized["session_id"] = os.environ["GROK_SESSION_ID"]
     name = _event_name(normalized.get("hook_event_name"), selected)
     tool_input = normalized.get("tool_input")
     if isinstance(tool_input, str):
