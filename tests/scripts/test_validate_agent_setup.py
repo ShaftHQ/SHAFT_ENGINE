@@ -35,14 +35,12 @@ class ValidateAgentSetupTest(unittest.TestCase):
             ".memory/config.json",
             json.dumps(
                 {
-                    "version": 4,
+                    "version": 5,
                     "project": {"id": "project.shaft-engine", "name": "Shaft Engine"},
                     "memory": {
                         "autoIndex": True,
                         "defaultTokenBudget": 600,
-                        "saveContextPacks": False,
                     },
-                    "git": {"trackContextPacks": False},
                 }
             ),
         )
