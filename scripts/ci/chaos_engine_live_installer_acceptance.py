@@ -260,8 +260,8 @@ def run_public_wrapper(
         raise RuntimeError("public wrapper did not create the installation tree")
     if "Installing ChaosEngine" not in result.stderr:
         raise RuntimeError("public wrapper returned without durable installer progress")
-    if require_current_action and "Current action:" not in result.stderr:
-        raise RuntimeError("candidate wrapper omitted its current action")
+    if require_current_action and "START " not in result.stderr and "Elapsed " not in result.stderr:
+        raise RuntimeError("candidate wrapper omitted installer progress")
     payload = json.loads(result.stdout)
     if payload.get("status") != "installed":
         raise RuntimeError("public wrapper did not return an installed result")

@@ -161,21 +161,19 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
         return [issue("memory-config", ".memory/config.json", str(error))]
 
     expected_config = {
-        "version": 4,
+        "version": 5,
         "project": {"id": "project.shaft-engine", "name": "Shaft Engine"},
         "memory": {
             "autoIndex": True,
             "defaultTokenBudget": 600,
-            "saveContextPacks": False,
         },
-        "git": {"trackContextPacks": False},
     }
     if config != expected_config:
         errors.append(
             issue(
                 "memory-config",
                 ".memory/config.json",
-                "configuration must use schema v4, project.shaft-engine, and a 600-token budget",
+                "configuration must use schema v5, project.shaft-engine, and a 600-token budget",
             )
         )
 
