@@ -1295,8 +1295,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )
             self.assertNotIn("git", migrated)
             self.assertNotIn("saveContextPacks", migrated["memory"])
-            for name, payload in before_schemas.items():
-                self.assertEqual(payload, project.joinpath(".memory/schema", name).read_bytes())
+            schema_root = Path(module.memory_schema_assets())
+            for name in module.MEMORY_SCHEMA_FILES:
+                self.assertEqual(
+                    (schema_root / name).read_bytes(),
+                    project.joinpath(".memory/schema", name).read_bytes(),
+                )
             self.assertEqual(object_bytes, object_path.read_bytes())
             self.assertEqual(before_yaml, project.joinpath("mempalace.yaml").read_bytes())
             self.assertTrue(before_yaml.startswith(b"wing: itestflow_agent\nexclude_patterns:\n"))

@@ -3184,17 +3184,7 @@ def desired_content(
     schema_assets = memory_schema_assets()
     for name in MEMORY_SCHEMA_FILES:
         relative = f".memory/schema/{name}"
-        existing = before[relative]
-        if existing is None:
-            after[relative] = (schema_assets / name).read_bytes()
-        else:
-            try:
-                schema = json.loads(existing)
-            except (UnicodeDecodeError, json.JSONDecodeError) as error:
-                raise ValueError("invalid Memory storage") from error
-            if not isinstance(schema, (dict, bool)):
-                raise ValueError("invalid Memory storage")
-            after[relative] = existing
+        after[relative] = (schema_assets / name).read_bytes()
     events = before[".memory/events.jsonl"]
     if events is None:
         after[".memory/events.jsonl"] = b""
