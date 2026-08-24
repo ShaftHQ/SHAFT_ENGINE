@@ -3669,7 +3669,6 @@ def install(
         before = decode_images(receipt["before"], nullable=True)
         after = decode_images(receipt["after"], nullable=False)
         if receipt["phase"] == "installed":
-            verify(project, receipt)
             desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
             version = plugin_cache_version(core_commit)
             wanted = desired_content(
@@ -3678,6 +3677,12 @@ def install(
                 plugin_version=version,
                 dependency_runtime=dependency_runtime,
             )
+            current = current_images(project)
+            for relative in managed_paths():
+                if current[relative] not in (after[relative], wanted[relative]):
+                    raise ValueError(
+                        f"ChaosEngine host adapter drift detected: {project / relative}"
+                    )
             if (
                 after == wanted
                 and receipt.get("coreCommit") == core_commit
