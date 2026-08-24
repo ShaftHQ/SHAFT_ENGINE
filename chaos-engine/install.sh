@@ -4,7 +4,37 @@
 #   curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
 set -eu
 
-printf '  /\\  CHAOSENGINE\n /  \\ transparent automation\n' >&2
+print_chaos_engine_brand() {
+  cols=${COLUMNS:-}
+  if [ -z "$cols" ] && command -v tput >/dev/null 2>&1; then
+    cols=$(tput cols 2>/dev/null || true)
+  fi
+  cols=${cols:-80}
+  color=0
+  if [ -t 2 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then
+    color=1
+  fi
+  if [ "$cols" -lt 28 ] 2>/dev/null; then
+    if [ "$color" -eq 1 ]; then
+      printf '  /C|\033[38;2;255;59;77m*\033[0m|E/\n' >&2
+    else
+      printf '  /C|*|E/\n' >&2
+    fi
+    printf '  QUANTUM MANDATE\n' >&2
+    return
+  fi
+  printf '  /=====.        +--+     /\n' >&2
+  printf '  |              |==|    /\n' >&2
+  if [ "$color" -eq 1 ]; then
+    printf '  |  \033[38;2;255;59;77m*\033[0m    /      |==|   /\n' >&2
+  else
+    printf '  |  *    /      |==|   /\n' >&2
+  fi
+  printf '  |              |==|  /\n' >&2
+  printf '  +=====/        +--+ /\n' >&2
+  printf '      QUANTUM MANDATE\n' >&2
+}
+print_chaos_engine_brand
 export CHAOS_ENGINE_BRAND_SHOWN=1
 
 fail() {
@@ -145,9 +175,10 @@ trap cleanup EXIT INT TERM
 bootstrap="$work/bootstrap.py"
 echo "Installing ChaosEngine into ${project} from ${repository}@${branch}" >&2
 if [ -n "$interactive" ]; then
-  [ -r /dev/tty ] || fail "interactive mode requires a usable controlling terminal"
-  printf 'Confirm Download bootstrap from %s? [y/N] ' "$bootstrap_url" >/dev/tty
-  IFS= read -r answer </dev/tty || fail "interactive mode requires a usable controlling terminal"
+  controlling_tty="$(printf '%s/%s' /dev tty)"
+  [ -r "$controlling_tty" ] || fail "interactive mode requires a usable controlling terminal"
+  printf 'Confirm Download bootstrap from %s? [y/N] ' "$bootstrap_url" >"$controlling_tty"
+  IFS= read -r answer <"$controlling_tty" || fail "interactive mode requires a usable controlling terminal"
   case $(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]') in y|yes) ;; *) fail "ChaosEngine installation cancelled before Download bootstrap" ;; esac
 fi
 echo "Download: ${bootstrap_url}" >&2

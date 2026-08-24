@@ -1640,6 +1640,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 ):
                     controller.remove_generation(project, retired_generation)
         except BaseException as error:
+            if isinstance(error, (KeyboardInterrupt, SystemExit)):
+                raise
             compensation_errors: list[BaseException] = []
             restore_generation = None
             if candidate is not None and not candidate_published:
@@ -2118,6 +2120,8 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
                 prepared = True
             uninstall(project, expected_commit=commit, _locked=True)
         except BaseException as error:
+            if isinstance(error, (KeyboardInterrupt, SystemExit)):
+                raise
             compensation_errors: list[BaseException] = []
             if generation_prepared:
                 try:

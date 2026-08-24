@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import tempfile
 import io
 import zipfile
@@ -72,6 +73,76 @@ class ManagedRuntimeManifestTest(TestCase):
             self.assertEqual("node/bin/node", dispatch["executable"])
             self.assertEqual(DEPENDENCIES.sha256(node), dispatch["executableSha256"])
             self.assertEqual("npm/node_modules/@aictx/memory/dist/cli/main.js", dispatch["script"])
+
+    def test_probe_plan_uses_owned_node_and_package_javascript(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary)
+            node = runtime / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+            node.parent.mkdir(parents=True)
+            node.write_bytes(b"owned-node")
+            package = runtime / "npm/node_modules/@aictx/memory"
+            (package / "dist/cli").mkdir(parents=True)
+            (package / "dist/mcp").mkdir(parents=True)
+            (package / "dist/cli/main.js").write_text("console.log('memory');\n", encoding="utf-8")
+            (package / "dist/mcp/server.js").write_text(
+                "console.log('memory-mcp');\n", encoding="utf-8"
+            )
+            (package / "package.json").write_text(
+                json.dumps(
+                    {
+                        "name": "@aictx/memory",
+                        "bin": {
+                            "memory": "dist/cli/main.js",
+                            "memory-mcp": "dist/mcp/server.js",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            bindir = runtime / "npm/node_modules/.bin"
+            bindir.mkdir(parents=True)
+            (bindir / "memory-mcp").write_text(
+                '#!/bin/sh\nexec node "$basedir/../@aictx/memory/dist/mcp/server.js" "$@"\n',
+                encoding="utf-8",
+            )
+            (bindir / "memory-mcp.cmd").write_text("@ECHO off\n", encoding="utf-8")
+            (bindir / "memory-mcp.ps1").write_text("", encoding="utf-8")
+            plan = DEPENDENCIES.probe_plan(runtime)
+            for command, suffix in zip(
+                plan["memory"],
+                ("dist/cli/main.js", "dist/mcp/server.js"),
+            ):
+                self.assertEqual(str(node), command[0], command)
+                self.assertTrue(command[1].replace("\\", "/").endswith(suffix), command)
+                self.assertNotIn(".bin/", " ".join(command).replace("\\", "/"))
+
+    def test_windows_node_zip_places_node_exe_beside_npm_not_under_bin(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "node.zip"
+            with zipfile.ZipFile(archive, "w") as bundle:
+                bundle.writestr("node-v24.19.0-win-x64/node.exe", b"node")
+                bundle.writestr(
+                    "node-v24.19.0-win-x64/node_modules/npm/bin/npm-cli.js",
+                    b"npm-cli",
+                )
+            destination = root / "node"
+            DEPENDENCIES._extract_runtime_archive(archive, destination)
+            self.assertEqual(b"node", (destination / "node.exe").read_bytes())
+            self.assertEqual(
+                b"npm-cli",
+                (destination / "node_modules/npm/bin/npm-cli.js").read_bytes(),
+            )
+            self.assertFalse((destination / "bin/node").exists())
+            self.assertFalse((destination / "bin/node.exe").exists())
+            with mock.patch.object(DEPENDENCIES.os, "name", "nt"):
+                plan = DEPENDENCIES.generation_install_plan(
+                    root, self.specification
+                )["memory"][0]
+            self.assertEqual(str(root / "node/node.exe"), plan[0])
+            self.assertEqual(
+                str(root / "node/node_modules/npm/bin/npm-cli.js"), plan[1]
+            )
 
     def test_safe_extraction_rejects_parent_traversal(self):
         with tempfile.TemporaryDirectory() as temporary:

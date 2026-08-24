@@ -225,8 +225,13 @@ def mempalace_runtime_status(project: Path):
         self.assertNotIn("links", receipt["ownership"])
         self.assertEqual(receipt, persisted)
         self.assertRegex(receipt["capabilityPolicySha256"], r"^[0-9a-f]{64}$")
-        invoked = {Path(command[0]).stem for command, _ in calls}
-        self.assertLessEqual({"mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}, invoked)
+        joined = " ".join(part.replace("\\", "/") for command, _ in calls for part in command)
+        self.assertIn("mempalace", joined)
+        self.assertIn("mempalace-mcp", joined)
+        self.assertIn("graphify", joined)
+        self.assertIn("dist/cli/main.js", joined)
+        self.assertIn("dist/mcp/server.js", joined)
+        self.assertNotIn("node_modules/.bin/memory", joined)
         self.assertTrue(all("UV_TOOL_DIR" in environment for _, environment in calls))
 
     def test_linkless_receipt_preserves_legacy_controller_ownership_shape(self):

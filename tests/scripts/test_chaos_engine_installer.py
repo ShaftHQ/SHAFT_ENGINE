@@ -1387,6 +1387,64 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=fail)
             self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
 
+    def test_keyboard_interrupt_skips_install_compensation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            def interrupt(*_args, **_kwargs):
+                raise KeyboardInterrupt()
+
+            with mock.patch.object(MODULE, "uninstall", wraps=MODULE.uninstall) as uninstall:
+                with mock.patch.object(MODULE, "rollback", wraps=MODULE.rollback) as rollback:
+                    with self.assertRaises(KeyboardInterrupt):
+                        MODULE.install_with_dependencies(
+                            project,
+                            SOURCE,
+                            TEST_COMMIT,
+                            provisioner=interrupt,
+                        )
+                    uninstall.assert_not_called()
+                    rollback.assert_not_called()
+            self.assertTrue((project / ".chaos-engine").is_dir())
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_keyboard_interrupt_skips_uninstall_compensation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            original_hosts = MODULE.load_installed_controller
+            cancelled = []
+
+            def load_hosts(installed_root, name):
+                controller = original_hosts(installed_root, name)
+                if name == "hosts":
+                    real_cancel = controller.cancel_uninstall
+
+                    def cancel(target):
+                        cancelled.append(True)
+                        return real_cancel(target)
+
+                    controller.cancel_uninstall = cancel
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_installed_controller", side_effect=load_hosts
+            ):
+                with mock.patch.object(MODULE, "uninstall", side_effect=KeyboardInterrupt()):
+                    with self.assertRaises(KeyboardInterrupt):
+                        MODULE.uninstall_with_dependencies(project)
+
+            self.assertEqual([], cancelled)
+            self.assertTrue((project / ".chaos-engine").is_dir())
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
     def test_initializer_failure_removes_only_runtime_created_by_install(self):
         dependency_module = load_module(SOURCE / "dependencies.py")
         with tempfile.TemporaryDirectory() as temporary:
