@@ -1285,17 +1285,26 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("installed", receipt["phase"])
             self.assertEqual("installed", second["phase"])
             self.assertTrue(module.retrieval_configs_healthy(project))
-            self.assertEqual(before_config, project.joinpath(".memory/config.json").read_bytes())
-            for name, payload in before_schemas.items():
-                self.assertEqual(payload, project.joinpath(".memory/schema", name).read_bytes())
-                self.assertNotIn(b"/v5/", payload)
+            migrated = json.loads(project.joinpath(".memory/config.json").read_text(encoding="utf-8"))
+            self.assertEqual(5, migrated["version"])
+            self.assertEqual(v4_config["project"], migrated["project"])
+            self.assertEqual(v4_config["memory"]["autoIndex"], migrated["memory"]["autoIndex"])
+            self.assertEqual(
+                v4_config["memory"]["defaultTokenBudget"],
+                migrated["memory"]["defaultTokenBudget"],
+            )
+            self.assertNotIn("git", migrated)
+            self.assertNotIn("saveContextPacks", migrated["memory"])
+            schema_root = Path(module.memory_schema_assets())
+            for name in module.MEMORY_SCHEMA_FILES:
+                self.assertEqual(
+                    (schema_root / name).read_bytes(),
+                    project.joinpath(".memory/schema", name).read_bytes(),
+                )
             self.assertEqual(object_bytes, object_path.read_bytes())
             self.assertEqual(before_yaml, project.joinpath("mempalace.yaml").read_bytes())
             self.assertTrue(before_yaml.startswith(b"wing: itestflow_agent\nexclude_patterns:\n"))
-            kept = json.loads(before_config)
-            self.assertEqual(4, kept["version"])
-            self.assertIn("git", kept)
-            self.assertIn("saveContextPacks", kept["memory"])
+            self.assertEqual(4, json.loads(before_config)["version"])
 
     def test_repository_remote_defines_identity_in_a_named_worktree(self):
         module = load(HOSTS, "chaos_engine_repository_identity")

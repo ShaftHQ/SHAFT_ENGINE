@@ -39,7 +39,7 @@ class InstallerUxTests(unittest.TestCase):
         output = stream.getvalue()
         self.assertNotIn("transparent automation", output)
         self.assertNotIn("AUTONOMOUS INSTALL", output)
-        self.assertIn("Chaos Engine", output)
+        self.assertIn("ChaosEngine", output)
         self.assertNotIn("QUANTUM MANDATE", output)
         self.assertGreaterEqual(output.split("START", 1)[0].count("\n"), 3)
         self.assertIn("START Resolve source", output)
@@ -67,14 +67,15 @@ class InstallerUxTests(unittest.TestCase):
                 output = stream.getvalue()
                 self.assertNotIn("transparent automation", output)
                 self.assertNotIn("AUTONOMOUS INSTALL", output)
-                self.assertIn("Chaos Engine", output)
+                self.assertIn("ChaosEngine", output)
                 self.assertIn("\x1b[38;2;255;59;77m", output)
                 self.assertIn("[", output)
                 self.assertIn("Download source", output)
                 self.assertIn("running", output)
                 self.assertIn("Install core", output)
                 self.assertIn("Elapsed 00:00", output)
-                self.assertIn("ETA calculating", output)
+                self.assertNotIn("ETA calculating", output)
+                self.assertNotIn("Current action:", output)
                 self.assertIn("\x1b[", output)
             finally:
                 reporter.close()
@@ -114,7 +115,7 @@ class InstallerUxTests(unittest.TestCase):
         self.assertNotIn("✓", output)
         self.assertNotIn("transparent automation", output)
         self.assertNotIn("AUTONOMOUS INSTALL", output)
-        self.assertIn("Chaos Engine", output)
+        self.assertIn("ChaosEngine", output)
         self.assertTrue(all(len(line) <= 38 for line in output.splitlines()))
 
     def test_narrow_width_uses_brand_narrow(self):
@@ -141,7 +142,7 @@ class InstallerUxTests(unittest.TestCase):
             reporter.close()
         output = stream.getvalue()
         self.assertIn("/C|*|E/", output)
-        self.assertIn("Chaos Engine", output)
+        self.assertIn("ChaosEngine", output)
 
     def test_download_progress_uses_measured_bytes_and_rolling_rate(self):
         class Tty(io.StringIO):
@@ -164,7 +165,7 @@ class InstallerUxTests(unittest.TestCase):
             try:
                 reporter.start("Download source", remaining=("Install core",))
                 reporter.begin_download(1000, detail="source files")
-                self.assertIn("Speed calculating", stream.getvalue())
+                self.assertNotIn("calculating", stream.getvalue())
                 clock.now = 1.0
                 reporter.downloaded(250)
                 clock.now = 2.0
@@ -172,8 +173,9 @@ class InstallerUxTests(unittest.TestCase):
                 reporter._render_locked()
                 output = stream.getvalue()
                 self.assertIn("250 B/s", output)
-                self.assertIn("ETA 00:02", output)
-                self.assertIn("Current action: Download source", output)
+                self.assertIn("remaining 00:02", output)
+                self.assertIn("Elapsed", output)
+                self.assertNotIn("Current action:", output)
             finally:
                 reporter._stop.set()
                 reporter._thread = None
@@ -204,8 +206,7 @@ class InstallerUxTests(unittest.TestCase):
         )
         reporter.start("Provision dependencies", remaining=("Verify installation",))
         self.assertIn("Install core", getattr(reporter, "_in_flight", ()))
-        self.assertIn("Install core", getattr(reporter, "_in_flight", ()))
-        self.assertEqual("calculating", reporter._eta(clock.now))
+        self.assertIsNone(reporter._remaining(clock.now))
 
     def test_non_tty_history_has_timestamp_result_duration_and_current_action(self):
         class Clock:
@@ -221,7 +222,8 @@ class InstallerUxTests(unittest.TestCase):
         clock.now = 2.25
         reporter.complete("Resolve source", remaining=("Download source",))
         output = stream.getvalue()
-        self.assertIn("Current action: Resolve source", output)
+        self.assertNotIn("Current action:", output)
+        self.assertIn("START Resolve source", output)
         self.assertRegex(output, r"\[\+00:02\] PASS Resolve source \(00:02\)")
 
     def test_interactive_confirmation_accepts_only_y_or_yes(self):
@@ -264,7 +266,7 @@ class InstallerUxTests(unittest.TestCase):
         self.assertEqual(result, json.loads(stdout.getvalue()))
         self.assertNotIn("transparent automation", stderr.getvalue())
         self.assertNotIn("AUTONOMOUS INSTALL", stderr.getvalue())
-        self.assertIn("Chaos Engine", stderr.getvalue())
+        self.assertIn("ChaosEngine", stderr.getvalue())
 
     def test_wrappers_expose_and_forward_interactive_mode(self):
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
@@ -274,36 +276,17 @@ class InstallerUxTests(unittest.TestCase):
         self.assertNotIn("CHAOS_ENGINE_INTERACTIVE", powershell)
         self.assertIn('arguments += "--interactive"', powershell)
 
-    def test_wrappers_print_the_same_chaos_engine_mark(self):
+    def test_wrappers_leave_brand_and_checklist_to_python(self):
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
         for document in (shell, powershell):
             self.assertNotIn("transparent automation", document)
             self.assertNotIn("AUTONOMOUS INSTALL", document)
-            self.assertIn("Chaos Engine", document)
             self.assertNotIn("QUANTUM MANDATE", document)
-        for line in BOOTSTRAP.brand_lines(width=80, color=False, unicode=False):
-            if not line.strip():
-                continue
-            self.assertIn(line, shell)
-            self.assertIn(line, powershell)
-        for line in BOOTSTRAP.BRAND_NARROW:
-            self.assertIn(line, shell)
-            self.assertIn(line, powershell)
-        self.assertIn("[ \"$cols\" -lt 28 ]", shell)
-        self.assertIn("$cols -lt 28", powershell)
-        self.assertIn("/C|*|E/", shell)
-        self.assertIn("/C|*|E/", powershell)
-
-    def test_wrappers_put_checklist_then_current_action_below_heading(self):
-        shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
-        powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
-        for document in (shell, powershell):
-            heading = document.index("Installing ChaosEngine into")
-            checklist = document.index("[ ] Resolve source", heading)
-            current = document.index("Current action: Download bootstrap", checklist)
-            self.assertLess(heading, checklist)
-            self.assertLess(checklist, current)
+            self.assertNotIn("[ ] Resolve source", document)
+            self.assertNotIn("Current action: Download bootstrap", document)
+            self.assertIn("Installing ChaosEngine into", document)
+            self.assertNotIn("/C|*|E/", document)
 
     def test_main_emits_stable_actionable_error_codes(self):
         cases = (
@@ -328,16 +311,15 @@ class InstallerUxTests(unittest.TestCase):
                 self.assertIn(str(error).split("\n", 1)[0], stderr.getvalue())
                 self.assertIn(code, stderr.getvalue())
                 self.assertIn("#installer-errors", stderr.getvalue())
-                self.assertIn(".chaos-engine/install.py doctor", stderr.getvalue())
-                self.assertIn("doctor --project . --json", stderr.getvalue())
-                self.assertIn("status --project . --json", stderr.getvalue())
+                self.assertIn("Installer CLI is not on disk", stderr.getvalue())
                 if code == "CE-INSTALL-FAILED":
+                    self.assertIn("Next step: click this link to open a GitHub issue", stderr.getvalue())
                     report = [
                         line for line in stderr.getvalue().splitlines()
-                        if line.startswith("Report: ")
+                        if line.startswith("https://github.com/owner/repo/issues/new?")
                     ][0]
-                    self.assertIn("https://github.com/owner/repo/issues/new?", report)
-                    self.assertLessEqual(len(report.removeprefix("Report: ")), 2000)
+                    self.assertIn("template=chaos-engine-installer.yml", report)
+                    self.assertLessEqual(len(report), 2000)
 
     def test_keyboard_interrupt_emits_cancelled_without_traceback(self):
         stdout = io.StringIO()
@@ -364,7 +346,6 @@ class InstallerUxTests(unittest.TestCase):
         err = stderr.getvalue()
         self.assertIn("CE-INSTALL-CANCELLED", err)
         self.assertIn("#installer-errors", err)
-        self.assertIn(".chaos-engine/install.py doctor", err)
         self.assertIn("Last verified generation", err)
         self.assertIn("Rerun the same install command", err)
         self.assertNotIn("Traceback", err)
@@ -418,27 +399,86 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("CE-INSTALL-FAILED", err)
         self.assertIn("sealed walk exploded", err)
         self.assertIn("https://github.com/owner/repo/issues/new", err)
-        self.assertIn(".chaos-engine/install.py status", err)
+        self.assertIn("Next step: click this link to open a GitHub issue", err)
         self.assertNotIn("Traceback", err)
+
+    def test_install_health_error_ignores_optional_absent_components(self):
+        error = BOOTSTRAP.InstallHealthError(
+            "Verify installation",
+            {
+                "components": {
+                    "retrieval-config": {"status": "recovery-required", "taskImpact": "required"},
+                    "maven-tools-mcp": {"status": "absent", "taskImpact": "optional"},
+                }
+            },
+        )
+        self.assertEqual(("retrieval-config",), error.unhealthy)
+
+    def test_pom_xml_implies_maven_tools_unless_skip_tools(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "maven"
+            project.mkdir()
+            (project / "pom.xml").write_text("<project/>\n", encoding="utf-8")
+            other = Path(temporary) / "plain"
+            other.mkdir()
+            self.assertTrue(BOOTSTRAP.wants_maven_tools(project, skip_tools=False, requested=False))
+            self.assertFalse(BOOTSTRAP.wants_maven_tools(project, skip_tools=True, requested=False))
+            self.assertFalse(BOOTSTRAP.wants_maven_tools(other, skip_tools=False, requested=False))
+            self.assertTrue(BOOTSTRAP.wants_maven_tools(other, skip_tools=False, requested=True))
+
+    def test_failure_cta_omits_missing_installer_cli(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            stderr = io.StringIO()
+            with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                BOOTSTRAP.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    RuntimeError("probe failed"),
+                    "owner/repo",
+                    project=project,
+                )
+            err = stderr.getvalue()
+            self.assertNotIn(".chaos-engine/install.py", err)
+            self.assertIn("Installer CLI is not on disk", err)
+            self.assertIn("Rerun the same install command", err)
+            self.assertIn("https://github.com/owner/repo/issues/new", err)
+
+    def test_failure_cta_names_installer_cli_only_when_present(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            installed = project / ".chaos-engine"
+            installed.mkdir(parents=True)
+            (installed / "install.py").write_text("# installer\n", encoding="utf-8")
+            stderr = io.StringIO()
+            with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                BOOTSTRAP.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    RuntimeError("probe failed"),
+                    "owner/repo",
+                    project=project,
+                )
+            err = stderr.getvalue()
+            self.assertIn(".chaos-engine/install.py doctor", err)
+            self.assertIn(".chaos-engine/install.py status", err)
 
     def test_prefilled_report_is_bounded_sanitized_and_names_failed_health(self):
         error = BOOTSTRAP.InstallHealthError(
             "Verify installation",
-            {"components": {"memory": {"status": "recovery-required"}}},
+            {"components": {"memory": {"status": "recovery-required", "taskImpact": "required"}}},
         )
         stderr = io.StringIO()
         with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
             BOOTSTRAP.emit_install_failure("CE-INSTALL-FAILED", error, "owner/repo")
         report = [
-            line.removeprefix("Report: ")
+            line
             for line in stderr.getvalue().splitlines()
-            if line.startswith("Report: ")
+            if line.startswith("https://github.com/owner/repo/issues/new?")
         ][0]
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
-        body = query["body"][0]
-        self.assertIn("Failed phase: Verify installation", body)
-        self.assertIn("Unhealthy components: memory", body)
-        self.assertIn("doctor --project . --json", body)
+        self.assertEqual(["chaos-engine-installer.yml"], query["template"])
+        self.assertEqual(["Verify installation"], query["failed_phase"])
+        self.assertEqual(["memory"], query["unhealthy"])
         self.assertLessEqual(len(report), 2000)
 
     def test_failure_cause_redacts_local_paths_and_secret_assignments(self):
@@ -453,12 +493,12 @@ class InstallerUxTests(unittest.TestCase):
             BOOTSTRAP.emit_install_failure("CE-INSTALL-FAILED", error, "owner/repo")
         output = stderr.getvalue()
         report = next(
-            line.removeprefix("Report: ")
+            line
             for line in output.splitlines()
-            if line.startswith("Report: ")
+            if line.startswith("https://github.com/owner/repo/issues/new?")
         )
-        body = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)["body"][0]
-        self.assertIn("Cause: failed at <path> token=<redacted>", body)
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
+        self.assertEqual(["failed at <path> token=<redacted>"], query["cause"])
         self.assertNotIn("super-secret", output)
         self.assertNotIn(str(private_path), output)
 

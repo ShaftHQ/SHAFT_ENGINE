@@ -1349,10 +1349,9 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
 ) -> tuple[Path, Path]:
     hosts = load_installed_controller(target, "hosts")
     existing = hosts.discover_maven_tools_runtime()
-    if existing is not None:
-        if not hosts.probe_maven_tools_runtime(*existing):
-            raise ValueError("Maven Tools MCP initialization/tools-list probe failed")
+    if existing is not None and hosts.probe_maven_tools_runtime(*existing):
         return existing
+    ambient_unusable = existing is not None
     dependencies = load_dependency_controller(target)
     java_candidates = []
     configured = os.environ.get("CHAOSENGINE_JAVA")
@@ -1364,7 +1363,17 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         java_candidates.append(Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java"))
     if path_java:
         java_candidates.append(Path(path_java))
-    java = next((item.resolve() for item in java_candidates if item.is_file() and hosts.java_major(item.resolve()) == 25), None)
+    java = None
+    if not ambient_unusable:
+        java = next(
+            (
+                item.resolve()
+                for item in java_candidates
+                if item.is_file()
+                and (hosts.java_major(item.resolve()) or 0) >= 17
+            ),
+            None,
+        )
     if java is None:
         artifact = dependencies.select_runtime_artifact(specification, "temurin")
         cache = hosts.maven_tools_cache_root().parent / "temurin" / "25.0.4+7" / dependencies.platform_key()
@@ -1509,6 +1518,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     confirmer=None,
 ) -> Path:
     project = project.resolve()
+    with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
     generation_mode = provisioner is None
     with project_lock(project):
         if read_cross_rollback_journal(project) is not None:
@@ -1526,7 +1536,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 old_host_controller = load_installed_controller(current, "hosts")
                 host_receipt_path = project / old_host_controller.RECEIPT_NAME
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
-                    host_snapshot = old_host_controller.snapshot(project)
+                    receipt, raw = old_host_controller.read_receipt(project)
+                    host_snapshot = {"receipt": receipt, "raw": raw}
                 if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
@@ -1911,13 +1922,14 @@ def doctor_with_dependencies(
     result = status_with_dependencies(project, active_probes=True)
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
-    if not host_controller.retrieval_runtime_healthy(project.resolve()):
+    retrieval = host_controller.retrieval_runtime_status(project.resolve())
+    if retrieval.get("status") != "healthy":
         result["status"] = "recovery-required"
         components = result.get("components")
-        if isinstance(components, dict) and isinstance(
-            components.get("retrieval-config"), dict
-        ):
-            components["retrieval-config"]["status"] = "recovery-required"
+        if isinstance(components, dict) and isinstance(components.get("memory"), dict):
+            components["memory"]["status"] = "recovery-required"
+            if retrieval.get("reason"):
+                components["memory"]["reason"] = retrieval["reason"]
     if not host_controller.mcp_runtime_healthy(project.resolve()):
         result["status"] = "recovery-required"
         components = result.get("components")

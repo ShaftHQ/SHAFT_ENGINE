@@ -1,74 +1,42 @@
 {
-  "$id": "https://aictx.dev/schemas/v4/config.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aictx.dev/schemas/v5/config.schema.json",
+  "type": "object",
   "additionalProperties": false,
+  "required": ["version", "project", "memory"],
   "properties": {
-    "git": {
-      "additionalProperties": false,
-      "properties": {
-        "trackContextPacks": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "trackContextPacks"
-      ],
-      "type": "object"
-    },
-    "memory": {
-      "additionalProperties": false,
-      "properties": {
-        "autoIndex": {
-          "type": "boolean"
-        },
-        "defaultTokenBudget": {
-          "maximum": 50000,
-          "minimum": 501,
-          "type": "integer"
-        },
-        "saveContextPacks": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "defaultTokenBudget",
-        "autoIndex",
-        "saveContextPacks"
-      ],
-      "type": "object"
+    "version": {
+      "enum": [5]
     },
     "project": {
+      "type": "object",
       "additionalProperties": false,
+      "required": ["id", "name"],
       "properties": {
         "id": {
-          "pattern": "^project\\.[a-z0-9][a-z0-9-]*$",
-          "type": "string"
+          "type": "string",
+          "pattern": "^project\\.[a-z0-9][a-z0-9-]*$"
         },
         "name": {
-          "minLength": 1,
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         }
-      },
-      "required": [
-        "id",
-        "name"
-      ],
-      "type": "object"
+      }
     },
-    "version": {
-      "enum": [
-        1,
-        2,
-        3,
-        4
-      ]
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["defaultTokenBudget", "autoIndex"],
+      "properties": {
+        "defaultTokenBudget": {
+          "type": "integer",
+          "minimum": 501,
+          "maximum": 50000
+        },
+        "autoIndex": {
+          "type": "boolean"
+        }
+      }
     }
-  },
-  "required": [
-    "version",
-    "project",
-    "memory",
-    "git"
-  ],
-  "type": "object"
+  }
 }

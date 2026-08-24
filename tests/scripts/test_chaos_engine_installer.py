@@ -401,6 +401,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 return_value={"status": "recovery-required", "detail": "fixture"}
             )
             controller.retrieval_runtime_healthy = mock.Mock(return_value=True)
+            controller.retrieval_runtime_status = mock.Mock(return_value={"status": "healthy"})
             controller.mcp_runtime_healthy = mock.Mock(return_value=True)
             original_load = MODULE.load_installed_controller
 
@@ -552,8 +553,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
-                "retrieval_runtime_healthy",
-                return_value=False,
+                "retrieval_runtime_status",
+                return_value={"status": "recovery-required", "reason": "memory check reported invalid store"},
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
@@ -566,6 +567,14 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual(
                 "recovery-required",
+                result["components"]["memory"]["status"],
+            )
+            self.assertEqual(
+                "memory check reported invalid store",
+                result["components"]["memory"]["reason"],
+            )
+            self.assertEqual(
+                "healthy",
                 result["components"]["retrieval-config"]["status"],
             )
 
@@ -583,8 +592,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 controller,
-                "retrieval_runtime_healthy",
-                return_value=True,
+                "retrieval_runtime_status",
+                return_value={"status": "healthy"},
             ), mock.patch.object(
                 controller,
                 "mcp_runtime_healthy",

@@ -196,6 +196,25 @@ def validate_memory_config(content: bytes) -> None:
         raise ValueError("invalid Memory configuration")
 
 
+def migrate_memory_config(content: bytes) -> bytes:
+    validate_memory_config(content)
+    config = json.loads(content)
+    if config.get("version") == 5:
+        return content if content.endswith(b"\n") else content + b"\n"
+    memory = config["memory"]
+    migrated = {
+        "version": 5,
+        "project": config["project"],
+        "memory": {
+            "autoIndex": memory["autoIndex"],
+            "defaultTokenBudget": memory["defaultTokenBudget"],
+        },
+    }
+    payload = (json.dumps(migrated, indent=2, sort_keys=True) + "\n").encode()
+    validate_memory_config(payload)
+    return payload
+
+
 def memory_schema_assets() -> Path:
     return Path(__file__).resolve().parent / "assets/memory-v5"
 
@@ -256,7 +275,7 @@ def retrieval_configs_healthy(project: Path) -> bool:
     return True
 
 
-def retrieval_runtime_healthy(project: Path) -> bool:
+def retrieval_runtime_status(project: Path) -> dict[str, str]:
     tool = project / ".chaos-engine/tool.py"
     for arguments in (("status", "--json"), ("check", "--json")):
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
@@ -268,16 +287,33 @@ def retrieval_runtime_healthy(project: Path) -> bool:
             timeout=30,
         )
         if result.returncode != 0:
-            return False
+            detail = (result.stderr or result.stdout or "memory tool exited non-zero").strip()
+            return {
+                "status": "recovery-required",
+                "reason": f"memory {' '.join(arguments)} failed: {detail[:240]}",
+            }
         try:
             payload = json.loads(result.stdout)
         except json.JSONDecodeError:
-            return False
+            return {
+                "status": "recovery-required",
+                "reason": f"memory {' '.join(arguments)} did not return JSON",
+            }
         if not isinstance(payload, dict) or payload.get("ok") is not True:
-            return False
+            return {
+                "status": "recovery-required",
+                "reason": f"memory {' '.join(arguments)} reported not ok",
+            }
         if arguments[0] == "check" and payload.get("data", {}).get("valid") is not True:
-            return False
-    return True
+            return {
+                "status": "recovery-required",
+                "reason": "memory check reported invalid store",
+            }
+    return {"status": "healthy"}
+
+
+def retrieval_runtime_healthy(project: Path) -> bool:
+    return retrieval_runtime_status(project).get("status") == "healthy"
 
 
 def _sqlite_runtime_valid(
@@ -1820,7 +1856,7 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
             continue
         if is_link_or_reparse(resolved):
             continue
-        if java_major(resolved) == 25:
+        if (java_major(resolved) or 0) >= 17:
             return resolved, jar
     return None
 
@@ -3144,22 +3180,11 @@ def desired_content(
             json.dumps(memory_config, indent=2, sort_keys=True) + "\n"
         ).encode()
     else:
-        validate_memory_config(memory_before)
-        after[".memory/config.json"] = memory_before
+        after[".memory/config.json"] = migrate_memory_config(memory_before)
     schema_assets = memory_schema_assets()
     for name in MEMORY_SCHEMA_FILES:
         relative = f".memory/schema/{name}"
-        existing = before[relative]
-        if existing is None:
-            after[relative] = (schema_assets / name).read_bytes()
-        else:
-            try:
-                schema = json.loads(existing)
-            except (UnicodeDecodeError, json.JSONDecodeError) as error:
-                raise ValueError("invalid Memory storage") from error
-            if not isinstance(schema, (dict, bool)):
-                raise ValueError("invalid Memory storage")
-            after[relative] = existing
+        after[relative] = (schema_assets / name).read_bytes()
     events = before[".memory/events.jsonl"]
     if events is None:
         after[".memory/events.jsonl"] = b""
@@ -3644,7 +3669,6 @@ def install(
         before = decode_images(receipt["before"], nullable=True)
         after = decode_images(receipt["after"], nullable=False)
         if receipt["phase"] == "installed":
-            verify(project, receipt)
             desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
             version = plugin_cache_version(core_commit)
             wanted = desired_content(
@@ -3653,6 +3677,12 @@ def install(
                 plugin_version=version,
                 dependency_runtime=dependency_runtime,
             )
+            current = current_images(project)
+            for relative in managed_paths():
+                if current[relative] not in (after[relative], wanted[relative]):
+                    raise ValueError(
+                        f"ChaosEngine host adapter drift detected: {project / relative}"
+                    )
             if (
                 after == wanted
                 and receipt.get("coreCommit") == core_commit
@@ -3796,7 +3826,6 @@ def grok_runtime_status(
 def snapshot(project: Path) -> dict[str, object]:
     project = project.resolve()
     receipt, raw = read_receipt(project)
-    verify(project, receipt)
     return {"receipt": receipt, "raw": raw}
 
 

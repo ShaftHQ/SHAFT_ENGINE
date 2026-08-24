@@ -129,7 +129,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             runner.return_value = CompletedProcess(
                 ["wrapper"], 0,
                 stdout='{"status":"installed","clients":{}}',
-                stderr="Installing ChaosEngine\nCurrent action:",
+                stderr="Installing ChaosEngine\nSTART Resolve source\nElapsed 00:00",
             )
             module.run_public_wrapper("a" * 40, project)
         self.assertTrue(installed.is_absolute())

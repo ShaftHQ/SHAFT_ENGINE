@@ -332,7 +332,13 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
                 "createdPlugins": ["codex"]
             }
-            installer.doctor_with_dependencies.return_value = {"status": "healthy"}
+            installer.doctor_with_dependencies.return_value = {
+                "status": "healthy",
+                "components": {},
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
 
             with mock.patch.object(module, "load_installer", return_value=installer):
                 result = module.install_latest(
@@ -353,7 +359,68 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             self.assertEqual("healthy", result["doctor"]["status"])
 
-    def test_failed_post_install_doctor_removes_new_activation_and_install(self):
+    def test_root_pom_xml_enables_maven_tools_without_flag(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            (project / "pom.xml").write_text("<project/>\n", encoding="utf-8")
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.doctor_with_dependencies.return_value = {
+                "status": "healthy",
+                "components": {},
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
+            installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
+                "createdPlugins": []
+            }
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                )
+            self.assertTrue(
+                installer.install_with_dependencies.call_args.kwargs["with_maven_tools"]
+            )
+
+    def test_advisory_memory_probe_does_not_fail_verify(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.doctor_with_dependencies.return_value = {
+                "status": "recovery-required",
+                "components": {
+                    "memory": {"status": "recovery-required", "taskImpact": "advisory"},
+                    "retrieval-config": {"status": "healthy", "taskImpact": "required"},
+                },
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
+            installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
+                "createdPlugins": []
+            }
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                result = module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                )
+            self.assertEqual("recovery-required", result["doctor"]["status"])
+            installer.uninstall_with_dependencies.assert_not_called()
+
+    def test_failed_post_install_doctor_keeps_new_install_for_doctor_commands(self):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "project"
@@ -375,10 +442,10 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     )
 
             host.activate_detected_plugins.assert_not_called()
-            installer.uninstall_with_dependencies.assert_called_once_with(project.resolve())
+            installer.uninstall_with_dependencies.assert_not_called()
             installer.rollback.assert_not_called()
 
-    def test_failed_doctor_after_unverified_prior_tree_uninstalls_instead_of_rollback(self):
+    def test_failed_doctor_after_unverified_prior_tree_keeps_current_generation(self):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "project"
@@ -398,7 +465,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                         opener=opener,
                     )
 
-            installer.uninstall_with_dependencies.assert_called_once_with(project.resolve())
+            installer.uninstall_with_dependencies.assert_not_called()
             installer.rollback.assert_not_called()
 
     def test_failed_doctor_after_prior_install_with_backup_rolls_back(self):
@@ -615,6 +682,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 set(status["components"]),
             )
             self.assertEqual("absent", status["components"]["maven-tools-mcp"]["status"])
+            self.assertEqual("optional", status["components"]["maven-tools-mcp"]["taskImpact"])
             self.assertTrue(all(
                 component["status"] == "healthy"
                 for name, component in status["components"].items()

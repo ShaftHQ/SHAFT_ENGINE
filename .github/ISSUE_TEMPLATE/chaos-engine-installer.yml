@@ -1,0 +1,50 @@
+name: ChaosEngine installer
+description: Report a failed ChaosEngine installation with the fields the installer prefills.
+title: "[ChaosEngine installer] "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is opened by the ChaosEngine installer when install verification fails.
+        Keep the prefilled fields and add anything that is missing.
+  - type: input
+    id: error_code
+    attributes:
+      label: Error code
+      placeholder: CE-INSTALL-FAILED
+    validations:
+      required: true
+  - type: textarea
+    id: cause
+    attributes:
+      label: Cause
+    validations:
+      required: true
+  - type: input
+    id: failed_phase
+    attributes:
+      label: Failed phase
+    validations:
+      required: true
+  - type: input
+    id: unhealthy
+    attributes:
+      label: Unhealthy components
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+  - type: input
+    id: status_command
+    attributes:
+      label: Status command
+  - type: input
+    id: doctor_command
+    attributes:
+      label: Doctor command
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Terminal emulator, whether Java/Node were already installed, and anything else maintainers should know.

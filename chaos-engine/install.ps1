@@ -11,46 +11,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $script:ChaosEngineInvocationLine = [string]$MyInvocation.Line
-function Write-ChaosEngineBrand {
-    $cols = 80
-    if (-not [string]::IsNullOrWhiteSpace($env:COLUMNS)) {
-        $parsed = 0
-        if ([int]::TryParse($env:COLUMNS, [ref]$parsed)) {
-            $cols = $parsed
-        }
-    }
-    $color = $false
-    try {
-        $color = (-not [Console]::IsErrorRedirected) -and [string]::IsNullOrWhiteSpace($env:NO_COLOR) -and $env:TERM -ne "dumb"
-    }
-    catch {
-        $color = [string]::IsNullOrWhiteSpace($env:NO_COLOR) -and $env:TERM -ne "dumb"
-    }
-    $esc = [char]27
-    if ($cols -lt 28) {
-        if ($color) {
-            [Console]::Error.WriteLine("  /C|$esc[38;2;255;59;77m*$esc[0m|E/")
-        }
-        else {
-            [Console]::Error.WriteLine("  /C|*|E/")
-        }
-        [Console]::Error.WriteLine("  Chaos Engine")
-        return
-    }
-    [Console]::Error.WriteLine("  /=====.        +--+     /")
-    [Console]::Error.WriteLine("  |              |==|    /")
-    if ($color) {
-        [Console]::Error.WriteLine("  |  $esc[38;2;255;59;77m*$esc[0m    /      |==|   /")
-    }
-    else {
-        [Console]::Error.WriteLine("  |  *    /      |==|   /")
-    }
-    [Console]::Error.WriteLine("  |              |==|  /")
-    [Console]::Error.WriteLine("  +=====/        +--+ /")
-    [Console]::Error.WriteLine("         Chaos Engine")
-}
-Write-ChaosEngineBrand
-$env:CHAOS_ENGINE_BRAND_SHOWN = "1"
 
 function Get-ChaosEnginePython {
     $py = Get-Command py -ErrorAction SilentlyContinue
@@ -321,14 +281,6 @@ New-Item -ItemType Directory -Path $work | Out-Null
 try {
     $bootstrap = Join-Path $work "bootstrap.py"
     [Console]::Error.WriteLine("Installing ChaosEngine into $project from $repository@$branch")
-    [Console]::Error.WriteLine("  [ ] Resolve source")
-    [Console]::Error.WriteLine("  [ ] Download source")
-    [Console]::Error.WriteLine("  [ ] Provision dependencies")
-    [Console]::Error.WriteLine("  [ ] Install core")
-    [Console]::Error.WriteLine("  [ ] Verify installation")
-    [Console]::Error.WriteLine("  [ ] Activate clients")
-    [Console]::Error.WriteLine("")
-    [Console]::Error.WriteLine("Current action: Download bootstrap")
     if ($interactiveRequested) {
         if ([Console]::IsInputRedirected) {
             throw "interactive mode requires a usable controlling terminal"

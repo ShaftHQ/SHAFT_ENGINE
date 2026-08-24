@@ -36,26 +36,29 @@ MAX_RETRY_AFTER_SECONDS = 60.0
 RETRY_BASE_SECONDS = 1.0
 TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
 CYBERNETIC_RED = "\x1b[38;2;255;59;77m"
+ION_BLUE = "\x1b[38;2;47;125;255m"
+OPTICAL_WHITE = "\x1b[38;2;242;247;255m"
 BRAND_ASCII = (
-    "  /=====.        +--+     /",
-    "  |              |==|    /",
-    "  |  *    /      |==|   /",
-    "  |              |==|  /",
-    "  +=====/        +--+ /",
-    "         Chaos Engine",
+    "  ,-----.          +--+       /",
+    "  |                |==|      /",
+    "  |  *      /      |==|     /",
+    "  |                |==|    /",
+    "  `-----'          +--+   /",
+    "         ChaosEngine",
 )
 BRAND_UNICODE = (
-    "  █▀▀▀▀▄         ┬─┐     ╱",
-    "  █              ├─┤    ╱",
-    "  █  ◆    ╱      ├─┤   ╱",
-    "  █              ├─┤  ╱",
-    "  █▄▄▄▄▀         ┴─┘ ╱",
-    "         Chaos Engine",
+    "  █▀▀▀▀▀▄           ┬──┐        ╱",
+    "  █                 ├──┤       ╱",
+    "  █   ◆      ╱      ├──┤      ╱",
+    "  █                 ├──┤     ╱",
+    "  █▄▄▄▄▄▀           ┴──┘    ╱",
+    "          ChaosEngine",
 )
 BRAND_NARROW = (
     "  /C|*|E/",
-    "  Chaos Engine",
+    "  ChaosEngine",
 )
+TRACE_LIMIT = 12
 
 
 def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) -> list[str]:
@@ -68,8 +71,48 @@ def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) 
     else:
         templates = BRAND_ASCII
         glyph = "*"
-    painted = f"{CYBERNETIC_RED}{glyph}\x1b[0m" if color else glyph
-    return [template.replace(glyph, painted, 1) if glyph in template else template for template in templates]
+    core = f"{CYBERNETIC_RED}{glyph}\x1b[0m" if color else glyph
+    painted = []
+    for template in templates:
+        line = template.replace(glyph, core, 1) if glyph in template else template
+        if color and "ChaosEngine" in line:
+            line = line.replace(
+                "ChaosEngine",
+                f"{OPTICAL_WHITE}ChaosEngine\x1b[0m",
+                1,
+            )
+        painted.append(line)
+    return painted
+
+
+def _component_blocks_health(value: object) -> bool:
+    if not isinstance(value, dict):
+        return False
+    status = value.get("status")
+    if status == "healthy":
+        return False
+    if value.get("taskImpact") == "optional" and status == "absent":
+        return False
+    return value.get("taskImpact") == "required"
+
+
+def _required_install_unhealthy(doctor: dict[str, object]) -> bool:
+    components = doctor.get("components")
+    if isinstance(components, dict) and any(
+        _component_blocks_health(value) for value in components.values()
+    ):
+        return True
+    for key in ("kernel", "hosts", "dependencies"):
+        item = doctor.get(key)
+        if isinstance(item, dict) and item.get("status") not in {None, "healthy", "absent"}:
+            return True
+    return False
+
+
+def wants_maven_tools(project: Path, *, skip_tools: bool, requested: bool) -> bool:
+    if skip_tools:
+        return False
+    return requested or (Path(project) / "pom.xml").is_file()
 
 
 class InstallCancelled(RuntimeError):
@@ -87,7 +130,7 @@ class InstallHealthError(RuntimeError):
         self.unhealthy = tuple(
             name
             for name, value in components.items()
-            if isinstance(value, dict) and value.get("status") != "healthy"
+            if _component_blocks_health(value)
         ) if isinstance(components, dict) else ()
 
 
@@ -106,7 +149,10 @@ class InstallReporter:
         self._elapsed_as_current: dict[str, float] = {}
         self._completed_elapsed: dict[str, float] = {}
         self.history: list[tuple[float, str, str, float]] = []
+        self.traces: list[tuple[float, str]] = []
         self._current_started: float | None = None
+        self.project_root: str | None = None
+        self.source_label: str | None = None
         self._download_total: int | None = None
         self._downloaded = 0
         self._download_samples = deque(maxlen=30)
@@ -115,10 +161,7 @@ class InstallReporter:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._lines = 0
-        self._tty = (
-            bool(getattr(self.stream, "isatty", lambda: False)())
-            and os.environ.get("TERM") != "dumb"
-        )
+        self._tty = self._stderr_is_tty()
         self._color = self._tty and "NO_COLOR" not in os.environ
         self._unicode = self._encodable("✓◉·…█▀▄┬├┴╱◆")
         if self._tty and os.name == "nt" and not self._enable_windows_vt():
@@ -131,6 +174,38 @@ class InstallReporter:
             ):
                 self.stream.write(line + "\n")
             self.stream.flush()
+
+    def _stderr_is_tty(self) -> bool:
+        if os.environ.get("TERM") == "dumb":
+            return False
+        isatty = getattr(self.stream, "isatty", None)
+        if callable(isatty):
+            return bool(isatty())
+        try:
+            return self.stream is sys.stderr and os.isatty(2)
+        except (AttributeError, OSError, ValueError):
+            return False
+
+    def announce(self, project: Path, repository: str, branch: str) -> None:
+        self.project_root = str(Path(project).resolve())
+        self.source_label = f"{repository}@{branch}"
+        if self._tty:
+            with self._lock:
+                self._render_locked()
+        else:
+            self.stream.write(self._truncate(f"Install root: {self.project_root}") + "\n")
+            self.stream.write(self._truncate(f"Source: {self.source_label}") + "\n")
+            self.stream.flush()
+
+    def trace(self, message: str) -> None:
+        with self._lock:
+            self.traces.append((self.clock() - self.started, message))
+            del self.traces[:-TRACE_LIMIT]
+            if self._tty:
+                self._render_locked()
+            else:
+                self.stream.write(self._truncate(f"  {message}") + "\n")
+                self.stream.flush()
 
     def _enable_windows_vt(self) -> bool:
         try:
@@ -191,7 +266,7 @@ class InstallReporter:
                 "Install Maven Tools",
             }:
                 self._download_total = None
-                self._downloaded_bytes = 0
+                self._downloaded = 0
                 self._download_samples.clear()
             if remaining is not None:
                 kept = tuple(
@@ -222,7 +297,6 @@ class InstallReporter:
                     if detail and self._unicode
                     else (f" - {detail}" if detail else "")
                 )
-                self.stream.write(self._truncate(f"Current action: {operation}{suffix}") + "\n")
                 self.stream.write(self._truncate(f"START {operation}{suffix}") + "\n")
                 self.stream.flush()
 
@@ -239,6 +313,8 @@ class InstallReporter:
             self._completed_elapsed[operation] = self._elapsed_as_current.get(operation, 0.0)
             duration = self._completed_elapsed[operation]
             self.history.append((now - self.started, "PASS", operation, duration))
+            self.traces.append((now - self.started, f"PASS {operation} ({self._duration(duration)})"))
+            del self.traces[:-TRACE_LIMIT]
             self.remaining_operations = remaining
             self.detail = None
             if self._tty:
@@ -283,10 +359,11 @@ class InstallReporter:
             with self._lock:
                 self._render_locked()
 
-    def _eta(self, now: float) -> str:
+    def _remaining(self, now: float) -> str | None:
+        del now
         rate = self._download_rate()
         if rate is None or self._download_total is None:
-            return "calculating"
+            return None
         return self._duration(max(0, self._download_total - self._downloaded) / rate)
 
     def _download_rate(self) -> float | None:
@@ -322,35 +399,41 @@ class InstallReporter:
         )
         now = self.clock()
         elapsed = max(0.0, now - self.started)
-        eta = self._eta(now)
         check, active, empty = (("✓", "◉", " ") if self._unicode else ("x", "*", " "))
         lines = [""]
+        if self.project_root:
+            lines.append(self._truncate(f"  Install root: {self.project_root}"))
+        if self.source_label:
+            lines.append(self._truncate(f"  Source: {self.source_label}"))
+        if self.project_root or self.source_label:
+            lines.append("")
         for item in operations:
             if item in self.completed_operations:
-                lines.append(self._paint(self._truncate(f"  [{check}] {item}"), "32"))
+                duration = self._duration(self._completed_elapsed.get(item, 0.0))
+                lines.append(self._paint(self._truncate(f"  [{check}] {item}  {duration}"), "32"))
             elif item == self.current_operation or item in self._in_flight:
                 lines.append(self._paint(self._truncate(f"  [{active}] {item}  running"), "36"))
             else:
                 lines.append(self._truncate(f"  [{empty}] {item}"))
         separator = " · " if self._unicode else " | "
-        timing = self._truncate(f"  Elapsed {self._duration(elapsed)}{separator}ETA {eta}")
-        lines.extend(("", self._paint(timing, "33")))
+        metrics = [f"Elapsed {self._duration(elapsed)}"]
         rate = self._download_rate()
-        speed = "calculating" if rate is None else self._size(rate)
-        lines.append(self._truncate(f"  Speed {speed}"))
-        if self.current_operation:
-            lines.append(self._truncate(f"  Current action: {self.current_operation}"))
+        if rate is not None:
+            metrics.append(self._size(rate))
+        remaining = self._remaining(now)
+        if remaining is not None:
+            metrics.append(f"remaining {remaining}")
+        lines.extend(("", self._paint(self._truncate("  " + separator.join(metrics)), "36")))
         if self.detail:
-            lines.append(self._truncate(f"  {self.detail}"))
-        if self.history:
-            lines.append("  History:")
-            for ended, result, operation, duration in self.history[-5:]:
-                lines.append(
-                    self._truncate(
-                        f"  [+{self._duration(ended)}] {result} {operation} "
-                        f"({self._duration(duration)})"
-                    )
-                )
+            lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
+        log = self.traces[-TRACE_LIMIT:] or [
+            (ended, f"{result} {operation} ({self._duration(duration)})")
+            for ended, result, operation, duration in self.history[-TRACE_LIMIT:]
+        ]
+        if log:
+            lines.append(self._paint("  Trace", "36"))
+            for ended, message in log:
+                lines.append(self._truncate(f"  [+{self._duration(ended)}] {message}"))
         if self._lines:
             self.stream.write(f"\x1b[{self._lines}F")
         rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"
@@ -588,6 +671,7 @@ def download_source(
         raise ValueError("ChaosEngine source tree exceeds the download limit")
     if reporter is not None:
         reporter.begin_download(total, detail=f"{len(selected)} source files")
+        reporter.trace(f"download {len(selected)} files ({total} bytes)")
 
     source = destination / "chaos-engine"
     source.mkdir()
@@ -644,7 +728,11 @@ def install_latest(
     project = Path(project).resolve()
     if not project.is_dir():
         raise ValueError(f"project is not a directory: {project}")
+    with_maven_tools = wants_maven_tools(
+        project, skip_tools=skip_tools, requested=with_maven_tools
+    )
     reporter = reporter or InstallReporter()
+    reporter.announce(project, repository, branch or "default")
     try:
         terminal_context = terminal_factory() if interactive else None
         if terminal_context is not None:
@@ -738,7 +826,7 @@ def install_latest(
     try:
         reporter.start("Verify installation", remaining=remaining("Verify installation"))
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
-        if doctor.get("status") != "healthy":
+        if _required_install_unhealthy(doctor):
             raise InstallHealthError("Verify installation", doctor)
         reporter.complete("Verify installation", remaining=remaining("Verify installation"))
         confirm("Activate clients")
@@ -754,8 +842,6 @@ def install_latest(
         if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
             if prior_install and (project / ".chaos-engine.backup").exists():
                 installer.rollback(project)
-            else:
-                installer.uninstall_with_dependencies(project)
         if terminal_context is not None:
             terminal_context.__exit__(*sys.exc_info())
         raise
@@ -788,8 +874,13 @@ def installer_help_url(repository: str) -> str:
     return f"https://{owner}.github.io/docs/agentic/chaos-engine#installer-errors"
 
 
-def installer_cli_prefix() -> str:
-    return "py -3 .chaos-engine/install.py" if os.name == "nt" else "python3 .chaos-engine/install.py"
+def installer_cli_prefix(project: Path | None = None) -> str | None:
+    root = Path(project) if project is not None else Path.cwd()
+    cli = root / ".chaos-engine" / "install.py"
+    if not cli.is_file():
+        return None
+    command = "py -3" if os.name == "nt" else "python3"
+    return f"{command} .chaos-engine/install.py"
 
 
 def classify_install_error(error: BaseException) -> str:
@@ -829,6 +920,7 @@ def emit_install_failure(
     error: BaseException,
     repository: str,
     reporter: InstallReporter | None = None,
+    project: Path | None = None,
 ) -> None:
     print(file=sys.stderr)
     if code == "CE-INSTALL-CANCELLED":
@@ -839,11 +931,17 @@ def emit_install_failure(
         print(f"{code}: {one_line_cause(error)}", file=sys.stderr)
     print(file=sys.stderr)
     print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
-    prefix = installer_cli_prefix()
-    status_command = f"{prefix} status --project . --json"
-    doctor_command = f"{prefix} doctor --project . --json"
-    print(f"Status: {status_command}", file=sys.stderr)
-    print(f"Doctor: {doctor_command}", file=sys.stderr)
+    prefix = installer_cli_prefix(project)
+    status_command = f"{prefix} status --project . --json" if prefix else None
+    doctor_command = f"{prefix} doctor --project . --json" if prefix else None
+    if prefix:
+        print(f"Status: {status_command}", file=sys.stderr)
+        print(f"Doctor: {doctor_command}", file=sys.stderr)
+    else:
+        print("Installer CLI is not on disk.", file=sys.stderr)
+        print("Rerun the same install command to continue.", file=sys.stderr)
+        status_command = "not available; .chaos-engine/install.py is not on disk"
+        doctor_command = status_command
     if code != "CE-INSTALL-CANCELLED":
         body = "\n".join(
             (
@@ -869,9 +967,24 @@ def emit_install_failure(
             )
         )
         query = urllib.parse.urlencode(
-            {"title": f"[ChaosEngine installer] {code}", "body": body[:1200]}
+            {
+                "template": "chaos-engine-installer.yml",
+                "title": f"[ChaosEngine installer] {code}",
+                "error_code": code,
+                "cause": one_line_cause(error)[:240],
+                "failed_phase": getattr(error, "phase", None)
+                or (reporter.current_operation if reporter else "unknown"),
+                "unhealthy": ", ".join(getattr(error, "unhealthy", ())) or "not reported",
+                "platform": sys.platform,
+                "status_command": status_command or "",
+                "doctor_command": doctor_command or "",
+            }
         )
-        print(f"Report: https://github.com/{repository}/issues/new?{query}", file=sys.stderr)
+        print(
+            "Next step: click this link to open a GitHub issue with this report:",
+            file=sys.stderr,
+        )
+        print(f"https://github.com/{repository}/issues/new?{query}", file=sys.stderr)
     if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
         traceback.print_exc()
 
@@ -895,7 +1008,11 @@ def main() -> int:
             raise
         reporter.close()
         emit_install_failure(
-            classify_install_error(error), error, args.repository, reporter=reporter
+            classify_install_error(error),
+            error,
+            args.repository,
+            reporter=reporter,
+            project=Path(args.project).resolve(),
         )
         return 1
     reporter.close()
