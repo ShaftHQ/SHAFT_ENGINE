@@ -52,7 +52,9 @@ class InstallerUxTests(unittest.TestCase):
         stream = Tty()
         environment = {key: value for key, value in os.environ.items() if key != "NO_COLOR"}
         environment["TERM"] = "xterm"
-        with unittest.mock.patch.dict(os.environ, environment, clear=True):
+        with unittest.mock.patch.dict(os.environ, environment, clear=True), unittest.mock.patch.object(
+            BOOTSTRAP.InstallReporter, "_enable_windows_vt", return_value=True
+        ):
             reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
             try:
                 reporter.start(
