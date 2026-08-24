@@ -567,11 +567,15 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual(
                 "recovery-required",
-                result["components"]["retrieval-config"]["status"],
+                result["components"]["memory"]["status"],
             )
             self.assertEqual(
                 "memory check reported invalid store",
-                result["components"]["retrieval-config"]["reason"],
+                result["components"]["memory"]["reason"],
+            )
+            self.assertEqual(
+                "healthy",
+                result["components"]["retrieval-config"]["status"],
             )
 
     def test_doctor_rejects_an_mcp_runtime_that_cannot_initialize(self):

@@ -3826,7 +3826,6 @@ def grok_runtime_status(
 def snapshot(project: Path) -> dict[str, object]:
     project = project.resolve()
     receipt, raw = read_receipt(project)
-    verify(project, receipt)
     return {"receipt": receipt, "raw": raw}
 
 

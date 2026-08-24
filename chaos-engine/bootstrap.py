@@ -91,7 +91,22 @@ def _component_blocks_health(value: object) -> bool:
     status = value.get("status")
     if status == "healthy":
         return False
-    return not (value.get("taskImpact") == "optional" and status == "absent")
+    if value.get("taskImpact") == "optional" and status == "absent":
+        return False
+    return value.get("taskImpact") == "required"
+
+
+def _required_install_unhealthy(doctor: dict[str, object]) -> bool:
+    components = doctor.get("components")
+    if isinstance(components, dict) and any(
+        _component_blocks_health(value) for value in components.values()
+    ):
+        return True
+    for key in ("kernel", "hosts", "dependencies"):
+        item = doctor.get(key)
+        if isinstance(item, dict) and item.get("status") not in {None, "healthy", "absent"}:
+            return True
+    return False
 
 
 def wants_maven_tools(project: Path, *, skip_tools: bool, requested: bool) -> bool:
@@ -811,7 +826,7 @@ def install_latest(
     try:
         reporter.start("Verify installation", remaining=remaining("Verify installation"))
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
-        if doctor.get("status") != "healthy":
+        if _required_install_unhealthy(doctor):
             raise InstallHealthError("Verify installation", doctor)
         reporter.complete("Verify installation", remaining=remaining("Verify installation"))
         confirm("Activate clients")

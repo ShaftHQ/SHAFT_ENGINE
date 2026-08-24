@@ -1536,7 +1536,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 old_host_controller = load_installed_controller(current, "hosts")
                 host_receipt_path = project / old_host_controller.RECEIPT_NAME
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
-                    host_snapshot = old_host_controller.snapshot(project)
+                    receipt, raw = old_host_controller.read_receipt(project)
+                    host_snapshot = {"receipt": receipt, "raw": raw}
                 if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
@@ -1925,12 +1926,10 @@ def doctor_with_dependencies(
     if retrieval.get("status") != "healthy":
         result["status"] = "recovery-required"
         components = result.get("components")
-        if isinstance(components, dict) and isinstance(
-            components.get("retrieval-config"), dict
-        ):
-            components["retrieval-config"]["status"] = "recovery-required"
+        if isinstance(components, dict) and isinstance(components.get("memory"), dict):
+            components["memory"]["status"] = "recovery-required"
             if retrieval.get("reason"):
-                components["retrieval-config"]["reason"] = retrieval["reason"]
+                components["memory"]["reason"] = retrieval["reason"]
     if not host_controller.mcp_runtime_healthy(project.resolve()):
         result["status"] = "recovery-required"
         components = result.get("components")

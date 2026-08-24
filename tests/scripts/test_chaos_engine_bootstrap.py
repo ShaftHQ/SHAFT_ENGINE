@@ -332,7 +332,13 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
                 "createdPlugins": ["codex"]
             }
-            installer.doctor_with_dependencies.return_value = {"status": "healthy"}
+            installer.doctor_with_dependencies.return_value = {
+                "status": "healthy",
+                "components": {},
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
 
             with mock.patch.object(module, "load_installer", return_value=installer):
                 result = module.install_latest(
@@ -362,7 +368,13 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             opener, _ = self.opener([(COMMIT_ONE, "full")])
             installer = mock.Mock()
             installer.install_with_dependencies.return_value = project / ".chaos-engine"
-            installer.doctor_with_dependencies.return_value = {"status": "healthy"}
+            installer.doctor_with_dependencies.return_value = {
+                "status": "healthy",
+                "components": {},
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
             installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
                 "createdPlugins": []
             }
@@ -376,6 +388,37 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertTrue(
                 installer.install_with_dependencies.call_args.kwargs["with_maven_tools"]
             )
+
+    def test_advisory_memory_probe_does_not_fail_verify(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.doctor_with_dependencies.return_value = {
+                "status": "recovery-required",
+                "components": {
+                    "memory": {"status": "recovery-required", "taskImpact": "advisory"},
+                    "retrieval-config": {"status": "healthy", "taskImpact": "required"},
+                },
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
+            installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
+                "createdPlugins": []
+            }
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                result = module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                )
+            self.assertEqual("recovery-required", result["doctor"]["status"])
+            installer.uninstall_with_dependencies.assert_not_called()
 
     def test_failed_post_install_doctor_keeps_new_install_for_doctor_commands(self):
         module = load()

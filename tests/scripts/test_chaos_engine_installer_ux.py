@@ -465,7 +465,7 @@ class InstallerUxTests(unittest.TestCase):
     def test_prefilled_report_is_bounded_sanitized_and_names_failed_health(self):
         error = BOOTSTRAP.InstallHealthError(
             "Verify installation",
-            {"components": {"memory": {"status": "recovery-required"}}},
+            {"components": {"memory": {"status": "recovery-required", "taskImpact": "required"}}},
         )
         stderr = io.StringIO()
         with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
