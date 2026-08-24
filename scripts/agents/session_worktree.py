@@ -325,6 +325,16 @@ def _remove_owned_worktree(cwd: Path, payload: dict) -> dict:
             "status": "kept",
             "message": f"Session worktree kept: {dirty} uncommitted file(s) remain.",
         }
+    if current_branch(target) is None:
+        upstream = default_upstream(primary)
+        unique = unique_commit_count(target, upstream) if upstream else 1
+        if unique:
+            recovery = f"ChaosEngine/recovered-{sanitize_session_id(str(payload.get('sessionId') or 'session'))}"
+            if _git(target, "checkout", "-B", recovery) is None:
+                return {
+                    "status": "kept",
+                    "message": f"Session worktree kept: {unique} unique detached commit(s) remain.",
+                }
     removed = _git(primary, "worktree", "remove", "--", str(target))
     if removed is None:
         return {"status": "kept", "message": "Session worktree kept: git worktree remove refused."}
@@ -341,11 +351,11 @@ def _sync_primary_default(primary: Path) -> dict:
     dirty = uncommitted_count(primary)
     if dirty is None:
         return {"status": "skipped", "message": "Session worktree setup skipped: git status is unverifiable."}
-    if branch is not None and branch != default_branch and dirty > 0:
+    if branch != default_branch and dirty > 0:
         return {
             "status": "halted",
             "message": (
-                f"Primary checkout is on leftover branch `{branch}` with {dirty} uncommitted "
+                f"Primary checkout is on leftover `{branch or 'detached HEAD'}` with {dirty} uncommitted "
                 "file(s). Preserve that work; SessionStart will not discard it or create a "
                 "session worktree."
             ),
@@ -412,12 +422,7 @@ def _reap_merged(primary: Path) -> None:
         target = Path(str(payload.get("worktreePath") or ""))
         if not _live_worktree(target):
             continue
-        merged = bool(payload.get("merged"))
-        ancestor = False
-        if upstream:
-            head = (_git(target, "rev-parse", "HEAD") or "").strip()
-            ancestor = bool(head) and _is_ancestor(primary, head, upstream) is True
-        if merged or ancestor:
+        if payload.get("merged"):
             _remove_owned_worktree(primary, payload)
 
 
@@ -460,16 +465,23 @@ def isolation_denial(
             return False
         return any(_relative_to(resolved, root) for root in allowed_roots)
 
+    def under_primary(path: str) -> bool:
+        candidate = Path(path)
+        if not candidate.is_absolute():
+            base = Path(workdir).resolve() if workdir else origin
+            candidate = base / candidate
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            return False
+        return _relative_to(resolved, primary) and not allowed(str(resolved))
+
     effective_dir = Path(workdir).resolve() if workdir else origin
-    if _relative_to(effective_dir, worktree):
-        if targets and not all(allowed(target) for target in targets):
-            return _isolation_reason(worktree)
-        return None
     if not targets:
-        if _relative_to(effective_dir, primary):
+        if _relative_to(effective_dir, primary) and not _relative_to(effective_dir, worktree):
             return _isolation_reason(worktree)
         return None
-    if not all(allowed(target) for target in targets):
+    if any(under_primary(target) for target in targets):
         return _isolation_reason(worktree)
     return None
 

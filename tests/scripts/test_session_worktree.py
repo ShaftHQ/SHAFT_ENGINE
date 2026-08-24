@@ -130,6 +130,48 @@ class SessionWorktreeTest(unittest.TestCase):
         )
         self.assertIsNone(allowed)
 
+    def test_second_session_does_not_reap_a_live_sibling(self):
+        first = sw.prepare_session(self.main, "sess-a")
+        second = sw.prepare_session(self.main, "sess-b")
+        self.assertEqual("created", first["status"], first)
+        self.assertEqual("created", second["status"], second)
+        self.assertTrue(Path(first["worktreePath"]).is_dir())
+        self.assertTrue(Path(second["worktreePath"]).is_dir())
+
+    def test_dirty_detached_primary_is_preserved(self):
+        git(self.main, "checkout", "--detach")
+        leftover = self.write(self.main, "detached.txt", "keep\n")
+        result = sw.prepare_session(self.main, "sess-detach")
+        self.assertEqual("halted", result["status"], result)
+        self.assertTrue(leftover.is_file())
+
+    def test_isolation_allows_non_primary_targets_from_the_session_worktree(self):
+        created = sw.prepare_session(self.main, "sess-tmp")
+        worktree = Path(created["worktreePath"])
+        self.assertIsNone(
+            sw.isolation_denial(
+                cwd=worktree,
+                session_id="sess-tmp",
+                mutation=True,
+                workdir=str(worktree),
+                targets=("/tmp/pr.txt",),
+            )
+        )
+
+    def test_teardown_retains_unique_detached_commits_on_a_recovery_branch(self):
+        created = sw.prepare_session(self.main, "sess-unique-detach")
+        worktree = Path(created["worktreePath"])
+        self.write(worktree, "unique.md", "keep\n")
+        git(worktree, "add", "-A")
+        git(worktree, "commit", "-qm", "unique detached")
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        sw.record_merge(self.main, "sess-unique-detach")
+        removed = sw.teardown_session(self.main, "sess-unique-detach")
+        self.assertEqual("removed", removed["status"], removed)
+        self.assertFalse(worktree.exists())
+        self.assertEqual(git(self.main, "rev-parse", "--verify", f"ChaosEngine/recovered-sess-unique-detach").returncode, 0)
+        self.assertEqual(git(self.main, "rev-parse", "ChaosEngine/recovered-sess-unique-detach").stdout.strip(), head)
+
     def test_second_teardown_after_remove_is_absent(self):
         sw.prepare_session(self.main, "sess-twice")
         sw.record_merge(self.main, "sess-twice")
