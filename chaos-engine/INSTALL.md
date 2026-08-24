@@ -80,15 +80,16 @@ Node.js 24.19.0 for Memory; ambient Node and npm are not part of the runtime
 contract. Unsupported platforms and checksum failures stop before activation,
 leaving the prior generation active.
 
-Pass `--with-maven-tools` to install the optional Maven Tools MCP together with
-the project tools. It cannot be combined with `--skip-tools`. Java resolution
-prefers `CHAOSENGINE_JAVA`, then `JAVA_HOME`, then `PATH`; an unsuitable or
-missing Java triggers the verified Temurin 25.0.4+7 cache flow. Windows arm64
-uses the official Windows x64 Temurin artifact through Windows 11 x64
-emulation and fails closed if the Java 25 probe cannot execute. Project
-uninstall removes project-owned Python and Node generations but retains the
-shared Maven Tools cache; `cache purge --component maven-tools-mcp --version
-3.2.0` removes only exact receipt-verified cache content.
+A root `pom.xml` enables Maven Tools MCP automatically. Pass `--with-maven-tools`
+to force it on a non-Maven project. `--skip-tools` still skips it. Java
+resolution prefers `CHAOSENGINE_JAVA`, then `JAVA_HOME`, then `PATH` when the
+major version is 17 or newer; otherwise the installer downloads checksummed
+Temurin 25.0.4+7. If an ambient JDK cannot probe the JAR, the pin is used.
+Windows arm64 uses the official Windows x64 Temurin artifact through Windows 11
+x64 emulation and fails closed if that probe cannot execute. Project uninstall
+removes project-owned Python and Node generations but retains the shared Maven
+Tools cache; `cache purge --component maven-tools-mcp --version 3.2.0` removes
+only exact receipt-verified cache content.
 
 POSIX:
 
@@ -161,8 +162,9 @@ upstream from the consumer repository.
 `status` and `doctor` report every component with its `owner`, `scope`,
 `lifecycle`, and `taskImpact`. Memory, MemPalace, and Graphify are advisory to
 ordinary tasks but remain strict in `doctor`; an unhealthy selected store still
-returns `recovery-required`. The optional Maven Tools MCP cache is installer-owned
-and does not make project health fail.
+returns `recovery-required`. Maven Tools MCP is auto-installed when the project
+has a root `pom.xml`. On non-Maven projects it stays optional and absent does
+not make project health fail.
 
 ## Optional native Maven Tools MCP
 
@@ -170,9 +172,9 @@ Do not put `docker run -i --rm` in a default stdio MCP configuration. Each
 active client owns its own stdio server process, so a Docker-backed declaration
 creates one container per client and keeps Docker Desktop and its VM resident.
 
-`--with-maven-tools` performs the pinned native JAR flow:
+A root `pom.xml`, or `--with-maven-tools`, performs the pinned native JAR flow:
 
-1. Resolve Java 25 from `CHAOSENGINE_JAVA`, `JAVA_HOME`, or `PATH`, otherwise
+1. Resolve Java 17+ from `CHAOSENGINE_JAVA`, `JAVA_HOME`, or `PATH`, otherwise
    download and checksum-verify the selected Temurin 25.0.4+7 artifact.
 2. Prefer host Git for `arvindand/maven-tools-mcp` commit
    `4475ff6c61f23ea9a93cb6d5665a63235ef2ef36`. Without Git, download the
@@ -201,9 +203,10 @@ creates one container per client and keeps Docker Desktop and its VM resident.
    `no-context7` keeps the receipt-pinned server's native tool surface independent
    of a live downstream Context7 connection.
 
-If Java 25 or the verified JAR is absent, installation leaves this optional MCP
-server out of every host configuration. Maven CLI, repository files, Context7,
-and authoritative Maven Central sources remain the no-Docker fallback.
+If neither an ambient Java 17+ runtime nor the Temurin pin can run the JAR,
+installation fails closed on a Maven project and omits the server on a
+non-Maven project. Maven CLI, repository files, Context7, and authoritative
+Maven Central sources remain the no-Docker fallback.
 
 Inspect or remove the exact supported cache version with:
 

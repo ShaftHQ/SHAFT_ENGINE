@@ -256,7 +256,7 @@ def retrieval_configs_healthy(project: Path) -> bool:
     return True
 
 
-def retrieval_runtime_healthy(project: Path) -> bool:
+def retrieval_runtime_status(project: Path) -> dict[str, str]:
     tool = project / ".chaos-engine/tool.py"
     for arguments in (("status", "--json"), ("check", "--json")):
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
@@ -268,16 +268,33 @@ def retrieval_runtime_healthy(project: Path) -> bool:
             timeout=30,
         )
         if result.returncode != 0:
-            return False
+            detail = (result.stderr or result.stdout or "memory tool exited non-zero").strip()
+            return {
+                "status": "recovery-required",
+                "reason": f"memory {' '.join(arguments)} failed: {detail[:240]}",
+            }
         try:
             payload = json.loads(result.stdout)
         except json.JSONDecodeError:
-            return False
+            return {
+                "status": "recovery-required",
+                "reason": f"memory {' '.join(arguments)} did not return JSON",
+            }
         if not isinstance(payload, dict) or payload.get("ok") is not True:
-            return False
+            return {
+                "status": "recovery-required",
+                "reason": f"memory {' '.join(arguments)} reported not ok",
+            }
         if arguments[0] == "check" and payload.get("data", {}).get("valid") is not True:
-            return False
-    return True
+            return {
+                "status": "recovery-required",
+                "reason": "memory check reported invalid store",
+            }
+    return {"status": "healthy"}
+
+
+def retrieval_runtime_healthy(project: Path) -> bool:
+    return retrieval_runtime_status(project).get("status") == "healthy"
 
 
 def _sqlite_runtime_valid(
@@ -1820,7 +1837,7 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
             continue
         if is_link_or_reparse(resolved):
             continue
-        if java_major(resolved) == 25:
+        if (java_major(resolved) or 0) >= 17:
             return resolved, jar
     return None
 

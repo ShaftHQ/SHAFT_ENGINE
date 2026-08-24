@@ -4,38 +4,7 @@
 #   curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
 set -eu
 
-print_chaos_engine_brand() {
-  cols=${COLUMNS:-}
-  if [ -z "$cols" ] && command -v tput >/dev/null 2>&1; then
-    cols=$(tput cols 2>/dev/null || true)
-  fi
-  cols=${cols:-80}
-  color=0
-  if [ -t 2 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then
-    color=1
-  fi
-  if [ "$cols" -lt 28 ] 2>/dev/null; then
-    if [ "$color" -eq 1 ]; then
-      printf '  /C|\033[38;2;255;59;77m*\033[0m|E/\n' >&2
-    else
-      printf '  /C|*|E/\n' >&2
-    fi
-    printf '  Chaos Engine\n' >&2
-    return
-  fi
-  printf '  /=====.        +--+     /\n' >&2
-  printf '  |              |==|    /\n' >&2
-  if [ "$color" -eq 1 ]; then
-    printf '  |  \033[38;2;255;59;77m*\033[0m    /      |==|   /\n' >&2
-  else
-    printf '  |  *    /      |==|   /\n' >&2
-  fi
-  printf '  |              |==|  /\n' >&2
-  printf '  +=====/        +--+ /\n' >&2
-  printf '         Chaos Engine\n' >&2
-}
-print_chaos_engine_brand
-export CHAOS_ENGINE_BRAND_SHOWN=1
+# Brand and live progress belong to bootstrap.py so curl|bash cannot double-paint.
 
 fail() {
   echo "$1" >&2
@@ -174,8 +143,6 @@ trap cleanup EXIT INT TERM
 
 bootstrap="$work/bootstrap.py"
 echo "Installing ChaosEngine into ${project} from ${repository}@${branch}" >&2
-printf '  [ ] Resolve source\n  [ ] Download source\n  [ ] Provision dependencies\n  [ ] Install core\n  [ ] Verify installation\n  [ ] Activate clients\n\n' >&2
-echo "Current action: Download bootstrap" >&2
 if [ -n "$interactive" ]; then
   controlling_tty="$(printf '%s/%s' /dev tty)"
   [ -r "$controlling_tty" ] || fail "interactive mode requires a usable controlling terminal"
