@@ -242,6 +242,10 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         )
         commands = "\n".join(str(step.get("run", "")) for step in job["steps"])
         self.assertIn("scripts/ci/chaos_engine_live_installer_acceptance.py", commands)
+        self.assertIn("--candidate-sha", commands)
+        self.assertIn("--base-sha", commands)
+        checkout = next(step for step in job["steps"] if step.get("uses") == "actions/checkout@v7")
+        self.assertEqual(2, checkout["with"]["fetch-depth"])
         uploads = [step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7"]
         self.assertEqual(1, len(uploads))
         self.assertEqual("always()", uploads[0]["if"])
