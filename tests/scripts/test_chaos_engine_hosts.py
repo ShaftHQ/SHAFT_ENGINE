@@ -92,6 +92,39 @@ def create_chroma_state(path: Path) -> None:
 
 
 class ChaosEngineHostsTest(unittest.TestCase):
+    def test_grok_runtime_requires_trust_and_complete_loaded_lifecycle(self):
+        module = load(HOSTS, "chaos_engine_grok_runtime")
+        events = (
+            "session_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
+            "post_tool_use_failure", "stop", "subagent_stop", "session_end",
+        )
+        healthy = {"projectTrusted": True, "hooks": [
+            {"event": event, "target": "python3 .chaos-engine/hooks/guard.py"}
+            for event in events
+        ]}
+        def result(payload, returncode=0):
+            return subprocess.CompletedProcess([], returncode, json.dumps(payload), "")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            for payload, expected in (
+                (healthy, "healthy"),
+                ({**healthy, "projectTrusted": False}, "recovery-required"),
+                ({**healthy, "hooks": healthy["hooks"][:-1]}, "recovery-required"),
+            ):
+                calls = []
+                state = module.grok_runtime_status(
+                    project, executable="grok",
+                    runner=lambda command, **kwargs: calls.append((command, kwargs)) or result(payload),
+                )
+                self.assertEqual(expected, state["status"])
+                self.assertEqual(["grok", "inspect", "--json"], calls[0][0])
+                self.assertNotIn("--trust", calls[0][0])
+            failed = module.grok_runtime_status(
+                project, executable="grok", runner=lambda *_a, **_k: result({}, 1)
+            )
+            self.assertEqual("recovery-required", failed["status"])
+            self.assertIn("/hooks-trust", failed["detail"])
+
     def test_detected_client_plugins_are_registered_installed_and_verified(self):
         module = load(HOSTS, "chaos_engine_plugin_activation")
         with tempfile.TemporaryDirectory() as temporary:

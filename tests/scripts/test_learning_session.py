@@ -317,7 +317,8 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 "--session-id inert-controller --operation-id inert-op"},
             "tool_response": "exit 0",
         }
-        with patch("scripts.agents.guard._learning_session.load_completion") as completion:
+        with patch("scripts.agents.guard._learning_session_core") as controller:
+            completion = controller.return_value.load_completion
             completion.return_value = {
                 "operation": "assess", "incident_hashes": ["a" * 64], "reason_code": None
             }

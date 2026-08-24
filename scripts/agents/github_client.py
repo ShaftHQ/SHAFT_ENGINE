@@ -49,6 +49,58 @@ class GitHubClient:
             raise GitHubUnavailable("GitHub API returned an invalid object")
         return payload
 
+    def comment_once(self, issue: int, body_file: str) -> dict:
+        """Post one exact issue comment and prove its remote body and URL."""
+        if not isinstance(issue, int) or issue < 1:
+            raise ValueError("issue must be a positive integer")
+        path = Path(body_file)
+        try:
+            body = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise GitHubUnavailable(f"prepared comment body is unavailable: {error}") from error
+
+        def exact_comment() -> dict | None:
+            return next(
+                (
+                    item
+                    for item in self.rest_pages(f"issues/{issue}/comments")
+                    if item.get("body") == body and isinstance(item.get("html_url"), str)
+                ),
+                None,
+            )
+
+        existing = exact_comment()
+        if existing:
+            return {"created": False, "url": existing["html_url"], "body": body}
+        command = [
+            self.executable,
+            "issue",
+            "comment",
+            str(issue),
+            "--repo",
+            self.repository,
+            "--body-file",
+            str(path),
+        ]
+        try:
+            result = self.runner(
+                command, cwd=self.root, capture_output=True, text=True, timeout=30, check=False
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise GitHubUnavailable(f"GitHub comment failed: {error}; run `gh auth status`") from error
+        if result.returncode:
+            detail = result.stderr.strip() or "GitHub CLI returned an error"
+            raise GitHubUnavailable(
+                f"{detail}; run `gh auth status` and grant Issues or Pull requests write permission"
+            )
+        verified = exact_comment()
+        if not verified:
+            raise GitHubUnavailable(
+                "GitHub comment readback did not match the prepared body; content remains in "
+                + str(path)
+            )
+        return {"created": True, "url": verified["html_url"], "body": body}
+
     @staticmethod
     def _validate_endpoint(endpoint: str) -> None:
         if (

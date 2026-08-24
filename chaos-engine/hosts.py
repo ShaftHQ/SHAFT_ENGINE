@@ -3752,6 +3752,47 @@ def verify(
     return {"status": "healthy"}
 
 
+def grok_runtime_status(
+    project: Path, *, executable: str | None = None, runner=None
+) -> dict[str, str]:
+    """Verify detected Grok project trust and loaded lifecycle hooks without mutation."""
+    command = executable or shutil.which("grok")
+    if not command:
+        return {"status": "not-detected"}
+    run = subprocess.run if runner is None else runner
+    try:
+        completed = run(
+            [command, "inspect", "--json"],
+            cwd=project.resolve(),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        payload = json.loads(completed.stdout or "{}") if completed.returncode == 0 else {}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        payload = {}
+    recovery = (
+        "Run `grok inspect --json` from the project. If projectTrusted is false, "
+        "review the project then run `/hooks-trust`; reload hooks and rerun doctor."
+    )
+    if not isinstance(payload, dict) or payload.get("projectTrusted") is not True:
+        return {"status": "recovery-required", "detail": recovery}
+    hooks = payload.get("hooks")
+    loaded = {
+        str(item.get("event"))
+        for item in hooks if isinstance(item, dict)
+        if "guard.py" in str(item.get("target") or "")
+    } if isinstance(hooks, list) else set()
+    required = {
+        "session_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
+        "post_tool_use_failure", "stop", "subagent_stop", "session_end",
+    }
+    if not required.issubset(loaded):
+        return {"status": "recovery-required", "detail": recovery}
+    return {"status": "healthy"}
+
+
 def snapshot(project: Path) -> dict[str, object]:
     project = project.resolve()
     receipt, raw = read_receipt(project)

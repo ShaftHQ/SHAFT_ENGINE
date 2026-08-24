@@ -515,6 +515,8 @@ def _run_event(event: dict, _host: str) -> int:
     if event_name == "SessionStart":
         token = reflection.record_session_start(session_id)
     else:
+        if event_name not in {"SubagentStop", "SessionEnd"}:
+            reflection.record_session_start(session_id, estimated=True)
         token = None
     if _record_failed_result(event, event_name, commands, tool_name, session_id):
         return 0

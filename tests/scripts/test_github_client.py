@@ -2,6 +2,7 @@
 
 import json
 import subprocess  # nosec B404 - subprocess objects are test fixtures only.
+import tempfile
 import unittest
 
 from scripts.agents.github_client import GitHubClient, GitHubUnavailable
@@ -53,6 +54,40 @@ class GitHubClientTest(unittest.TestCase):
         for repository, endpoint in (("bad", "issues/1/comments"), ("owner/repo", "https://evil.test"), ("owner/repo", "../users")):
             with self.subTest(repository=repository, endpoint=endpoint), self.assertRaises(ValueError):
                 GitHubClient(repository, runner=lambda *_a, **_k: None, executable="gh").rest_pages(endpoint)
+
+    def test_comment_once_checks_exact_body_posts_with_file_and_reads_back(self):
+        calls = []
+        responses = [
+            subprocess.CompletedProcess([], 0, "[]", ""),
+            subprocess.CompletedProcess([], 0, "https://github.com/consumer/project/issues/7#issuecomment-9\n", ""),
+            subprocess.CompletedProcess([], 0, json.dumps([[{"body": "proof", "html_url": "https://github.com/consumer/project/issues/7#issuecomment-9"}]]), ""),
+        ]
+        def runner(command, **_kwargs):
+            calls.append(command)
+            return responses.pop(0)
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8") as body_file:
+            body_file.write("proof")
+            body_file.flush()
+            result = GitHubClient("consumer/project", runner=runner, executable="gh").comment_once(7, body_file.name)
+        self.assertTrue(result["created"])
+        self.assertIn("--body-file", calls[1])
+        self.assertEqual("https://github.com/consumer/project/issues/7#issuecomment-9", result["url"])
+
+    def test_comment_once_reuses_exact_existing_body_and_fails_on_mismatch(self):
+        existing = [[{"body": "proof", "html_url": "https://github.com/consumer/project/issues/7#issuecomment-8"}]]
+        client = GitHubClient("consumer/project", runner=lambda *_a, **_k: subprocess.CompletedProcess([], 0, json.dumps(existing), ""), executable="gh")
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8") as body_file:
+            body_file.write("proof")
+            body_file.flush()
+            self.assertFalse(client.comment_once(7, body_file.name)["created"])
+
+        responses = [subprocess.CompletedProcess([], 0, "[]", ""), subprocess.CompletedProcess([], 0, "url", ""), subprocess.CompletedProcess([], 0, json.dumps([[{"body": "other", "html_url": "url"}]]), "")]
+        client = GitHubClient("consumer/project", runner=lambda *_a, **_k: responses.pop(0), executable="gh")
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8") as body_file:
+            body_file.write("proof")
+            body_file.flush()
+            with self.assertRaisesRegex(GitHubUnavailable, "readback"):
+                client.comment_once(7, body_file.name)
 
 
 if __name__ == "__main__":
