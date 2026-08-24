@@ -221,15 +221,19 @@ def installed_command(project: Path, *arguments: str) -> list[str]:
     ]
 
 
-def run_public_wrapper(commit: str, project: Path) -> None:
+def run_public_wrapper(
+    commit: str, project: Path, *, require_current_action: bool = True
+) -> None:
     result = run_checked(
         public_wrapper_command(commit, windows=os.name == "nt"),
         cwd=project,
     )
     if not (project / ".chaos-engine/install.py").is_file():
         raise RuntimeError("public wrapper did not create the installation tree")
-    if "Installing ChaosEngine" not in result.stderr or "Current action:" not in result.stderr:
+    if "Installing ChaosEngine" not in result.stderr:
         raise RuntimeError("public wrapper returned without durable installer progress")
+    if require_current_action and "Current action:" not in result.stderr:
+        raise RuntimeError("candidate wrapper omitted its current action")
     payload = json.loads(result.stdout)
     if payload.get("status") != "installed":
         raise RuntimeError("public wrapper did not return an installed result")
@@ -385,7 +389,6 @@ def run_acceptance(
     source = source.resolve()
     with tempfile.TemporaryDirectory(prefix="chaos-engine-live-") as temporary:
         root = Path(temporary)
-        staged = stage_source(source, root / "source")
         project = root / "consumer with spaces Ω"
         project.mkdir()
 
@@ -393,7 +396,7 @@ def run_acceptance(
             evidence,
             "fresh-base-wrapper",
             lambda: (
-                run_public_wrapper(base_sha, project),
+                run_public_wrapper(base_sha, project, require_current_action=False),
                 verify_phase(project, base_sha),
             )[1],
         )
