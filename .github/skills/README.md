@@ -5,7 +5,7 @@ creating a second policy owner. Every child `SKILL.md` is a thin adapter to a
 canonical playbook under `chaos-engine/profiles/shaft/references/`.
 
 - Start repository work from
-  [act-as-mohab](../../.agents/skills/act-as-mohab/SKILL.md).
+  [ChaosEngine](../../.agents/skills/chaos-engine/SKILL.md).
 - Use the [canonical routing table](../../chaos-engine/profiles/shaft/references/routing.md)
   to select one playbook.
 - Edit policy only at the canonical target; keep adapters as pointers.

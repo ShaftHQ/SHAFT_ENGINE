@@ -115,7 +115,7 @@ This repository ships its own agent skills, so an agent can follow the same
 conventions this guide describes instead of guessing at them. Point yours at
 them before it touches anything:
 
-> Read `.agents/skills/act-as-mohab/SKILL.md` and follow it for this task.
+> Read `chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
 
 Most agents discover that entrypoint on their own. The
 [agent skills map](.agents/skills/README.md) explains how the skills fit

@@ -1535,7 +1535,7 @@ class HostParityTest(unittest.TestCase):
         canonical = {path.parent.name for path in CANONICAL_SKILLS.glob("*/SKILL.md")}
         claude = {path.parent.name for path in CLAUDE_SKILLS.glob("*/SKILL.md")}
         self.assertEqual(canonical, {"chaos-engine", "local-coding-delegate", "work-item"})
-        self.assertEqual(claude, {"chaos-engine", "act-as-mohab"})
+        self.assertEqual(claude, {"chaos-engine"})
 
     def test_claude_skills_are_redirects_to_the_canonical_body(self):
         for adapter in sorted(CLAUDE_SKILLS.glob("*/SKILL.md")):
@@ -1894,7 +1894,11 @@ class NoDuplicationTest(unittest.TestCase):
     )
     # Host discovery requires each adapter to carry its own pointer line; there
     # is no include mechanism, so this repetition is the correct price.
-    ALLOWED_REPEATS = ("Load [act-as-mohab](", "Do not restate policy here.")
+    ALLOWED_REPEATS = (
+        "Load [ChaosEngine](",
+        "Load [act-as-mohab](",
+        "Do not restate policy here.",
+    )
     MIN_DUPLICATE_LINE_CHARS = 40
 
     def guidance_files(self) -> list[Path]:

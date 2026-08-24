@@ -339,7 +339,7 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
         for module in (
             "tests.scripts.test_repository_context",
             "tests.scripts.test_watch_pr_checks",
-            "tests.scripts.test_act_as_mohab_runtime",
+            "tests.scripts.test_chaos_engine_runtime",
         ):
             self.assertIn(module, workflow)
 

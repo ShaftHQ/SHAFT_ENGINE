@@ -48,7 +48,7 @@ on:
       - 'scripts/ci/verify_maven_central_release.py'
       - 'scripts/ci/verify_shaft_mcp_installer_release.py'
       - 'scripts/ci/agent_plugin_release.py'
-      - 'scripts/ci/assemble_act_as_mohab_plugin.py'
+      - 'scripts/ci/assemble_chaos_engine_plugin.py'
       - 'scripts/ci/assemble_shaft_skills_plugin.py'
       - 'scripts/ci/validate_agent_plugins.py'
       - 'scripts/mcp/**'

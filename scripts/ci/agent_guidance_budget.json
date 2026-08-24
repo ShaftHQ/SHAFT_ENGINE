@@ -130,11 +130,9 @@
   ],
   "expected_skill_names": {
     ".agents/skills": [
-      "act-as-mohab",
       "chaos-engine"
     ],
     ".claude/skills": [
-      "act-as-mohab",
       "chaos-engine"
     ],
     ".github/skills": [
@@ -210,7 +208,7 @@
       "scripts/ci/local_gate.py",
       "scripts/ci/validate_agent_guidance.py",
       "scripts/ci/validate_agent_plugins.py",
-      "scripts/ci/assemble_act_as_mohab_plugin.py",
+      "scripts/ci/assemble_chaos_engine_plugin.py",
       "scripts/ci/assemble_shaft_skills_plugin.py",
       "scripts/ci/validate_agent_setup.py",
       "scripts/ci/validate_skills.py",
@@ -227,10 +225,10 @@
       "tests/scripts/test_chaos_engine_research.py",
       "chaos-engine/bootstrap.py",
       "tests/scripts/test_chaos_engine_bootstrap.py",
-      "tests/scripts/test_assemble_act_as_mohab_plugin.py",
+      "tests/scripts/test_assemble_chaos_engine_plugin.py",
       "tests/scripts/test_repository_context.py",
       "tests/scripts/test_watch_pr_checks.py",
-      "tests/scripts/test_act_as_mohab_runtime.py",
+      "tests/scripts/test_chaos_engine_runtime.py",
       "tests/scripts/test_assemble_shaft_skills_plugin.py",
       "tests/scripts/test_guard_*.py",
       "tests/scripts/test_shaft_skill*.py",

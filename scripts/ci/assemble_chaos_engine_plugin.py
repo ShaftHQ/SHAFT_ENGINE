@@ -23,11 +23,11 @@ PORTABLE_SOURCE_SUFFIXES = {
 }
 RELEASE_FILES = (
     (Path("LICENSE"), Path("LICENSE")),
-    (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),
-    (Path("agent-plugins/act-as-mohab/COMPATIBILITY.md"), Path("COMPATIBILITY.md")),
+    (Path("agent-plugins/chaos-engine/CHANGELOG.md"), Path("CHANGELOG.md")),
+    (Path("agent-plugins/chaos-engine/COMPATIBILITY.md"), Path("COMPATIBILITY.md")),
 )
 RUNTIME_SOURCES = (
-    Path("scripts/agents/act_as_mohab_cli.py"),
+    Path("scripts/agents/chaos_engine_cli.py"),
     Path("scripts/agents/delivery_status.py"),
     Path("scripts/agents/github_client.py"),
     Path("scripts/agents/issue_filing.py"),
@@ -36,17 +36,7 @@ RUNTIME_SOURCES = (
     Path("scripts/agents/repository_context.py"),
     Path("scripts/agents/watch_pr_checks.py"),
 )
-RUNTIME_MAIN = b"from act_as_mohab_cli import main\nraise SystemExit(main())\n"
-COMPATIBILITY_ALIAS = """---
-name: act-as-mohab
-description: Compatibility alias for ChaosEngine.
----
-
-# Compatibility alias
-
-Follow the [canonical ChaosEngine entrypoint](../chaos-engine/SKILL.md), then
-load the [bundled project profile](../../profiles/shaft/entrypoint.md).
-"""
+RUNTIME_MAIN = b"from chaos_engine_cli import main\nraise SystemExit(main())\n"
 PACKAGE_PROFILE_SELECTION = """
 
 ## Bundled project profile
@@ -137,7 +127,7 @@ def copy_release_files(repository_root: Path, package_root: Path) -> None:
 
 def build_runtime(repository_root: Path, package_root: Path) -> None:
     """Build the deterministic stdlib zipapp from tracked canonical modules."""
-    destination = package_root / "bin/act-as-mohab.pyz"
+    destination = package_root / "bin/chaos-engine.pyz"
     destination.parent.mkdir()
     entries = [("__main__.py", RUNTIME_MAIN)]
     for relative in RUNTIME_SOURCES:
@@ -162,7 +152,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
         .strip()
     )
     if version is not None and version != engine_version:
-        raise ValueError(f"act-as-mohab version must match the repository: {engine_version}")
+        raise ValueError(f"chaos-engine version must match the repository: {engine_version}")
     version = engine_version
     package_root = Path(package_root)
     canonical_root = repository_root / "chaos-engine"
@@ -178,7 +168,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     allowed_files = tracked_source_files(repository_root)
     package_root.mkdir(parents=True)
     (package_root / "plugin.json").write_text(
-        f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab","version":"{version}",'
+        f'{{"$schema":"{SCHEMA_URL}","name":"chaos-engine","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"},'
         '"repository":"https://github.com/ShaftHQ/SHAFT_ENGINE","license":"MIT"}\n',
@@ -187,7 +177,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     claude_adapter = package_root / ".claude-plugin"
     claude_adapter.mkdir()
     (claude_adapter / "plugin.json").write_text(
-        f'{{"name":"act-as-mohab","version":"{version}",'
+        f'{{"name":"chaos-engine","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"}}\n',
         encoding="utf-8",
@@ -195,12 +185,12 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     codex_adapter = package_root / ".codex-plugin"
     codex_adapter.mkdir()
     (codex_adapter / "plugin.json").write_text(
-        f'{{"name":"act-as-mohab","version":"{version}",'
+        f'{{"name":"chaos-engine","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ"},'
         '"repository":"https://github.com/ShaftHQ/SHAFT_ENGINE","license":"MIT",'
         '"skills":"./skills/","mcpServers":"./.mcp.json",'
-        '"interface":{"displayName":"Act as Mohab",'
+        '"interface":{"displayName":"ChaosEngine",'
         '"shortDescription":"Portable ChaosEngine maintainer workflow",'
         '"longDescription":"Repository-aware maintainer guidance and bounded delivery operations.",'
         '"developerName":"ShaftHQ","category":"Developer Tools",'
@@ -209,9 +199,9 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
         encoding="utf-8",
     )
     (claude_adapter / "marketplace.json").write_text(
-        f'{{"name":"act-as-mohab","owner":{{"name":"ShaftHQ"}},'
+        f'{{"name":"chaos-engine","owner":{{"name":"ShaftHQ"}},'
         '"description":"Portable ChaosEngine maintainer workflow.","plugins":['
-        f'{{"name":"act-as-mohab","source":"./",'
+        f'{{"name":"chaos-engine","source":"./",'
         f'"description":"Maintainer workflow and harness skills for SHAFT.",'
         f'"version":"{version}"}}]}}\n',
         encoding="utf-8",
@@ -222,7 +212,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
                 "mcpServers": {
                 "chaosengine": {
                     "command": "python",
-                    "args": ["./bin/act-as-mohab.pyz", "mcp"],
+                    "args": ["./bin/chaos-engine.pyz", "mcp"],
                     "cwd": ".",
                 }
                 }
@@ -235,8 +225,8 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     codex_marketplace = package_root / ".agents/plugins"
     codex_marketplace.mkdir(parents=True)
     (codex_marketplace / "marketplace.json").write_text(
-        '{"name":"act-as-mohab","plugins":['
-        '{"name":"act-as-mohab","source":{"source":"local","path":"./"}}]}\n',
+        '{"name":"chaos-engine","plugins":['
+        '{"name":"chaos-engine","source":{"source":"local","path":"./"}}]}\n',
         encoding="utf-8",
     )
     canonical_skill = canonical_root / "skills/chaos-engine/SKILL.md"
@@ -248,9 +238,6 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
         packaged_skill.read_text(encoding="utf-8").rstrip() + PACKAGE_PROFILE_SELECTION,
         encoding="utf-8",
     )
-    compatibility = package_root / "skills/act-as-mohab"
-    compatibility.mkdir(parents=True)
-    (compatibility / "SKILL.md").write_text(COMPATIBILITY_ALIAS, encoding="utf-8")
     copy_release_files(repository_root, package_root)
     build_runtime(repository_root, package_root)
     (package_root / "skills/README.md").write_text(

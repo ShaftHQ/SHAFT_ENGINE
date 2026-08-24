@@ -21,7 +21,7 @@ until the entrypoint sends you there, which is what keeps a small change cheap.
 flowchart TD
     H["Host starts a task<br/><i>Claude, Codex, Copilot, Grok</i>"] --> E
 
-    E["<b>act-as-mohab</b><br/>always loaded"]
+    E["<b>ChaosEngine</b><br/>always loaded"]
     E --> T{"Triage<br/>blast radius x reversibility"}
 
     T -->|"one file, reversible"| GO["<b>consult-first</b><br/>concise complete receipt"]
@@ -49,7 +49,7 @@ sequenceDiagram
     autonumber
     participant U as Contributor
     participant A as Agent
-    participant E as act-as-mohab
+    participant E as ChaosEngine
     participant G as consult-first
     participant W as Work surface
 
@@ -236,8 +236,8 @@ file is added, moved or deleted, which is the only way a map stays true.
 
 | Host | Files |
 | --- | --- |
-| Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; compatibility alias `.agents/skills/act-as-mohab/SKILL.md` with `.agents/skills/act-as-mohab/agents/openai.yaml`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
-| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/chaos-engine/SKILL.md`; compatibility alias `.claude/skills/act-as-mohab/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
+| Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
+| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/chaos-engine/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
 | Gemini | `GEMINI.md`; `.gemini/settings.json`; `.gemini/skills/chaos-engine/SKILL.md` |
 | Grok | `AGENTS.md`; `.grok/hooks/lifecycle.json` |
 | Copilot | `.github/copilot-instructions.md`; `.github/hooks/chaos-engine.json`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; redirect pack indexed by `.github/skills/README.md` |
@@ -296,11 +296,11 @@ does not know they exist meets them as an interruption instead of a tool.
 
 | Part | Where it lives | What it does to a session |
 | --- | --- | --- |
-| Lifecycle guard | `scripts/agents/guard.py`, registered by `.claude/settings.json` and `.codex/hooks.json`; matcher policy in `chaos-engine/hooks/matchers.json` | One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, and SubagentStop. Host documents only register it. Preventive matchers omit intrinsically read-only tools; observational matchers retain outcome evidence. |
+| Lifecycle guard | `scripts/agents/guard.py`, `scripts/agents/session_worktree.py`, registered by `.claude/settings.json` and `.codex/hooks.json`; matcher policy in `chaos-engine/hooks/matchers.json` | One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStop, and SessionEnd. Host documents only register it. Preventive matchers omit intrinsically read-only tools; observational matchers retain outcome evidence. SessionStart creates one session worktree; Stop never deletes it; SessionEnd removes it after merge. |
 | Learning controller | `scripts/agents/learning_session.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
 | Retrieval servers | `.mcp.json`, `.codex/config.toml`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
 | Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
-| Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/act_as_mohab_cli.py` | Resolve the caller's repository and expose bounded PR watching, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
+| Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/chaos_engine_cli.py` | Resolve the caller's repository and expose bounded PR watching, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
 | PR watcher adapter | `scripts/ci/watch_pr_checks.py` | Keeps the historical source-tree command as a thin adapter to canonical repository operations. |
 | Worktree survey | `scripts/ci/worktree_hygiene.py` | Reports which worktrees are safe to remove and which hold work nobody will come back for. |
 | Local gate | `scripts/ci/local_gate.py` | Runs the pull-request gate's checks before you push, so a red run costs a minute instead of a round trip. |
@@ -365,10 +365,10 @@ change it:
 | `tests/scripts/test_validate_agent_plugins.py` | Portable Agent Plugin manifests, Agent Skills, and containment. |
 | `tests/scripts/test_validate_agent_setup.py` | The aggregate gate and the host-parity matrix. |
 | `tests/scripts/test_validate_skills.py` | Skill frontmatter, names, and body limits. |
-| `tests/scripts/test_guard_lifecycle.py`, `tests/scripts/test_guard_nul_corruption.py` | The lifecycle guard's decisions and its behaviour on a corrupt state file. |
+| `tests/scripts/test_guard_lifecycle.py`, `tests/scripts/test_guard_nul_corruption.py`, `tests/scripts/test_session_worktree.py` | The lifecycle guard's decisions, session worktree setup/teardown, and behaviour on a corrupt state file. |
 | `tests/scripts/test_guard_memory_worktree.py` | That a memory write from a linked worktree is refused, and that each host actually invokes the guard for it. |
 | `tests/scripts/test_sync_user_harness.py` | The user-level deployment. |
-| `tests/scripts/test_repository_context.py`, `tests/scripts/test_watch_pr_checks.py`, `tests/scripts/test_act_as_mohab_runtime.py`, `tests/scripts/test_github_client.py`, `tests/scripts/test_pr_audit.py`, `tests/scripts/test_delivery_status.py`, `tests/scripts/test_issue_filing.py`, `tests/scripts/test_planning_contract.py` | Repository precedence, bounded watcher exit semantics, GitHub pagination, audit/delivery/issue/planning receipts, and the portable runtime/MCP contract. |
+| `tests/scripts/test_repository_context.py`, `tests/scripts/test_watch_pr_checks.py`, `tests/scripts/test_chaos_engine_runtime.py`, `tests/scripts/test_github_client.py`, `tests/scripts/test_pr_audit.py`, `tests/scripts/test_delivery_status.py`, `tests/scripts/test_issue_filing.py`, `tests/scripts/test_planning_contract.py` | Repository precedence, bounded watcher exit semantics, GitHub pagination, audit/delivery/issue/planning receipts, and the portable runtime/MCP contract. |
 | `tests/scripts/test_worktree_hygiene.py` | The worktree survey. |
 | `tests/scripts/test_shaft_skills_content.py`, `tests/scripts/test_shaft_skill_cli_examples.py` | The published product pack's content and its CLI examples. |
 

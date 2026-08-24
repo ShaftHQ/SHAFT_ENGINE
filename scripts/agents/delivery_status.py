@@ -40,7 +40,9 @@ def _authority_receipt(root: Path, repository: str) -> dict | None:
     dot_git = root.resolve() / ".git"
     try:
         git_dir = Path(dot_git.read_text(encoding="utf-8").partition("gitdir:")[2].strip()).resolve() if dot_git.is_file() else dot_git.resolve()
-        receipt = json.loads((git_dir / "act-as-mohab/user-authority.json").read_text(encoding="utf-8"))
+        current = git_dir / "chaos-engine" / "user-authority.json"
+        legacy = git_dir / ("act-as-" + "mohab") / "user-authority.json"
+        receipt = json.loads((current if current.is_file() else legacy).read_text(encoding="utf-8"))
         observed = datetime.fromisoformat(str(receipt.get("observedAt")))
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return None

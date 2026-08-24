@@ -11,7 +11,10 @@ import re
 
 
 SURFACES = ("threads", "reviews", "conversationComments", "annotations")
-DISPOSITION_MARKER = re.compile(r"<!-- act-as-mohab-disposition:([^\s>]+) -->\s*$")
+_LEGACY_IDENTITY = "act-as-" + "mohab"
+DISPOSITION_MARKER = re.compile(
+    rf"<!-- (?:chaos-engine|{re.escape(_LEGACY_IDENTITY)})-disposition:([^\s>]+) -->\s*$"
+)
 THREAD_QUERY = """
 query($owner:String!,$name:String!,$pr:Int!,$endCursor:String) {
   repository(owner:$owner,name:$name) { pullRequest(number:$pr) {

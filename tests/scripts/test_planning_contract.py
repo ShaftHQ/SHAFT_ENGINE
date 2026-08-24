@@ -42,7 +42,7 @@ def complete_plan() -> dict:
         ],
         "rejectedApproachSteelman": "A guard-only patch minimizes immediate integration work.",
         "decision": "Use a portable service and keep guard as a receipt consumer.",
-        "callers": ["act_as_mohab_cli.py", "guard.py", "MCP clients"],
+        "callers": ["chaos_engine_cli.py", "guard.py", "MCP clients"],
         "steps": [{"order": 1, "action": "Add RED contract fixtures", "proof": "focused unittest"}],
         "risks": [{"risk": "stale audit", "mitigation": "bind receipt to head OID"}],
         "proofCommands": ["py -3 -m unittest tests.scripts.test_planning_contract"],

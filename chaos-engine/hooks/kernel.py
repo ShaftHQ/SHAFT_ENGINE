@@ -48,7 +48,16 @@ CLAUDE_EVENTS = (
     "PreCompact",
     "SessionEnd",
 )
-CODEX_EVENTS = CLAUDE_EVENTS[:7]
+CODEX_EVENTS = (
+    "SessionStart",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PostToolUse",
+    "PostToolUseFailure",
+    "Stop",
+    "SubagentStop",
+    "SessionEnd",
+)
 GROK_EVENTS = CODEX_EVENTS
 GEMINI_EVENTS = (
     "SessionStart",
@@ -91,7 +100,13 @@ def _aliases(supported: tuple[str, ...], **values: str) -> Mapping[str, str]:
 HOST_CAPABILITIES: Mapping[str, HostCapability] = {
     "codex": HostCapability(
         ("AGENTS.md", ".agents/skills/chaos-engine/SKILL.md"),
-        _aliases(CODEX_EVENTS, preToolUse="PreToolUse", postToolUse="PostToolUse", agentStop="Stop"),
+        _aliases(
+            CODEX_EVENTS,
+            preToolUse="PreToolUse",
+            postToolUse="PostToolUse",
+            agentStop="Stop",
+            sessionEnd="SessionEnd",
+        ),
         CODEX_EVENTS,
     ),
     "claude": HostCapability(
@@ -113,7 +128,13 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
     ),
     "grok": HostCapability(
         ("AGENTS.md", ".grok/plugins/chaos-engine"),
-        _aliases(GROK_EVENTS, preToolUse="PreToolUse", postToolUse="PostToolUse", agentStop="Stop"),
+        _aliases(
+            GROK_EVENTS,
+            preToolUse="PreToolUse",
+            postToolUse="PostToolUse",
+            agentStop="Stop",
+            sessionEnd="SessionEnd",
+        ),
         GROK_EVENTS,
     ),
     "copilot": HostCapability(

@@ -288,7 +288,7 @@ class DeliveryStatusTest(unittest.TestCase):
     def test_current_user_receipt_grants_or_revokes_authority(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            receipt_dir = root / ".git" / "act-as-mohab"
+            receipt_dir = root / ".git" / "chaos-engine"
             receipt_dir.mkdir(parents=True)
             evidence = manifest()
             evidence["ownedPullRequests"][0]["authorityEvidence"] = None

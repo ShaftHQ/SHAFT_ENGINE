@@ -213,7 +213,7 @@ class SyncUserHarnessTest(unittest.TestCase):
     def test_apply_preserves_unknown_user_skill_collision(self):
         target = self.agents_target / "skills/act-as-mohab/SKILL.md"
         target.parent.mkdir(parents=True)
-        custom = b"---\nname: act-as-mohab\n---\n\n# My custom skill\n"
+        custom = b"---\nname: chaos-engine\n---\n\n# My custom skill\n"
         target.write_bytes(custom)
 
         completed = self.run_sync("--apply")
@@ -251,7 +251,7 @@ class SyncUserHarnessTest(unittest.TestCase):
     def test_current_repo_skill_bytes_are_not_dynamic_ownership_proof(self):
         target = self.agents_target / "skills/act-as-mohab/SKILL.md"
         target.parent.mkdir(parents=True)
-        current = (ROOT / ".agents/skills/act-as-mohab/SKILL.md").read_bytes()
+        current = (ROOT / ".agents/skills/chaos-engine/SKILL.md").read_bytes()
         target.write_bytes(current)
 
         completed = self.run_sync("--apply")

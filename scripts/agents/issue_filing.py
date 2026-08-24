@@ -306,7 +306,7 @@ def prepare_issue_plan(plan: dict, taxonomy: dict, repository: str, **transport)
 def _creation_lock(repository: str, confirmation: str):
     """Serialize same-host retries; GitHub's issue-create API has no idempotency key."""
     key = hashlib.sha256(f"{repository}:{confirmation}".encode()).hexdigest()
-    path = Path(tempfile.gettempdir()) / f"act-as-mohab-issue-{key}.lock"
+    path = Path(tempfile.gettempdir()) / f"chaos-engine-issue-{key}.lock"
     handle = path.open("a+b")
     acquired = False
     for _ in range(4000):
@@ -349,9 +349,9 @@ def _create_issue_locked(plan: dict, taxonomy: dict, repository: str, confirmati
     dry_receipt = validate_issue_plan(plan, taxonomy)
     if dry_receipt["decision"] != "allow" or confirmation_digest(plan, taxonomy, repository) != confirmation:
         raise ValueError("issue creation confirmation does not match the validated dry-run receipt")
-    marker = f"<!-- act-as-mohab:{confirmation} -->"
+    marker = f"<!-- chaos-engine:{confirmation} -->"
     marker_search = search_duplicates(
-        repository, f'"act-as-mohab:{confirmation}" in:body', runner=runner, executable=gh
+        repository, f'"chaos-engine:{confirmation}" in:body', runner=runner, executable=gh
     )
     marker_matches = [*marker_search["open"], *marker_search["closed"]]
     if marker_matches:

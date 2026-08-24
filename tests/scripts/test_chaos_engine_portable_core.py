@@ -21,7 +21,7 @@ CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
 CLEANUP_SCOPES = CORE / "references/cleanup-scopes.md"
 TASK_ISOLATION = CORE / "references/task-isolation.md"
 REPOSITORY_ADAPTER = ROOT / ".agents/skills/chaos-engine/SKILL.md"
-COMPATIBILITY_ALIAS = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
+COMPATIBILITY_ALIAS = ROOT / ".agents/skills/chaos-engine/SKILL.md"
 SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
 PORTABLE_README = CORE / "README.md"
 BRAND_ASSETS = CORE / "assets/brand"
@@ -293,16 +293,14 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
 
         self.assertIn("interface and data-visualization use only", brand)
 
-    def test_chaos_engine_is_the_canonical_skill_and_act_as_mohab_is_only_an_alias(self):
+    def test_chaos_engine_is_the_canonical_skill_without_a_discoverable_alias(self):
         canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
         repository_adapter = REPOSITORY_ADAPTER.read_text(encoding="utf-8")
-        alias = COMPATIBILITY_ALIAS.read_text(encoding="utf-8")
 
         self.assertRegex(canonical, r"(?m)^name: chaos-engine$")
         self.assertIn("../../../chaos-engine/skills/chaos-engine/SKILL.md", repository_adapter)
-        self.assertIn("../../../chaos-engine/skills/chaos-engine/SKILL.md", alias)
-        self.assertLessEqual(len(alias.splitlines()), 12, "compatibility alias must not duplicate policy")
-        self.assertNotIn("## Iron laws", alias)
+        self.assertFalse((ROOT / ".agents/skills/act-as-mohab/SKILL.md").exists())
+        self.assertFalse((ROOT / ".claude/skills/act-as-mohab/SKILL.md").exists())
 
     def test_generic_core_has_no_shaft_or_machine_specific_paths(self):
         forbidden = {
@@ -589,7 +587,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertRegex("config at /root/.config/private-agent", POSIX_ABSOLUTE_PATH)
         self.assertIsNone(POSIX_ABSOLUTE_PATH.search("https://example.com/opt/tool"))
         self.assertIsNone(POSIX_ABSOLUTE_PATH.search("[role](../../references/roles.md)"))
-        self.assertIsNone(POSIX_ABSOLUTE_PATH.search("run ./bin/act-as-mohab.pyz"))
+        self.assertIsNone(POSIX_ABSOLUTE_PATH.search("run ./bin/chaos-engine.pyz"))
         self.assertIsNone(POSIX_ABSOLUTE_PATH.search("/caveman full"))
         windows_absolute = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]")
         self.assertRegex(r"cache at C:\\private\\agent-cache", windows_absolute)
@@ -691,15 +689,17 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("C:\\Users\\Mohab", entry)
         self.assertNotIn("C:\\Users\\Mohab", playbook)
 
-    def test_every_compatibility_alias_selects_the_repository_profile(self):
-        for alias in (
-            ROOT / ".agents/skills/act-as-mohab/SKILL.md",
-            ROOT / ".claude/skills/act-as-mohab/SKILL.md",
+    def test_host_adapters_select_the_canonical_entrypoint(self):
+        for adapter in (
+            ROOT / ".agents/skills/chaos-engine/SKILL.md",
+            ROOT / ".claude/skills/chaos-engine/SKILL.md",
         ):
-            with self.subTest(alias=alias.relative_to(ROOT)):
-                content = alias.read_text(encoding="utf-8")
-                links = re.findall(r"\[[^]]+\]\(([^)]+)\)", content)
-                self.assertIn(REPOSITORY_ADAPTER.resolve(), {(alias.parent / link).resolve() for link in links})
+            with self.subTest(adapter=adapter.relative_to(ROOT)):
+                content = adapter.read_text(encoding="utf-8")
+                self.assertTrue(
+                    "chaos-engine/skills/chaos-engine/SKILL.md" in content
+                    or ".agents/skills/chaos-engine/SKILL.md" in content
+                )
 
     def test_portable_local_coding_delegate_is_optional_and_routed(self):
         skill = CORE / "skills/local-coding-delegate/SKILL.md"

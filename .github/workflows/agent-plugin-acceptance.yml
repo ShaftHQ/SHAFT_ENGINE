@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           modules=(
-            tests.scripts.test_act_as_mohab_runtime
+            tests.scripts.test_chaos_engine_runtime
             tests.scripts.test_agent_harness_adherence
             tests.scripts.test_agent_harness_portability
             tests.scripts.test_agent_harness_reachability
@@ -41,7 +41,7 @@ jobs:
             tests.scripts.test_agent_plugin_release
             tests.scripts.test_agent_router_contract
             tests.scripts.test_agnix_conformance
-            tests.scripts.test_assemble_act_as_mohab_plugin
+            tests.scripts.test_assemble_chaos_engine_plugin
             tests.scripts.test_assemble_shaft_skills_plugin
             tests.scripts.test_build_retry
             tests.scripts.test_chaos_engine_bootstrap
@@ -89,6 +89,7 @@ jobs:
             tests.scripts.test_validate_workflow_timeouts
             tests.scripts.test_watch_pr_checks
             tests.scripts.test_worktree_hygiene
+            tests.scripts.test_session_worktree
           )
           for module in "${modules[@]}"; do
             python -m unittest "$module" -v

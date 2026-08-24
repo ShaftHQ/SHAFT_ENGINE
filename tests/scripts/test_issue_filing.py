@@ -114,7 +114,7 @@ class IssueFilingTest(unittest.TestCase):
         self.assertEqual("https://github.com/consumer/project/issues/9", created["issueUrl"])
         self.assertTrue(any("in:body" in token for command in calls for token in command))
         create_command = next(command for command in calls if command[1:3] == ["issue", "create"])
-        self.assertIn("act-as-mohab:", create_command[create_command.index("--body") + 1])
+        self.assertIn("chaos-engine:", create_command[create_command.index("--body") + 1])
 
     def test_dry_run_digest_creates_then_reuses_marker_before_changed_duplicates(self):
         def empty_search(command, **kwargs):
@@ -126,7 +126,7 @@ class IssueFilingTest(unittest.TestCase):
         confirmation = confirmation_digest(normalized, TAXONOMY, "consumer/project")
         def existing_marker(command, **kwargs):
             query = command[command.index("--search") + 1]
-            if "act-as-mohab:" in query:
+            if "chaos-engine:" in query:
                 return subprocess.CompletedProcess(
                     command, 0, '[{"url":"https://github.com/consumer/project/issues/9"}]', ""
                 )
@@ -157,7 +157,7 @@ class IssueFilingTest(unittest.TestCase):
             query = command[command.index("--search") + 1]
             with lock:
                 exists = bool(created)
-            payload = '[{"url":"https://github.com/consumer/project/issues/9"}]' if "act-as-mohab:" in query and exists else "[]"
+            payload = '[{"url":"https://github.com/consumer/project/issues/9"}]' if "chaos-engine:" in query and exists else "[]"
             return subprocess.CompletedProcess(command, 0, payload, "")
         results = []
         threads = [threading.Thread(target=lambda: results.append(create_issue(item, TAXONOMY, "consumer/project", confirmation, runner=runner, executable="gh"))) for _ in range(2)]

@@ -364,7 +364,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             plan = json.loads(parsed.input.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
-            print(f"act-as-mohab: cannot read plan: {error}", file=sys.stderr)
+            print(f"chaos-engine: cannot read plan: {error}", file=sys.stderr)
             return 1
         violations = validate_plan(plan)
         print(json.dumps({"valid": not violations, "violations": violations}, sort_keys=True))
@@ -378,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
             snapshot = collect_pr_snapshot(GitHubClient(context.repo, root=context.root), context.pr_number)
             payload = audit_snapshot(snapshot, dispositions, expected_head=parsed.expected_head)
         except (OSError, json.JSONDecodeError, RepositoryContextError, GitHubUnavailable, ValueError) as error:
-            print(f"act-as-mohab: PR audit unavailable: {error}", file=sys.stderr)
+            print(f"chaos-engine: PR audit unavailable: {error}", file=sys.stderr)
             return EXIT_ENVIRONMENT_ERROR
         parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
         parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
@@ -401,7 +401,7 @@ def main(argv: list[str] | None = None) -> int:
             parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
             parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
         except (OSError, json.JSONDecodeError, RepositoryContextError, GitHubUnavailable, ValueError) as error:
-            print(f"act-as-mohab: delivery status unavailable: {error}", file=sys.stderr)
+            print(f"chaos-engine: delivery status unavailable: {error}", file=sys.stderr)
             return EXIT_ENVIRONMENT_ERROR
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["decision"] == "allow" else 1
@@ -415,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
             parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
             parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
         except (OSError, json.JSONDecodeError, RepositoryContextError, ValueError) as error:
-            print(f"act-as-mohab: merge authority unavailable: {error}", file=sys.stderr)
+            print(f"chaos-engine: merge authority unavailable: {error}", file=sys.stderr)
             return EXIT_ENVIRONMENT_ERROR
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["decision"] == "allow" else 1
@@ -444,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
             GitHubUnavailable,
             ValueError,
         ) as error:
-            print(f"act-as-mohab: issue filing failed: {error}", file=sys.stderr)
+            print(f"chaos-engine: issue filing failed: {error}", file=sys.stderr)
             return EXIT_ENVIRONMENT_ERROR
         print(json.dumps(payload, sort_keys=True))
         if parsed.command == "issue-labels":
@@ -454,7 +454,7 @@ def main(argv: list[str] | None = None) -> int:
         context = context_from_arguments(parsed)
         payload = context_payload(context)
     except RepositoryContextError as error:
-        print(f"act-as-mohab: {error}", file=sys.stderr)
+        print(f"chaos-engine: {error}", file=sys.stderr)
         return EXIT_ENVIRONMENT_ERROR
     print(json.dumps(payload, sort_keys=True))
     return 0

@@ -1,10 +1,10 @@
 # Compatibility
 
-Evidence applies to `act-as-mohab` 10.3.20260820 as of 2026-08-23. This release exposes
-one discoverable `act-as-mohab` skill; its consultation and retrieval stages
+Evidence applies to `chaos-engine` 10.3.20260820 as of 2026-08-24. This release exposes
+one discoverable `chaos-engine` skill; its consultation and retrieval stages
 remain available as internal references, including the mandatory executable
 planning contract and repository-safe plan-artifact routing. Its bundled
-`bin/act-as-mohab.pyz` requires the `python` command to resolve CPython 3.10+
+`bin/chaos-engine.pyz` requires the `python` command to resolve CPython 3.10+
 and uses `git` plus authenticated
 `gh` for repository and pull-request operations. All repository roots are
 caller-relative or explicit; no SHAFT checkout path is embedded.
