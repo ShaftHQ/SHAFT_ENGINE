@@ -215,14 +215,28 @@ def public_wrapper_command(commit: str, *, windows: bool) -> list[str]:
     return [shell, "-c", command]
 
 
-def installed_command(project: Path, *arguments: str) -> list[str]:
-    return [
-        sys.executable,
-        str(project / ".chaos-engine/install.py"),
-        *arguments,
-        "--project",
-        str(project),
-    ]
+OFFLINE_RERUN = """
+import importlib.util, json, pathlib, sys
+project, source = map(pathlib.Path, sys.argv[1:3])
+installed = project / '.chaos-engine'
+spec = importlib.util.spec_from_file_location('chaos_engine_offline_install', installed / 'install.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+manifest = json.loads((installed / 'manifest.json').read_text(encoding='utf-8'))
+module.install(
+    project, source, manifest['source']['commit'],
+    source_record=manifest['source'], distribution=manifest['distribution']['id'],
+)
+"""
+
+
+def run_offline_rerun(project: Path, source: Path) -> None:
+    run_checked(
+        [sys.executable, "-c", OFFLINE_RERUN, str(project), str(source)],
+        cwd=project,
+        environment=offline_environment(block_path=True),
+        timeout=180,
+    )
 
 
 def run_public_wrapper(
@@ -413,21 +427,7 @@ def run_acceptance(
         )
 
         def healthy_rerun() -> dict[str, object]:
-            run_checked(
-                installed_command(
-                    project,
-                    "install",
-                    "--source",
-                    str(offline_source),
-                    "--commit",
-                    base_sha,
-                    "--distribution",
-                    "portable",
-                ),
-                cwd=project,
-                environment=offline_environment(block_path=True),
-                timeout=180,
-            )
+            run_offline_rerun(project, offline_source)
             if first_pointer != (project / ".chaos-engine-runtime-current.json").read_bytes():
                 raise RuntimeError("healthy rerun rewrote active pointer")
             if first_generations != sorted(

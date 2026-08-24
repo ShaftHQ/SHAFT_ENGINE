@@ -212,6 +212,8 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertNotIn('shutil.which("npm")', source)
         self.assertNotIn("def install_command(", source)
         self.assertIn("--candidate-sha", source)
+        self.assertIn("source_record=manifest['source']", source)
+        self.assertIn("offline_environment(block_path=True)", source)
 
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
