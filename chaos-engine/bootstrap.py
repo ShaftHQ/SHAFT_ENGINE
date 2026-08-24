@@ -16,6 +16,7 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 import types
 import urllib.error
 import urllib.parse
@@ -33,7 +34,27 @@ MAX_READ_ATTEMPTS = 4
 MAX_RETRY_AFTER_SECONDS = 60.0
 RETRY_BASE_SECONDS = 1.0
 TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
-BRAND = "  /\\  CHAOSENGINE // AUTONOMOUS INSTALL\n"
+CYBERNETIC_RED = "\x1b[38;2;255;59;77m"
+BRAND_ASCII = (
+    "  /=====.        +--+     /",
+    "  |              |==|    /",
+    "  |  *    /      |==|   /",
+    "  |              |==|  /",
+    "  +=====/        +--+ /",
+    "      QUANTUM MANDATE",
+)
+BRAND_UNICODE = (
+    "  █▀▀▀▀▄         ┬─┐     ╱",
+    "  █              ├─┤    ╱",
+    "  █  ◆    ╱      ├─┤   ╱",
+    "  █              ├─┤  ╱",
+    "  █▄▄▄▄▀         ┴─┘ ╱",
+    "      QUANTUM MANDATE",
+)
+BRAND_NARROW = (
+    "  /C|*|E/",
+    "  QUANTUM MANDATE",
+)
 STAGE_WEIGHTS = {
     "Resolve source": 1,
     "Download source": 2,
@@ -43,6 +64,20 @@ STAGE_WEIGHTS = {
     "Verify installation": 1,
     "Activate clients": 1,
 }
+
+
+def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) -> list[str]:
+    if width < 28:
+        templates = BRAND_NARROW
+        glyph = "*"
+    elif unicode and width >= 48:
+        templates = BRAND_UNICODE
+        glyph = "◆"
+    else:
+        templates = BRAND_ASCII
+        glyph = "*"
+    painted = f"{CYBERNETIC_RED}{glyph}\x1b[0m" if color else glyph
+    return [template.replace(glyph, painted, 1) if glyph in template else template for template in templates]
 
 
 class InstallCancelled(RuntimeError):
@@ -60,6 +95,10 @@ class InstallReporter:
         self.completed_operations: list[str] = []
         self.remaining_operations: tuple[str, ...] = ()
         self.current_operation: str | None = None
+        self._in_flight: list[str] = []
+        self._elapsed_as_current: dict[str, float] = {}
+        self._completed_elapsed: dict[str, float] = {}
+        self._current_started: float | None = None
         self.detail: str | None = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -70,11 +109,16 @@ class InstallReporter:
             and os.environ.get("TERM") != "dumb"
         )
         self._color = self._tty and "NO_COLOR" not in os.environ
-        self._unicode = self._encodable("✓◉·…")
+        self._unicode = self._encodable("✓◉·…█▀▄┬├┴╱◆")
         if self._tty and os.name == "nt" and not self._enable_windows_vt():
             self._color = False
         if os.environ.get("CHAOS_ENGINE_BRAND_SHOWN") != "1":
-            self.stream.write(self._truncate(BRAND.rstrip()) + "\n")
+            for line in brand_lines(
+                width=self._width(),
+                color=self._color,
+                unicode=self._tty and self._unicode,
+            ):
+                self.stream.write(line + "\n")
             self.stream.flush()
 
     def _enable_windows_vt(self) -> bool:
@@ -114,14 +158,37 @@ class InstallReporter:
         minutes, seconds = divmod(seconds, 60)
         return f"{minutes:02d}:{seconds:02d}"
 
+    def _pause_current(self, now: float) -> None:
+        if self.current_operation is None or self._current_started is None:
+            return
+        name = self.current_operation
+        self._elapsed_as_current[name] = self._elapsed_as_current.get(name, 0.0) + max(
+            0.0, now - self._current_started
+        )
+        self._current_started = None
+
     def start(
         self, operation: str, *, remaining: tuple[str, ...] | None = None,
         detail: str | None = None,
     ) -> None:
         with self._lock:
+            now = self.clock()
+            self._pause_current(now)
             if remaining is not None:
-                self.remaining_operations = remaining
+                kept = tuple(
+                    item
+                    for item in self._in_flight
+                    if item not in remaining
+                    and item != operation
+                    and item not in self.completed_operations
+                )
+                self.remaining_operations = kept + tuple(
+                    item for item in remaining if item != operation
+                )
             self.current_operation = operation
+            if operation not in self._in_flight:
+                self._in_flight.append(operation)
+            self._current_started = now
             self.detail = detail
             if self._tty:
                 self._render_locked()
@@ -141,8 +208,15 @@ class InstallReporter:
 
     def complete(self, operation: str, *, remaining: tuple[str, ...] = ()) -> None:
         with self._lock:
+            now = self.clock()
+            if self.current_operation == operation:
+                self._pause_current(now)
+                self.current_operation = None
+            if operation in self._in_flight:
+                self._in_flight.remove(operation)
             if operation not in self.completed_operations:
                 self.completed_operations.append(operation)
+            self._completed_elapsed[operation] = self._elapsed_as_current.get(operation, 0.0)
             self.remaining_operations = remaining
             self.detail = None
             if self._tty:
@@ -156,30 +230,51 @@ class InstallReporter:
             with self._lock:
                 self._render_locked()
 
+    def _eta(self, now: float) -> str:
+        completed_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.completed_operations)
+        completed_elapsed = sum(
+            self._completed_elapsed.get(item, 0.0) for item in self.completed_operations
+        )
+        if not completed_weight:
+            return "calculating"
+        rate = completed_elapsed / completed_weight
+        future = list(
+            dict.fromkeys(
+                item
+                for item in (*self._in_flight, *self.remaining_operations)
+                if item != self.current_operation and item not in self.completed_operations
+            )
+        )
+        future_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in future)
+        current_remainder = 0.0
+        if self.current_operation:
+            current_weight = STAGE_WEIGHTS.get(self.current_operation, 1)
+            elapsed_on_current = self._elapsed_as_current.get(self.current_operation, 0.0)
+            if self._current_started is not None:
+                elapsed_on_current += max(0.0, now - self._current_started)
+            current_remainder = max(0.0, rate * current_weight - elapsed_on_current)
+        return self._duration(current_remainder + rate * future_weight)
+
     def _render_locked(self) -> None:
         operations = list(
             dict.fromkeys(
                 [
                     *self.completed_operations,
+                    *self._in_flight,
                     *([self.current_operation] if self.current_operation else []),
                     *self.remaining_operations,
                 ]
             )
         )
-        elapsed = max(0.0, self.clock() - self.started)
-        completed_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.completed_operations)
-        remaining_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.remaining_operations)
-        eta = (
-            self._duration(elapsed * remaining_weight / completed_weight)
-            if completed_weight
-            else "calculating"
-        )
+        now = self.clock()
+        elapsed = max(0.0, now - self.started)
+        eta = self._eta(now)
         check, active, empty = (("✓", "◉", " ") if self._unicode else ("x", "*", " "))
         lines = [""]
         for item in operations:
             if item in self.completed_operations:
                 lines.append(self._paint(self._truncate(f"  [{check}] {item}"), "32"))
-            elif item == self.current_operation:
+            elif item == self.current_operation or item in self._in_flight:
                 lines.append(self._paint(self._truncate(f"  [{active}] {item}  running"), "36"))
             else:
                 lines.append(self._truncate(f"  [{empty}] {item}"))
@@ -198,9 +293,17 @@ class InstallReporter:
     def close(self) -> None:
         self._stop.set()
         thread = self._thread
-        if thread is not None and thread is not threading.current_thread():
+        if (
+            thread is not None
+            and thread is not threading.current_thread()
+            and thread.ident is not None
+        ):
             thread.join(timeout=1.5)
         self._thread = None
+        if self._tty and self._lines:
+            self.stream.write("\n")
+            self.stream.flush()
+        self._lines = 0
 
 
 def confirm_operation(operation: str, *, input_stream, output) -> None:
@@ -212,7 +315,7 @@ def confirm_operation(operation: str, *, input_stream, output) -> None:
 
 @contextmanager
 def interactive_terminal():
-    path = "CONIN$" if os.name == "nt" else "/dev/tty"
+    path = "CONIN$" if os.name == "nt" else os.path.join(os.sep, "dev", "tty")
     try:
         with open(path, "r", encoding="utf-8") as stream:  # noqa: PTH123 - controlling terminal path.
             yield stream
@@ -598,6 +701,51 @@ def installer_help_url(repository: str) -> str:
     return f"https://{owner}.github.io/docs/agentic/chaos-engine#installer-errors"
 
 
+def installer_cli_prefix() -> str:
+    return "py -3 .chaos-engine/install.py" if os.name == "nt" else "python3 .chaos-engine/install.py"
+
+
+def classify_install_error(error: BaseException) -> str:
+    if isinstance(error, (KeyboardInterrupt, InstallCancelled)):
+        return "CE-INSTALL-CANCELLED"
+    detail = str(error)
+    if "Claude marketplace collision" in detail or "Claude plugin collision" in detail:
+        return "CE-CLAUDE-MARKETPLACE-CONFLICT"
+    if "interactive mode requires" in detail:
+        return "CE-INTERACTIVE-TERMINAL"
+    if "checksum" in detail:
+        return "CE-INSTALL-CHECKSUM"
+    if "unsupported platform" in detail:
+        return "CE-INSTALL-UNSUPPORTED-PLATFORM"
+    if "entrypoint probe failed" in detail:
+        return "CE-INSTALL-PROBE-FAILED"
+    return "CE-INSTALL-FAILED"
+
+
+def one_line_cause(error: BaseException) -> str:
+    text = str(error).strip() or error.__class__.__name__
+    return " ".join(text.split())
+
+
+def emit_install_failure(code: str, error: BaseException, repository: str) -> None:
+    print(file=sys.stderr)
+    if code == "CE-INSTALL-CANCELLED":
+        print(f"{code}: installation interrupted", file=sys.stderr)
+        print("Last verified generation was kept.", file=sys.stderr)
+        print("Rerun the same install command to continue.", file=sys.stderr)
+    else:
+        print(f"{code}: {one_line_cause(error)}", file=sys.stderr)
+    print(file=sys.stderr)
+    print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
+    prefix = installer_cli_prefix()
+    print(f"Status: {prefix} status", file=sys.stderr)
+    print(f"Doctor: {prefix} doctor", file=sys.stderr)
+    if code != "CE-INSTALL-CANCELLED":
+        print(f"Report: https://github.com/{repository}/issues/new", file=sys.stderr)
+    if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
+        traceback.print_exc()
+
+
 def main() -> int:
     reporter = InstallReporter()
     args = parser().parse_args()
@@ -612,17 +760,11 @@ def main() -> int:
             interactive=args.interactive,
             reporter=reporter,
         )
-    except (OSError, RuntimeError, ValueError) as error:
-        detail = str(error)
-        if "Claude marketplace collision" in detail or "Claude plugin collision" in detail:
-            code = "CE-CLAUDE-MARKETPLACE-CONFLICT"
-        elif "interactive mode requires" in detail:
-            code = "CE-INTERACTIVE-TERMINAL"
-        else:
-            code = "CE-INSTALL-FAILED"
+    except BaseException as error:
+        if isinstance(error, SystemExit):
+            raise
         reporter.close()
-        print(f"{code}: {detail}", file=sys.stderr)
-        print(f"Help: {installer_help_url(args.repository)}", file=sys.stderr)
+        emit_install_failure(classify_install_error(error), error, args.repository)
         return 1
     reporter.close()
     print(json.dumps(result, sort_keys=True))

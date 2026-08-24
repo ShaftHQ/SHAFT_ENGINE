@@ -119,14 +119,41 @@ def validate_runtime_specification(specification: dict[str, object]) -> None:
     platform_key()
 
 
+def owned_node(root: Path) -> Path:
+    return root / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+
+
+def memory_javascript(root: Path, name: str) -> Path:
+    suffix = "dist/cli/main.js" if name == "memory" else "dist/mcp/server.js"
+    return root / f"npm/node_modules/@aictx/memory/{suffix}"
+
+
+def require_javascript_entrypoint(path: Path, relative: str) -> None:
+    posix = relative.replace("\\", "/")
+    name = Path(posix).name.casefold()
+    if "node_modules/.bin/" in posix or name.endswith((".cmd", ".ps1")):
+        raise ValueError(f"dependency entrypoint is an npm launcher shim: {relative}")
+    if not posix.endswith(".js"):
+        raise ValueError(f"dependency entrypoint is not JavaScript: {relative}")
+    try:
+        head = path.read_bytes()[:64]
+    except OSError as error:
+        raise ValueError(f"dependency entrypoint is unreadable: {relative}") from error
+    shebang = head.split(b"\n", 1)[0]
+    if head.startswith(b"#!") and b"node" not in shebang.lower():
+        raise ValueError(f"dependency entrypoint is a POSIX shim: {relative}")
+
+
 def node_dispatch(generation: Path, script: Path) -> dict[str, object]:
-    node = generation / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+    node = owned_node(generation)
+    relative = script.relative_to(generation).as_posix()
+    require_javascript_entrypoint(script, relative)
     return {
         "kind": "node",
         "executable": node.relative_to(generation).as_posix(),
         "executableSha256": sha256(node),
         "executableSize": node.stat().st_size,
-        "script": script.relative_to(generation).as_posix(),
+        "script": relative,
         "scriptSha256": sha256(script),
         "scriptSize": script.stat().st_size,
     }
@@ -953,6 +980,9 @@ def _validate_dispatch_metadata(name: str, value: object) -> dict[str, object]:
         digest, size = value.get("interpreterSha256"), value.get("interpreterSize")
     elif name in {"memory", "memory-mcp"}:
         suffix = "dist/cli/main.js" if name == "memory" else "dist/mcp/server.js"
+        script = str(value.get("script", "")).replace("\\", "/")
+        if "node_modules/.bin/" in script or not script.endswith(".js"):
+            raise ValueError(f"dependency generation tool metadata is invalid: {name}")
         if value.get("kind") == "npm":
             expected = {
                 "kind": "npm", "script": f"npm/node_modules/@aictx/memory/{suffix}",
@@ -1256,6 +1286,8 @@ def dispatch_command(
         if executable_digest != dispatch["executableSha256"]:
             raise ValueError(f"dependency Node executable drift detected: {tool}")
         relative = str(dispatch["script"])
+        script = generation / relative
+        require_javascript_entrypoint(script, relative)
         digest = _digest_regular_relative(
             generation,
             relative,
@@ -1264,15 +1296,17 @@ def dispatch_command(
         )
         if digest != dispatch["scriptSha256"]:
             raise ValueError(f"dependency npm script drift detected: {tool}")
-        return [str(generation / executable_relative), str(generation / relative), *arguments]
+        return [str(generation / executable_relative), str(script), *arguments]
     if dispatch.get("kind") == "npm":
         relative = str(dispatch["script"])
+        script = generation / relative
+        require_javascript_entrypoint(script, relative)
         digest = _digest_regular_relative(
             generation, relative, f"npm script for {tool}", dispatch["scriptSize"]  # type: ignore[arg-type]
         )
         if digest != dispatch["scriptSha256"]:
             raise ValueError(f"dependency npm script drift detected: {tool}")
-        return [shutil.which("node") or "node", str(generation / relative), *arguments]
+        return [shutil.which("node") or "node", str(script), *arguments]
     raise ValueError(f"dependency tool dispatch kind is unsupported: {tool}")
 
 
@@ -1300,7 +1334,7 @@ def generation_install_plan(
     scripts = "Scripts" if os.name == "nt" else "bin"
     bootstrap = generation / "bootstrap"
     uv = executable(bootstrap / scripts, "uv")
-    node = executable(generation / ("node" if os.name == "nt" else "node/bin"), "node")
+    node = str(owned_node(generation))
     npm_cli = generation / (
         "node/node_modules/npm/bin/npm-cli.js" if os.name == "nt"
         else "node/lib/node_modules/npm/bin/npm-cli.js"
@@ -1399,9 +1433,10 @@ def _generation_dispatches(generation: Path) -> dict[str, dict[str, object]]:
         ("memory", "dist/cli/main.js"),
         ("memory-mcp", "dist/mcp/server.js"),
     ):
-        script = generation / f"npm/node_modules/@aictx/memory/{suffix}"
+        script = memory_javascript(generation, name)
+        require_javascript_entrypoint(script, script.relative_to(generation).as_posix())
         digest, size = file_record(script)
-        node = generation / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+        node = owned_node(generation)
         records[name] = {"dispatch": (
             {**node_dispatch(generation, script), "entrypoint": name}
             if node.is_file() else {
@@ -2419,7 +2454,7 @@ def load_specification(path: Path) -> dict[str, object]:
 def probe_plan(runtime: Path) -> dict[str, list[list[str]]]:
     bootstrap = runtime / "bootstrap" / ("Scripts" if os.name == "nt" else "bin")
     bin_dir = runtime / "bin"
-    npm_bin = runtime / "npm/node_modules/.bin"
+    node = str(owned_node(runtime))
     return {
         "uv": [[executable(bootstrap, "uv"), "--version"]],
         "mempalace": [
@@ -2428,8 +2463,8 @@ def probe_plan(runtime: Path) -> dict[str, list[list[str]]]:
         ],
         "graphify": [[executable(bin_dir, "graphify"), "--version"]],
         "memory": [
-            [npm_executable(npm_bin, "memory"), "--help"],
-            [npm_executable(npm_bin, "memory-mcp"), "--help"],
+            [node, str(memory_javascript(runtime, "memory")), "--help"],
+            [node, str(memory_javascript(runtime, "memory-mcp")), "--help"],
         ],
     }
 
@@ -2511,11 +2546,12 @@ def execute_plan(
 
 def relative_command(runtime: Path, command: list[str]) -> list[str]:
     result = command.copy()
-    try:
-        result[0] = Path(command[0]).relative_to(runtime).as_posix()
-    except ValueError:
-        # External system executables remain absolute; only runtime-owned paths relocate.
-        pass
+    for index, item in enumerate(result):
+        try:
+            result[index] = Path(item).relative_to(runtime).as_posix()
+        except ValueError:
+            # External system executables remain absolute; only runtime-owned paths relocate.
+            pass
     return result
 
 

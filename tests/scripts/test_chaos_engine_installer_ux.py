@@ -35,7 +35,10 @@ class InstallerUxTests(unittest.TestCase):
         reporter.start("Resolve source", remaining=("Download source",))
         reporter.complete("Resolve source", remaining=("Download source",))
         output = stream.getvalue()
-        self.assertTrue(output.startswith("  /\\  CHAOSENGINE // AUTONOMOUS INSTALL\n"))
+        self.assertNotIn("transparent automation", output)
+        self.assertNotIn("AUTONOMOUS INSTALL", output)
+        self.assertIn("QUANTUM MANDATE", output)
+        self.assertGreaterEqual(output.split("START", 1)[0].count("\n"), 3)
         self.assertIn("START Resolve source", output)
         self.assertIn("DONE  Resolve source", output)
         self.assertNotIn("\r", output)
@@ -47,7 +50,9 @@ class InstallerUxTests(unittest.TestCase):
                 return True
 
         stream = Tty()
-        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}):
+        environment = {key: value for key, value in os.environ.items() if key != "NO_COLOR"}
+        environment["TERM"] = "xterm"
+        with unittest.mock.patch.dict(os.environ, environment, clear=True):
             reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
             try:
                 reporter.start(
@@ -55,7 +60,10 @@ class InstallerUxTests(unittest.TestCase):
                     detail="https://example.invalid/source",
                 )
                 output = stream.getvalue()
-                self.assertIn("CHAOSENGINE // AUTONOMOUS INSTALL", output)
+                self.assertNotIn("transparent automation", output)
+                self.assertNotIn("AUTONOMOUS INSTALL", output)
+                self.assertIn("QUANTUM MANDATE", output)
+                self.assertIn("\x1b[38;2;255;59;77m", output)
                 self.assertIn("[", output)
                 self.assertIn("Download source", output)
                 self.assertIn("running", output)
@@ -84,7 +92,85 @@ class InstallerUxTests(unittest.TestCase):
         output = stream.getvalue()
         self.assertNotIn("\x1b", output)
         self.assertNotIn("✓", output)
+        self.assertNotIn("transparent automation", output)
+        self.assertNotIn("AUTONOMOUS INSTALL", output)
+        self.assertIn("QUANTUM MANDATE", output)
         self.assertTrue(all(len(line) <= 38 for line in output.splitlines()))
+
+    def test_eta_does_not_grow_while_current_stage_overruns(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        class Clock:
+            def __init__(self):
+                self.now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        def eta_seconds(text: str) -> int:
+            line = [item for item in text.splitlines() if "ETA " in item][-1]
+            stamp = line.split("ETA ", 1)[1].split("\x1b", 1)[0].strip()
+            minutes, seconds = stamp.split(":")
+            return int(minutes) * 60 + int(seconds)
+
+        clock = Clock()
+        stream = Tty()
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}), unittest.mock.patch.object(
+            BOOTSTRAP.threading.Thread, "start", lambda self: None
+        ):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+            try:
+                reporter.start("Resolve source", remaining=("Download source", "Install core"))
+                clock.now = 2.0
+                reporter.complete("Resolve source", remaining=("Download source", "Install core"))
+                reporter.start("Download source", remaining=("Install core",))
+                previous = eta_seconds(stream.getvalue())
+                completed_weight = BOOTSTRAP.STAGE_WEIGHTS["Resolve source"]
+                remaining_weight = BOOTSTRAP.STAGE_WEIGHTS["Install core"]
+                for tick in (5.0, 10.0, 20.0):
+                    clock.now = tick
+                    reporter._render_locked()
+                    current = eta_seconds(stream.getvalue())
+                    self.assertLessEqual(current, previous, f"ETA grew {previous} -> {current} at t={tick}")
+                    previous = current
+                    old = tick * remaining_weight / completed_weight
+                    self.assertGreater(old, current)
+            finally:
+                reporter._stop.set()
+                reporter._thread = None
+
+    def test_nested_start_keeps_inflight_stage_in_remaining_weight(self):
+        class Clock:
+            def __init__(self):
+                self.now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        stream = io.StringIO()
+        reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=Clock())
+        reporter.start(
+            "Install core",
+            remaining=("Provision dependencies", "Verify installation"),
+        )
+        reporter.start("Provision dependencies", remaining=("Verify installation",))
+        self.assertIn("Install core", getattr(reporter, "_in_flight", ()))
+        future = sum(
+            BOOTSTRAP.STAGE_WEIGHTS.get(item, 1)
+            for item in reporter.remaining_operations
+        )
+        inflight = sum(
+            BOOTSTRAP.STAGE_WEIGHTS.get(item, 1)
+            for item in reporter._in_flight
+            if item != reporter.current_operation
+        )
+        self.assertEqual(BOOTSTRAP.STAGE_WEIGHTS["Install core"], inflight)
+        self.assertGreaterEqual(
+            future + inflight,
+            BOOTSTRAP.STAGE_WEIGHTS["Install core"] + BOOTSTRAP.STAGE_WEIGHTS["Verify installation"],
+        )
 
     def test_interactive_confirmation_accepts_only_y_or_yes(self):
         for answer in ("y\n", "YES\n"):
@@ -124,7 +210,9 @@ class InstallerUxTests(unittest.TestCase):
         ):
             self.assertEqual(0, BOOTSTRAP.main())
         self.assertEqual(result, json.loads(stdout.getvalue()))
-        self.assertTrue(stderr.getvalue().startswith("  /\\  CHAOSENGINE // AUTONOMOUS INSTALL\n"))
+        self.assertNotIn("transparent automation", stderr.getvalue())
+        self.assertNotIn("AUTONOMOUS INSTALL", stderr.getvalue())
+        self.assertIn("QUANTUM MANDATE", stderr.getvalue())
 
     def test_wrappers_expose_and_forward_interactive_mode(self):
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
@@ -134,11 +222,27 @@ class InstallerUxTests(unittest.TestCase):
         self.assertNotIn("CHAOS_ENGINE_INTERACTIVE", powershell)
         self.assertIn('arguments += "--interactive"', powershell)
 
+    def test_wrappers_print_the_same_quantum_mandate_mark(self):
+        shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
+        powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
+        for document in (shell, powershell):
+            self.assertNotIn("transparent automation", document)
+            self.assertNotIn("AUTONOMOUS INSTALL", document)
+            self.assertIn("QUANTUM MANDATE", document)
+        for line in BOOTSTRAP.brand_lines(width=80, color=False, unicode=False):
+            if not line.strip():
+                continue
+            self.assertIn(line, shell)
+            self.assertIn(line, powershell)
+
     def test_main_emits_stable_actionable_error_codes(self):
         cases = (
             (ValueError("ChaosEngine Claude marketplace collision"), "CE-CLAUDE-MARKETPLACE-CONFLICT"),
             (RuntimeError("interactive mode requires a usable controlling terminal"), "CE-INTERACTIVE-TERMINAL"),
             (RuntimeError("network broke"), "CE-INSTALL-FAILED"),
+            (ValueError("runtime artifact checksum verification failed"), "CE-INSTALL-CHECKSUM"),
+            (ValueError("unsupported platform: solaris/sparc"), "CE-INSTALL-UNSUPPORTED-PLATFORM"),
+            (RuntimeError("memory-mcp entrypoint probe failed"), "CE-INSTALL-PROBE-FAILED"),
         )
         for error, code in cases:
             with self.subTest(code=code):
@@ -151,9 +255,66 @@ class InstallerUxTests(unittest.TestCase):
                 ):
                     self.assertEqual(1, BOOTSTRAP.main())
                 self.assertEqual("", stdout.getvalue())
-                self.assertIn(str(error), stderr.getvalue())
+                self.assertIn(str(error).split("\n", 1)[0], stderr.getvalue())
                 self.assertIn(code, stderr.getvalue())
                 self.assertIn("#installer-errors", stderr.getvalue())
+                self.assertIn(".chaos-engine/install.py doctor", stderr.getvalue())
+                if code == "CE-INSTALL-FAILED":
+                    self.assertIn("https://github.com/owner/repo/issues/new", stderr.getvalue())
+
+    def test_keyboard_interrupt_emits_cancelled_without_traceback(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        tree = f"https://github.com/owner/repo/tree/{'c' * 40}/chaos-engine"
+
+        def boom(*_args, **kwargs):
+            reporter = kwargs.get("reporter")
+            if reporter is not None:
+                reporter.start("Download source", remaining=(), detail=tree)
+            raise KeyboardInterrupt()
+
+        with unittest.mock.patch.object(BOOTSTRAP, "install_latest", boom), unittest.mock.patch.object(
+            BOOTSTRAP.sys, "stdout", stdout
+        ), unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.object(
+            BOOTSTRAP.sys, "argv", ["bootstrap.py", "--project", ".", "--repository", "owner/repo"]
+        ):
+            try:
+                code = BOOTSTRAP.main()
+            except KeyboardInterrupt:
+                self.fail("KeyboardInterrupt leaked to the caller")
+        self.assertEqual(1, code)
+        self.assertEqual("", stdout.getvalue())
+        err = stderr.getvalue()
+        self.assertIn("CE-INSTALL-CANCELLED", err)
+        self.assertIn("#installer-errors", err)
+        self.assertIn(".chaos-engine/install.py doctor", err)
+        self.assertIn("Last verified generation", err)
+        self.assertIn("Rerun the same install command", err)
+        self.assertNotIn("Traceback", err)
+        self.assertNotRegex(err, r"Traceback \(most recent call last\):[^\n]*tree/")
+        self.assertNotIn(f"tree/{'c' * 40}/chaos-engine", err.split("CE-INSTALL-CANCELLED", 1)[-1])
+
+    def test_unexpected_exception_includes_issue_url_without_traceback(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(
+            BOOTSTRAP, "install_latest", side_effect=Exception("sealed walk exploded")
+        ), unittest.mock.patch.object(BOOTSTRAP.sys, "stdout", stdout), unittest.mock.patch.object(
+            BOOTSTRAP.sys, "stderr", stderr
+        ), unittest.mock.patch.object(
+            BOOTSTRAP.sys, "argv", ["bootstrap.py", "--project", ".", "--repository", "owner/repo"]
+        ):
+            try:
+                code = BOOTSTRAP.main()
+            except Exception:
+                self.fail("unexpected exception leaked to the caller")
+        self.assertEqual(1, code)
+        err = stderr.getvalue()
+        self.assertIn("CE-INSTALL-FAILED", err)
+        self.assertIn("sealed walk exploded", err)
+        self.assertIn("https://github.com/owner/repo/issues/new", err)
+        self.assertIn(".chaos-engine/install.py status", err)
+        self.assertNotIn("Traceback", err)
 
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")

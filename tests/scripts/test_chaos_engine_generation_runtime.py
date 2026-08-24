@@ -1910,6 +1910,93 @@ class GenerationRuntimeTests(unittest.TestCase):
                 (project / ".generations-displaced" / ("a" * 32)).exists()
             )
 
+    def test_windows_npm_bin_shim_is_not_dispatched_as_a_node_script(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, _active = self.generation_fixture(module, project)
+            node = generation / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+            node.parent.mkdir(parents=True, exist_ok=True)
+            node.write_bytes(b"owned-node")
+            package = generation / "npm/node_modules/@aictx/memory"
+            (package / "package.json").write_text(
+                json.dumps(
+                    {
+                        "name": "@aictx/memory",
+                        "bin": {
+                            "memory": "dist/cli/main.js",
+                            "memory-mcp": "dist/mcp/server.js",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            bindir = generation / "npm/node_modules/.bin"
+            bindir.mkdir(parents=True, exist_ok=True)
+            shim = bindir / "memory-mcp"
+            shim.write_text(
+                '#!/bin/sh\n'
+                'basedir=$(dirname "$(echo "$0" | sed -e "s,\\\\,/,g")")\n'
+                'exec node "$basedir/../@aictx/memory/dist/mcp/server.js" "$@"\n',
+                encoding="utf-8",
+            )
+            (bindir / "memory-mcp.cmd").write_text(
+                "@ECHO off\n"
+                'node "%~dp0\\..\\@aictx\\memory\\dist\\mcp\\server.js" %*\n',
+                encoding="utf-8",
+            )
+            (bindir / "memory-mcp.ps1").write_text(
+                "#!/usr/bin/env pwsh\n"
+                'node "$basedir/../@aictx/memory/dist/mcp/server.js" $args\n',
+                encoding="utf-8",
+            )
+            (bindir / "memory").write_text(
+                '#!/bin/sh\nexec node "$basedir/../@aictx/memory/dist/cli/main.js" "$@"\n',
+                encoding="utf-8",
+            )
+            (bindir / "memory.cmd").write_text("@ECHO off\n", encoding="utf-8")
+            (bindir / "memory.ps1").write_text("", encoding="utf-8")
+
+            records = module._generation_dispatches(generation)
+            for name, suffix in (
+                ("memory", "dist/cli/main.js"),
+                ("memory-mcp", "dist/mcp/server.js"),
+            ):
+                command = module.dispatch_command(
+                    generation, {"tools": records}, name, ["--help"]
+                )
+                self.assertEqual(str(node), command[0], command)
+                self.assertTrue(
+                    command[1].replace("\\", "/").endswith(suffix), command
+                )
+                for part in command:
+                    posix = Path(part).as_posix()
+                    self.assertNotIn("/node_modules/.bin/", posix)
+                    self.assertNotRegex(Path(part).name, r"^memory(-mcp)?(\.cmd|\.ps1)?$")
+
+            probes = module.probe_plan(generation)
+            self.assertEqual(2, len(probes["memory"]))
+            for command, suffix in zip(
+                probes["memory"],
+                ("dist/cli/main.js", "dist/mcp/server.js"),
+            ):
+                self.assertEqual(str(node), command[0], command)
+                self.assertTrue(command[1].replace("\\", "/").endswith(suffix), command)
+                self.assertNotIn(".bin/", " ".join(command).replace("\\", "/"))
+
+            mutated = json.loads(json.dumps(records))
+            mutated["memory-mcp"]["dispatch"]["script"] = (
+                "npm/node_modules/.bin/memory-mcp"
+            )
+            mutated["memory-mcp"]["dispatch"]["scriptSha256"] = module.sha256(shim)
+            mutated["memory-mcp"]["dispatch"]["scriptSize"] = shim.stat().st_size
+            with self.assertRaisesRegex(
+                ValueError, "shim|invalid|javascript|launcher"
+            ):
+                module.dispatch_command(
+                    generation, {"tools": mutated}, "memory-mcp", ["--help"]
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
