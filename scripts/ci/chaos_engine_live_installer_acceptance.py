@@ -183,16 +183,16 @@ def stage_source(source: Path, destination: Path) -> Path:
     return destination
 
 
-def download_commit_source(installed: Path, commit: str, destination: Path) -> Path:
+def download_commit_source(source: Path, commit: str, destination: Path) -> Path:
     specification = importlib.util.spec_from_file_location(
-        "chaos_engine_acceptance_bootstrap", installed / "bootstrap.py"
+        "chaos_engine_acceptance_bootstrap", source / "bootstrap.py"
     )
     if specification is None or specification.loader is None:
-        raise RuntimeError("installed bootstrap could not be loaded")
+        raise RuntimeError("candidate bootstrap could not be loaded")
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
-    module.download_source("ShaftHQ/SHAFT_ENGINE", commit, destination)
-    return destination
+    destination.mkdir()
+    return module.download_source("ShaftHQ/SHAFT_ENGINE", commit, destination)
 
 
 def raw_wrapper_url(commit: str, *, windows: bool) -> str:
@@ -409,7 +409,7 @@ def run_acceptance(
             path.name for path in (project / ".chaos-engine-runtime-generations").iterdir()
         )
         offline_source = download_commit_source(
-            project / ".chaos-engine", base_sha, root / "offline-base-source"
+            source, base_sha, root / "offline-base-source"
         )
 
         def healthy_rerun() -> dict[str, object]:
