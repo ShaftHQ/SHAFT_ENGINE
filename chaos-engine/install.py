@@ -1838,6 +1838,11 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 )
             if result["hosts"]["status"] != "healthy":  # type: ignore[index]
                 result["status"] = "recovery-required"
+            if active_probes:
+                result["hosts"]["grok"] = host_controller.grok_runtime_status(project)  # type: ignore[index]
+                if result["hosts"]["grok"]["status"] == "recovery-required":  # type: ignore[index]
+                    result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
+                    result["status"] = "recovery-required"
             removing = project / ".chaos-engine-runtime.removing"
             backup = project / ".chaos-engine-runtime.backup"
             building = project / ".chaos-engine-runtime.building"
