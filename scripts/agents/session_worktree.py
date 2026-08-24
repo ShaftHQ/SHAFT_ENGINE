@@ -327,8 +327,8 @@ def _remove_owned_worktree(cwd: Path, payload: dict) -> dict:
         }
     if current_branch(target) is None:
         upstream = default_upstream(primary)
-        unique = unique_commit_count(target, upstream) if upstream else 1
-        if unique:
+        unique = unique_commit_count(target, upstream) if upstream else None
+        if unique is None or unique > 0:
             recovery = f"ChaosEngine/recovered-{sanitize_session_id(str(payload.get('sessionId') or 'session'))}"
             if _git(target, "checkout", "-B", recovery) is None:
                 return {
@@ -401,7 +401,7 @@ def _reset_primary_default(primary: Path) -> None:
     if uncommitted_count(primary) is None:
         return
     unique = unique_commit_count(primary, upstream)
-    if unique:
+    if unique is None or unique > 0:
         return
     _git(primary, "reset", "--hard", upstream)
     _git(primary, "clean", "-fd")
@@ -477,10 +477,12 @@ def isolation_denial(
         return _relative_to(resolved, primary) and not allowed(str(resolved))
 
     effective_dir = Path(workdir).resolve() if workdir else origin
-    if not targets:
-        if _relative_to(effective_dir, primary) and not _relative_to(effective_dir, worktree):
+    if _relative_to(effective_dir, worktree):
+        if any(under_primary(target) for target in targets):
             return _isolation_reason(worktree)
         return None
+    if _relative_to(effective_dir, primary):
+        return _isolation_reason(worktree)
     if any(under_primary(target) for target in targets):
         return _isolation_reason(worktree)
     return None

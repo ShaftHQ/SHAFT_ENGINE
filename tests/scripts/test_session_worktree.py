@@ -157,6 +157,15 @@ class SessionWorktreeTest(unittest.TestCase):
                 targets=("/tmp/pr.txt",),
             )
         )
+        self.assertIsNotNone(
+            sw.isolation_denial(
+                cwd=self.main,
+                session_id="sess-tmp",
+                mutation=True,
+                workdir=str(self.main),
+                targets=("/tmp/pr.txt",),
+            )
+        )
 
     def test_teardown_retains_unique_detached_commits_on_a_recovery_branch(self):
         created = sw.prepare_session(self.main, "sess-unique-detach")
