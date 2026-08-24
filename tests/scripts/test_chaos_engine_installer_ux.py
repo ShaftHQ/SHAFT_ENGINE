@@ -4,7 +4,9 @@ import importlib.util
 import inspect
 import io
 import json
+import os
 import tempfile
+import threading
 import unittest
 import unittest.mock
 from pathlib import Path
@@ -33,24 +35,56 @@ class InstallerUxTests(unittest.TestCase):
         reporter.start("Resolve source", remaining=("Download source",))
         reporter.complete("Resolve source", remaining=("Download source",))
         output = stream.getvalue()
-        self.assertTrue(output.startswith("  /\\  CHAOSENGINE\n"))
-        self.assertIn("Current: Resolve source", output)
-        self.assertIn("Completed: Resolve source", output)
-        self.assertIn("Remaining: Download source", output)
-        self.assertIn("Elapsed: 2s", output)
+        self.assertTrue(output.startswith("  /\\  CHAOSENGINE // AUTONOMOUS INSTALL\n"))
+        self.assertIn("START Resolve source", output)
+        self.assertIn("DONE  Resolve source", output)
         self.assertNotIn("\r", output)
         self.assertNotIn("\x1b", output)
 
-    def test_reporter_uses_in_place_status_for_tty(self):
+    def test_reporter_uses_fixed_height_checklist_for_tty(self):
         class Tty(io.StringIO):
             def isatty(self):
                 return True
 
         stream = Tty()
-        reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
-        reporter.start("Download source", detail="https://example.invalid/source")
-        self.assertIn("\r", stream.getvalue())
-        self.assertIn("Download: https://example.invalid/source", stream.getvalue())
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            try:
+                reporter.start(
+                    "Download source", remaining=("Install core",),
+                    detail="https://example.invalid/source",
+                )
+                output = stream.getvalue()
+                self.assertIn("CHAOSENGINE // AUTONOMOUS INSTALL", output)
+                self.assertIn("[", output)
+                self.assertIn("Download source", output)
+                self.assertIn("running", output)
+                self.assertIn("Install core", output)
+                self.assertIn("Elapsed 00:00", output)
+                self.assertIn("ETA calculating", output)
+                self.assertIn("\x1b[", output)
+            finally:
+                reporter.close()
+        self.assertFalse(any(thread.name == "chaos-engine-installer" for thread in threading.enumerate()))
+
+    def test_tty_reporter_honors_plain_and_ascii_fallbacks_and_width(self):
+        class NarrowAsciiTty(io.StringIO):
+            encoding = "ascii"
+
+            def isatty(self):
+                return True
+
+        stream = NarrowAsciiTty()
+        with unittest.mock.patch.dict(os.environ, {"NO_COLOR": "1", "TERM": "dumb", "COLUMNS": "38"}):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            try:
+                reporter.start("Download source", detail="https://example.invalid/a/very/long/source")
+            finally:
+                reporter.close()
+        output = stream.getvalue()
+        self.assertNotIn("\x1b", output)
+        self.assertNotIn("✓", output)
+        self.assertTrue(all(len(line) <= 38 for line in output.splitlines()))
 
     def test_interactive_confirmation_accepts_only_y_or_yes(self):
         for answer in ("y\n", "YES\n"):
@@ -90,15 +124,36 @@ class InstallerUxTests(unittest.TestCase):
         ):
             self.assertEqual(0, BOOTSTRAP.main())
         self.assertEqual(result, json.loads(stdout.getvalue()))
-        self.assertTrue(stderr.getvalue().startswith("  /\\  CHAOSENGINE\n"))
+        self.assertTrue(stderr.getvalue().startswith("  /\\  CHAOSENGINE // AUTONOMOUS INSTALL\n"))
 
     def test_wrappers_expose_and_forward_interactive_mode(self):
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
         self.assertIn('"--interactive"', shell)
         self.assertIn("[switch]$Interactive", powershell)
-        self.assertIn("CHAOS_ENGINE_INTERACTIVE", powershell)
+        self.assertNotIn("CHAOS_ENGINE_INTERACTIVE", powershell)
         self.assertIn('arguments += "--interactive"', powershell)
+
+    def test_main_emits_stable_actionable_error_codes(self):
+        cases = (
+            (ValueError("ChaosEngine Claude marketplace collision"), "CE-CLAUDE-MARKETPLACE-CONFLICT"),
+            (RuntimeError("interactive mode requires a usable controlling terminal"), "CE-INTERACTIVE-TERMINAL"),
+            (RuntimeError("network broke"), "CE-INSTALL-FAILED"),
+        )
+        for error, code in cases:
+            with self.subTest(code=code):
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with unittest.mock.patch.object(BOOTSTRAP, "install_latest", side_effect=error), unittest.mock.patch.object(
+                    BOOTSTRAP.sys, "stdout", stdout
+                ), unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.object(
+                    BOOTSTRAP.sys, "argv", ["bootstrap.py", "--project", ".", "--repository", "owner/repo"]
+                ):
+                    self.assertEqual(1, BOOTSTRAP.main())
+                self.assertEqual("", stdout.getvalue())
+                self.assertIn(str(error), stderr.getvalue())
+                self.assertIn(code, stderr.getvalue())
+                self.assertIn("#installer-errors", stderr.getvalue())
 
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")

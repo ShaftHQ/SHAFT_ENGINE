@@ -11,8 +11,10 @@ import json
 import os
 import re
 import runpy
+import shutil
 import sys
 import tempfile
+import threading
 import time
 import types
 import urllib.error
@@ -31,7 +33,7 @@ MAX_READ_ATTEMPTS = 4
 MAX_RETRY_AFTER_SECONDS = 60.0
 RETRY_BASE_SECONDS = 1.0
 TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
-BRAND = "  /\\  CHAOSENGINE\n /  \\ transparent automation\n"
+BRAND = "  /\\  CHAOSENGINE // AUTONOMOUS INSTALL\n"
 STAGE_WEIGHTS = {
     "Resolve source": 1,
     "Download source": 2,
@@ -57,47 +59,148 @@ class InstallReporter:
         self.started = clock()
         self.completed_operations: list[str] = []
         self.remaining_operations: tuple[str, ...] = ()
+        self.current_operation: str | None = None
+        self.detail: str | None = None
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._lines = 0
+        self._tty = (
+            bool(getattr(self.stream, "isatty", lambda: False)())
+            and os.environ.get("TERM") != "dumb"
+        )
+        self._color = self._tty and "NO_COLOR" not in os.environ
+        self._unicode = self._encodable("✓◉·…")
+        if self._tty and os.name == "nt" and not self._enable_windows_vt():
+            self._color = False
         if os.environ.get("CHAOS_ENGINE_BRAND_SHOWN") != "1":
-            self.stream.write(BRAND)
+            self.stream.write(self._truncate(BRAND.rstrip()) + "\n")
             self.stream.flush()
+
+    def _enable_windows_vt(self) -> bool:
+        try:
+            import ctypes
+            handle = ctypes.windll.kernel32.GetStdHandle(-12)
+            mode = ctypes.c_uint()
+            return bool(
+                ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode))
+                and ctypes.windll.kernel32.SetConsoleMode(handle, mode.value | 0x0004)
+            )
+        except (AttributeError, OSError, ValueError):
+            return False
+
+    def _encodable(self, value: str) -> bool:
+        try:
+            value.encode(getattr(self.stream, "encoding", None) or "utf-8")
+            return True
+        except (LookupError, UnicodeEncodeError):
+            return False
+
+    def _width(self) -> int:
+        return max(20, shutil.get_terminal_size(fallback=(80, 24)).columns)
+
+    def _truncate(self, value: str) -> str:
+        width = self._width()
+        if len(value) <= width:
+            return value
+        suffix = "…" if self._unicode else "..."
+        return value[: max(0, width - len(suffix))] + suffix
+
+    def _paint(self, value: str, color: str) -> str:
+        return f"\x1b[{color}m{value}\x1b[0m" if self._color else value
 
     def _duration(self, seconds: float) -> str:
         seconds = max(0, round(seconds))
         minutes, seconds = divmod(seconds, 60)
-        return f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
-
-    def _status(self, current: str, remaining: tuple[str, ...], detail: str | None) -> str:
-        remaining = tuple(item for item in remaining if item not in self.completed_operations)
-        elapsed = max(0.0, self.clock() - self.started)
-        completed_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.completed_operations)
-        remaining_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in remaining)
-        eta = elapsed * remaining_weight / completed_weight if completed_weight else 0
-        pieces = [f"Current: {current}"]
-        if self.completed_operations:
-            pieces.append(f"Completed: {', '.join(self.completed_operations)}")
-        pieces.append(f"Remaining: {', '.join(remaining) if remaining else 'none'}")
-        pieces.append(f"Elapsed: {self._duration(elapsed)}")
-        pieces.append(f"ETA: {self._duration(eta) if completed_weight else 'calculating'}")
-        if detail:
-            pieces.append(f"Download: {detail}" if detail.startswith(("http://", "https://")) else detail)
-        return " | ".join(pieces)
+        return f"{minutes:02d}:{seconds:02d}"
 
     def start(
         self, operation: str, *, remaining: tuple[str, ...] | None = None,
         detail: str | None = None,
     ) -> None:
-        if remaining is not None:
-            self.remaining_operations = remaining
-        line = self._status(operation, self.remaining_operations, detail)
-        self.stream.write(("\r" if self.stream.isatty() else "") + line + ("" if self.stream.isatty() else "\n"))
-        self.stream.flush()
+        with self._lock:
+            if remaining is not None:
+                self.remaining_operations = remaining
+            self.current_operation = operation
+            self.detail = detail
+            if self._tty:
+                self._render_locked()
+                if self._thread is None:
+                    self._thread = threading.Thread(
+                        target=self._ticker, name="chaos-engine-installer", daemon=True
+                    )
+                    self._thread.start()
+            else:
+                suffix = (
+                    f" — {detail}"
+                    if detail and self._unicode
+                    else (f" - {detail}" if detail else "")
+                )
+                self.stream.write(self._truncate(f"START {operation}{suffix}") + "\n")
+                self.stream.flush()
 
     def complete(self, operation: str, *, remaining: tuple[str, ...] = ()) -> None:
-        if operation not in self.completed_operations:
-            self.completed_operations.append(operation)
-        line = self._status(operation, remaining, None)
-        self.stream.write(("\r" if self.stream.isatty() else "") + line + "\n")
+        with self._lock:
+            if operation not in self.completed_operations:
+                self.completed_operations.append(operation)
+            self.remaining_operations = remaining
+            self.detail = None
+            if self._tty:
+                self._render_locked()
+            else:
+                self.stream.write(f"DONE  {operation}\n")
+                self.stream.flush()
+
+    def _ticker(self) -> None:
+        while not self._stop.wait(1.0):
+            with self._lock:
+                self._render_locked()
+
+    def _render_locked(self) -> None:
+        operations = list(
+            dict.fromkeys(
+                [
+                    *self.completed_operations,
+                    *([self.current_operation] if self.current_operation else []),
+                    *self.remaining_operations,
+                ]
+            )
+        )
+        elapsed = max(0.0, self.clock() - self.started)
+        completed_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.completed_operations)
+        remaining_weight = sum(STAGE_WEIGHTS.get(item, 1) for item in self.remaining_operations)
+        eta = (
+            self._duration(elapsed * remaining_weight / completed_weight)
+            if completed_weight
+            else "calculating"
+        )
+        check, active, empty = (("✓", "◉", " ") if self._unicode else ("x", "*", " "))
+        lines = [""]
+        for item in operations:
+            if item in self.completed_operations:
+                lines.append(self._paint(self._truncate(f"  [{check}] {item}"), "32"))
+            elif item == self.current_operation:
+                lines.append(self._paint(self._truncate(f"  [{active}] {item}  running"), "36"))
+            else:
+                lines.append(self._truncate(f"  [{empty}] {item}"))
+        separator = " · " if self._unicode else " | "
+        timing = self._truncate(f"  Elapsed {self._duration(elapsed)}{separator}ETA {eta}")
+        lines.extend(("", self._paint(timing, "33")))
+        if self.detail:
+            lines.append(self._truncate(f"  {self.detail}"))
+        if self._lines:
+            self.stream.write(f"\x1b[{self._lines}F")
+        rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"
+        self.stream.write(rendered)
         self.stream.flush()
+        self._lines = len(lines)
+
+    def close(self) -> None:
+        self._stop.set()
+        thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=1.5)
+        self._thread = None
 
 
 def confirm_operation(operation: str, *, input_stream, output) -> None:
@@ -431,6 +534,7 @@ def install_latest(
         reporter.complete("Install core", remaining=remaining("Install core"))
         temporary.cleanup()
     except BaseException:
+        reporter.close()
         if temporary is not None:
             temporary.cleanup()
         if terminal_context is not None:
@@ -439,6 +543,7 @@ def install_latest(
     if skip_tools or provisioner is not None:
         if terminal_context is not None:
             terminal_context.__exit__(None, None, None)
+        reporter.close()
         return {"status": "installed", "root": str(target), "commit": commit}
     host_controller = installer.load_installed_controller(target, "hosts")
     try:
@@ -456,6 +561,7 @@ def install_latest(
         reporter.complete("Activate clients", remaining=())
         doctor["clients"] = clients.get("clients", {})
     except BaseException:
+        reporter.close()
         if prior_install and (project / ".chaos-engine.backup").exists():
             installer.rollback(project)
         else:
@@ -465,6 +571,7 @@ def install_latest(
         raise
     if terminal_context is not None:
         terminal_context.__exit__(None, None, None)
+    reporter.close()
     return {
         "status": "installed",
         "root": str(target),
@@ -486,6 +593,11 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
+def installer_help_url(repository: str) -> str:
+    owner = repository.partition("/")[0].casefold()
+    return f"https://{owner}.github.io/docs/agentic/chaos-engine#installer-errors"
+
+
 def main() -> int:
     reporter = InstallReporter()
     args = parser().parse_args()
@@ -501,8 +613,18 @@ def main() -> int:
             reporter=reporter,
         )
     except (OSError, RuntimeError, ValueError) as error:
-        print(str(error), file=sys.stderr)
+        detail = str(error)
+        if "Claude marketplace collision" in detail or "Claude plugin collision" in detail:
+            code = "CE-CLAUDE-MARKETPLACE-CONFLICT"
+        elif "interactive mode requires" in detail:
+            code = "CE-INTERACTIVE-TERMINAL"
+        else:
+            code = "CE-INSTALL-FAILED"
+        reporter.close()
+        print(f"{code}: {detail}", file=sys.stderr)
+        print(f"Help: {installer_help_url(args.repository)}", file=sys.stderr)
         return 1
+    reporter.close()
     print(json.dumps(result, sort_keys=True))
     return 0
 

@@ -2189,7 +2189,7 @@ def _literal_shell_workdir(command: str, fallback: str | None) -> str | None:
         return fallback
     if not value or any(marker in value for marker in ("$", "`", "*", "?", "{", "}")):
         return fallback
-    if os.path.isabs(value):
+    if os.path.isabs(value) or re.fullmatch(r"[A-Za-z]:[/\\].+", value):
         return value
     return os.path.realpath(os.path.join(fallback or os.getcwd(), value))
 
@@ -3244,20 +3244,26 @@ def check_r15_merge_mode(
     return None
 
 
-def _validated_pr_audit_receipt(hook_input: dict, target: str) -> bool:
-    """True only for this repository, PR, and exact local HEAD's clean audit."""
-    identity = _checkpoint_identity(hook_input)
+def _pr_audit_receipt_path(hook_input: dict, target: str) -> Path | None:
+    """Resolve receipt identity from effective worktree's Git directory."""
     cwd = _hook_working_directory(hook_input)
-    if identity is None or not cwd or not target.isdigit():
-        return False
+    if not cwd or not target.isdigit():
+        return None
     git_path = (_git_output(
         ["rev-parse", "--git-path", f"act-as-mohab/pr-audit-{target}.json"], cwd
     ) or "").strip()
     if not git_path:
+        return None
+    path = Path(git_path)
+    return path if path.is_absolute() else Path(cwd) / path
+
+
+def _validated_pr_audit_receipt(hook_input: dict, target: str) -> bool:
+    """True only for this repository, PR, and exact local HEAD's clean audit."""
+    identity = _checkpoint_identity(hook_input)
+    receipt_path = _pr_audit_receipt_path(hook_input, target)
+    if identity is None or receipt_path is None:
         return False
-    receipt_path = Path(git_path)
-    if not receipt_path.is_absolute():
-        receipt_path = Path(cwd) / receipt_path
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -3344,7 +3350,7 @@ def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
         pr_index = tokens.index("--pr", audit_index + 1)
         receipt_index = tokens.index("--receipt-out", audit_index + 1)
         target = tokens[pr_index + 1]
-        receipt_path = Path(tokens[receipt_index + 1].strip("\"'"))
+        tokens[receipt_index + 1]
     except (ValueError, IndexError):
         return None
     runtime_token = tokens[audit_index - 1].strip("\"'") if audit_index else ""
@@ -3363,9 +3369,8 @@ def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
         or not target.isdigit()
     ):
         return None
-    if not receipt_path.is_absolute():
-        receipt_path = Path(_hook_working_directory(hook_input) or ".") / receipt_path
-    if not receipt_path.is_file():
+    receipt_path = _pr_audit_receipt_path(hook_input, target)
+    if receipt_path is None or not receipt_path.is_file():
         return None
     identity = _checkpoint_identity(hook_input)
     if identity is None:
