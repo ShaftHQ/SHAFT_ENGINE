@@ -1051,7 +1051,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         self.assertTrue((SOURCE / "README.md").is_file())
         self.assertTrue((SOURCE / "STANDALONE.md").is_file())
         self.assertTrue(any(relative.startswith("assets/memory-v5/") for relative in relatives))
-        self.assertIn("INSTALL.md", relatives)
+        self.assertNotIn("INSTALL.md", relatives)
+        self.assertTrue((SOURCE / "INSTALL.md").is_file())
         self.assertIn("LICENSE", relatives)
 
     def test_stage_loss_fails_before_publish(self):

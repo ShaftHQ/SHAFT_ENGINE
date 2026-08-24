@@ -348,6 +348,7 @@ def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, d
 def is_origin_only(relative: Path) -> bool:
     return relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
         "README.md",
+        "INSTALL.md",
         "RESEARCH.md",
         "STANDALONE.md",
     }
@@ -383,15 +384,6 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
         if path.is_file():
             relative_text = relative.as_posix().casefold()
             content = path.read_text(encoding="utf-8", errors="ignore").casefold()
-            if relative.as_posix() == "INSTALL.md":
-                official = "sha" + "fthq/sha" + "ft_engine"
-                raw = f"https://raw.githubusercontent.com/{official}/main/chaos-engine"
-                approved_commands = (
-                    f'irm "{raw}/install.ps1" | iex',
-                    f'curl -fssl "{raw}/install.sh" | bash -s -- "{raw}/install.sh"',
-                )
-                for command in approved_commands:
-                    content = content.replace(command, "")
             if any(token in relative_text or token in content for token in forbidden_tokens):
                 raise ValueError(
                     f"distribution policy rejected forbidden content: {relative.as_posix()}"
