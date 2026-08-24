@@ -25,16 +25,11 @@ RAW_URL = re.compile(
 )
 PLACEHOLDER = "owner/repository"
 WINDOWS_ONE_LINER = (
-    'irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex'
+    'irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex'
 )
 POSIX_ONE_LINER = (
     'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
     + ' | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
-)
-PORTABLE_POSIX_ONE_LINER = (
-    "url=\"$(printf 'https://raw.githubusercontent.com/S\\150aftHQ/"
-    + "SHA\\106T_ENGINE/main/chaos-engine/install.sh')\"; "
-    + 'curl -fsSL "$url" | bash -s -- "$url"'
 )
 USER_WINDOWS_COMMAND = (
     'irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex'
@@ -150,8 +145,16 @@ class ChaosEngineInstallWrapperTest(unittest.TestCase):
         self.assertIn(WINDOWS_ONE_LINER, readme)
         self.assertIn(WINDOWS_ONE_LINER, install)
         self.assertIn(POSIX_ONE_LINER, readme)
-        self.assertIn(PORTABLE_POSIX_ONE_LINER, install)
+        self.assertIn(POSIX_ONE_LINER, install)
         for document in (readme, install):
+            self.assertEqual(1, document.count(WINDOWS_ONE_LINER))
+            self.assertEqual(1, document.count(POSIX_ONE_LINER))
+            command_lines = "\n".join(
+                line for line in document.splitlines()
+                if "raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE" in line
+            )
+            self.assertNotIn("--interactive", command_lines)
+            self.assertNotIn("$(printf", document)
             self.assertNotRegex(document, r"\bhaftHQ\b")
             self.assertNotRegex(document, r"(?<!S)HAFT_ENGINE")
             self.assertNotIn("$env:CHAOS_ENGINE_REPOSITORY/main", document)

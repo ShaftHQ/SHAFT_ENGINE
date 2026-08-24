@@ -20,7 +20,7 @@ print_chaos_engine_brand() {
     else
       printf '  /C|*|E/\n' >&2
     fi
-    printf '  QUANTUM MANDATE\n' >&2
+    printf '  Chaos Engine\n' >&2
     return
   fi
   printf '  /=====.        +--+     /\n' >&2
@@ -32,7 +32,7 @@ print_chaos_engine_brand() {
   fi
   printf '  |              |==|  /\n' >&2
   printf '  +=====/        +--+ /\n' >&2
-  printf '      QUANTUM MANDATE\n' >&2
+  printf '         Chaos Engine\n' >&2
 }
 print_chaos_engine_brand
 export CHAOS_ENGINE_BRAND_SHOWN=1
@@ -174,6 +174,8 @@ trap cleanup EXIT INT TERM
 
 bootstrap="$work/bootstrap.py"
 echo "Installing ChaosEngine into ${project} from ${repository}@${branch}" >&2
+printf '  [ ] Resolve source\n  [ ] Download source\n  [ ] Provision dependencies\n  [ ] Install core\n  [ ] Verify installation\n  [ ] Activate clients\n\n' >&2
+echo "Current action: Download bootstrap" >&2
 if [ -n "$interactive" ]; then
   controlling_tty="$(printf '%s/%s' /dev tty)"
   [ -r "$controlling_tty" ] || fail "interactive mode requires a usable controlling terminal"

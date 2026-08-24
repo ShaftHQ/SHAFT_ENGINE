@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import platform
@@ -28,8 +29,7 @@ PROBES = {
 }
 PHASE_TIMEOUT_SECONDS = 600
 MCP_START_TIMEOUT_SECONDS = 10
-COMMIT_A = "a" * 40
-COMMIT_B = "b" * 40
+COMMIT = re.compile(r"[0-9a-f]{40}")
 HEX_ID = re.compile(r"[0-9a-f]{32}")
 SECRET_NAME = re.compile(r"(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)", re.I)
 URL_START = re.compile(r"https?://", re.I)
@@ -53,6 +53,15 @@ def clean_environment(base: dict[str, str] | None = None) -> dict[str, str]:
         for key, value in (base or os.environ).items()
         if SECRET_NAME.search(key) is None
     }
+
+
+def download_environment(base: dict[str, str] | None = None) -> dict[str, str]:
+    """Allow only GitHub's scoped CI token into repeated public downloads."""
+    source = base or os.environ
+    environment = clean_environment(source)
+    if source.get("GITHUB_TOKEN"):
+        environment["GITHUB_TOKEN"] = source["GITHUB_TOKEN"]
+    return environment
 
 
 def offline_environment(
@@ -183,20 +192,81 @@ def stage_source(source: Path, destination: Path) -> Path:
     return destination
 
 
-def install_command(source: Path, project: Path, commit: str) -> list[str]:
-    return [
-        sys.executable,
-        str(source / "install.py"),
-        "install",
-        "--project",
-        str(project),
-        "--source",
-        str(source),
-        "--commit",
-        commit,
-        "--distribution",
-        "portable",
-    ]
+def download_commit_source(source: Path, commit: str, destination: Path) -> Path:
+    specification = importlib.util.spec_from_file_location(
+        "chaos_engine_acceptance_bootstrap", source / "bootstrap.py"
+    )
+    if specification is None or specification.loader is None:
+        raise RuntimeError("candidate bootstrap could not be loaded")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    destination.mkdir()
+    return module.download_source("ShaftHQ/SHAFT_ENGINE", commit, destination)
+
+
+def raw_wrapper_url(commit: str, *, windows: bool) -> str:
+    if COMMIT.fullmatch(commit) is None:
+        raise ValueError("candidate SHA must be 40 lowercase hexadecimal characters")
+    suffix = "install.ps1" if windows else "install.sh"
+    return (
+        "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/"
+        f"{commit}/chaos-engine/{suffix}"
+    )
+
+
+def public_wrapper_command(commit: str, *, windows: bool) -> list[str]:
+    url = raw_wrapper_url(commit, windows=windows)
+    if windows:
+        shell = shutil.which("pwsh") or shutil.which("powershell") or "powershell"
+        return [shell, "-NoProfile", "-Command", f'irm "{url}" | iex']
+    shell = shutil.which("bash") or "/bin/bash"
+    command = f'curl -fsSL "{url}" | bash -s -- "{url}"'
+    return [shell, "-c", command]
+
+
+OFFLINE_RERUN = """
+import importlib.util, json, pathlib, sys
+project, source = map(pathlib.Path, sys.argv[1:3])
+installed = project / '.chaos-engine'
+spec = importlib.util.spec_from_file_location('chaos_engine_offline_install', installed / 'install.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+manifest = json.loads((installed / 'manifest.json').read_text(encoding='utf-8'))
+module.install(
+    project, source, manifest['source']['commit'],
+    source_record=manifest['source'], distribution=manifest['distribution']['id'],
+)
+"""
+
+
+def run_offline_rerun(project: Path, source: Path) -> None:
+    run_checked(
+        [sys.executable, "-c", OFFLINE_RERUN, str(project), str(source)],
+        cwd=project,
+        environment=offline_environment(block_path=True),
+        timeout=180,
+    )
+
+
+def run_public_wrapper(
+    commit: str, project: Path, *, require_current_action: bool = True
+) -> None:
+    result = run_checked(
+        public_wrapper_command(commit, windows=os.name == "nt"),
+        cwd=project,
+        environment=download_environment(),
+    )
+    if not (project / ".chaos-engine/install.py").is_file():
+        raise RuntimeError("public wrapper did not create the installation tree")
+    if "Installing ChaosEngine" not in result.stderr:
+        raise RuntimeError("public wrapper returned without durable installer progress")
+    if require_current_action and "Current action:" not in result.stderr:
+        raise RuntimeError("candidate wrapper omitted its current action")
+    payload = json.loads(result.stdout)
+    if payload.get("status") != "installed":
+        raise RuntimeError("public wrapper did not return an installed result")
+    if not isinstance(payload.get("clients"), dict):
+        raise RuntimeError("public wrapper did not report detected client activation")
 
 
 def probe_mempalace_mcp(tool: Path, project: Path) -> None:
@@ -250,6 +320,21 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     )
     if status.get("status") != "healthy" or status.get("commit") != expected_commit:
         raise RuntimeError("status did not report expected healthy commit")
+    doctor = json.loads(
+        run_checked(
+            [
+                sys.executable,
+                str(installed / "install.py"),
+                "doctor",
+                "--project",
+                str(project),
+                "--json",
+            ],
+            cwd=project,
+        ).stdout
+    )
+    if doctor.get("status") != "healthy" or doctor.get("commit") != expected_commit:
+        raise RuntimeError("doctor did not report expected healthy commit")
 
     tool = installed / "tool.py"
     dispatches: dict[str, str] = {}
@@ -322,36 +407,42 @@ def record_phase(
     return checks
 
 
-def run_acceptance(source: Path, evidence: dict[str, object]) -> None:
+def run_acceptance(
+    source: Path,
+    evidence: dict[str, object],
+    *,
+    candidate_sha: str,
+    base_sha: str,
+) -> None:
     source = source.resolve()
-    if shutil.which("node") is None or shutil.which("npm") is None:
-        raise RuntimeError("Node.js and npm are required")
     with tempfile.TemporaryDirectory(prefix="chaos-engine-live-") as temporary:
         root = Path(temporary)
-        staged = stage_source(source, root / "source")
         project = root / "consumer with spaces Ω"
         project.mkdir()
 
+        def install_and_verify(
+            commit: str, *, require_current_action: bool = True
+        ) -> dict[str, object]:
+            run_public_wrapper(
+                commit, project, require_current_action=require_current_action
+            )
+            return verify_phase(project, commit)
+
         fresh = record_phase(
             evidence,
-            "fresh-a",
-            lambda: (
-                run_checked(install_command(staged, project, COMMIT_A), cwd=project),
-                verify_phase(project, COMMIT_A),
-            )[1],
+            "fresh-base-wrapper",
+            lambda: install_and_verify(base_sha, require_current_action=False),
         )
         first_pointer = (project / ".chaos-engine-runtime-current.json").read_bytes()
         first_generations = sorted(
             path.name for path in (project / ".chaos-engine-runtime-generations").iterdir()
         )
+        offline_source = download_commit_source(
+            source, base_sha, root / "offline-base-source"
+        )
 
         def healthy_rerun() -> dict[str, object]:
-            run_checked(
-                install_command(staged, project, COMMIT_A),
-                cwd=project,
-                environment=offline_environment(block_path=True),
-                timeout=180,
-            )
+            run_offline_rerun(project, offline_source)
             if first_pointer != (project / ".chaos-engine-runtime-current.json").read_bytes():
                 raise RuntimeError("healthy rerun rewrote active pointer")
             if first_generations != sorted(
@@ -359,16 +450,13 @@ def run_acceptance(source: Path, evidence: dict[str, object]) -> None:
                 for path in (project / ".chaos-engine-runtime-generations").iterdir()
             ):
                 raise RuntimeError("healthy rerun built a dependency generation")
-            return verify_phase(project, COMMIT_A)
+            return verify_phase(project, base_sha)
 
-        record_phase(evidence, "healthy-offline-rerun-a", healthy_rerun)
+        record_phase(evidence, "healthy-offline-rerun-base", healthy_rerun)
         upgrade = record_phase(
             evidence,
-            "upgrade-b",
-            lambda: (
-                run_checked(install_command(staged, project, COMMIT_B), cwd=project),
-                verify_phase(project, COMMIT_B),
-            )[1],
+            "upgrade-candidate-wrapper",
+            lambda: install_and_verify(candidate_sha),
         )
 
         damaged_id = str(upgrade["active"])
@@ -380,11 +468,8 @@ def run_acceptance(source: Path, evidence: dict[str, object]) -> None:
 
         repaired = record_phase(
             evidence,
-            "repair-b",
-            lambda: (
-                run_checked(install_command(staged, project, COMMIT_B), cwd=project),
-                verify_phase(project, COMMIT_B),
-            )[1],
+            "repair-candidate-wrapper",
+            lambda: install_and_verify(candidate_sha),
         )
         if repaired["active"] == damaged_id or repaired["previous"] != fresh["active"]:
             raise RuntimeError("repair did not retire damaged active and retain valid A")
@@ -396,12 +481,12 @@ def run_acceptance(source: Path, evidence: dict[str, object]) -> None:
                 cwd=project,
                 environment=offline_environment(block_path=False),
             )
-            checks = verify_phase(project, COMMIT_A)
+            checks = verify_phase(project, base_sha)
             if checks["active"] != fresh["active"]:
                 raise RuntimeError("offline rollback did not reactivate generation A")
             return checks
 
-        record_phase(evidence, "offline-rollback-a", offline_rollback)
+        record_phase(evidence, "offline-rollback-base", offline_rollback)
 
 
 def write_evidence(path: Path, evidence: dict[str, object]) -> None:
@@ -412,10 +497,32 @@ def write_evidence(path: Path, evidence: dict[str, object]) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=ROOT / "chaos-engine")
+    parser.add_argument("--candidate-sha", default=os.environ.get("GITHUB_SHA"))
+    parser.add_argument("--base-sha", default=os.environ.get("GITHUB_BASE_SHA"))
     parser.add_argument(
         "--output", type=Path, default=Path("chaos-engine-live-installer-evidence.json")
     )
     args = parser.parse_args(argv)
+    candidate_sha = args.candidate_sha
+    if candidate_sha is None:
+        git = shutil.which("git")
+        if git is None:
+            raise RuntimeError("git is required to resolve the candidate commit")
+        candidate_sha = subprocess.run(  # nosec B603 - fixed git command and arguments.
+            [git, "rev-parse", "HEAD"], cwd=ROOT, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+    base_sha = args.base_sha
+    if base_sha is None:
+        git = shutil.which("git")
+        if git is None:
+            raise RuntimeError("git is required to resolve the base commit")
+        base_sha = subprocess.run(  # nosec B603 - fixed git command and arguments.
+            [git, "rev-parse", "HEAD^"], cwd=ROOT, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+    if COMMIT.fullmatch(candidate_sha) is None or COMMIT.fullmatch(base_sha) is None:
+        raise RuntimeError("candidate and base commits must be exact lowercase SHA-1 values")
     evidence: dict[str, object] = {
         "schemaVersion": 1,
         "accepted": False,
@@ -424,7 +531,12 @@ def main(argv: list[str] | None = None) -> int:
         "phases": [],
     }
     try:
-        run_acceptance(args.source, evidence)
+        run_acceptance(
+            args.source,
+            evidence,
+            candidate_sha=candidate_sha,
+            base_sha=base_sha,
+        )
     except Exception as error:
         evidence["failure"] = {"type": type(error).__name__, "detail": sanitize(error)}
         write_evidence(args.output, evidence)

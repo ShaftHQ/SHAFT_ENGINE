@@ -89,6 +89,54 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         if isinstance(child_environment, dict):
             self.assertNotIn("OPENAI_API_KEY", child_environment)
 
+    def test_download_environment_allows_only_scoped_github_token(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        allowed = os.pathsep.join(("scoped", "fixture"))
+        blocked = os.pathsep.join(("blocked", "fixture"))
+        environment = module.download_environment(
+            {
+                "PATH": "trusted-tools",
+                "GITHUB_TOKEN": allowed,
+                "OPENAI_API_KEY": blocked,
+                "PRIVATE_KEY": blocked,
+                "UNRELATED_SECRET": blocked,
+            }
+        )
+        self.assertEqual("trusted-tools", environment["PATH"])
+        self.assertEqual(allowed, environment["GITHUB_TOKEN"])
+        self.assertNotIn("OPENAI_API_KEY", environment)
+        self.assertNotIn("PRIVATE_KEY", environment)
+        self.assertNotIn("UNRELATED_SECRET", environment)
+
+    def test_public_wrapper_child_receives_only_scoped_github_token(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        project = ROOT
+        installed = project / ".chaos-engine" / "install.py"
+        allowed = os.pathsep.join(("scoped", "fixture"))
+        blocked = os.pathsep.join(("blocked", "fixture"))
+        with mock.patch.dict(
+            os.environ,
+            {"GITHUB_TOKEN": allowed, "OPENAI_API_KEY": blocked},
+        ), mock.patch.object(module, "run_checked") as runner, mock.patch.object(
+            module.Path, "is_file", return_value=True
+        ):
+            runner.return_value = CompletedProcess(
+                ["wrapper"], 0,
+                stdout='{"status":"installed","clients":{}}',
+                stderr="Installing ChaosEngine\nCurrent action:",
+            )
+            module.run_public_wrapper("a" * 40, project)
+        self.assertTrue(installed.is_absolute())
+        child_environment = runner.call_args.kwargs["environment"]
+        self.assertEqual(allowed, child_environment["GITHUB_TOKEN"])
+        self.assertNotIn("OPENAI_API_KEY", child_environment)
+
     def test_failure_still_writes_sanitized_json_evidence(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
@@ -192,6 +240,29 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 staged.joinpath("hooks/kernel.py").read_text(encoding="utf-8"),
             )
 
+    def test_candidate_install_uses_public_wrapper_not_install_py(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        sha = "1" * 40
+        posix = module.public_wrapper_command(sha, windows=False)
+        windows = module.public_wrapper_command(sha, windows=True)
+        self.assertIn("install.sh", " ".join(posix))
+        self.assertEqual(2, " ".join(posix).count(module.raw_wrapper_url(sha, windows=False)))
+        self.assertIn("install.ps1", " ".join(windows))
+        self.assertIn("irm", " ".join(windows))
+        self.assertNotIn("install.py", " ".join(posix + windows))
+
+    def test_acceptance_source_has_no_ambient_node_or_direct_installer_shortcut(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn('shutil.which("node")', source)
+        self.assertNotIn('shutil.which("npm")', source)
+        self.assertNotIn("def install_command(", source)
+        self.assertIn("--candidate-sha", source)
+        self.assertIn("source_record=manifest['source']", source)
+        self.assertIn("offline_environment(block_path=True)", source)
+
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         self.assertIn("schedule", workflow[True])
@@ -206,6 +277,16 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         )
         commands = "\n".join(str(step.get("run", "")) for step in job["steps"])
         self.assertIn("scripts/ci/chaos_engine_live_installer_acceptance.py", commands)
+        self.assertIn("--candidate-sha", commands)
+        self.assertIn("--base-sha", commands)
+        acceptance = next(
+            step
+            for step in job["steps"]
+            if "chaos_engine_live_installer_acceptance.py" in str(step.get("run", ""))
+        )
+        self.assertEqual("${{ github.token }}", acceptance["env"]["GITHUB_TOKEN"])
+        checkout = next(step for step in job["steps"] if step.get("uses") == "actions/checkout@v7")
+        self.assertEqual(2, checkout["with"]["fetch-depth"])
         uploads = [step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7"]
         self.assertEqual(1, len(uploads))
         self.assertEqual("always()", uploads[0]["if"])
