@@ -215,6 +215,7 @@ def mempalace_runtime_status(project: Path):
             (None, "1.0.0", False, True, "installed"),
             ("1.0.0", "1.0.0", True, True, "reused"),
             ("1.0.0", "1.1.0", True, True, "upgraded"),
+            ("2.0.0", "1.1.0", True, True, "upgraded"),
             ("1.1.0", "1.1.0", False, True, "repaired"),
             ("1.0.0", None, True, False, "blocked"),
             (None, None, False, False, "blocked"),
@@ -273,7 +274,7 @@ def mempalace_runtime_status(project: Path):
             "linux", "apt", {"uv": "installed", "node": "installed", "java": "installed"}
         )
         self.assertEqual(
-            ["sh", "-c", "curl -LsSf https://astral.sh/uv/0.12.0/install.sh | sh"],
+            ["bash", "-o", "pipefail", "-c", "curl -fsSL https://github.com/astral-sh/uv/releases/download/0.12.0/uv-installer.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" UV_NO_MODIFY_PATH=1 sh"],
             linux["uv"][0],
         )
         self.assertNotIn("sudo", linux["uv"][0])
@@ -288,7 +289,7 @@ def mempalace_runtime_status(project: Path):
             "linux", "apt", {"uv": "upgraded", "python": "installed", "node": "reused", "java": "reused"},
             python_version="3.14.7",
         )
-        self.assertEqual([["uv", "self", "update"]], upgraded["uv"])
+        self.assertIn("/0.12.0/uv-installer.sh", upgraded["uv"][0][-1])
         self.assertEqual(
             [["uv", "python", "install", "3.14.7", "--no-progress"]],
             upgraded["python"],
@@ -302,9 +303,10 @@ def mempalace_runtime_status(project: Path):
             "windows", "winget", {"uv": "installed", "node": "installed", "java": "installed"}
         )
         self.assertEqual("pwsh", windows["uv"][0][0])
-        self.assertIn("/0.12.0/install.ps1", windows["uv"][0][-1])
+        self.assertIn("/0.12.0/uv-installer.ps1", windows["uv"][0][-1])
+        self.assertIn("UV_INSTALL_DIR", windows["uv"][0][-1])
         self.assertEqual([], windows["node"])
-        self.assertTrue(all(command[0] == "winget" for command in windows["java"]))
+        self.assertEqual([], windows["java"])
 
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
         module = load_controller()

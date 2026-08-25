@@ -133,11 +133,7 @@ def dependency_action(
         return "blocked"
     if resolved_version is None:
         return "blocked"
-    return (
-        "upgraded"
-        if version_key(installed_version) < version_key(resolved_version)
-        else "reused"
-    )
+    return "reused" if version_key(installed_version) == version_key(resolved_version) else "upgraded"
 
 
 def discover_executables(names: list[str], *, which=shutil.which) -> dict[str, dict[str, str]]:
@@ -234,51 +230,15 @@ def prerequisite_command_plan(
     """Render dry platform prerequisite commands with tightly scoped elevation."""
     wanted = lambda name: actions.get(name) in {"installed", "upgraded", "repaired"}
     plan: dict[str, list[list[str]]] = {"uv": [], "python": [], "node": [], "java": []}
-    if actions.get("uv") == "upgraded":
-        plan["uv"] = [["uv", "self", "update"]]
-    elif wanted("uv"):
+    if wanted("uv"):
         plan["uv"] = (
-            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", f"irm https://astral.sh/uv/{uv_version}/install.ps1 | iex"]]
+            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", f"$ErrorActionPreference='Stop'; $env:UV_INSTALL_DIR=Join-Path $HOME '.local/bin'; $env:UV_NO_MODIFY_PATH='1'; irm https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.ps1 | iex"]]
             if system == "windows"
-            else [["sh", "-c", f"curl -LsSf https://astral.sh/uv/{uv_version}/install.sh | sh"]]
+            else [["bash", "-o", "pipefail", "-c", f"curl -fsSL https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" UV_NO_MODIFY_PATH=1 sh"]]
         )
     if wanted("python"):
         plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
-    if system == "linux" and provider in {"apt", "dnf"}:
-        manager = "apt-get" if provider == "apt" else "dnf"
-        if wanted("java"):
-            plan["java"] = [
-                ["sudo", "-n", manager, "install", "-y", "temurin-25-jdk"]
-            ]
-    elif system == "macos":
-        if wanted("java"):
-            plan["java"] = [["brew", "install", "--cask", "temurin@25"]]
-    elif system == "windows":
-        if wanted("java"):
-            plan["java"] = [["winget", "install", "--id", "EclipseAdoptium.Temurin.25.JDK", "-e"]]
     return plan
-
-
-def discover_java_25(*, system: str, runner=subprocess.run) -> str | None:
-    """Find platform-native Temurin 25 without changing global Java selection."""
-    if system == "windows":
-        roots = [Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Eclipse Adoptium"]
-        patterns = ("jdk-25*/bin/java.exe",)
-    elif system == "macos":
-        roots = [Path("/Library/Java/JavaVirtualMachines")]
-        patterns = ("temurin-25*.jdk/Contents/Home/bin/java", "jdk-25*.jdk/Contents/Home/bin/java")
-    else:
-        roots = [Path("/usr/lib/jvm")]
-        patterns = ("temurin-25*/bin/java", "java-25*/bin/java")
-    for root in roots:
-        for pattern in patterns:
-            for candidate in sorted(root.glob(pattern), reverse=True):
-                probe = probe_account_dependency(
-                    "java", str(candidate), {"probe": ["java", "--version"]}, runner=runner
-                )
-                if probe.get("healthy") is True and str(probe.get("version", "")).startswith("25."):
-                    return str(candidate.resolve())
-    return None
 
 
 def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
@@ -691,7 +651,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         for name in ("uv", "python", "node", "java")
     }
     if any(value != "reused" for value in prerequisite_actions.values()):
-        selected_provider = provider or detected_package_provider(selected_system, which=which)
+        selected_provider = provider or ""
         prerequisite_commands = prerequisite_command_plan(
             selected_system,
             selected_provider,
@@ -703,7 +663,14 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         )
         for name in ("uv", "python", "node", "java"):
             for command in prerequisite_commands[name]:
+                if command[0] == "uv" and commands.get("uv"):
+                    command = [commands["uv"], *command[1:]]
                 _run_account_command(command, project, runner=runner)
+            if name == "uv" and prerequisite_actions["uv"] != "reused":
+                selected_uv = which("uv", path=_account_search_path())
+                if not selected_uv:
+                    raise RuntimeError("latest stable uv executable was not found after installation")
+                commands["uv"] = str(Path(selected_uv).resolve())
         managed_python = None
         if prerequisite_actions["python"] != "reused":
             uv_command = commands.get("uv", "uv")
@@ -718,9 +685,11 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             managed_python = str(candidate)
         managed_java = None
         if prerequisite_actions["java"] != "reused":
-            managed_java = discover_java_25(system=selected_system, runner=runner)
-            if managed_java is None:
-                raise RuntimeError("latest stable Java 25 executable was not found after installation")
+            managed_java = install_exact_java(
+                str(actions["java"].get("resolvedVersion") or ""),
+                system=selected_system,
+                opener=opener,
+            )
         managed_node = None
         if prerequisite_actions["node"] != "reused":
             managed_node = install_exact_node(
@@ -757,6 +726,11 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             }
             commands["java"] = managed_java
         if managed_node is not None:
+            node_root = Path(managed_node).parent if selected_system == "windows" else Path(managed_node).parent.parent
+            managed_npm = node_root / ("npm.cmd" if selected_system == "windows" else "bin/npm")
+            managed_npx = node_root / ("npx.cmd" if selected_system == "windows" else "bin/npx")
+            if not managed_npm.is_file() or not managed_npx.is_file():
+                raise RuntimeError("latest stable Node sibling executables are incomplete")
             node_contract = specification["dependencies"]["node"]  # type: ignore[index]
             probed = probe_account_dependency(
                 "node", managed_node, node_contract, runner=runner  # type: ignore[arg-type]
@@ -765,9 +739,17 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 "status": "healthy" if probed["healthy"] else "broken",
                 **probed,
                 "executable": managed_node,
-                "siblings": {"node": managed_node, "npm": commands["npm"]},
+                "siblings": {
+                    "node": managed_node,
+                    "npm": str(managed_npm.resolve()),
+                    "npx": str(managed_npx.resolve()),
+                },
             }
-            commands["node"] = managed_node
+            commands.update(
+                node=managed_node,
+                npm=str(managed_npm.resolve()),
+                npx=str(managed_npx.resolve()),
+            )
         missing = [
             name for name in ("uv", "python", "node", "java")
             if local.get(name, {}).get("healthy") is not True
@@ -1053,6 +1035,7 @@ def install_exact_node(
     root = Path.home() / ".local/share/chaos-engine/node" / version
     executable = root / ("node.exe" if system == "windows" else "bin/node")
     if executable.is_file():
+        _ensure_node_siblings(root, system)
         return str(executable.resolve())
     if root.exists() or is_link_or_reparse(root):
         raise ValueError("existing Node account runtime is invalid")
@@ -1073,6 +1056,90 @@ def install_exact_node(
         archive.unlink(missing_ok=True)
     if not executable.is_file():
         raise ValueError("installed Node account runtime is incomplete")
+    _ensure_node_siblings(root, system)
+    return str(executable.resolve())
+
+
+def _ensure_node_siblings(root: Path, system: str) -> None:
+    """Restore safe npm launchers omitted when archive links are rejected."""
+    for name in ("npm", "npx"):
+        launcher = root / (f"{name}.cmd" if system == "windows" else f"bin/{name}")
+        if system == "windows":
+            if not launcher.is_file():
+                raise ValueError("installed Node account runtime is incomplete")
+            continue
+        script = root / "lib/node_modules/npm/bin" / f"{name}-cli.js"
+        if not script.is_file():
+            raise ValueError("installed Node account runtime is incomplete")
+        launcher.write_text(
+            '#!/bin/sh\nexec "$(dirname "$0")/node" "$(dirname "$0")/../lib/node_modules/npm/bin/'
+            f'{name}-cli.js" "$@"\n',
+            encoding="utf-8",
+        )
+        launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
+
+
+def install_exact_java(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Install one checksum-verified official Temurin 25 release for this account."""
+    match = re.fullmatch(r"(25\.\d+\.\d+)\+(\d+)", version)
+    if match is None:
+        raise ValueError("Temurin release version is invalid")
+    feature, build = match.groups()
+    machine = platform.machine().casefold()
+    architecture = (
+        "aarch64"
+        if system != "windows" and machine in {"arm64", "aarch64"}
+        else "x64"
+    )
+    platform_name = {"windows": "windows", "macos": "mac", "linux": "linux"}[system]
+    suffix = ".zip" if system == "windows" else ".tar.gz"
+    filename = (
+        f"OpenJDK25U-jdk_{architecture}_{platform_name}_hotspot_"
+        f"{feature}_{build}{suffix}"
+    )
+    tag = f"jdk-{feature}%2B{build}"
+    url = (
+        "https://github.com/adoptium/temurin25-binaries/releases/download/"
+        f"{tag}/{filename}"
+    )
+    with opener(f"{url}.sha256.txt", timeout=30) as response:
+        checksum = response.read(MAX_CONTROL_BYTES + 1)
+    if len(checksum) > MAX_CONTROL_BYTES:
+        raise ValueError("Temurin checksum manifest exceeds the size limit")
+    expected = checksum.decode("utf-8").split()[0] if checksum.strip() else ""
+    if re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise ValueError("Temurin checksum manifest is invalid")
+    root = Path.home() / ".local/share/chaos-engine/java" / version
+    executable = root / (
+        "bin/java.exe"
+        if system == "windows"
+        else "Contents/Home/bin/java"
+        if system == "macos"
+        else "bin/java"
+    )
+    if executable.is_file():
+        return str(executable.resolve())
+    if root.exists() or is_link_or_reparse(root):
+        raise ValueError("existing Java account runtime is invalid")
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    transaction = parent / f".{feature}-{build}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        _download_artifact(url, archive, expected, opener)
+        _extract_runtime_archive(archive, transaction)
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    if not executable.is_file():
+        raise ValueError("installed Java account runtime is incomplete")
     return str(executable.resolve())
 
 
