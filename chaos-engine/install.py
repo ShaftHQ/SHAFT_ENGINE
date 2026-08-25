@@ -1191,6 +1191,22 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 restored_host_receipt, _ = previous_hosts.read_receipt(project)
                 if isinstance(restored_host_receipt.get("clientActivation"), dict):
                     previous_hosts.activate_detected_plugins(project)
+                if generation_previous is not None:
+                    restored_host_receipt, restored_host_raw = previous_hosts.read_receipt(
+                        project
+                    )
+                    previous_hosts.apply_hook_receipt(
+                        restored_host_receipt,
+                        previous_hosts.decode_images(
+                            restored_host_receipt["before"], nullable=True
+                        ),
+                        previous_hosts.decode_images(
+                            restored_host_receipt["after"], nullable=False
+                        ),
+                    )
+                    previous_hosts.write_receipt(
+                        project, restored_host_receipt, restored_host_raw
+                    )
                 previous_dependencies = load_dependency_controller(target)
                 if (
                     generation_previous is not None
@@ -1489,7 +1505,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
 ) -> Path:
     project = project.resolve()
     with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
-    account_mode = provisioner is None
+    source_dependencies = load_dependency_controller(source)
+    account_mode = provisioner is None and hasattr(
+        source_dependencies, "install_account_dependencies"
+    )
+    generation_mode = provisioner is None and not account_mode
     with project_lock(project):
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
@@ -1508,7 +1528,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
                     receipt, raw = old_host_controller.read_receipt(project)
                     host_snapshot = {"receipt": receipt, "raw": raw}
-                if not account_mode:
+                if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
                         old_specification = old_dependencies.load_specification(
@@ -1577,7 +1597,37 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     )
             dependency_generation = None
             account_commands = None
-            if account_mode:
+            if generation_mode:
+                specification_sha256 = controller.specification_digest(specification)
+                core_sha256 = file_sha256(target / MANIFEST_NAME)
+                try:
+                    controller.active_generation(
+                        project,
+                        expected_specification_sha256=specification_sha256,
+                        expected_core_sha256=core_sha256,
+                    )
+                except (OSError, ValueError):
+                    callback_options = {}
+                    if reporter is not None:
+                        callback_options["reporter"] = reporter
+                    if confirmer is not None:
+                        callback_options["confirmer"] = confirmer
+                    candidate = controller.prepare_candidate(
+                        project, specification, core_sha256, **callback_options
+                    )
+                if candidate is not None:
+                    dependency_generation = project / getattr(
+                        controller,
+                        "GENERATIONS_NAME",
+                        ".chaos-engine-runtime-generations",
+                    ) / candidate["generationId"]
+                else:
+                    dependency_generation = controller.active_generation(
+                        project,
+                        expected_specification_sha256=specification_sha256,
+                        expected_core_sha256=core_sha256,
+                    )[0]
+            elif account_mode:
                 account_receipt = controller.install_account_dependencies(
                     project, specification
                 )
@@ -1595,7 +1645,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 maven_docker=maven_docker,
             )
             host_created = not host_existed
-            if not account_mode:
+            if not account_mode and not generation_mode:
                 provisioner(runtime, specification)
             if not account_mode:
                 host_controller.initialize_mempalace_runtime(project)

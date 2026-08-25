@@ -305,6 +305,25 @@ def mempalace_runtime_status(project: Path):
             all(command[0] == "winget" for command in windows["node"] + windows["java"])
         )
 
+    def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
+        module = load_controller()
+        calls = []
+
+        def runner(command, **_kwargs):
+            calls.append(command)
+            return SimpleNamespace(returncode=0, stdout="/usr/local\n", stderr="")
+
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            module.Path, "home", return_value=Path(temporary)
+        ), mock.patch.object(module.os, "access", return_value=False):
+            prefix = module.require_user_writable_npm_prefix(
+                "/usr/bin/npm", Path(temporary), runner=runner
+            )
+        self.assertEqual(Path(temporary) / ".local", prefix)
+        self.assertEqual(
+            ["/usr/bin/npm", "config", "set", "prefix", str(prefix)], calls[-1]
+        )
+
     def test_stable_channel_parsers_cover_node_pypi_npm_and_github(self):
         module = load_controller()
         payloads = {

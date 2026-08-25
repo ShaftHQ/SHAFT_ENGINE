@@ -575,13 +575,16 @@ def detected_package_provider(system: str | None = None, *, which=shutil.which) 
 def require_user_writable_npm_prefix(
     npm: str, project: Path, *, runner=subprocess.run
 ) -> Path:
-    """Reject global npm mutation when its configured prefix is not user writable."""
+    """Use npm's current writable prefix or configure the standard account prefix."""
     result = _run_account_command([npm, "config", "get", "prefix"], project, runner=runner)
     prefix = Path((result.stdout or "").strip()).expanduser()
-    if not prefix.is_dir() or not os.access(prefix, os.W_OK):
-        raise RuntimeError(
-            "npm global prefix is not user writable; configure a user npm prefix and restart the shell"
-        )
+    if prefix.is_dir() and os.access(prefix, os.W_OK):
+        return prefix.resolve()
+    prefix = Path.home() / ".local"
+    prefix.mkdir(parents=True, exist_ok=True)
+    _run_account_command(
+        [npm, "config", "set", "prefix", str(prefix)], project, runner=runner
+    )
     return prefix.resolve()
 
 
