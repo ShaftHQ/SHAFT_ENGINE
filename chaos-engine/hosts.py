@@ -483,7 +483,8 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
     wal = Path(f"{exact}-wal")
     shared_memory = Path(f"{exact}-shm")
     sidecar = palace / ".mempalace"
-    allowed_names = {path.name for path in (exact, wal, shared_memory, sidecar)}
+    mined = palace / ".mined"
+    allowed_names = {path.name for path in (exact, wal, shared_memory, sidecar, mined)}
     if any(child.name not in allowed_names for child in children):
         return {
             "status": "recovery-required",
@@ -506,6 +507,20 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             child.name != "origin.json" or is_link_or_reparse(child)
             for child in sidecar_children
         ):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
+    if mined.exists():
+        try:
+            mined_healthy = (
+                not is_link_or_reparse(mined)
+                and mined.is_file()
+                and mined.read_bytes() == b"current\n"
+            )
+        except OSError:
+            mined_healthy = False
+        if not mined_healthy:
             return {
                 "status": "recovery-required",
                 "detail": "MemPalace state contains unrecognized recoverable data",

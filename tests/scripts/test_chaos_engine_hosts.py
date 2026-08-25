@@ -1791,6 +1791,19 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertFalse(wal.exists())
             self.assertFalse(shared_memory.exists())
 
+            mined = palace / ".mined"
+            mined.write_text("current\n", encoding="utf-8")
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            mined.write_text("unexpected\n", encoding="utf-8")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            mined.unlink()
+
             database = sqlite3.connect(exact)
             database.execute("DROP INDEX idx_documents_collection")
             database.commit()
