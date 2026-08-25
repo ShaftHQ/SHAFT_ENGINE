@@ -673,7 +673,10 @@ def _run_account_command(
         timeout=900,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"dependency command failed: {Path(command[0]).name}")
+        detail = (result.stderr or result.stdout or "no process output").strip()
+        raise RuntimeError(
+            f"dependency command failed: {Path(command[0]).name}: {detail[:500]}"
+        )
     return result
 
 
