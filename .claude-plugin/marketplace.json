@@ -64,18 +64,27 @@
     {
       "description": "Neutral project-local agent harness.",
       "name": "chaos-engine",
+      "skills": [
+        "./chaos-engine"
+      ],
       "source": "./plugins/chaos-engine",
       "version": "1.0.4199879328"
     },
     {
       "description": "Ultra-compressed communication mode.",
       "name": "caveman",
+      "skills": [
+        "./caveman"
+      ],
       "source": "./plugins/caveman",
       "version": "0.1.0"
     },
     {
       "description": "Laziest solution that actually works.",
       "name": "ponytail",
+      "skills": [
+        "./ponytail"
+      ],
       "source": "./plugins/ponytail",
       "version": "0.1.0"
     }

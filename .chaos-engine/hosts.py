@@ -3090,6 +3090,7 @@ def desired_content(
         "source": "./plugins/chaos-engine",
         "description": "Neutral project-local agent harness.",
         "version": plugin_version,
+        "skills": ["./chaos-engine"],
     }
     claude_marketplace_before = before[".claude-plugin/marketplace.json"]
     if claude_marketplace_before is None:
@@ -3124,7 +3125,10 @@ def desired_content(
         None,
     )
     if existing_claude_plugin is not None and existing_claude_plugin != claude_plugin_entry:
-        raise ValueError("ChaosEngine Claude marketplace collision")
+        if existing_claude_plugin.get("skills") in (None, []):
+            existing_claude_plugin["skills"] = claude_plugin_entry["skills"]
+        if existing_claude_plugin != claude_plugin_entry:
+            raise ValueError("ChaosEngine Claude marketplace collision")
     if existing_claude_plugin is None:
         claude_marketplace["plugins"].append(claude_plugin_entry)
     caveman_claude_entry = {
@@ -3132,6 +3136,7 @@ def desired_content(
         "source": "./plugins/caveman",
         "description": "Ultra-compressed communication mode.",
         "version": CAVEMAN_PLUGIN_VERSION,
+        "skills": ["./caveman"],
     }
     existing_caveman = next(
         (
@@ -3142,7 +3147,10 @@ def desired_content(
         None,
     )
     if existing_caveman is not None and existing_caveman != caveman_claude_entry:
-        raise ValueError("Caveman Claude plugin collision")
+        if existing_caveman.get("skills") in (None, []):
+            existing_caveman["skills"] = caveman_claude_entry["skills"]
+        if existing_caveman != caveman_claude_entry:
+            raise ValueError("Caveman Claude plugin collision")
     if existing_caveman is None:
         claude_marketplace["plugins"].append(caveman_claude_entry)
     ponytail_claude_entry = {
@@ -3150,6 +3158,7 @@ def desired_content(
         "source": "./plugins/ponytail",
         "description": "Laziest solution that actually works.",
         "version": PONYTAIL_PLUGIN_VERSION,
+        "skills": ["./ponytail"],
     }
     existing_ponytail = next(
         (
@@ -3160,7 +3169,10 @@ def desired_content(
         None,
     )
     if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
-        raise ValueError("Ponytail Claude plugin collision")
+        if existing_ponytail.get("skills") in (None, []):
+            existing_ponytail["skills"] = ponytail_claude_entry["skills"]
+        if existing_ponytail != ponytail_claude_entry:
+            raise ValueError("Ponytail Claude plugin collision")
     if existing_ponytail is None:
         claude_marketplace["plugins"].append(ponytail_claude_entry)
     after[".claude-plugin/marketplace.json"] = (
