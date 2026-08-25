@@ -25,10 +25,10 @@ PROBES = {
     "mempalace": ["--version"],
     "graphify": ["--version"],
     "memory": ["--help"],
-    "memory-mcp": ["--help"],
 }
 PHASE_TIMEOUT_SECONDS = 600
 MCP_START_TIMEOUT_SECONDS = 10
+MCP_PROTOCOL_VERSION = "2025-06-18"
 COMMIT = re.compile(r"[0-9a-f]{40}")
 HEX_ID = re.compile(r"[0-9a-f]{32}")
 SECRET_NAME = re.compile(r"(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)", re.I)
@@ -299,26 +299,32 @@ def run_public_wrapper(
         raise RuntimeError("public wrapper did not report detected client activation")
 
 
-def probe_mempalace_mcp(tool: Path, project: Path) -> None:
-    command = [
-        sys.executable,
-        str(tool),
-        "mempalace-mcp",
-        "--palace",
-        ".chaos-engine-state/mempalace",
-        "--backend",
-        "sqlite_exact",
-    ]
-    process = subprocess.Popen(  # nosec B603
+def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> None:
+    request = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": MCP_PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "chaos-engine-acceptance", "version": "1"},
+            },
+        }
+    ) + "\n"
+    process = popen(  # nosec B603
         command,
         cwd=project,
         env={**clean_environment(), "PYTHONDONTWRITEBYTECODE": "1"},
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
     try:
-        stdout, stderr = process.communicate(timeout=MCP_START_TIMEOUT_SECONDS)
+        stdout, stderr = process.communicate(
+            request, timeout=MCP_START_TIMEOUT_SECONDS
+        )
     except subprocess.TimeoutExpired:
         process.terminate()
         try:
@@ -326,11 +332,47 @@ def probe_mempalace_mcp(tool: Path, project: Path) -> None:
         except subprocess.TimeoutExpired:
             process.kill()
             process.communicate(timeout=5)
-        return
-    if process.returncode:
+        raise RuntimeError("MCP initialize timed out")
+    try:
+        response = json.loads(stdout.splitlines()[0])
+    except (IndexError, json.JSONDecodeError) as error:
         raise RuntimeError(
-            f"mempalace-mcp exited during startup: {sanitize(stderr or stdout)}"
+            f"MCP connection closed during initialize: {sanitize(stderr or stdout)}"
+        ) from error
+    result = response.get("result")
+    server = result.get("serverInfo") if isinstance(result, dict) else None
+    if (
+        process.returncode
+        or response.get("jsonrpc") != "2.0"
+        or type(response.get("id")) is not int
+        or response.get("id") != 1
+        or not isinstance(result, dict)
+        or result.get("protocolVersion") != MCP_PROTOCOL_VERSION
+        or not isinstance(result.get("capabilities"), dict)
+        or not isinstance(server, dict)
+        or not isinstance(server.get("name"), str)
+        or not isinstance(server.get("version"), str)
+    ):
+        raise RuntimeError(
+            f"MCP initialize failed: {sanitize(stderr or stdout)}"
         )
+
+
+def probe_project_mcps(tool: Path, project: Path) -> None:
+    commands = (
+        [sys.executable, str(tool), "memory-mcp"],
+        [
+            sys.executable,
+            str(tool),
+            "mempalace-mcp",
+            "--palace",
+            ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
+        ],
+    )
+    for command in commands:
+        probe_mcp(command, project)
 
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
@@ -372,8 +414,8 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     for name, arguments in PROBES.items():
         run_checked([sys.executable, str(tool), name, *arguments], cwd=project, timeout=120)
         dispatches[name] = "pass"
-    probe_mempalace_mcp(tool, project)
-    dispatches["mempalace-mcp"] = "pass"
+    probe_project_mcps(tool, project)
+    dispatches.update({"memory-mcp": "pass", "mempalace-mcp": "pass"})
 
     pointer_path = project / ".chaos-engine-runtime-current.json"
     if pointer_path.stat().st_size > 16 * 1024:

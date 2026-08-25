@@ -88,6 +88,92 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 imported.add(node.module.split(".", 1)[0])
         self.assertTrue(imported <= sys.stdlib_module_names, imported - sys.stdlib_module_names)
 
+    def test_mcp_probe_requires_successful_initialize_response(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        process = mock.Mock()
+        process.communicate.return_value = (
+            '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18",'
+            '"capabilities":{"tools":{}},"serverInfo":{"name":"fixture",'
+            '"version":"1"}}}\n',
+            "",
+        )
+        process.returncode = 0
+
+        module.probe_mcp(["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process)
+
+        request = json.loads(process.communicate.call_args.args[0])
+        self.assertEqual("initialize", request["method"])
+        self.assertEqual(1, request["id"])
+
+    def test_mcp_probe_rejects_closed_initialize_handshake(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        process = mock.Mock()
+        process.communicate.return_value = ("", "server exited")
+        process.returncode = 1
+
+        with self.assertRaisesRegex(RuntimeError, "closed during initialize"):
+            module.probe_mcp(
+                ["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process
+            )
+
+    def test_mcp_probe_rejects_incomplete_initialize_result(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        process = mock.Mock()
+        process.communicate.return_value = (
+            '{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{}}}\n',
+            "",
+        )
+        process.returncode = 0
+
+        with self.assertRaisesRegex(RuntimeError, "initialize failed"):
+            module.probe_mcp(
+                ["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process
+            )
+
+    def test_mcp_probe_rejects_wrong_protocol_and_boolean_id(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        responses = (
+            '{"jsonrpc":"2.0","id":true,"result":{"protocolVersion":"2025-06-18",'
+            '"capabilities":{},"serverInfo":{"name":"fixture","version":"1"}}}\n',
+            '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"garbage",'
+            '"capabilities":{},"serverInfo":{"name":"fixture","version":"1"}}}\n',
+        )
+        for response in responses:
+            with self.subTest(response=response):
+                process = mock.Mock()
+                process.communicate.return_value = (response, "")
+                process.returncode = 0
+                with self.assertRaisesRegex(RuntimeError, "initialize failed"):
+                    module.probe_mcp(
+                        ["fixture-mcp"],
+                        ROOT,
+                        popen=lambda *_args, **_kwargs: process,
+                    )
+
+    def test_project_mcp_probe_covers_memory_and_mempalace(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        tool = ROOT / ".chaos-engine/tool.py"
+        with mock.patch.object(module, "probe_mcp") as probe:
+            module.probe_project_mcps(tool, ROOT)
+
+        commands = {call.args[0][2] for call in probe.call_args_list}
+        self.assertEqual({"memory-mcp", "mempalace-mcp"}, commands)
+
     def test_offline_environment_blocks_package_network_and_hides_secrets(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
