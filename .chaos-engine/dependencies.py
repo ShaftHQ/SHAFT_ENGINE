@@ -243,8 +243,6 @@ def prerequisite_command_plan(
         )
     if wanted("python"):
         plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
-    if system == "linux" and wanted("node"):
-        plan["node"] = [["npm", "install", "-g", f"node@{node_version or node_major}"]]
     if system == "linux" and provider in {"apt", "dnf"}:
         manager = "apt-get" if provider == "apt" else "dnf"
         if wanted("java"):
@@ -252,16 +250,9 @@ def prerequisite_command_plan(
                 ["sudo", "-n", manager, "install", "-y", "temurin-25-jdk"]
             ]
     elif system == "macos":
-        if wanted("node"):
-            plan["node"] = [["brew", "install", f"node@{node_major}"]]
         if wanted("java"):
             plan["java"] = [["brew", "install", "--cask", "temurin@25"]]
     elif system == "windows":
-        if wanted("node"):
-            plan["node"] = [[
-                "winget", "install", "--id", "OpenJS.NodeJS.LTS", "-e",
-                "--version", node_version or str(node_major), "--scope", "user",
-            ]]
         if wanted("java"):
             plan["java"] = [["winget", "install", "--id", "EclipseAdoptium.Temurin.25.JDK", "-e"]]
     return plan
@@ -285,33 +276,6 @@ def discover_java_25(*, system: str, runner=subprocess.run) -> str | None:
                     "java", str(candidate), {"probe": ["java", "--version"]}, runner=runner
                 )
                 if probe.get("healthy") is True and str(probe.get("version", "")).startswith("25."):
-                    return str(candidate.resolve())
-    return None
-
-
-def discover_exact_node(
-    version: str, *, system: str, runner=subprocess.run
-) -> str | None:
-    """Find the just-installed account or platform-native exact Node release."""
-    if system == "windows":
-        roots = [
-            Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft/WinGet/Packages",
-            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "nodejs",
-        ]
-        patterns = ("**/node.exe",)
-    elif system == "macos":
-        roots = [Path("/opt/homebrew/opt"), Path("/usr/local/opt")]
-        patterns = (f"node@{version.split('.', 1)[0]}/bin/node",)
-    else:
-        roots = [Path.home() / ".local/bin"]
-        patterns = ("node",)
-    for root in roots:
-        for pattern in patterns:
-            for candidate in sorted(root.glob(pattern), reverse=True):
-                probe = probe_account_dependency(
-                    "node", str(candidate), {"probe": ["node", "--version"]}, runner=runner
-                )
-                if probe.get("healthy") is True and probe.get("version") == version:
                     return str(candidate.resolve())
     return None
 
@@ -727,11 +691,6 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     }
     if any(value != "reused" for value in prerequisite_actions.values()):
         selected_provider = provider or detected_package_provider(selected_system, which=which)
-        if selected_system == "linux" and prerequisite_actions["node"] != "reused":
-            npm = commands.get("npm")
-            if not npm:
-                raise RuntimeError("dependency prerequisite siblings are incomplete")
-            require_user_writable_npm_prefix(npm, project, runner=runner)
         prerequisite_commands = prerequisite_command_plan(
             selected_system,
             selected_provider,
@@ -762,13 +721,11 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 raise RuntimeError("latest stable Java 25 executable was not found after installation")
         managed_node = None
         if prerequisite_actions["node"] != "reused":
-            managed_node = discover_exact_node(
+            managed_node = install_exact_node(
                 str(actions["node"].get("resolvedVersion") or ""),
                 system=selected_system,
-                runner=runner,
+                opener=opener,
             )
-            if managed_node is None:
-                raise RuntimeError("latest stable Node executable was not found after installation")
             commands.pop("node", None)
         local, commands = discover_account_commands(
             specification, preferred_commands=commands, which=which, runner=runner
@@ -1065,6 +1022,56 @@ def _extract_runtime_archive(archive: Path, destination: Path) -> None:
         target.write_bytes(payload)
         if os.name != "nt" and mode & stat.S_IXUSR:
             target.chmod(target.stat().st_mode | stat.S_IXUSR)
+
+
+def install_exact_node(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Install one checksum-verified official Node release for this account."""
+    machine = platform.machine().casefold()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    platform_name = {"windows": "win", "macos": "darwin", "linux": "linux"}[system]
+    suffix = ".zip" if system == "windows" else ".tar.gz" if system == "macos" else ".tar.xz"
+    filename = f"node-v{version}-{platform_name}-{architecture}{suffix}"
+    base = f"https://nodejs.org/download/release/v{version}"
+    with opener(f"{base}/SHASUMS256.txt", timeout=30) as response:
+        checksums = response.read(MAX_CONTROL_BYTES + 1)
+    if len(checksums) > MAX_CONTROL_BYTES:
+        raise ValueError("Node checksum manifest exceeds the size limit")
+    expected = next(
+        (
+            line.split()[0]
+            for line in checksums.decode("utf-8").splitlines()
+            if line.split()[1:] == [filename]
+        ),
+        None,
+    )
+    if expected is None or re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise ValueError("Node checksum manifest is missing the selected release")
+    root = Path.home() / ".local/share/chaos-engine/node" / version
+    executable = root / ("node.exe" if system == "windows" else "bin/node")
+    if executable.is_file():
+        return str(executable.resolve())
+    if root.exists() or is_link_or_reparse(root):
+        raise ValueError("existing Node account runtime is invalid")
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    transaction = parent / f".{version}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        _download_artifact(f"{base}/{filename}", archive, expected, opener)
+        _extract_runtime_archive(archive, transaction)
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    if not executable.is_file():
+        raise ValueError("installed Node account runtime is incomplete")
+    return str(executable.resolve())
 
 
 def provision_generation_runtimes(
