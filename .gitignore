@@ -328,6 +328,15 @@ graphify-out/
 !plugins/ponytail/
 !plugins/ponytail/**
 !.mcp.json
+
+# Machine-local installer and Graphify artifacts remain untracked after the
+# installed-harness allowlist above.
+.chaos-engine-runtime-pointer.repair-backup-*.json
+.claude/*.graphify-bak
+.claude/skills/graphify/
+.codex/*.graphify-bak
+.codex/skills/
+plugins/**/__pycache__/
 !mempalace.yaml
 !AGENTS.md
 !CLAUDE.md
