@@ -79,6 +79,10 @@ MEMPALACE_MCP_ENV_TOML = (
     'env = { MEMPALACE_EMBEDDING_MODEL = "minilm", '
     'MEMPALACE_BACKEND = "sqlite_exact" }\n'
 )
+MEMORY_PACKAGE_PREFIX = "@aictx/memory@"
+UNGUARDED_MEMPALACE_COMMANDS = frozenset({"mempalace-mcp", "mempalace-mcp.exe"})
+STALE_MEMORY_PACKAGE_RE = re.compile(r"@aictx/memory@[0-9A-Za-z][0-9A-Za-z._-]*")
+CODEX_SERVER_HEADER_RE = re.compile(r"(?m)(^\[mcp_servers[^\]]*\])")
 CHROMA_SCHEMA = {
     "collections": {
         "id": ("TEXT", 0, 1), "name": ("TEXT", 1, 0),
@@ -2065,6 +2069,102 @@ def probe_maven_tools_runtime(
                 process.wait(timeout=5)
 
 
+_DEPENDENCY_SPECIFICATION_PATH = Path(__file__).parent / "dependencies.json"
+
+
+def memory_package_pin() -> str:
+    """Return the pinned Memory package from the colocated specification."""
+    specification = json.loads(_DEPENDENCY_SPECIFICATION_PATH.read_text(encoding="utf-8"))
+    package = specification["tools"]["memory"]["package"]
+    if not isinstance(package, str) or not package.startswith(MEMORY_PACKAGE_PREFIX):
+        raise ValueError("ChaosEngine Memory package pin is invalid")
+    return package
+
+
+def unguarded_mempalace_server(existing: object) -> bool:
+    if not isinstance(existing, dict):
+        return False
+    command = Path(str(existing.get("command") or "")).name.casefold()
+    args = existing.get("args") if isinstance(existing.get("args"), list) else []
+    arg_names = {Path(str(item)).name.casefold() for item in args if isinstance(item, str)}
+    launches = command in UNGUARDED_MEMPALACE_COMMANDS or bool(
+        arg_names & UNGUARDED_MEMPALACE_COMMANDS
+    )
+    return launches and "--palace" not in args
+
+
+def repair_legacy_store_servers(
+    servers: dict[str, object],
+    *,
+    maven_runtime: tuple[Path, Path] | None = None,
+    managed_python: Path | None = None,
+) -> None:
+    """Rewrite drifted Memory/MemPalace MCP aliases without colliding custom servers."""
+    pin = memory_package_pin()
+    owned_mempalace = owned_servers(
+        maven_runtime=maven_runtime, managed_python=managed_python
+    )["chaosengine-mempalace"]
+    for name, existing in list(servers.items()):
+        if unguarded_mempalace_server(existing):
+            repaired = dict(owned_mempalace)
+            if isinstance(existing, dict) and "required" in existing:
+                repaired["required"] = existing["required"]
+            servers[name] = repaired
+            continue
+        if not isinstance(existing, dict):
+            continue
+        args = existing.get("args")
+        if not isinstance(args, list):
+            continue
+        rewritten = []
+        changed = False
+        for item in args:
+            if isinstance(item, str) and item.startswith(MEMORY_PACKAGE_PREFIX) and item != pin:
+                rewritten.append(pin)
+                changed = True
+            else:
+                rewritten.append(item)
+        if changed:
+            updated = dict(existing)
+            updated["args"] = rewritten
+            servers[name] = updated
+
+
+def repair_codex_store_servers(existing: str) -> str:
+    """Keep Codex Memory/MemPalace aliases on the pinned sqlite_exact contract."""
+    pin = memory_package_pin()
+    existing = STALE_MEMORY_PACKAGE_RE.sub(pin, existing)
+    parts = CODEX_SERVER_HEADER_RE.split(existing)
+    if len(parts) == 1:
+        return existing
+    owned = owned_servers()["chaosengine-mempalace"]
+    args = json.dumps(owned["args"])
+    windows_args = json.dumps(owned["argsWindows"])
+    rendered = (
+        f'command = "{owned["command"]}"\n'
+        f"args = {args}\n"
+        f'commandWindows = "{owned["commandWindows"]}"\n'
+        f"argsWindows = {windows_args}\n"
+        f'cwd = "{owned["cwd"]}"\n'
+        f"{MEMPALACE_MCP_ENV_TOML}"
+    )
+    out = [parts[0]]
+    index = 1
+    while index < len(parts):
+        header = parts[index]
+        body = parts[index + 1] if index + 1 < len(parts) else ""
+        if re.search(r'(?m)^command\s*=\s*"mempalace-mcp"\s*$', body):
+            required = re.search(r"(?m)^required\s*=\s*(true|false)\s*$", body)
+            body = rendered
+            if required:
+                body += f"required = {required.group(1)}\n"
+            if not body.endswith("\n"):
+                body += "\n"
+        out.extend((header, body))
+        index += 2
+    return "".join(out)
+
+
 def portable_python_server(
     script_args: list[str], extra: dict[str, object] | None = None,
     managed_python: Path | None = None,
@@ -2467,6 +2567,9 @@ def json_content(
         raise ValueError("invalid MCP server configuration")
     if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
         del servers["maven-tools-mcp"]
+    repair_legacy_store_servers(
+        servers, maven_runtime=maven_runtime, managed_python=managed_python
+    )
     for name, desired in owned_servers(maven_runtime=maven_runtime, managed_python=managed_python).items():
         if name in servers and not replaceable_owned_server(name, servers[name], desired):
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
@@ -2495,6 +2598,7 @@ def codex_content(
     for legacy in legacy_blocks:
         for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
             existing = existing.replace(newline_variant, "")
+    existing = repair_codex_store_servers(existing)
     del platform_name
     posix_command, _posix_prefix = interpreter("posix")
     windows_command, _windows_prefix = interpreter("nt")

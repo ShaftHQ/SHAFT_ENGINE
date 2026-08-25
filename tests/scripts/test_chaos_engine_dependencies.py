@@ -170,7 +170,7 @@ def mempalace_runtime_status(project: Path):
             self.assertEqual(2, specification["schemaVersion"])
         self.assertEqual({"uv", "mempalace", "graphify", "memory"}, set(plan))
         self.assertEqual("uv==0.11.29", plan["uv"][1][-1])
-        self.assertIn("mempalace==3.7.1", plan["mempalace"][0])
+        self.assertIn("mempalace==3.8.0", plan["mempalace"][0])
         self.assertIn("graphifyy==0.9.43", plan["graphify"][0])
         self.assertIn("tree-sitter-sql==0.3.11", plan["graphify"][0])
         self.assertIn("@aictx/memory@0.2.1", plan["memory"][0])

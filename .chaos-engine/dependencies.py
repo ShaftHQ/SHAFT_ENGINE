@@ -718,6 +718,8 @@ def _open_regular_relative(root: Path, relative: str, label: str) -> int:
                 parts[-1], os.O_RDONLY | binary | nofollow, dir_fd=directory
             )
         except OSError as error:
+            if error.errno == errno.ENOENT:
+                raise ValueError(f"dependency {label} is missing") from error
             raise ValueError(f"dependency {label} has an unsafe ancestor or link") from error
         finally:
             os.close(directory)

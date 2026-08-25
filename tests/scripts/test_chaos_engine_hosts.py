@@ -2186,6 +2186,56 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.codex_content(legacy_codex.replace(b"\n", b"\r\n")),
             )
 
+    def test_install_rewrites_stale_memory_pin_and_unguarded_mempalace_mcp(self):
+        module = load(HOSTS, "chaos_engine_hosts_store_mcp_repair")
+        pin = module.memory_package_pin()
+        self.assertTrue(pin.startswith("@aictx/memory@"))
+        self.assertNotEqual(pin, "@aictx/memory@0.1.55")
+        owned_mempalace = module.owned_servers()["chaosengine-mempalace"]
+
+        legacy = {
+            "mcpServers": {
+                "project-memory": {
+                    "command": "npx",
+                    "args": ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"],
+                    "cwd": ".",
+                },
+                "local-palace": {
+                    "command": "mempalace-mcp",
+                    "env": {
+                        "MEMPALACE_BACKEND": "sqlite_exact",
+                        "MEMPALACE_EMBEDDING_MODEL": "minilm",
+                    },
+                },
+                "other": {"command": "other"},
+            }
+        }
+        upgraded = json.loads(module.json_content(json.dumps(legacy).encode()))["mcpServers"]
+        self.assertEqual(
+            ["--yes", "--package", pin, "--", "memory-mcp"],
+            upgraded["project-memory"]["args"],
+        )
+        self.assertEqual(owned_mempalace["args"], upgraded["local-palace"]["args"])
+        self.assertEqual(".chaos-engine/tool.py", upgraded["local-palace"]["args"][0])
+        self.assertIn("--palace", upgraded["local-palace"]["args"])
+        self.assertIn("sqlite_exact", upgraded["local-palace"]["args"])
+        self.assertEqual("other", upgraded["other"]["command"])
+
+        stale_codex = (
+            '[mcp_servers.project-memory]\ncommand = "npx"\n'
+            'args = ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"]\n'
+            'cwd = ".."\n\n'
+            '[mcp_servers.local-palace]\ncommand = "mempalace-mcp"\n'
+            'env = { MEMPALACE_EMBEDDING_MODEL = "minilm", MEMPALACE_BACKEND = "sqlite_exact" }\n'
+            "required = false\n"
+        ).encode()
+        repaired_codex = module.codex_content(stale_codex).decode("utf-8")
+        self.assertIn(pin, repaired_codex)
+        self.assertNotIn("@aictx/memory@0.1.55", repaired_codex)
+        self.assertNotIn('command = "mempalace-mcp"', repaired_codex)
+        self.assertIn(".chaos-engine/tool.py", repaired_codex)
+        self.assertIn(".chaos-engine-state/mempalace", repaired_codex)
+
     def test_native_maven_tools_runtime_uses_resolved_host_paths(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven")
         java = Path(r"C:\runtime\jdk-25\bin\java.exe")
