@@ -216,6 +216,7 @@ def mempalace_runtime_status(project: Path):
             ("1.0.0", "1.0.0", True, True, "reused"),
             ("1.0.0", "1.1.0", True, True, "upgraded"),
             ("2.0.0", "1.1.0", True, True, "upgraded"),
+            ("1.1.0+1", "1.1.0+2", True, True, "upgraded"),
             ("1.1.0", "1.1.0", False, True, "repaired"),
             ("1.0.0", None, True, False, "blocked"),
             (None, None, False, False, "blocked"),
@@ -307,6 +308,28 @@ def mempalace_runtime_status(project: Path):
         self.assertIn("UV_INSTALL_DIR", windows["uv"][0][-1])
         self.assertEqual([], windows["node"])
         self.assertEqual([], windows["java"])
+
+    def test_exact_node_restores_safe_account_npm_launchers(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "bin").mkdir()
+            (root / "bin/node").write_text("node\n", encoding="utf-8")
+            scripts = root / "lib/node_modules/npm/bin"
+            scripts.mkdir(parents=True)
+            for name in ("npm", "npx"):
+                scripts.joinpath(f"{name}-cli.js").write_text("script\n", encoding="utf-8")
+
+            module._ensure_node_siblings(root, "linux")
+
+            for name in ("npm", "npx"):
+                launcher = root / "bin" / name
+                self.assertTrue(launcher.is_file())
+                self.assertTrue(os.access(launcher, os.X_OK))
+                self.assertIn(f"{name}-cli.js", launcher.read_text(encoding="utf-8"))
+
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                module._ensure_node_siblings(root, "windows")
 
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
         module = load_controller()

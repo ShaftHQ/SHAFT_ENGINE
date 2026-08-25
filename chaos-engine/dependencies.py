@@ -133,7 +133,11 @@ def dependency_action(
         return "blocked"
     if resolved_version is None:
         return "blocked"
-    return "reused" if version_key(installed_version) == version_key(resolved_version) else "upgraded"
+    return (
+        "reused"
+        if installed_version.lstrip("v") == resolved_version.lstrip("v")
+        else "upgraded"
+    )
 
 
 def discover_executables(names: list[str], *, which=shutil.which) -> dict[str, dict[str, str]]:
