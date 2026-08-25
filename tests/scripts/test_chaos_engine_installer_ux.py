@@ -74,6 +74,8 @@ class InstallerUxTests(unittest.TestCase):
                 self.assertIn("running", output)
                 self.assertIn("Install core", output)
                 self.assertIn("Elapsed 00:00", output)
+                self.assertIn("Trace (last 0 of 0; full log:", output)
+                self.assertIn("Summary", output)
                 self.assertNotIn("ETA calculating", output)
                 self.assertNotIn("Current action:", output)
                 self.assertIn("\x1b[", output)
@@ -133,6 +135,7 @@ class InstallerUxTests(unittest.TestCase):
             BOOTSTRAP.brand_lines(width=27, color=False, unicode=False),
             BOOTSTRAP.brand_lines(width=28, color=False, unicode=False),
         )
+
         class NarrowTty(io.StringIO):
             def isatty(self):
                 return True
@@ -150,6 +153,25 @@ class InstallerUxTests(unittest.TestCase):
         output = stream.getvalue()
         self.assertIn("/C|*|E/", output)
         self.assertIn("ChaosEngine", output)
+
+    def test_wide_brands_use_reversed_e_and_keep_red_core(self):
+        for unicode, bars, ends in (
+            (False, ("---+", "|", "---+", "|", "---+"), ("+", "|", "+", "|", "+")),
+            (True, ("───┐", "│", "───┤", "│", "───┘"), ("┐", "│", "┤", "│", "┘")),
+        ):
+            with self.subTest(unicode=unicode):
+                lines = BOOTSTRAP.brand_lines(width=80, color=False, unicode=unicode)
+                plain = "\n".join(lines)
+                colored = "\n".join(BOOTSTRAP.brand_lines(width=80, color=True, unicode=unicode))
+                self.assertIn("ChaosEngine", plain)
+                self.assertEqual(
+                    [line.rindex(end) for line, end in zip(lines[:5], ends)],
+                    [lines[0].rindex(ends[0])] * 5,
+                )
+                for line, bar in zip(lines[:5], bars):
+                    self.assertIn(bar, line)
+                self.assertIn(BOOTSTRAP.CYBERNETIC_RED, colored)
+                self.assertIn("/C|*|E/", "\n".join(BOOTSTRAP.brand_lines(width=27, color=False)))
 
     def test_download_progress_uses_measured_bytes_and_rolling_rate(self):
         class Tty(io.StringIO):
@@ -316,7 +338,7 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("remaining 00:02", output)
         self.assertNotIn("B/s", output)
 
-    def test_success_cta_reports_owned_and_third_party_readiness_on_stderr(self):
+    def test_success_cta_reports_agent_session_and_user_guide_on_stderr(self):
         stream = io.StringIO()
         reporter = BOOTSTRAP.InstallReporter(stream=stream)
         reporter.start("Activate clients")
@@ -325,13 +347,18 @@ class InstallerUxTests(unittest.TestCase):
             Path("/project"),
             {"components": {"memory": {"status": "healthy"}, "core": {"status": "healthy"}}},
             {},
+            repository="ShaftHQ/SHAFT_ENGINE",
         )
         output = stream.getvalue()
-        self.assertLess(output.index("DONE  Activate clients"), output.index("Start a new coding agent session"))
-        self.assertIn("Owned managed dependencies: ready", output)
-        self.assertIn("Repository-declared components: ready", output)
-        self.assertIn("Third-party readiness: unavailable", output)
-        self.assertIn("Continue working in /project.", output)
+        self.assertLess(output.index("DONE  Activate clients"), output.index("Installation Successful!"))
+        self.assertIn(
+            "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!",
+            output,
+        )
+        self.assertIn("https://shafthq.github.io/docs/agentic/chaos-engine", output)
+        self.assertIn("Full install trace: /project/.chaos-engine-state/install-trace.json", output)
+        self.assertNotIn("Owned managed dependencies", output)
+        self.assertNotIn("Continue working in", output)
 
     def test_nested_start_keeps_inflight_stage_visible_with_learned_eta(self):
         class Clock:
@@ -420,6 +447,27 @@ class InstallerUxTests(unittest.TestCase):
         self.assertNotIn("transparent automation", stderr.getvalue())
         self.assertNotIn("AUTONOMOUS INSTALL", stderr.getvalue())
         self.assertIn("ChaosEngine", stderr.getvalue())
+
+    def test_cli_tty_writes_full_result_and_trace_without_stdout_json(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        result = {"status": "installed", "root": "/project", "commit": "a" * 40, "doctor": {"healthy": True}}
+        stdout = Tty()
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            with unittest.mock.patch.object(BOOTSTRAP, "install_latest", return_value=result), unittest.mock.patch.object(
+                BOOTSTRAP.sys, "stdout", stdout
+            ), unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.object(
+                BOOTSTRAP.sys, "argv", ["bootstrap.py", "--project", str(project), "--repository", "owner/repo"]
+            ):
+                self.assertEqual(0, BOOTSTRAP.main())
+            trace = json.loads((project / ".chaos-engine-state/install-trace.json").read_text(encoding="utf-8"))
+        self.assertEqual(result, trace["result"])
+        self.assertEqual([], trace["trace"])
+        self.assertNotIn('"doctor"', stdout.getvalue())
 
     def test_wrappers_expose_and_forward_interactive_mode(self):
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
