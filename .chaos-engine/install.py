@@ -1894,8 +1894,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                     result, project, target, "recovery-required", host_controller
                 )
                 return result
+            controller = load_dependency_controller(target)
             account_receipt = project / getattr(
-                load_dependency_controller(target),
+                controller,
                 "ACCOUNT_RECEIPT_NAME",
                 ".chaos-engine-dependencies.json",
             )

@@ -267,9 +267,13 @@ def prerequisite_command_plan(
 
 
 def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
+    headers = {"Accept": "application/json", "User-Agent": "ChaosEngine-installer"}
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if github_token and url.startswith("https://api.github.com/"):
+        headers["Authorization"] = f"Bearer {github_token}"
     request = urllib.request.Request(
         url,
-        headers={"Accept": "application/json", "User-Agent": "ChaosEngine-installer"},
+        headers=headers,
     )
     with opener(request, timeout=30) as response:
         payload = response.read(MAX_CONTROL_BYTES + 1)
@@ -528,6 +532,9 @@ def write_account_receipt(
     })
     if not isinstance(receipt, dict):
         raise ValueError("account dependency receipt is invalid")
+    receipt["commands"] = {
+        name: str(Path(command).resolve()) for name, command in commands.items()
+    }
     path = project.resolve() / ACCOUNT_RECEIPT_NAME
     scratch = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
     scratch.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
