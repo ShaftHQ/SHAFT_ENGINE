@@ -723,6 +723,8 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             managed_java = discover_java_25(system=selected_system, runner=runner)
             if managed_java is None:
                 raise RuntimeError("latest stable Java 25 executable was not found after installation")
+        if prerequisite_actions["node"] != "reused":
+            commands.pop("node", None)
         local, commands = discover_account_commands(
             specification, preferred_commands=commands, which=which, runner=runner
         )
