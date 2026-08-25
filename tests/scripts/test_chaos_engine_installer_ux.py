@@ -545,29 +545,40 @@ class InstallerUxTests(unittest.TestCase):
             (ValueError("unsupported platform: solaris/sparc"), "CE-INSTALL-UNSUPPORTED-PLATFORM"),
             (RuntimeError("memory-mcp entrypoint probe failed"), "CE-INSTALL-PROBE-FAILED"),
         )
-        for error, code in cases:
-            with self.subTest(code=code):
-                stdout = io.StringIO()
-                stderr = io.StringIO()
-                with unittest.mock.patch.object(BOOTSTRAP, "install_latest", side_effect=error), unittest.mock.patch.object(
-                    BOOTSTRAP.sys, "stdout", stdout
-                ), unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.object(
-                    BOOTSTRAP.sys, "argv", ["bootstrap.py", "--project", ".", "--repository", "owner/repo"]
-                ):
-                    self.assertEqual(1, BOOTSTRAP.main())
-                self.assertEqual("", stdout.getvalue())
-                self.assertIn(str(error).split("\n", 1)[0], stderr.getvalue())
-                self.assertIn(code, stderr.getvalue())
-                self.assertIn("#installer-errors", stderr.getvalue())
-                self.assertIn("Installer CLI is not on disk", stderr.getvalue())
-                if code == "CE-INSTALL-FAILED":
-                    self.assertIn("Next step: click this link to open a GitHub issue", stderr.getvalue())
-                    report = [
-                        line for line in stderr.getvalue().splitlines()
-                        if line.startswith("https://github.com/owner/repo/issues/new?")
-                    ][0]
-                    self.assertIn("template=chaos-engine-installer.yml", report)
-                    self.assertLessEqual(len(report), 2000)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            for error, code in cases:
+                with self.subTest(code=code):
+                    stdout = io.StringIO()
+                    stderr = io.StringIO()
+                    with unittest.mock.patch.object(BOOTSTRAP, "install_latest", side_effect=error), unittest.mock.patch.object(
+                        BOOTSTRAP.sys, "stdout", stdout
+                    ), unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.object(
+                        BOOTSTRAP.sys,
+                        "argv",
+                        [
+                            "bootstrap.py",
+                            "--project",
+                            str(project),
+                            "--repository",
+                            "owner/repo",
+                        ],
+                    ):
+                        self.assertEqual(1, BOOTSTRAP.main())
+                    self.assertEqual("", stdout.getvalue())
+                    self.assertIn(str(error).split("\n", 1)[0], stderr.getvalue())
+                    self.assertIn(code, stderr.getvalue())
+                    self.assertIn("#installer-errors", stderr.getvalue())
+                    self.assertIn("Installer CLI is not on disk", stderr.getvalue())
+                    if code == "CE-INSTALL-FAILED":
+                        self.assertIn("Next step: click this link to open a GitHub issue", stderr.getvalue())
+                        report = [
+                            line for line in stderr.getvalue().splitlines()
+                            if line.startswith("https://github.com/owner/repo/issues/new?")
+                        ][0]
+                        self.assertIn("template=chaos-engine-installer.yml", report)
+                        self.assertLessEqual(len(report), 2000)
 
     def test_keyboard_interrupt_emits_cancelled_without_traceback(self):
         stdout = io.StringIO()
