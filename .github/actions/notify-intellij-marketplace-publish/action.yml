@@ -1,7 +1,7 @@
 name: 'Notify IntelliJ Marketplace Publish Miss'
 description: >-
   Fail closed when a Publish IntelliJ Plugin run does not complete publishPlugin.
-  A release cancelled/timeout/failure files or keeps a dedicated tracking issue.
+  An automatic release failure files or keeps a dedicated tracking issue.
   Nightly cancelled=skip must not own this path.
 inputs:
   verify-result:
@@ -10,9 +10,14 @@ inputs:
   publish-result:
     description: 'needs.publish.result'
     required: true
-  event-name:
-    description: 'github.event_name'
-    required: true
+  manage-tracker:
+    description: 'When true, file, update, or close the automatic release tracker.'
+    required: false
+    default: 'false'
+  publish-required:
+    description: 'When false, prerequisite release gates prevented an expected publish.'
+    required: false
+    default: 'true'
   plugin-version:
     description: 'Plugin version. Falls back to shaft-intellij/gradle.properties.'
     required: false
@@ -34,7 +39,8 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
         VERIFY_RESULT: ${{ inputs.verify-result }}
         PUBLISH_RESULT: ${{ inputs.publish-result }}
-        EVENT_NAME: ${{ inputs.event-name }}
+        MANAGE_TRACKER: ${{ inputs.manage-tracker }}
+        PUBLISH_REQUIRED: ${{ inputs.publish-required }}
         PLUGIN_VERSION: ${{ inputs.plugin-version }}
         LABEL: ${{ inputs.label }}
         REPO: ${{ github.repository }}
@@ -50,8 +56,13 @@ runs:
           version="unknown"
         fi
 
+        if [ "$PUBLISH_REQUIRED" != "true" ]; then
+          echo "Marketplace publish was not required because prerequisite release gates did not pass."
+          exit 0
+        fi
+
         if [ "$PUBLISH_RESULT" = "success" ]; then
-          if [ "$EVENT_NAME" = "release" ]; then
+          if [ "$MANAGE_TRACKER" = "true" ]; then
             existing=$(gh issue list --repo "$REPO" --state open --label "$LABEL" \
               --json number --jq '.[0].number // empty')
             if [ -n "$existing" ]; then
@@ -67,7 +78,7 @@ runs:
 
         echo "::error::IntelliJ Marketplace publish did not succeed (verify=$VERIFY_RESULT publish=$PUBLISH_RESULT version=$version). Coverage success must not hide this miss."
 
-        if [ "$EVENT_NAME" = "release" ]; then
+        if [ "$MANAGE_TRACKER" = "true" ]; then
           gh label create "$LABEL" --repo "$REPO" --color B60205 \
             --description "Dedicated tracker for a missed IntelliJ Marketplace publish" --force >/dev/null 2>&1 || true
           existing=$(gh issue list --repo "$REPO" --state open --label "$LABEL" \
@@ -78,7 +89,7 @@ runs:
             echo "Updated existing tracking issue #$existing."
           else
             BODY=$(printf '%s\n' \
-              "A **release-triggered** IntelliJ Marketplace publish did not complete \`publishPlugin\`." \
+              "An **automatic release** IntelliJ Marketplace publish did not complete \`publishPlugin\`." \
               "" \
               "- Version: \`$version\`" \
               "- Verify job: \`$VERIFY_RESULT\`" \

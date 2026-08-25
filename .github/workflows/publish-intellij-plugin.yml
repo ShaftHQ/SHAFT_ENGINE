@@ -1,8 +1,6 @@
 name: Publish IntelliJ Plugin
 
 on:
-  release:
-    types: [ published ]
   workflow_dispatch:
 
 permissions:
@@ -14,11 +12,6 @@ concurrency:
 
 jobs:
   verify:
-    # Runs only for an actual published SHAFT release (created by mavenCentral_cd.yml's
-    # announce_release job), not merely because that workflow's run concluded successfully -
-    # its build_release_and_deliver job now also concludes successfully when it skips a
-    # no-op delivery for an already-published version, which must not re-publish here.
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     # Room for the one retry the verification half of intellij-verify now takes
     # when the JetBrains host refuses a connect (issue #4494). Publish is a
@@ -27,8 +20,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       - name: Validate release metadata
         run: python3 scripts/ci/validate_shaft_pilot_release.py
       - name: Verify IntelliJ plugin
@@ -44,7 +35,6 @@ jobs:
 
   publish:
     needs: verify
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     # Own budget for sign and Marketplace upload. Never wrap that upload in
     # the verify retry helper: a Marketplace version number is single-use.
@@ -52,8 +42,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       - name: Publish to JetBrains Marketplace
         uses: ./.github/actions/intellij-verify
         with:
@@ -76,13 +64,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       - name: File a dedicated miss issue when a release does not publish
         uses: ./.github/actions/notify-intellij-marketplace-publish
         with:
           verify-result: ${{ needs.verify.result }}
           publish-result: ${{ needs.publish.result }}
-          event-name: ${{ github.event_name }}
-          plugin-version: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+          manage-tracker: 'false'
           label: intellij-marketplace-publish-miss
