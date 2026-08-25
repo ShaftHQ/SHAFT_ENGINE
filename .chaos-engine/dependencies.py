@@ -229,6 +229,7 @@ def account_tool_plan(
 def prerequisite_command_plan(
     system: str, provider: str, actions: dict[str, str], *, node_major: int = 22,
     node_version: str | None = None, python_version: str = "3.14.0",
+    uv_version: str = "0.12.0",
 ) -> dict[str, list[list[str]]]:
     """Render dry platform prerequisite commands with tightly scoped elevation."""
     wanted = lambda name: actions.get(name) in {"installed", "upgraded", "repaired"}
@@ -237,9 +238,9 @@ def prerequisite_command_plan(
         plan["uv"] = [["uv", "self", "update"]]
     elif wanted("uv"):
         plan["uv"] = (
-            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", "irm https://astral.sh/uv/install.ps1 | iex"], ["uv", "self", "update"]]
+            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", f"irm https://astral.sh/uv/{uv_version}/install.ps1 | iex"]]
             if system == "windows"
-            else [["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"], ["uv", "self", "update"]]
+            else [["sh", "-c", f"curl -LsSf https://astral.sh/uv/{uv_version}/install.sh | sh"]]
         )
     if wanted("python"):
         plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
@@ -698,6 +699,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             node_major=int(str(actions["node"].get("resolvedVersion") or "22").split(".", 1)[0]),
             node_version=str(actions["node"].get("resolvedVersion") or ""),
             python_version=str(actions["python"].get("resolvedVersion") or ""),
+            uv_version=str(actions["uv"].get("resolvedVersion") or ""),
         )
         for name in ("uv", "python", "node", "java"):
             for command in prerequisite_commands[name]:

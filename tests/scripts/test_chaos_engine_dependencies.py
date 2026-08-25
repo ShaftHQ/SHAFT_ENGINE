@@ -273,7 +273,7 @@ def mempalace_runtime_status(project: Path):
             "linux", "apt", {"uv": "installed", "node": "installed", "java": "installed"}
         )
         self.assertEqual(
-            ["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"],
+            ["sh", "-c", "curl -LsSf https://astral.sh/uv/0.12.0/install.sh | sh"],
             linux["uv"][0],
         )
         self.assertNotIn("sudo", linux["uv"][0])
@@ -302,7 +302,7 @@ def mempalace_runtime_status(project: Path):
             "windows", "winget", {"uv": "installed", "node": "installed", "java": "installed"}
         )
         self.assertEqual("pwsh", windows["uv"][0][0])
-        self.assertEqual("uv", windows["uv"][1][0])
+        self.assertIn("/0.12.0/install.ps1", windows["uv"][0][-1])
         self.assertEqual([], windows["node"])
         self.assertTrue(all(command[0] == "winget" for command in windows["java"]))
 
