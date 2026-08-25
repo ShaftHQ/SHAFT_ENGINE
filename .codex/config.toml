@@ -1,6 +1,6 @@
 [mcp_servers.shaft-memory]
 command = "npx"
-args = ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"]
+args = ["--yes", "--package", "@aictx/memory@0.2.1", "--", "memory-mcp"]
 cwd = ".."
 enabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]
 default_tools_approval_mode = "auto"
@@ -12,7 +12,11 @@ required = false
 approval_mode = "prompt"
 
 [mcp_servers.mempalace]
-command = "mempalace-mcp"
+command = "python3"
+args = [".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]
+commandWindows = "py"
+argsWindows = ["-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]
+cwd = "."
 env = { MEMPALACE_EMBEDDING_MODEL = "minilm", MEMPALACE_BACKEND = "sqlite_exact" }
 required = false
 

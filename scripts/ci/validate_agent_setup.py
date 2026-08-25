@@ -41,7 +41,18 @@ from scripts.ci.worktree_hygiene import (  # noqa: E402
     format_advisories,
 )
 
-MEMORY_PACKAGE = "@aictx/memory@0.1.55"
+def memory_package_pin(root: Path | None = None) -> str:
+    """Read the source-controlled Memory pin from ChaosEngine dependencies."""
+    specification_root = ROOT if root is None else root
+    specification_path = specification_root / "chaos-engine" / "dependencies.json"
+    specification = json.loads(specification_path.read_text(encoding="utf-8"))
+    package = specification["tools"]["memory"]["package"]
+    if not isinstance(package, str) or not package.startswith("@aictx/memory@"):
+        raise ValueError("ChaosEngine Memory package pin is invalid")
+    return package
+
+
+MEMORY_PACKAGE = memory_package_pin()
 MEMORY_TOOLS = {
     "inspect_memory",
     "load_memory",
@@ -285,6 +296,41 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
             errors.append(
                 issue("memory-mcp", ".codex/config.toml", f"invalid shaft-memory {name}")
             )
+    mcp_path = root / ".mcp.json"
+    if mcp_path.is_file():
+        try:
+            servers = read_json(mcp_path).get("mcpServers")
+        except (OSError, ValueError):
+            servers = None
+        if not isinstance(servers, dict):
+            errors.append(issue("memory-mcp", ".mcp.json", "invalid mcpServers mapping"))
+        else:
+            for name, server in servers.items():
+                if not isinstance(server, dict):
+                    continue
+                args = server.get("args") if isinstance(server.get("args"), list) else []
+                for item in args:
+                    if (
+                        isinstance(item, str)
+                        and item.startswith("@aictx/memory@")
+                        and item != MEMORY_PACKAGE
+                    ):
+                        errors.append(
+                            issue(
+                                "memory-mcp",
+                                ".mcp.json",
+                                f"{name} pins {item}, expected {MEMORY_PACKAGE}",
+                            )
+                        )
+                command = Path(str(server.get("command") or "")).name
+                if command.startswith("mempalace-mcp") and "--palace" not in args:
+                    errors.append(
+                        issue(
+                            "mempalace-mcp",
+                            ".mcp.json",
+                            f"{name} launches mempalace-mcp without a project palace",
+                        )
+                    )
     return errors
 
 

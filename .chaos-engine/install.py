@@ -23,7 +23,7 @@ from pathlib import Path, PurePosixPath
 INSTALL_DIRECTORY = ".chaos-engine"
 MANIFEST_NAME = "manifest.json"
 SCHEMA_VERSION = 1
-DIAGNOSTIC_SCHEMA_VERSION = 1
+DIAGNOSTIC_SCHEMA_VERSION = 2
 CANONICAL_IDENTITY = "chaos-engine"
 DEFAULT_DISTRIBUTION = "portable"
 DISTRIBUTIONS_NAME = "distributions.json"
@@ -1345,14 +1345,23 @@ def load_dependency_controller(installed_root: Path):
 
 def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
     target: Path, specification: dict[str, object], *, runner=subprocess.run,
-    reporter=None, confirmer=None,
+    reporter=None, confirmer=None, opener=None,
 ) -> tuple[Path, Path]:
     hosts = load_installed_controller(target, "hosts")
-    existing = hosts.discover_maven_tools_runtime()
-    if existing is not None and hosts.probe_maven_tools_runtime(*existing):
-        return existing
-    ambient_unusable = existing is not None
     dependencies = load_dependency_controller(target)
+    contract = specification["dependencies"]["maven-tools-mcp"]
+    resolver_options = {} if opener is None else {"opener": opener}
+    version = dependencies.resolve_stable_version(
+        "maven-tools-mcp", contract, **resolver_options
+    )
+    tag = f"v{version}"
+    cache_status = hosts.maven_tools_cache_status(version)
+    if cache_status["status"] == "healthy":
+        existing = hosts.discover_maven_tools_runtime()
+        if existing is not None and hosts.probe_maven_tools_runtime(*existing):
+            return existing
+    elif cache_status["status"] != "absent":
+        raise ValueError("Maven Tools MCP cache is invalid")
     java_candidates = []
     configured = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")
@@ -1363,94 +1372,37 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         java_candidates.append(Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java"))
     if path_java:
         java_candidates.append(Path(path_java))
-    java = None
-    if not ambient_unusable:
-        java = next(
-            (
-                item.resolve()
-                for item in java_candidates
-                if item.is_file()
-                and (hosts.java_major(item.resolve()) or 0) >= 17
-            ),
-            None,
-        )
+    java = next(
+        (
+            item.resolve()
+            for item in java_candidates
+            if item.is_file() and hosts.java_major(item.resolve()) == 25
+        ),
+        None,
+    )
     if java is None:
-        artifact = dependencies.select_runtime_artifact(specification, "temurin")
-        cache = hosts.maven_tools_cache_root().parent / "temurin" / "25.0.4+7" / dependencies.platform_key()
-        java_relative = Path(
-            "bin/java.exe" if os.name == "nt" else
-            "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
-        )
-        java = cache / java_relative
-        if not java.is_file():
-            cache.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.TemporaryDirectory(prefix=".temurin-", dir=cache.parent) as scratch_name:
-                scratch = Path(scratch_name)
-                url = str(artifact["url"])
-                if confirmer is not None:
-                    confirmer(f"Download Maven Tools Java runtime from {url}")
-                if reporter is not None:
-                    reporter.start("Install Maven Tools", detail=url)
-                archive = scratch / ("temurin.zip" if url.endswith(".zip") else "temurin.tar.gz")
-                dependencies._download_artifact(url, archive, str(artifact["sha256"]))
-                staged = scratch / "runtime"
-                dependencies._extract_runtime_archive(archive, staged)
-                candidate_java = staged / java_relative
-                if not candidate_java.is_file() or hosts.java_major(candidate_java) != 25:
-                    raise ValueError("managed Temurin Java 25 probe failed")
-                host_platform = dependencies.platform_key()
-                runtime_receipt = {
-                    "schemaVersion": 1,
-                    "runtime": "temurin",
-                    "version": "25.0.4+7",
-                    "hostPlatform": host_platform,
-                    "artifactArchitecture": str(artifact.get("artifactArchitecture", host_platform.split("-", 1)[1])),
-                    "emulated": bool(artifact.get("emulated", False)),
-                    "java": java_relative.as_posix(),
-                    "javaSha256": file_sha256(candidate_java),
-                }
-                (staged / hosts.TEMURIN_RECEIPT).write_text(
-                    json.dumps(runtime_receipt, sort_keys=True) + "\n", encoding="utf-8"
-                )
-                try:
-                    staged.replace(cache)
-                except OSError:
-                    if not cache.is_dir():
-                        raise
-            java = cache / java_relative
-        if hosts.verified_managed_temurin(java, dependencies.platform_key()) is None:
-            raise ValueError("managed Temurin Java 25 probe failed")
-    cache_status = hosts.maven_tools_cache_status()
-    if cache_status["status"] == "healthy":
-        runtime = hosts.discover_maven_tools_runtime()
-        if runtime is None:
-            raise ValueError("Maven Tools MCP cache Java probe failed")
-        return runtime
-    if cache_status["status"] != "absent":
-        raise ValueError("Maven Tools MCP cache is invalid")
+        raise ValueError("system Temurin Java 25 is required for Maven Tools MCP")
     cache_root = hosts.maven_tools_cache_root()
     cache_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".maven-tools-source-") as source_name:
         source = Path(source_name) / "source"
         git = shutil.which("git")
-        if git:
-            if confirmer is not None:
-                confirmer("Download Maven Tools source with git")
-            runner([git, "clone", "--filter=blob:none", "--no-checkout", "https://github.com/arvindand/maven-tools-mcp.git", str(source)], check=True, timeout=300)
-            runner([git, "-C", str(source), "checkout", "--detach", hosts.MAVEN_TOOLS_MCP_COMMIT], check=True, timeout=120)
-        else:
-            source.mkdir()
-            archive = Path(source_name) / "source.zip"
-            source_artifact = specification["runtimes"]["maven-tools-source"]  # type: ignore[index]
-            if confirmer is not None:
-                confirmer(f"Download Maven Tools source from {source_artifact['url']}")  # type: ignore[index]
-            if reporter is not None:
-                reporter.start("Install Maven Tools", detail=str(source_artifact["url"]))  # type: ignore[index]
-            dependencies._download_artifact(
-                str(source_artifact["url"]), archive, str(source_artifact["sha256"]),  # type: ignore[index]
-            )
-            source.rmdir()
-            dependencies._extract_runtime_archive(archive, source)
+        if not git:
+            raise ValueError("git is required to install Maven Tools MCP")
+        if confirmer is not None:
+            confirmer(f"Download Maven Tools {tag} source with git")
+        if reporter is not None:
+            reporter.start("Install Maven Tools", detail=tag)
+        runner([
+            git, "clone", "--branch", tag, "--depth", "1",
+            "https://github.com/arvindand/maven-tools-mcp.git", str(source),
+        ], check=True, timeout=300)
+        revision = runner(
+            [git, "-C", str(source), "rev-parse", "HEAD"], check=True,
+            capture_output=True, text=True, timeout=30,
+        ).stdout.strip().casefold()
+        if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+            raise ValueError("Maven Tools stable tag did not resolve to an immutable commit")
         wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
         if not wrapper.is_file():
             raise ValueError("Maven Tools upstream wrapper is missing")
@@ -1458,15 +1410,15 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         environment["JAVA_HOME"] = str(java.parent.parent)
         if confirmer is not None:
             confirmer("Build and install Maven Tools")
-        runner([str(wrapper), "-B", "clean", "verify", "-Pfull"], cwd=source, env=environment, check=True, timeout=900)
-        built = source / f"target/maven-tools-mcp-{hosts.MAVEN_TOOLS_MCP_VERSION}.jar"
+        runner([str(wrapper), "-B", "clean", "package", "-Pci"], cwd=source, env=environment, check=True, timeout=900)
+        built = source / f"target/maven-tools-mcp-{version}.jar"
         if not built.is_file() or built.stat().st_size == 0:
             raise ValueError("Maven Tools build did not produce the pinned JAR")
         with tempfile.TemporaryDirectory(prefix=".publishing-", dir=cache_root) as staging_name:
             staging = Path(staging_name)
             jar = staging / built.name
             shutil.copyfile(built, jar)
-            receipt = {"version": hosts.MAVEN_TOOLS_MCP_VERSION, "commit": hosts.MAVEN_TOOLS_MCP_COMMIT, "jar": jar.name, "sha256": file_sha256(jar)}
+            receipt = {"version": version, "commit": revision, "jar": jar.name, "sha256": file_sha256(jar)}
             (staging / hosts.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
             hosts.publish_maven_tools_cache(staging)
     runtime = hosts.discover_maven_tools_runtime()
@@ -1519,7 +1471,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
 ) -> Path:
     project = project.resolve()
     with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
-    generation_mode = provisioner is None
+    account_mode = provisioner is None
     with project_lock(project):
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
@@ -1538,7 +1490,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
                     receipt, raw = old_host_controller.read_receipt(project)
                     host_snapshot = {"receipt": receipt, "raw": raw}
-                if generation_mode:
+                if not account_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
                         old_specification = old_dependencies.load_specification(
@@ -1585,6 +1537,13 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         candidate = None
         retired_generation = None
         candidate_published = False
+        account_receipt_path = project / ".chaos-engine-dependencies.json"
+        account_receipt_before = (
+            account_receipt_path.read_bytes()
+            if account_mode and account_receipt_path.is_file()
+            and not is_link_or_reparse(account_receipt_path) else None
+        )
+        account_receipt_after = None
         try:
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")
@@ -1592,46 +1551,29 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 ensure_maven_tools(
                     target, specification, reporter=reporter, confirmer=confirmer
                 )
-            if generation_mode:
-                specification_sha256 = controller.specification_digest(specification)
-                core_sha256 = file_sha256(target / MANIFEST_NAME)
-                try:
-                    controller.active_generation(
-                        project,
-                        expected_specification_sha256=specification_sha256,
-                        expected_core_sha256=core_sha256,
-                    )
-                except (OSError, ValueError):
-                    callback_options = {}
-                    if reporter is not None:
-                        callback_options["reporter"] = reporter
-                    if confirmer is not None:
-                        callback_options["confirmer"] = confirmer
-                    candidate = controller.prepare_candidate(
-                        project, specification, core_sha256, **callback_options
-                    )
-                if candidate is not None:
-                    dependency_generation = project / getattr(
-                        controller, "GENERATIONS_NAME", ".chaos-engine-runtime-generations"
-                    ) / candidate["generationId"]
-                else:
-                    dependency_generation = controller.active_generation(
-                        project,
-                        expected_specification_sha256=specification_sha256,
-                        expected_core_sha256=core_sha256,
-                    )[0]
-            else:
-                dependency_generation = None
+            dependency_generation = None
+            account_commands = None
+            if account_mode:
+                account_receipt = controller.install_account_dependencies(
+                    project, specification
+                )
+                account_receipt_after = (
+                    account_receipt_path.read_bytes()
+                    if account_receipt_path.is_file() else None
+                )
+                account_commands = account_receipt.get("commands")
             host_controller.install(
                 project,
                 core_commit=commit,
                 capability_policy_digest=installed_manifest.get("capabilityPolicySha256"),
                 dependency_runtime=dependency_generation,
+                account_commands=account_commands,
             )
             host_created = not host_existed
-            if not generation_mode:
+            if not account_mode:
                 provisioner(runtime, specification)
-            host_controller.initialize_mempalace_runtime(project)
+            if not account_mode:
+                host_controller.initialize_mempalace_runtime(project)
             if candidate is not None:
                 try:
                     retired_generation = controller.pointer_records(project).get(
@@ -1691,6 +1633,16 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if can_compensate and host_snapshot is not None:
                 try:
                     host_controller.restore_snapshot(project, host_snapshot)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            if can_compensate and account_mode and account_receipt_after is not None:
+                try:
+                    if account_receipt_path.read_bytes() != account_receipt_after:
+                        raise ValueError("account dependency receipt changed during compensation")
+                    if account_receipt_before is None:
+                        account_receipt_path.unlink()
+                    else:
+                        account_receipt_path.write_bytes(account_receipt_before)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             elif can_compensate and host_created:
@@ -1867,6 +1819,36 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                     result, project, target, "recovery-required", host_controller
                 )
                 return result
+            account_receipt = project / getattr(
+                load_dependency_controller(target),
+                "ACCOUNT_RECEIPT_NAME",
+                ".chaos-engine-dependencies.json",
+            )
+            if account_receipt.is_file() and not is_link_or_reparse(account_receipt):
+                controller = load_dependency_controller(target)
+                receipt = controller.read_account_receipt(project)
+                records = receipt.get("components", {})
+                healthy = isinstance(records, dict) and all(
+                    isinstance(item, dict)
+                    and item.get("status") == "healthy"
+                    and item.get("action") != "blocked"
+                    for item in records.values()
+                )
+                result["dependencies"] = {
+                    "status": "healthy" if healthy else "recovery-required",
+                    "schemaVersion": receipt["schemaVersion"],
+                    "checkedAt": receipt.get("checkedAt"),
+                    "scope": receipt.get("scope"),
+                    "components": records,
+                }
+                attach_component_status(
+                    result,
+                    project,
+                    target,
+                    str(result["dependencies"]["status"]),
+                    host_controller,
+                )
+                return result
             pointer_path = project / ".chaos-engine-runtime-current.json"
             if pointer_path.exists() or is_link_or_reparse(pointer_path):
                 controller = load_dependency_controller(target)
@@ -1932,18 +1914,31 @@ def doctor_with_dependencies(
                 components["memory"]["reason"] = retrieval["reason"]
     dependency = result.get("dependencies")
     generation_path = dependency.get("path") if isinstance(dependency, dict) else None
+    account_commands = None
+    account_receipt = project.resolve() / ".chaos-engine-dependencies.json"
+    if account_receipt.is_file() and not is_link_or_reparse(account_receipt):
+        controller = load_dependency_controller(target)
+        receipt = controller.read_account_receipt(project.resolve())
+        commands = receipt.get("commands")
+        if isinstance(commands, dict):
+            account_commands = commands
     scripts = "Scripts" if os.name == "nt" else "bin"
     python_name = "python.exe" if os.name == "nt" else "python"
     managed_python = (
         Path(generation_path) / "uv-tools/mempalace" / scripts / python_name
         if isinstance(generation_path, str) else None
     )
-    if managed_python is None or not host_controller.mcp_runtime_healthy(project.resolve(), managed_python):
+    if (
+        managed_python is None and account_commands is None
+    ) or not host_controller.mcp_runtime_healthy(
+        project.resolve(), managed_python, account_commands
+    ):
         result["status"] = "recovery-required"
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
             components["mcps"]["status"] = "recovery-required"
-    if managed_python is None or not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
+    hook_python = managed_python or Path(sys.executable).resolve()
+    if not host_controller.hook_runtime_healthy(project.resolve(), hook_python):
         result["status"] = "recovery-required"
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("hooks"), dict):
@@ -2010,9 +2005,9 @@ def _diagnostic_value(value: object, project: Path) -> object:
 
 
 def validate_diagnostic_json(document: object) -> dict[str, object]:
-    """Reject schema drift, including compatibility fields removed from JSON v1."""
-    if not isinstance(document, dict) or document.get("schemaVersion") != 1:
-        raise ValueError("diagnostic JSON schema v1 is invalid")
+    """Reject schema drift in the current diagnostic contract."""
+    if not isinstance(document, dict) or document.get("schemaVersion") != 2:
+        raise ValueError("diagnostic JSON schema v2 is invalid")
     kind = document.get("kind")
     allowed = _DIAGNOSTIC_FIELDS.get(str(kind))
     if allowed is None or set(document) - allowed:
@@ -2029,7 +2024,7 @@ def validate_diagnostic_json(document: object) -> dict[str, object]:
 
 
 def status_json(project: Path, *, active_probes: bool = False) -> dict[str, object]:
-    """Expose the stable secret-free status JSON v1 contract."""
+    """Expose the stable secret-free status JSON v2 contract."""
     state = (
         doctor_with_dependencies(project)
         if active_probes
@@ -2074,6 +2069,8 @@ def explain_json(
     report = kernel.evaluate(normalized).to_dict()
     return validate_diagnostic_json({
         **_diagnostic_value(report, project.resolve()),  # type: ignore[arg-type]
+        "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
+        "identity": CANONICAL_IDENTITY,
         "kind": "explain",
     })
 
