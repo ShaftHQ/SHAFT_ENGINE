@@ -229,6 +229,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             activation = {
                 "marketplaceName": marketplace_name,
+                "bundleRoot": str(root),
                 "ownedClients": ["codex"],
                 "pluginVersion": "1.0.0",
                 "claudeLocalBefore": None,
@@ -276,6 +277,26 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.activation_contract(second)[1],
             )
 
+    def test_activation_bundle_uses_durable_user_data_root(self):
+        module = load(HOSTS, "chaos_engine_durable_activation_root")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            manifest = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                json.dumps({"name": "chaos-engine", "version": "1.0.7"}),
+                encoding="utf-8",
+            )
+            data_root = Path(temporary) / "user-data"
+            with mock.patch.dict(module.os.environ, {"XDG_DATA_HOME": str(data_root)}):
+                root, marketplace_name, _, _ = module.activation_contract(project)
+
+            self.assertEqual(
+                data_root / "ChaosEngine/client-marketplaces" / marketplace_name,
+                root,
+            )
+            self.assertNotIn(".chaos-engine-state", str(root))
+
     def test_failed_plugin_upgrade_restores_prior_bundle_and_activation_receipt(self):
         module = load(HOSTS, "chaos_engine_plugin_upgrade_rollback")
         with tempfile.TemporaryDirectory() as temporary:
@@ -287,6 +308,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             root, marketplace_name, plugin_id, old_version = module.prepare_activation_bundle(project)
             prior = {
                 "marketplaceName": marketplace_name,
+                "bundleRoot": str(root),
                 "ownedClients": [],
                 "pluginVersion": old_version,
                 "claudeLocalBefore": None,
@@ -1933,6 +1955,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertNotIn('command = "py"', windows_codex)
         self.assertIn('commandWindows = "py"', windows_codex)
         self.assertIn('"-3", ".chaos-engine/tool.py"', windows_codex)
+        self.assertIn('cwd = "."', windows_codex)
+        self.assertNotIn('cwd = ".."', windows_codex)
 
     def test_legacy_os_baked_mcp_servers_are_replaced_not_collided(self):
         module = load(HOSTS, "chaos_engine_hosts_legacy_mcp_launch")

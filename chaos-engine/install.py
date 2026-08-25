@@ -1930,11 +1930,24 @@ def doctor_with_dependencies(
             components["memory"]["status"] = "recovery-required"
             if retrieval.get("reason"):
                 components["memory"]["reason"] = retrieval["reason"]
-    if not host_controller.mcp_runtime_healthy(project.resolve()):
+    dependency = result.get("dependencies")
+    generation_path = dependency.get("path") if isinstance(dependency, dict) else None
+    scripts = "Scripts" if os.name == "nt" else "bin"
+    python_name = "python.exe" if os.name == "nt" else "python"
+    managed_python = (
+        Path(generation_path) / "uv-tools/mempalace" / scripts / python_name
+        if isinstance(generation_path, str) else None
+    )
+    if managed_python is None or not host_controller.mcp_runtime_healthy(project.resolve(), managed_python):
         result["status"] = "recovery-required"
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
             components["mcps"]["status"] = "recovery-required"
+    if managed_python is None or not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
+        result["status"] = "recovery-required"
+        components = result.get("components")
+        if isinstance(components, dict) and isinstance(components.get("hooks"), dict):
+            components["hooks"]["status"] = "recovery-required"
     if not verify_clients:
         return result
     clients = host_controller.detected_plugin_status(project.resolve())

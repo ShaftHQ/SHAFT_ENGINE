@@ -1487,7 +1487,7 @@ class GenerationRuntimeTests(unittest.TestCase):
             generation = Path(temporary)
             target = (
                 generation
-                / "uv-python/cpython-3.10.18-linux-x86_64-gnu/bin/python3.10"
+                / "uv-python/cpython-3.11.0-linux-x86_64-gnu/bin/python3.11"
             )
             target.parent.mkdir(parents=True)
             target.write_bytes(b"managed-python")
@@ -1512,11 +1512,11 @@ class GenerationRuntimeTests(unittest.TestCase):
             module._crosscheck_dispatch_ownership(ownership, records)
 
             self.assertEqual(
-                "../../../uv-python/cpython-3.10.18-linux-x86_64-gnu/bin/python3.10",
+                "../../../uv-python/cpython-3.11.0-linux-x86_64-gnu/bin/python3.11",
                 dispatch["interpreterLinkTarget"],
             )
             self.assertEqual(
-                "uv-python/cpython-3.10.18-linux-x86_64-gnu/bin/python3.10",
+                "uv-python/cpython-3.11.0-linux-x86_64-gnu/bin/python3.11",
                 dispatch["interpreterTarget"],
             )
             self.assertEqual(str(interpreter), module.dispatch_command(
@@ -1536,10 +1536,10 @@ class GenerationRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             generation = root / "generation"
-            exact = generation / "uv-python/cpython-3.10.18-windows-x86_64-none"
+            exact = generation / "uv-python/cpython-3.11.0-windows-x86_64-none"
             exact.mkdir(parents=True)
             (exact / "python.exe").write_bytes(b"managed-python")
-            alias = generation / "uv-python/cpython-3.10-windows-x86_64-none"
+            alias = generation / "uv-python/cpython-3.11-windows-x86_64-none"
             command = shutil.which("cmd.exe")
             self.assertIsNotNone(command)
             result = subprocess.run(  # nosec B603 - resolved cmd creates a fixture junction.
@@ -1555,8 +1555,8 @@ class GenerationRuntimeTests(unittest.TestCase):
             ownership = module.sealed_ownership_record(generation)
             self.assertIn(
                 {
-                    "path": "uv-python/cpython-3.10-windows-x86_64-none",
-                    "target": "uv-python/cpython-3.10.18-windows-x86_64-none",
+                    "path": "uv-python/cpython-3.11-windows-x86_64-none",
+                    "target": "uv-python/cpython-3.11.0-windows-x86_64-none",
                     "type": "junction",
                     "tag": "0xa0000003",
                 },
@@ -1692,7 +1692,7 @@ class GenerationRuntimeTests(unittest.TestCase):
             self.assertEqual([], list(transaction_root.iterdir()))
             self.assertTrue(any("--no-cache" in command for command in commands))
             self.assertTrue(
-                any("--python" in command and "3.10" in command for command in commands)
+                any("--python" in command and "3.11" in command for command in commands)
             )
             self.assertTrue(
                 all(

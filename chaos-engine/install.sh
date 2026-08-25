@@ -186,8 +186,8 @@ if [ -z "$python" ]; then
   uv="$work/uv-${uv_target}/uv"
   [ -x "$uv" ] || fail "uv archive is missing its executable"
   export UV_PYTHON_INSTALL_DIR="$work/python"
-  "$uv" python install 3.10 --no-progress
-  set -- "$uv" run --no-project --managed-python --python 3.10 "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+  "$uv" python install 3.11 --no-progress
+  set -- "$uv" run --no-project --managed-python --python 3.11 "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 else
   set -- "$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 fi

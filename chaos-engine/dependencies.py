@@ -1356,6 +1356,10 @@ def generation_install_plan(
         else "node/lib/node_modules/npm/bin/npm-cli.js"
     )
     graphify = tools.get("graphify")
+    python_runtime = specification.get("runtimes", {}).get("python", {})
+    python_version = python_runtime.get("version") if isinstance(python_runtime, dict) else None
+    if not isinstance(python_version, str) or re.fullmatch(r"3\.\d+", python_version) is None:
+        raise ValueError("Python runtime specification is invalid")
     if not isinstance(graphify, dict):
         raise ValueError("graphify dependency specification is invalid")
     uv_commands = [[uv, "--version"]] if Path(uv).is_file() else [
@@ -1371,7 +1375,7 @@ def generation_install_plan(
             "--no-cache",
             "--managed-python",
             "--python",
-            "3.10",
+            python_version,
             "--link-mode",
             "copy",
             str(tools["mempalace"]["package"]),  # type: ignore[index]
@@ -1383,7 +1387,7 @@ def generation_install_plan(
             "--no-cache",
             "--managed-python",
             "--python",
-            "3.10",
+            python_version,
             "--link-mode",
             "copy",
             "--with",

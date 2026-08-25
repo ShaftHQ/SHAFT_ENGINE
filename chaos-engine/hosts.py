@@ -683,7 +683,7 @@ def initialize_mempalace_runtime(project: Path) -> None:
         raise
 
 
-def mcp_runtime_healthy(project: Path) -> bool:
+def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bool:
     if mempalace_runtime_status(project)["status"] != "healthy":
         return False
     skip_checkout_mempalace = (
@@ -722,10 +722,11 @@ def mcp_runtime_healthy(project: Path) -> bool:
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment.update(MEMPALACE_MCP_ENV)
+    python = str(managed_python) if managed_python is not None else sys.executable
     commands = (
-        [sys.executable, str(tool), "memory-mcp"],
+        [python, str(tool), "memory-mcp"],
         [
-            sys.executable,
+            python,
             str(tool),
             "mempalace-mcp",
             "--palace",
@@ -797,6 +798,28 @@ def mcp_runtime_healthy(project: Path) -> bool:
     return True
 
 
+def hook_runtime_healthy(project: Path, managed_python: Path) -> bool:
+    """Run changed-sensitive hook events through generated managed Python."""
+    guard = project / ".chaos-engine/hooks/guard.py"
+    if not managed_python.is_file() or not guard.is_file():
+        return False
+    for event in ("UserPromptSubmit", "PreToolUse", "PostToolUse"):
+        payload = {"hook_event_name": event, "session_id": "chaos-engine-doctor"}
+        if event != "UserPromptSubmit":
+            payload.update({"tool_name": "Bash", "tool_input": {"command": "true"}})
+        try:
+            result = subprocess.run(  # nosec B603 - receipt-owned interpreter and hook.
+                [str(managed_python), str(guard)], cwd=project, input=json.dumps(payload),
+                capture_output=True, text=True, check=False, timeout=30,
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            )
+            if result.returncode or not isinstance(json.loads(result.stdout or "{}"), dict):
+                return False
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            return False
+    return True
+
+
 def client_command(
     executable: str,
     arguments: list[str],
@@ -844,7 +867,7 @@ def activation_contract(project: Path) -> tuple[Path, str, str, str]:
     project = project.resolve()
     digest = hashlib.sha256(os.path.normcase(str(project)).encode()).hexdigest()[:12]
     marketplace_name = f"chaos-engine-{digest}"
-    root = project / ".chaos-engine-state/client-marketplace"
+    root = maven_tools_data_root() / "ChaosEngine/client-marketplaces" / marketplace_name
     manifest_path = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -854,6 +877,20 @@ def activation_contract(project: Path) -> tuple[Path, str, str, str]:
     if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
         raise ValueError("ChaosEngine plugin version is invalid")
     return root, marketplace_name, f"{PLUGIN_NAME}@{marketplace_name}", version
+
+
+def activation_bundle_root(activation: dict[str, object]) -> Path:
+    """Return the exact receipt-owned durable marketplace path."""
+    name = activation.get("marketplaceName")
+    encoded_root = activation.get("bundleRoot")
+    if not isinstance(name, str) or re.fullmatch(r"chaos-engine-[0-9a-f]{12}", name) is None:
+        raise ValueError("ChaosEngine client activation receipt is invalid")
+    if not isinstance(encoded_root, str):
+        raise ValueError("ChaosEngine client activation receipt has no bundle root")
+    root = Path(encoded_root)
+    if not root.is_absolute() or root.name != name or root.parent.name != "client-marketplaces":
+        raise ValueError("ChaosEngine client activation receipt bundle root is invalid")
+    return root
 
 
 def activation_plugins(project: Path, marketplace_name: str) -> dict[str, dict[str, object]]:
@@ -1219,6 +1256,7 @@ def record_client_activation(project: Path, activation: dict[str, object]) -> No
         raise ValueError("ChaosEngine host activation requires an installed receipt")
     receipt["clientActivation"] = {
         "marketplaceName": activation["marketplaceName"],
+        "bundleRoot": activation["bundleRoot"],
         "ownedClients": activation["ownedClients"],
         "pluginVersion": activation["pluginVersion"],
         "claudeLocalBefore": activation["claudeLocalBefore"],
@@ -1333,6 +1371,7 @@ def activate_detected_plugins(
         "createdMarketplaces": created_marketplaces,
         "createdPlugins": created_plugins,
         "marketplaceName": marketplace_name,
+        "bundleRoot": str(root),
     }
     try:
         for client in ("codex", "claude"):
@@ -2390,12 +2429,12 @@ def codex_content(
         f"args = [{memory_args}]\n"
         f'commandWindows = "{windows_command}"\n'
         f'argsWindows = [{windows_prefix}{memory_args}]\n'
-        'cwd = ".."\n\n'
+        'cwd = "."\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"\n'
         f"args = [{mempalace_args}]\n"
         f'commandWindows = "{windows_command}"\n'
         f'argsWindows = [{windows_prefix}{mempalace_args}]\n'
-        'cwd = ".."\n'
+        'cwd = "."\n'
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
     if maven_runtime is not None:
@@ -3987,10 +4026,12 @@ def finalize_uninstall(project: Path) -> None:
     anchor = host_anchor_path(project)
     if anchor.name.startswith(ACTIVE_ANCHOR_PREFIX):
         anchor = move_anchor(project, anchor, REMOVING_ANCHOR_PREFIX)
-    activation_root = project / ".chaos-engine-state/client-marketplace"
-    if activation_root.exists():
+    activation = receipt.get("clientActivation")
+    activation_root = activation_bundle_root(activation) if isinstance(activation, dict) else None
+    if activation_root is not None and activation_root.exists():
         if is_link_or_reparse(activation_root) or not activation_root.is_dir():
             raise ValueError("ChaosEngine activation marketplace collision")
+        activation_plugins_from_root(activation_root, str(activation["marketplaceName"]))
         shutil.rmtree(activation_root)
     receipt_path.unlink()
     anchor.unlink()
