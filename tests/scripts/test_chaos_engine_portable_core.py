@@ -908,6 +908,17 @@ class ChaosEngineOrchestratorModeTest(unittest.TestCase):
         ]
         return re.sub(r"\s+", " ", "\n".join(texts))
 
+    def test_orchestrator_follow_through_is_inspect_and_adapt_not_waiting(self):
+        follow_through = CORE / "references/orchestrator-follow-through.md"
+        self.assertTrue(follow_through.is_file())
+        policy = re.sub(r"\s+", " ", follow_through.read_text(encoding="utf-8"))
+        self.assertIn("at most every five minutes", policy)
+        self.assertIn("While any writer or required check is live", policy)
+        self.assertIn("No live writers or required checks: no scheduler", policy)
+        self.assertIn("ask what is blocked and what would unblock", policy.lower())
+        self.assertIn("Never a heartbeat", policy)
+        self.assertIn("Opening a PR does not complete follow-through", policy)
+
     def test_entrypoint_auto_switches_and_forbids_self_work_with_serial_default(self):
         skill = self._skill()
         self.assertIn('Do not wait for the owner to say "orchestrate"', skill)
