@@ -530,6 +530,13 @@ def verify_account_phase(project: Path, expected_commit: str) -> dict[str, objec
         "actions": {
             name: record.get("action") for name, record in components.items()
         },
+        "versions": {
+            name: {
+                "installed": record.get("installedVersion"),
+                "resolved": record.get("resolvedVersion"),
+            }
+            for name, record in components.items()
+        },
     }
 
 
