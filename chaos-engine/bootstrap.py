@@ -9,6 +9,7 @@ from contextlib import contextmanager
 import email.utils
 import hashlib
 import json
+import math
 import os
 import re
 import runpy
@@ -59,6 +60,7 @@ BRAND_NARROW = (
     "  ChaosEngine",
 )
 TRACE_LIMIT = 12
+STALL_SECONDS = 8.0
 
 
 def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) -> list[str]:
@@ -156,6 +158,7 @@ class InstallReporter:
         self._download_total: int | None = None
         self._downloaded = 0
         self._download_samples = deque(maxlen=30)
+        self._displayed_eta: float | None = None
         self.detail: str | None = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -243,6 +246,9 @@ class InstallReporter:
         seconds = max(0, round(seconds))
         minutes, seconds = divmod(seconds, 60)
         return f"{minutes:02d}:{seconds:02d}"
+
+    def _eta_duration(self, seconds: float) -> str:
+        return self._duration(max(1, math.ceil(seconds)))
 
     def _pause_current(self, now: float) -> None:
         if self.current_operation is None or self._current_started is None:
@@ -338,6 +344,11 @@ class InstallReporter:
                 self.detail = detail
             if self._tty:
                 self._render_locked()
+            if self._thread is None:
+                self._thread = threading.Thread(
+                    target=self._ticker, name="chaos-engine-installer", daemon=True
+                )
+                self._thread.start()
 
     def downloaded(self, count: int) -> None:
         if count <= 0:
@@ -360,11 +371,39 @@ class InstallReporter:
                 self._render_locked()
 
     def _remaining(self, now: float) -> str | None:
-        del now
         rate = self._download_rate()
-        if rate is None or self._download_total is None:
+        stage_estimate = self._stage_estimate()
+        pending_count = sum(
+            operation not in self._in_flight for operation in self.remaining_operations
+        )
+        if self._download_total is not None and rate is not None:
+            candidate = max(0, self._download_total - self._downloaded) / rate
+            candidate += pending_count * stage_estimate
+        elif self.current_operation is not None and stage_estimate > 0:
+            current_elapsed = self._elapsed_as_current.get(self.current_operation, 0.0)
+            if self._current_started is not None:
+                current_elapsed += max(0.0, now - self._current_started)
+            candidate = max(0.0, stage_estimate - current_elapsed)
+            candidate += pending_count * stage_estimate
+        elif self._transfer_stalled(now) and self._displayed_eta is not None:
+            return self._eta_duration(self._displayed_eta)
+        else:
             return None
-        return self._duration(max(0, self._download_total - self._downloaded) / rate)
+        self._displayed_eta = candidate if self._displayed_eta is None else min(
+            self._displayed_eta, candidate
+        )
+        return self._eta_duration(self._displayed_eta)
+
+    def _stage_estimate(self) -> float:
+        durations = [value for value in self._completed_elapsed.values() if value > 0]
+        return sum(durations) / len(durations) if durations else 0.0
+
+    def _transfer_stalled(self, now: float) -> bool:
+        return bool(
+            self._download_total is not None
+            and self._download_samples
+            and now - self._download_samples[-1][0] > STALL_SECONDS
+        )
 
     def _download_rate(self) -> float | None:
         if len(self._download_samples) < 2:
@@ -373,7 +412,7 @@ class InstallReporter:
         ended, last = self._download_samples[-1]
         elapsed = ended - started
         transferred = last - first
-        if elapsed < 1.0 or transferred <= 0:
+        if elapsed < 1.0 or transferred <= 0 or self.clock() - ended > STALL_SECONDS:
             return None
         return transferred / elapsed
 
@@ -423,6 +462,8 @@ class InstallReporter:
         remaining = self._remaining(now)
         if remaining is not None:
             metrics.append(f"remaining {remaining}")
+        if self._transfer_stalled(now):
+            metrics.append("waiting for data")
         lines.extend(("", self._paint(self._truncate("  " + separator.join(metrics)), "36")))
         if self.detail:
             lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
@@ -440,6 +481,26 @@ class InstallReporter:
         self.stream.write(rendered)
         self.stream.flush()
         self._lines = len(lines)
+
+    def success(
+        self, project: Path, doctor: dict[str, object], clients: dict[str, object]
+    ) -> None:
+        components = doctor.get("components")
+        components = components if isinstance(components, dict) else {}
+        def group_status(names: tuple[str, ...]) -> str:
+            states = [
+                value.get("status")
+                for name, value in components.items()
+                if name in names and isinstance(value, dict)
+            ]
+            return "ready" if states and all(state == "healthy" for state in states) else "not reported"
+        third_party = "ready" if clients else "unavailable"
+        self.stream.write(f"Owned managed dependencies: {group_status(('tools', 'memory', 'mempalace', 'graphify', 'maven-tools-mcp'))}\n")
+        self.stream.write(f"Repository-declared components: {group_status(('core', 'skills', 'playbooks', 'hooks', 'plugins', 'retrieval-config'))}\n")
+        self.stream.write(f"Third-party readiness: {third_party}\n")
+        self.stream.write("Start a new coding agent session with:\n")
+        self.stream.write(f"Continue working in {Path(project).resolve()}.\n")
+        self.stream.flush()
 
     def close(self) -> None:
         self._stop.set()
@@ -847,6 +908,7 @@ def install_latest(
         raise
     if terminal_context is not None:
         terminal_context.__exit__(None, None, None)
+    reporter.success(project, doctor, doctor["clients"])
     reporter.close()
     return {
         "status": "installed",

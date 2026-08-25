@@ -187,7 +187,153 @@ class InstallerUxTests(unittest.TestCase):
                 reporter._stop.set()
                 reporter._thread = None
 
-    def test_nested_start_keeps_inflight_stage_visible_without_fabricated_eta(self):
+    def test_whole_install_eta_includes_pending_stages_and_never_rounds_to_zero(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        class Clock:
+            now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        clock = Clock()
+        stream = Tty()
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}), unittest.mock.patch.object(
+            BOOTSTRAP.threading.Thread, "start", lambda self: None
+        ):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+            try:
+                reporter.start("Resolve source", remaining=("Download source", "Install core", "Verify installation"))
+                clock.now = 4.0
+                reporter.complete("Resolve source", remaining=("Download source", "Install core", "Verify installation"))
+                reporter.start("Download source", remaining=("Install core", "Verify installation"))
+                reporter.begin_download(1000)
+                clock.now = 5.0
+                reporter.downloaded(250)
+                clock.now = 6.0
+                reporter.downloaded(250)
+                self.assertEqual("00:10", reporter._remaining(clock.now))
+                rounding = BOOTSTRAP.InstallReporter(stream=io.StringIO(), clock=clock)
+                rounding.start("Download source")
+                rounding.begin_download(3)
+                clock.now = 7.0
+                rounding.downloaded(2)
+                self.assertEqual("00:01", rounding._remaining(clock.now))
+            finally:
+                reporter._stop.set()
+                reporter._thread = None
+
+    def test_stalled_transfer_waits_without_stale_speed_and_keeps_eta(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        class Clock:
+            now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        clock = Clock()
+        stream = Tty()
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}), unittest.mock.patch.object(
+            BOOTSTRAP.threading.Thread, "start", lambda self: None
+        ):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+            try:
+                reporter.start("Download source", remaining=("Install core",))
+                reporter.begin_download(1000)
+                clock.now = 1.0
+                reporter.downloaded(250)
+                clock.now = 2.0
+                reporter.downloaded(250)
+                self.assertEqual("00:02", reporter._remaining(clock.now))
+                stream.seek(0)
+                stream.truncate(0)
+                clock.now = 11.0
+                reporter._render_locked()
+                output = stream.getvalue()
+                self.assertIn("waiting for data", output)
+                self.assertIn("remaining 00:02", output)
+                self.assertNotIn("250 B/s", output)
+            finally:
+                reporter._stop.set()
+                reporter._thread = None
+
+    def test_eta_ceiling_never_increases_while_progress_advances(self):
+        class Clock:
+            now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        clock = Clock()
+        reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO(), clock=clock)
+        reporter.start("Resolve source", remaining=("Download source", "Install core"))
+        clock.now = 4.0
+        reporter.complete("Resolve source", remaining=("Download source", "Install core"))
+        reporter.start("Download source", remaining=("Install core",))
+        reporter.begin_download(1000)
+        clock.now = 5.0
+        reporter.downloaded(500)
+        first = reporter._remaining(clock.now)
+        clock.now = 7.0
+        reporter.downloaded(1)
+        self.assertEqual(first, reporter._remaining(clock.now))
+        reporter.close()
+
+    def test_redirected_stalled_transfer_emits_waiting_heartbeat(self):
+        class Clock:
+            now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        clock = Clock()
+        stream = io.StringIO()
+        with unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+            reporter.start("Download source")
+            reporter.begin_download(1000)
+        self.assertIsNotNone(reporter._thread)
+        reporter._stop.set()
+        reporter._thread = None
+        clock.now = 1.0
+        reporter.downloaded(250)
+        clock.now = 2.0
+        reporter.downloaded(250)
+        reporter._remaining(clock.now)
+        stream.seek(0)
+        stream.truncate(0)
+        clock.now = 11.0
+        reporter._stop = unittest.mock.Mock()
+        reporter._stop.wait.side_effect = (False, True)
+        reporter._ticker()
+        output = stream.getvalue()
+        self.assertIn("waiting for data", output)
+        self.assertIn("remaining 00:02", output)
+        self.assertNotIn("B/s", output)
+
+    def test_success_cta_reports_owned_and_third_party_readiness_on_stderr(self):
+        stream = io.StringIO()
+        reporter = BOOTSTRAP.InstallReporter(stream=stream)
+        reporter.start("Activate clients")
+        reporter.complete("Activate clients")
+        reporter.success(
+            Path("/project"),
+            {"components": {"memory": {"status": "healthy"}, "core": {"status": "healthy"}}},
+            {},
+        )
+        output = stream.getvalue()
+        self.assertLess(output.index("DONE  Activate clients"), output.index("Start a new coding agent session"))
+        self.assertIn("Owned managed dependencies: ready", output)
+        self.assertIn("Repository-declared components: ready", output)
+        self.assertIn("Third-party readiness: unavailable", output)
+        self.assertIn("Continue working in /project.", output)
+
+    def test_nested_start_keeps_inflight_stage_visible_with_learned_eta(self):
         class Clock:
             def __init__(self):
                 self.now = 0.0
@@ -213,7 +359,7 @@ class InstallerUxTests(unittest.TestCase):
         )
         reporter.start("Provision dependencies", remaining=("Verify installation",))
         self.assertIn("Install core", getattr(reporter, "_in_flight", ()))
-        self.assertIsNone(reporter._remaining(clock.now))
+        self.assertEqual("00:08", reporter._remaining(clock.now))
 
     def test_non_tty_history_has_timestamp_result_duration_and_current_action(self):
         class Clock:
