@@ -1570,6 +1570,16 @@ class GenerationRuntimeTests(unittest.TestCase):
             self.assertFalse(generation.exists())
             self.assertFalse(exact.exists())
 
+    def test_windows_uv_python_alias_accepts_configured_minor_version(self):
+        module = load_controller()
+
+        match = module.WINDOWS_UV_ALIAS.fullmatch(
+            "uv-python/cpython-3.11-windows-x86_64-none"
+        )
+
+        self.assertIsNotNone(match)
+        self.assertEqual("3.11", match.group("version"))
+
     def test_candidate_cleanup_preserves_primary_install_error(self):
         module = load_controller()
         specification = json.loads(
