@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import os
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
 import unittest
@@ -636,6 +637,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             project = Path(temporary) / "project"
             project.mkdir()
             opener, _ = self.opener([(COMMIT_ONE, "full")])
+            data_root = Path(temporary).resolve() / "user-data"
+            data_variable = "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME"
 
             def provisioner(runtime, specification):
                 def runner(command, environment):
@@ -648,16 +651,17 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
 
                 return dependency_module.repair(runtime, specification, runner=runner)
 
-            result = module.install_latest(
-                project,
-                repository="Example/Project",
-                branch="main",
-                opener=opener,
-                provisioner=provisioner,
-            )
+            with mock.patch.dict(os.environ, {data_variable: str(data_root)}, clear=False):
+                result = module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                    provisioner=provisioner,
+                )
 
-            installed = module.load_installer(project / ".chaos-engine")
-            status = installed.status_with_dependencies(project)
+                installed = module.load_installer(project / ".chaos-engine")
+                status = installed.status_with_dependencies(project)
             self.assertEqual(COMMIT_ONE, result["commit"])
             self.assertEqual("healthy", status["status"])
             self.assertEqual("healthy", status["hosts"]["status"])
@@ -692,13 +696,14 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertTrue(project.joinpath(".mcp.json").is_file())
 
             same, _ = self.opener([(COMMIT_ONE, "full")])
-            repeated = module.install_latest(
-                project,
-                repository="example/project",
-                branch="main",
-                opener=same,
-                provisioner=provisioner,
-            )
+            with mock.patch.dict(os.environ, {data_variable: str(data_root)}, clear=False):
+                repeated = module.install_latest(
+                    project,
+                    repository="example/project",
+                    branch="main",
+                    opener=same,
+                    provisioner=provisioner,
+                )
             self.assertEqual(COMMIT_ONE, repeated["commit"])
 
     def test_public_bootstrap_upgrade_repairs_missing_mempalace(self):

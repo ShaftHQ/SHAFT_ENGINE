@@ -89,9 +89,16 @@ class InstallerUxTests(unittest.TestCase):
         stream = Tty()
         with unittest.mock.patch.dict(os.environ, {"TERM": "xterm", "NO_COLOR": "1"}):
             reporter = BOOTSTRAP.InstallReporter(stream=stream)
-            reporter.start("Verify installation")
-            time.sleep(2.2)
-            reporter.close()
+            try:
+                reporter.start("Verify installation")
+                deadline = time.monotonic() + 5
+                while (
+                    "Elapsed 00:02" not in stream.getvalue()
+                    and time.monotonic() < deadline
+                ):
+                    time.sleep(0.05)
+            finally:
+                reporter.close()
         output = stream.getvalue()
         self.assertIn("Elapsed 00:01", output)
         self.assertIn("Elapsed 00:02", output)

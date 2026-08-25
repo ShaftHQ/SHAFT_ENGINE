@@ -37,7 +37,7 @@ class ManagedRuntimeManifestTest(TestCase):
     def test_manifest_pins_all_supported_runtime_artifacts(self):
         self.assertEqual(2, self.specification["schemaVersion"])
         self.assertEqual("0.11.29", self.specification["runtimes"]["uv"]["version"])
-        self.assertEqual("3.10", self.specification["runtimes"]["python"]["version"])
+        self.assertEqual("3.11", self.specification["runtimes"]["python"]["version"])
         self.assertEqual("24.19.0", self.specification["runtimes"]["node"]["version"])
         self.assertEqual("25.0.4+7", self.specification["runtimes"]["temurin"]["version"])
         for runtime in ("uv", "node"):
@@ -248,7 +248,7 @@ class ManagedRuntimeCliTest(TestCase):
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
         for document in (shell, powershell):
             self.assertIn("0.11.29", document)
-            self.assertIn("3.10", document)
+            self.assertIn("3.11", document)
         self.assertIn("--with-maven-tools", shell)
         self.assertIn("WithMavenTools", powershell)
 

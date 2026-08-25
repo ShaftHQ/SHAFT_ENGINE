@@ -304,9 +304,9 @@ try {
     if ($null -eq $python) {
         $uv = Install-ChaosEngineUv $work
         $env:UV_PYTHON_INSTALL_DIR = Join-Path $work "python"
-        & $uv python install 3.10 --no-progress
+        & $uv python install 3.11 --no-progress
         if ($LASTEXITCODE -ne 0) { throw "uv-managed Python installation failed" }
-        $invoke = @($uv, "run", "--no-project", "--managed-python", "--python", "3.10") + $arguments
+        $invoke = @($uv, "run", "--no-project", "--managed-python", "--python", "3.11") + $arguments
     }
     else { $invoke = @($python) + $arguments }
     & $invoke[0] @($invoke[1..($invoke.Length - 1)])

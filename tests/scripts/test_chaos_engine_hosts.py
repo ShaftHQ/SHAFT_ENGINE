@@ -229,6 +229,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             activation = {
                 "marketplaceName": marketplace_name,
+                "bundleRoot": str(root),
                 "ownedClients": ["codex"],
                 "pluginVersion": "1.0.0",
                 "claudeLocalBefore": None,
@@ -276,6 +277,163 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.activation_contract(second)[1],
             )
 
+    def test_activation_bundle_uses_durable_user_data_root(self):
+        module = load(HOSTS, "chaos_engine_durable_activation_root")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            manifest = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                json.dumps({"name": "chaos-engine", "version": "1.0.7"}),
+                encoding="utf-8",
+            )
+            data_root = Path(temporary) / "user-data"
+            with mock.patch.dict(module.os.environ, {"XDG_DATA_HOME": str(data_root)}):
+                root, marketplace_name, _, _ = module.activation_contract(project)
+
+            self.assertEqual(
+                data_root / "ChaosEngine/client-marketplaces" / marketplace_name,
+                root,
+            )
+            self.assertNotIn(".chaos-engine-state", str(root))
+
+    def test_activation_removes_only_proven_stale_owned_marketplace(self):
+        module = load(HOSTS, "chaos_engine_stale_owned_marketplace")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+            module.install(project, core_commit="1" * 40)
+            root, marketplace_name, _, _ = module.activation_contract(project)
+            stale_root = project / ".chaos-engine-state/client-marketplace"
+            state = {"stale": True, "marketplace": False, "plugins": set()}
+            calls = []
+
+            def runner(command, **_options):
+                calls.append(command)
+                joined = " ".join(command[1:])
+                if "marketplace list" in joined and state["stale"]:
+                    return mock.Mock(
+                        returncode=1,
+                        stdout="",
+                        stderr=(
+                            "Error: failed to load marketplace(s): "
+                            f"- `{marketplace_name}` at {stale_root} "
+                            "marketplace root does not contain a supported manifest"
+                        ),
+                    )
+                if "marketplace list" in joined:
+                    value = {
+                        "marketplaces": [
+                            {"name": marketplace_name, "root": str(root)}
+                        ]
+                        if state["marketplace"]
+                        else []
+                    }
+                elif "marketplace remove" in joined:
+                    state["stale"] = False
+                    value = {}
+                elif "marketplace add" in joined:
+                    state["marketplace"] = True
+                    value = {}
+                elif "plugin list" in joined:
+                    contracts = module.activation_plugins(project, marketplace_name)
+                    value = {
+                        "installed": [
+                            {
+                                "pluginId": contracts[name]["id"],
+                                "version": contracts[name]["version"],
+                                "installed": True,
+                                "enabled": True,
+                                "source": {"path": str(root / f"plugins/{name}")},
+                            }
+                            for name in state["plugins"]
+                        ],
+                        "available": [],
+                    }
+                elif "plugin add" in joined:
+                    plugin_id = next(item for item in command if "@" in item)
+                    state["plugins"].add(plugin_id.split("@", 1)[0])
+                    value = {}
+                else:
+                    raise AssertionError(command)
+                return mock.Mock(returncode=0, stdout=json.dumps(value), stderr="")
+
+            receipt = module.activate_detected_plugins(
+                project,
+                runner=runner,
+                which=lambda name: name if name == "codex" else None,
+            )
+
+            self.assertEqual("healthy", receipt["clients"]["codex"]["status"])
+            self.assertEqual(
+                1,
+                sum(
+                    command[1:] == ["plugin", "marketplace", "remove", marketplace_name]
+                    for command in calls
+                ),
+            )
+
+    def test_activation_preserves_unclassified_broken_marketplace(self):
+        module = load(HOSTS, "chaos_engine_unclassified_broken_marketplace")
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            cases = []
+            for label in ("foreign", "unknown", "valid", "linked"):
+                project = base / label / "consumer"
+                canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+                canonical.parent.mkdir(parents=True)
+                canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+                module.install(project, core_commit="1" * 40)
+                _, marketplace_name, _, _ = module.activation_contract(project)
+                stale_root = project / ".chaos-engine-state/client-marketplace"
+                reported_name = marketplace_name
+                reported_root = stale_root
+                if label == "foreign":
+                    reported_name = "foreign-marketplace"
+                elif label == "unknown":
+                    reported_root = base / "unknown-marketplace-root"
+                elif label == "valid":
+                    manifest = stale_root / ".agents/plugins/marketplace.json"
+                    manifest.parent.mkdir(parents=True)
+                    manifest.write_text("{}\n", encoding="utf-8")
+                cases.append((label, project, reported_name, reported_root))
+
+            for label, project, reported_name, reported_root in cases:
+                calls = []
+
+                def runner(command, **_options):
+                    calls.append(command)
+                    return mock.Mock(
+                        returncode=1,
+                        stdout="",
+                        stderr=(
+                            "Error: failed to load marketplace(s): "
+                            f"- `{reported_name}` at {reported_root} "
+                            "marketplace root does not contain a supported manifest"
+                        ),
+                    )
+
+                real_link_check = module.is_link_or_reparse
+                with self.subTest(case=label), mock.patch.object(
+                    module,
+                    "is_link_or_reparse",
+                    side_effect=lambda path: (
+                        label == "linked" and Path(path) == reported_root
+                    ) or real_link_check(path),
+                ), self.assertRaisesRegex(
+                    RuntimeError, "marketplace root does not contain a supported manifest"
+                ):
+                    module.activate_detected_plugins(
+                        project,
+                        runner=runner,
+                        which=lambda name: name if name == "codex" else None,
+                    )
+                self.assertFalse(
+                    any("marketplace remove" in " ".join(command[1:]) for command in calls)
+                )
+
     def test_failed_plugin_upgrade_restores_prior_bundle_and_activation_receipt(self):
         module = load(HOSTS, "chaos_engine_plugin_upgrade_rollback")
         with tempfile.TemporaryDirectory() as temporary:
@@ -287,6 +445,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             root, marketplace_name, plugin_id, old_version = module.prepare_activation_bundle(project)
             prior = {
                 "marketplaceName": marketplace_name,
+                "bundleRoot": str(root),
                 "ownedClients": [],
                 "pluginVersion": old_version,
                 "claudeLocalBefore": None,
@@ -1473,6 +1632,77 @@ class ChaosEngineHostsTest(unittest.TestCase):
             with mock.patch.object(module.subprocess, "run", return_value=invalid):
                 self.assertFalse(module.mcp_runtime_healthy(project))
 
+    def test_doctor_mcp_probe_uses_configured_cwd_and_managed_python(self):
+        module = load(HOSTS, "chaos_engine_doctor_configured_mcp")
+        response = mock.Mock(
+            returncode=0,
+            stdout=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}) + "\n",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            tool = project / ".chaos-engine/tool.py"
+            tool.parent.mkdir()
+            tool.write_text("# owned\n", encoding="utf-8")
+            module.initialize_mempalace_runtime(project)
+            managed_python = project / "managed/python"
+            managed_python.parent.mkdir()
+            managed_python.write_bytes(b"python")
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=[response, mock.Mock(
+                    returncode=0,
+                    stdout="\n".join((
+                        response.stdout.strip(),
+                        json.dumps({
+                            "jsonrpc": "2.0",
+                            "id": 2,
+                            "result": {"content": [{
+                                "type": "text",
+                                "text": json.dumps({
+                                    "backend": "sqlite_exact",
+                                    "total_drawers": 0,
+                                }),
+                            }]},
+                        }),
+                    )) + "\n",
+                )],
+            ) as run:
+                self.assertTrue(module.mcp_runtime_healthy(project, managed_python))
+
+            self.assertEqual(2, run.call_count)
+            for call in run.call_args_list:
+                self.assertEqual(managed_python, Path(call.args[0][0]))
+                self.assertEqual(project, call.kwargs["cwd"])
+            self.assertEqual(str(tool), run.call_args_list[0].args[0][1])
+
+    def test_hook_runtime_probe_executes_prompt_pre_and_post_with_managed_python(self):
+        module = load(HOSTS, "chaos_engine_doctor_hook_events")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            guard = project / ".chaos-engine/hooks/guard.py"
+            guard.parent.mkdir(parents=True)
+            guard.write_text("# owned\n", encoding="utf-8")
+            managed_python = project / "managed/python"
+            managed_python.parent.mkdir()
+            managed_python.write_bytes(b"python")
+            result = mock.Mock(returncode=0, stdout="{}\n")
+            with mock.patch.object(module.subprocess, "run", return_value=result) as run:
+                self.assertTrue(module.hook_runtime_healthy(project, managed_python))
+
+            self.assertEqual(3, run.call_count)
+            payloads = [json.loads(call.kwargs["input"]) for call in run.call_args_list]
+            self.assertEqual(
+                ["UserPromptSubmit", "PreToolUse", "PostToolUse"],
+                [payload["hook_event_name"] for payload in payloads],
+            )
+            self.assertNotIn("tool_name", payloads[0])
+            for call, payload in zip(run.call_args_list, payloads):
+                self.assertEqual([str(managed_python), str(guard)], call.args[0])
+                self.assertEqual(project, call.kwargs["cwd"])
+                if payload["hook_event_name"] != "UserPromptSubmit":
+                    self.assertEqual("Bash", payload["tool_name"])
+
     def test_mempalace_runtime_state_is_fail_closed_before_native_launch(self):
         module = load(HOSTS, "chaos_engine_mempalace_runtime_state")
         self.assertTrue(hasattr(module, "mempalace_runtime_status"))
@@ -1933,6 +2163,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertNotIn('command = "py"', windows_codex)
         self.assertIn('commandWindows = "py"', windows_codex)
         self.assertIn('"-3", ".chaos-engine/tool.py"', windows_codex)
+        self.assertIn('cwd = "."', windows_codex)
+        self.assertNotIn('cwd = ".."', windows_codex)
 
     def test_legacy_os_baked_mcp_servers_are_replaced_not_collided(self):
         module = load(HOSTS, "chaos_engine_hosts_legacy_mcp_launch")

@@ -153,6 +153,25 @@ def sanitize(value: object) -> str:
     return text[:head_size] + SANITIZER_TRUNCATION_MARKER + text[-tail_size:]
 
 
+def installer_failure_detail(value: str) -> str:
+    headline = next(
+        (line.strip() for line in value.splitlines() if "CE-INSTALL-" in line),
+        None,
+    )
+    if headline is None:
+        return value
+    fields: list[str] = []
+    for token in value.split():
+        if "/issues/new?" not in token:
+            continue
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(token).query)
+        for key, label in (("failed_phase", "failed phase"), ("unhealthy", "unhealthy")):
+            if query.get(key):
+                fields.append(f"{label}: {query[key][0]}")
+        break
+    return "; ".join((headline, *fields))
+
+
 def run_checked(
     command: list[str],
     *,
@@ -172,6 +191,7 @@ def run_checked(
     )
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or "no process output"
+        detail = installer_failure_detail(detail)
         raise RuntimeError(f"command failed ({result.returncode}): {sanitize(detail)}")
     return result
 
@@ -181,6 +201,16 @@ def read_json(path: Path) -> dict[str, object]:
     if not isinstance(value, dict):
         raise RuntimeError(f"expected JSON object: {path.name}")
     return value
+
+
+def managed_python_version(installed: Path) -> str:
+    dependencies = read_json(installed / "dependencies.json")
+    runtimes = dependencies.get("runtimes")
+    python = runtimes.get("python") if isinstance(runtimes, dict) else None
+    version = python.get("version") if isinstance(python, dict) else None
+    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+", version) is None:
+        raise RuntimeError("installed managed Python version is invalid")
+    return version
 
 
 def stage_source(source: Path, destination: Path) -> Path:
@@ -305,6 +335,7 @@ def probe_mempalace_mcp(tool: Path, project: Path) -> None:
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     installed = project / ".chaos-engine"
+    python_version = managed_python_version(installed)
     status = json.loads(
         run_checked(
             [
@@ -374,8 +405,8 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
             timeout=60,
         )
         output = f"{version.stdout}\n{version.stderr}"
-        if "Python 3.10." not in output:
-            raise RuntimeError(f"{name} is not using managed Python 3.10")
+        if f"Python {python_version}." not in output:
+            raise RuntimeError(f"{name} is not using managed Python {python_version}")
     if any((active_root / name).exists() for name in ("uv-cache", "npm-cache", ".cache")):
         raise RuntimeError("transaction cache leaked into immutable generation")
     transactions = project / ".chaos-engine-runtime-transactions"
@@ -387,7 +418,7 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
         "active": str(active["generationId"]),
         "previous": None if previous is None else str(previous["generationId"]),
         "generationCount": len(generation_names),
-        "managedPython": "3.10",
+        "managedPython": python_version,
         "cacheState": "absent",
     }
 

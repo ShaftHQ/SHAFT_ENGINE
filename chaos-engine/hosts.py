@@ -683,7 +683,7 @@ def initialize_mempalace_runtime(project: Path) -> None:
         raise
 
 
-def mcp_runtime_healthy(project: Path) -> bool:
+def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bool:
     if mempalace_runtime_status(project)["status"] != "healthy":
         return False
     skip_checkout_mempalace = (
@@ -722,10 +722,11 @@ def mcp_runtime_healthy(project: Path) -> bool:
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment.update(MEMPALACE_MCP_ENV)
+    python = str(managed_python) if managed_python is not None else sys.executable
     commands = (
-        [sys.executable, str(tool), "memory-mcp"],
+        [python, str(tool), "memory-mcp"],
         [
-            sys.executable,
+            python,
             str(tool),
             "mempalace-mcp",
             "--palace",
@@ -797,6 +798,28 @@ def mcp_runtime_healthy(project: Path) -> bool:
     return True
 
 
+def hook_runtime_healthy(project: Path, managed_python: Path) -> bool:
+    """Run changed-sensitive hook events through generated managed Python."""
+    guard = project / ".chaos-engine/hooks/guard.py"
+    if not managed_python.is_file() or not guard.is_file():
+        return False
+    for event in ("UserPromptSubmit", "PreToolUse", "PostToolUse"):
+        payload = {"hook_event_name": event, "session_id": "chaos-engine-doctor"}
+        if event != "UserPromptSubmit":
+            payload.update({"tool_name": "Bash", "tool_input": {"command": "true"}})
+        try:
+            result = subprocess.run(  # nosec B603 - receipt-owned interpreter and hook.
+                [str(managed_python), str(guard)], cwd=project, input=json.dumps(payload),
+                capture_output=True, text=True, check=False, timeout=30,
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            )
+            if result.returncode or not isinstance(json.loads(result.stdout or "{}"), dict):
+                return False
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            return False
+    return True
+
+
 def client_command(
     executable: str,
     arguments: list[str],
@@ -831,6 +854,86 @@ def client_json(
         raise RuntimeError("client plugin command returned invalid JSON") from error
 
 
+_STALE_MARKETPLACE_ERROR = re.compile(
+    r"^(?:client plugin command failed:\s*)?(?:Error:\s*)?"
+    r"failed to load (?:configured )?marketplace(?: snapshot)?\(s\):\s*-\s*"
+    r"`(?P<name>chaos-engine-[0-9a-f]{12})`\s+at\s+(?P<root>.+?)"
+    r"(?::\s*|\s+)marketplace root does not contain a supported manifest\.?\s*$",
+    re.DOTALL,
+)
+_SUPPORTED_MARKETPLACE_MANIFESTS = (
+    ".agents/plugins/marketplace.json",
+    ".agents/plugins/api_marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".cursor-plugin/marketplace.json",
+)
+
+
+def stale_owned_marketplace(error: RuntimeError) -> str | None:
+    match = _STALE_MARKETPLACE_ERROR.fullmatch(str(error))
+    if match is None:
+        return None
+    name = match.group("name")
+    root = Path(match.group("root").strip())
+    if not root.is_absolute():
+        return None
+    try:
+        if any(is_link_or_reparse(path) for path in (root, *root.parents)):
+            return None
+    except OSError:
+        return None
+    parts = tuple(os.path.normcase(part) for part in root.parts)
+    durable = parts[-3:] == (
+        os.path.normcase("ChaosEngine"),
+        os.path.normcase("client-marketplaces"),
+        os.path.normcase(name),
+    )
+    legacy = parts[-2:] == (
+        os.path.normcase(".chaos-engine-state"),
+        os.path.normcase("client-marketplace"),
+    )
+    if legacy:
+        try:
+            project = root.parent.parent.resolve()
+        except OSError:
+            return None
+        digest = hashlib.sha256(os.path.normcase(str(project)).encode()).hexdigest()[:12]
+        legacy = name == f"chaos-engine-{digest}"
+    if not durable and not legacy:
+        return None
+    try:
+        supported_manifest = any(
+            (root / relative).exists() or is_link_or_reparse(root / relative)
+            for relative in _SUPPORTED_MARKETPLACE_MANIFESTS
+        )
+    except OSError:
+        return None
+    if supported_manifest:
+        return None
+    return name
+
+
+def remove_stale_marketplace_before_activation(
+    client: str,
+    executable: str,
+    project: Path,
+    *,
+    runner=subprocess.run,
+) -> None:
+    arguments = ["plugin", "marketplace", "list", "--json"]
+    try:
+        client_json(executable, arguments, project, runner=runner)
+    except RuntimeError as error:
+        marketplace_name = stale_owned_marketplace(error)
+        if marketplace_name is None:
+            raise
+        remove = ["plugin", "marketplace", "remove", marketplace_name]
+        if client == "claude":
+            remove.extend(["--scope", "local"])
+        client_command(executable, remove, project, runner=runner)
+        client_json(executable, arguments, project, runner=runner)
+
+
 def same_path(left: object, right: Path) -> bool:
     if not isinstance(left, str):
         return False
@@ -844,7 +947,7 @@ def activation_contract(project: Path) -> tuple[Path, str, str, str]:
     project = project.resolve()
     digest = hashlib.sha256(os.path.normcase(str(project)).encode()).hexdigest()[:12]
     marketplace_name = f"chaos-engine-{digest}"
-    root = project / ".chaos-engine-state/client-marketplace"
+    root = maven_tools_data_root() / "ChaosEngine/client-marketplaces" / marketplace_name
     manifest_path = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -854,6 +957,20 @@ def activation_contract(project: Path) -> tuple[Path, str, str, str]:
     if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
         raise ValueError("ChaosEngine plugin version is invalid")
     return root, marketplace_name, f"{PLUGIN_NAME}@{marketplace_name}", version
+
+
+def activation_bundle_root(activation: dict[str, object]) -> Path:
+    """Return the exact receipt-owned durable marketplace path."""
+    name = activation.get("marketplaceName")
+    encoded_root = activation.get("bundleRoot")
+    if not isinstance(name, str) or re.fullmatch(r"chaos-engine-[0-9a-f]{12}", name) is None:
+        raise ValueError("ChaosEngine client activation receipt is invalid")
+    if not isinstance(encoded_root, str):
+        raise ValueError("ChaosEngine client activation receipt has no bundle root")
+    root = Path(encoded_root)
+    if not root.is_absolute() or root.name != name or root.parent.name != "client-marketplaces":
+        raise ValueError("ChaosEngine client activation receipt bundle root is invalid")
+    return root
 
 
 def activation_plugins(project: Path, marketplace_name: str) -> dict[str, dict[str, object]]:
@@ -1219,6 +1336,7 @@ def record_client_activation(project: Path, activation: dict[str, object]) -> No
         raise ValueError("ChaosEngine host activation requires an installed receipt")
     receipt["clientActivation"] = {
         "marketplaceName": activation["marketplaceName"],
+        "bundleRoot": activation["bundleRoot"],
         "ownedClients": activation["ownedClients"],
         "pluginVersion": activation["pluginVersion"],
         "claudeLocalBefore": activation["claudeLocalBefore"],
@@ -1333,15 +1451,19 @@ def activate_detected_plugins(
         "createdMarketplaces": created_marketplaces,
         "createdPlugins": created_plugins,
         "marketplaceName": marketplace_name,
+        "bundleRoot": str(root),
     }
     try:
         for client in ("codex", "claude"):
             executable = which(client)
             if executable is None:
                 continue
-            touched_clients.append(client)
             selected_client = lambda name, selected=client, path=executable: path if name == selected else None
+            remove_stale_marketplace_before_activation(
+                client, executable, project, runner=runner
+            )
             current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            touched_clients.append(client)
             if current["marketplace"] != "healthy":
                 if confirmer is not None:
                     confirmer(f"Register {client} plugin marketplace")
@@ -2390,12 +2512,12 @@ def codex_content(
         f"args = [{memory_args}]\n"
         f'commandWindows = "{windows_command}"\n'
         f'argsWindows = [{windows_prefix}{memory_args}]\n'
-        'cwd = ".."\n\n'
+        'cwd = "."\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"\n'
         f"args = [{mempalace_args}]\n"
         f'commandWindows = "{windows_command}"\n'
         f'argsWindows = [{windows_prefix}{mempalace_args}]\n'
-        'cwd = ".."\n'
+        'cwd = "."\n'
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
     if maven_runtime is not None:
@@ -3987,10 +4109,12 @@ def finalize_uninstall(project: Path) -> None:
     anchor = host_anchor_path(project)
     if anchor.name.startswith(ACTIVE_ANCHOR_PREFIX):
         anchor = move_anchor(project, anchor, REMOVING_ANCHOR_PREFIX)
-    activation_root = project / ".chaos-engine-state/client-marketplace"
-    if activation_root.exists():
+    activation = receipt.get("clientActivation")
+    activation_root = activation_bundle_root(activation) if isinstance(activation, dict) else None
+    if activation_root is not None and activation_root.exists():
         if is_link_or_reparse(activation_root) or not activation_root.is_dir():
             raise ValueError("ChaosEngine activation marketplace collision")
+        activation_plugins_from_root(activation_root, str(activation["marketplaceName"]))
         shutil.rmtree(activation_root)
     receipt_path.unlink()
     anchor.unlink()

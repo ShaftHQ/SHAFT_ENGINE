@@ -35,6 +35,40 @@ def load_acceptance():
 
 
 class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
+    def test_wrapper_failure_keeps_installer_phase_and_component(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        diagnostic = "\n".join((
+            "long progress output",
+            "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation",
+            "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?"
+            "failed_phase=Verify+installation&unhealthy=hooks&cause=doctor+failed",
+            "PowerShell invocation error",
+        ))
+
+        self.assertEqual(
+            "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
+            "failed phase: Verify installation; unhealthy: hooks",
+            module.installer_failure_detail(diagnostic),
+        )
+
+    def test_managed_python_version_comes_from_installed_contract(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            installed = Path(temporary) / ".chaos-engine"
+            installed.mkdir()
+            installed.joinpath("dependencies.json").write_text(
+                json.dumps({"runtimes": {"python": {"version": "3.11"}}}),
+                encoding="utf-8",
+            )
+
+            self.assertEqual("3.11", module.managed_python_version(installed))
+
     def test_runner_contract_is_bounded_and_standard_library_only(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")

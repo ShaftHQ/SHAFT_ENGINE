@@ -55,7 +55,7 @@ REQUIRED_DISPATCHES = {
 }
 WINDOWS_UV_JUNCTION_TAG = 0xA0000003
 WINDOWS_UV_ALIAS = re.compile(
-    r"uv-python/cpython-3\.10-windows-(?P<arch>x86_64|aarch64)-none"
+    r"uv-python/cpython-(?P<version>3\.\d+)-windows-(?P<arch>x86_64|aarch64)-none"
 )
 CANDIDATE_TRUST_BOUNDARY = (
     "A same-user trusted subprocess has ambient write authority and this stdlib "
@@ -1356,6 +1356,10 @@ def generation_install_plan(
         else "node/lib/node_modules/npm/bin/npm-cli.js"
     )
     graphify = tools.get("graphify")
+    python_runtime = specification.get("runtimes", {}).get("python", {})
+    python_version = python_runtime.get("version") if isinstance(python_runtime, dict) else None
+    if not isinstance(python_version, str) or re.fullmatch(r"3\.\d+", python_version) is None:
+        raise ValueError("Python runtime specification is invalid")
     if not isinstance(graphify, dict):
         raise ValueError("graphify dependency specification is invalid")
     uv_commands = [[uv, "--version"]] if Path(uv).is_file() else [
@@ -1371,7 +1375,7 @@ def generation_install_plan(
             "--no-cache",
             "--managed-python",
             "--python",
-            "3.10",
+            python_version,
             "--link-mode",
             "copy",
             str(tools["mempalace"]["package"]),  # type: ignore[index]
@@ -1383,7 +1387,7 @@ def generation_install_plan(
             "--no-cache",
             "--managed-python",
             "--python",
-            "3.10",
+            python_version,
             "--link-mode",
             "copy",
             "--with",
@@ -1902,7 +1906,8 @@ def _windows_uv_junction_record(runtime: Path, path: Path) -> dict[str, str]:
     if not target.is_relative_to(root) or target.parent != _lexical_path(path.parent):
         raise ValueError(f"dependency runtime junction escapes the runtime: {relative}")
     expected = re.fullmatch(
-        rf"cpython-3\.10\.\d+-windows-{re.escape(alias.group('arch'))}-none",
+        rf"cpython-{re.escape(alias.group('version'))}\.\d+-windows-"
+        rf"{re.escape(alias.group('arch'))}-none",
         target.name,
     )
     if expected is None or is_link_or_reparse(target) or not target.is_dir():
