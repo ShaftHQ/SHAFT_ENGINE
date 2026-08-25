@@ -95,7 +95,9 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             return
         process = mock.Mock()
         process.communicate.return_value = (
-            '{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"fixture"}}}\n',
+            '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18",'
+            '"capabilities":{"tools":{}},"serverInfo":{"name":"fixture",'
+            '"version":"1"}}}\n',
             "",
         )
         process.returncode = 0
@@ -119,6 +121,35 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             module.probe_mcp(
                 ["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process
             )
+
+    def test_mcp_probe_rejects_incomplete_initialize_result(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        process = mock.Mock()
+        process.communicate.return_value = (
+            '{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{}}}\n',
+            "",
+        )
+        process.returncode = 0
+
+        with self.assertRaisesRegex(RuntimeError, "initialize failed"):
+            module.probe_mcp(
+                ["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process
+            )
+
+    def test_project_mcp_probe_covers_memory_and_mempalace(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        tool = ROOT / ".chaos-engine/tool.py"
+        with mock.patch.object(module, "probe_mcp") as probe:
+            module.probe_project_mcps(tool, ROOT)
+
+        commands = {call.args[0][2] for call in probe.call_args_list}
+        self.assertEqual({"memory-mcp", "mempalace-mcp"}, commands)
 
     def test_offline_environment_blocks_package_network_and_hides_secrets(self):
         module = load_acceptance()

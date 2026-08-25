@@ -338,12 +338,39 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
         raise RuntimeError(
             f"MCP connection closed during initialize: {sanitize(stderr or stdout)}"
         ) from error
-    if process.returncode or response.get("id") != 1 or not isinstance(
-        response.get("result"), dict
+    result = response.get("result")
+    server = result.get("serverInfo") if isinstance(result, dict) else None
+    if (
+        process.returncode
+        or response.get("jsonrpc") != "2.0"
+        or response.get("id") != 1
+        or not isinstance(result, dict)
+        or not isinstance(result.get("protocolVersion"), str)
+        or not isinstance(result.get("capabilities"), dict)
+        or not isinstance(server, dict)
+        or not isinstance(server.get("name"), str)
+        or not isinstance(server.get("version"), str)
     ):
         raise RuntimeError(
             f"MCP initialize failed: {sanitize(stderr or stdout)}"
         )
+
+
+def probe_project_mcps(tool: Path, project: Path) -> None:
+    commands = (
+        [sys.executable, str(tool), "memory-mcp"],
+        [
+            sys.executable,
+            str(tool),
+            "mempalace-mcp",
+            "--palace",
+            ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
+        ],
+    )
+    for command in commands:
+        probe_mcp(command, project)
 
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
@@ -385,21 +412,8 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     for name, arguments in PROBES.items():
         run_checked([sys.executable, str(tool), name, *arguments], cwd=project, timeout=120)
         dispatches[name] = "pass"
-    mcp_commands = {
-        "memory-mcp": [sys.executable, str(tool), "memory-mcp"],
-        "mempalace-mcp": [
-            sys.executable,
-            str(tool),
-            "mempalace-mcp",
-            "--palace",
-            ".chaos-engine-state/mempalace",
-            "--backend",
-            "sqlite_exact",
-        ],
-    }
-    for name, command in mcp_commands.items():
-        probe_mcp(command, project)
-        dispatches[name] = "pass"
+    probe_project_mcps(tool, project)
+    dispatches.update({"memory-mcp": "pass", "mempalace-mcp": "pass"})
 
     pointer_path = project / ".chaos-engine-runtime-current.json"
     if pointer_path.stat().st_size > 16 * 1024:
