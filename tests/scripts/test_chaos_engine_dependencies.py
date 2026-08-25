@@ -295,16 +295,16 @@ def mempalace_runtime_status(project: Path):
         )
         macos = module.prerequisite_command_plan(
             "macos", "brew", {"uv": "reused", "node": "installed", "java": "installed"},
-            node_major=24,
+            node_major=24, node_version="24.19.0",
         )
-        self.assertEqual([["brew", "install", "node@24"]], macos["node"])
+        self.assertEqual([["npm", "install", "-g", "node@24.19.0"]], macos["node"])
         windows = module.prerequisite_command_plan(
             "windows", "winget", {"uv": "installed", "node": "installed", "java": "installed"}
         )
         self.assertEqual("pwsh", windows["uv"][0][0])
-        self.assertTrue(
-            all(command[0] == "winget" for command in windows["node"] + windows["java"])
-        )
+        self.assertEqual("uv", windows["uv"][1][0])
+        self.assertEqual("npm", windows["node"][0][0])
+        self.assertTrue(all(command[0] == "winget" for command in windows["java"]))
 
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
         module = load_controller()
@@ -354,7 +354,7 @@ def mempalace_runtime_status(project: Path):
             def read(self, _size):
                 return self.payload
 
-        for name, expected in (("node", "24.1.0"), ("python", "3.14.7"), ("mempalace", "3.8.0"), ("memory", "0.2.2"), ("java", "25.0.4+7.0.LTS"), ("uv", "0.12.5")):
+        for name, expected in (("node", "24.1.0"), ("python", "3.14.7"), ("mempalace", "3.8.0"), ("memory", "0.2.2"), ("java", "25.0.4+7"), ("uv", "0.12.5")):
             with self.subTest(name=name):
                 contract = {
                     "minimumVersion": "25.0.0" if name == "java" else "0.1.0" if name not in {"node", "python"} else ("22.0.0" if name == "node" else "3.14.0"),

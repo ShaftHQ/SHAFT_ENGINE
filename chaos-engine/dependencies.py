@@ -228,7 +228,7 @@ def account_tool_plan(
 
 def prerequisite_command_plan(
     system: str, provider: str, actions: dict[str, str], *, node_major: int = 22,
-    python_version: str = "3.14.0",
+    node_version: str | None = None, python_version: str = "3.14.0",
 ) -> dict[str, list[list[str]]]:
     """Render dry platform prerequisite commands with tightly scoped elevation."""
     wanted = lambda name: actions.get(name) in {"installed", "upgraded", "repaired"}
@@ -237,33 +237,49 @@ def prerequisite_command_plan(
         plan["uv"] = [["uv", "self", "update"]]
     elif wanted("uv"):
         plan["uv"] = (
-            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", "irm https://astral.sh/uv/install.ps1 | iex"]]
+            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", "irm https://astral.sh/uv/install.ps1 | iex"], ["uv", "self", "update"]]
             if system == "windows"
-            else [["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"]]
+            else [["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"], ["uv", "self", "update"]]
         )
     if wanted("python"):
         plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
+    if wanted("node"):
+        plan["node"] = [["npm", "install", "-g", f"node@{node_version or node_major}"]]
     if system == "linux" and provider in {"apt", "dnf"}:
         manager = "apt-get" if provider == "apt" else "dnf"
-        if wanted("node"):
-            plan["node"] = [
-                ["sudo", "-n", manager, "install", "-y", "nodejs"]
-            ]
         if wanted("java"):
             plan["java"] = [
                 ["sudo", "-n", manager, "install", "-y", "temurin-25-jdk"]
             ]
     elif system == "macos":
-        if wanted("node"):
-            plan["node"] = [["brew", "install", f"node@{node_major}"]]
         if wanted("java"):
             plan["java"] = [["brew", "install", "--cask", "temurin@25"]]
     elif system == "windows":
-        if wanted("node"):
-            plan["node"] = [["winget", "install", "--id", "OpenJS.NodeJS.LTS", "-e"]]
         if wanted("java"):
             plan["java"] = [["winget", "install", "--id", "EclipseAdoptium.Temurin.25.JDK", "-e"]]
     return plan
+
+
+def discover_java_25(*, system: str, runner=subprocess.run) -> str | None:
+    """Find platform-native Temurin 25 without changing global Java selection."""
+    if system == "windows":
+        roots = [Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Eclipse Adoptium"]
+        patterns = ("jdk-25*/bin/java.exe",)
+    elif system == "macos":
+        roots = [Path("/Library/Java/JavaVirtualMachines")]
+        patterns = ("temurin-25*.jdk/Contents/Home/bin/java", "jdk-25*.jdk/Contents/Home/bin/java")
+    else:
+        roots = [Path("/usr/lib/jvm")]
+        patterns = ("temurin-25*/bin/java", "java-25*/bin/java")
+    for root in roots:
+        for pattern in patterns:
+            for candidate in sorted(root.glob(pattern), reverse=True):
+                probe = probe_account_dependency(
+                    "java", str(candidate), {"probe": ["java", "--version"]}, runner=runner
+                )
+                if probe.get("healthy") is True and str(probe.get("version", "")).startswith("25."):
+                    return str(candidate.resolve())
+    return None
 
 
 def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
@@ -334,9 +350,11 @@ def resolve_stable_version(
         if not isinstance(releases, list):
             raise ValueError("Java stable-channel response is invalid")
         candidates = [
-            {"version": item.get("semver"), "yanked": False}
+            {"version": match.group(0), "yanked": False}
             for item in releases
-            if isinstance(item, dict) and item.get("major") == 25
+            if isinstance(item, dict)
+            and item.get("major") == 25
+            and (match := re.match(r"\d+\.\d+\.\d+\+\d+", str(item.get("semver"))))
         ]
     else:
         tag = payload.get("tag_name") if isinstance(payload, dict) else None
@@ -383,9 +401,14 @@ def probe_account_dependency(
     except (OSError, subprocess.SubprocessError) as error:
         return {"healthy": False, "version": None, "detail": type(error).__name__}
     output = f"{result.stdout or ''}\n{result.stderr or ''}".strip()
+    version = _version_from_output(output)
+    if name == "java":
+        build = re.search(r"(?<!\d)(\d+\.\d+\.\d+\+\d+)", output)
+        if build:
+            version = build.group(1)
     return {
         "healthy": result.returncode == 0,
-        "version": _version_from_output(output),
+        "version": version,
         "detail": "passed" if result.returncode == 0 else f"exit-{result.returncode}",
     }
 
@@ -667,11 +690,17 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     }
     if any(value != "reused" for value in prerequisite_actions.values()):
         selected_provider = provider or detected_package_provider(selected_system, which=which)
+        if prerequisite_actions["node"] != "reused":
+            npm = commands.get("npm")
+            if not npm:
+                raise RuntimeError("dependency prerequisite siblings are incomplete")
+            require_user_writable_npm_prefix(npm, project, runner=runner)
         prerequisite_commands = prerequisite_command_plan(
             selected_system,
             selected_provider,
             prerequisite_actions,
             node_major=int(str(actions["node"].get("resolvedVersion") or "22").split(".", 1)[0]),
+            node_version=str(actions["node"].get("resolvedVersion") or ""),
             python_version=str(actions["python"].get("resolvedVersion") or ""),
         )
         for name in ("uv", "python", "node", "java"):
@@ -689,6 +718,11 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             if not candidate.is_file():
                 raise RuntimeError("latest stable Python executable was not found after installation")
             managed_python = str(candidate)
+        managed_java = None
+        if prerequisite_actions["java"] != "reused":
+            managed_java = discover_java_25(system=selected_system, runner=runner)
+            if managed_java is None:
+                raise RuntimeError("latest stable Java 25 executable was not found after installation")
         local, commands = discover_account_commands(
             specification, preferred_commands=commands, which=which, runner=runner
         )
@@ -704,6 +738,18 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 "siblings": {"python3": managed_python},
             }
             commands["python3"] = managed_python
+        if managed_java is not None:
+            java_contract = specification["dependencies"]["java"]  # type: ignore[index]
+            probed = probe_account_dependency(
+                "java", managed_java, java_contract, runner=runner  # type: ignore[arg-type]
+            )
+            local["java"] = {
+                "status": "healthy" if probed["healthy"] else "broken",
+                **probed,
+                "executable": managed_java,
+                "siblings": {"java": managed_java},
+            }
+            commands["java"] = managed_java
         missing = [
             name for name in ("uv", "python", "node", "java")
             if local.get(name, {}).get("healthy") is not True
