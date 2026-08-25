@@ -5,13 +5,19 @@ impediments, and continue delivery. Assignment alone is not progress.
 
 ## Cadence and inspection
 
-While any writer or required check is live, inspect at most every five minutes.
+While any writer or required check is live, including a live subagent,
+automatically inspect on a five-minute cadence. Floor: inspect at least every
+five minutes, without the owner asking. Ceiling: do not inspect more often than
+every five minutes except on dispatch, completion, failure, or owner/delegate
+interrupt. First inspect as soon as dispatch yields a live handle. Use the host
+timer or scheduler when it has one; otherwise the next main-thread wake still
+owes the inspection.
 No live writers or required checks: no scheduler.
 
-Each inspection must produce a decision, solved subproblem, re-spec, consult
-queue, upgrade, or explicit keep. Never a heartbeat. Validate errors and
-progress before the next handoff; bound retries and escalate instead of waiting
-indefinitely.
+Each inspection is a scrum: establish blocked or unblocked state and evidence
+of progress, then keep / re-spec / upgrade / kill. Never a heartbeat. Validate
+errors and progress before the next handoff; bound retries and escalate instead
+of waiting indefinitely.
 
 ## Consult and impediments
 

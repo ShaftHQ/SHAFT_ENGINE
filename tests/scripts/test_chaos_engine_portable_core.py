@@ -886,7 +886,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("consultant agent", compact_skill)
 
 
-class ChaosEngineOrchestratorModeTest(unittest.TestCase):
+class OrchestratorModeContractTest(unittest.TestCase):
     """Portable orchestrator-mode pins (#5210, #5246, #5249)."""
 
     def _skill(self) -> str:
@@ -912,10 +912,13 @@ class ChaosEngineOrchestratorModeTest(unittest.TestCase):
         follow_through = CORE / "references/orchestrator-follow-through.md"
         self.assertTrue(follow_through.is_file())
         policy = re.sub(r"\s+", " ", follow_through.read_text(encoding="utf-8"))
-        self.assertIn("at most every five minutes", policy)
+        self.assertIn("Floor: inspect at least every five minutes", policy)
+        self.assertIn("without the owner asking", policy)
+        self.assertIn("Ceiling: do not inspect more often than every five minutes", policy)
         self.assertIn("While any writer or required check is live", policy)
         self.assertIn("No live writers or required checks: no scheduler", policy)
         self.assertIn("ask what is blocked and what would unblock", policy.lower())
+        self.assertIn("keep / re-spec / upgrade / kill", policy)
         self.assertIn("Never a heartbeat", policy)
         self.assertIn("Opening a PR does not complete follow-through", policy)
 

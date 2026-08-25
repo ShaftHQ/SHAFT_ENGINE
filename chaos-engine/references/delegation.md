@@ -39,10 +39,10 @@ request, parallelize only independent file scopes. Each writer owns an isolated
 worktree. Hard cap four concurrent writing agents; the owner may set a cap of
 1–4. Refuse a requested cap above 4. File-overlapping writers never run in
 parallel even when parallel is requested. A read-only reviewer does not
-consume a slot. Check real progress for any agent or
-command at most every five minutes while a writer or required check is live,
-and supply a decision, a solved subproblem, or a re-spec — never a heartbeat.
-Follow [orchestrator follow-through](orchestrator-follow-through.md).
+consume a slot. While a writer, subagent, or required check is live,
+automatically follow the floor-and-ceiling inspection cadence in
+[orchestrator follow-through](orchestrator-follow-through.md); never a
+heartbeat.
 
 Treat agent lifetime as part of the assignment. Collect the writer's bounded
 failures, findings, and durable-learning candidates for the root session; a

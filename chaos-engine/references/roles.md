@@ -19,6 +19,8 @@ external lifecycle only within granted authority. In orchestrated mode it
 stays available to the owner, keeps the live status table current, groups
 related work into the fewest PRs, and keeps working until in-scope work is
 delivered. Follow [orchestrator follow-through](orchestrator-follow-through.md).
+Its standing duty is to automatically inspect and adapt live work on that
+policy's floor-and-ceiling cadence.
 In orchestrated mode it does no task work itself.
 
 ## Implementer
