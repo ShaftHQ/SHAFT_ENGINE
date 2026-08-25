@@ -224,6 +224,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             result = MODULE.status_with_dependencies(project)
 
+            self.assertEqual("healthy", result["status"], result)
             self.assertEqual("healthy", result["dependencies"]["status"])
             self.assertEqual(2, result["dependencies"]["schemaVersion"])
             self.assertEqual("reused", result["dependencies"]["components"]["node"]["action"])

@@ -299,8 +299,9 @@ def mempalace_runtime_status(project: Path):
         )
         self.assertEqual([["brew", "install", "node@24"]], macos["node"])
         windows = module.prerequisite_command_plan(
-            "windows", "winget", {"uv": "reused", "node": "installed", "java": "installed"}
+            "windows", "winget", {"uv": "installed", "node": "installed", "java": "installed"}
         )
+        self.assertEqual("pwsh", windows["uv"][0][0])
         self.assertTrue(
             all(command[0] == "winget" for command in windows["node"] + windows["java"])
         )

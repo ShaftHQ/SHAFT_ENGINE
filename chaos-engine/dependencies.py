@@ -237,7 +237,7 @@ def prerequisite_command_plan(
         plan["uv"] = [["uv", "self", "update"]]
     elif wanted("uv"):
         plan["uv"] = (
-            [["powershell", "-ExecutionPolicy", "ByPass", "-c", "irm https://astral.sh/uv/install.ps1 | iex"]]
+            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", "irm https://astral.sh/uv/install.ps1 | iex"]]
             if system == "windows"
             else [["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"]]
         )
