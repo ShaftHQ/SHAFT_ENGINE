@@ -153,6 +153,25 @@ def sanitize(value: object) -> str:
     return text[:head_size] + SANITIZER_TRUNCATION_MARKER + text[-tail_size:]
 
 
+def installer_failure_detail(value: str) -> str:
+    headline = next(
+        (line.strip() for line in value.splitlines() if "CE-INSTALL-" in line),
+        None,
+    )
+    if headline is None:
+        return value
+    fields: list[str] = []
+    for token in value.split():
+        if "/issues/new?" not in token:
+            continue
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(token).query)
+        for key, label in (("failed_phase", "failed phase"), ("unhealthy", "unhealthy")):
+            if query.get(key):
+                fields.append(f"{label}: {query[key][0]}")
+        break
+    return "; ".join((headline, *fields))
+
+
 def run_checked(
     command: list[str],
     *,
@@ -172,6 +191,7 @@ def run_checked(
     )
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or "no process output"
+        detail = installer_failure_detail(detail)
         raise RuntimeError(f"command failed ({result.returncode}): {sanitize(detail)}")
     return result
 
