@@ -160,38 +160,277 @@ def mempalace_runtime_status(project: Path):
 
         return runner
 
-    def test_plan_uses_harness_local_commands_for_every_required_tool(self):
+    def test_plan_uses_user_account_commands_for_every_required_tool(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as temporary:
-            runtime = Path(temporary) / ".chaos-engine-runtime"
-            plan = module.install_plan(runtime, specification)
+            project = Path(temporary)
+            plan = module.account_tool_plan(
+                project,
+                specification,
+                actions={
+                    "mempalace": "installed",
+                    "graphify": "upgraded",
+                    "memory": "installed",
+                    "context7": "reused",
+                },
+                executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
+            )
 
-            self.assertEqual(2, specification["schemaVersion"])
-        self.assertEqual({"uv", "mempalace", "graphify", "memory"}, set(plan))
-        self.assertEqual("uv==0.11.29", plan["uv"][1][-1])
-        self.assertIn("mempalace==3.7.1", plan["mempalace"][0])
-        self.assertIn("graphifyy==0.9.43", plan["graphify"][0])
-        self.assertIn("tree-sitter-sql==0.3.11", plan["graphify"][0])
-        self.assertIn("@aictx/memory@0.2.1", plan["memory"][0])
-        environment = module.tool_environment(runtime)
-        self.assertEqual(str(runtime / "uv-tools"), environment["UV_TOOL_DIR"])
-        self.assertEqual(str(runtime / "bin"), environment["UV_TOOL_BIN_DIR"])
-        self.assertEqual(str(runtime / "uv-cache"), environment["UV_CACHE_DIR"])
-        self.assertEqual(str(runtime / "uv-python"), environment["UV_PYTHON_INSTALL_DIR"])
-        self.assertEqual(str(runtime / "python-bin"), environment["UV_PYTHON_BIN_DIR"])
-        self.assertEqual(str(runtime / "npm"), environment["NPM_CONFIG_PREFIX"])
-        self.assertEqual("1", environment["PYTHONDONTWRITEBYTECODE"])
-        self.assertEqual("copy", environment["UV_LINK_MODE"])
-        self.assertIn("--copies", plan["uv"][0])
-        for tool in ("mempalace", "graphify"):
-            self.assertIn("--managed-python", plan[tool][0])
-            self.assertIn("--link-mode", plan[tool][0])
-            self.assertIn("copy", plan[tool][0])
-        for commands in plan.values():
-            for command in commands:
-                self.assertNotIn("--global", command)
-                self.assertNotIn("-g", command)
+        self.assertEqual(3, specification["schemaVersion"])
+        self.assertEqual(
+            [["/user/bin/uv", "tool", "install", "mempalace"]],
+            plan["mempalace"],
+        )
+        self.assertEqual(
+            [["/user/bin/uv", "tool", "upgrade", "graphifyy"]],
+            plan["graphify"],
+        )
+        self.assertEqual(
+            [["/user/bin/npm", "install", "-g", "@aictx/memory@latest"]],
+            plan["memory"],
+        )
+        self.assertEqual([], plan["context7"])
+
+    def test_stable_versions_reject_prerelease_and_yanked_candidates(self):
+        module = load_controller()
+        candidates = [
+            {"version": "3.8.0rc1", "yanked": False},
+            {"version": "3.7.9", "yanked": True},
+            {"version": "3.7.8", "yanked": False},
+            {"version": "3.7.10", "yanked": False},
+        ]
+        self.assertEqual(
+            "3.7.10",
+            module.latest_compatible_stable(candidates, minimum="3.7.0"),
+        )
+        with self.assertRaisesRegex(ValueError, "compatible stable"):
+            module.latest_compatible_stable(
+                [{"version": "4.0.0-beta.1", "yanked": False}], minimum="3.7.0"
+            )
+
+    def test_dependency_action_uses_health_version_and_lookup_state(self):
+        module = load_controller()
+        cases = (
+            (None, "1.0.0", False, True, "installed"),
+            ("1.0.0", "1.0.0", True, True, "reused"),
+            ("1.0.0", "1.1.0", True, True, "upgraded"),
+            ("1.1.0", "1.1.0", False, True, "repaired"),
+            ("1.0.0", None, True, False, "blocked"),
+            (None, None, False, False, "blocked"),
+        )
+        for installed, latest, healthy, verified, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(
+                    expected,
+                    module.dependency_action(
+                        installed_version=installed,
+                        resolved_version=latest,
+                        healthy=healthy,
+                        latest_version_verified=verified,
+                    ),
+                )
+
+    def test_account_discovery_requires_every_sibling_and_sanitizes_receipt(self):
+        module = load_controller()
+        paths = {
+            "node": "/opt/node/bin/node",
+            "npm": "/opt/node/bin/npm",
+            "java": "/opt/java/bin/java",
+        }
+        discovered = module.discover_executables(
+            ["node", "npm", "npx", "java"], which=paths.get
+        )
+        self.assertEqual("missing", discovered["npx"]["status"])
+        receipt = module.sanitize_receipt(
+            {
+                "provider": "path",
+                "executable": "/home/person/.local/bin/node",
+                "token": "secret-value",
+                "probe": {"authorization": "Bearer secret", "status": "healthy"},
+            },
+            home=Path("/home/person"),
+        )
+        self.assertNotIn("token", receipt)
+        self.assertNotIn("authorization", receipt["probe"])
+        self.assertEqual("<home>/.local/bin/node", receipt["executable"])
+
+    def test_account_discovery_rejects_project_local_generation_executables(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / ".chaos-engine-runtime-generations/owned/bin/node"
+            executable.parent.mkdir(parents=True)
+            executable.write_text("node\n", encoding="utf-8")
+            executable.chmod(0o755)
+            discovered = module.discover_executables(
+                ["node"], which=lambda _name: str(executable)
+            )
+        self.assertEqual("invalid", discovered["node"]["status"])
+
+    def test_prerequisite_plans_scope_elevation_to_package_manager_commands(self):
+        module = load_controller()
+        linux = module.prerequisite_command_plan(
+            "linux", "apt", {"uv": "installed", "node": "installed", "java": "installed"}
+        )
+        self.assertEqual(
+            ["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"],
+            linux["uv"][0],
+        )
+        self.assertNotIn("sudo", linux["uv"][0])
+        for command in [*linux["node"], *linux["java"]]:
+            if "sudo" in command:
+                self.assertIn(command[command.index("sudo") + 1], {"apt-get", "install"})
+
+    def test_uv_upgrade_uses_self_update_and_platform_plans_are_provider_native(self):
+        module = load_controller()
+        upgraded = module.prerequisite_command_plan(
+            "linux", "apt", {"uv": "upgraded", "python": "installed", "node": "reused", "java": "reused"},
+            python_version="3.14.7",
+        )
+        self.assertEqual([["uv", "self", "update"]], upgraded["uv"])
+        self.assertEqual(
+            [["uv", "python", "install", "3.14.7", "--no-progress"]],
+            upgraded["python"],
+        )
+        macos = module.prerequisite_command_plan(
+            "macos", "brew", {"uv": "reused", "node": "installed", "java": "installed"},
+            node_major=24,
+        )
+        self.assertEqual([["brew", "install", "node@24"]], macos["node"])
+        windows = module.prerequisite_command_plan(
+            "windows", "winget", {"uv": "reused", "node": "installed", "java": "installed"}
+        )
+        self.assertTrue(
+            all(command[0] == "winget" for command in windows["node"] + windows["java"])
+        )
+
+    def test_stable_channel_parsers_cover_node_pypi_npm_and_github(self):
+        module = load_controller()
+        payloads = {
+            "node": [{"version": "v24.1.0", "lts": "Krypton"}, {"version": "v25.0.0", "lts": False}],
+            "python": [
+                {"name": "Python 3.14.7", "is_published": True, "pre_release": False},
+                {"name": "Python 3.15.0rc1", "is_published": True, "pre_release": True},
+            ],
+            "mempalace": {"releases": {"3.8.0": [{"yanked": False}], "3.9.0rc1": [{"yanked": False}]}},
+            "memory": {"version": "0.2.2"},
+            "uv": {"tag_name": "0.12.5", "prerelease": False, "draft": False},
+        }
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = json.dumps(payload).encode()
+            def __enter__(self):
+                return self
+            def __exit__(self, *_args):
+                return None
+            def read(self, _size):
+                return self.payload
+
+        for name, expected in (("node", "24.1.0"), ("python", "3.14.7"), ("mempalace", "3.8.0"), ("memory", "0.2.2"), ("uv", "0.12.5")):
+            with self.subTest(name=name):
+                contract = {
+                    "minimumVersion": "0.1.0" if name not in {"node", "python"} else ("22.0.0" if name == "node" else "3.14.0"),
+                    "stableChannel": f"https://example.invalid/{name}",
+                }
+                self.assertEqual(
+                    expected,
+                    module.resolve_stable_version(
+                        name, contract, opener=lambda *_args, **_kwargs: Response(payloads[name])
+                    ),
+                )
+
+    def test_account_receipt_dispatches_absolute_commands_and_redacts_home(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            executable = project / "user tools/memory-mcp"
+            executable.parent.mkdir()
+            executable.write_text("tool\n", encoding="utf-8")
+            executable.chmod(0o755)
+            receipt = module.write_account_receipt(
+                project,
+                {"memory": {"action": "installed", "probe": "passed"}},
+                {"memory-mcp": str(executable)},
+                now=datetime(2026, 8, 25, tzinfo=timezone.utc),
+            )
+            self.assertEqual(2, receipt["schemaVersion"])
+            self.assertEqual(
+                [str(executable.resolve()), "--stdio"],
+                module.active_dispatch(project, "memory-mcp", ["--stdio"]),
+            )
+            with self.assertRaisesRegex(ValueError, "dispatch is missing"):
+                module.active_dispatch(project, "mempalace", [])
+
+    def test_account_receipt_v1_migrates_deterministically_in_memory(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            path = project / module.ACCOUNT_RECEIPT_NAME
+            path.write_text(json.dumps({
+                "schemaVersion": 1,
+                "components": {"node": {"status": "healthy"}},
+                "commands": {"node": "/usr/bin/node"},
+            }), encoding="utf-8")
+
+            migrated = module.read_account_receipt(project)
+
+            self.assertEqual(2, migrated["schemaVersion"])
+            self.assertEqual("user", migrated["scope"])
+            self.assertEqual("migrated-v1", migrated["migration"])
+            self.assertEqual(1, json.loads(path.read_text())["schemaVersion"])
+
+    def test_project_setup_plan_initializes_only_absent_or_stale_state(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            commands = {
+                "mempalace": "/tools/mempalace",
+                "graphify": "/tools/graphify",
+                "memory": "/tools/memory",
+            }
+            fresh = module.project_setup_plan(project, commands)
+            self.assertEqual(["/tools/mempalace", "init", "."], fresh[0])
+            self.assertIn(["/tools/mempalace", "mine", "."], fresh)
+            self.assertIn(
+                ["/tools/graphify", "install", "--platform", "agents", "--project"],
+                fresh,
+            )
+            self.assertIn(
+                ["/tools/graphify", "extract", ".", "--code-only"], fresh
+            )
+            self.assertIn(["/tools/memory", "init", "--no-view"], fresh)
+
+            project.joinpath("mempalace.yaml").write_text("wing: test\n", encoding="utf-8")
+            state = project / ".chaos-engine-state/mempalace"
+            state.mkdir(parents=True)
+            state.joinpath(".mined").write_text("current\n", encoding="utf-8")
+            graph = project / "graphify-out/graph.json"
+            graph.parent.mkdir()
+            graph.write_text("{}\n", encoding="utf-8")
+            skill = project / ".agents/skills/graphify/SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("# graphify\n", encoding="utf-8")
+            memory = project / ".memory/config.json"
+            memory.parent.mkdir()
+            memory.write_text("{}\n", encoding="utf-8")
+            self.assertEqual([], module.project_setup_plan(project, commands))
+
+    def test_account_install_blocks_missing_tool_when_stable_lookup_is_offline(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        local = {
+            name: {"status": "missing", "healthy": False, "version": None}
+            for name in ("uv", "node", "java", "mempalace", "graphify", "memory", "context7")
+        }
+        with mock.patch.object(module, "discover_account_commands", return_value=(local, {})):
+            with self.assertRaisesRegex(RuntimeError, "blocked"):
+                module.install_account_dependencies(
+                    Path("."),
+                    specification,
+                    opener=lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("offline")),
+                    allow_root=True,
+                )
 
     def test_freshness_is_read_only_and_stale_after_24_hours(self):
         module = load_controller()

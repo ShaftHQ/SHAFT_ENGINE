@@ -157,7 +157,147 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         self.assertEqual(("cache", "status", "maven-tools-mcp"), (status.command, status.cache_command, status.component))
         self.assertEqual("3.2.0", purge.version)
 
-    def test_status_and_explain_json_v1_are_deterministic_and_secret_free(self):
+    def test_default_install_uses_user_account_dependencies_not_private_generation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            specification = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
+            controller = SimpleNamespace(
+                load_specification=lambda _path: specification,
+                install_account_dependencies=mock.Mock(
+                    return_value={
+                        "schemaVersion": 2,
+                        "components": {},
+                        "commands": {
+                            "memory-mcp": "/user/bin/memory-mcp",
+                            "mempalace-mcp": "/user/bin/mempalace-mcp",
+                            "node": "/user/bin/node",
+                            "python3": "/user/bin/python3.14",
+                        },
+                    }
+                ),
+            )
+            with mock.patch.object(MODULE, "load_dependency_controller", return_value=controller):
+                installed = MODULE.install_with_dependencies(
+                    project, SOURCE, TEST_COMMIT, with_maven_tools=False
+                )
+
+            self.assertEqual(project / ".chaos-engine", installed)
+            controller.install_account_dependencies.assert_called_once_with(project, specification)
+            self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
+            mcp = json.loads(project.joinpath(".mcp.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                "https://mcp.context7.com/mcp",
+                mcp["mcpServers"]["context7"]["url"],
+            )
+
+    def test_status_reads_account_dependency_receipt_without_network_or_mutation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+                with_maven_tools=False,
+            )
+            receipt = {
+                "schemaVersion": 2,
+                "checkedAt": "2026-08-25T00:00:00+00:00",
+                "scope": "user",
+                "components": {
+                    name: {
+                        "status": "healthy",
+                        "action": "reused",
+                        "provider": "path",
+                        "latestVersionVerified": True,
+                        "probe": "passed",
+                    }
+                    for name in ("uv", "node", "java", "mempalace", "graphify", "memory", "context7")
+                },
+                "commands": {},
+            }
+            path = project / ".chaos-engine-dependencies.json"
+            path.write_text(json.dumps(receipt), encoding="utf-8")
+            before = path.read_bytes()
+
+            result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("healthy", result["dependencies"]["status"])
+            self.assertEqual(2, result["dependencies"]["schemaVersion"])
+            self.assertEqual("reused", result["dependencies"]["components"]["node"]["action"])
+            self.assertEqual(before, path.read_bytes())
+
+    def test_maven_tools_uses_stable_tag_system_java_and_upstream_ci_build(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / ".chaos-engine"
+            target.mkdir()
+            java = root / "bin/java"
+            git = root / "bin/git"
+            java.parent.mkdir()
+            java.write_text("java\n", encoding="utf-8")
+            git.write_text("git\n", encoding="utf-8")
+            cache = root / "cache"
+            calls = []
+            published = []
+
+            def runner(command, **kwargs):
+                calls.append(command)
+                if "clone" in command:
+                    source = Path(command[-1])
+                    source.mkdir(parents=True)
+                    wrapper = source / "mvnw"
+                    wrapper.write_text("wrapper\n", encoding="utf-8")
+                if "package" in command:
+                    source = Path(kwargs["cwd"])
+                    built = source / "target/maven-tools-mcp-3.2.1.jar"
+                    built.parent.mkdir()
+                    built.write_bytes(b"jar")
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout=("a" * 40 + "\n") if "rev-parse" in command else "",
+                    stderr="",
+                )
+
+            hosts = SimpleNamespace(
+                maven_tools_cache_status=lambda version: {"status": "absent", "version": version},
+                java_major=lambda path: 25 if path == java.resolve() else None,
+                maven_tools_cache_root=lambda: cache,
+                MAVEN_TOOLS_MCP_RECEIPT="install-receipt.json",
+                publish_maven_tools_cache=lambda staging: published.append(staging),
+                discover_maven_tools_runtime=lambda: (java.resolve(), root / "maven-tools-mcp-3.2.1.jar"),
+                probe_maven_tools_runtime=lambda *_args: True,
+            )
+            dependencies = SimpleNamespace(
+                resolve_stable_version=lambda *_args, **_kwargs: "3.2.1"
+            )
+            specification = {
+                "dependencies": {"maven-tools-mcp": {"stableChannel": "https://example.invalid"}}
+            }
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                return_value=hosts,
+            ), mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=dependencies
+            ), mock.patch.object(
+                MODULE.shutil,
+                "which",
+                side_effect=lambda name: str(git if name == "git" else java if name == "java" else ""),
+            ):
+                MODULE.ensure_maven_tools(target, specification, runner=runner)
+
+            self.assertIn(
+                [str(git), "clone", "--branch", "v3.2.1", "--depth", "1",
+                 "https://github.com/arvindand/maven-tools-mcp.git", calls[0][-1]],
+                calls,
+            )
+            self.assertTrue(any(command[-3:] == ["clean", "package", "-Pci"] for command in calls))
+            self.assertEqual(1, len(published))
+
+    def test_status_and_explain_json_v2_are_deterministic_and_secret_free(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
@@ -195,7 +335,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             self.assertEqual(first, second)
             self.assertEqual(
-                (1, "chaos-engine", "status"),
+                (2, "chaos-engine", "status"),
                 (first["schemaVersion"], first["identity"], first["kind"]),
             )
             rendered = json.dumps(first, sort_keys=True)
@@ -203,7 +343,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertNotIn("do-not-render", rendered)
             self.assertNotIn("user:password", rendered)
             self.assertEqual(
-                (1, "chaos-engine", "explain", "complete"),
+                (2, "chaos-engine", "explain", "complete"),
                 (
                     explained["schemaVersion"],
                     explained["identity"],

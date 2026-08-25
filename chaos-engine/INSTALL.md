@@ -34,7 +34,7 @@ the project you want to manage:
 > deleting unrelated user content.
 
 That agent instruction owns the complete flow: the bootstrap installs the
-neutral core, pinned local tools, Memory and isolated MemPalace MCP servers,
+neutral core, latest compatible stable account tools, Memory and isolated MemPalace MCP servers,
 Graphify CLI, skills, playbooks, five role adapters, ChaosEngine lifecycle
 hooks, the pinned Caveman and Ponytail companion skills and hooks, the MIT license
 and third-party notices, Codex and Claude plugin manifests/marketplaces for
@@ -72,24 +72,24 @@ macOS or Linux, using [install.sh](install.sh):
 curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
 
-Python is not required before either command. When no Python 3 executable is
-available, the wrapper downloads the pinned uv 0.11.29 standalone binary for
-Windows, Linux, or macOS on x64 or arm64, verifies its SHA-256, and uses its
-managed Python 3.10 to run the bootstrap. The installed generation owns pinned
-Node.js 24.19.0 for Memory; ambient Node and npm are not part of the runtime
-contract. Unsupported platforms and checksum failures stop before activation,
-leaving the prior generation active.
+Python is not required before either command. The wrapper bootstraps Python as
+needed. The installer then discovers the invoking account's tools, resolves
+official stable channels, and chooses `reused`, `installed`, `upgraded`,
+`repaired`, or `blocked` per dependency. It installs latest stable Python
+through uv, uv itself through Astral, active
+LTS Node 22 or newer through the platform provider, and Temurin 25 through
+Adoptium-supported packages. uv tools and npm globals remain user scoped;
+neither uses sudo. An unavailable stable channel blocks activation because an
+older installation cannot be certified as latest. `.chaos-engine-dependencies.json` records
+sanitized observed versions, absolute executables, probes, providers, actions,
+and freshness without claiming ownership of global packages.
 
 A root `pom.xml` enables Maven Tools MCP automatically. Pass `--with-maven-tools`
 to force it on a non-Maven project. `--skip-tools` still skips it. Java
-resolution prefers `CHAOSENGINE_JAVA`, then `JAVA_HOME`, then `PATH` when the
-major version is 17 or newer; otherwise the installer downloads checksummed
-Temurin 25.0.4+7. If an ambient JDK cannot probe the JAR, the pin is used.
-Windows arm64 uses the official Windows x64 Temurin artifact through Windows 11
-x64 emulation and fails closed if that probe cannot execute. Project uninstall
-removes project-owned Python and Node generations but retains the shared Maven
-Tools cache; `cache purge --component maven-tools-mcp --version 3.2.0` removes
-only exact receipt-verified cache content.
+resolution prefers `CHAOSENGINE_JAVA`, then `JAVA_HOME`, then `PATH` and requires
+Temurin Java 25. No private JDK archive is downloaded. Project uninstall retains
+user-account packages, project knowledge data, and the shared Maven Tools cache;
+cache purge removes only exact receipt-verified cache content.
 
 POSIX:
 
@@ -136,6 +136,9 @@ convert them with an explicit uninstall followed by the portable bootstrap.
 The installer refuses an in-place legacy conversion and leaves the old tree
 unchanged.
 
+ChaosEngine initializes and mines the current folder with upstream MemPalace,
+then installs Graphify's project integration and runs code-only extraction when
+its index is absent. Existing initialized data and indexes are preserved.
 ChaosEngine-created MemPalace MCP servers use MemPalace's bundled
 `sqlite_exact` backend explicitly. It keeps the complete local MCP contract but
 has no native HNSW index, so separate agent sessions cannot enter Chroma's
@@ -172,22 +175,21 @@ Do not put `docker run -i --rm` in a default stdio MCP configuration. Each
 active client owns its own stdio server process, so a Docker-backed declaration
 creates one container per client and keeps Docker Desktop and its VM resident.
 
-A root `pom.xml`, or `--with-maven-tools`, performs the pinned native JAR flow:
+A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow:
 
-1. Resolve Java 17+ from `CHAOSENGINE_JAVA`, `JAVA_HOME`, or `PATH`, otherwise
-   download and checksum-verify the selected Temurin 25.0.4+7 artifact.
-2. Prefer host Git for `arvindand/maven-tools-mcp` commit
-   `4475ff6c61f23ea9a93cb6d5665a63235ef2ef36`. Without Git, download the
-   checksum-pinned exact-commit archive. Build through the upstream Maven
-   wrapper with its `full` profile; Docker itself is not required at runtime.
-3. Stage `maven-tools-mcp-3.2.0.jar` under a fresh unique directory on the same
+1. Resolve system Temurin 25 from `CHAOSENGINE_JAVA`, `JAVA_HOME`, or `PATH`.
+2. Resolve the latest compatible stable GitHub release, clone its tag with
+   `--depth 1`, record the tag's immutable commit, and run
+   `./mvnw -B clean package -Pci`. Git and Java are required; no private archive
+   fallback exists.
+3. Stage `maven-tools-mcp-<resolved-version>.jar` under a fresh unique directory on the same
    filesystem as the current user's data directory, then publish that directory
    with a no-overwrite rename to
-   `ChaosEngine/tools/maven-tools-mcp/3.2.0/`. On Windows the data directory is
+   `ChaosEngine/tools/maven-tools-mcp/<resolved-version>/`. On Windows the data directory is
    `%LOCALAPPDATA%`; elsewhere it is `$XDG_DATA_HOME`, or `~/.local/share` when
    that variable is unset. `CHAOSENGINE_MAVEN_TOOLS_MCP_JAR` may name a
    different verified JAR. Beside it, write `install-receipt.json` with exactly
-   these keys: `version` = `3.2.0`, `commit` = the pinned commit above, `jar` =
+   these keys: `version`, immutable `commit`, `jar` =
    the installed filename, and `sha256` = the lowercase SHA-256 of its bytes.
    Discovery recomputes the digest and rejects a missing, malformed, stale, or
    differently pinned receipt. The version directory is an immutable,
@@ -197,11 +199,8 @@ A root `pom.xml`, or `--with-maven-tools`, performs the pinned native JAR flow:
    `.codex/config.toml` with their resolved absolute paths. Upgrades repeat
    discovery, so another user's Java or data path is never inherited.
 5. Start a fresh client session and prove both the MCP initialize and tools/list
-   responses. The JAR launch includes
-   `--spring.profiles.active=docker,no-context7`: upstream's `docker` profile
-   enables clean stdio without starting or requiring Docker, while
-   `no-context7` keeps the receipt-pinned server's native tool surface independent
-   of a live downstream Context7 connection.
+   responses over the upstream default stdio transport. Native mode launches
+   only `java -jar <verified-jar>` and never installs or starts Docker.
 
 If neither an ambient Java 17+ runtime nor the Temurin pin can run the JAR,
 installation fails closed on a Maven project and omits the server on a
