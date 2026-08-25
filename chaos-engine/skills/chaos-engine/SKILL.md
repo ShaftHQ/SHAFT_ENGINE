@@ -225,7 +225,8 @@ Orchestrating keeps you reachable for owner or delegate decisions. In this mode
 you make no edits, run no long job, and install nothing;
 [delegation](../../references/delegation.md) lists what stays yours, including the
 live status table, fewest-PR grouping, keep-working-until-delivered loop, and
-delegate finding handoff before kill. The root owns the sole terminal Learning Session.
+delegate finding handoff before kill. Follow [orchestrator follow-through](../../references/orchestrator-follow-through.md)
+while work is live. The root owns the sole terminal Learning Session.
 
 **Default serial, optional parallel.** One writer at a time, ordered by
 dependency then priority. On owner request, parallelize independent writers up to

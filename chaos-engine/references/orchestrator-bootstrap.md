@@ -25,8 +25,8 @@ does. A single stream skips this file and is worked solo, in sequence.
    deferred consolidated proof command. Select the most intelligent, default, or
    mechanical capability using [delegation](delegation.md), never provider
    identity. After every dispatch, update the live status table.
-8. Stay available for architecture and consult decisions, on the check-in
-   cadence in [delegation](delegation.md).
+8. Stay available for architecture and consult decisions; follow
+   [orchestrator follow-through](orchestrator-follow-through.md).
 9. Review the actual diff and tests as [delegation](delegation.md) defines.
    Main thread owns synthesis and final verification. Collect the writer's
    bounded learning handoff, then destroy the finished writer and continue.

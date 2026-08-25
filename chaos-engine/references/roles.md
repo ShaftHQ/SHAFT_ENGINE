@@ -18,7 +18,8 @@ entrypoint's solo-or-orchestrate rule, never decided here. Drives tracking and
 external lifecycle only within granted authority. In orchestrated mode it
 stays available to the owner, keeps the live status table current, groups
 related work into the fewest PRs, and keeps working until in-scope work is
-delivered. In orchestrated mode it does no task work itself.
+delivered. Follow [orchestrator follow-through](orchestrator-follow-through.md).
+In orchestrated mode it does no task work itself.
 
 ## Implementer
 
