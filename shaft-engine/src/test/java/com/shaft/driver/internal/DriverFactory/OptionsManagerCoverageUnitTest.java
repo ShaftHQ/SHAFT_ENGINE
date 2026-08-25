@@ -8,6 +8,7 @@ import com.shaft.tools.io.internal.MobileTraceMetadata;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chromium.ChromiumOptions;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
@@ -21,6 +22,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -113,6 +115,7 @@ public class OptionsManagerCoverageUnitTest {
         Assert.assertNotNull(chromeOptions.getCapability("goog:loggingPrefs"));
         Assert.assertEquals(chromeOptions.getCapability(CapabilityType.ACCEPT_INSECURE_CERTS), true);
         Assert.assertEquals(chromeOptions.getCapability(CapabilityType.ENABLE_DOWNLOADS), true);
+        assertSilentChromiumDownloads(chromeOptions);
         Assert.assertEquals(chromeOptions.getCapability("webSocketUrl"), true);
         Assert.assertTrue(chromeOptionsAsString.contains("mobileEmulation"));
         Assert.assertTrue(chromeOptionsAsString.contains("detach"));
@@ -135,6 +138,23 @@ public class OptionsManagerCoverageUnitTest {
         String edgeOptionsAsString = edgeOptions.toString();
         Assert.assertTrue(edgeOptionsAsString.contains("--headless"));
         Assert.assertTrue(edgeOptionsAsString.contains("inPrivate"));
+        assertSilentChromiumDownloads(edgeOptions);
+    }
+
+    @Test
+    public void chromiumAndFirefoxShouldSuppressDownloadPromptToConfiguredDirectoryWhenRecommendedOptionsAreOff() {
+        SHAFT.Properties.flags.set().automaticallyAddRecommendedChromeOptions(false);
+
+        OptionsManager manager = new OptionsManager();
+        manager.setDriverOptions(DriverFactory.DriverType.CHROME, new MutableCapabilities());
+        assertSilentChromiumDownloads(manager.getChOptions());
+        Assert.assertFalse(chromiumPrefs(manager.getChOptions()).containsKey("credentials_enable_service"));
+
+        manager.setDriverOptions(DriverFactory.DriverType.EDGE, new MutableCapabilities());
+        assertSilentChromiumDownloads(manager.getEdOptions());
+
+        manager.setDriverOptions(DriverFactory.DriverType.FIREFOX, new MutableCapabilities());
+        assertSilentFirefoxDownloads(manager.getFfOptions());
     }
 
     @Test
@@ -279,6 +299,56 @@ public class OptionsManagerCoverageUnitTest {
         manager.setDriverOptions(DriverFactory.DriverType.APPIUM_FLUTTER, null);
 
         Assert.assertNotNull(manager.getAppiumCapabilities());
+    }
+
+    private static void assertSilentChromiumDownloads(ChromiumOptions<?> options) {
+        Assert.assertEquals(options.getCapability(CapabilityType.ENABLE_DOWNLOADS), true);
+        Map<String, Object> prefs = chromiumPrefs(options);
+        Assert.assertEquals(prefs.get("download.prompt_for_download"), Boolean.FALSE);
+        Assert.assertEquals(prefs.get("download.directory_upgrade"), Boolean.TRUE);
+        Assert.assertEquals(prefs.get("profile.default_content_setting_values.automatic_downloads"), 1);
+        Assert.assertEquals(String.valueOf(prefs.get("download.default_directory")), expectedDownloadsDirectory());
+        Assert.assertFalse(String.valueOf(prefs.get("download.default_directory")).endsWith(File.separator));
+    }
+
+    private static void assertSilentFirefoxDownloads(FirefoxOptions options) {
+        Map<String, Object> prefs = firefoxPrefs(options);
+        Assert.assertEquals(prefs.get("browser.download.folderList"), 2);
+        Assert.assertEquals(String.valueOf(prefs.get("browser.download.dir")), expectedDownloadsDirectory());
+        Assert.assertEquals(prefs.get("browser.download.useDownloadDir"), Boolean.TRUE);
+        Assert.assertEquals(prefs.get("browser.download.alwaysOpenPanel"), Boolean.FALSE);
+        Assert.assertEquals(prefs.get("browser.download.always_ask_before_handling_new_types"), Boolean.FALSE);
+        Assert.assertEquals(prefs.get("browser.download.manager.showWhenStarting"), Boolean.FALSE);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> chromiumPrefs(ChromiumOptions<?> options) {
+        Object chromeOptions = options.getCapability("goog:chromeOptions");
+        if (!(chromeOptions instanceof Map<?, ?>)) {
+            chromeOptions = options.getCapability("ms:edgeOptions");
+        }
+        Assert.assertTrue(chromeOptions instanceof Map, "Chromium options map missing: " + chromeOptions);
+        Object prefs = ((Map<String, Object>) chromeOptions).get("prefs");
+        Assert.assertTrue(prefs instanceof Map, "Chromium prefs missing: " + prefs);
+        return (Map<String, Object>) prefs;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> firefoxPrefs(FirefoxOptions options) {
+        Object firefoxOptions = options.getCapability("moz:firefoxOptions");
+        Assert.assertTrue(firefoxOptions instanceof Map, "moz:firefoxOptions missing: " + firefoxOptions);
+        Object prefs = ((Map<String, Object>) firefoxOptions).get("prefs");
+        Assert.assertTrue(prefs instanceof Map, "Firefox prefs missing: " + prefs);
+        return (Map<String, Object>) prefs;
+    }
+
+    private static String expectedDownloadsDirectory() {
+        String configured = SHAFT.Properties.paths.downloads().replace("/", File.separator);
+        String directory = System.getProperty("user.dir") + File.separatorChar + configured;
+        while (directory.endsWith(File.separator) && directory.length() > 1) {
+            directory = directory.substring(0, directory.length() - 1);
+        }
+        return directory;
     }
 
 }

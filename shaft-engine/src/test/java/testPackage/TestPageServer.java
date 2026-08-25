@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +39,54 @@ public final class TestPageServer {
         return "http://" + browserHost() + ":" + port + "/__never_respond";
     }
 
+    /**
+     * Page with a download link whose target is served as {@code Content-Disposition: attachment}.
+     */
+    public static String downloadPageUrl(String fileName) {
+        ensureStarted();
+        return "http://" + browserHost() + ":" + port + "/__download_page?file="
+                + URLEncoder.encode(safeDownloadFileName(fileName), StandardCharsets.UTF_8);
+    }
+
+    private static void serveDownloadPage(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            String fileName = requestedDownloadFileName(exchange);
+            String href = "/__download?file=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+            String html = "<!doctype html><html><body>"
+                    + "<a id=\"download-link\" href=\"" + href + "\">download</a>"
+                    + "</body></html>";
+            send(exchange, 200, html.getBytes(StandardCharsets.UTF_8), "text/html; charset=utf-8");
+        }
+    }
+
+    private static void serveDownload(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            String fileName = requestedDownloadFileName(exchange);
+            byte[] body = "SHAFT silent download payload\n".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+            send(exchange, 200, body, "application/octet-stream");
+        }
+    }
+
+    private static String requestedDownloadFileName(HttpExchange exchange) {
+        String query = exchange.getRequestURI().getQuery();
+        if (query != null) {
+            for (String param : query.split("&")) {
+                String[] keyValue = param.split("=", 2);
+                if (keyValue.length == 2 && "file".equals(keyValue[0])) {
+                    return safeDownloadFileName(URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8));
+                }
+            }
+        }
+        return "shaft-download.bin";
+    }
+
+    private static String safeDownloadFileName(String fileName) {
+        Path name = Path.of(fileName == null ? "" : fileName).getFileName();
+        String sanitized = name == null ? "" : name.toString().replaceAll("[^A-Za-z0-9._-]", "_");
+        return sanitized.isBlank() ? "shaft-download.bin" : sanitized;
+    }
+
     private static void neverRespond(HttpExchange exchange) {
         try {
             Thread.sleep(Long.MAX_VALUE);
@@ -61,6 +110,8 @@ public final class TestPageServer {
                 var root = Path.of(SHAFT.Properties.paths.testData()).toAbsolutePath().normalize();
                 newServer.createContext("/", exchange -> serveFixture(exchange, root));
                 newServer.createContext("/__never_respond", TestPageServer::neverRespond);
+                newServer.createContext("/__download", TestPageServer::serveDownload);
+                newServer.createContext("/__download_page", TestPageServer::serveDownloadPage);
                 newServer.setExecutor(Executors.newCachedThreadPool(runnable -> {
                     Thread thread = new Thread(runnable, "test-page-server");
                     thread.setDaemon(true);
