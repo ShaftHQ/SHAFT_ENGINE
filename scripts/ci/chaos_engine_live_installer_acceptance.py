@@ -482,9 +482,28 @@ def verify_account_phase(project: Path, expected_commit: str) -> dict[str, objec
             ).stdout
         )
         if result.get("status") != "healthy" or result.get("commit") != expected_commit:
+            components = result.get("components", {})
+            dependencies = result.get("dependencies", {}).get("components", {})
+            summary = {
+                "status": result.get("status"),
+                "commit": result.get("commit"),
+                "kernel": result.get("kernel", {}).get("status"),
+                "hosts": result.get("hosts", {}).get("status"),
+                "dependencies": result.get("dependencies", {}).get("status"),
+                "unhealthyComponents": {
+                    name: record.get("status")
+                    for name, record in components.items()
+                    if record.get("status") != "healthy"
+                },
+                "unhealthyDependencies": {
+                    name: record.get("status")
+                    for name, record in dependencies.items()
+                    if record.get("status") != "healthy"
+                },
+            }
             raise RuntimeError(
                 f"{command} did not report expected healthy account setup: "
-                f"{sanitize(json.dumps(result, sort_keys=True))}"
+                f"{sanitize(json.dumps(summary, sort_keys=True))}"
             )
     receipt = read_json(project / ".chaos-engine-dependencies.json")
     components = receipt.get("components")
