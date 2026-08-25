@@ -66,6 +66,22 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertTrue((ROOT / locator).is_file(), locator)
         self.assertLessEqual(len(result.stdout.encode("utf-8")), 4096)
 
+    def test_allowed_non_start_events_are_silent_for_every_host(self):
+        fixtures = (
+            {"hook_event_name": "PreToolUse", "tool_name": "Read"},
+            {"hook_event_name": "PostToolUse", "tool_name": "Read"},
+            {"hook_event_name": "PostToolUseFailure", "tool_name": "Read"},
+            {"hook_event_name": "Stop", "stop_hook_active": False},
+            {"hook_event_name": "SubagentStop", "stop_hook_active": False},
+        )
+        for host in ("codex", "claude", "gemini", "grok", "copilot"):
+            environment = {**os.environ, "CHAOS_ENGINE_HOST": host}
+            for event in fixtures:
+                with self.subTest(host=host, event=event["hook_event_name"]):
+                    result = self.run_hook(event, environment)
+                    self.assertEqual(0, result.returncode)
+                    self.assertEqual({}, json.loads(result.stdout))
+
     def test_source_and_portable_session_start_share_exact_companion_context(self):
         event = {"hook_event_name": "SessionStart", "session_id": "companion-parity", "cwd": str(ROOT)}
         portable = self.run_hook(event)
@@ -341,12 +357,12 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertEqual(0, stopped.returncode)
         self.assertNotEqual("block", json.loads(stopped.stdout).get("decision"))
 
-    def test_non_command_lifecycle_events_reinject_the_working_contract(self):
+    def test_non_start_lifecycle_events_do_not_reinject_the_working_contract(self):
         for event_name in ("UserPromptSubmit", "PostToolUse"):
             with self.subTest(event_name=event_name):
                 result = self.run_hook({"hook_event_name": event_name})
                 self.assertEqual(0, result.returncode)
-                self.assertIn("ChaosEngine", result.stdout)
+                self.assertEqual({}, json.loads(result.stdout))
 
     def test_reflection_checkpoint_blocks_only_mutation_and_unchanged_rerun(self):
         with tempfile.TemporaryDirectory() as temporary:

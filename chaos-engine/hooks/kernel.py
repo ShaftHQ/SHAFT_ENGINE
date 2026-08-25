@@ -345,6 +345,23 @@ def adapt_hook_output(
 ) -> dict[str, object]:
     """Project canonical decisions/context into each host's native hook protocol."""
     adapted = dict(output)
+    if host == "codex":
+        specific: dict[str, object] = {"hookEventName": event_name}
+        context = adapted.pop("additionalContext", None)
+        if context is not None:
+            specific["additionalContext"] = context
+        if event_name == "PreToolUse":
+            decision = adapted.pop("decision", None)
+            reason = adapted.pop("reason", None)
+            if decision in {"block", "deny"}:
+                specific["permissionDecision"] = "deny"
+                specific["permissionDecisionReason"] = str(
+                    reason or "Blocked by ChaosEngine."
+                )
+            elif decision == "allow":
+                specific["permissionDecision"] = "allow"
+        if len(specific) > 1:
+            adapted["hookSpecificOutput"] = specific
     if host == "gemini" and "additionalContext" in adapted:
         context = adapted.pop("additionalContext")
         adapted["hookSpecificOutput"] = {"additionalContext": context}

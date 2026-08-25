@@ -538,7 +538,8 @@ def _run_event(event: dict, _host: str) -> int:
         if stop_reason:
             print(json.dumps({"decision": "block", "reason": stop_reason}))
             return 2
-    print(json.dumps({"additionalContext": _event_context(event_name, token)}))
+    if event_name == "SessionStart":
+        print(json.dumps({"additionalContext": _event_context(event_name, token)}))
     return 0
 
 

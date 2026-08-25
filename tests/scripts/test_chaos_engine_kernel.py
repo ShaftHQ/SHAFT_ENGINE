@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import sys
@@ -11,17 +12,29 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from contextlib import redirect_stdout
 from unittest import TestCase, main, mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
 KERNEL = ROOT / "chaos-engine/hooks/kernel.py"
+LIFECYCLE = ROOT / "chaos-engine/hooks/lifecycle.py"
 
 
 def load_kernel():
     specification = importlib.util.spec_from_file_location("chaos_engine_kernel", KERNEL)
     if specification is None or specification.loader is None:
         raise RuntimeError("kernel module is unavailable")
+    module = importlib.util.module_from_spec(specification)
+    sys.modules[specification.name] = module
+    specification.loader.exec_module(module)
+    return module
+
+
+def load_lifecycle():
+    specification = importlib.util.spec_from_file_location("chaos_engine_lifecycle", LIFECYCLE)
+    if specification is None or specification.loader is None:
+        raise RuntimeError("lifecycle module is unavailable")
     module = importlib.util.module_from_spec(specification)
     sys.modules[specification.name] = module
     specification.loader.exec_module(module)
@@ -121,6 +134,88 @@ class ChaosEngineKernelTest(TestCase):
 
         self.assertEqual("git push origin HEAD", event.tool_input["command"])
         self.assertTrue(event.stateful_mutation)
+
+    def test_native_output_adapters_only_translate_canonical_output(self):
+        expected_context = {
+            "codex": {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": "ready",
+                }
+            },
+            "claude": {"additionalContext": "ready"},
+            "gemini": {"hookSpecificOutput": {"additionalContext": "ready"}},
+            "grok": {"additionalContext": "ready"},
+            "copilot": {"additionalContext": "ready"},
+        }
+        expected_deny = {
+            "codex": {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": "unsafe",
+                }
+            },
+            "claude": {"decision": "block", "reason": "unsafe"},
+            "gemini": {"decision": "block", "reason": "unsafe"},
+            "grok": {"decision": "block", "reason": "unsafe"},
+            "copilot": {
+                "permissionDecision": "deny",
+                "permissionDecisionReason": "unsafe",
+            },
+        }
+        for host in self.kernel.HOST_CAPABILITIES:
+            with self.subTest(host=host, output="context"):
+                self.assertEqual(
+                    expected_context[host],
+                    self.kernel.adapt_hook_output(
+                        {"additionalContext": "ready"}, "PreToolUse", host
+                    ),
+                )
+            with self.subTest(host=host, output="deny"):
+                self.assertEqual(
+                    expected_deny[host],
+                    self.kernel.adapt_hook_output(
+                        {"decision": "block", "reason": "unsafe"}, "PreToolUse", host
+                    ),
+                )
+
+    def test_stop_denials_use_each_host_native_output_contract(self):
+        for event in ("Stop", "SubagentStop"):
+            expected = {
+                host: {"decision": "block", "reason": "unsafe"}
+                for host in self.kernel.HOST_CAPABILITIES
+            }
+            for host in self.kernel.HOST_CAPABILITIES:
+                with self.subTest(event=event, host=host):
+                    self.assertEqual(
+                        expected[host],
+                        self.kernel.adapt_hook_output(
+                            {"decision": "block", "reason": "unsafe"}, event, host
+                        ),
+                    )
+
+    def test_protocol_exception_fallback_uses_native_stop_denial_output(self):
+        lifecycle = load_lifecycle()
+
+        def raising_callback(_event, _host):
+            raise RuntimeError("fixture failure")
+
+        for event in ("Stop", "SubagentStop"):
+            for host in self.kernel.HOST_CAPABILITIES:
+                with self.subTest(event=event, host=host), redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(
+                        0,
+                        lifecycle.run_hook_protocol(
+                            json.dumps({"hook_event_name": event}),
+                            {event: raising_callback},
+                            host_for_input=lambda _raw, selected=host: selected,
+                            adapt_output=self.kernel.adapt_hook_output,
+                        ),
+                    )
+                payload = json.loads(output.getvalue())
+                self.assertEqual("block", payload["decision"])
+                self.assertEqual(lifecycle.HOOK_PROTOCOL_ERROR, payload["reason"])
 
     def test_missing_session_shell_mutations_fail_closed(self):
         mutations = (

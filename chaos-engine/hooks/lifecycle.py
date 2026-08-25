@@ -162,7 +162,14 @@ def run_hook_protocol(
         json.dumps(output, allow_nan=False)
     except (Exception, KeyboardInterrupt, SystemExit) as error:
         print(f"Hook protocol error: {error}", file=sys.stderr)
-        output = fallback(event_name, host)
+        try:
+            output = adapt_output(fallback(event_name, host), event_name, host)
+            if not isinstance(output, dict):
+                raise ValueError("adapted fallback output is not a JSON object")
+            json.dumps(output, allow_nan=False)
+        except (Exception, KeyboardInterrupt, SystemExit) as fallback_error:
+            print(f"Hook fallback error: {fallback_error}", file=sys.stderr)
+            output = {}
         result = 0
     _write_json(output)
     return result

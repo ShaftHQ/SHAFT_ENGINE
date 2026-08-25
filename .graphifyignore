@@ -1,6 +1,7 @@
 .git/
 .idea/
 .memory/
+.chaos-engine/
 target/
 **/target/
 graphify-out/
