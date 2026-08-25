@@ -465,6 +465,52 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     }
 
 
+def verify_account_phase(project: Path, expected_commit: str) -> dict[str, object]:
+    installed = project / ".chaos-engine"
+    for command in ("status", "doctor"):
+        result = json.loads(
+            run_checked(
+                [
+                    sys.executable,
+                    str(installed / "install.py"),
+                    command,
+                    "--project",
+                    str(project),
+                    "--json",
+                ],
+                cwd=project,
+            ).stdout
+        )
+        if result.get("status") != "healthy" or result.get("commit") != expected_commit:
+            raise RuntimeError(f"{command} did not report expected healthy account setup")
+    receipt = read_json(project / ".chaos-engine-dependencies.json")
+    components = receipt.get("components")
+    commands = receipt.get("commands")
+    if (
+        receipt.get("schemaVersion") != 2
+        or not isinstance(components, dict)
+        or not isinstance(commands, dict)
+        or any(record.get("status") != "healthy" for record in components.values())
+        or any(not Path(command).is_absolute() for command in commands.values())
+    ):
+        raise RuntimeError("account dependency receipt is incomplete")
+    tool = installed / "tool.py"
+    dispatches: dict[str, str] = {}
+    for name, arguments in PROBES.items():
+        run_checked([sys.executable, str(tool), name, *arguments], cwd=project, timeout=120)
+        dispatches[name] = "pass"
+    probe_project_mcps(tool, project)
+    dispatches.update({"memory-mcp": "pass", "mempalace-mcp": "pass"})
+    return {
+        "status": "healthy",
+        "dispatches": dispatches,
+        "schemaVersion": 2,
+        "actions": {
+            name: record.get("action") for name, record in components.items()
+        },
+    }
+
+
 def record_phase(
     evidence: dict[str, object], name: str, operation
 ) -> dict[str, object]:
@@ -494,12 +540,15 @@ def run_acceptance(
         project.mkdir()
 
         def install_and_verify(
-            commit: str, *, require_current_action: bool = True
+            commit: str, *, require_current_action: bool = True, account: bool = False
         ) -> dict[str, object]:
             run_public_wrapper(
                 commit, project, require_current_action=require_current_action
             )
-            return verify_phase(project, commit)
+            return (
+                verify_account_phase(project, commit)
+                if account else verify_phase(project, commit)
+            )
 
         fresh = record_phase(
             evidence,
@@ -529,37 +578,19 @@ def run_acceptance(
         upgrade = record_phase(
             evidence,
             "upgrade-candidate-wrapper",
-            lambda: install_and_verify(candidate_sha),
+            lambda: install_and_verify(candidate_sha, account=True),
         )
-
-        damaged_id = str(upgrade["active"])
-        damaged_root = project / ".chaos-engine-runtime-generations" / damaged_id
-        damaged_receipt = read_json(damaged_root / "receipt.json")
-        for name in ("graphify", "mempalace"):
-            dispatch = damaged_receipt["tools"][name]["dispatch"]
-            (damaged_root / dispatch["interpreter"]).unlink()
-
-        repaired = record_phase(
+        account_receipt = project / ".chaos-engine-dependencies.json"
+        commands_before = read_json(account_receipt)["commands"]
+        repeated = record_phase(
             evidence,
-            "repair-candidate-wrapper",
-            lambda: install_and_verify(candidate_sha),
+            "healthy-rerun-candidate-wrapper",
+            lambda: install_and_verify(candidate_sha, account=True),
         )
-        if repaired["active"] == damaged_id or repaired["previous"] != fresh["active"]:
-            raise RuntimeError("repair did not retire damaged active and retain valid A")
-
-        def offline_rollback() -> dict[str, object]:
-            installed = project / ".chaos-engine/install.py"
-            run_checked(
-                [sys.executable, str(installed), "rollback", "--project", str(project)],
-                cwd=project,
-                environment=offline_environment(block_path=False),
-            )
-            checks = verify_phase(project, base_sha)
-            if checks["active"] != fresh["active"]:
-                raise RuntimeError("offline rollback did not reactivate generation A")
-            return checks
-
-        record_phase(evidence, "offline-rollback-base", offline_rollback)
+        if read_json(account_receipt)["commands"] != commands_before:
+            raise RuntimeError("healthy account rerun changed resolved executable dispatch")
+        if any(action != "reused" for action in repeated["actions"].values()):
+            raise RuntimeError("healthy account rerun did not reuse latest stable tools")
 
 
 def write_evidence(path: Path, evidence: dict[str, object]) -> None:
