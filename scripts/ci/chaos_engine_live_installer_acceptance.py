@@ -28,6 +28,7 @@ PROBES = {
 }
 PHASE_TIMEOUT_SECONDS = 600
 MCP_START_TIMEOUT_SECONDS = 10
+MCP_PROTOCOL_VERSION = "2025-06-18"
 COMMIT = re.compile(r"[0-9a-f]{40}")
 HEX_ID = re.compile(r"[0-9a-f]{32}")
 SECRET_NAME = re.compile(r"(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)", re.I)
@@ -305,7 +306,7 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
             "id": 1,
             "method": "initialize",
             "params": {
-                "protocolVersion": "2025-06-18",
+                "protocolVersion": MCP_PROTOCOL_VERSION,
                 "capabilities": {},
                 "clientInfo": {"name": "chaos-engine-acceptance", "version": "1"},
             },
@@ -343,9 +344,10 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
     if (
         process.returncode
         or response.get("jsonrpc") != "2.0"
+        or type(response.get("id")) is not int
         or response.get("id") != 1
         or not isinstance(result, dict)
-        or not isinstance(result.get("protocolVersion"), str)
+        or result.get("protocolVersion") != MCP_PROTOCOL_VERSION
         or not isinstance(result.get("capabilities"), dict)
         or not isinstance(server, dict)
         or not isinstance(server.get("name"), str)

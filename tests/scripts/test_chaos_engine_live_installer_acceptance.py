@@ -139,6 +139,29 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 ["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process
             )
 
+    def test_mcp_probe_rejects_wrong_protocol_and_boolean_id(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        responses = (
+            '{"jsonrpc":"2.0","id":true,"result":{"protocolVersion":"2025-06-18",'
+            '"capabilities":{},"serverInfo":{"name":"fixture","version":"1"}}}\n',
+            '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"garbage",'
+            '"capabilities":{},"serverInfo":{"name":"fixture","version":"1"}}}\n',
+        )
+        for response in responses:
+            with self.subTest(response=response):
+                process = mock.Mock()
+                process.communicate.return_value = (response, "")
+                process.returncode = 0
+                with self.assertRaisesRegex(RuntimeError, "initialize failed"):
+                    module.probe_mcp(
+                        ["fixture-mcp"],
+                        ROOT,
+                        popen=lambda *_args, **_kwargs: process,
+                    )
+
     def test_project_mcp_probe_covers_memory_and_mempalace(self):
         module = load_acceptance()
         self.assertIsNotNone(module)
