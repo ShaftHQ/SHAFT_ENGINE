@@ -854,6 +854,86 @@ def client_json(
         raise RuntimeError("client plugin command returned invalid JSON") from error
 
 
+_STALE_MARKETPLACE_ERROR = re.compile(
+    r"^(?:client plugin command failed:\s*)?(?:Error:\s*)?"
+    r"failed to load (?:configured )?marketplace(?: snapshot)?\(s\):\s*-\s*"
+    r"`(?P<name>chaos-engine-[0-9a-f]{12})`\s+at\s+(?P<root>.+?)"
+    r"(?::\s*|\s+)marketplace root does not contain a supported manifest\.?\s*$",
+    re.DOTALL,
+)
+_SUPPORTED_MARKETPLACE_MANIFESTS = (
+    ".agents/plugins/marketplace.json",
+    ".agents/plugins/api_marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".cursor-plugin/marketplace.json",
+)
+
+
+def stale_owned_marketplace(error: RuntimeError) -> str | None:
+    match = _STALE_MARKETPLACE_ERROR.fullmatch(str(error))
+    if match is None:
+        return None
+    name = match.group("name")
+    root = Path(match.group("root").strip())
+    if not root.is_absolute():
+        return None
+    try:
+        if any(is_link_or_reparse(path) for path in (root, *root.parents)):
+            return None
+    except OSError:
+        return None
+    parts = tuple(os.path.normcase(part) for part in root.parts)
+    durable = parts[-3:] == (
+        os.path.normcase("ChaosEngine"),
+        os.path.normcase("client-marketplaces"),
+        os.path.normcase(name),
+    )
+    legacy = parts[-2:] == (
+        os.path.normcase(".chaos-engine-state"),
+        os.path.normcase("client-marketplace"),
+    )
+    if legacy:
+        try:
+            project = root.parent.parent.resolve()
+        except OSError:
+            return None
+        digest = hashlib.sha256(os.path.normcase(str(project)).encode()).hexdigest()[:12]
+        legacy = name == f"chaos-engine-{digest}"
+    if not durable and not legacy:
+        return None
+    try:
+        supported_manifest = any(
+            (root / relative).exists() or is_link_or_reparse(root / relative)
+            for relative in _SUPPORTED_MARKETPLACE_MANIFESTS
+        )
+    except OSError:
+        return None
+    if supported_manifest:
+        return None
+    return name
+
+
+def remove_stale_marketplace_before_activation(
+    client: str,
+    executable: str,
+    project: Path,
+    *,
+    runner=subprocess.run,
+) -> None:
+    arguments = ["plugin", "marketplace", "list", "--json"]
+    try:
+        client_json(executable, arguments, project, runner=runner)
+    except RuntimeError as error:
+        marketplace_name = stale_owned_marketplace(error)
+        if marketplace_name is None:
+            raise
+        remove = ["plugin", "marketplace", "remove", marketplace_name]
+        if client == "claude":
+            remove.extend(["--scope", "local"])
+        client_command(executable, remove, project, runner=runner)
+        client_json(executable, arguments, project, runner=runner)
+
+
 def same_path(left: object, right: Path) -> bool:
     if not isinstance(left, str):
         return False
@@ -1378,9 +1458,12 @@ def activate_detected_plugins(
             executable = which(client)
             if executable is None:
                 continue
-            touched_clients.append(client)
             selected_client = lambda name, selected=client, path=executable: path if name == selected else None
+            remove_stale_marketplace_before_activation(
+                client, executable, project, runner=runner
+            )
             current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            touched_clients.append(client)
             if current["marketplace"] != "healthy":
                 if confirmer is not None:
                     confirmer(f"Register {client} plugin marketplace")
