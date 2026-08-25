@@ -1763,6 +1763,8 @@ def attach_component_status(
     target: Path,
     dependency_health: str,
     host_controller: object,
+    *,
+    inspect_retrieval_state: bool = True,
 ) -> None:
     manifest = load_manifest(target)
     capabilities = manifest.get("capabilities")
@@ -1827,9 +1829,10 @@ def attach_component_status(
         components[name] = {"status": "healthy" if healthy else "absent", **capabilities[name]}
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health, **capabilities[name]}
-    mempalace_state = host_controller.mempalace_runtime_status(project)
-    if mempalace_state.get("status") != "healthy":
-        components["mempalace"] = {**mempalace_state, **capabilities["mempalace"]}
+    if inspect_retrieval_state:
+        mempalace_state = host_controller.mempalace_runtime_status(project)
+        if mempalace_state.get("status") != "healthy":
+            components["mempalace"] = {**mempalace_state, **capabilities["mempalace"]}
     cache_state = host_controller.maven_tools_cache_status()
     components["maven-tools-mcp"] = {
         **cache_state,
@@ -1923,6 +1926,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                     target,
                     str(result["dependencies"]["status"]),
                     host_controller,
+                    inspect_retrieval_state=False,
                 )
                 return result
             pointer_path = project / ".chaos-engine-runtime-current.json"

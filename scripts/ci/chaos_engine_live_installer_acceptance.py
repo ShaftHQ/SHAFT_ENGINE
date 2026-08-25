@@ -491,7 +491,7 @@ def verify_account_phase(project: Path, expected_commit: str) -> dict[str, objec
                 "hosts": result.get("hosts", {}).get("status"),
                 "dependencies": result.get("dependencies", {}).get("status"),
                 "unhealthyComponents": {
-                    name: record.get("status")
+                    name: record
                     for name, record in components.items()
                     if record.get("status") != "healthy"
                 },

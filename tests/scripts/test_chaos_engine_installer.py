@@ -222,10 +222,26 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             path.write_text(json.dumps(receipt), encoding="utf-8")
             before = path.read_bytes()
 
-            result = MODULE.status_with_dependencies(project)
+            host_controller = MODULE.load_installed_controller(
+                project / ".chaos-engine", "hosts"
+            )
+            load_controller = MODULE.load_installed_controller
+            with mock.patch.object(
+                host_controller,
+                "mempalace_runtime_status",
+                return_value={"status": "recovery-required"},
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda target, name: (
+                    host_controller if name == "hosts" else load_controller(target, name)
+                ),
+            ):
+                result = MODULE.status_with_dependencies(project)
 
             self.assertEqual("healthy", result["status"], result)
             self.assertEqual("healthy", result["dependencies"]["status"])
+            self.assertEqual("healthy", result["components"]["mempalace"]["status"])
             self.assertEqual(2, result["dependencies"]["schemaVersion"])
             self.assertEqual("reused", result["dependencies"]["components"]["node"]["action"])
             self.assertEqual(before, path.read_bytes())
