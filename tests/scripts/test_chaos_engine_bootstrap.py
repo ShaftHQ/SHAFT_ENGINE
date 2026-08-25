@@ -637,7 +637,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             project = Path(temporary) / "project"
             project.mkdir()
             opener, _ = self.opener([(COMMIT_ONE, "full")])
-            data_root = Path(temporary) / "user-data"
+            data_root = Path(temporary).resolve() / "user-data"
             data_variable = "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME"
 
             def provisioner(runtime, specification):
