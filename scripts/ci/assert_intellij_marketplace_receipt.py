@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Fail if publishPlugin left no Gradle or Marketplace receipt for this version.
+"""Fail if publishPlugin left no successful Gradle upload receipt.
 
 Issue #5221: a cancelled verify+publish composite looked partly healthy because
 coverage uploaded `if: always()`. A successful Marketplace publish must leave a
-Gradle `BUILD SUCCESSFUL` receipt and the version must appear on plugin 32529.
+Gradle `BUILD SUCCESSFUL` receipt. The version listing on plugin 32529 is advisory.
 
-Issue #5227: Marketplace listing can lag the upload by more than the original
-5x15s budget. Wait long enough for a valid public listing, and if the version
-is still absent after a Gradle success, say listing is lagging rather than
-treating the landed upload as a miss that invites another dispatch.
+Issues #5227 and #5344: Marketplace listing is eventually consistent and can
+lag an accepted upload beyond any short CI polling budget. A successful
+publishPlugin is the upload receipt; public listing remains an advisory check
+that must never invite another dispatch of the single-use version.
 """
 
 from __future__ import annotations
@@ -82,16 +82,10 @@ def marketplace_receipt_errors(
 
 def receipt_errors(log_text: str, properties_text: str, updates_json: str) -> list[str]:
     errors = gradle_receipt_errors(log_text)
-    gradle_succeeded = not errors
     try:
-        version = plugin_version_from_properties(properties_text)
+        plugin_version_from_properties(properties_text)
     except ValueError as error:
         return errors + [str(error)]
-    errors.extend(
-        marketplace_receipt_errors(
-            updates_json, version, gradle_succeeded=gradle_succeeded
-        )
-    )
     return errors
 
 
@@ -103,7 +97,7 @@ def fetch_updates(url: str = MARKETPLACE_UPDATES_URL, timeout: int = 30) -> str:
 
 def fetch_updates_with_retry(
     url: str = MARKETPLACE_UPDATES_URL,
-    attempts: int = 12,
+    attempts: int = 1,
     delay_seconds: float = 15,
     sleeper=time.sleep,
     fetcher=fetch_updates,
@@ -149,32 +143,46 @@ def main(argv: list[str] | None = None) -> int:
     log_text = args.log.read_text(encoding="utf-8")
     properties_text = args.properties.read_text(encoding="utf-8")
     gradle_errors = gradle_receipt_errors(log_text)
-    if gradle_errors and args.updates_json is None:
+    if gradle_errors:
         print("\n".join(gradle_errors), file=sys.stderr)
+        return 1
+    try:
+        version = plugin_version_from_properties(properties_text)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
         return 1
     if args.updates_json is not None:
         updates_json = args.updates_json.read_text(encoding="utf-8")
     else:
-        try:
-            version = plugin_version_from_properties(properties_text)
-        except ValueError as error:
-            print(str(error), file=sys.stderr)
-            return 1
         try:
             updates_json = fetch_updates_with_retry(
                 url=args.updates_url,
                 version=version,
             )
         except RuntimeError as error:
-            print(str(error), file=sys.stderr)
-            return 1
-    errors = receipt_errors(log_text, properties_text, updates_json)
-    if errors:
-        print("\n".join(errors), file=sys.stderr)
-        return 1
-    version = plugin_version_from_properties(properties_text)
+            print(
+                f"Marketplace visibility check unavailable after accepted upload: {error}",
+                file=sys.stderr,
+            )
+            return 0
+    try:
+        versions = marketplace_versions(updates_json)
+    except (ValueError, json.JSONDecodeError) as error:
+        print(
+            f"Marketplace visibility check unreadable after accepted upload: {error}",
+            file=sys.stderr,
+        )
+        return 0
+    if version not in versions:
+        print(
+            f"Marketplace accepted plugin {MARKETPLACE_PLUGIN_ID} version {version}; "
+            "public listing is still pending. Do not re-dispatch this single-use version.",
+            file=sys.stderr,
+        )
+        return 0
     print(
-        f"Marketplace receipt confirmed for plugin {MARKETPLACE_PLUGIN_ID} version {version}."
+        f"Marketplace listing confirmed for plugin {MARKETPLACE_PLUGIN_ID} "
+        f"version {version}."
     )
     return 0
 

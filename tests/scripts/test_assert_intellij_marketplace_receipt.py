@@ -47,9 +47,9 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
         errors = MODULE.receipt_errors(SUCCESS_LOG, "pluginSinceBuild=243\n", LISTED)
         self.assertTrue(any("pluginVersion" in error for error in errors), errors)
 
-    def test_unreadable_updates_json_fails(self):
+    def test_unreadable_updates_json_is_advisory_after_gradle_success(self):
         errors = MODULE.receipt_errors(SUCCESS_LOG, PROPERTIES, "not-json")
-        self.assertTrue(any("unreadable" in error for error in errors), errors)
+        self.assertEqual([], errors)
 
     def test_cli_accepts_fixture_updates_json(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -129,6 +129,30 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
             self.assertEqual(0, result)
             self.assertIn("listing is still pending", stderr.getvalue())
             self.assertIn("Do not re-dispatch", stderr.getvalue())
+
+    def test_cli_accepts_upload_when_marketplace_lookup_is_unavailable(self):
+        original = MODULE.fetch_updates_with_retry
+
+        def unavailable(*_args, **_kwargs):
+            raise RuntimeError("Marketplace updates fetch failed: timed out")
+
+        MODULE.fetch_updates_with_retry = unavailable
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                log = root / "publish.log"
+                properties = root / "gradle.properties"
+                log.write_text(SUCCESS_LOG, encoding="utf-8")
+                properties.write_text(PROPERTIES, encoding="utf-8")
+                stderr = io.StringIO()
+                with redirect_stderr(stderr):
+                    result = MODULE.main(
+                        ["--log", str(log), "--properties", str(properties)]
+                    )
+            self.assertEqual(0, result)
+            self.assertIn("Marketplace visibility check unavailable", stderr.getvalue())
+        finally:
+            MODULE.fetch_updates_with_retry = original
 
     def test_fetch_retries_then_raises(self):
         attempts = {"n": 0}
@@ -242,7 +266,7 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
             MODULE.fetch_updates_with_retry = original
         self.assertEqual(0, calls["n"])
 
-    def test_cli_retries_listing_when_gradle_succeeded_and_version_is_omitted(self):
+    def test_cli_checks_listing_once_when_gradle_succeeded_and_version_is_omitted(self):
         calls = {"n": 0}
         original = MODULE.fetch_updates_with_retry
 
@@ -259,7 +283,7 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
                 log.write_text(SUCCESS_LOG, encoding="utf-8")
                 properties.write_text(PROPERTIES, encoding="utf-8")
                 self.assertEqual(
-                    1,
+                    0,
                     MODULE.main(
                         [
                             "--log",

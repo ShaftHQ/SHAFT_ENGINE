@@ -5,6 +5,8 @@ name: Maven Central Continuous Delivery
 # build_release_and_deliver stays sequential so deploy cannot run after a failed test.
 # Named checks stay mirrored with shaft-pilot-release.yml's isolated jobs. Keep the
 # named checks in sync; do not re-serialize the PR gate to match this deploy path.
+# Marketplace publish and release announcement run in parallel after delivery and
+# public-installer verification; the standalone plugin workflow is manual recovery only.
 
 on:
   push:
@@ -260,6 +262,50 @@ jobs:
       - name: Run the public LATEST installer twice
         run: python scripts/ci/verify_shaft_mcp_installer_release.py
 
+  publish_intellij_plugin:
+    name: Publish IntelliJ plugin
+    needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]
+    if: needs.build_release_and_deliver.result == 'success'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    concurrency:
+      group: publish-intellij-plugin
+      cancel-in-progress: false
+    steps:
+      - name: Checkout released source
+        uses: actions/checkout@v7
+      - name: Publish to JetBrains Marketplace
+        uses: ./.github/actions/intellij-verify
+        with:
+          publish: 'true'
+          verify: 'false'
+          marketplace-token: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          certificate-chain: ${{ secrets.JETBRAINS_PLUGIN_CERTIFICATE_CHAIN }}
+          private-key: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY }}
+          private-key-password: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY_PASSWORD }}
+
+  notify_intellij_marketplace_publish:
+    name: Fail closed on missed Marketplace publish
+    needs: [build_release_and_deliver, verify_public_shaft_mcp_installer, publish_intellij_plugin]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout released source
+        uses: actions/checkout@v7
+      - name: File, keep, or close the Marketplace publish tracker
+        uses: ./.github/actions/notify-intellij-marketplace-publish
+        with:
+          verify-result: ${{ needs.build_release_and_deliver.result }}
+          publish-result: ${{ needs.publish_intellij_plugin.result }}
+          manage-tracker: 'true'
+          publish-required: ${{ needs.build_release_and_deliver.result == 'success' && needs.verify_public_shaft_mcp_installer.result == 'success' }}
+          plugin-version: ${{ needs.build_release_and_deliver.outputs.release_version }}
+          label: intellij-marketplace-publish-miss
+
   announce_release:
     name: Announce verified release
     needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]
@@ -286,9 +332,8 @@ jobs:
         uses: ncipollo/release-action@v1.21.0
         with:
           # A release created with the default GITHUB_TOKEN does not emit a `release`
-          # event (GitHub's anti-recursion rule), so publish-intellij-plugin.yml and
-          # publish-shaft-mcp.yml — which both listen for `release: published` — would
-          # never fire. BOT_TOKEN is a PAT, so its release does trigger those workflows.
+          # event (GitHub's anti-recursion rule), so publish-shaft-mcp.yml would never
+          # fire. BOT_TOKEN is a PAT, so its release triggers that workflow.
           token: ${{ secrets.BOT_TOKEN }}
           allowUpdates: false
           generateReleaseNotes: true
