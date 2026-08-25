@@ -312,9 +312,15 @@ def mempalace_runtime_status(project: Path):
             "python": [
                 {"name": "Python 3.14.7", "is_published": True, "pre_release": False},
                 {"name": "Python 3.15.0rc1", "is_published": True, "pre_release": True},
+                {"name": "Python install manager 26.3", "is_published": True, "pre_release": False},
             ],
             "mempalace": {"releases": {"3.8.0": [{"yanked": False}], "3.9.0rc1": [{"yanked": False}]}},
             "memory": {"version": "0.2.2"},
+            "java": {"versions": [
+                {"major": 26, "semver": "26.0.1+8"},
+                {"major": 25, "semver": "25.0.4+7.0.LTS"},
+                {"major": 25, "semver": "25.0.3+9.0.LTS"},
+            ]},
             "uv": {"tag_name": "0.12.5", "prerelease": False, "draft": False},
         }
 
@@ -328,10 +334,10 @@ def mempalace_runtime_status(project: Path):
             def read(self, _size):
                 return self.payload
 
-        for name, expected in (("node", "24.1.0"), ("python", "3.14.7"), ("mempalace", "3.8.0"), ("memory", "0.2.2"), ("uv", "0.12.5")):
+        for name, expected in (("node", "24.1.0"), ("python", "3.14.7"), ("mempalace", "3.8.0"), ("memory", "0.2.2"), ("java", "25.0.4+7.0.LTS"), ("uv", "0.12.5")):
             with self.subTest(name=name):
                 contract = {
-                    "minimumVersion": "0.1.0" if name not in {"node", "python"} else ("22.0.0" if name == "node" else "3.14.0"),
+                    "minimumVersion": "25.0.0" if name == "java" else "0.1.0" if name not in {"node", "python"} else ("22.0.0" if name == "node" else "3.14.0"),
                     "stableChannel": f"https://example.invalid/{name}",
                 }
                 self.assertEqual(

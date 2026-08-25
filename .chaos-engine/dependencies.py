@@ -299,13 +299,15 @@ def resolve_stable_version(
     elif name == "python":
         if not isinstance(payload, list):
             raise ValueError("Python stable-channel response is invalid")
-        candidates = [
-            {
-                "version": str(item.get("name", "")).removeprefix("Python "),
-                "yanked": bool(item.get("pre_release")) or item.get("is_published") is not True,
-            }
-            for item in payload if isinstance(item, dict)
-        ]
+        for item in payload:
+            release_name = item.get("name") if isinstance(item, dict) else None
+            match = re.fullmatch(r"Python (3\.\d+\.\d+)", release_name or "")
+            if match:
+                candidates.append({
+                    "version": match.group(1),
+                    "yanked": bool(item.get("pre_release"))
+                    or item.get("is_published") is not True,
+                })
     elif name in {"mempalace", "graphify"}:
         releases = payload.get("releases") if isinstance(payload, dict) else None
         if not isinstance(releases, dict):
@@ -324,12 +326,14 @@ def resolve_stable_version(
         version = payload.get("version") if isinstance(payload, dict) else None
         candidates = [{"version": version, "yanked": False}]
     elif name == "java":
-        if not isinstance(payload, list):
+        releases = payload.get("versions") if isinstance(payload, dict) else None
+        if not isinstance(releases, list):
             raise ValueError("Java stable-channel response is invalid")
-        for item in payload:
-            version_data = item.get("version_data") if isinstance(item, dict) else None
-            semver = version_data.get("semver") if isinstance(version_data, dict) else None
-            candidates.append({"version": semver, "yanked": False})
+        candidates = [
+            {"version": item.get("semver"), "yanked": False}
+            for item in releases
+            if isinstance(item, dict) and item.get("major") == 25
+        ]
     else:
         tag = payload.get("tag_name") if isinstance(payload, dict) else None
         prerelease = payload.get("prerelease") if isinstance(payload, dict) else True

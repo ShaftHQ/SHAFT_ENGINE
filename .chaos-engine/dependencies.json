@@ -4,11 +4,11 @@
     "uv": {"minimumVersion": "0.11.0", "executables": ["uv", "uvx"], "provider": "astral-standalone", "stableChannel": "https://api.github.com/repos/astral-sh/uv/releases/latest", "probe": ["uv", "--version"]},
     "python": {"minimumVersion": "3.14.0", "executables": ["python3"], "provider": "uv-managed", "stableChannel": "https://www.python.org/api/v2/downloads/release/?is_published=true", "probe": ["python3", "--version"]},
     "node": {"minimumVersion": "22.0.0", "executables": ["node", "npm", "npx"], "provider": "platform-package-manager", "stableChannel": "https://nodejs.org/dist/index.json", "probe": ["node", "--version"]},
-    "java": {"minimumVersion": "25.0.0", "executables": ["java"], "provider": "adoptium-platform-package", "stableChannel": "https://api.adoptium.net/v3/assets/latest/25/hotspot", "probe": ["java", "-version"]},
+    "java": {"minimumVersion": "25.0.0", "executables": ["java"], "provider": "adoptium-platform-package", "stableChannel": "https://api.adoptium.net/v3/info/release_versions?feature_version=25&release_type=ga&page_size=50", "probe": ["java", "-version"]},
     "mempalace": {"minimumVersion": "3.7.0", "executables": ["mempalace", "mempalace-mcp"], "provider": "uv-tool", "stableChannel": "https://pypi.org/pypi/mempalace/json", "probe": ["mempalace", "--version"]},
     "graphify": {"minimumVersion": "0.9.43", "executables": ["graphify"], "provider": "uv-tool", "stableChannel": "https://pypi.org/pypi/graphifyy/json", "probe": ["graphify", "--version"]},
     "memory": {"minimumVersion": "0.2.1", "executables": ["memory", "memory-mcp"], "provider": "npm-global-user", "stableChannel": "https://registry.npmjs.org/@aictx%2fmemory/latest", "probe": ["memory", "--version"]},
-    "context7": {"minimumVersion": "1.0.0", "executables": ["ctx7"], "provider": "npm-global-user", "stableChannel": "https://registry.npmjs.org/ctx7/latest", "probe": ["ctx7", "--version"]},
+    "context7": {"minimumVersion": "0.1.0", "executables": ["ctx7"], "provider": "npm-global-user", "stableChannel": "https://registry.npmjs.org/ctx7/latest", "probe": ["ctx7", "--version"]},
     "maven-tools-mcp": {"minimumVersion": "3.2.0", "executables": [], "provider": "upstream-source-jar", "stableChannel": "https://api.github.com/repos/arvindand/maven-tools-mcp/releases/latest", "probe": ["mcp", "initialize"]}
   },
   "runtimes": {
