@@ -139,6 +139,7 @@
       "agent-guidance-boundary-guard",
       "agentic-pdca-loop",
       "allure-extent-report-operator",
+      "chaos-engine",
       "ci-failure-investigator",
       "flaky-test-stabilizer",
       "mcp-transport-contract-auditor",

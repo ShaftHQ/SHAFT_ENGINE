@@ -2186,6 +2186,31 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.codex_content(legacy_codex.replace(b"\n", b"\r\n")),
             )
 
+    def test_upgrade_preserves_existing_agents_skills_map_and_adapter(self):
+        module = load(HOSTS, "chaos_engine_hosts_preserve_skills_map")
+        map_text = "# Agent skills map\n\nEvery harness element is listed here.\n"
+        adapter_text = (
+            "---\nname: chaos-engine\ndescription: Load the canonical ChaosEngine.\n---\n\n"
+            "Follow the [portable entrypoint](../../../chaos-engine/skills/chaos-engine/SKILL.md).\n"
+        )
+        before = {relative: None for relative in module.managed_paths()}
+        before[".agents/skills/README.md"] = map_text.encode()
+        before[".agents/skills/chaos-engine/SKILL.md"] = adapter_text.encode()
+        rendered = module.desired_content(before)
+        self.assertEqual(map_text.encode(), rendered[".agents/skills/README.md"])
+        self.assertEqual(
+            adapter_text.encode(),
+            rendered[".agents/skills/chaos-engine/SKILL.md"],
+        )
+
+    def test_fresh_install_writes_agents_skills_map_stub(self):
+        module = load(HOSTS, "chaos_engine_hosts_fresh_skills_map")
+        before = {relative: None for relative in module.managed_paths()}
+        rendered = module.desired_content(before)
+        readme = rendered[".agents/skills/README.md"].decode()
+        self.assertIn("# Installed agent harness", readme)
+        self.assertIn("`.chaos-engine/`", readme)
+
     def test_install_rewrites_stale_memory_pin_and_unguarded_mempalace_mcp(self):
         module = load(HOSTS, "chaos_engine_hosts_store_mcp_repair")
         pin = module.memory_package_pin()
