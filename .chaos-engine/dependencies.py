@@ -400,7 +400,8 @@ def _account_search_path() -> str:
 
 
 def discover_account_commands(
-    specification: dict[str, object], *, which=shutil.which, runner=subprocess.run
+    specification: dict[str, object], *, preferred_commands: dict[str, str] | None = None,
+    which=shutil.which, runner=subprocess.run
 ) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
     """Discover and probe every dependency, including required sibling commands."""
     contracts = specification.get("dependencies")
@@ -417,7 +418,9 @@ def discover_account_commands(
             raise ValueError(f"dependency executable contract is invalid: {name}")
         sibling_paths: dict[str, str] = {}
         for command in names:
-            selected = which(command, path=search_path)
+            selected = (preferred_commands or {}).get(command)
+            if not selected or not Path(selected).is_file():
+                selected = which(command, path=search_path)
             if selected:
                 resolved = Path(selected).resolve()
                 if any(part.startswith(".chaos-engine-runtime") for part in resolved.parts):
@@ -632,8 +635,19 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     validate_runtime_specification(specification)
     if os.name != "nt" and hasattr(os, "geteuid") and os.geteuid() == 0 and not allow_root:
         raise RuntimeError("ChaosEngine installer must not run as root")
+    prior_commands: dict[str, str] = {}
+    try:
+        prior_receipt = read_account_receipt(project)
+        prior = prior_receipt.get("commands")
+        if isinstance(prior, dict):
+            prior_commands = {
+                name: command for name, command in prior.items()
+                if isinstance(name, str) and isinstance(command, str)
+            }
+    except ValueError:
+        pass
     local, commands = discover_account_commands(
-        specification, which=which, runner=runner
+        specification, preferred_commands=prior_commands, which=which, runner=runner
     )
     actions = resolve_account_actions(
         specification, local, opener=opener
@@ -676,7 +690,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 raise RuntimeError("latest stable Python executable was not found after installation")
             managed_python = str(candidate)
         local, commands = discover_account_commands(
-            specification, which=which, runner=runner
+            specification, preferred_commands=commands, which=which, runner=runner
         )
         if managed_python is not None:
             python_contract = specification["dependencies"]["python"]  # type: ignore[index]
@@ -719,7 +733,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             _run_account_command(command, project, runner=runner)
 
     local, commands = discover_account_commands(
-        specification, which=which, runner=runner
+        specification, preferred_commands=commands, which=which, runner=runner
     )
     unhealthy = [
         name

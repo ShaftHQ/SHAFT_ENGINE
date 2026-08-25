@@ -443,6 +443,33 @@ def mempalace_runtime_status(project: Path):
             memory.write_text("{}\n", encoding="utf-8")
             self.assertEqual([], module.project_setup_plan(project, commands))
 
+    def test_account_discovery_prefers_receipt_command_over_path(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            preferred = Path(temporary) / "python3"
+            preferred.write_text("fixture\n", encoding="utf-8")
+            specification = {
+                "schemaVersion": 3,
+                "dependencies": {
+                    "python": {"executables": ["python3"], "probe": ["python3", "--version"]}
+                },
+            }
+            runner = mock.Mock(
+                return_value=SimpleNamespace(
+                    returncode=0, stdout="Python 3.14.7\n", stderr=""
+                )
+            )
+
+            local, commands = module.discover_account_commands(
+                specification,
+                preferred_commands={"python3": str(preferred)},
+                which=lambda *_args, **_kwargs: "/wrong/python3",
+                runner=runner,
+            )
+
+            self.assertEqual(str(preferred.resolve()), commands["python3"])
+            self.assertEqual("3.14.7", local["python"]["version"])
+
     def test_account_install_blocks_missing_tool_when_stable_lookup_is_offline(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
