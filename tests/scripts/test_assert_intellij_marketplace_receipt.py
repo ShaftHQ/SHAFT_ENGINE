@@ -1,7 +1,9 @@
 import importlib.util
 import inspect
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from urllib.error import URLError
 
@@ -33,12 +35,9 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
         )
         self.assertTrue(any("BUILD SUCCESSFUL" in error for error in errors), errors)
 
-    def test_marketplace_without_the_version_fails(self):
+    def test_marketplace_without_the_version_is_advisory_after_gradle_success(self):
         errors = MODULE.receipt_errors(SUCCESS_LOG, PROPERTIES, MISSING)
-        self.assertTrue(
-            any("10.3.20260818" in error for error in errors),
-            errors,
-        )
+        self.assertEqual([], errors)
 
     def test_empty_log_fails_even_if_marketplace_lists_the_version(self):
         errors = MODULE.receipt_errors("", PROPERTIES, LISTED)
@@ -106,7 +105,7 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
             MODULE.fetch_updates_with_retry = original
         self.assertEqual("10.3.20260818", seen.get("version"))
 
-    def test_cli_fails_when_marketplace_omits_the_version(self):
+    def test_cli_accepts_upload_when_marketplace_listing_lags(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             log = root / "publish.log"
@@ -115,9 +114,9 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
             log.write_text(SUCCESS_LOG, encoding="utf-8")
             properties.write_text(PROPERTIES, encoding="utf-8")
             updates.write_text(MISSING, encoding="utf-8")
-            self.assertEqual(
-                1,
-                MODULE.main(
+            stderr = io.StringIO()
+            with redirect_stderr(stderr):
+                result = MODULE.main(
                     [
                         "--log",
                         str(log),
@@ -126,8 +125,10 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
                         "--updates-json",
                         str(updates),
                     ]
-                ),
-            )
+                )
+            self.assertEqual(0, result)
+            self.assertIn("listing is still pending", stderr.getvalue())
+            self.assertIn("Do not re-dispatch", stderr.getvalue())
 
     def test_fetch_retries_then_raises(self):
         attempts = {"n": 0}
@@ -188,25 +189,20 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
         errors = MODULE.marketplace_receipt_errors(body, "10.3.20260818")
         self.assertTrue(any("10.3.20260818" in error for error in errors), errors)
 
-    def test_default_retry_budget_covers_observed_marketplace_listing_lag(self):
-        # Run 32247439124: BUILD SUCCESSFUL at 11:35:30Z, receipt miss at 11:36:32Z (~62s).
+    def test_default_visibility_probe_does_not_poll_after_accepted_upload(self):
         parameters = inspect.signature(MODULE.fetch_updates_with_retry).parameters
         attempts = parameters["attempts"].default
         delay_seconds = parameters["delay_seconds"].default
         wait_seconds = (attempts - 1) * delay_seconds
-        self.assertGreaterEqual(
+        self.assertEqual(
+            0,
             wait_seconds,
-            90,
-            f"default listing-lag wait is {wait_seconds}s; observed miss was ~62s",
+            f"accepted upload still waits {wait_seconds}s for an eventually consistent listing",
         )
 
-    def test_gradle_success_with_omitted_version_names_listing_lag(self):
+    def test_gradle_success_with_omitted_version_is_not_a_receipt_error(self):
         errors = MODULE.receipt_errors(SUCCESS_LOG, PROPERTIES, MISSING)
-        blob = "\n".join(errors)
-        self.assertTrue(any("10.3.20260818" in error for error in errors), errors)
-        self.assertIn("listing still lagging", blob)
-        self.assertIn("Do not re-dispatch", blob)
-        self.assertNotIn("Gradle publish log is missing BUILD SUCCESSFUL", blob)
+        self.assertEqual([], errors)
 
     def test_missing_gradle_receipt_does_not_claim_listing_lag(self):
         errors = MODULE.receipt_errors("", PROPERTIES, MISSING)
