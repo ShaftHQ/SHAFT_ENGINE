@@ -297,13 +297,13 @@ def mempalace_runtime_status(project: Path):
             "macos", "brew", {"uv": "reused", "node": "installed", "java": "installed"},
             node_major=24, node_version="24.19.0",
         )
-        self.assertEqual([["npm", "install", "-g", "node@24.19.0"]], macos["node"])
+        self.assertEqual([["brew", "install", "node@24"]], macos["node"])
         windows = module.prerequisite_command_plan(
             "windows", "winget", {"uv": "installed", "node": "installed", "java": "installed"}
         )
         self.assertEqual("pwsh", windows["uv"][0][0])
         self.assertEqual("uv", windows["uv"][1][0])
-        self.assertEqual("npm", windows["node"][0][0])
+        self.assertEqual("winget", windows["node"][0][0])
         self.assertTrue(all(command[0] == "winget" for command in windows["java"]))
 
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):

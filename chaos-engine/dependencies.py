@@ -243,7 +243,7 @@ def prerequisite_command_plan(
         )
     if wanted("python"):
         plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
-    if wanted("node"):
+    if system == "linux" and wanted("node"):
         plan["node"] = [["npm", "install", "-g", f"node@{node_version or node_major}"]]
     if system == "linux" and provider in {"apt", "dnf"}:
         manager = "apt-get" if provider == "apt" else "dnf"
@@ -252,9 +252,18 @@ def prerequisite_command_plan(
                 ["sudo", "-n", manager, "install", "-y", "temurin-25-jdk"]
             ]
     elif system == "macos":
+        if wanted("node"):
+            verb = "upgrade" if actions.get("node") == "upgraded" else "install"
+            plan["node"] = [["brew", verb, f"node@{node_major}"]]
         if wanted("java"):
             plan["java"] = [["brew", "install", "--cask", "temurin@25"]]
     elif system == "windows":
+        if wanted("node"):
+            verb = "upgrade" if actions.get("node") == "upgraded" else "install"
+            plan["node"] = [[
+                "winget", verb, "--id", "OpenJS.NodeJS.LTS", "-e",
+                "--version", node_version or str(node_major), "--scope", "user",
+            ]]
         if wanted("java"):
             plan["java"] = [["winget", "install", "--id", "EclipseAdoptium.Temurin.25.JDK", "-e"]]
     return plan
@@ -278,6 +287,33 @@ def discover_java_25(*, system: str, runner=subprocess.run) -> str | None:
                     "java", str(candidate), {"probe": ["java", "--version"]}, runner=runner
                 )
                 if probe.get("healthy") is True and str(probe.get("version", "")).startswith("25."):
+                    return str(candidate.resolve())
+    return None
+
+
+def discover_exact_node(
+    version: str, *, system: str, runner=subprocess.run
+) -> str | None:
+    """Find the just-installed account or platform-native exact Node release."""
+    if system == "windows":
+        roots = [
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft/WinGet/Packages",
+            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "nodejs",
+        ]
+        patterns = ("**/node.exe",)
+    elif system == "macos":
+        roots = [Path("/opt/homebrew/opt"), Path("/usr/local/opt")]
+        patterns = (f"node@{version.split('.', 1)[0]}/bin/node",)
+    else:
+        roots = [Path.home() / ".local/bin"]
+        patterns = ("node",)
+    for root in roots:
+        for pattern in patterns:
+            for candidate in sorted(root.glob(pattern), reverse=True):
+                probe = probe_account_dependency(
+                    "node", str(candidate), {"probe": ["node", "--version"]}, runner=runner
+                )
+                if probe.get("healthy") is True and probe.get("version") == version:
                     return str(candidate.resolve())
     return None
 
@@ -690,7 +726,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     }
     if any(value != "reused" for value in prerequisite_actions.values()):
         selected_provider = provider or detected_package_provider(selected_system, which=which)
-        if prerequisite_actions["node"] != "reused":
+        if selected_system == "linux" and prerequisite_actions["node"] != "reused":
             npm = commands.get("npm")
             if not npm:
                 raise RuntimeError("dependency prerequisite siblings are incomplete")
@@ -723,7 +759,15 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             managed_java = discover_java_25(system=selected_system, runner=runner)
             if managed_java is None:
                 raise RuntimeError("latest stable Java 25 executable was not found after installation")
+        managed_node = None
         if prerequisite_actions["node"] != "reused":
+            managed_node = discover_exact_node(
+                str(actions["node"].get("resolvedVersion") or ""),
+                system=selected_system,
+                runner=runner,
+            )
+            if managed_node is None:
+                raise RuntimeError("latest stable Node executable was not found after installation")
             commands.pop("node", None)
         local, commands = discover_account_commands(
             specification, preferred_commands=commands, which=which, runner=runner
@@ -752,6 +796,18 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 "siblings": {"java": managed_java},
             }
             commands["java"] = managed_java
+        if managed_node is not None:
+            node_contract = specification["dependencies"]["node"]  # type: ignore[index]
+            probed = probe_account_dependency(
+                "node", managed_node, node_contract, runner=runner  # type: ignore[arg-type]
+            )
+            local["node"] = {
+                "status": "healthy" if probed["healthy"] else "broken",
+                **probed,
+                "executable": managed_node,
+                "siblings": {"node": managed_node, "npm": commands["npm"]},
+            }
+            commands["node"] = managed_node
         missing = [
             name for name in ("uv", "python", "node", "java")
             if local.get(name, {}).get("healthy") is not True
