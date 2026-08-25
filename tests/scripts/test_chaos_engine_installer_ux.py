@@ -356,7 +356,10 @@ class InstallerUxTests(unittest.TestCase):
             output,
         )
         self.assertIn("https://shafthq.github.io/docs/agentic/chaos-engine", output)
-        self.assertIn("Full install trace: /project/.chaos-engine-state/install-trace.json", output)
+        self.assertIn(
+            f"Full install trace: {Path('/project/.chaos-engine-state/install-trace.json').as_posix()}",
+            output,
+        )
         self.assertNotIn("Owned managed dependencies", output)
         self.assertNotIn("Continue working in", output)
 

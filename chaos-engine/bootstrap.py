@@ -505,7 +505,7 @@ class InstallReporter:
         lines.extend(
             self._paint(line, "36")
             for line in self._wrap(
-                f"  Trace (last {len(log)} of {self.trace_count}; full log: {trace_path})"
+                f"  Trace (last {len(log)} of {self.trace_count}; full log: {trace_path.as_posix()})"
             )
         )
         for ended, message in log:
@@ -535,7 +535,7 @@ class InstallReporter:
             "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!\n"
         )
         self.stream.write(f"{installer_user_guide_url(repository)}\n")
-        self.stream.write(f"Full install trace: {install_trace_path(project)}\n")
+        self.stream.write(f"Full install trace: {install_trace_path(project).as_posix()}\n")
         self.stream.flush()
 
     def close(self) -> None:
