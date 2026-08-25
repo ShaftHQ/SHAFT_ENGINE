@@ -24,6 +24,7 @@ ACTION = REPO_ROOT / ".github/actions/intellij-verify/action.yml"
 RETRY_SCRIPT = REPO_ROOT / "scripts/ci/build_retry.sh"
 WORKFLOWS = REPO_ROOT / ".github/workflows"
 PUBLISH_WORKFLOW = WORKFLOWS / "publish-intellij-plugin.yml"
+CENTRAL_WORKFLOW = WORKFLOWS / "mavenCentral_cd.yml"
 BUILD_FILE = REPO_ROOT / "shaft-intellij/build.gradle.kts"
 MARKETPLACE_RECEIPT_MARKERS = (
     "assert_intellij_marketplace_receipt",
@@ -48,6 +49,10 @@ def _run_steps() -> list[dict]:
 
 def _publish_workflow() -> dict:
     return yaml.safe_load(PUBLISH_WORKFLOW.read_text(encoding="utf-8")) or {}
+
+
+def _central_workflow() -> dict:
+    return yaml.safe_load(CENTRAL_WORKFLOW.read_text(encoding="utf-8")) or {}
 
 
 def _intellij_verify_with(step: dict) -> dict:
@@ -196,6 +201,38 @@ class IntellijMarketplacePublishSplitTest(unittest.TestCase):
         for name, timeout in publish_jobs:
             self.assertIsNotNone(timeout, f"{name} declares no timeout")
             self.assertGreater(timeout, 0, f"{name} timeout must be a real bound")
+
+    def test_standalone_publish_workflow_is_manual_only(self):
+        document = yaml.load(
+            PUBLISH_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader
+        )
+        self.assertEqual({"workflow_dispatch": ""}, document["on"])
+
+    def test_full_release_owns_publish_only_job_after_public_installer_gate(self):
+        jobs = _central_workflow()["jobs"]
+        publish = jobs.get("publish_intellij_plugin")
+        self.assertIsNotNone(publish, "mavenCentral_cd.yml has no automatic IntelliJ publish job")
+        self.assertEqual(
+            {"build_release_and_deliver", "verify_public_shaft_mcp_installer"},
+            set(publish.get("needs") or []),
+        )
+        publish_steps = [
+            step
+            for step in publish.get("steps") or []
+            if "intellij-verify" in str(step.get("uses", ""))
+        ]
+        self.assertEqual(1, len(publish_steps))
+        self.assertTrue(_truthy(_intellij_verify_with(publish_steps[0]).get("publish")))
+        self.assertFalse(_truthy(_intellij_verify_with(publish_steps[0]).get("verify")))
+
+    def test_announcement_and_intellij_publish_share_prerequisites(self):
+        jobs = _central_workflow()["jobs"]
+        publish = jobs.get("publish_intellij_plugin") or {}
+        self.assertEqual(
+            set(jobs["announce_release"].get("needs") or []),
+            set(publish.get("needs") or []),
+        )
+        self.assertNotIn("publish_intellij_plugin", jobs["announce_release"].get("needs") or [])
 
     def test_release_cancelled_or_timed_out_publish_is_a_failure_not_skip(self):
         text = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
