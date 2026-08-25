@@ -279,7 +279,8 @@ def mempalace_runtime_status(project: Path):
         self.assertNotIn("sudo", linux["uv"][0])
         for command in [*linux["node"], *linux["java"]]:
             if "sudo" in command:
-                self.assertIn(command[command.index("sudo") + 1], {"apt-get", "install"})
+                self.assertEqual("-n", command[command.index("sudo") + 1])
+                self.assertIn(command[command.index("sudo") + 2], {"apt-get", "dnf"})
 
     def test_uv_upgrade_uses_self_update_and_platform_plans_are_provider_native(self):
         module = load_controller()

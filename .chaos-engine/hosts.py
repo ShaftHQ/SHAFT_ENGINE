@@ -2098,6 +2098,7 @@ def owned_servers(
     maven_runtime: tuple[Path, Path] | None = None,
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> dict[str, dict[str, object]]:
     del platform_name
     servers: dict[str, dict[str, object]] = {
@@ -2140,6 +2141,12 @@ def owned_servers(
         servers["maven-tools-mcp"] = {
             "command": str(java),
             "args": ["-jar", str(jar)],
+        }
+    elif maven_docker is not None:
+        docker, image = maven_docker
+        servers["maven-tools-mcp"] = {
+            "command": docker,
+            "args": ["run", "-i", "--rm", image],
         }
     return servers
 
@@ -2500,6 +2507,7 @@ def json_content(
     before: bytes | None, maven_runtime: tuple[Path, Path] | None = None,
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> bytes:
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
@@ -2520,6 +2528,7 @@ def json_content(
     for name, desired in owned_servers(
         maven_runtime=maven_runtime, managed_python=managed_python,
         account_commands=account_commands,
+        maven_docker=maven_docker,
     ).items():
         if name in servers and not replaceable_owned_server(name, servers[name], desired):
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
@@ -2533,6 +2542,7 @@ def codex_content(
     maven_runtime: tuple[Path, Path] | None = None,
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> bytes:
     try:
         existing = before.decode("utf-8") if before is not None else ""
@@ -2607,6 +2617,15 @@ def codex_content(
             f'args = ["-jar", {json.dumps(str(jar))}]\n'
             "# CHAOSENGINE:END\n",
         )
+    elif maven_docker is not None:
+        docker, image = maven_docker
+        block = block.replace(
+            "# CHAOSENGINE:END\n",
+            "\n[mcp_servers.\"maven-tools-mcp\"]\n"
+            f"command = {json.dumps(docker)}\n"
+            f'args = ["run", "-i", "--rm", {json.dumps(image)}]\n'
+            "# CHAOSENGINE:END\n",
+        )
     if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:
         if block in existing:
             return existing.encode()
@@ -2619,6 +2638,7 @@ def codex_content(
     for name in owned_servers(
         maven_runtime=maven_runtime, managed_python=managed_python,
         account_commands=account_commands,
+        maven_docker=maven_docker,
     ):
         if f'mcp_servers."{name}"' in existing or f"mcp_servers.{name}" in existing:
             raise ValueError(f"ChaosEngine Codex server collision: {name}")
@@ -2955,6 +2975,7 @@ def desired_content(
     plugin_version: str = "1.0.0",
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -3449,11 +3470,13 @@ def desired_content(
         INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
     )
     after[".mcp.json"] = json_content(
-        before[".mcp.json"], maven_runtime, managed_python, account_commands
+        before[".mcp.json"], maven_runtime, managed_python, account_commands,
+        maven_docker,
     )
     gemini_settings = json_content(
         before[".gemini/settings.json"], maven_runtime, managed_python,
         account_commands,
+        maven_docker,
     )
     after[".gemini/settings.json"] = hook_content(
         without_chaos_hooks(gemini_settings, "Gemini"),
@@ -3463,6 +3486,7 @@ def desired_content(
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime,
         managed_python=managed_python, account_commands=account_commands,
+        maven_docker=maven_docker,
     )
     after[".gitattributes"] = gitattributes_content(before[".gitattributes"])
     return after
@@ -3920,6 +3944,7 @@ def install(
     capability_policy_digest: str | None = None,
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
@@ -3946,6 +3971,7 @@ def install(
                 plugin_version=version,
                 dependency_runtime=dependency_runtime,
                 account_commands=account_commands,
+                maven_docker=maven_docker,
             )
             current = current_images(project)
             for relative in managed_paths():
@@ -4002,6 +4028,7 @@ def install(
         plugin_version=version,
         dependency_runtime=dependency_runtime,
         account_commands=account_commands,
+        maven_docker=maven_docker,
     )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")

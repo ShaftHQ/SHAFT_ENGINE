@@ -297,6 +297,26 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertTrue(any(command[-3:] == ["clean", "package", "-Pci"] for command in calls))
             self.assertEqual(1, len(published))
 
+    def test_explicit_maven_tools_docker_mode_requires_healthy_existing_docker(self):
+        specification = {
+            "dependencies": {"maven-tools-mcp": {"stableChannel": "https://example.invalid"}}
+        }
+        dependencies = SimpleNamespace(
+            resolve_stable_version=lambda *_args, **_kwargs: "3.2.1"
+        )
+        healthy = mock.Mock(returncode=0, stdout="27.0.0\n", stderr="")
+        with mock.patch.object(
+            MODULE, "load_installed_controller", return_value=SimpleNamespace()
+        ), mock.patch.object(
+            MODULE, "load_dependency_controller", return_value=dependencies
+        ), mock.patch.object(
+            MODULE.shutil, "which", return_value="/usr/bin/docker"
+        ):
+            result = MODULE.ensure_maven_tools(
+                Path("."), specification, mode="docker", runner=mock.Mock(return_value=healthy)
+            )
+        self.assertEqual("arvindand/maven-tools-mcp:3.2.1", result["image"])
+
     def test_status_and_explain_json_v2_are_deterministic_and_secret_free(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

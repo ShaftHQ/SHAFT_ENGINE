@@ -1345,8 +1345,8 @@ def load_dependency_controller(installed_root: Path):
 
 def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
     target: Path, specification: dict[str, object], *, runner=subprocess.run,
-    reporter=None, confirmer=None, opener=None,
-) -> tuple[Path, Path]:
+    reporter=None, confirmer=None, opener=None, mode: str = "native",
+) -> tuple[Path, Path] | dict[str, str]:
     hosts = load_installed_controller(target, "hosts")
     dependencies = load_dependency_controller(target)
     contract = specification["dependencies"]["maven-tools-mcp"]
@@ -1354,6 +1354,23 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
     version = dependencies.resolve_stable_version(
         "maven-tools-mcp", contract, **resolver_options
     )
+    if mode == "docker":
+        docker = shutil.which("docker")
+        if not docker:
+            raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
+        probe = runner(
+            [docker, "version", "--format", "{{.Server.Version}}"],
+            capture_output=True, text=True, check=False, timeout=30,
+        )
+        if probe.returncode != 0:
+            raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
+        return {
+            "mode": "docker",
+            "command": str(Path(docker).resolve()),
+            "image": f"arvindand/maven-tools-mcp:{version}",
+        }
+    if mode != "native":
+        raise ValueError("unsupported Maven Tools mode")
     tag = f"v{version}"
     cache_status = hosts.maven_tools_cache_status(version)
     if cache_status["status"] == "healthy":
@@ -1466,6 +1483,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     source_record: dict[str, str] | None = None,
     distribution: str = DEFAULT_DISTRIBUTION,
     with_maven_tools: bool = False,
+    maven_tools_mode: str = "native",
     reporter=None,
     confirmer=None,
 ) -> Path:
@@ -1547,10 +1565,16 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         try:
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")
+            maven_docker = None
             if with_maven_tools:
-                ensure_maven_tools(
-                    target, specification, reporter=reporter, confirmer=confirmer
+                maven_setup = ensure_maven_tools(
+                    target, specification, reporter=reporter, confirmer=confirmer,
+                    mode=maven_tools_mode,
                 )
+                if isinstance(maven_setup, dict):
+                    maven_docker = (
+                        str(maven_setup["command"]), str(maven_setup["image"])
+                    )
             dependency_generation = None
             account_commands = None
             if account_mode:
@@ -1568,6 +1592,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 capability_policy_digest=installed_manifest.get("capabilityPolicySha256"),
                 dependency_runtime=dependency_generation,
                 account_commands=account_commands,
+                maven_docker=maven_docker,
             )
             host_created = not host_existed
             if not account_mode:
@@ -2267,6 +2292,9 @@ def parser() -> argparse.ArgumentParser:
     install_command.add_argument("--distribution", default=DEFAULT_DISTRIBUTION)
     install_command.add_argument("--skip-tools", action="store_true")
     install_command.add_argument("--with-maven-tools", action="store_true")
+    install_command.add_argument(
+        "--maven-tools-mode", choices=("native", "docker"), default="native"
+    )
     for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
         command.add_argument("--project", required=True, type=Path)
@@ -2318,6 +2346,7 @@ def main() -> int:
                     args.commit,
                     distribution=args.distribution,
                     with_maven_tools=args.with_maven_tools,
+                    maven_tools_mode=args.maven_tools_mode,
                 )
             )
             result: object = {"status": "installed", "root": str(target)}

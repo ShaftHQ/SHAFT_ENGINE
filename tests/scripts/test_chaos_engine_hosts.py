@@ -2268,6 +2268,19 @@ class ChaosEngineHostsTest(unittest.TestCase):
         )
         self.assertNotEqual("docker", Path(str(maven["command"])).name.casefold())
 
+    def test_explicit_maven_tools_docker_mode_pins_resolved_image(self):
+        module = load(HOSTS, "chaos_engine_hosts_docker_maven")
+        servers = module.owned_servers(
+            maven_docker=("/usr/bin/docker", "arvindand/maven-tools-mcp:3.2.1")
+        )
+        self.assertEqual(
+            {
+                "command": "/usr/bin/docker",
+                "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.1"],
+            },
+            servers["maven-tools-mcp"],
+        )
+
     def test_native_maven_tools_runtime_is_rendered_for_both_host_configs(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven_configs")
         java = Path(r"C:\runtime\jdk-25\bin\java.exe")

@@ -202,7 +202,18 @@ A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow
    responses over the upstream default stdio transport. Native mode launches
    only `java -jar <verified-jar>` and never installs or starts Docker.
 
-If neither an ambient Java 17+ runtime nor the Temurin pin can run the JAR,
+Docker remains opt-in for users who already run a healthy Docker daemon:
+
+```text
+python .chaos-engine/install.py install --project . --with-maven-tools --maven-tools-mode docker
+```
+
+This resolves the same latest stable Maven Tools release, pins
+`arvindand/maven-tools-mcp:<resolved-version>`, and writes the absolute Docker
+executable into each generated MCP configuration. ChaosEngine never installs,
+starts, or upgrades Docker.
+
+If an ambient Temurin 25 runtime cannot run the JAR,
 installation fails closed on a Maven project and omits the server on a
 non-Maven project. Maven CLI, repository files, Context7, and authoritative
 Maven Central sources remain the no-Docker fallback.
@@ -211,7 +222,7 @@ Inspect or remove the exact supported cache version with:
 
 ```text
 python .chaos-engine/install.py cache status --component maven-tools-mcp
-python .chaos-engine/install.py cache purge --component maven-tools-mcp --version 3.2.0
+python .chaos-engine/install.py cache purge --component maven-tools-mcp --version <resolved-version>
 ```
 
 `cache status` returns `healthy`, `absent`, `invalid`, or `busy`. `cache purge`

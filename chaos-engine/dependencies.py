@@ -247,11 +247,11 @@ def prerequisite_command_plan(
         manager = "apt-get" if provider == "apt" else "dnf"
         if wanted("node"):
             plan["node"] = [
-                ["sudo", manager, "install", "-y", "nodejs"]
+                ["sudo", "-n", manager, "install", "-y", "nodejs"]
             ]
         if wanted("java"):
             plan["java"] = [
-                ["sudo", manager, "install", "-y", "temurin-25-jdk"]
+                ["sudo", "-n", manager, "install", "-y", "temurin-25-jdk"]
             ]
     elif system == "macos":
         if wanted("node"):
@@ -339,6 +339,8 @@ def resolve_stable_version(
 
 
 def _version_from_output(output: str) -> str | None:
+    if _UNSTABLE_VERSION.search(output):
+        return None
     match = re.search(r"(?<!\d)(\d+(?:\.\d+){1,3}(?:[+._-]\d+)?)", output)
     return match.group(1).replace("_", ".") if match else None
 
