@@ -253,15 +253,13 @@ def prerequisite_command_plan(
             ]
     elif system == "macos":
         if wanted("node"):
-            verb = "upgrade" if actions.get("node") == "upgraded" else "install"
-            plan["node"] = [["brew", verb, f"node@{node_major}"]]
+            plan["node"] = [["brew", "install", f"node@{node_major}"]]
         if wanted("java"):
             plan["java"] = [["brew", "install", "--cask", "temurin@25"]]
     elif system == "windows":
         if wanted("node"):
-            verb = "upgrade" if actions.get("node") == "upgraded" else "install"
             plan["node"] = [[
-                "winget", verb, "--id", "OpenJS.NodeJS.LTS", "-e",
+                "winget", "install", "--id", "OpenJS.NodeJS.LTS", "-e",
                 "--version", node_version or str(node_major), "--scope", "user",
             ]]
         if wanted("java"):
