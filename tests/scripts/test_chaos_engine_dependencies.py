@@ -331,6 +331,20 @@ def mempalace_runtime_status(project: Path):
             with self.assertRaisesRegex(ValueError, "incomplete"):
                 module._ensure_node_siblings(root, "windows")
 
+    def test_account_search_path_prefers_newest_managed_node(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            module.Path, "home", return_value=Path(temporary)
+        ):
+            for version in ("24.9.0", "24.19.0"):
+                Path(temporary, ".local/share/chaos-engine/node", version, "bin").mkdir(
+                    parents=True
+                )
+
+            search = module._account_search_path().split(os.pathsep)
+
+            self.assertTrue(search[0].endswith("24.19.0/bin"))
+
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
         module = load_controller()
         calls = []

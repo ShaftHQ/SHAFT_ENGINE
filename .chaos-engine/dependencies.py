@@ -352,6 +352,7 @@ def probe_account_dependency(
         if key.upper() not in {"AUTHORIZATION", "TOKEN", "API_KEY"}
         and not _SECRET_KEY.search(key)
     }
+    environment["PATH"] = _account_search_path()
     try:
         result = runner(
             command,
@@ -377,7 +378,23 @@ def probe_account_dependency(
 
 
 def _account_search_path() -> str:
+    managed_node = Path.home() / ".local/share/chaos-engine/node"
+    node_bins = sorted(
+        (
+            root if os.name == "nt" else root / "bin"
+            for root in managed_node.glob("*")
+            if root.is_dir()
+        ),
+        key=lambda path: tuple(
+            int(part)
+            for part in re.findall(
+                r"\d+", path.name if os.name == "nt" else path.parent.name
+            )
+        ),
+        reverse=True,
+    )
     candidates = [
+        *node_bins,
         Path.home() / ".local/bin",
         Path.home() / ".cargo/bin",
     ]
