@@ -222,7 +222,6 @@ class InstallReporter:
         with self._lock:
             self.traces.append((self.clock() - self.started, message))
             self.trace_count += 1
-            del self.traces[:-TRACE_LIMIT]
             if self._tty:
                 self._render_locked()
             else:
@@ -353,7 +352,6 @@ class InstallReporter:
             self.history.append((now - self.started, "PASS", operation, duration))
             self.traces.append((now - self.started, f"PASS {operation} ({self._duration(duration)})"))
             self.trace_count += 1
-            del self.traces[:-TRACE_LIMIT]
             self.remaining_operations = remaining
             self.detail = None
             if self._tty:
@@ -530,6 +528,7 @@ class InstallReporter:
         repository: str,
     ) -> None:
         del doctor, clients
+        self.close()
         self.stream.write(self._paint("  Summary", "36") + "\n")
         self.stream.write(
             "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!\n"
@@ -1111,8 +1110,14 @@ def main() -> int:
         if isinstance(error, SystemExit):
             raise
         reporter.close()
+        code = classify_install_error(error)
+        write_install_trace(
+            Path(args.project).resolve(),
+            {"status": "failed", "error": code},
+            reporter.traces,
+        )
         emit_install_failure(
-            classify_install_error(error),
+            code,
             error,
             args.repository,
             reporter=reporter,

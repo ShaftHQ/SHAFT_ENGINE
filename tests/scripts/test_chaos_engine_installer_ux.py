@@ -363,6 +363,35 @@ class InstallerUxTests(unittest.TestCase):
         self.assertNotIn("Owned managed dependencies", output)
         self.assertNotIn("Continue working in", output)
 
+    def test_trace_persists_every_event_beyond_live_tty_limit(self):
+        reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            for index in range(BOOTSTRAP.TRACE_LIMIT + 1):
+                reporter.trace(f"event {index}")
+            BOOTSTRAP.write_install_trace(project, {"status": "installed"}, reporter.traces)
+            trace = json.loads(
+                (project / ".chaos-engine-state/install-trace.json").read_text(encoding="utf-8")
+            )
+        self.assertEqual(BOOTSTRAP.TRACE_LIMIT + 1, len(trace["trace"]))
+        self.assertEqual("event 0", trace["trace"][0][1])
+        self.assertEqual(f"event {BOOTSTRAP.TRACE_LIMIT}", trace["trace"][-1][1])
+
+    def test_tty_success_stops_ticker_before_writing_cta(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        stream = Tty()
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm", "NO_COLOR": "1"}), unittest.mock.patch.object(
+            BOOTSTRAP.threading.Thread, "start", lambda self: None
+        ):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            reporter.start("Activate clients")
+            reporter.success(Path("/project"), {}, {}, repository="owner/repo")
+        self.assertTrue(reporter._stop.is_set())
+        self.assertIn("Installation Successful!", stream.getvalue())
+
     def test_nested_start_keeps_inflight_stage_visible_with_learned_eta(self):
         class Clock:
             def __init__(self):
@@ -471,6 +500,21 @@ class InstallerUxTests(unittest.TestCase):
         self.assertEqual(result, trace["result"])
         self.assertEqual([], trace["trace"])
         self.assertNotIn('"doctor"', stdout.getvalue())
+
+    def test_cli_failure_writes_trace(self):
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            with unittest.mock.patch.object(
+                BOOTSTRAP, "install_latest", side_effect=RuntimeError("install failed")
+            ), unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.object(
+                BOOTSTRAP.sys, "argv", ["bootstrap.py", "--project", str(project), "--repository", "owner/repo"]
+            ):
+                self.assertEqual(1, BOOTSTRAP.main())
+            trace = json.loads(
+                (project / ".chaos-engine-state/install-trace.json").read_text(encoding="utf-8")
+            )
+        self.assertEqual("failed", trace["result"]["status"])
 
     def test_wrappers_expose_and_forward_interactive_mode(self):
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
