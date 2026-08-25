@@ -183,6 +183,16 @@ def read_json(path: Path) -> dict[str, object]:
     return value
 
 
+def managed_python_version(installed: Path) -> str:
+    dependencies = read_json(installed / "dependencies.json")
+    runtimes = dependencies.get("runtimes")
+    python = runtimes.get("python") if isinstance(runtimes, dict) else None
+    version = python.get("version") if isinstance(python, dict) else None
+    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+", version) is None:
+        raise RuntimeError("installed managed Python version is invalid")
+    return version
+
+
 def stage_source(source: Path, destination: Path) -> Path:
     shutil.copytree(
         source,
@@ -305,6 +315,7 @@ def probe_mempalace_mcp(tool: Path, project: Path) -> None:
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     installed = project / ".chaos-engine"
+    python_version = managed_python_version(installed)
     status = json.loads(
         run_checked(
             [
@@ -374,8 +385,8 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
             timeout=60,
         )
         output = f"{version.stdout}\n{version.stderr}"
-        if "Python 3.10." not in output:
-            raise RuntimeError(f"{name} is not using managed Python 3.10")
+        if f"Python {python_version}." not in output:
+            raise RuntimeError(f"{name} is not using managed Python {python_version}")
     if any((active_root / name).exists() for name in ("uv-cache", "npm-cache", ".cache")):
         raise RuntimeError("transaction cache leaked into immutable generation")
     transactions = project / ".chaos-engine-runtime-transactions"
@@ -387,7 +398,7 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
         "active": str(active["generationId"]),
         "previous": None if previous is None else str(previous["generationId"]),
         "generationCount": len(generation_names),
-        "managedPython": "3.10",
+        "managedPython": python_version,
         "cacheState": "absent",
     }
 

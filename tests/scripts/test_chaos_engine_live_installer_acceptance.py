@@ -35,6 +35,21 @@ def load_acceptance():
 
 
 class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
+    def test_managed_python_version_comes_from_installed_contract(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            installed = Path(temporary) / ".chaos-engine"
+            installed.mkdir()
+            installed.joinpath("dependencies.json").write_text(
+                json.dumps({"runtimes": {"python": {"version": "3.11"}}}),
+                encoding="utf-8",
+            )
+
+            self.assertEqual("3.11", module.managed_python_version(installed))
+
     def test_runner_contract_is_bounded_and_standard_library_only(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
