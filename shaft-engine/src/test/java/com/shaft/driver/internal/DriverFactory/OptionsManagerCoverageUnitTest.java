@@ -155,6 +155,17 @@ public class OptionsManagerCoverageUnitTest {
 
         manager.setDriverOptions(DriverFactory.DriverType.FIREFOX, new MutableCapabilities());
         assertSilentFirefoxDownloads(manager.getFfOptions());
+
+        String originalDownloads = SHAFT.Properties.paths.downloads();
+        SHAFT.Properties.paths.set().downloads("target/downloadedFiles/");
+        try {
+            manager.setDriverOptions(DriverFactory.DriverType.CHROME, new MutableCapabilities());
+            assertSilentChromiumDownloads(manager.getChOptions());
+            manager.setDriverOptions(DriverFactory.DriverType.FIREFOX, new MutableCapabilities());
+            assertSilentFirefoxDownloads(manager.getFfOptions());
+        } finally {
+            SHAFT.Properties.paths.set().downloads(originalDownloads);
+        }
     }
 
     @Test

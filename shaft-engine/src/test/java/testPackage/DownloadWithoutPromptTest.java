@@ -25,11 +25,14 @@ public class DownloadWithoutPromptTest {
 
     @AfterMethod(alwaysRun = true)
     public void tear() {
-        if (driver.get() != null) {
-            driver.get().quit();
+        try {
+            if (driver.get() != null) {
+                driver.get().quit();
+            }
+        } finally {
+            driver.remove();
+            Properties.clearForCurrentThread();
         }
-        driver.remove();
-        Properties.clearForCurrentThread();
     }
 
     @Test
