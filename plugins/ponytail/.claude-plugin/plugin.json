@@ -1,0 +1,35 @@
+{
+  "author": {
+    "name": "DietrichGebert",
+    "url": "https://github.com/DietrichGebert"
+  },
+  "description": "Forces the laziest solution that actually works.",
+  "hooks": {
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ponytail-subagent.js\"",
+            "statusMessage": "Loading ponytail mode...",
+            "timeout": 5,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ponytail-mode-tracker.js\"",
+            "statusMessage": "Tracking ponytail mode...",
+            "timeout": 5,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
+  "name": "ponytail",
+  "version": "0.1.0"
+}

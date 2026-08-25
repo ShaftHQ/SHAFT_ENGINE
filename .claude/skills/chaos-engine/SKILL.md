@@ -1,6 +1,6 @@
 ---
 name: chaos-engine
-description: Use at the start of every task to load the canonical ChaosEngine policy and selected project profile.
+description: Load the canonical installed ChaosEngine before every task.
 ---
 
-Follow the [repository ChaosEngine adapter](../../../.agents/skills/chaos-engine/SKILL.md).
+Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).

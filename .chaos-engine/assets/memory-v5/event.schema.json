@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aictx.dev/schemas/v5/event.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event", "actor", "timestamp"],
+  "properties": {
+    "event": {
+      "enum": [
+        "memory.created",
+        "memory.updated",
+        "memory.marked_stale",
+        "memory.superseded",
+        "memory.deleted",
+        "relation.created",
+        "relation.updated",
+        "relation.deleted",
+        "index.rebuilt"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9-]*$"
+    },
+    "relation_id": {
+      "type": "string",
+      "pattern": "^rel\\.[a-z0-9][a-z0-9-]*$"
+    },
+    "actor": {
+      "enum": ["agent", "user", "cli", "mcp", "system"]
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "pattern": "^memory\\."
+          }
+        }
+      },
+      "then": {
+        "required": ["id"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "pattern": "^relation\\."
+          }
+        }
+      },
+      "then": {
+        "required": ["relation_id"]
+      }
+    }
+  ]
+}

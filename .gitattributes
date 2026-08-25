@@ -6,3 +6,26 @@ scripts/mcp/*.py text eol=lf
 .memory/events.jsonl merge=union
 shaft-infrastructure/src/main/resources/com/shaft/infrastructure/reporting/package-lock.json text eol=lf
 chaos-engine/** text eol=lf
+# CHAOSENGINE-EOL:START
+/.agents/** text eol=lf
+/.chaos-engine/** text eol=lf
+/.claude-plugin/** text eol=lf
+/.claude/** text eol=lf
+/.codex/** text eol=lf
+/.grok/hooks/** text eol=lf
+/.gemini/** text eol=lf
+/.github/hooks/** text eol=lf
+/.github/copilot-instructions.md text eol=lf
+/.github/skills/chaos-engine/** text eol=lf
+/.mcp.json text eol=lf
+/.memory/** text eol=lf
+/plugins/chaos-engine/** text eol=lf
+/plugins/caveman/** text eol=lf
+/plugins/ponytail/** text eol=lf
+/AGENTS.md text eol=lf
+/CLAUDE.md text eol=lf
+/GEMINI.md text eol=lf
+/mempalace.yaml text eol=lf
+/.gitignore text eol=lf
+/.gitattributes text eol=lf
+# CHAOSENGINE-EOL:END

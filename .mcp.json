@@ -1,20 +1,77 @@
 {
   "mcpServers": {
-    "shaft-memory": {
-      "command": "npx",
-      "args": ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"],
+    "chaosengine-memory": {
+      "args": [
+        ".chaos-engine/tool.py",
+        "memory-mcp"
+      ],
+      "argsWindows": [
+        "-3",
+        ".chaos-engine/tool.py",
+        "memory-mcp"
+      ],
+      "command": "python3",
+      "commandWindows": "py",
       "cwd": "."
+    },
+    "chaosengine-mempalace": {
+      "args": [
+        ".chaos-engine/tool.py",
+        "mempalace-mcp",
+        "--palace",
+        ".chaos-engine-state/mempalace",
+        "--backend",
+        "sqlite_exact"
+      ],
+      "argsWindows": [
+        "-3",
+        ".chaos-engine/tool.py",
+        "mempalace-mcp",
+        "--palace",
+        ".chaos-engine-state/mempalace",
+        "--backend",
+        "sqlite_exact"
+      ],
+      "command": "python3",
+      "commandWindows": "py",
+      "cwd": ".",
+      "env": {
+        "MEMPALACE_BACKEND": "sqlite_exact",
+        "MEMPALACE_EMBEDDING_MODEL": "minilm"
+      }
+    },
+    "context7": {
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "command": "npx"
+    },
+    "maven-tools-mcp": {
+      "args": [
+        "-jar",
+        "/home/mohab/.local/share/ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar",
+        "--spring.profiles.active=docker,no-context7"
+      ],
+      "command": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java"
     },
     "mempalace": {
       "command": "mempalace-mcp",
       "env": {
-        "MEMPALACE_EMBEDDING_MODEL": "minilm",
-        "MEMPALACE_BACKEND": "sqlite_exact"
+        "MEMPALACE_BACKEND": "sqlite_exact",
+        "MEMPALACE_EMBEDDING_MODEL": "minilm"
       }
     },
-    "context7": {
+    "shaft-memory": {
+      "args": [
+        "--yes",
+        "--package",
+        "@aictx/memory@0.1.55",
+        "--",
+        "memory-mcp"
+      ],
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
+      "cwd": "."
     }
   }
 }

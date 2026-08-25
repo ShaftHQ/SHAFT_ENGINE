@@ -1,0 +1,13 @@
+{
+  "author": {
+    "name": "DietrichGebert",
+    "url": "https://github.com/DietrichGebert"
+  },
+  "description": "Forces the laziest solution that actually works.",
+  "homepage": "https://github.com/DietrichGebert/ponytail",
+  "license": "MIT",
+  "name": "ponytail",
+  "repository": "https://github.com/DietrichGebert/ponytail",
+  "skills": "./skills/",
+  "version": "0.1.0"
+}

@@ -1,4 +1,133 @@
 {
+  "enabledPlugins": {
+    "caveman@shafthq": true,
+    "chaos-engine@shafthq": true,
+    "frontend-design@claude-plugins-official": true,
+    "jdtls-lsp@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "ponytail@shafthq": true
+  },
+  "extraKnownMarketplaces": {
+    "shafthq": {
+      "source": {
+        "path": ".",
+        "source": "directory"
+      }
+    }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|mcp__[^|]*memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)"
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|mcp__[^|]*memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)"
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Task|Agent|spawn_agent|collaboration[.]spawn_agent|task|agent|Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|store|mcp__[^|]*memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "python3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "commandWindows": "py -3 -c \"import os,pathlib,runpy;os.environ['CHAOS_ENGINE_HOST']='claude';cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) for rel in cands if (root/rel).is_file()),None);runpy.run_path(str(p),run_name='__main__') if p else print('{}')\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(git status *)",
@@ -23,123 +152,5 @@
     "ask": [
       "mcp__shaft-memory__remember_memory"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Task|Agent|spawn_agent|collaboration[.]spawn_agent|task|agent|Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|store|mcp__[^|]*memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|mcp__[^|]*memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "Bash|PowerShell|shell_command|exec_command|functions[.]exec|run_shell_command|run_in_terminal|Write|Edit|NotebookEdit|apply_patch|write_file|create_file|edit_file|replace|replace_string_in_file|multi_replace_string_in_file|mcp__[^|]*memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  },
-  "enabledPlugins": {
-    "jdtls-lsp@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "mcp-server-dev@claude-plugins-official": true
   }
 }

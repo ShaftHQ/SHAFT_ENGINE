@@ -1,0 +1,27 @@
+{
+  "author": {
+    "name": "Julius Brussee",
+    "url": "https://github.com/JuliusBrussee"
+  },
+  "description": "Ultra-compressed communication mode. Cut filler. Keep technical accuracy.",
+  "homepage": "https://github.com/JuliusBrussee/caveman",
+  "interface": {
+    "capabilities": [
+      "Write"
+    ],
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Use caveman mode. Cut filler. Keep technical accuracy."
+    ],
+    "developerName": "Julius Brussee",
+    "displayName": "Caveman",
+    "longDescription": "Ultra-compressed communication mode for coding agents.",
+    "shortDescription": "Talk like caveman. Cut filler. Keep technical accuracy.",
+    "websiteURL": "https://github.com/JuliusBrussee/caveman"
+  },
+  "license": "MIT",
+  "name": "caveman",
+  "repository": "https://github.com/JuliusBrussee/caveman",
+  "skills": "./skills/",
+  "version": "0.1.0"
+}

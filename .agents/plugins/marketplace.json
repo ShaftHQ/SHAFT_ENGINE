@@ -1,0 +1,44 @@
+{
+  "interface": {
+    "displayName": "ChaosEngine Project"
+  },
+  "name": "chaos-engine-project",
+  "plugins": [
+    {
+      "category": "Developer Tools",
+      "name": "chaos-engine",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "INSTALLED_BY_DEFAULT"
+      },
+      "source": {
+        "path": "./plugins/chaos-engine",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Productivity",
+      "name": "caveman",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "INSTALLED_BY_DEFAULT"
+      },
+      "source": {
+        "path": "./plugins/caveman",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Productivity",
+      "name": "ponytail",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "INSTALLED_BY_DEFAULT"
+      },
+      "source": {
+        "path": "./plugins/ponytail",
+        "source": "local"
+      }
+    }
+  ]
+}

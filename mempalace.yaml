@@ -1,50 +1,156 @@
-wing: shaft_engine_main
-exclude_patterns:
-- .git/**
-- .idea/**
-- .memory/index/**
-- graphify-out/**
-- '**/target/**'
-- '**/allure-results/**'
-- '**/allure-report*/**'
-- '**/execution-summary/**'
-- '**/generatedReport/**'
-- '**/performanceReport/**'
-- '**/.pytest_cache/**'
-- '**/__pycache__/**'
-- LICENSE
-- '**/LICENSE'
-- '*.LICENSE'
-- .gitignore
-- '**/.gitignore'
-- .gitattributes
-- '**/.gitattributes'
-- .dockerignore
-- .graphifyignore
-- .java-version
-- .sdkmanrc
-- '*.apk'
-- '*.jar'
-- '*.log'
-- '*.csv'
-- '*.tsv'
-- '*.jsonl'
+wing: shaft_engine
 rooms:
-- name: agent_harness
-  description: Agent policy, adapters, hooks, skills, and knowledge routing
-  keywords: [agents, claude, codex, hooks, skills, memory, mempalace, graphify]
-- name: framework
-  description: Core SHAFT engine and public behavior
-  keywords: [shaft_engine, shaft-engine, framework]
-- name: modules
-  description: Optional SHAFT modules and integration boundaries
-  keywords: [shaft_ai, shaft_capture, shaft_cli, shaft_heal, shaft_mcp, shaft_visual]
-- name: tests
-  description: Test code and verification infrastructure
-  keywords: [tests, testing, test]
+- name: chaos_engine
+  description: Files from chaos-engine/
+  keywords:
+  - chaos_engine
+  - chaos-engine
+- name: plugins
+  description: Files from plugins/
+  keywords:
+  - plugins
+  - plugins
+- name: shaft_capture_proxy
+  description: Files from shaft-capture-proxy/
+  keywords:
+  - shaft_capture_proxy
+  - shaft-capture-proxy
+- name: shaft_cli
+  description: Files from shaft-cli/
+  keywords:
+  - shaft_cli
+  - shaft-cli
+- name: shaft_doctor
+  description: Files from shaft-doctor/
+  keywords:
+  - shaft_doctor
+  - shaft-doctor
+- name: shaft_engine
+  description: Files from shaft-engine/
+  keywords:
+  - shaft_engine
+  - shaft-engine
+- name: shaft_heal
+  description: Files from shaft-heal/
+  keywords:
+  - shaft_heal
+  - shaft-heal
+- name: shaft_infrastructure
+  description: Files from shaft-infrastructure/
+  keywords:
+  - shaft_infrastructure
+  - shaft-infrastructure
+- name: shaft_intellij
+  description: Files from shaft-intellij/
+  keywords:
+  - shaft_intellij
+  - shaft-intellij
+- name: shaft_mcp
+  description: Files from shaft-mcp/
+  keywords:
+  - shaft_mcp
+  - shaft-mcp
+- name: shaft_ocr
+  description: Files from shaft-ocr/
+  keywords:
+  - shaft_ocr
+  - shaft-ocr
+- name: shaft_pilot_core
+  description: Files from shaft-pilot-core/
+  keywords:
+  - shaft_pilot_core
+  - shaft-pilot-core
+- name: shaft_sikulix
+  description: Files from shaft-sikulix/
+  keywords:
+  - shaft_sikulix
+  - shaft-sikulix
+- name: shaft_skills
+  description: Files from shaft-skills/
+  keywords:
+  - shaft_skills
+  - shaft-skills
+- name: shaft_upgrader
+  description: Files from shaft-upgrader/
+  keywords:
+  - shaft_upgrader
+  - shaft-upgrader
+- name: shaft_video
+  description: Files from shaft-video/
+  keywords:
+  - shaft_video
+  - shaft-video
+- name: shaft_visual
+  description: Files from shaft-visual/
+  keywords:
+  - shaft_visual
+  - shaft-visual
+- name: testing
+  description: Files from tests/
+  keywords:
+  - testing
+  - tests
 - name: scripts
-  description: CI, release, maintenance, and agent scripts
-  keywords: [scripts, ci]
+  description: Files from tools/
+  keywords:
+  - scripts
+  - tools
+- name: graphify_out
+  description: Files from graphify-out/
+  keywords:
+  - graphify_out
+  - graphify-out
+- name: agent_plugins
+  description: Files from agent-plugins/
+  keywords:
+  - agent_plugins
+  - agent-plugins
+- name: legacy_shaft_engine
+  description: Files from legacy-shaft-engine/
+  keywords:
+  - legacy_shaft_engine
+  - legacy-shaft-engine
+- name: report_aggregate
+  description: Files from report-aggregate/
+  keywords:
+  - report_aggregate
+  - report-aggregate
+- name: shaft_capture
+  description: Files from shaft-capture/
+  keywords:
+  - shaft_capture
+  - shaft-capture
+- name: shaft_ai
+  description: Files from shaft-ai/
+  keywords:
+  - shaft_ai
+  - shaft-ai
+- name: shaft_bom
+  description: Files from shaft-bom/
+  keywords:
+  - shaft_bom
+  - shaft-bom
+- name: shaft_browserstack
+  description: Files from shaft-browserstack/
+  keywords:
+  - shaft_browserstack
+  - shaft-browserstack
+- name: design
+  description: Files from assets/
+  keywords:
+  - design
+  - assets
+- name: research
+  description: Files from references/
+  keywords:
+  - research
+  - references
 - name: general
-  description: Files not matched by a focused room
+  description: Files that don't fit other rooms
   keywords: []
+exclude_patterns:
+  - mempalace.yaml
+  - .memory/**
+  - graphify-out/**
+  - .chaos-engine-runtime/**
+  - .chaos-engine-state/**

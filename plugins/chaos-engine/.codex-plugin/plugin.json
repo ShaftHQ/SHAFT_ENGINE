@@ -1,0 +1,23 @@
+{
+  "author": {
+    "name": "ChaosEngine contributors"
+  },
+  "description": "Neutral project-local software agent working harness.",
+  "interface": {
+    "capabilities": [
+      "Instructions",
+      "MCP servers"
+    ],
+    "category": "Developer Tools",
+    "defaultPrompt": [
+      "Use ChaosEngine for this task."
+    ],
+    "developerName": "ChaosEngine contributors",
+    "displayName": "ChaosEngine",
+    "longDescription": "A neutral project-local harness for research, planning, implementation, verification, and durable learning.",
+    "shortDescription": "Neutral project working harness"
+  },
+  "name": "chaos-engine",
+  "skills": "./skills",
+  "version": "1.0.4199879328"
+}

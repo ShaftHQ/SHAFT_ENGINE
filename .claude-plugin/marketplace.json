@@ -1,21 +1,18 @@
 {
+  "description": "Official ShaftHQ marketplace. Agent skills that teach AI coding agents to write, record, and debug SHAFT_ENGINE tests correctly.",
   "name": "shafthq",
   "owner": {
     "name": "ShaftHQ",
     "url": "https://github.com/ShaftHQ"
   },
-  "description": "Official ShaftHQ marketplace. Agent skills that teach AI coding agents to write, record, and debug SHAFT_ENGINE tests correctly.",
   "plugins": [
     {
-      "name": "shaft-skills",
-      "source": "./shaft-skills",
-      "description": "Official SHAFT agent skills: methodology router, locator strategy, test planning and authoring, MCP-driven recording, failure analysis, and change verification.",
       "author": {
         "name": "ShaftHQ"
       },
+      "category": "testing",
+      "description": "Official SHAFT agent skills: methodology router, locator strategy, test planning and authoring, MCP-driven recording, failure analysis, and change verification.",
       "homepage": "https://shafthq.github.io/docs/start/overview",
-      "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
-      "license": "MIT",
       "keywords": [
         "shaft",
         "test-automation",
@@ -26,8 +23,9 @@
         "testng",
         "junit"
       ],
-      "category": "testing",
-      "strict": false,
+      "license": "MIT",
+      "name": "shaft-skills",
+      "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
       "skills": [
         "./shaft-accessibility-testing",
         "./shaft-api-testing",
@@ -59,7 +57,27 @@
         "./shaft-test-planning",
         "./shaft-test-recording",
         "./shaft-web-actions"
-      ]
+      ],
+      "source": "./shaft-skills",
+      "strict": false
+    },
+    {
+      "description": "Neutral project-local agent harness.",
+      "name": "chaos-engine",
+      "source": "./plugins/chaos-engine",
+      "version": "1.0.4199879328"
+    },
+    {
+      "description": "Ultra-compressed communication mode.",
+      "name": "caveman",
+      "source": "./plugins/caveman",
+      "version": "0.1.0"
+    },
+    {
+      "description": "Laziest solution that actually works.",
+      "name": "ponytail",
+      "source": "./plugins/ponytail",
+      "version": "0.1.0"
     }
   ]
 }
