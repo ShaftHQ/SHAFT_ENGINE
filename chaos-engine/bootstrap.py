@@ -499,7 +499,7 @@ class InstallReporter:
         self.stream.write(f"Repository-declared components: {group_status(('core', 'skills', 'playbooks', 'hooks', 'plugins', 'retrieval-config'))}\n")
         self.stream.write(f"Third-party readiness: {third_party}\n")
         self.stream.write("Start a new coding agent session with:\n")
-        self.stream.write(f"Continue working in {Path(project).resolve()}.\n")
+        self.stream.write(f"Continue working in {Path(project).as_posix()}.\n")
         self.stream.flush()
 
     def close(self) -> None:
