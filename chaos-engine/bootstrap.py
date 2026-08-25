@@ -16,6 +16,7 @@ import runpy
 import shutil
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import traceback
@@ -40,19 +41,19 @@ CYBERNETIC_RED = "\x1b[38;2;255;59;77m"
 ION_BLUE = "\x1b[38;2;47;125;255m"
 OPTICAL_WHITE = "\x1b[38;2;242;247;255m"
 BRAND_ASCII = (
-    "  ,-----.          +--+       /",
-    "  |                |==|      /",
-    "  |  *      /      |==|     /",
-    "  |                |==|    /",
-    "  `-----'          +--+   /",
+    "  ,-----.          ---+       /",
+    "  |                   |      /",
+    "  |  *      /      ---+     /",
+    "  |                   |    /",
+    "  `-----'          ---+   /",
     "         ChaosEngine",
 )
 BRAND_UNICODE = (
-    "  █▀▀▀▀▀▄           ┬──┐        ╱",
-    "  █                 ├──┤       ╱",
-    "  █   ◆      ╱      ├──┤      ╱",
-    "  █                 ├──┤     ╱",
-    "  █▄▄▄▄▄▀           ┴──┘    ╱",
+    "  █▀▀▀▀▀▄           ───┐        ╱",
+    "  █                    │       ╱",
+    "  █   ◆      ╱      ───┤      ╱",
+    "  █                    │     ╱",
+    "  █▄▄▄▄▄▀           ───┘    ╱",
     "          ChaosEngine",
 )
 BRAND_NARROW = (
@@ -61,6 +62,20 @@ BRAND_NARROW = (
 )
 TRACE_LIMIT = 12
 STALL_SECONDS = 8.0
+
+
+def install_trace_path(project: Path) -> Path:
+    return Path(project) / ".chaos-engine-state/install-trace.json"
+
+
+def write_install_trace(project: Path, result: dict[str, object], traces: list[tuple[float, str]]) -> Path:
+    path = install_trace_path(project)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"result": result, "trace": traces}, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) -> list[str]:
@@ -152,8 +167,10 @@ class InstallReporter:
         self._completed_elapsed: dict[str, float] = {}
         self.history: list[tuple[float, str, str, float]] = []
         self.traces: list[tuple[float, str]] = []
+        self.trace_count = 0
         self._current_started: float | None = None
         self.project_root: str | None = None
+        self.trace_path: Path | None = None
         self.source_label: str | None = None
         self._download_total: int | None = None
         self._downloaded = 0
@@ -191,6 +208,7 @@ class InstallReporter:
 
     def announce(self, project: Path, repository: str, branch: str) -> None:
         self.project_root = str(Path(project).resolve())
+        self.trace_path = install_trace_path(Path(project).resolve())
         self.source_label = f"{repository}@{branch}"
         if self._tty:
             with self._lock:
@@ -203,7 +221,7 @@ class InstallReporter:
     def trace(self, message: str) -> None:
         with self._lock:
             self.traces.append((self.clock() - self.started, message))
-            del self.traces[:-TRACE_LIMIT]
+            self.trace_count += 1
             if self._tty:
                 self._render_locked()
             else:
@@ -238,6 +256,19 @@ class InstallReporter:
             return value
         suffix = "…" if self._unicode else "..."
         return value[: max(0, width - len(suffix))] + suffix
+
+    def _wrap(self, value: str) -> list[str]:
+        width = self._width()
+        if len(value) <= width:
+            return [value]
+        indent = value[: len(value) - len(value.lstrip())]
+        return textwrap.wrap(
+            value,
+            width=width,
+            subsequent_indent=indent,
+            break_long_words=True,
+            break_on_hyphens=False,
+        ) or [indent]
 
     def _paint(self, value: str, color: str) -> str:
         return f"\x1b[{color}m{value}\x1b[0m" if self._color else value
@@ -320,7 +351,7 @@ class InstallReporter:
             duration = self._completed_elapsed[operation]
             self.history.append((now - self.started, "PASS", operation, duration))
             self.traces.append((now - self.started, f"PASS {operation} ({self._duration(duration)})"))
-            del self.traces[:-TRACE_LIMIT]
+            self.trace_count += 1
             self.remaining_operations = remaining
             self.detail = None
             if self._tty:
@@ -464,17 +495,23 @@ class InstallReporter:
             metrics.append(f"remaining {remaining}")
         if self._transfer_stalled(now):
             metrics.append("waiting for data")
-        lines.extend(("", self._paint(self._truncate("  " + separator.join(metrics)), "36")))
-        if self.detail:
-            lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
         log = self.traces[-TRACE_LIMIT:] or [
             (ended, f"{result} {operation} ({self._duration(duration)})")
             for ended, result, operation, duration in self.history[-TRACE_LIMIT:]
         ]
-        if log:
-            lines.append(self._paint("  Trace", "36"))
-            for ended, message in log:
-                lines.append(self._truncate(f"  [+{self._duration(ended)}] {message}"))
+        trace_path = self.trace_path or Path(".chaos-engine-state/install-trace.json")
+        lines.extend(
+            self._paint(line, "36")
+            for line in self._wrap(
+                f"  Trace (last {len(log)} of {self.trace_count}; full log: {trace_path.as_posix()})"
+            )
+        )
+        for ended, message in log:
+            lines.extend(self._wrap(f"  [+{self._duration(ended)}] {message}"))
+        lines.append(self._paint("  Summary", "36"))
+        lines.append(self._paint(self._truncate("  " + separator.join(metrics)), "36"))
+        if self.detail:
+            lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
         if self._lines:
             self.stream.write(f"\x1b[{self._lines}F")
         rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"
@@ -483,23 +520,21 @@ class InstallReporter:
         self._lines = len(lines)
 
     def success(
-        self, project: Path, doctor: dict[str, object], clients: dict[str, object]
+        self,
+        project: Path,
+        doctor: dict[str, object],
+        clients: dict[str, object],
+        *,
+        repository: str,
     ) -> None:
-        components = doctor.get("components")
-        components = components if isinstance(components, dict) else {}
-        def group_status(names: tuple[str, ...]) -> str:
-            states = [
-                value.get("status")
-                for name, value in components.items()
-                if name in names and isinstance(value, dict)
-            ]
-            return "ready" if states and all(state == "healthy" for state in states) else "not reported"
-        third_party = "ready" if clients else "unavailable"
-        self.stream.write(f"Owned managed dependencies: {group_status(('tools', 'memory', 'mempalace', 'graphify', 'maven-tools-mcp'))}\n")
-        self.stream.write(f"Repository-declared components: {group_status(('core', 'skills', 'playbooks', 'hooks', 'plugins', 'retrieval-config'))}\n")
-        self.stream.write(f"Third-party readiness: {third_party}\n")
-        self.stream.write("Start a new coding agent session with:\n")
-        self.stream.write(f"Continue working in {Path(project).as_posix()}.\n")
+        del doctor, clients
+        self.close()
+        self.stream.write(self._paint("  Summary", "36") + "\n")
+        self.stream.write(
+            "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!\n"
+        )
+        self.stream.write(f"{installer_user_guide_url(repository)}\n")
+        self.stream.write(f"Full install trace: {install_trace_path(project).as_posix()}\n")
         self.stream.flush()
 
     def close(self) -> None:
@@ -908,7 +943,7 @@ def install_latest(
         raise
     if terminal_context is not None:
         terminal_context.__exit__(None, None, None)
-    reporter.success(project, doctor, doctor["clients"])
+    reporter.success(project, doctor, doctor["clients"], repository=repository)
     reporter.close()
     return {
         "status": "installed",
@@ -934,6 +969,11 @@ def parser() -> argparse.ArgumentParser:
 def installer_help_url(repository: str) -> str:
     owner = repository.partition("/")[0].casefold()
     return f"https://{owner}.github.io/docs/agentic/chaos-engine#installer-errors"
+
+
+def installer_user_guide_url(repository: str) -> str:
+    owner = repository.partition("/")[0].casefold()
+    return f"https://{owner}.github.io/docs/agentic/chaos-engine"
 
 
 def installer_cli_prefix(project: Path | None = None) -> str | None:
@@ -1065,12 +1105,19 @@ def main() -> int:
             interactive=args.interactive,
             reporter=reporter,
         )
+        write_install_trace(Path(args.project).resolve(), result, reporter.traces)
     except BaseException as error:
         if isinstance(error, SystemExit):
             raise
         reporter.close()
+        code = classify_install_error(error)
+        write_install_trace(
+            Path(args.project).resolve(),
+            {"status": "failed", "error": code},
+            reporter.traces,
+        )
         emit_install_failure(
-            classify_install_error(error),
+            code,
             error,
             args.repository,
             reporter=reporter,
@@ -1078,7 +1125,8 @@ def main() -> int:
         )
         return 1
     reporter.close()
-    print(json.dumps(result, sort_keys=True))
+    if not getattr(sys.stdout, "isatty", lambda: False)():
+        print(json.dumps(result, sort_keys=True))
     return 0
 
 
