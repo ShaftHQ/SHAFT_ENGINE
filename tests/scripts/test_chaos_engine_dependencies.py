@@ -233,6 +233,14 @@ def mempalace_runtime_status(project: Path):
                     ),
                 )
 
+    def test_version_probe_ignores_unrelated_build_annotation(self):
+        module = load_controller()
+        self.assertEqual(
+            "0.12.6",
+            module._version_from_output("uv 0.12.6 (development build)"),
+        )
+        self.assertIsNone(module._version_from_output("uv 0.12.6-beta.1"))
+
     def test_account_discovery_requires_every_sibling_and_sanitizes_receipt(self):
         module = load_controller()
         paths = {
