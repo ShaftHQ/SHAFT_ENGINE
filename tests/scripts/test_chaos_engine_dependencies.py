@@ -233,13 +233,14 @@ def mempalace_runtime_status(project: Path):
                     ),
                 )
 
-    def test_version_probe_ignores_unrelated_build_annotation(self):
+    def test_uv_probe_avoids_annotations_without_weakening_stable_parser(self):
         module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         self.assertEqual(
-            "0.12.6",
-            module._version_from_output("uv 0.12.6 (3dba48e1c 2026-08-19)"),
+            ["uv", "self", "version", "--short"],
+            specification["dependencies"]["uv"]["probe"],
         )
-        self.assertIsNone(module._version_from_output("uv 0.12.6-beta.1"))
+        self.assertIsNone(module._version_from_output("Python 3.15.0 (development build)"))
 
     def test_account_discovery_requires_every_sibling_and_sanitizes_receipt(self):
         module = load_controller()

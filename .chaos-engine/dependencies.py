@@ -328,13 +328,9 @@ def resolve_stable_version(
 
 
 def _version_from_output(output: str) -> str | None:
-    match = re.search(r"(?<!\d)(\d+(?:\.\d+){1,3}(?:[+._-]\d+)?)", output)
-    if match is None or re.match(
-        r"[-._]?(?:alpha|beta|rc|pre|preview|dev|snapshot|nightly)",
-        output[match.end():],
-        re.IGNORECASE,
-    ):
+    if _UNSTABLE_VERSION.search(output):
         return None
+    match = re.search(r"(?<!\d)(\d+(?:\.\d+){1,3}(?:[+._-]\d+)?)", output)
     return match.group(1).replace("_", ".") if match else None
 
 
