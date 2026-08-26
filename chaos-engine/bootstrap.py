@@ -541,6 +541,18 @@ class InstallReporter:
         lines.extend([*trace_heading, *visible_trace, *summary_lines])
         if len(lines) > height:
             lines = lines[-height:]
+            active_item = next(
+                (
+                    item
+                    for item in operations
+                    if item == self.current_operation or item in self._in_flight
+                ),
+                None,
+            )
+            if active_item is not None and active_item not in "\n".join(lines):
+                lines[0] = self._paint(
+                    self._truncate(f"  [{active}] {active_item}  running"), "36"
+                )
         if self._lines:
             self.stream.write(f"\x1b[{min(self._lines, height)}F")
         rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"

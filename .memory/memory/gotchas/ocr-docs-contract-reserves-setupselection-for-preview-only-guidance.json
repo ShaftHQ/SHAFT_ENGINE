@@ -1,10 +1,7 @@
 {
-  "anchors": [
-    "docs/start/local-infrastructure.mdx",
-    "tests/ocr-docs-release-contract.test.js"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/ocr-docs-contract-reserves-setupselection-for-preview-only-guidance.md",
-  "content_hash": "sha256:457473e826ac489fa2241ab45dc836229e4f00c5a432718a397f2b80ea71f8fd",
+  "content_hash": "sha256:be9d047d50c6c96f2f9b9507b779f19cb830d7b2b9bfc64d203fddb15b9fc382",
   "created_at": "2026-08-17T20:09:49+03:00",
   "evidence": [],
   "id": "gotcha.ocr-docs-contract-reserves-setupselection-for-preview-only-guidance",
@@ -23,9 +20,11 @@
     "setup",
     "shafthq-github-io",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-docs-start-local-infrastructure-mdx",
+    "applies-to-tests-ocr-docs-release-contract-test-js"
   ],
   "title": "OCR docs contract reserves SetupSelection for preview-only guidance",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

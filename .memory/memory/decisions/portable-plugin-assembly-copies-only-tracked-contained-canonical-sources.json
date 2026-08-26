@@ -1,10 +1,7 @@
 {
-  "anchors": [
-    "scripts/ci/assemble_act_as_mohab_plugin.py",
-    "tests/scripts/test_assemble_act_as_mohab_plugin.py"
-  ],
+  "anchors": [],
   "body_path": "memory/decisions/portable-plugin-assembly-copies-only-tracked-contained-canonical-sources.md",
-  "content_hash": "sha256:8c5f5cecf53cd453aceedb133d62aba363df6ac3e660757437b6fbf2de95f6db",
+  "content_hash": "sha256:4ece8f2b456784e1b9c56d5f17c67712f00cc83657284f17368e4b745ced95c3",
   "created_at": "2026-08-09T09:28:03+03:00",
   "evidence": [],
   "id": "decision.portable-plugin-assembly-copies-only-tracked-contained-canonical-sources",
@@ -18,9 +15,11 @@
     "packaging",
     "containment",
     "category-decision-rationale",
-    "scope-project"
+    "scope-project",
+    "applies-to-scripts-ci-assemble-act-as-mohab-plugin-py",
+    "applies-to-tests-scripts-test-assemble-act-as-mohab-plugin-py"
   ],
   "title": "Portable plugin assembly copies only tracked, contained canonical sources",
   "type": "decision",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

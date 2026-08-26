@@ -1,11 +1,7 @@
 {
-  "anchors": [
-    "public-docs",
-    "user-guide",
-    "docs-pr"
-  ],
+  "anchors": [],
   "body_path": "memory/workflows/update-official-user-guide-for-functionality-changes.md",
-  "content_hash": "sha256:37ff7284055f1b6be822fcdd58797ff4db208c264fe90f32df29c6450d2a9fa0",
+  "content_hash": "sha256:fc9a464157398274a63a6c10b86978d25c64e70eab6c10873863fb80bc1579c0",
   "created_at": "2026-06-16T08:11:16+03:00",
   "evidence": [
     {
@@ -31,9 +27,12 @@
     "category-workflow",
     "load-coding",
     "load-review",
-    "scope-project"
+    "scope-project",
+    "applies-to-public-docs",
+    "applies-to-user-guide",
+    "applies-to-docs-pr"
   ],
   "title": "Update official user guide for functionality changes",
   "type": "decision",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

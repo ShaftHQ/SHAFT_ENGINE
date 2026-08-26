@@ -95,8 +95,17 @@ class InstallerUxTests(unittest.TestCase):
         ), unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
             reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 10.0)
             try:
-                reporter.current_operation = "Download source"
-                reporter._in_flight = ["Download source"]
+                reporter.current_operation = "Resolve source"
+                reporter._in_flight = ["Resolve source"]
+                reporter.remaining_operations = [
+                    "Download source",
+                    "Provision dependencies",
+                    "Install core",
+                    "Verify installation",
+                    "Activate clients",
+                    "Finalize installation",
+                ]
+                reporter.detail = "Downloading dependencies"
                 reporter.traces = [
                     (float(index), f"trace {index} " + "wrapped detail " * 8)
                     for index in range(12)
@@ -111,7 +120,7 @@ class InstallerUxTests(unittest.TestCase):
                 output = stream.getvalue()
                 rendered = output.split("\x1b[K\n", 1)[1].splitlines()
                 self.assertLessEqual(len(rendered), terminal_size.lines)
-                self.assertIn("Download source", output)
+                self.assertIn("Resolve source", output)
                 self.assertIn("Summary", output)
                 self.assertIn(f"\x1b[{terminal_size.lines}F", output)
                 self.assertNotIn("\x1b[20F", output)

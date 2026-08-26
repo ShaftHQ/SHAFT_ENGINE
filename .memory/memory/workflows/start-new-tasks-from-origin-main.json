@@ -1,13 +1,7 @@
 {
-  "anchors": [
-    "git",
-    "branches",
-    "pull-requests",
-    "validation",
-    "ci"
-  ],
+  "anchors": [],
   "body_path": "memory/workflows/start-new-tasks-from-origin-main.md",
-  "content_hash": "sha256:798cfcb34e4b257f310450d3adeabaed7db46aa7b3d9bbc78031a6e3390d9c29",
+  "content_hash": "sha256:ab3e1289e676e434bcc5556e4ee14303e2a3d59bf3d3734fc1998455a1e5521b",
   "created_at": "2026-06-16T08:33:26+03:00",
   "evidence": [
     {
@@ -36,9 +30,14 @@
     "category-workflow",
     "load-coding",
     "load-review",
-    "scope-project"
+    "scope-project",
+    "applies-to-git",
+    "applies-to-branches",
+    "applies-to-pull-requests",
+    "applies-to-validation",
+    "applies-to-ci"
   ],
   "title": "Run the SHAFT new-task PR flow",
   "type": "decision",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

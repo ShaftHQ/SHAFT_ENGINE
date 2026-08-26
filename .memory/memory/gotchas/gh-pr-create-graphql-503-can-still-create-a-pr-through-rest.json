@@ -1,10 +1,7 @@
 {
-  "anchors": [
-    "gh pr create",
-    "gh api repos/*/pulls"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/gh-pr-create-graphql-503-can-still-create-a-pr-through-rest.md",
-  "content_hash": "sha256:9dd632b9495c61606e5c69c87a443c034df6fb821344c2c683b5d3079252fe54",
+  "content_hash": "sha256:45efb162a012a3f4f6c621fadfd92adcae5565cad47ff7607a9d42410a895d80",
   "created_at": "2026-08-17T20:09:49+03:00",
   "evidence": [],
   "id": "gotcha.gh-pr-create-graphql-503-can-still-create-a-pr-through-rest",
@@ -19,9 +16,11 @@
     "docs",
     "pr",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-gh-pr-create",
+    "applies-to-gh-api-repos-pulls"
   ],
   "title": "gh pr create GraphQL 503 can still create a PR through REST",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

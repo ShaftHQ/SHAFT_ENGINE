@@ -1,10 +1,9 @@
 {
   "anchors": [
-    "git worktree add",
     "scripts/agents/guard.py"
   ],
   "body_path": "memory/gotchas/windows-linked-worktree-creation-requires-forward-slashes-and-longpaths.md",
-  "content_hash": "sha256:3822ae754b4ee81aa26adf330f0ad93066326168d372c6ece26056c7825bdcbf",
+  "content_hash": "sha256:12f698928eb438b74bca6e2a7e1c64533ddc26ebf402357f4c8cc5b33cfa4c89",
   "created_at": "2026-08-15T11:53:59+03:00",
   "evidence": [
     {
@@ -28,9 +27,10 @@
     "worktree",
     "guard",
     "category-workflow",
-    "scope-project"
+    "scope-project",
+    "applies-to-git-worktree-add"
   ],
   "title": "Windows linked-worktree creation requires forward-slash paths and longpaths",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

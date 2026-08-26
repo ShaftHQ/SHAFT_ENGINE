@@ -1,11 +1,9 @@
 {
   "anchors": [
-    ".agents/skills/act-as-mohab/SKILL.md",
-    "scripts/agents/learning_loop.py",
     "scripts/agents/guard.py"
   ],
   "body_path": "memory/constraints/every-actionable-learning-requires-its-own-standalone-github-issue.md",
-  "content_hash": "sha256:afadc03e94310d8cd1f6208e750d03b1cc7236238b62cad87b0530a83a423159",
+  "content_hash": "sha256:9818dfc73fabc5867f652ed756d2c62803c332374ba760a3530e853c9569b0f5",
   "created_at": "2026-08-11T22:18:25+03:00",
   "evidence": [
     {
@@ -26,9 +24,11 @@
     "user-correction",
     "legacy-type-constraint",
     "category-concept",
-    "scope-project"
+    "scope-project",
+    "applies-to-agents-skills-act-as-mohab-skill-md",
+    "applies-to-scripts-agents-learning-loop-py"
   ],
   "title": "Every actionable learning requires its own standalone GitHub issue",
   "type": "decision",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

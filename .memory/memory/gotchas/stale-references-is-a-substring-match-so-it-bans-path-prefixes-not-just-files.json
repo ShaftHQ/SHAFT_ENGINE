@@ -1,11 +1,10 @@
 {
   "anchors": [
     "scripts/ci/validate_agent_guidance.py",
-    "scripts/ci/agent_guidance_budget.json",
-    ".agents/skills/act-as-mohab/references"
+    "scripts/ci/agent_guidance_budget.json"
   ],
   "body_path": "memory/gotchas/stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files.md",
-  "content_hash": "sha256:f69db30c00d9f7c30ca365a88d18e349cd5c8a9d7f2a9c5975fcb49854edd259",
+  "content_hash": "sha256:91e3764196a0d3af014651c9ae026ab34c4403610a9059b48ec5e9461c41ce80",
   "created_at": "2026-08-04T19:07:27+03:00",
   "evidence": [
     {
@@ -35,9 +34,10 @@
     "references",
     "gotcha",
     "category-agent-guidance",
-    "scope-project"
+    "scope-project",
+    "applies-to-agents-skills-act-as-mohab-references"
   ],
   "title": "stale_references is a plain substring match, so a retired directory prefix bans every new path under it",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

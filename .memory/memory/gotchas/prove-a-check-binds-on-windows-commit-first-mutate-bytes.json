@@ -1,11 +1,9 @@
 {
   "anchors": [
-    ".agents/skills/act-as-mohab/references/verification-gap-lens.md",
-    "tests/scripts/test_agent_router_contract.py",
-    ".agents/skills/act-as-mohab/SKILL.md"
+    "tests/scripts/test_agent_router_contract.py"
   ],
   "body_path": "memory/gotchas/prove-a-check-binds-on-windows-commit-first-mutate-bytes.md",
-  "content_hash": "sha256:ed5f725bb7266ce6dc6ce1b6ff27f26958a04d9191d469cd87ff67efd4e77cf3",
+  "content_hash": "sha256:c21cf8724d809ea1ec9f13833cb722211065e7750ce3b4e428692746340c00cc",
   "created_at": "2026-08-04T22:41:59+03:00",
   "evidence": [],
   "id": "gotcha.prove-a-check-binds-on-windows-commit-first-mutate-bytes",
@@ -21,9 +19,11 @@
     "mutation-testing",
     "crlf",
     "category-workflow",
-    "scope-project"
+    "scope-project",
+    "applies-to-agents-skills-act-as-mohab-references-verification-gap-lens-md",
+    "applies-to-agents-skills-act-as-mohab-skill-md"
   ],
   "title": "Proving a check binds on Windows: commit first, mutate bytes, never revert with git checkout while the file has uncommitted work",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

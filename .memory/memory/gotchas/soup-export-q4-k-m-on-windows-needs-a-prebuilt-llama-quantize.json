@@ -1,9 +1,7 @@
 {
-  "anchors": [
-    "out-of-tree soup-poc"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/soup-export-q4-k-m-on-windows-needs-a-prebuilt-llama-quantize.md",
-  "content_hash": "sha256:63dc70aa62d58d6da03f89b24f87aaa1691c178ac7084fd9051ba9a99e7c0c63",
+  "content_hash": "sha256:4f3891139c73ccc8467461ea33b456ab7967d328ef931c1873f9fd3bf69d52c8",
   "created_at": "2026-08-18T19:11:52+03:00",
   "evidence": [
     {
@@ -23,9 +21,10 @@
     "gguf",
     "windows",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-out-of-tree-soup-poc"
   ],
   "title": "soup export q4_k_m on Windows needs a prebuilt llama-quantize",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

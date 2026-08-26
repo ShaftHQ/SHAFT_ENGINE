@@ -1,11 +1,9 @@
 {
   "anchors": [
-    "docs/start/local-infrastructure.mdx",
-    "docs/agentic/cli.md",
     "shaft-cli/src/main/java/com/shaft/commandline/command/SetupCommand.java"
   ],
   "body_path": "memory/gotchas/setup-status-and-verify-print-target-readiness-version-detail-not-the-pin-table.md",
-  "content_hash": "sha256:862ba80a6c458baccfbf905c8ea9daaa61b7e6b0dcdefefeaa6d58b9b56bff6d",
+  "content_hash": "sha256:ed23a18423b8f0eef463eacb2658b6ff2724054d1c6b38bc21861d14c4acba50",
   "created_at": "2026-08-18T18:27:23+03:00",
   "evidence": [
     {
@@ -33,9 +31,11 @@
     "local-ai",
     "pr-988",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-docs-start-local-infrastructure-mdx",
+    "applies-to-docs-agentic-cli-md"
   ],
   "title": "setup status and verify print target readiness version detail, not the pin table",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

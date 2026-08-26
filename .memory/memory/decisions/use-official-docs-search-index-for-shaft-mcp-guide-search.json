@@ -1,10 +1,9 @@
 {
   "anchors": [
-    "shaft-mcp/src/main/java/com/shaft/mcp/GuideService.java",
-    "https://shafthq.github.io/docs/agentic/mcp"
+    "shaft-mcp/src/main/java/com/shaft/mcp/GuideService.java"
   ],
   "body_path": "memory/decisions/use-official-docs-search-index-for-shaft-mcp-guide-search.md",
-  "content_hash": "sha256:8fa326436bf681d02612fae4512e08e0a16e6a7a47505880a70d12e1f23e9cfb",
+  "content_hash": "sha256:717b47743ab75b5cbaa2a3fe88c96260c47d2f3f6ab32791ff14b32072064ba9",
   "created_at": "2026-06-19T20:01:52+03:00",
   "evidence": [
     {
@@ -30,9 +29,10 @@
     "category-decision-rationale",
     "load-coding",
     "load-review",
-    "scope-project"
+    "scope-project",
+    "applies-to-https-shafthq-github-io-docs-agentic-mcp"
   ],
   "title": "Use official docs search index for SHAFT MCP guide search",
   "type": "decision",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

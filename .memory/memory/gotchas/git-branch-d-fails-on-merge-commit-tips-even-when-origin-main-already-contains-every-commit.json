@@ -1,10 +1,7 @@
 {
-  "anchors": [
-    "git branch",
-    "task isolation cleanup"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/git-branch-d-fails-on-merge-commit-tips-even-when-origin-main-already-contains-every-commit.md",
-  "content_hash": "sha256:6586e77044ae245771b2d1d60103217df1ed69c95e94523cbc8d17d9c0d45af6",
+  "content_hash": "sha256:eac5b57fae4bc155d5925d022c6ffe16966c0a5ceb17bda067aa9a98981f4b5b",
   "created_at": "2026-08-17T16:45:35+03:00",
   "evidence": [],
   "id": "gotcha.git-branch-d-fails-on-merge-commit-tips-even-when-origin-main-already-contains-every-commit",
@@ -19,9 +16,11 @@
     "cleanup",
     "merge-commit",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-git-branch",
+    "applies-to-task-isolation-cleanup"
   ],
   "title": "git branch -d fails on merge-commit tips even when origin/main already contains every commit",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

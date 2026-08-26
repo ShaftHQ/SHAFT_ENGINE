@@ -1044,11 +1044,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_the_policy_scan_reads_every_field_a_retrieval_shows(self):
         """The two memory-vs-guidance checks were reading different fields.
 
-        Its sibling searched body plus `facets` plus `evidence`; this one gained
+        Its sibling searched body plus metadata and `evidence`; this one gained
         `title` and never gained the other two, so a policy restated in an
         evidence note escaped while the identical sentence in a body failed the
         build (#4464). 89 of the 338 active objects carry more than 120
-        characters of facet or evidence *prose*, and a retrieval puts all of it
+        characters of metadata or evidence *prose*, and a retrieval puts all of it
         in front of the agent. (#4464 says 164; that figure measures the JSON
         serialisation, whose braces, quotes and keys are not text anyone reads.
         Both are right about their own unit.) Strings are joined as prose, not
@@ -1061,7 +1061,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         """
         fields = {
             "evidenced": {"evidence": [{"note": "Confirmed in #3643: still one PR per session."}]},
-            "faceted": {"facets": {"shape": "Still one PR per session."}},
+            "tagged": {"tags": ["Still one PR per session."]},
             "titled": {"title": "Still one PR per session"},
         }
         with tempfile.TemporaryDirectory() as temporary_directory:

@@ -62,6 +62,18 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             [phase["name"] for phase in evidence["phases"]],
         )
 
+    def test_baseline_permission_error_is_not_waived(self):
+        module = load_acceptance()
+        with mock.patch.object(module, "run_public_wrapper"), mock.patch.object(
+            module, "verify_phase", side_effect=PermissionError("receipt denied")
+        ), self.assertRaises(PermissionError):
+            module.run_acceptance(
+                ROOT / "chaos-engine",
+                {"phases": []},
+                candidate_sha="b" * 40,
+                base_sha="a" * 40,
+            )
+
     def test_manual_grok_hook_trust_is_an_expected_local_acceptance_state(self):
         module = load_acceptance()
         result = {

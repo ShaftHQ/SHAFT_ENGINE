@@ -1,10 +1,7 @@
 {
-  "anchors": [
-    "DefaultBrowserStackLocalToolchainOperations",
-    "BrowserStackLocalLifecycleService"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/browserstack-local-stop-must-wait-after-destroyforcibly-or-a-second-start-races-the-dying-tunnel.md",
-  "content_hash": "sha256:b6c4b61b8a8ab12ebbf7812d0ac9cafdea0fb90f67d10c691bcddb21bad668a2",
+  "content_hash": "sha256:9d1d36a466fe725a38bf1c5dd37e8f316bc543e2cba4a555fc2acb79fd9e42dc",
   "created_at": "2026-08-17T17:20:52+03:00",
   "evidence": [],
   "id": "gotcha.browserstack-local-stop-must-wait-after-destroyforcibly-or-a-second-start-races-the-dying-tunnel",
@@ -18,9 +15,11 @@
     "browserstack",
     "lifecycle",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-defaultbrowserstacklocaltoolchainoperations",
+    "applies-to-browserstacklocallifecycleservice"
   ],
   "title": "BrowserStack Local stop must wait after destroyForcibly or a second start races the dying tunnel",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }
