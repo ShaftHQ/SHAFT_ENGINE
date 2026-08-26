@@ -33,6 +33,9 @@ public final class PickedLocatorSnippetBuilder {
     }
 
     private static String idBuilder(String id) {
+        if (id.indexOf('"') >= 0) {
+            return "By.id(\"" + javaString(id) + "\")";
+        }
         return "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"" + javaString(id) + "\").build()";
     }
 
@@ -45,7 +48,45 @@ public final class PickedLocatorSnippetBuilder {
         if (expression.startsWith("#") && isSimpleIdentifier(expression.substring(1))) {
             return idBuilder(expression.substring(1));
         }
+        String[] attribute = cssAttributeSelector(expression);
+        if (attribute != null) {
+            return attributeBuilder(attribute[0], attribute[1]);
+        }
         return attributeBuilder("data-testid", expression);
+    }
+
+    /**
+     * Parses {@code [data-testid="login"]} / {@code [data-qa='x']} into name and value.
+     *
+     * @return {attributeName, attributeValue}, or null when not an attribute selector
+     */
+    private static String[] cssAttributeSelector(String css) {
+        String trimmed = css.trim();
+        if (trimmed.length() < 5 || trimmed.charAt(0) != '[' || trimmed.charAt(trimmed.length() - 1) != ']') {
+            return null;
+        }
+        int equals = trimmed.indexOf('=');
+        if (equals <= 1) {
+            return null;
+        }
+        int valueStart = equals + 1;
+        int valueEnd = trimmed.length() - 1;
+        if (valueStart >= valueEnd) {
+            return null;
+        }
+        char quote = trimmed.charAt(valueStart);
+        if (quote == '"' || quote == '\'') {
+            if (trimmed.charAt(valueEnd - 1) != quote) {
+                return null;
+            }
+            valueStart++;
+            valueEnd--;
+        }
+        String name = trimmed.substring(1, equals);
+        if (name.isBlank() || !name.chars().allMatch(ch -> Character.isLetterOrDigit(ch) || ch == '_' || ch == '-')) {
+            return null;
+        }
+        return new String[] {name, trimmed.substring(valueStart, valueEnd)};
     }
 
     private static String cssBuilder(String css) {

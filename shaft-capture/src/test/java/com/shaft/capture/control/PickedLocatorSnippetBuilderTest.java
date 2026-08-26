@@ -47,6 +47,18 @@ class PickedLocatorSnippetBuilderTest {
     }
 
     @Test
+    void testIdAttributeSelectorKeepsTheOriginalAttributeNameAndValue() {
+        assertEquals(
+                "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"data-testid\", \"login\").build()",
+                PickedLocatorSnippetBuilder.snippet(
+                        candidate(LocatorCandidate.LocatorStrategy.TEST_ID, "[data-testid=\"login\"]")));
+        assertEquals(
+                "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"data-qa\", \"checkout\").build()",
+                PickedLocatorSnippetBuilder.snippet(
+                        candidate(LocatorCandidate.LocatorStrategy.TEST_ID, "[data-qa='checkout']")));
+    }
+
+    @Test
     void neverEmitsBannedShaftLocatorFactories() {
         String snippet = PickedLocatorSnippetBuilder.snippet(
                 candidate(LocatorCandidate.LocatorStrategy.ID, "username"));

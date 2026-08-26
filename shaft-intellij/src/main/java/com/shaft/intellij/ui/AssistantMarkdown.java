@@ -1554,7 +1554,7 @@ final class AssistantMarkdown {
             }
         }
         return containsRejectedJavaFence(unwrapped)
-                || (isStandaloneJavaCompilationUnit(unwrapped) && looksLikeNativeSelenium(unwrapped));
+                || (!containsCodeFence(unwrapped) && containsRejectedUnfencedJava(unwrapped));
     }
 
     static String nativeSeleniumRejectionMarkdown() {
@@ -1811,25 +1811,44 @@ final class AssistantMarkdown {
         return language != null && "java".equalsIgnoreCase(language.trim());
     }
 
-    /**
-     * Unfenced GENERATE output that is itself a Java compilation unit, not a RECORD
-     * transcript that merely quotes a class or a banned factory.
-     */
-    private static boolean isStandaloneJavaCompilationUnit(String text) {
-        if (text == null || containsCodeFence(text)) {
+    private static boolean isRejectedGeneratedJava(String language, String code) {
+        if (code == null || code.isBlank()) {
             return false;
         }
-        String trimmed = text.trim();
-        String lower = trimmed.toLowerCase(Locale.ROOT);
-        return lower.startsWith("package ")
-                || lower.startsWith("import ")
-                || lower.startsWith("public class ")
-                || lower.startsWith("class ");
+        if (isJava(language)) {
+            return looksLikeNativeSelenium(code);
+        }
+        return language != null && language.isBlank() && containsNativeSeleniumCall(code);
     }
 
-    private static boolean isRejectedGeneratedJava(String language, String code) {
-        String snippet = code == null ? "" : code;
-        return isJava(language) && !snippet.isBlank() && looksLikeNativeSelenium(snippet);
+    private static boolean containsRejectedUnfencedJava(String text) {
+        return text != null && !text.isBlank() && containsNativeSeleniumCall(text);
+    }
+
+    /**
+     * True when the text contains a real native-Selenium or banned-factory call, not a
+     * playbook sentence that only names {@code SHAFT.GUI.Locator.xpath(...)} as forbidden.
+     */
+    static boolean containsNativeSeleniumCall(String code) {
+        if (code.contains("org.openqa.selenium.WebDriver")
+                || code.contains("new ChromeDriver(")
+                || code.contains("new FirefoxDriver(")
+                || code.contains("new EdgeDriver(")
+                || code.contains("driver.get(")
+                || code.contains("driver.findElement(")
+                || code.contains("driver.findElements(")
+                || code.contains("WebElement ")) {
+            return true;
+        }
+        int index = 0;
+        while ((index = code.indexOf("SHAFT.GUI.Locator.xpath(", index)) >= 0) {
+            String prefix = code.substring(Math.max(0, index - 48), index).toLowerCase(Locale.ROOT);
+            if (!prefix.contains("never") && !prefix.contains("do not") && !prefix.contains("don't")) {
+                return true;
+            }
+            index += "SHAFT.GUI.Locator.xpath(".length();
+        }
+        return false;
     }
 
     private static boolean containsRejectedJavaFence(String markdown) {

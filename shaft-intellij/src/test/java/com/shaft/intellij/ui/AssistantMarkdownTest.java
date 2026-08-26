@@ -735,6 +735,34 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void unlabeledFenceWithNativeSeleniumCallIsRejectedGeneratedJava() {
+        String snippet = """
+                ```
+                driver.get("https://example.com");
+                driver.findElement(By.id("login")).click();
+                ```
+                """.stripIndent();
+
+        assertTrue(AssistantMarkdown.containsRejectedGeneratedJava(snippet), snippet);
+    }
+
+    @Test
+    void unfencedJavaAfterPreambleWithNativeSeleniumIsRejectedGeneratedJava() {
+        String output = """
+                Here is the generated test:
+
+                public class GeneratedLoginTest {
+                    @Test
+                    void login() {
+                        driver.get("https://example.com");
+                    }
+                }
+                """.stripIndent();
+
+        assertTrue(AssistantMarkdown.containsRejectedGeneratedJava(output), output);
+    }
+
+    @Test
     void shaftBuilderJavaFenceIsNotRejectedGeneratedJava() {
         String snippet = """
                 ```java
