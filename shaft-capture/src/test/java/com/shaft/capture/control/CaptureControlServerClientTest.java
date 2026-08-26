@@ -164,12 +164,13 @@ class CaptureControlServerClientTest {
                     .build(), HttpResponse.BodyHandlers.ofString());
 
             assertEquals(200, response.statusCode());
-            assertTrue(response.body().contains("SHAFT.GUI.Locator.id(\\\"username\\\")"),
+            assertTrue(response.body().contains(
+                            "SHAFT.GUI.Locator.hasAnyTagName().hasId(\\\"username\\\").build()"),
                     "The ID strategy should outrank CSS here, got: " + response.body());
             assertTrue(response.body().contains("\"ranked\""));
 
             CaptureControlFiles.LastPick lastPick = files.readLastPick();
-            assertEquals("SHAFT.GUI.Locator.id(\"username\")", lastPick.snippet(),
+            assertEquals("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"username\").build()", lastPick.snippet(),
                     "/locator/pick must persist the winning snippet so a later empty-candidates "
                             + "caller (e.g. the MCP capture_pick_locator tool) can recover it.");
             assertEquals(2, lastPick.candidates().size());
