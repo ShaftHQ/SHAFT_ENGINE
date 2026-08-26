@@ -465,6 +465,27 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     }
 
 
+def manual_host_trust_only(result: dict[str, object]) -> bool:
+    components = result.get("components")
+    hosts = result.get("hosts")
+    kernel = result.get("kernel")
+    dependencies = result.get("dependencies")
+    return bool(
+        result.get("status") == "recovery-required"
+        and isinstance(components, dict)
+        and all(record.get("status") == "healthy" for record in components.values())
+        and isinstance(hosts, dict)
+        and hosts.get("status") == "recovery-required"
+        and hosts.get("hookTrust") == "review-required"
+        and isinstance(hosts.get("grok"), dict)
+        and hosts["grok"].get("status") == "recovery-required"
+        and isinstance(kernel, dict)
+        and kernel.get("status") == "healthy"
+        and isinstance(dependencies, dict)
+        and dependencies.get("status") == "healthy"
+    )
+
+
 def verify_account_phase(project: Path, expected_commit: str) -> dict[str, object]:
     installed = project / ".chaos-engine"
     for command in ("status", "doctor"):
@@ -481,7 +502,10 @@ def verify_account_phase(project: Path, expected_commit: str) -> dict[str, objec
                 cwd=project,
             ).stdout
         )
-        if result.get("status") != "healthy" or result.get("commit") != expected_commit:
+        if (
+            result.get("status") != "healthy"
+            and not manual_host_trust_only(result)
+        ) or result.get("commit") != expected_commit:
             components = result.get("components", {})
             dependencies = result.get("dependencies", {}).get("components", {})
             summary = {
