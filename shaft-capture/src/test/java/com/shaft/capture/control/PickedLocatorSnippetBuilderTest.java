@@ -25,6 +25,16 @@ class PickedLocatorSnippetBuilderTest {
     }
 
     @Test
+    void quotedIdAndNameUseNativeLocators() {
+        assertEquals(
+                "By.id(\"say\\\"hi\")",
+                PickedLocatorSnippetBuilder.snippet(candidate(LocatorCandidate.LocatorStrategy.ID, "say\"hi")));
+        assertEquals(
+                "By.name(\"say\\\"hi\")",
+                PickedLocatorSnippetBuilder.snippet(candidate(LocatorCandidate.LocatorStrategy.NAME, "say\"hi")));
+    }
+
+    @Test
     void hashCssRendersAsAnIdBuilderCall() {
         assertEquals(
                 "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"login\").build()",
@@ -56,6 +66,14 @@ class PickedLocatorSnippetBuilderTest {
                 "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"data-qa\", \"checkout\").build()",
                 PickedLocatorSnippetBuilder.snippet(
                         candidate(LocatorCandidate.LocatorStrategy.TEST_ID, "[data-qa='checkout']")));
+    }
+
+    @Test
+    void testIdAttributeSelectorDecodesCssEscapesBeforeBuildingAttribute() {
+        assertEquals(
+                "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"data-testid\", \"login button\").build()",
+                PickedLocatorSnippetBuilder.snippet(
+                        candidate(LocatorCandidate.LocatorStrategy.TEST_ID, "[data-testid=\"login\\ button\"]")));
     }
 
     @Test
