@@ -237,7 +237,7 @@ def mempalace_runtime_status(project: Path):
         module = load_controller()
         self.assertEqual(
             "0.12.6",
-            module._version_from_output("uv 0.12.6 (development build)"),
+            module._version_from_output("uv 0.12.6 (3dba48e1c 2026-08-19)"),
         )
         self.assertIsNone(module._version_from_output("uv 0.12.6-beta.1"))
 

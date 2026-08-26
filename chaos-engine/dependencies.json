@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "dependencies": {
-    "uv": {"minimumVersion": "0.11.0", "executables": ["uv", "uvx"], "provider": "astral-standalone", "stableChannel": "https://api.github.com/repos/astral-sh/uv/releases/latest", "probe": ["uv", "--version"]},
+    "uv": {"minimumVersion": "0.11.0", "executables": ["uv", "uvx"], "provider": "astral-standalone", "stableChannel": "https://api.github.com/repos/astral-sh/uv/releases/latest", "probe": ["uv", "self", "version", "--short"]},
     "python": {"minimumVersion": "3.14.0", "executables": ["python3"], "provider": "uv-managed", "stableChannel": "https://www.python.org/api/v2/downloads/release/?is_published=true", "probe": ["python3", "--version"]},
     "node": {"minimumVersion": "22.0.0", "executables": ["node", "npm", "npx"], "provider": "platform-package-manager", "stableChannel": "https://nodejs.org/dist/index.json", "probe": ["node", "--version"]},
     "java": {"minimumVersion": "25.0.0", "executables": ["java"], "provider": "adoptium-platform-package", "stableChannel": "https://api.adoptium.net/v3/info/release_versions?feature_version=25&release_type=ga&page_size=50", "probe": ["java", "-version"]},
