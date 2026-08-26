@@ -596,7 +596,7 @@ def run_acceptance(
             )
 
         try:
-            fresh = record_phase(
+            record_phase(
                 evidence,
                 "fresh-base-wrapper",
                 lambda: install_and_verify(base_sha, require_current_action=False),
