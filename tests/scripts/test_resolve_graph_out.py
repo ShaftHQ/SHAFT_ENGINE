@@ -129,7 +129,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertEqual(1, completed.returncode)
         self.assertIn("marker schema is unsupported", completed.stderr)
 
-    def test_later_tracked_source_revision_makes_cache_stale(self):
+    def test_later_descendant_revision_reuses_baseline(self):
         self.assertEqual(0, self.resolver("--record-current").returncode)
         indexed = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
         (self.primary / "later.py").write_text("print('later')\n", encoding="utf-8")
@@ -139,12 +139,11 @@ class ResolveGraphOutTest(unittest.TestCase):
 
         completed = self.resolver("--check")
 
-        self.assertEqual(1, completed.returncode)
-        self.assertIn("stale -", completed.stderr)
-        self.assertIn(f"indexed={indexed}", completed.stderr)
-        self.assertIn(f"requested={requested}", completed.stderr)
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn(f"baseline={indexed}", completed.stdout)
+        self.assertIn(f"requested={requested}", completed.stdout)
 
-    def test_linked_worktree_is_checked_against_its_own_revision(self):
+    def test_linked_worktree_reuses_ancestor_baseline_with_live_delta(self):
         self.assertEqual(0, self.resolver("--record-current").returncode)
         linked = self.sandbox / "linked"
         self.git("worktree", "add", "-b", "feature", str(linked), cwd=self.primary)
@@ -155,9 +154,9 @@ class ResolveGraphOutTest(unittest.TestCase):
         completed = self.resolver("--check", cwd=linked)
         record_attempt = self.resolver("--record-current", cwd=linked)
 
-        self.assertEqual(1, completed.returncode)
-        self.assertIn("stale -", completed.stderr)
-        self.assertIn("requested=", completed.stderr)
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn("baseline=", completed.stdout)
+        self.assertIn("live branch delta", completed.stdout)
         self.assertEqual(1, record_attempt.returncode)
         self.assertIn("primary checkout", record_attempt.stderr)
 
@@ -345,8 +344,8 @@ if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
 
         for required in (
             "The existing maintenance controller is the sole Graphify refresh owner.",
-            "A linked-worktree revision mismatch or an active refresh lock is an expected "
-            "degraded condition and does not block implementation.",
+            "A diverged revision or an active refresh lock is an expected degraded "
+            "condition and does not block implementation.",
             "must not refresh, wait or retry-loop, clear or replace the lock, freshness "
             "marker, or cache, or switch, reset, or overwrite the primary checkout",
             "Continue with live files and targeted `rg`; only the maintenance owner updates "

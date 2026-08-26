@@ -79,16 +79,17 @@ if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
 }
 ```
 
-A missing cache reports `absent`; a cache without a matching indexed revision
-reports `stale`. Either state is advisory for ordinary tasks. A readable stale
+A missing cache reports `absent`. A descendant branch reuses the origin/main
+baseline and must inspect its live Git delta; a diverged revision reports
+`stale`. Either degraded state is advisory for ordinary tasks. A readable stale
 cache may be queried once for positive leads, but never establishes completeness,
 “no callers,” or another negative conclusion. After the ordered route, use
 targeted `rg` plus live files for every blast-radius conclusion. Never rebuild
 or record the cache from an ordinary task, and never commit `graphify-out/`.
 
 The existing maintenance controller is the sole Graphify refresh owner. A
-linked-worktree revision mismatch or an active refresh lock is an expected
-degraded condition and does not block implementation. An ordinary task must not
+diverged revision or an active refresh lock is an expected degraded condition
+and does not block implementation. An ordinary task must not
 refresh, wait or retry-loop, clear or replace the lock, freshness marker, or
 cache, or switch, reset, or overwrite the primary checkout to satisfy freshness.
 Continue with live files and targeted `rg`; only the maintenance owner updates

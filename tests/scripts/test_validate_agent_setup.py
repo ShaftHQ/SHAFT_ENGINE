@@ -107,6 +107,13 @@ approval_mode = "prompt"
 
     def test_current_host_parity_matrix_is_complete(self):
         repository_root = Path(__file__).resolve().parents[2]
+        matrix = json.loads(
+            (repository_root / "scripts/ci/agent_harness_parity.json").read_text()
+        )
+        self.assertEqual(
+            ["claude", "codex", "gemini", "grok", "copilot"], matrix["hosts"]
+        )
+        self.assertIn("future_host_contract", matrix)
         self.assertEqual(validate_host_parity(repository_root), [])
 
     def test_host_parity_rejects_missing_evidence_and_named_check(self):

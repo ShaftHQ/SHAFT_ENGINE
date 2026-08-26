@@ -2582,7 +2582,11 @@ def codex_content(
         f"args = [{memory_args}]\n"
         f'commandWindows = "{windows_command}"\n'
         f'argsWindows = [{windows_prefix}{memory_args}]\n'
-        'cwd = "."\n\n'
+        'cwd = "."\n'
+        'enabled_tools = ["inspect_memory", "load_memory", "remember_memory", "search_memory"]\n'
+        'default_tools_approval_mode = "auto"\nrequired = false\n\n'
+        '[mcp_servers."chaosengine-memory".tools.remember_memory]\n'
+        'approval_mode = "prompt"\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"\n'
         f"args = [{mempalace_args}]\n"
         f'commandWindows = "{windows_command}"\n'

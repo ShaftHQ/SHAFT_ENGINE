@@ -8,6 +8,12 @@ args = [".chaos-engine/tool.py", "memory-mcp"]
 commandWindows = "py"
 argsWindows = ["-3", ".chaos-engine/tool.py", "memory-mcp"]
 cwd = "."
+enabled_tools = ["inspect_memory", "load_memory", "remember_memory", "search_memory"]
+default_tools_approval_mode = "auto"
+required = false
+
+[mcp_servers."chaosengine-memory".tools.remember_memory]
+approval_mode = "prompt"
 
 [mcp_servers."chaosengine-mempalace"]
 command = "python3"

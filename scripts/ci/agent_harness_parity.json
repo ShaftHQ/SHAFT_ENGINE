@@ -1,6 +1,14 @@
 {
   "version": 1,
-  "hosts": ["claude", "codex"],
+  "hosts": ["claude", "codex", "gemini", "grok", "copilot"],
+  "native_adapters": {
+    "claude": ["CLAUDE.md", ".claude/settings.json"],
+    "codex": ["AGENTS.md", ".codex/hooks.json", ".codex/config.toml"],
+    "gemini": ["AGENTS.md", ".gemini/skills/chaos-engine/SKILL.md", ".gemini/settings.json"],
+    "grok": ["AGENTS.md", ".grok/hooks/lifecycle.json", ".mcp.json"],
+    "copilot": [".github/copilot-instructions.md", ".github/hooks/chaos-engine.json", ".mcp.json"]
+  },
+  "future_host_contract": "A compatible host must load the canonical entrypoint once, project native lifecycle events onto the kernel, use canonical MCP launchers, and add executable parity evidence before support is claimed.",
   "capabilities": [
     {"id": "entrypoint", "owner": "chaos-engine/skills/chaos-engine/SKILL.md", "claude": ["CLAUDE.md", ".claude/skills/chaos-engine/SKILL.md"], "codex": ["AGENTS.md"], "check": "tests/scripts/test_agent_router_contract.py::test_every_host_context_loads_the_entrypoint", "mode": "equivalent"},
     {"id": "consult_triage", "owner": "chaos-engine/references/consult-first.md", "claude": ["chaos-engine/references/consult-first.md"], "codex": ["chaos-engine/references/consult-first.md"], "check": "tests/scripts/test_agent_router_contract.py::test_entrypoint_opens_every_task_by_consulting_before_acting", "mode": "shared"},

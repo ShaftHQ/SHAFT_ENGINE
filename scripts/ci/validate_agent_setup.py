@@ -258,9 +258,9 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
                 )
 
     codex_content = (root / ".codex/config.toml").read_text(encoding="utf-8")
-    server_content = toml_section(codex_content, "mcp_servers.shaft-memory")
+    server_content = toml_section(codex_content, 'mcp_servers."chaosengine-memory"')
     remember_content = toml_section(
-        codex_content, "mcp_servers.shaft-memory.tools.remember_memory"
+        codex_content, 'mcp_servers."chaosengine-memory".tools.remember_memory'
     )
     list_values: dict[str, list[str]] = {}
     for key in ("args", "enabled_tools"):
@@ -272,11 +272,11 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
                 list_values[key] = []
     checks = {
         "server section": bool(server_content),
-        "command": re.search(r'(?m)^command\s*=\s*"npx"\s*$', server_content)
+        "command": re.search(r'(?m)^command\s*=\s*"python3"\s*$', server_content)
         is not None,
         "args": list_values.get("args")
-        == ["--yes", "--package", MEMORY_PACKAGE, "--", "memory-mcp"],
-        "cwd": re.search(r'(?m)^cwd\s*=\s*"\.\."\s*$', server_content)
+        == [".chaos-engine/tool.py", "memory-mcp"],
+        "cwd": re.search(r'(?m)^cwd\s*=\s*"\."\s*$', server_content)
         is not None,
         "enabled_tools": set(list_values.get("enabled_tools", [])) == MEMORY_TOOLS,
         "default_tools_approval_mode": re.search(
@@ -294,7 +294,7 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
     for name, valid in checks.items():
         if not valid:
             errors.append(
-                issue("memory-mcp", ".codex/config.toml", f"invalid shaft-memory {name}")
+                issue("memory-mcp", ".codex/config.toml", f"invalid chaosengine-memory {name}")
             )
     mcp_path = root / ".mcp.json"
     if mcp_path.is_file():
@@ -481,7 +481,7 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
 
 
 def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
-    """Validate the executable Claude/Codex capability map and its evidence."""
+    """Validate the executable supported-host capability map and its evidence."""
     relative = Path("scripts/ci/agent_harness_parity.json")
     try:
         matrix = read_json(root / relative)
@@ -505,8 +505,23 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
         if isinstance(item, dict) and isinstance(item.get("id"), str)
     ]
     row_ids = [item["id"] for item in valid_rows]
-    if matrix.get("version") != 1 or matrix.get("hosts") != ["claude", "codex"]:
+    hosts = ["claude", "codex", "gemini", "grok", "copilot"]
+    if matrix.get("version") != 1 or matrix.get("hosts") != hosts:
         errors.append(issue("host-parity-schema", relative.as_posix(), "invalid version or hosts"))
+    adapters = matrix.get("native_adapters")
+    if not isinstance(matrix.get("future_host_contract"), str):
+        errors.append(issue("host-parity-schema", relative.as_posix(), "future_host_contract is required"))
+    if not isinstance(adapters, dict) or set(adapters) != set(hosts):
+        errors.append(issue("host-parity-schema", relative.as_posix(), "native_adapters must cover every host"))
+    else:
+        for host, paths in adapters.items():
+            if not isinstance(paths, list) or not paths:
+                errors.append(issue("host-parity-path", relative.as_posix(), f"{host} native adapters are empty"))
+                continue
+            for value in paths:
+                path = Path(value) if isinstance(value, str) else Path()
+                if not value or path.is_absolute() or ".." in path.parts or not (root / path).is_file():
+                    errors.append(issue("host-parity-path", relative.as_posix(), f"{host} has invalid native adapter: {value!r}"))
     if len(valid_rows) != len(capabilities):
         errors.append(issue("host-parity-schema", relative.as_posix(), "capabilities must be objects with string ids"))
     if not valid_rows or len(row_ids) != len(set(row_ids)):

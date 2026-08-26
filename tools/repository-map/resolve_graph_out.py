@@ -84,6 +84,23 @@ def git_revision(cwd: Path) -> str:
     return completed.stdout.strip()
 
 
+def is_ancestor(cwd: Path, baseline: str, revision: str) -> bool:
+    """Return whether revision can safely layer a live delta over baseline."""
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        raise RuntimeError("git is not on PATH")
+    completed = subprocess.run(  # nosec B603
+        [git_executable, "merge-base", "--is-ancestor", baseline, revision],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode not in (0, 1):
+        raise RuntimeError(completed.stderr.strip() or "cannot compare Graphify revisions")
+    return completed.returncode == 0
+
+
 def manifest_digest(graph_out: Path) -> str:
     """Hash the Graphify manifest so a marker cannot outlive its cache build."""
     return hashlib.sha256((graph_out / MANIFEST_NAME).read_bytes()).hexdigest()
@@ -122,6 +139,11 @@ def cache_freshness(cwd: Path, graph_out: Path) -> tuple[bool, str]:
         return False, "stale - Graphify manifest changed after revision marker"
     requested = git_revision(cwd)
     if indexed != requested:
+        if is_ancestor(cwd, indexed, requested):
+            return True, (
+                f"{graph_out} baseline={indexed}; live branch delta against "
+                f"requested={requested} must be read from Git"
+            )
         return False, f"stale - indexed={indexed} requested={requested}"
     return True, str(graph_out)
 
