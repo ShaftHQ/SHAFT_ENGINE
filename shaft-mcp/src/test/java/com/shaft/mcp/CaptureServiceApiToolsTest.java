@@ -524,7 +524,7 @@ class CaptureServiceApiToolsTest {
 
             CaptureService.McpPickLocatorResult result = service.pickLocator(candidates);
 
-            assertEquals("SHAFT.GUI.Locator.id(\"username\")", result.snippet());
+            assertEquals("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"username\").build()", result.snippet());
             assertEquals(2, result.ranked().size());
             assertEquals("ID", result.ranked().getFirst().strategy());
         } finally {
@@ -556,9 +556,9 @@ class CaptureServiceApiToolsTest {
         Path runtimeDirectory = Path.of("target", "shaft-capture-mcp");
         CaptureControlFiles files = new CaptureControlFiles(runtimeDirectory);
         files.writeLastPick(new CaptureControlFiles.LastPick(
-                "SHAFT.GUI.Locator.id(\"username\")",
+                "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"username\").build()",
                 List.of(new CaptureControlServer.RankedCandidate(
-                        "ID", "username", 100, "SHAFT.GUI.Locator.id(\"username\")")),
+                        "ID", "username", 100, "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"username\").build()")),
                 System.currentTimeMillis()));
         CaptureService service = new CaptureService(
                 new CaptureManager(),
@@ -567,7 +567,7 @@ class CaptureServiceApiToolsTest {
         try {
             CaptureService.McpPickLocatorResult result = service.pickLocator(List.of());
 
-            assertEquals("SHAFT.GUI.Locator.id(\"username\")", result.snippet());
+            assertEquals("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"username\").build()", result.snippet());
             assertEquals(1, result.ranked().size());
             assertEquals("ID", result.ranked().getFirst().strategy());
         } finally {

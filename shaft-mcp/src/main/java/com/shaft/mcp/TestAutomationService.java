@@ -19,8 +19,9 @@ public class TestAutomationService {
     private static final int MAX_RESULTS = 50;
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^a-z0-9]+");
     private static final String NO_SLEEP = "Do not generate Thread.sleep; use SHAFT waits/actions/assertions.";
-    private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer role-based locators,"
-            + " then the SHAFT.GUI.Locator XPath builder.";
+    private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer a unique author-written"
+            + " id through SHAFT.GUI.Locator.hasAnyTagName().hasId(...), else SHAFT.GUI.Locator.hasRole(...),"
+            + " else relative By.xpath.";
     private static final String NO_SHAFT_LOCATOR_XPATH = "Do not generate SHAFT.GUI.Locator.xpath; use role-based"
             + " locators, the SHAFT locator builder, or By.xpath only as a last fallback.";
     private static final String NO_IMPLICIT_WAIT = "Avoid Selenium implicit waits; use SHAFT waits/actions/assertions.";
@@ -54,8 +55,10 @@ public class TestAutomationService {
             "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits."
                     + " When the user names no report path, call doctor_analyze_failed_allure with empty"
                     + " allureResultPaths to analyze the most recent results automatically.",
-            "Prefer role-based (ARIA) locators first, then the SHAFT.GUI.Locator XPath builder, and use plain By"
-                    + " objects only as a last resort.",
+            "For generated web locators, use SHAFT.GUI.Locator.hasAnyTagName().hasId(...) for a unique author-written"
+                    + " id first, SHAFT.GUI.Locator.hasRole(...) second, and native relative By.xpath(...) only when"
+                    + " the element has neither. Never SHAFT.GUI.Locator.xpath(...) or SHAFT.GUI.Locator.id/name/"
+                    + "cssSelector/className/tagName(...).",
             NO_SHAFT_LOCATOR_XPATH,
             NO_SLEEP,
             NO_ABSOLUTE_XPATH,

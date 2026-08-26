@@ -4038,6 +4038,25 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(exported.contains("autobot_local_agent_run")));
     }
 
+    @Test
+    void assistantDoesNotRejectRecordTranscriptThatQuotesBannedLocatorFactory() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        showAgentResult(panel, ShaftMcpToolResult.success("""
+                AutoBot free-text codegen, read-only RECORD invocation.
+                never use absolute XPath or SHAFT.GUI.Locator.xpath(...).
+                public class TestClass {
+                    SHAFT.GUI.WebDriver driver;
+                }
+                Calling tool capture_checkpoint...
+                SHAFT_CODEGEN_PROPOSAL {"recordingPath":"recordings/intellij-capture.json","proposalMarkdown":"Reuse HomePage.","phaseOutcomes":{"RECORD":"passed"}}
+                """.stripIndent().trim()));
+
+        String markdown = transcriptMarkdown(panel);
+        assertFalse(markdown.contains("**Generated code rejected**"), markdown);
+        assertTrue(markdown.contains("SHAFT_CODEGEN_PROPOSAL") || markdown.contains("Reuse HomePage"), markdown);
+    }
+
     /**
      * Pins issue #3680's structured "proceed to Agent / keep refining" choice: a completed Plan-mode
      * local-agent run whose raw output carries an {@code ExitPlanMode} plan proposal (see {@link

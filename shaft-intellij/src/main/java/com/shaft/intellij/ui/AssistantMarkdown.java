@@ -1554,7 +1554,7 @@ final class AssistantMarkdown {
             }
         }
         return containsRejectedJavaFence(unwrapped)
-                || (!containsCodeFence(unwrapped) && looksLikeJava(unwrapped) && isRejectedGeneratedJava("java", unwrapped));
+                || (isStandaloneJavaCompilationUnit(unwrapped) && looksLikeNativeSelenium(unwrapped));
     }
 
     static String nativeSeleniumRejectionMarkdown() {
@@ -1808,7 +1808,23 @@ final class AssistantMarkdown {
     }
 
     private static boolean isJava(String language) {
-        return language == null || language.isBlank() || "java".equalsIgnoreCase(language.trim());
+        return language != null && "java".equalsIgnoreCase(language.trim());
+    }
+
+    /**
+     * Unfenced GENERATE output that is itself a Java compilation unit, not a RECORD
+     * transcript that merely quotes a class or a banned factory.
+     */
+    private static boolean isStandaloneJavaCompilationUnit(String text) {
+        if (text == null || containsCodeFence(text)) {
+            return false;
+        }
+        String trimmed = text.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        return lower.startsWith("package ")
+                || lower.startsWith("import ")
+                || lower.startsWith("public class ")
+                || lower.startsWith("class ");
     }
 
     private static boolean isRejectedGeneratedJava(String language, String code) {

@@ -3,13 +3,10 @@ package com.shaft.capture.control;
 import com.shaft.capture.model.LocatorCandidate;
 
 /**
- * Renders a single copy-paste {@code SHAFT.GUI.Locator...} (or {@code By...}) Java expression for
- * one picked locator candidate, for the live "Pick Locator" flow (see
- * {@code CaptureControlServer#pickLocator}). Deliberately simpler than
- * {@code com.shaft.capture.generate.CaptureGenerator}'s codegen-time locator rendering (which also
- * has access to the target's semantic role/label/input-vs-clickable classification to prefer
- * {@code inputField(...)}/{@code clickableField(...)}): this builder only sees the picked
- * candidate itself, since a live pick has no surrounding recorded scenario to classify against.
+ * Renders a single copy-paste SHAFT locator Java expression for one picked locator candidate.
+ * Matches {@code LocatorPolicy}'s three-tier emission: builder id, builder role/text, then
+ * native {@code By.xpath}. Never emits the banned {@code SHAFT.GUI.Locator.id/name/cssSelector/xpath}
+ * factories.
  */
 public final class PickedLocatorSnippetBuilder {
     private PickedLocatorSnippetBuilder() {
@@ -20,17 +17,49 @@ public final class PickedLocatorSnippetBuilder {
      * Renders one candidate as a copy-paste Java locator expression.
      *
      * @param candidate picked locator candidate
-     * @return {@code SHAFT.GUI.Locator...} or {@code By...} Java expression
+     * @return SHAFT locator-builder or {@code By.xpath} Java expression
      */
     public static String snippet(LocatorCandidate candidate) {
+        String expression = candidate.expression();
         return switch (candidate.strategy()) {
-            case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(candidate.expression()) + "\")";
-            case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(candidate.expression()) + "\")";
-            case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(candidate.expression()) + "\")";
-            case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
+            case ID -> idBuilder(expression);
+            case NAME -> attributeBuilder("name", expression);
+            case TEST_ID -> testIdBuilder(expression);
+            case CSS -> cssBuilder(expression);
+            case XPATH -> "By.xpath(\"" + javaString(expression) + "\")";
             case ROLE, ACCESSIBLE_NAME, LABEL -> "SHAFT.GUI.Locator.hasAnyTagName().containsText(\""
-                    + javaString(candidate.expression()) + "\").build()";
+                    + javaString(expression) + "\").build()";
         };
+    }
+
+    private static String idBuilder(String id) {
+        return "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"" + javaString(id) + "\").build()";
+    }
+
+    private static String attributeBuilder(String attribute, String value) {
+        return "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"" + javaString(attribute)
+                + "\", \"" + javaString(value) + "\").build()";
+    }
+
+    private static String testIdBuilder(String expression) {
+        if (expression.startsWith("#") && isSimpleIdentifier(expression.substring(1))) {
+            return idBuilder(expression.substring(1));
+        }
+        return attributeBuilder("data-testid", expression);
+    }
+
+    private static String cssBuilder(String css) {
+        if (css.startsWith("#") && isSimpleIdentifier(css.substring(1))) {
+            return idBuilder(css.substring(1));
+        }
+        if (css.startsWith(".") && isSimpleIdentifier(css.substring(1))) {
+            return "SHAFT.GUI.Locator.hasAnyTagName().hasClass(\"" + javaString(css.substring(1)) + "\").build()";
+        }
+        return "By.cssSelector(\"" + javaString(css) + "\")";
+    }
+
+    private static boolean isSimpleIdentifier(String value) {
+        return !value.isBlank() && value.chars().allMatch(ch -> Character.isLetterOrDigit(ch) || ch == '_' || ch == '-');
     }
 
     private static String javaString(String value) {

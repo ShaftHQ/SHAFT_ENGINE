@@ -39,6 +39,10 @@ class TestAutomationServiceTest {
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("absolute XPath")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("SHAFT.GUI.Locator.xpath")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule ->
+                rule.contains("hasAnyTagName().hasId") && rule.contains("hasRole")));
+        assertTrue(result.guidanceRules().stream().noneMatch(rule ->
+                rule.contains("SHAFT.GUI.Locator XPath builder")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("driver.findElement")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("confirm the exact target URL")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("do not infer canonical URLs")));

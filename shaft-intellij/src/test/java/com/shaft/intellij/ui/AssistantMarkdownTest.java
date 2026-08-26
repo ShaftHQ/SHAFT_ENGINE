@@ -709,6 +709,44 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void recordTranscriptWithLocatorPolicyProhibitionIsNotRejectedGeneratedJava() {
+        String recordTranscript = """
+                I'm loading the three requested SHAFT skills and the repository's recording guidance first.
+                5. Use native relative `By.xpath(...)` only when neither a stable author ID nor usable role exists; never use absolute XPath or `SHAFT.GUI.Locator.xpath(...)`.
+                public class TestClass {
+                    SHAFT.GUI.WebDriver driver;
+                }
+                Calling tool element_click...
+                {"type":"mcp_tool_call","tool":"element_click","arguments":{"locatorStrategy":"XPATH"}}
+                """.stripIndent();
+
+        assertFalse(AssistantMarkdown.containsRejectedGeneratedJava(recordTranscript), recordTranscript);
+    }
+
+    @Test
+    void blankLanguageFenceWithLocatorXpathProhibitionIsNotRejectedGeneratedJava() {
+        String transcript = """
+                ```
+                never use SHAFT.GUI.Locator.xpath(...)
+                ```
+                """.stripIndent();
+
+        assertFalse(AssistantMarkdown.containsRejectedGeneratedJava(transcript), transcript);
+    }
+
+    @Test
+    void shaftBuilderJavaFenceIsNotRejectedGeneratedJava() {
+        String snippet = """
+                ```java
+                By logo = SHAFT.GUI.Locator.hasAnyTagName().hasId("shaft-logo").build();
+                driver.element().assertThat(logo).exists();
+                ```
+                """.stripIndent();
+
+        assertFalse(AssistantMarkdown.containsRejectedGeneratedJava(snippet), snippet);
+    }
+
+    @Test
     void formatsAutomationScenariosWithoutRawJson() {
         String markdown = AssistantMarkdown.fromMcpOutput("test_automation_scenarios", mcpText("""
                 {
