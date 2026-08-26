@@ -823,6 +823,15 @@ class TerminalReflectionContractTest(unittest.TestCase):
                 )
                 self.assertIn(label, reason)
 
+    def test_valid_receipt_allows_hosts_that_omit_the_assistant_message_to_stop(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            token = reflection.record_session_start("message-less", "2020-01-01T00:00:00+00:00")
+            reflection.record_receipt("message-less", self._receipt(), token)
+
+            self.assertIsNone(guard._terminal_reflection_reason({"session_id": "message-less"}))
+
     def test_activity_after_terminal_receipt_reopens_terminal_duty(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}

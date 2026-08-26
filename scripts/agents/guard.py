@@ -5603,7 +5603,10 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
             "validated long-session-completion receipt before stopping. Stores and "
             "GitHub are optional; the local task ledger is sufficient."
         )
-    message = str(hook_input.get("last_assistant_message") or "").casefold()
+    raw_message = hook_input.get("last_assistant_message")
+    if raw_message is None:
+        return None
+    message = str(raw_message).casefold()
     missing = [label for label in _TERMINAL_REFLECTION_LABELS if label not in message]
     if missing:
         return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
