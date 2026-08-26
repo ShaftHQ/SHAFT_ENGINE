@@ -118,6 +118,28 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertTrue(stopped.stderr.strip())
             self.assertIn("Learning Session", stopped.stderr)
 
+    def test_exit_two_pretool_hosts_write_blocking_reason_to_stderr(self):
+        for host in ("claude", "codex", "gemini"):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
+                blocked = self.run_hook(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "session_id": f"{host}-pretool-block",
+                        "tool_name": "Bash",
+                        "tool_input": {"command": "git reset --hard HEAD~1"},
+                    },
+                    {
+                        **os.environ,
+                        "CHAOS_ENGINE_HOST": host,
+                        "TMPDIR": temporary,
+                        "TEMP": temporary,
+                    },
+                )
+
+            self.assertEqual(2, blocked.returncode)
+            self.assertEqual("", blocked.stdout)
+            self.assertIn("rejected destructive broad scope", blocked.stderr)
+
     def test_copilot_and_grok_stop_use_their_native_non_exit_two_contracts(self):
         for host in ("copilot", "grok"):
             with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:

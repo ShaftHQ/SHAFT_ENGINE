@@ -155,6 +155,7 @@ def run_hook_protocol(
     host = host_for_input(raw_event)
     captured = io.StringIO()
     result = 0
+    continuation: dict = {}
     try:
         prepare(event)
         with contextlib.redirect_stdout(captured):
@@ -163,6 +164,7 @@ def run_hook_protocol(
         output = {} if not rendered else _strict_json_loads(rendered)
         if not isinstance(output, dict):
             raise ValueError("hook output is not a JSON object")
+        continuation = output
         output = adapt_output(output, event_name, host)
         if not isinstance(output, dict):
             raise ValueError("adapted hook output is not a JSON object")
@@ -170,7 +172,8 @@ def run_hook_protocol(
     except (Exception, KeyboardInterrupt, SystemExit) as error:
         print(f"Hook protocol error: {error}", file=sys.stderr)
         try:
-            output = adapt_output(fallback(event_name, host), event_name, host)
+            continuation = fallback(event_name, host)
+            output = adapt_output(continuation, event_name, host)
             if not isinstance(output, dict):
                 raise ValueError("adapted fallback output is not a JSON object")
             json.dumps(output, allow_nan=False)
@@ -180,12 +183,12 @@ def run_hook_protocol(
         result = 0
     if result == 2:
         if host in {"claude", "codex", "gemini"}:
-            _write_continuation(output)
+            _write_continuation(continuation)
         elif host == "copilot":
             _write_json(output)
             result = 0
         elif host == "grok":
-            _write_continuation(output)
+            _write_continuation(continuation)
             _write_json({})
             result = 0
         else:
