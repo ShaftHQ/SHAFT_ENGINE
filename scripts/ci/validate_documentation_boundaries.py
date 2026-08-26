@@ -48,13 +48,18 @@ ALLOWED_EXACT = {
     "chaos-engine/STANDALONE.md",
     "chaos-engine/INSTALL.md",
     "chaos-engine/THIRD_PARTY_NOTICES.md",
+    ".chaos-engine/profiles/README.md",
+    "GEMINI.md",
 }
 ALLOWED_NESTED_READMES = {
     path for path in ALLOWED_EXACT
     if path != "README.md" and Path(path).name.lower() == "readme.md"
 }
 ALLOWED_GLOBS = (
+    ".chaos-engine/*.md",
+    ".chaos-engine/**/*.md",
     ".agents/skills/**/*.md",
+    ".claude/*.md",
     ".claude/agents/*.md",
     ".claude/skills/**/*.md",
     ".claude/user-harness/*.md",
@@ -63,6 +68,7 @@ ALLOWED_GLOBS = (
     ".github/instructions/*.instructions.md",
     ".github/ISSUE_TEMPLATE/*.md",
     ".github/skills/**/*.md",
+    ".gemini/**/*.md",
     "chaos-engine/**/*.md",
     ".memory/memory/*.md",
     ".memory/memory/**/*.md",
@@ -70,6 +76,7 @@ ALLOWED_GLOBS = (
     "shaft-skills/*.md",
     "shaft-skills/**/*.md",
     "agent-plugins/**/*.md",
+    "plugins/**/*.md",
     "tools/**/*.md",
     "*/src/test/resources/fixtures/**/*.md",
 )
