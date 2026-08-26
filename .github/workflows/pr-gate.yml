@@ -366,7 +366,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 2
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -375,6 +375,14 @@ jobs:
           cache-dependency-path: requirements-ci.txt
       - name: Install managed CI Python dependencies
         run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
+      - name: Fetch missing comparison commit
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null ||
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
       - name: Fetch immutable pull-request review records
         shell: bash
         env:
