@@ -129,22 +129,33 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
             )
         ]
 
-    # `skills` missing, not a list, or `[]` -- the fail-open shape #4481 closed
-    # for guidance globs, reused here rather than reimplemented. Without it a
-    # second plugin entry left at `skills: []` reports the whole manifest valid
-    # while installing zero skills.
-    listed, list_errors = require_glob_list(plugin, "skills")
-    if list_errors:
-        return [
-            issue(
-                "marketplace-empty-skills",
-                f"plugin '{label}' skills must be a non-empty list",
-            )
-        ]
-
     if not (root / source).is_dir():
         return [
             issue("marketplace-source-missing", f"plugin '{label}' source directory does not exist: {source}")
+        ]
+
+    # Claude Code plugin roots auto-discover `skills/*/SKILL.md`; legacy skill
+    # collections keep their explicit marketplace `skills` list.
+    listed, list_errors = require_glob_list(plugin, "skills")
+    skill_source = source
+    if list_errors:
+        if (root / source / ".claude-plugin" / "plugin.json").is_file():
+            listed = None
+            skill_source = f"{source}/skills"
+        else:
+            return [
+                issue(
+                    "marketplace-empty-skills",
+                    f"plugin '{label}' skills must be a non-empty list",
+                )
+            ]
+
+    if not (root / skill_source).is_dir():
+        return [
+            issue(
+                "marketplace-source-empty",
+                f"plugin '{label}' source '{skill_source}' contains no <skill>/SKILL.md directories",
+            )
         ]
 
     missing_skill_md = [
@@ -152,19 +163,19 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
             "marketplace-skill-missing-skillmd",
             f"plugin '{label}' source directory '{source}/{name}' has no SKILL.md",
         )
-        for name in directories_missing_skill_md(root, source)
+        for name in directories_missing_skill_md(root, skill_source)
     ]
 
     # A source directory holding no `*/SKILL.md` reports nothing when it
     # matches nothing, so route the disk side through the reporting expander
     # too: an empty match is an `empty-glob`, never a silent pass.
-    pattern = f"{source}/*/SKILL.md"
+    pattern = f"{skill_source}/*/SKILL.md"
     found, glob_errors = expand_reported_globs(root, [pattern], f"plugin '{label}' source")
     if glob_errors:
         return missing_skill_md + [
             issue(
                 "marketplace-source-empty",
-                f"plugin '{label}' source '{source}' contains no <skill>/SKILL.md directories",
+                f"plugin '{label}' source '{skill_source}' contains no <skill>/SKILL.md directories",
             )
         ]
 
@@ -172,7 +183,7 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
     # container, so entries must name individual skill directories -- never a
     # container -- for both it and Claude Code to discover the same set.
     on_disk = sorted(f"./{path.parent.name}" for path in found)
-    entries = [str(entry) for entry in listed]
+    entries = on_disk if listed is None else [str(entry) for entry in listed]
     errors = [
         issue(
             "marketplace-entry-unbacked",
