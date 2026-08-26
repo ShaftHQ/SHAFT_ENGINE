@@ -113,13 +113,16 @@ def _component_blocks_health(value: object) -> bool:
     return value.get("taskImpact") == "required"
 
 
-def _required_install_unhealthy(doctor: dict[str, object]) -> bool:
+def _required_install_unhealthy(
+    doctor: dict[str, object], *, include_hosts: bool = True
+) -> bool:
     components = doctor.get("components")
     if isinstance(components, dict) and any(
         _component_blocks_health(value) for value in components.values()
     ):
         return True
-    for key in ("kernel", "hosts", "dependencies"):
+    keys = ("kernel", "hosts", "dependencies") if include_hosts else ("kernel", "dependencies")
+    for key in keys:
         item = doctor.get(key)
         if isinstance(item, dict) and item.get("status") not in {None, "healthy", "absent"}:
             return True
@@ -869,6 +872,7 @@ def install_latest(
                 "kind": "git-digest",
                 "repositorySha256": hashlib.sha256(repository.casefold().encode()).hexdigest(),
                 "branchSha256": hashlib.sha256(resolved_branch.encode()).hexdigest(),
+                "upstreamRepository": repository,
                 "commit": commit,
             }
         else:
@@ -924,7 +928,7 @@ def install_latest(
     try:
         reporter.start("Verify installation", remaining=remaining("Verify installation"))
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
-        if _required_install_unhealthy(doctor):
+        if _required_install_unhealthy(doctor, include_hosts=False):
             raise InstallHealthError("Verify installation", doctor)
         reporter.complete("Verify installation", remaining=remaining("Verify installation"))
         confirm("Activate clients")

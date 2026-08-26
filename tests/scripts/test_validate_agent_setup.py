@@ -57,17 +57,17 @@ class ValidateAgentSetupTest(unittest.TestCase):
         )
         self.write(
             ".codex/config.toml",
-            f"""[mcp_servers.shaft-memory]
-command = "npx"
-args = ["--yes", "--package", "{validate_agent_setup.MEMORY_PACKAGE}", "--", "memory-mcp"]
-cwd = ".."
+            """[mcp_servers."chaosengine-memory"]
+command = "python3"
+args = [".chaos-engine/tool.py", "memory-mcp"]
+cwd = "."
 enabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]
 default_tools_approval_mode = "auto"
 startup_timeout_sec = 30
 tool_timeout_sec = 60
 required = false
 
-[mcp_servers.shaft-memory.tools.remember_memory]
+[mcp_servers."chaosengine-memory".tools.remember_memory]
 approval_mode = "prompt"
 """,
         )
@@ -107,6 +107,13 @@ approval_mode = "prompt"
 
     def test_current_host_parity_matrix_is_complete(self):
         repository_root = Path(__file__).resolve().parents[2]
+        matrix = json.loads(
+            (repository_root / "scripts/ci/agent_harness_parity.json").read_text()
+        )
+        self.assertEqual(
+            ["claude", "codex", "gemini", "grok", "copilot"], matrix["hosts"]
+        )
+        self.assertIn("future_host_contract", matrix)
         self.assertEqual(validate_host_parity(repository_root), [])
 
     def test_host_parity_rejects_missing_evidence_and_named_check(self):

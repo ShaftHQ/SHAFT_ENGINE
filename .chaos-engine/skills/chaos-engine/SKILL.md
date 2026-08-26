@@ -105,11 +105,12 @@ not restate or override them.
 1. Orient on requested outcome and concrete proof of done.
 2. Read current instructions and live files before acting.
 3. Plan by uncertainty, blast radius, and reversibility; test riskiest premise first; keep asking follow-ups until the plan is decision-ready. After owner approval, go unattended and dispatch a consultant agent for execution ambiguity.
-4. Implement the full approved scope as one coherent batch. Fix root owner of
-   an invariant, not each symptom; do not interrupt implementation with review,
-   test, commit, push, or validation gates.
-5. After the final scope commit, triage automated CI, annotations, bots, and PR
-   comments first. Then run approved terminal review and extra local tests.
+4. After plan lock, create tracker/subtickets, push a tracking commit, and open
+   one draft PR when owner authorized delivery. Implement sequential TDD slices:
+   RED, smallest GREEN, focused check, meaningful commit, push, draft update.
+   Fix root owner of each invariant, not each symptom.
+5. After final scope commit, run one consolidated Check: balanced affected tests
+   by default, automated CI/comment triage, approved terminal review, acceptance.
 6. Report outcome, exact checks, failures, and Learning Session result.
 
 Consult [field heuristics](../../references/heuristics.md) only for deeper
@@ -209,17 +210,14 @@ that page reach.
 
 ### Solo or orchestrate
 
-One rule decides whether main thread does the work. Count the **unrelated tasks
-the owner has in flight** — that count is the number of work streams.
+Default is **SOLO** for every session. Do the work yourself, in sequence. Do not
+delegate implementation. Task count never changes mode automatically.
 
-Subtasks of a single task are **one** stream, however many there are: work them
-in sequence. Two streams means two things the owner asked for that do not depend
-on each other.
-
-| Work streams | Mode |
-| --- | --- |
-| One | **Solo.** Do the work yourself, in sequence. Do not delegate it. |
-| Two or more | **Orchestrate.** Do not wait for the owner to say "orchestrate". Default one writer at a time, each in its own worktree. Do no task work yourself. |
+Enter **ORCHESTRATOR** mode only when owner explicitly requests orchestrator
+mode. Owner may choose one SOLO implementer or parallel implementers. When no
+implementer count is stated, use up to four parallel implementers for independent,
+non-overlapping scopes; sequence dependent or overlapping scopes. Main thread
+does no task work itself.
 
 Orchestrating keeps you reachable for owner or delegate decisions. In this mode
 you make no edits, run no long job, and install nothing;
@@ -228,10 +226,9 @@ live status table, fewest-PR grouping, keep-working-until-delivered loop, and
 delegate finding handoff before kill. Follow [orchestrator follow-through](../../references/orchestrator-follow-through.md)
 automatically while work is live. The root owns the sole terminal Learning Session.
 
-**Default serial, optional parallel.** One writer at a time, ordered by
-dependency then priority. On owner request, parallelize independent writers up to
-a hard cap of four; the owner may set a cap of 1–4. Refuse a requested cap above
-4. File-overlapping writers never run in parallel.
+Independent adversarial reviewers and consultant agents remain available in
+SOLO, ORCHESTRATOR with one implementer, and ORCHESTRATOR with parallel
+implementers. They never change mode or count as implementation streams.
 
 **Switching mode.** Finish or hand over what you hold before you switch. While
 any delegate still owns a stream you remain orchestrating, even if the count

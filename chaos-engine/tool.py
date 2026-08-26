@@ -5,12 +5,32 @@ from __future__ import annotations
 
 import os
 import runpy
+import shutil
 import subprocess  # nosec B404 - executes only fixed owned tool names.
 import sys
 from pathlib import Path
 
 
 TOOLS = {"uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}
+
+
+def shared_runtime_project(project: Path) -> Path:
+    """Resolve the primary checkout that owns one runtime for all worktrees."""
+    if not (project / ".git").exists():
+        return project
+    git = shutil.which("git")
+    if git is None:
+        return project
+    completed = subprocess.run(  # nosec B603
+        [git, "rev-parse", "--git-common-dir"], cwd=project,
+        capture_output=True, text=True, check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return project
+    common = Path(completed.stdout.strip())
+    if not common.is_absolute():
+        common = (project / common).resolve()
+    return common.parent if common.name == ".git" else common / "chaos-engine-worktree-state"
 
 
 def load_host_controller(installed_root: Path):
@@ -21,26 +41,50 @@ def load_host_controller(installed_root: Path):
     return runpy.run_path(str(path), run_name="_chaos_engine_runtime_hosts")
 
 
-def guard_mempalace_mcp(installed_root: Path, arguments: list[str]) -> None:
-    """Refuse the real MCP launch unless project-local SQLite-exact state is healthy."""
+def mempalace_mcp_arguments(installed_root: Path, arguments: list[str]) -> list[str]:
+    """Resolve the one owned palace and return its native MCP arguments."""
     project = installed_root.resolve().parent
-    expected_arguments = [
-        "--palace",
-        ".chaos-engine-state/mempalace",
-        "--backend",
-        "sqlite_exact",
-    ]
-    if arguments != expected_arguments:
+    if arguments:
         raise ValueError(
-            "MemPalace MCP requires the exact project-local sqlite_exact launch contract"
+            "MemPalace MCP does not accept host-supplied storage arguments"
         )
+    resolver = project / "tools/repository-map/resolve_mempalace.py"
+    palace = shared_runtime_project(project) / ".chaos-engine-state/mempalace"
+    if resolver.is_file():
+        namespace = runpy.run_path(str(resolver), run_name="_chaos_engine_mempalace_resolver")
+        palace = Path(namespace["find_shared_mempalace"](project)).resolve()
+    if not palace.is_absolute():
+        raise ValueError("MemPalace MCP resolver returned a relative path")
     controller = load_host_controller(installed_root)
-    state = controller["mempalace_runtime_status"](project)
+    status = controller.get("mempalace_directory_status")
+    state = status(palace) if status else controller["mempalace_runtime_status"](project)
     if state.get("status") != "healthy":
         raise ValueError(
             f"MemPalace runtime is {state.get('status', 'unknown')}: "
             f"{state.get('detail', 'operator action required')}"
         )
+    return ["--palace", str(palace), "--backend", "sqlite_exact"]
+
+
+def graphify_environment(installed_root: Path) -> dict[str, str]:
+    """Point every Graphify command at one output shared by all worktrees."""
+    project = installed_root.resolve().parent
+    return {"GRAPHIFY_OUT": str(shared_runtime_project(project) / "graphify-out")}
+
+
+def graphify_arguments(installed_root: Path, arguments: list[str]) -> list[str]:
+    """Translate the documented default graph path to shared worktree state."""
+    graph = Path(graphify_environment(installed_root)["GRAPHIFY_OUT"]) / "graph.json"
+    result = list(arguments)
+    for index in range(len(result) - 1):
+        if result[index] == "--graph" and result[index + 1] == "graphify-out/graph.json":
+            result[index + 1] = str(graph)
+    return result
+
+
+def guard_mempalace_mcp(installed_root: Path, arguments: list[str]) -> None:
+    """Compatibility wrapper for callers that only need validation."""
+    mempalace_mcp_arguments(installed_root, arguments)
 
 
 def resolve_command(
@@ -53,7 +97,9 @@ def resolve_command(
     if not path.is_file():
         raise ValueError("ChaosEngine dependency controller could not be loaded")
     controller = runpy.run_path(str(path), run_name="_chaos_engine_runtime_dependencies")
-    return controller["active_dispatch"](project, tool, arguments or [])
+    return controller["active_dispatch"](
+        shared_runtime_project(project), tool, arguments or []
+    )
 
 
 def main() -> int:
@@ -65,10 +111,14 @@ def main() -> int:
         tool = sys.argv[1]
         arguments = sys.argv[2:]
         if tool == "mempalace-mcp":
-            guard_mempalace_mcp(installed_root, arguments)
+            arguments = mempalace_mcp_arguments(installed_root, arguments)
+        elif tool == "graphify":
+            arguments = graphify_arguments(installed_root, arguments)
         command = resolve_command(installed_root, tool, arguments)
         environment = os.environ.copy()
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        if tool == "graphify":
+            environment.update(graphify_environment(installed_root))
         invocation = (
             command
             if isinstance(command, list)

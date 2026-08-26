@@ -331,8 +331,9 @@ class HarnessReachabilityTest(unittest.TestCase):
         config = load_config(ROOT)
         self.assertIn(config["entrypoint"], report["elements"])
         self.assertGreater(len(report["elements"]), 60)
+        tracked = tracked_files(ROOT)
         for element in report["elements"]:
-            self.assertIn(element, tracked_files(ROOT))
+            self.assertIn(element, tracked)
 
     def test_installed_generation_is_reached_without_walking_its_incomplete_links(self):
         """The tracked `.chaos-engine/` snapshot is an install product.

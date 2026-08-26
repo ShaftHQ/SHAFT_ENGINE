@@ -383,7 +383,10 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
     if elapsed is not None and elapsed > 3600 and not reflection.has_valid_terminal_receipt(session_id):
         return "Terminal reflection required before this session can stop."
     if elapsed is not None and elapsed > 3600:
-        message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
+        raw_message = event.get("last_assistant_message", event.get("lastAssistantMessage"))
+        if raw_message is None:
+            return ""
+        message = str(raw_message).casefold()
         missing = [label for label in TERMINAL_LABELS if label not in message]
         if missing:
             return "Terminal reflection summary is missing: " + ", ".join(missing) + "."

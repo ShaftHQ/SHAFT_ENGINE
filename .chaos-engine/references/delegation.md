@@ -34,12 +34,11 @@ synthesis, integration, and final verification. Stay available to the owner
 for realignment and delegate questions. The entrypoint's solo-or-orchestrate rule
 decides whether it also implements; this file governs the orchestrated mode.
 
-Default is one writer at a time, ordered by dependency then priority. On owner
-request, parallelize only independent file scopes. Each writer owns an isolated
-worktree. Hard cap four concurrent writing agents; the owner may set a cap of
-1–4. Refuse a requested cap above 4. File-overlapping writers never run in
-parallel even when parallel is requested. A read-only reviewer does not
-consume a slot. While a writer, subagent, or required check is live,
+In explicitly requested ORCHESTRATOR mode, owner chooses one SOLO implementer
+or parallel implementers. Without a stated count, use up to four independent
+writers. Each writer owns an isolated worktree. Hard cap four concurrent writing
+agents. File-overlapping writers never run in parallel. A read-only reviewer or
+consultant does not consume a writer slot. While a writer, subagent, or required check is live,
 automatically follow the floor-and-ceiling inspection cadence in
 [orchestrator follow-through](orchestrator-follow-through.md); never a
 heartbeat.

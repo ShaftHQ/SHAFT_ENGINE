@@ -56,6 +56,25 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_learning_routes_harness_findings_to_installed_upstream(self):
+        playbook = (ROOT / "chaos-engine/references/work-github-playbook.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("source.upstreamRepository", playbook)
+        self.assertIn("Never infer that upstream from the", playbook)
+        self.assertIn("learning.py --upstream", playbook)
+
+    def test_pre_activation_health_ignores_only_the_expected_host_recovery(self):
+        bootstrap = load()
+        doctor = {
+            "components": {"core": {"status": "healthy", "taskImpact": "required"}},
+            "kernel": {"status": "healthy"},
+            "dependencies": {"status": "healthy"},
+            "hosts": {"status": "recovery-required"},
+        }
+        self.assertTrue(bootstrap._required_install_unhealthy(doctor))
+        self.assertFalse(bootstrap._required_install_unhealthy(doctor, include_hosts=False))
+
     def test_exact_commit_source_does_not_require_revision_lookup(self):
         bootstrap = load()
         opener = mock.Mock(side_effect=AssertionError("network lookup was attempted"))
@@ -599,13 +618,23 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     "kind": "git-digest",
                     "repositorySha256": mock.ANY,
                     "branchSha256": mock.ANY,
+                    "upstreamRepository": "shafthq/shaft_engine",
                     "commit": COMMIT_ONE,
                 },
                 manifest["source"],
             )
             self.assertEqual("portable", manifest["distribution"]["id"])
-            self.assertNotIn("shaft", (project / ".chaos-engine/manifest.json").read_text().casefold())
+            self.assertEqual(
+                "shafthq/shaft_engine", manifest["source"]["upstreamRepository"]
+            )
             self.assertTrue(any("api.github.com/repos/ShaftHQ/SHAFT_ENGINE/commits/main" in call for call in calls))
+
+            # Reproduce an installation made before upstream provenance shipped.
+            legacy_token = manifest["hostToken"]
+            del manifest["source"]["upstreamRepository"]
+            (project / ".chaos-engine/manifest.json").write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
 
             open_two, _ = self.opener([(COMMIT_TWO, "two")])
             updated = module.install_latest(
@@ -616,6 +645,15 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 opener=open_two,
             )
             self.assertEqual(COMMIT_TWO, updated["commit"])
+            current = json.loads(
+                (project / ".chaos-engine/manifest.json").read_text(encoding="utf-8")
+            )
+            backup = json.loads(
+                (project / ".chaos-engine.backup/manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("shafthq/shaft_engine", current["source"]["upstreamRepository"])
+            self.assertEqual(legacy_token, current["hostToken"])
+            self.assertNotIn("upstreamRepository", backup["source"])
 
             before = (project / ".chaos-engine/manifest.json").read_bytes()
             with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):

@@ -548,24 +548,70 @@ def write_account_receipt(
     return receipt
 
 
+def ensure_mempalace_config(project: Path) -> None:
+    """Create the minimal validated config without invoking interactive setup."""
+    path = project / "mempalace.yaml"
+    if path.is_file():
+        return
+    wing = re.sub(r"[^a-z0-9]+", "_", project.name.casefold()).strip("_") or "project"
+    path.write_text(
+        f"wing: {wing}_main\n"
+        "rooms:\n  - name: general\n"
+        "    description: Project source and documentation\n"
+        "    keywords: [project, source, documentation]\n"
+        "exclude_patterns:\n  - mempalace.yaml\n  - .memory/**\n"
+        "  - graphify-out/**\n  - .chaos-engine-runtime/**\n"
+        "  - .chaos-engine-state/**\n",
+        encoding="utf-8",
+    )
+
+
+def shared_state_project(project: Path) -> Path:
+    """Resolve the primary checkout that owns persistent worktree state."""
+    if not (project / ".git").exists():
+        return project.resolve()
+    git = shutil.which("git")
+    if git is None:
+        return project.resolve()
+    completed = subprocess.run(  # nosec B603 - fixed Git introspection.
+        [git, "rev-parse", "--git-common-dir"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return project.resolve()
+    common = Path(completed.stdout.strip())
+    if not common.is_absolute():
+        common = (project / common).resolve()
+    return common.parent if common.name == ".git" else common / "chaos-engine-worktree-state"
+
+
 def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
     """Plan current-folder initialization without resetting existing project data."""
     project = project.resolve()
+    shared = shared_state_project(project)
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
     if mempalace:
-        if not (project / "mempalace.yaml").is_file():
-            planned.append([mempalace, "init", "."])
-        if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
-            planned.append([mempalace, "mine", "."])
+        mempalace_command = [
+            mempalace,
+            "--palace",
+            str(shared / ".chaos-engine-state/mempalace"),
+            "--backend",
+            "sqlite_exact",
+        ]
+        if not (shared / ".chaos-engine-state/mempalace/.mined").is_file():
+            planned.append([*mempalace_command, "mine", "."])
     graphify = commands.get("graphify")
     if graphify:
         if not (project / ".agents/skills/graphify/SKILL.md").is_file():
             planned.append(
                 [graphify, "install", "--platform", "agents", "--project"]
             )
-        if not (project / "graphify-out/graph.json").is_file():
-            planned.append([graphify, "extract", ".", "--code-only"])
+        if not (shared / "graphify-out/graph.json").is_file():
+            planned.append([graphify, "extract", ".", "--code-only", "--out", str(shared)])
     memory = commands.get("memory")
     if memory and not (project / ".memory/config.json").is_file():
         planned.append([memory, "init", "--no-view"])
@@ -809,10 +855,12 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     ]
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
+    if commands.get("mempalace"):
+        ensure_mempalace_config(project)
     for command in project_setup_plan(project, commands):
         _run_account_command(command, project, runner=runner)
-        if command[1:3] == ["mine", "."]:
-            marker = project / ".chaos-engine-state/mempalace/.mined"
+        if command[-2:] == ["mine", "."]:
+            marker = shared_state_project(project) / ".chaos-engine-state/mempalace/.mined"
             marker.parent.mkdir(parents=True, exist_ok=True)
             marker.write_bytes(b"current\n")
 

@@ -384,6 +384,28 @@ def repository_map_resolver_present(project: Path) -> bool:
     return (project / "tools/repository-map/resolve_mempalace.py").is_file()
 
 
+def shared_state_project(project: Path) -> Path:
+    """Resolve the primary checkout that owns persistent worktree state."""
+    if not (project / ".git").exists():
+        return project.resolve()
+    git = shutil.which("git")
+    if git is None:
+        return project.resolve()
+    completed = subprocess.run(  # nosec B603 - fixed Git introspection.
+        [git, "rev-parse", "--git-common-dir"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return project.resolve()
+    common = Path(completed.stdout.strip())
+    if not common.is_absolute():
+        common = (project / common).resolve()
+    return common.parent if common.name == ".git" else common / "chaos-engine-worktree-state"
+
+
 def centralized_mempalace_status() -> dict[str, str]:
     return {
         "status": "degraded",
@@ -549,7 +571,7 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
 
 def mempalace_runtime_status(project: Path) -> dict[str, str]:
     """Classify project-local or centralized MemPalace state."""
-    palace = project / ".chaos-engine-state/mempalace"
+    palace = shared_state_project(project) / ".chaos-engine-state/mempalace"
     if is_link_or_reparse(palace):
         return {
             "status": "recovery-required",
@@ -609,7 +631,8 @@ def _cleanup_failed_mempalace_initialization(
 def initialize_mempalace_runtime(project: Path) -> None:
     """Create only a fresh empty sqlite_exact collection; never migrate user state."""
     project = project.resolve()
-    state_root = project / ".chaos-engine-state"
+    owner = shared_state_project(project)
+    state_root = owner / ".chaos-engine-state"
     palace = state_root / "mempalace"
     status = mempalace_runtime_status(project)["status"]
     if status == "healthy":
@@ -617,13 +640,13 @@ def initialize_mempalace_runtime(project: Path) -> None:
     if status != "initialization-required":
         return
 
-    validate_path(project, palace)
+    validate_path(owner, palace)
     state_root_created = not state_root.exists()
     palace_created = not palace.exists()
-    state_root.mkdir(exist_ok=True)
-    validate_path(project, palace)
+    state_root.mkdir(parents=True, exist_ok=True)
+    validate_path(owner, palace)
     palace.mkdir(exist_ok=True)
-    validate_path(project, palace)
+    validate_path(owner, palace)
     palace_stat = os.stat(palace, follow_symlinks=False)
     if not stat.S_ISDIR(palace_stat.st_mode):
         raise ValueError("ChaosEngine MemPalace state path is not a directory")
@@ -635,7 +658,7 @@ def initialize_mempalace_runtime(project: Path) -> None:
     try:
         if any(palace.iterdir()):
             raise ValueError("ChaosEngine will not initialize over existing MemPalace state")
-        validate_path(project, palace)
+        validate_path(owner, palace)
         named_palace = os.stat(palace, follow_symlinks=False)
         if palace_identity != (named_palace.st_dev, named_palace.st_ino):
             raise ValueError("ChaosEngine MemPalace state path changed before initialization")
@@ -721,7 +744,7 @@ def mcp_runtime_healthy(
             "id": 1,
             "method": "initialize",
             "params": {
-                "protocolVersion": "2025-06-18",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {},
                 "clientInfo": {"name": "chaos-engine-doctor", "version": "1"},
             },
@@ -751,13 +774,7 @@ def mcp_runtime_healthy(
     commands = (
         [account_commands["memory-mcp"]]
         if account_commands is not None else [python, str(tool), "memory-mcp"],
-        ([
-            account_commands["mempalace-mcp"], "--palace",
-            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
-        ] if account_commands is not None else [
-            python, str(tool), "mempalace-mcp", "--palace",
-            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
-        ]),
+        [python, str(tool), "mempalace-mcp"],
     )
     for index, command in enumerate(commands):
         if index == 1 and skip_checkout_mempalace:
@@ -2067,7 +2084,7 @@ def probe_maven_tools_runtime(
 
         initialized = exchange([{
             "jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {},
                        "clientInfo": {"name": "chaosengine-installer", "version": "1"}},
         }])
         if initialized.get("id") != 1 or not isinstance(initialized.get("result"), dict):
@@ -2121,14 +2138,7 @@ def owned_servers(
             [".chaos-engine/tool.py", "memory-mcp"], managed_python=managed_python
         ),
         "chaosengine-mempalace": portable_python_server(
-            [
-                ".chaos-engine/tool.py",
-                "mempalace-mcp",
-                "--palace",
-                ".chaos-engine-state/mempalace",
-                "--backend",
-                "sqlite_exact",
-            ],
+            [".chaos-engine/tool.py", "mempalace-mcp"],
             extra={"env": dict(MEMPALACE_MCP_ENV)},
             managed_python=managed_python,
         ),
@@ -2142,15 +2152,10 @@ def owned_servers(
         servers["chaosengine-memory"] = {
             "command": memory, "args": [], "cwd": "."
         }
-        servers["chaosengine-mempalace"] = {
-            "command": mempalace,
-            "args": [
-                "--palace", ".chaos-engine-state/mempalace",
-                "--backend", "sqlite_exact",
-            ],
-            "cwd": ".",
-            "env": dict(MEMPALACE_MCP_ENV),
-        }
+        servers["chaosengine-mempalace"] = portable_python_server(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            extra={"env": dict(MEMPALACE_MCP_ENV)},
+        )
     if maven_runtime is not None:
         java, jar = maven_runtime
         servers["maven-tools-mcp"] = {
@@ -2585,10 +2590,7 @@ def codex_content(
         posix_command = windows_command = str(managed_python).replace("\\", "\\\\")
     windows_prefix = "" if managed_python is not None else '"-3", '
     memory_args = '".chaos-engine/tool.py", "memory-mcp"'
-    mempalace_args = (
-        '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
-        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"'
-    )
+    mempalace_args = '".chaos-engine/tool.py", "mempalace-mcp"'
     if account_commands is not None:
         memory = account_commands.get("memory-mcp")
         mempalace = account_commands.get("mempalace-mcp")
@@ -2603,7 +2605,11 @@ def codex_content(
         f"args = [{memory_args}]\n"
         f'commandWindows = "{windows_command}"\n'
         f'argsWindows = [{windows_prefix}{memory_args}]\n'
-        'cwd = "."\n\n'
+        'cwd = "."\n'
+        'enabled_tools = ["inspect_memory", "load_memory", "remember_memory", "search_memory"]\n'
+        'default_tools_approval_mode = "auto"\nrequired = false\n\n'
+        '[mcp_servers."chaosengine-memory".tools.remember_memory]\n'
+        'approval_mode = "prompt"\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"\n'
         f"args = [{mempalace_args}]\n"
         f'commandWindows = "{windows_command}"\n'
@@ -2612,10 +2618,14 @@ def codex_content(
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
     if account_commands is not None:
-        mempalace_command = account_commands["mempalace-mcp"].replace("\\", "\\\\")
         block = block.replace(
             f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"',
-            f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{mempalace_command}"',
+            '[mcp_servers."chaosengine-mempalace"]\ncommand = "python3"',
+        ).replace(
+            f'commandWindows = "{windows_command}"\n'
+            f'argsWindows = [{windows_prefix}{mempalace_args}]',
+            'commandWindows = "py"\nargsWindows = ["-3", '
+            f'{mempalace_args}]',
         )
     block = block.replace(
         "# CHAOSENGINE:END\n",

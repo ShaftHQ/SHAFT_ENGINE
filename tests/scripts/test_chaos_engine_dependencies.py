@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess  # nosec B404 - fixed Git fixture commands.
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -18,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTROLLER = ROOT / "chaos-engine/dependencies.py"
 SPECIFICATION = ROOT / "chaos-engine/dependencies.json"
 TOOL = ROOT / "chaos-engine/tool.py"
+HOSTS = ROOT / "chaos-engine/hosts.py"
 
 
 def load_controller():
@@ -33,6 +35,15 @@ def load_tool():
     spec = importlib.util.spec_from_file_location("chaos_engine_tool", TOOL)
     if spec is None or spec.loader is None:
         raise RuntimeError("tool launcher test module could not be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_hosts():
+    spec = importlib.util.spec_from_file_location("chaos_engine_hosts_for_dependencies", HOSTS)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("host controller test module could not be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -88,65 +99,112 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                             self.fail("lock unexpectedly acquired")
             close.assert_called_once()
 
-    def test_tool_launcher_blocks_unhealthy_mempalace_state_before_native_launch(self):
+    def test_tool_launcher_resolves_one_shared_mempalace_before_native_launch(self):
         module = load_tool()
-        self.assertTrue(hasattr(module, "guard_mempalace_mcp"))
-        controller = """from pathlib import Path
-def mempalace_runtime_status(project: Path):
-    status = (project / '.chaos-engine-state/mempalace/status.txt').read_text().strip()
-    return {'status': status, 'detail': 'fixture state'}
-"""
-        arguments = [
-            "tool.py",
-            "mempalace-mcp",
-            "--palace",
-            ".chaos-engine-state/mempalace",
-            "--backend",
-            "sqlite_exact",
-        ]
+        self.assertTrue(hasattr(module, "mempalace_mcp_arguments"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             core = project / ".chaos-engine"
-            palace = project / ".chaos-engine-state/mempalace"
             core.mkdir()
+            palace = project / "shared/palace"
             palace.mkdir(parents=True)
-            core.joinpath("hosts.py").write_text(controller, encoding="utf-8")
-            command = project / ".chaos-engine-runtime/bin/mempalace-mcp"
+            resolver = project / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text(
+                "from pathlib import Path\n"
+                f"def find_shared_mempalace(_cwd): return Path({str(palace)!r})\n",
+                encoding="utf-8",
+            )
+            controller = {
+                "mempalace_runtime_status": lambda _project: {
+                    "status": "healthy", "detail": "fixture state"
+                }
+            }
+            with mock.patch.object(module, "load_host_controller", return_value=controller):
+                self.assertEqual(
+                    ["--palace", str(palace.resolve()), "--backend", "sqlite_exact"],
+                    module.mempalace_mcp_arguments(core, []),
+                )
+                with self.assertRaisesRegex(ValueError, "does not accept host-supplied"):
+                    module.mempalace_mcp_arguments(core, ["--read-only"])
 
-            for status in ("migration-required", "recovery-required"):
-                palace.joinpath("status.txt").write_text(status, encoding="utf-8")
-                with self.subTest(status=status):
-                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
-                        with mock.patch.object(module.sys, "argv", arguments):
-                            with mock.patch.object(module, "resolve_command", return_value=command):
-                                with mock.patch.object(module.sys, "dont_write_bytecode", False):
-                                    with mock.patch.object(module.subprocess, "call") as call:
-                                        self.assertEqual(1, module.main())
-                    call.assert_not_called()
-                    self.assertFalse(core.joinpath("__pycache__").exists())
+    def test_tool_launcher_reuses_primary_runtime_from_linked_worktree(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            linked = root / "worktree"
+            linked.mkdir()
+            linked.joinpath(".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+            primary = root / "primary"
+            completed = mock.Mock(stdout=str(primary / ".git") + "\n", returncode=0)
+            with mock.patch.object(module.shutil, "which", return_value="/usr/bin/git"):
+                with mock.patch.object(module.subprocess, "run", return_value=completed):
+                    self.assertEqual(primary, module.shared_runtime_project(linked))
 
-            palace.joinpath("status.txt").write_text("healthy", encoding="utf-8")
-            with mock.patch.object(module, "__file__", str(core / "tool.py")):
-                with mock.patch.object(module.sys, "argv", arguments):
-                    with mock.patch.object(module, "resolve_command", return_value=command):
-                        with mock.patch.object(module.sys, "dont_write_bytecode", False):
-                            with mock.patch.object(module.subprocess, "call", return_value=0) as call:
-                                self.assertEqual(0, module.main())
-            call.assert_called_once()
-            self.assertFalse(core.joinpath("__pycache__").exists())
+    def test_separate_git_directories_keep_retrieval_state_project_isolated(self):
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("Git is unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repositories = [root / "project-one", root / "project-two"]
+            metadata = [root / "metadata/one.git", root / "metadata/two.git"]
+            for project, git_directory in zip(repositories, metadata, strict=True):
+                git_directory.parent.mkdir(parents=True, exist_ok=True)
+                subprocess.run(  # nosec B603 - fixed Git fixture command.
+                    [git, "init", "-q", "--separate-git-dir", str(git_directory), str(project)],
+                    check=True,
+                )
 
-            for invalid in (
-                [*arguments, "--backend=chroma"],
-                [*arguments, "--palace=external"],
-                [*arguments, "--read-only"],
-                [*arguments[:-1], "chroma"],
-            ):
-                with self.subTest(arguments=invalid):
-                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
-                        with mock.patch.object(module.sys, "argv", invalid):
-                            with mock.patch.object(module.subprocess, "call") as call:
-                                self.assertEqual(1, module.main())
-                    call.assert_not_called()
+            modules = (load_tool(), load_controller(), load_hosts())
+            functions = ("shared_runtime_project", "shared_state_project", "shared_state_project")
+            for module, function in zip(modules, functions, strict=True):
+                owners = [getattr(module, function)(project) for project in repositories]
+                self.assertEqual(
+                    [path / "chaos-engine-worktree-state" for path in metadata], owners
+                )
+                self.assertNotEqual(owners[0], owners[1])
+            modules[2].initialize_mempalace_runtime(repositories[0])
+            self.assertTrue(
+                (
+                    metadata[0]
+                    / "chaos-engine-worktree-state/.chaos-engine-state/mempalace/sqlite_exact.sqlite3"
+                ).is_file()
+            )
+            self.assertFalse((repositories[0] / ".chaos-engine-state").exists())
+
+    def test_tool_launcher_shares_retrieval_state_without_project_specific_resolvers(self):
+        module = load_tool()
+        project = Path("/repo/worktree")
+        core = project / ".chaos-engine"
+        primary = Path("/repo/primary")
+        controller = {
+            "mempalace_directory_status": lambda palace: {
+                "status": "healthy",
+                "detail": str(palace),
+            }
+        }
+        with mock.patch.object(module, "shared_runtime_project", return_value=primary):
+            with mock.patch.object(module, "load_host_controller", return_value=controller):
+                self.assertEqual(
+                    [
+                        "--palace",
+                        str(primary / ".chaos-engine-state/mempalace"),
+                        "--backend",
+                        "sqlite_exact",
+                    ],
+                    module.mempalace_mcp_arguments(core, []),
+                )
+            self.assertEqual(
+                str(primary / "graphify-out"),
+                module.graphify_environment(core)["GRAPHIFY_OUT"],
+            )
+            self.assertEqual(
+                ["query", "hooks", "--graph", str(primary / "graphify-out/graph.json")],
+                module.graphify_arguments(
+                    core, ["query", "hooks", "--graph", "graphify-out/graph.json"]
+                ),
+            )
 
     @staticmethod
     def fake_runner(root: Path):
@@ -464,15 +522,32 @@ def mempalace_runtime_status(project: Path):
                 "graphify": "/tools/graphify",
                 "memory": "/tools/memory",
             }
+            module.ensure_mempalace_config(project)
             fresh = module.project_setup_plan(project, commands)
-            self.assertEqual(["/tools/mempalace", "init", "."], fresh[0])
-            self.assertIn(["/tools/mempalace", "mine", "."], fresh)
+            config = (project / "mempalace.yaml").read_text(encoding="utf-8")
+            self.assertIn("wing: tmp", config)
+            self.assertIn("exclude_patterns:", config)
+            self.assertFalse(
+                any(command[0] == "/tools/mempalace" and "init" in command for command in fresh)
+            )
+            self.assertIn(
+                [
+                    "/tools/mempalace",
+                    "--palace",
+                    str(project / ".chaos-engine-state/mempalace"),
+                    "--backend",
+                    "sqlite_exact",
+                    "mine",
+                    ".",
+                ],
+                fresh,
+            )
             self.assertIn(
                 ["/tools/graphify", "install", "--platform", "agents", "--project"],
                 fresh,
             )
             self.assertIn(
-                ["/tools/graphify", "extract", ".", "--code-only"], fresh
+                ["/tools/graphify", "extract", ".", "--code-only", "--out", str(project)], fresh
             )
             self.assertIn(["/tools/memory", "init", "--no-view"], fresh)
 
@@ -490,6 +565,35 @@ def mempalace_runtime_status(project: Path):
             memory.parent.mkdir()
             memory.write_text("{}\n", encoding="utf-8")
             self.assertEqual([], module.project_setup_plan(project, commands))
+
+    def test_project_setup_plan_targets_primary_state_from_linked_worktree(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            linked = root / "linked"
+            primary = root / "primary"
+            linked.mkdir()
+            primary.mkdir()
+            commands = {"mempalace": "/tools/mempalace", "graphify": "/tools/graphify"}
+
+            with mock.patch.object(module, "shared_state_project", return_value=primary):
+                planned = module.project_setup_plan(linked, commands)
+
+            self.assertIn(
+                [
+                    "/tools/mempalace", "--palace",
+                    str(primary / ".chaos-engine-state/mempalace"),
+                    "--backend", "sqlite_exact", "mine", ".",
+                ],
+                planned,
+            )
+            self.assertIn(
+                [
+                    "/tools/graphify", "extract", ".", "--code-only",
+                    "--out", str(primary),
+                ],
+                planned,
+            )
 
     def test_account_discovery_prefers_receipt_command_over_path(self):
         module = load_controller()

@@ -35,6 +35,21 @@ def load_acceptance():
 
 
 class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
+    def test_manual_grok_hook_trust_is_an_expected_local_acceptance_state(self):
+        module = load_acceptance()
+        result = {
+            "status": "recovery-required",
+            "kernel": {"status": "healthy"},
+            "dependencies": {"status": "healthy"},
+            "components": {"core": {"status": "healthy"}},
+            "hosts": {
+                "status": "recovery-required",
+                "hookTrust": "review-required",
+                "grok": {"status": "recovery-required"},
+            },
+        }
+        self.assertTrue(module.manual_host_trust_only(result))
+
     def test_wrapper_failure_keeps_installer_phase_and_component(self):
         module = load_acceptance()
         self.assertIsNotNone(module)
@@ -173,6 +188,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
 
         commands = {call.args[0][2] for call in probe.call_args_list}
         self.assertEqual({"memory-mcp", "mempalace-mcp"}, commands)
+        self.assertTrue(all(len(call.args[0]) == 3 for call in probe.call_args_list))
 
     def test_offline_environment_blocks_package_network_and_hides_secrets(self):
         module = load_acceptance()

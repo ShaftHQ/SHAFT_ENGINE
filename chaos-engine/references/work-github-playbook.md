@@ -3,9 +3,10 @@
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
-For owner-authorized work that needs a new PR, create its draft after the first coherent commit,
-then keep it current with meaningful progress commits. An empty tracking commit
-is acceptable when the host requires a pushed branch before opening the draft. In shared
+For owner-authorized work that needs a new PR, lock the plan, create one tracker
+and bounded subtickets, push a tracking commit, then open the draft PR before
+implementation. Keep it current with meaningful progress commits and regular
+pushes. An empty tracking commit is acceptable when the host requires a pushed branch before opening the draft. In shared
 multi-worktree repositories, never use repository-global `git stash` for this: unstaged work does
 not prevent `git commit --allow-empty`, while stash state is shared and can expose or conflict with
 another worktree's changes.
@@ -22,11 +23,30 @@ and cost four.
 
 A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
-Complete approved scope and create its final scope commit before any local
-validation or review. Triage automated CI, annotations, bots, and PR comments;
-batch-fix applicable findings. Then run planning-approved adversarial review,
-at most two rounds, followed by extra local tests. Do not stop behavior work
-for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
+Implement in sequential TDD slices. Each slice records RED, makes the smallest
+GREEN change, runs its focused check, creates a meaningful progress commit,
+pushes, and updates the draft. These are rapid-delivery checkpoints, not review
+gates. After the final scope commit, run one consolidated Check phase: balanced
+affected tests by default, automated feedback triage, planning-approved
+adversarial review (at most two rounds), then affected-flow acceptance.
+
+```mermaid
+flowchart TD
+  A[Plan: research, decisions, acceptance] --> B[Lock plan and tracker/subtickets]
+  B --> C[Tracking commit, push, draft PR]
+  C --> D[Do: RED test]
+  D --> E[Smallest GREEN change]
+  E --> F[Focused check, commit, push, draft update]
+  F --> G{More approved slices?}
+  G -- Yes --> D
+  G -- No --> H[Check: balanced tests and automated feedback]
+  H --> I{Terminal review enabled?}
+  I -- Yes --> J[Independent adversarial review, max 2 rounds]
+  I -- No --> K[Acceptance]
+  J --> K
+  K --> L[Act: repair or deliver]
+  L --> M[Green exact head, auto-merge, confirm]
+```
 
 After the implementation batch is ready, resolve repository identity from the
 active worktree, bind the full `HEAD` SHA and branch, push, and create or update
@@ -59,6 +79,12 @@ session over one hour records its terminal reflection receipt before the Learnin
    potential improvement needing work, search for duplicates and then open one
    new standalone GitHub issue for that action. A duplicate hit informs the new
    issue; it does not replace it.
+   When the finding changes ChaosEngine itself, including hooks, skills,
+   adapters, installer behavior, or portable policy, target the configured
+   `source.upstreamRepository` in `.chaos-engine/manifest.json` even when the
+   active project is an adopter repository. Never infer that upstream from the
+   current project's Git remote. Pass it explicitly to `gh --repo` and to
+   `learning.py --upstream`.
 4. Link the receipt ID and incident evidence in the issue, then bind that issue's
    canonical URL during `assess`. A receipt, Memory entry, Graphify flag, or old
    issue comment is evidence only and never replaces the action ticket.

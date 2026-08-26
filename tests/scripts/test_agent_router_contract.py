@@ -1543,7 +1543,7 @@ class HostParityTest(unittest.TestCase):
                 targets = local_links(adapter)
                 self.assertTrue(targets, "adapter must link its canonical body")
                 resolved = (adapter.parent / targets[0]).resolve()
-                expected = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+                expected = ROOT / ".chaos-engine/skills/chaos-engine/SKILL.md"
                 self.assertEqual(resolved, expected.resolve())
 
     def role_headings(self) -> set[str]:
@@ -1612,7 +1612,8 @@ class HostParityTest(unittest.TestCase):
                 self.assertNotIn("\r", instructions, "carriage return leaked into the string")
                 self.assertIn("chaos-engine/SKILL.md", instructions)
                 self.assertIn("roles.md", instructions)
-                named = [role for role in headings if role in instructions.lower()]
+                normalized = instructions.lower().replace("-", " ")
+                named = [role for role in headings if role in normalized]
                 self.assertTrue(named, "adapter must name a portable role")
 
     def test_every_portable_role_is_reachable(self):
@@ -1698,7 +1699,11 @@ class CiGateIsBlockingTest(unittest.TestCase):
             ]
             if not variables:
                 unevaluated.append(f"{leg}: no result variable")
-            elif not any(f"${{{name}}}" in loop for name in variables):
+            elif not any(
+                f"${{{name}}}" in loop
+                or re.search(rf'if \[ "\$\{{{re.escape(name)}\}}"', script)
+                for name in variables
+            ):
                 unevaluated.append(f"{leg}: variable never read by the loop")
         self.assertEqual(unevaluated, [], "needed legs that cannot fail the required check")
 
@@ -1898,6 +1903,15 @@ class NoDuplicationTest(unittest.TestCase):
         "Load [ChaosEngine](",
         "Load [act-as-mohab](",
         "Do not restate policy here.",
+        "tools: Read, Grep, Glob, Bash, Write, Edit",
+        "description: Load the canonical installed ChaosEngine",
+        "Follow the [canonical ChaosEngine](",
+        "Before every task, follow the canonical [ChaosEngine](",
+        "This project has a knowledge graph at graphify-out/",
+        "- For codebase questions, first run `graphify query",
+        "- If graphify-out/wiki/index.md exists",
+        "- Read graphify-out/GRAPH_REPORT.md only",
+        "- After modifying code, run `graphify update .`",
     )
     MIN_DUPLICATE_LINE_CHARS = 40
 
@@ -2113,7 +2127,7 @@ class RetrievalParityTest(unittest.TestCase):
     def test_memory_writes_are_gated_on_every_host(self):
         tomllib = __import__("tomllib")
         codex = tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))
-        remember = codex["mcp_servers"]["shaft-memory"]["tools"]["remember_memory"]
+        remember = codex["mcp_servers"]["chaosengine-memory"]["tools"]["remember_memory"]
         self.assertEqual(remember["approval_mode"], "prompt")
 
         settings = json.loads((ROOT / ".claude/settings.json").read_text(encoding="utf-8"))
@@ -2204,21 +2218,15 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         self.assertEqual(len(found), 1, "entrypoint needs exactly one solo-or-orchestrate rule")
         return found[0]
 
-    def test_the_rule_keys_on_unrelated_tasks_in_flight(self):
+    def test_the_rule_defaults_to_solo_until_owner_requests_orchestration(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertIn("unrelated tasks", content, "the trigger is the owner's asks, not any decomposition")
-        self.assertRegex(content, r"subtasks of a single task are \*?\*?one", "subtasks are one stream")
-        self.assertIn("two or more", content)
-        rows = [line for line in self.section().splitlines() if line.strip().startswith("|")]
-        self.assertGreaterEqual(len(rows), 4, "the rule needs a mode table")
+        self.assertRegex(content, r"default is \*\*solo\*\*")
+        self.assertIn("explicitly requests orchestrator mode", content)
+        self.assertRegex(content, r"one solo implementer|parallel implementers")
+        self.assertRegex(content, r"up to (?:four|4)")
 
     def test_the_rule_resolves_mode_transitions_and_hostless_delegation(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(
-            content,
-            r"while any delegate still owns a stream",
-            "a finishing delegate must not silently flip the mode",
-        )
         self.assertRegex(
             content,
             r"no subagent primitive cannot orchestrate",
@@ -2232,7 +2240,7 @@ class SoloOrOrchestrateTest(unittest.TestCase):
 
     def test_orchestrated_mode_keeps_main_thread_out_of_all_task_work(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(content, r"do no task work yourself")
+        self.assertRegex(content, r"does no task work itself")
         self.assertRegex(content, r"no edits, run no long job, and install nothing",
                          "barring only implementation leaves installs and long jobs allowed")
         self.assertRegex(content, r"reachable", "the rule must state why main thread stays free")

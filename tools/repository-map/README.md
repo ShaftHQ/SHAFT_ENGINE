@@ -90,7 +90,10 @@ Because `graphify-out/` is gitignored, it never exists in a fresh `git worktree`
   outside that checkout. An explicitly blank or relative value fails closed.
   A refresh accepts the override only when it is that primary checkout's own
   `graphify-out`; this prevents one checkout from marking another cache current.
-- Check availability with `python3 tools/repository-map/resolve_graph_out.py --check`: exits `0` and prints the path only when the cache marker matches the revision being inspected. Missing caches report `absent`; unmarked, changed, or revision-mismatched caches report `stale` with the indexed and requested revisions when available. Both degraded modes exit `1` and fall back to `rg` plus Memory.
+- Check availability with `python3 tools/repository-map/resolve_graph_out.py --check`.
+  Exact baseline matches exit `0`. Descendant branches also exit `0` and report
+  the origin/main baseline plus the live Git delta agents must inspect. Diverged,
+  unmarked, or changed caches report `stale`; missing caches report `absent`.
 - Refresh the cache with `py -3 tools/repository-map/graphify_maintenance.py
   refresh --root .` from the **primary checkout**; worktree sessions only read
   it. On the primary maintainer machine the nightly maintenance task invokes

@@ -112,6 +112,10 @@ jobs:
         self.assertLessEqual(job.get("timeout-minutes", 999), 6)
         self.assertIn("scripts/ci/harness_pr_gate.py", commands)
         self.assertIn("--budget-seconds 240", commands)
+        checkout = next(step for step in job["steps"] if step.get("uses") == "actions/checkout@v7")
+        self.assertLessEqual(checkout["with"]["fetch-depth"], 2)
+        self.assertIn('git cat-file -e "${BASE_SHA}^{commit}"', commands)
+        self.assertIn('git fetch --no-tags --depth=1 origin "$BASE_SHA"', commands)
         self.assertNotIn("matrix", job)
 
     def test_capture_browser_e2e_job_allows_prerequisite_and_browser_runtime_headroom(self):

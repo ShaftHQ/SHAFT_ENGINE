@@ -82,39 +82,98 @@ class ChaosEngineHookTest(unittest.TestCase):
                     self.assertEqual(0, result.returncode)
                     self.assertEqual({}, json.loads(result.stdout))
 
-    def test_claude_stop_block_writes_continuation_prompt_to_stderr(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            environment = {
-                **os.environ,
-                "CHAOS_ENGINE_HOST": "claude",
-                "TMPDIR": temporary,
-                "TEMP": temporary,
-            }
-            session = "claude-stop-block"
-            self.run_hook(
-                {
-                    "hook_event_name": "PostToolUse",
-                    "tool_name": "PowerShell",
-                    "tool_input": {
-                        "command": "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r"
+    def test_exit_two_stop_hosts_write_continuation_prompt_to_stderr(self):
+        for host in ("claude", "codex", "gemini"):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
+                environment = {
+                    **os.environ,
+                    "CHAOS_ENGINE_HOST": host,
+                    "TMPDIR": temporary,
+                    "TEMP": temporary,
+                }
+                session = f"{host}-stop-block"
+                self.run_hook(
+                    {
+                        "hook_event_name": "PostToolUse",
+                        "tool_name": "PowerShell",
+                        "tool_input": {
+                            "command": "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r"
+                        },
+                        "session_id": session,
                     },
-                    "session_id": session,
-                },
-                environment,
-            )
+                    environment,
+                )
 
-            stopped = self.run_hook(
-                {
-                    "hook_event_name": "Stop",
-                    "session_id": session,
-                    "stop_hook_active": False,
-                },
-                environment,
-            )
+                stopped = self.run_hook(
+                    {
+                        "hook_event_name": "Stop",
+                        "session_id": session,
+                        "stop_hook_active": False,
+                    },
+                    environment,
+                )
 
-        self.assertEqual(2, stopped.returncode)
-        self.assertEqual("", stopped.stdout)
-        self.assertEqual("block", json.loads(stopped.stderr)["decision"])
+            self.assertEqual(2, stopped.returncode)
+            self.assertEqual("", stopped.stdout)
+            self.assertTrue(stopped.stderr.strip())
+            self.assertIn("Learning Session", stopped.stderr)
+
+    def test_exit_two_pretool_hosts_write_blocking_reason_to_stderr(self):
+        for host in ("claude", "codex", "gemini"):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
+                blocked = self.run_hook(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "session_id": f"{host}-pretool-block",
+                        "tool_name": "Bash",
+                        "tool_input": {"command": "git reset --hard HEAD~1"},
+                    },
+                    {
+                        **os.environ,
+                        "CHAOS_ENGINE_HOST": host,
+                        "TMPDIR": temporary,
+                        "TEMP": temporary,
+                    },
+                )
+
+            self.assertEqual(2, blocked.returncode)
+            self.assertEqual("", blocked.stdout)
+            self.assertIn("rejected destructive broad scope", blocked.stderr)
+
+    def test_copilot_and_grok_stop_use_their_native_non_exit_two_contracts(self):
+        for host in ("copilot", "grok"):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
+                environment = {
+                    **os.environ,
+                    "CHAOS_ENGINE_HOST": host,
+                    "TMPDIR": temporary,
+                    "TEMP": temporary,
+                }
+                session = f"{host}-stop-contract"
+                self.run_hook(
+                    {
+                        "hook_event_name": "PostToolUse",
+                        "tool_name": "PowerShell",
+                        "tool_input": {
+                            "command": "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r"
+                        },
+                        "session_id": session,
+                    },
+                    environment,
+                )
+                stopped = self.run_hook(
+                    {"hook_event_name": "Stop", "session_id": session},
+                    environment,
+                )
+
+            self.assertEqual(0, stopped.returncode)
+            payload = json.loads(stopped.stdout)
+            if host == "copilot":
+                self.assertEqual("block", payload["decision"])
+                self.assertIn("Learning Session", payload["reason"])
+            else:
+                self.assertEqual({}, payload)
+                self.assertIn("Learning Session", stopped.stderr)
 
     def test_source_and_portable_session_start_share_exact_companion_context(self):
         event = {"hook_event_name": "SessionStart", "session_id": "companion-parity", "cwd": str(ROOT)}

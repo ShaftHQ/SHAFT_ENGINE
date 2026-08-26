@@ -22,6 +22,7 @@ from scripts.ci.harness_pr_gate import (
     event_waiver,
     parse_waiver,
     render_json,
+    render_text,
     run_plan,
 )
 from scripts.ci.validate_agent_setup import validate_host_parity
@@ -439,6 +440,19 @@ class WaiverTest(unittest.TestCase):
 
 
 class OutputAndWorkflowTest(unittest.TestCase):
+    def test_plan_only_text_renders_checks_as_planned(self):
+        payload = {
+            "valid": True,
+            "surfaces": ["hosts"],
+            "timing": {"elapsed_seconds": 0.0, "budget_seconds": 240},
+            "checks": [{
+                "id": "host-contract", "protected": True,
+                "tests": ["tests.scripts.test_chaos_engine_hosts"],
+                "reproduction_command": "python -m unittest hosts",
+            }],
+        }
+        self.assertIn("status=planned", render_text(payload))
+
     def workflow(self) -> dict[str, object]:
         return yaml.safe_load(
             (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
