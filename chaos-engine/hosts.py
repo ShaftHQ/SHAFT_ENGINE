@@ -2890,7 +2890,7 @@ def desired_content(
         "Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).\n"
     ).encode()
     after = {relative: skill for relative in adapters}
-    after[".agents/skills/README.md"] = (
+    stub_readme = (
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
         "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
@@ -2898,6 +2898,13 @@ def desired_content(
         "- `../../plugins/ponytail/`: pinned Ponytail skill and hooks.\n"
         "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
     ).encode()
+    existing_readme = before.get(".agents/skills/README.md")
+    after[".agents/skills/README.md"] = (
+        existing_readme if existing_readme is not None else stub_readme
+    )
+    existing_agents_skill = before.get(".agents/skills/chaos-engine/SKILL.md")
+    if existing_agents_skill is not None:
+        after[".agents/skills/chaos-engine/SKILL.md"] = existing_agents_skill
     plugin_entry = {
         "name": "chaos-engine",
         "source": {"source": "local", "path": "./plugins/chaos-engine"},
