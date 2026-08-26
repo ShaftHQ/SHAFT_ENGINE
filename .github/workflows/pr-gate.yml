@@ -371,6 +371,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
       - name: Install managed CI Python dependencies
         run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Fetch immutable pull-request review records
