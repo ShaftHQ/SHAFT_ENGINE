@@ -299,6 +299,43 @@ class ChaosEngineHookTest(unittest.TestCase):
                 json.loads(stopped.stdout).get("reason", "").casefold().startswith("learning session:")
             )
 
+    def test_long_session_receipt_allows_stop_without_terminal_summary_labels(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "portable-long-receipt"
+            with patch.dict(os.environ, environment):
+                token = reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
+                reflection.record_receipt(
+                    session,
+                    {
+                        "schemaVersion": 1,
+                        "taskId": "issue-5407",
+                        "trigger": "long-session-completion",
+                        "failureFingerprints": [],
+                        "failedAssumption": "A receipt still required labels.",
+                        "approachesCompared": ["Scan text", "Trust receipt"],
+                        "chosenExperiment": "Stop with unrelated text.",
+                        "changedApproach": "Receipt-first Stop.",
+                        "proofCommandOrCheck": "portable hook test",
+                        "proofOutcome": "Stop is allowed.",
+                        "durableDisposition": "guidance-fixed",
+                    },
+                    token,
+                )
+
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "last_assistant_message": "final report",
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+
+            self.assertEqual(0, stopped.returncode)
+            self.assertNotIn("Terminal reflection summary", stopped.stdout)
+
     def test_failed_read_only_agent_diagnostics_do_not_open_portable_checkpoint(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}

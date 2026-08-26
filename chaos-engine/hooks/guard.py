@@ -380,20 +380,27 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
     ):
         return ""
     elapsed = reflection.session_elapsed_seconds(session_id)
-    if elapsed is not None and elapsed > 3600 and not reflection.has_valid_terminal_receipt(session_id):
-        return "Terminal reflection required before this session can stop."
     if elapsed is not None and elapsed > 3600:
-        raw_message = event.get("last_assistant_message", event.get("lastAssistantMessage"))
-        if raw_message is None:
+        if reflection.has_valid_terminal_receipt(session_id) or _learning_session_completed(session_id):
             return ""
-        message = str(raw_message).casefold()
-        missing = [label for label in TERMINAL_LABELS if label not in message]
-        if missing:
-            return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
+        return "Terminal reflection required before this session can stop."
     loop_reason = learning_session_reason(session_id, event)
     if loop_reason:
         return loop_reason
     return ""
+
+
+def _learning_session_completed(session_id: str) -> bool:
+    """Whether the terminal Learning Session remains current for this session."""
+    completed = False
+    for item in reflection.entries(session_id):
+        if item.get("kind") != "task-activity":
+            continue
+        if item.get("activity") == "learning-session-complete":
+            completed = True
+        elif item.get("activity") in {"mutation", "delivery-complete"}:
+            completed = False
+    return completed
 
 
 def _record_failed_result(

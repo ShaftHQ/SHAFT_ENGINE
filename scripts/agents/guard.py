@@ -5596,20 +5596,12 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
     elapsed = _reflection.session_elapsed_seconds(session_id)
     if elapsed is None or elapsed <= 60 * 60:
         return None
-    has_receipt = _reflection.has_valid_terminal_receipt(session_id)
-    if not has_receipt:
+    if not _reflection.has_valid_terminal_receipt(session_id):
         return (
             "Terminal reflection required: this session exceeded one hour. Append a "
             "validated long-session-completion receipt before stopping. Stores and "
             "GitHub are optional; the local task ledger is sufficient."
         )
-    raw_message = hook_input.get("last_assistant_message")
-    if raw_message is None:
-        return None
-    message = str(raw_message).casefold()
-    missing = [label for label in _TERMINAL_REFLECTION_LABELS if label not in message]
-    if missing:
-        return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
     return None
 
 
