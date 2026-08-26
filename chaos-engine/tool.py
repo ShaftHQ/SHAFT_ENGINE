@@ -5,12 +5,30 @@ from __future__ import annotations
 
 import os
 import runpy
+import shutil
 import subprocess  # nosec B404 - executes only fixed owned tool names.
 import sys
 from pathlib import Path
 
 
 TOOLS = {"uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}
+
+
+def shared_runtime_project(project: Path) -> Path:
+    """Resolve the primary checkout that owns one runtime for all worktrees."""
+    git = shutil.which("git")
+    if git is None:
+        return project
+    completed = subprocess.run(  # nosec B603
+        [git, "rev-parse", "--git-common-dir"], cwd=project,
+        capture_output=True, text=True, check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return project
+    common = Path(completed.stdout.strip())
+    if not common.is_absolute():
+        common = (project / common).resolve()
+    return common.parent
 
 
 def load_host_controller(installed_root: Path):
@@ -60,7 +78,9 @@ def resolve_command(
     if not path.is_file():
         raise ValueError("ChaosEngine dependency controller could not be loaded")
     controller = runpy.run_path(str(path), run_name="_chaos_engine_runtime_dependencies")
-    return controller["active_dispatch"](project, tool, arguments or [])
+    return controller["active_dispatch"](
+        shared_runtime_project(project), tool, arguments or []
+    )
 
 
 def main() -> int:

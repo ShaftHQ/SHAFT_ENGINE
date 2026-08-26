@@ -117,6 +117,14 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "does not accept host-supplied"):
                     module.mempalace_mcp_arguments(core, ["--read-only"])
 
+    def test_tool_launcher_reuses_primary_runtime_from_linked_worktree(self):
+        module = load_tool()
+        linked = Path("/repo/worktree")
+        completed = mock.Mock(stdout="/repo/primary/.git\n", returncode=0)
+        with mock.patch.object(module.shutil, "which", return_value="/usr/bin/git"):
+            with mock.patch.object(module.subprocess, "run", return_value=completed):
+                self.assertEqual(Path("/repo/primary"), module.shared_runtime_project(linked))
+
     @staticmethod
     def fake_runner(root: Path):
         def runner(command, environment):
