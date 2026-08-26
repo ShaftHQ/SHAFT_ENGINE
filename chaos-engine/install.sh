@@ -90,9 +90,11 @@ EOF
 }
 
 with_maven_tools=
+maven_tools_mode=native
 interactive=
 for argument in "$@"; do
   [ "$argument" = "--with-maven-tools" ] && with_maven_tools=1
+  [ "$argument" = "--maven-tools-mode=docker" ] && maven_tools_mode=docker
   [ "$argument" = "--interactive" ] && interactive=1
 done
 
@@ -186,11 +188,12 @@ if [ -z "$python" ]; then
   uv="$work/uv-${uv_target}/uv"
   [ -x "$uv" ] || fail "uv archive is missing its executable"
   export UV_PYTHON_INSTALL_DIR="$work/python"
-  "$uv" python install 3.11 --no-progress
-  set -- "$uv" run --no-project --managed-python --python 3.11 "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+  "$uv" python install --no-progress
+  set -- "$uv" run --no-project --managed-python "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 else
   set -- "$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 fi
 [ -n "$with_maven_tools" ] && set -- "$@" --with-maven-tools
+[ "$maven_tools_mode" = "docker" ] && set -- "$@" --maven-tools-mode docker
 [ -n "$interactive" ] && set -- "$@" "--interactive"
 "$@"

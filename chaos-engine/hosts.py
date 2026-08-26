@@ -483,7 +483,8 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
     wal = Path(f"{exact}-wal")
     shared_memory = Path(f"{exact}-shm")
     sidecar = palace / ".mempalace"
-    allowed_names = {path.name for path in (exact, wal, shared_memory, sidecar)}
+    mined = palace / ".mined"
+    allowed_names = {path.name for path in (exact, wal, shared_memory, sidecar, mined)}
     if any(child.name not in allowed_names for child in children):
         return {
             "status": "recovery-required",
@@ -506,6 +507,20 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             child.name != "origin.json" or is_link_or_reparse(child)
             for child in sidecar_children
         ):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
+    if mined.exists():
+        try:
+            mined_healthy = (
+                not is_link_or_reparse(mined)
+                and mined.is_file()
+                and mined.read_bytes() in {b"current\n", b"current\r\n"}
+            )
+        except OSError:
+            mined_healthy = False
+        if not mined_healthy:
             return {
                 "status": "recovery-required",
                 "detail": "MemPalace state contains unrecognized recoverable data",
@@ -683,8 +698,18 @@ def initialize_mempalace_runtime(project: Path) -> None:
         raise
 
 
-def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bool:
-    if mempalace_runtime_status(project)["status"] != "healthy":
+def mcp_runtime_healthy(
+    project: Path,
+    managed_python: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+) -> bool:
+    if account_commands is None and mempalace_runtime_status(project)["status"] != "healthy":
+        return False
+    if account_commands is not None and not (project / "mempalace.yaml").is_file():
+        return False
+    if account_commands is not None and not {
+        "memory-mcp", "mempalace-mcp"
+    } <= set(account_commands):
         return False
     skip_checkout_mempalace = (
         repository_map_resolver_present(project)
@@ -702,7 +727,7 @@ def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bo
             },
         }
     ) + "\n"
-    mempalace_probe = (
+    protocol_probe = (
         initialize
         + json.dumps(
             {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}
@@ -712,8 +737,8 @@ def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bo
             {
                 "jsonrpc": "2.0",
                 "id": 2,
-                "method": "tools/call",
-                "params": {"name": "mempalace_status", "arguments": {}},
+                "method": "tools/list",
+                "params": {},
             }
         )
         + "\n"
@@ -724,16 +749,15 @@ def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bo
     environment.update(MEMPALACE_MCP_ENV)
     python = str(managed_python) if managed_python is not None else sys.executable
     commands = (
-        [python, str(tool), "memory-mcp"],
-        [
-            python,
-            str(tool),
-            "mempalace-mcp",
-            "--palace",
-            ".chaos-engine-state/mempalace",
-            "--backend",
-            "sqlite_exact",
-        ],
+        [account_commands["memory-mcp"]]
+        if account_commands is not None else [python, str(tool), "memory-mcp"],
+        ([
+            account_commands["mempalace-mcp"], "--palace",
+            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+        ] if account_commands is not None else [
+            python, str(tool), "mempalace-mcp", "--palace",
+            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+        ]),
     )
     for index, command in enumerate(commands):
         if index == 1 and skip_checkout_mempalace:
@@ -741,7 +765,7 @@ def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bo
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
             command,
             cwd=project,
-            input=mempalace_probe if index == 1 else initialize,
+            input=protocol_probe,
             capture_output=True,
             text=True,
             check=False,
@@ -765,36 +789,16 @@ def mcp_runtime_healthy(project: Path, managed_python: Path | None = None) -> bo
             for response in responses
         ):
             return False
-        if index == 1:
-            status_responses = [
-                response
-                for response in responses
-                if isinstance(response, dict) and response.get("id") == 2
-            ]
-            if len(status_responses) != 1:
-                return False
-            result_payload = status_responses[0].get("result")
-            content = result_payload.get("content") if isinstance(result_payload, dict) else None
-            if not isinstance(content, list):
-                return False
-            try:
-                status_payloads = [
-                    json.loads(item["text"])
-                    for item in content
-                    if isinstance(item, dict)
-                    and item.get("type") == "text"
-                    and isinstance(item.get("text"), str)
-                ]
-            except json.JSONDecodeError:
-                return False
-            if not any(
-                isinstance(payload, dict)
-                and payload.get("backend") == "sqlite_exact"
-                and isinstance(payload.get("total_drawers"), int)
-                and "error" not in payload
-                for payload in status_payloads
-            ):
-                return False
+        listed = next(
+            (response for response in responses if isinstance(response, dict)
+             and response.get("id") == 2),
+            None,
+        )
+        listed_result = listed.get("result") if isinstance(listed, dict) else None
+        if not isinstance(listed_result, dict) or not isinstance(
+            listed_result.get("tools"), list
+        ):
+            return False
     return True
 
 
@@ -1564,7 +1568,6 @@ def deactivate_created_plugins(
 MAVEN_TOOLS_MCP_VERSION = "3.2.0"
 MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
-MAVEN_TOOLS_MCP_PROFILE = "docker,no-context7"
 MAVEN_TOOLS_CACHE_LOCK = ".cache.lock"
 MAVEN_TOOLS_CACHE_LOCK_MAGIC = b"chaos-engine-maven-tools-cache-lock-v1\n"
 TEMURIN_RECEIPT = "runtime-receipt.json"
@@ -1635,13 +1638,22 @@ def verified_maven_tools_jar(candidate: Path) -> Path | None:
         digest = hashlib.sha256(jar.read_bytes()).hexdigest()
     except OSError:
         return None
+    version = receipt.get("version") if isinstance(receipt, dict) else None
+    commit = receipt.get("commit") if isinstance(receipt, dict) else None
     expected = {
-        "version": MAVEN_TOOLS_MCP_VERSION,
-        "commit": MAVEN_TOOLS_MCP_COMMIT,
-        "jar": jar.name,
+        "version": version,
+        "commit": commit,
+        "jar": f"maven-tools-mcp-{version}.jar",
         "sha256": digest,
     }
-    return jar if receipt == expected else None
+    return jar if (
+        isinstance(version, str)
+        and re.fullmatch(r"\d+(?:\.\d+){1,3}", version)
+        and isinstance(commit, str)
+        and re.fullmatch(r"[0-9a-f]{40}", commit)
+        and receipt == expected
+        and jar.name == expected["jar"]
+    ) else None
 
 
 def maven_tools_data_root() -> Path:
@@ -1706,7 +1718,7 @@ def _rename_no_replace(source: Path, target: Path) -> None:
 
 
 def _maven_tools_version_directory(root: Path, version: str) -> Path:
-    if version != MAVEN_TOOLS_MCP_VERSION:
+    if re.fullmatch(r"\d+(?:\.\d+){1,3}", version) is None:
         raise ValueError(f"unsupported Maven Tools MCP cache version: {version}")
     return root.absolute() / version
 
@@ -1801,7 +1813,8 @@ def _maven_tools_cache_status_unlocked(
     jar = version_root / f"maven-tools-mcp-{version}.jar"
     if verified_maven_tools_jar(jar) is None:
         return {**result, "status": "invalid", "reason": "JAR receipt validation failed"}
-    return {**result, "status": "healthy", "commit": MAVEN_TOOLS_MCP_COMMIT}
+    receipt = json.loads((version_root / MAVEN_TOOLS_MCP_RECEIPT).read_text(encoding="utf-8"))
+    return {**result, "status": "healthy", "commit": str(receipt["commit"])}
 
 
 def _unlink_stable_cache_file(path: Path, expected: os.stat_result) -> None:
@@ -1897,7 +1910,13 @@ def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Pat
     staging = staging.absolute()
     cache_root = (root or maven_tools_cache_root()).absolute()
     anchor = _cache_anchor(cache_root)
-    version = MAVEN_TOOLS_MCP_VERSION
+    try:
+        staged_receipt = json.loads(
+            (staging / MAVEN_TOOLS_MCP_RECEIPT).read_text(encoding="utf-8")
+        )
+        version = str(staged_receipt["version"])
+    except (OSError, KeyError, json.JSONDecodeError, TypeError) as error:
+        raise ValueError("Maven Tools MCP staging receipt is invalid") from error
     common_root = Path(os.path.commonpath((staging, cache_root)))
     _validate_cache_path(staging, common_root)
     _validate_cache_path(cache_root, common_root)
@@ -1931,12 +1950,18 @@ def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Pat
 
 def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     configured_jar = os.environ.get("CHAOSENGINE_MAVEN_TOOLS_MCP_JAR")
-    jar_candidates = [
-        Path(configured_jar).expanduser() if configured_jar else None,
-        maven_tools_cache_root()
-        / MAVEN_TOOLS_MCP_VERSION
-        / f"maven-tools-mcp-{MAVEN_TOOLS_MCP_VERSION}.jar",
-    ]
+    cache = maven_tools_cache_root()
+    versions = sorted(
+        (
+            path.name for path in cache.iterdir()
+            if path.is_dir() and re.fullmatch(r"\d+(?:\.\d+){1,3}", path.name)
+        ),
+        key=lambda value: tuple(int(part) for part in value.split(".")),
+        reverse=True,
+    ) if cache.is_dir() else []
+    jar_candidates = [Path(configured_jar).expanduser() if configured_jar else None, *(
+        cache / version / f"maven-tools-mcp-{version}.jar" for version in versions
+    )]
     jar = next(
         (
             verified
@@ -2019,7 +2044,7 @@ def probe_maven_tools_runtime(
     process = None
     try:
         process = popen(  # nosec B603 - both executables are receipt-verified owned paths.
-            [str(java), "-jar", str(jar), f"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}"],
+            [str(java), "-jar", str(jar)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -2087,6 +2112,8 @@ def owned_servers(
     platform_name: str | None = None,
     maven_runtime: tuple[Path, Path] | None = None,
     managed_python: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> dict[str, dict[str, object]]:
     del platform_name
     servers: dict[str, dict[str, object]] = {
@@ -2105,16 +2132,36 @@ def owned_servers(
             extra={"env": dict(MEMPALACE_MCP_ENV)},
             managed_python=managed_python,
         ),
+        "context7": {"url": "https://mcp.context7.com/mcp"},
     }
+    if account_commands is not None:
+        memory = account_commands.get("memory-mcp")
+        mempalace = account_commands.get("mempalace-mcp")
+        if not memory or not mempalace:
+            raise ValueError("account MCP executable receipt is incomplete")
+        servers["chaosengine-memory"] = {
+            "command": memory, "args": [], "cwd": "."
+        }
+        servers["chaosengine-mempalace"] = {
+            "command": mempalace,
+            "args": [
+                "--palace", ".chaos-engine-state/mempalace",
+                "--backend", "sqlite_exact",
+            ],
+            "cwd": ".",
+            "env": dict(MEMPALACE_MCP_ENV),
+        }
     if maven_runtime is not None:
         java, jar = maven_runtime
         servers["maven-tools-mcp"] = {
             "command": str(java),
-            "args": [
-                "-jar",
-                str(jar),
-                f"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}",
-            ],
+            "args": ["-jar", str(jar)],
+        }
+    elif maven_docker is not None:
+        docker, image = maven_docker
+        servers["maven-tools-mcp"] = {
+            "command": docker,
+            "args": ["run", "-i", "--rm", image],
         }
     return servers
 
@@ -2430,12 +2477,31 @@ def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, objec
 def replaceable_owned_server(name: str, existing: object, desired: dict[str, object]) -> bool:
     if existing == desired:
         return True
+    if name == "context7":
+        return existing in (
+            {"command": "npx", "args": ["-y", "@upstash/context7-mcp"]},
+            {"command": "npx", "args": ["-y", "@upstash/context7-mcp@latest"]},
+        )
     if name not in {"chaosengine-memory", "chaosengine-mempalace"}:
         return False
     return existing in (
         legacy_owned_python_server(name, "nt"),
         legacy_owned_python_server(name, "posix"),
     )
+
+
+def exact_legacy_alias(name: str, server: object) -> bool:
+    if not isinstance(server, dict) or not isinstance(server.get("command"), str):
+        return False
+    executable = server["command"].replace("\\", "/").rsplit("/", 1)[-1].casefold()
+    args = server.get("args", [])
+    if name == "sha" + "ft-memory":
+        return executable in {"memory-mcp", "memory-mcp.exe"} and args == []
+    if name == "mempalace":
+        return executable in {"mempalace-mcp", "mempalace-mcp.exe"} and args == [
+            "--palace", ".chaos-engine-state/mempalace"
+        ]
+    return False
 
 
 def legacy_codex_python_block(platform_name: str) -> str:
@@ -2455,6 +2521,8 @@ def legacy_codex_python_block(platform_name: str) -> str:
 def json_content(
     before: bytes | None, maven_runtime: tuple[Path, Path] | None = None,
     managed_python: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> bytes:
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
@@ -2467,7 +2535,16 @@ def json_content(
         raise ValueError("invalid MCP server configuration")
     if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
         del servers["maven-tools-mcp"]
-    for name, desired in owned_servers(maven_runtime=maven_runtime, managed_python=managed_python).items():
+    for legacy_name in ("sha" + "ft-memory", "mempalace"):
+        if legacy_name in servers and exact_legacy_alias(
+            legacy_name, servers[legacy_name]
+        ):
+            del servers[legacy_name]
+    for name, desired in owned_servers(
+        maven_runtime=maven_runtime, managed_python=managed_python,
+        account_commands=account_commands,
+        maven_docker=maven_docker,
+    ).items():
         if name in servers and not replaceable_owned_server(name, servers[name], desired):
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
         servers[name] = desired
@@ -2479,6 +2556,8 @@ def codex_content(
     platform_name: str | None = None,
     maven_runtime: tuple[Path, Path] | None = None,
     managed_python: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> bytes:
     try:
         existing = before.decode("utf-8") if before is not None else ""
@@ -2491,6 +2570,10 @@ def codex_content(
         '[mcp_servers."maven-tools-mcp"]\ncommand = "docker"\n'
         'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
         "required = false\n",
+        '[mcp_servers.context7]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\n',
+        '[mcp_servers."context7"]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\n',
     )
     for legacy in legacy_blocks:
         for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
@@ -2506,6 +2589,14 @@ def codex_content(
         '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
         '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"'
     )
+    if account_commands is not None:
+        memory = account_commands.get("memory-mcp")
+        mempalace = account_commands.get("mempalace-mcp")
+        if not memory or not mempalace:
+            raise ValueError("account MCP executable receipt is incomplete")
+        posix_command = windows_command = memory.replace("\\", "\\\\")
+        windows_prefix = ""
+        memory_args = ""
     block = (
         "# CHAOSENGINE:START\n"
         f'[mcp_servers."chaosengine-memory"]\ncommand = "{posix_command}"\n'
@@ -2520,6 +2611,17 @@ def codex_content(
         'cwd = "."\n'
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
+    if account_commands is not None:
+        mempalace_command = account_commands["mempalace-mcp"].replace("\\", "\\\\")
+        block = block.replace(
+            f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"',
+            f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{mempalace_command}"',
+        )
+    block = block.replace(
+        "# CHAOSENGINE:END\n",
+        '\n[mcp_servers.context7]\nurl = "https://mcp.context7.com/mcp"\n'
+        "# CHAOSENGINE:END\n",
+    )
     if maven_runtime is not None:
         java, jar = maven_runtime
         block = block.replace(
@@ -2527,8 +2629,16 @@ def codex_content(
             "\n"
             '[mcp_servers."maven-tools-mcp"]\n'
             f"command = {json.dumps(str(java))}\n"
-            f'args = ["-jar", {json.dumps(str(jar))}, '
-            f'"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}"]\n'
+            f'args = ["-jar", {json.dumps(str(jar))}]\n'
+            "# CHAOSENGINE:END\n",
+        )
+    elif maven_docker is not None:
+        docker, image = maven_docker
+        block = block.replace(
+            "# CHAOSENGINE:END\n",
+            "\n[mcp_servers.\"maven-tools-mcp\"]\n"
+            f"command = {json.dumps(docker)}\n"
+            f'args = ["run", "-i", "--rm", {json.dumps(image)}]\n'
             "# CHAOSENGINE:END\n",
         )
     if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:
@@ -2540,7 +2650,11 @@ def codex_content(
                 if candidate in existing:
                     return existing.replace(candidate, block).encode()
         raise ValueError("ChaosEngine Codex configuration collision")
-    for name in owned_servers(maven_runtime=maven_runtime, managed_python=managed_python):
+    for name in owned_servers(
+        maven_runtime=maven_runtime, managed_python=managed_python,
+        account_commands=account_commands,
+        maven_docker=maven_docker,
+    ):
         if f'mcp_servers."{name}"' in existing or f"mcp_servers.{name}" in existing:
             raise ValueError(f"ChaosEngine Codex server collision: {name}")
     separator = "\n" if existing and not existing.endswith("\n") else ""
@@ -2875,6 +2989,8 @@ def desired_content(
     project_name: str = "project",
     plugin_version: str = "1.0.0",
     dependency_runtime: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -2884,13 +3000,20 @@ def desired_content(
         scripts = "Scripts" if os.name == "nt" else "bin"
         managed_python = dependency_runtime / "uv-tools/mempalace" / scripts / ("python.exe" if os.name == "nt" else "python")
         managed_node = dependency_runtime / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+    elif account_commands is not None:
+        python = account_commands.get("python3")
+        node = account_commands.get("node")
+        if not python or not node:
+            raise ValueError("account Python/Node executable receipt is incomplete")
+        managed_python = Path(python)
+        managed_node = Path(node)
     adapters = managed_paths()[:4]
     skill = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
         "Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).\n"
     ).encode()
     after = {relative: skill for relative in adapters}
-    after[".agents/skills/README.md"] = (
+    stub_readme = (
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
         "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
@@ -2898,6 +3021,13 @@ def desired_content(
         "- `../../plugins/ponytail/`: pinned Ponytail skill and hooks.\n"
         "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
     ).encode()
+    after[".agents/skills/README.md"] = (
+        before.get(".agents/skills/README.md") or stub_readme
+    )
+    if before.get(".agents/skills/chaos-engine/SKILL.md") is not None:
+        after[".agents/skills/chaos-engine/SKILL.md"] = before[
+            ".agents/skills/chaos-engine/SKILL.md"
+        ]  # type: ignore[assignment]
     plugin_entry = {
         "name": "chaos-engine",
         "source": {"source": "local", "path": "./plugins/chaos-engine"},
@@ -2979,6 +3109,7 @@ def desired_content(
         "source": "./plugins/chaos-engine",
         "description": "Neutral project-local agent harness.",
         "version": plugin_version,
+        "skills": ["./chaos-engine"],
     }
     claude_marketplace_before = before[".claude-plugin/marketplace.json"]
     if claude_marketplace_before is None:
@@ -3013,7 +3144,10 @@ def desired_content(
         None,
     )
     if existing_claude_plugin is not None and existing_claude_plugin != claude_plugin_entry:
-        raise ValueError("ChaosEngine Claude marketplace collision")
+        if existing_claude_plugin.get("skills") in (None, []):
+            existing_claude_plugin["skills"] = claude_plugin_entry["skills"]
+        if existing_claude_plugin != claude_plugin_entry:
+            raise ValueError("ChaosEngine Claude marketplace collision")
     if existing_claude_plugin is None:
         claude_marketplace["plugins"].append(claude_plugin_entry)
     caveman_claude_entry = {
@@ -3021,6 +3155,7 @@ def desired_content(
         "source": "./plugins/caveman",
         "description": "Ultra-compressed communication mode.",
         "version": CAVEMAN_PLUGIN_VERSION,
+        "skills": ["./caveman"],
     }
     existing_caveman = next(
         (
@@ -3031,7 +3166,10 @@ def desired_content(
         None,
     )
     if existing_caveman is not None and existing_caveman != caveman_claude_entry:
-        raise ValueError("Caveman Claude plugin collision")
+        if existing_caveman.get("skills") in (None, []):
+            existing_caveman["skills"] = caveman_claude_entry["skills"]
+        if existing_caveman != caveman_claude_entry:
+            raise ValueError("Caveman Claude plugin collision")
     if existing_caveman is None:
         claude_marketplace["plugins"].append(caveman_claude_entry)
     ponytail_claude_entry = {
@@ -3039,6 +3177,7 @@ def desired_content(
         "source": "./plugins/ponytail",
         "description": "Laziest solution that actually works.",
         "version": PONYTAIL_PLUGIN_VERSION,
+        "skills": ["./ponytail"],
     }
     existing_ponytail = next(
         (
@@ -3049,7 +3188,10 @@ def desired_content(
         None,
     )
     if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
-        raise ValueError("Ponytail Claude plugin collision")
+        if existing_ponytail.get("skills") in (None, []):
+            existing_ponytail["skills"] = ponytail_claude_entry["skills"]
+        if existing_ponytail != ponytail_claude_entry:
+            raise ValueError("Ponytail Claude plugin collision")
     if existing_ponytail is None:
         claude_marketplace["plugins"].append(ponytail_claude_entry)
     after[".claude-plugin/marketplace.json"] = (
@@ -3342,15 +3484,24 @@ def desired_content(
         before[".github/copilot-instructions.md"],
         INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
     )
-    after[".mcp.json"] = json_content(before[".mcp.json"], maven_runtime, managed_python)
-    gemini_settings = json_content(before[".gemini/settings.json"], maven_runtime, managed_python)
+    after[".mcp.json"] = json_content(
+        before[".mcp.json"], maven_runtime, managed_python, account_commands,
+        maven_docker,
+    )
+    gemini_settings = json_content(
+        before[".gemini/settings.json"], maven_runtime, managed_python,
+        account_commands,
+        maven_docker,
+    )
     after[".gemini/settings.json"] = hook_content(
         without_chaos_hooks(gemini_settings, "Gemini"),
         gemini_hooks_document(managed_node),
         "Gemini",
     )
     after[".codex/config.toml"] = codex_content(
-        before[".codex/config.toml"], maven_runtime=maven_runtime, managed_python=managed_python
+        before[".codex/config.toml"], maven_runtime=maven_runtime,
+        managed_python=managed_python, account_commands=account_commands,
+        maven_docker=maven_docker,
     )
     after[".gitattributes"] = gitattributes_content(before[".gitattributes"])
     return after
@@ -3365,6 +3516,40 @@ def encode_images(images: dict[str, bytes | None]) -> dict[str, str | None]:
         relative: None if content is None else base64.b64encode(content).decode("ascii")
         for relative, content in images.items()
     }
+
+
+def hook_image_hashes(images: dict[str, bytes | None]) -> dict[str, str]:
+    """Hash owned hook sources and rendered host hook documents."""
+    selected: dict[str, str] = {}
+    for relative, content in images.items():
+        is_hook = (
+            "/hooks/" in f"/{relative}"
+            or relative in {
+                ".codex/hooks.json",
+                ".grok/hooks/lifecycle.json",
+                ".github/hooks/chaos-engine.json",
+                ".claude/settings.json",
+                ".gemini/settings.json",
+            }
+        )
+        if is_hook and isinstance(content, bytes):
+            selected[relative] = sha256_bytes(content)
+    return dict(sorted(selected.items()))
+
+
+def apply_hook_receipt(
+    receipt: dict[str, object],
+    before: dict[str, bytes | None],
+    after: dict[str, bytes | None],
+) -> None:
+    hashes = hook_image_hashes(after)
+    changed = sorted(
+        relative for relative in hashes if before.get(relative) != after.get(relative)
+    )
+    receipt["hookHashes"] = hashes
+    receipt["changedHooks"] = changed
+    receipt["hookTrust"] = "review-required" if changed else receipt.get("hookTrust", "unknown")
+    receipt["restartRequired"] = bool(changed)
 
 
 def receipt_image_key(relative: object) -> str:
@@ -3773,6 +3958,8 @@ def install(
     core_commit: str | None = None,
     capability_policy_digest: str | None = None,
     dependency_runtime: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+    maven_docker: tuple[str, str] | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
@@ -3798,6 +3985,8 @@ def install(
                 project_name=project_identity_name(project),
                 plugin_version=version,
                 dependency_runtime=dependency_runtime,
+                account_commands=account_commands,
+                maven_docker=maven_docker,
             )
             current = current_images(project)
             for relative in managed_paths():
@@ -3810,6 +3999,8 @@ def install(
                 and receipt.get("coreCommit") == core_commit
                 and receipt.get("capabilityPolicySha256") == desired_capability_digest
             ):
+                apply_hook_receipt(receipt, after, wanted)
+                write_receipt(project, receipt, raw)
                 return receipt
             next_receipt = dict(receipt)
             next_receipt["phase"] = "installing"
@@ -3817,6 +4008,7 @@ def install(
             if desired_capability_digest is not None:
                 next_receipt["capabilityPolicySha256"] = desired_capability_digest
             next_receipt["after"] = encode_images(wanted)
+            apply_hook_receipt(next_receipt, after, wanted)
             new_directories = created_directories(project)
             next_receipt["createdDirectories"] = sorted(
                 set(receipt_directories(receipt)) | set(new_directories),
@@ -3850,6 +4042,8 @@ def install(
         project_name=project_identity_name(project),
         plugin_version=version,
         dependency_runtime=dependency_runtime,
+        account_commands=account_commands,
+        maven_docker=maven_docker,
     )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")
@@ -3866,6 +4060,7 @@ def install(
         "before": encode_images(before),
         "after": encode_images(after),
     }
+    apply_hook_receipt(receipt, before, after)
     raw = write_receipt(project, receipt, None)
     try:
         prepare_created_directories(project, receipt)
@@ -3887,7 +4082,7 @@ def verify(
     project: Path,
     receipt: dict[str, object] | None = None,
     core_commit: str | None = None,
-) -> dict[str, str]:
+) -> dict[str, object]:
     project = project.resolve()
     if receipt is None:
         receipt, _ = read_receipt(project)
@@ -3901,7 +4096,14 @@ def verify(
     for relative in managed_paths():
         if current[relative] != after[relative]:
             raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "hookSourceCommit": receipt.get("coreCommit"),
+        "hookHashes": receipt.get("hookHashes", {}),
+        "hookTrust": receipt.get("hookTrust", "unknown"),
+        "restartRequired": receipt.get("restartRequired", False),
+        "changedHooks": receipt.get("changedHooks", []),
+    }
 
 
 def grok_runtime_status(

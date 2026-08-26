@@ -389,6 +389,10 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertTrue(
                 installer.install_with_dependencies.call_args.kwargs["with_maven_tools"]
             )
+            self.assertEqual(
+                "native",
+                installer.install_with_dependencies.call_args.kwargs["maven_tools_mode"],
+            )
 
     def test_advisory_memory_probe_does_not_fail_verify(self):
         module = load()

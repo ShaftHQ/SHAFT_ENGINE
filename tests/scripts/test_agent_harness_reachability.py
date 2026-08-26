@@ -334,6 +334,57 @@ class HarnessReachabilityTest(unittest.TestCase):
         for element in report["elements"]:
             self.assertIn(element, tracked_files(ROOT))
 
+    def test_installed_generation_is_reached_without_walking_its_incomplete_links(self):
+        """The tracked `.chaos-engine/` snapshot is an install product.
+
+        Adapters may link into it. Its own relative links target files the
+        snapshot does not keep (README, INSTALL, RESEARCH). Walking those
+        internals reports hundreds of broken links while the source tree
+        under `chaos-engine/` remains the deployable graph.
+        """
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            adapter = root / ".agents/skills/chaos-engine"
+            installed = root / ".chaos-engine/skills/chaos-engine"
+            adapter.mkdir(parents=True)
+            installed.mkdir(parents=True)
+            (root / "scripts/ci").mkdir(parents=True)
+            (adapter / "SKILL.md").write_text(
+                "# Entry\n\n"
+                "[installed](../../../.chaos-engine/skills/chaos-engine/SKILL.md)\n",
+                encoding="utf-8",
+            )
+            (installed / "SKILL.md").write_text(
+                "# Installed\n\n[missing](../../README.md)\n",
+                encoding="utf-8",
+            )
+            (root / "scripts/ci/agent_guidance_budget.json").write_text(
+                json.dumps(
+                    {
+                        "harness_reachability": {
+                            "entrypoint": ".agents/skills/chaos-engine/SKILL.md",
+                            "deployable_root": ".agents/skills",
+                            "element_globs": [
+                                ".agents/skills/**",
+                                ".chaos-engine/skills/**",
+                            ],
+                            "exemptions": [],
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+                subprocess.run(  # nosec B603 B607 - fixed local git commands.
+                    command, cwd=root, capture_output=True, text=True, check=True
+                )
+            report = harness_report(root)
+            self.assertEqual(report["broken_links"], [])
+            self.assertIn(
+                ".chaos-engine/skills/chaos-engine/SKILL.md", report["reached"]
+            )
+            self.assertEqual(report["orphans"], [])
+
     def test_the_walk_reports_an_unlinked_file_a_broken_link_and_a_reasonless_exemption(self):
         """Mutation coverage for the walk itself, against a synthetic tree.
 
