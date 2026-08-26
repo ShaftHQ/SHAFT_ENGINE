@@ -105,7 +105,7 @@ class InstallerUxTests(unittest.TestCase):
                     "Activate clients",
                     "Finalize installation",
                 ]
-                reporter.detail = "Downloading dependencies"
+                reporter.detail = "Provision dependencies download"
                 reporter.traces = [
                     (float(index), f"trace {index} " + "wrapped detail " * 8)
                     for index in range(12)
@@ -120,7 +120,7 @@ class InstallerUxTests(unittest.TestCase):
                 output = stream.getvalue()
                 rendered = output.split("\x1b[K\n", 1)[1].splitlines()
                 self.assertLessEqual(len(rendered), terminal_size.lines)
-                self.assertIn("Provision dependencies", output)
+                self.assertIn("[◉] Provision dependencies  r", output)
                 self.assertIn("Summary", output)
                 self.assertIn(f"\x1b[{terminal_size.lines}F", output)
                 self.assertNotIn("\x1b[20F", output)

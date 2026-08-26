@@ -550,10 +550,10 @@ class InstallReporter:
                 ),
                 None,
             )
-            if active_item is not None and active_item not in "\n".join(lines):
-                lines[0] = self._paint(
-                    self._truncate(f"  [{active}] {active_item}  running"), "36"
-                )
+            if active_item is not None:
+                active_line = self._truncate(f"  [{active}] {active_item}  running")
+                if not any(active_line in line for line in lines):
+                    lines[0] = self._paint(active_line, "36")
         if self._lines:
             self.stream.write(f"\x1b[{min(self._lines, height)}F")
         rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"
