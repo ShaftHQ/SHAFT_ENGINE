@@ -188,6 +188,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
 
         commands = {call.args[0][2] for call in probe.call_args_list}
         self.assertEqual({"memory-mcp", "mempalace-mcp"}, commands)
+        self.assertTrue(all(len(call.args[0]) == 3 for call in probe.call_args_list))
 
     def test_offline_environment_blocks_package_network_and_hides_secrets(self):
         module = load_acceptance()

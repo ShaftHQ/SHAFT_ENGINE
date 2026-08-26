@@ -361,15 +361,7 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
 def probe_project_mcps(tool: Path, project: Path) -> None:
     commands = (
         [sys.executable, str(tool), "memory-mcp"],
-        [
-            sys.executable,
-            str(tool),
-            "mempalace-mcp",
-            "--palace",
-            ".chaos-engine-state/mempalace",
-            "--backend",
-            "sqlite_exact",
-        ],
+        [sys.executable, str(tool), "mempalace-mcp"],
     )
     for command in commands:
         probe_mcp(command, project)
