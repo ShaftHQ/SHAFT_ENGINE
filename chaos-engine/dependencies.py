@@ -554,10 +554,17 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
     if mempalace:
+        mempalace_command = [
+            mempalace,
+            "--palace",
+            ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
+        ]
         if not (project / "mempalace.yaml").is_file():
-            planned.append([mempalace, "init", ".", "--yes", "--no-llm"])
+            planned.append([*mempalace_command, "init", ".", "--yes", "--no-llm"])
         if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
-            planned.append([mempalace, "mine", "."])
+            planned.append([*mempalace_command, "mine", "."])
     graphify = commands.get("graphify")
     if graphify:
         if not (project / ".agents/skills/graphify/SKILL.md").is_file():
@@ -811,7 +818,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     for command in project_setup_plan(project, commands):
         _run_account_command(command, project, runner=runner)
-        if command[1:3] == ["mine", "."]:
+        if command[-2:] == ["mine", "."]:
             marker = project / ".chaos-engine-state/mempalace/.mined"
             marker.parent.mkdir(parents=True, exist_ok=True)
             marker.write_bytes(b"current\n")

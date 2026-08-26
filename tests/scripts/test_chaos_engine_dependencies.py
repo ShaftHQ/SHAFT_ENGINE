@@ -443,9 +443,31 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             }
             fresh = module.project_setup_plan(project, commands)
             self.assertEqual(
-                ["/tools/mempalace", "init", ".", "--yes", "--no-llm"], fresh[0]
+                [
+                    "/tools/mempalace",
+                    "--palace",
+                    ".chaos-engine-state/mempalace",
+                    "--backend",
+                    "sqlite_exact",
+                    "init",
+                    ".",
+                    "--yes",
+                    "--no-llm",
+                ],
+                fresh[0],
             )
-            self.assertIn(["/tools/mempalace", "mine", "."], fresh)
+            self.assertIn(
+                [
+                    "/tools/mempalace",
+                    "--palace",
+                    ".chaos-engine-state/mempalace",
+                    "--backend",
+                    "sqlite_exact",
+                    "mine",
+                    ".",
+                ],
+                fresh,
+            )
             self.assertIn(
                 ["/tools/graphify", "install", "--platform", "agents", "--project"],
                 fresh,
