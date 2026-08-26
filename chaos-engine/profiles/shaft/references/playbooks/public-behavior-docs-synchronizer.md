@@ -2,6 +2,8 @@
 
 Use for user-visible SHAFT behavior changes. Keep docs work separate from code unless the task explicitly asks for both.
 
+Add or refresh the matching 3–4 line catalog entry at `/docs/features/whats-new` in the companion documentation PR.
+
 Every user-facing SHAFT behavior change opens a companion PR on
 `ShaftHQ/shafthq.github.io` `master` in the same delivery: discover the docs
 root, or use an explicitly configured root; never a fixed sibling path. Do

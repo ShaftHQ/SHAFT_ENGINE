@@ -71,6 +71,7 @@
 
 - Documentation PR:
 - Documentation not required because:
+- [ ] New user-facing features add or refresh a 3–4 line entry at https://shafthq.github.io/docs/features/whats-new and link the matching `ShaftHQ/shafthq.github.io` PR.
 
 
 ## 📝 Additional Notes
