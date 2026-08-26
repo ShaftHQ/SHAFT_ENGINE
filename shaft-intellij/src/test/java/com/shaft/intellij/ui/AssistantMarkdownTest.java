@@ -709,6 +709,17 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void recordTranscriptThatNamesFindElementAsForbiddenIsNotRejectedGeneratedJava() {
+        String recordTranscript = """
+                AutoBot RECORD complete.
+                Avoid raw driver.findElement(...) and never construct new ChromeDriver().
+                SHAFT_CODEGEN_PROPOSAL {"recordingPath":"recordings/intellij-capture.json","proposalMarkdown":"Reuse HomePage.","phaseOutcomes":{"RECORD":"passed"}}
+                """.stripIndent();
+
+        assertFalse(AssistantMarkdown.containsRejectedGeneratedJava(recordTranscript), recordTranscript);
+    }
+
+    @Test
     void recordTranscriptWithLocatorPolicyProhibitionIsNotRejectedGeneratedJava() {
         String recordTranscript = """
                 I'm loading the three requested SHAFT skills and the repository's recording guidance first.

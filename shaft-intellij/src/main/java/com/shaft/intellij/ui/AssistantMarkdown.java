@@ -1830,23 +1830,28 @@ final class AssistantMarkdown {
      * playbook sentence that only names {@code SHAFT.GUI.Locator.xpath(...)} as forbidden.
      */
     static boolean containsNativeSeleniumCall(String code) {
-        if (code.contains("org.openqa.selenium.WebDriver")
-                || code.contains("new ChromeDriver(")
-                || code.contains("new FirefoxDriver(")
-                || code.contains("new EdgeDriver(")
-                || code.contains("driver.get(")
-                || code.contains("driver.findElement(")
-                || code.contains("driver.findElements(")
-                || code.contains("WebElement ")) {
-            return true;
-        }
+        return namedCallWithoutProhibition(code, "org.openqa.selenium.WebDriver")
+                || namedCallWithoutProhibition(code, "new ChromeDriver(")
+                || namedCallWithoutProhibition(code, "new FirefoxDriver(")
+                || namedCallWithoutProhibition(code, "new EdgeDriver(")
+                || namedCallWithoutProhibition(code, "driver.get(")
+                || namedCallWithoutProhibition(code, "driver.findElement(")
+                || namedCallWithoutProhibition(code, "driver.findElements(")
+                || namedCallWithoutProhibition(code, "WebElement ")
+                || namedCallWithoutProhibition(code, "SHAFT.GUI.Locator.xpath(");
+    }
+
+    private static boolean namedCallWithoutProhibition(String code, String token) {
         int index = 0;
-        while ((index = code.indexOf("SHAFT.GUI.Locator.xpath(", index)) >= 0) {
+        while ((index = code.indexOf(token, index)) >= 0) {
             String prefix = code.substring(Math.max(0, index - 48), index).toLowerCase(Locale.ROOT);
-            if (!prefix.contains("never") && !prefix.contains("do not") && !prefix.contains("don't")) {
+            if (!prefix.contains("never")
+                    && !prefix.contains("do not")
+                    && !prefix.contains("don't")
+                    && !prefix.contains("avoid")) {
                 return true;
             }
-            index += "SHAFT.GUI.Locator.xpath(".length();
+            index += token.length();
         }
         return false;
     }
