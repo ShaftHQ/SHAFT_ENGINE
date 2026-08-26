@@ -52,8 +52,9 @@ public final class GeneratedCodeGuardrails {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern STRING_LITERAL = Pattern.compile("\"(?:\\\\.|[^\"\\\\])*\"");
     private static final String NO_SLEEP = "Do not generate Thread.sleep; use SHAFT waits/actions/assertions.";
-    private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer role-based locators,"
-            + " then the SHAFT.GUI.Locator XPath builder.";
+    private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer a unique author-written"
+            + " id through SHAFT.GUI.Locator.hasAnyTagName().hasId(...), else SHAFT.GUI.Locator.hasRole(...),"
+            + " else relative By.xpath.";
     private static final String NO_SHAFT_LOCATOR_XPATH = "Do not generate SHAFT.GUI.Locator.xpath; use role-based"
             + " locators, the SHAFT locator builder, or By.xpath only as a last fallback.";
     private static final String NO_IMPLICIT_WAIT = "Avoid Selenium implicit waits; use SHAFT waits/actions/assertions.";

@@ -4,7 +4,7 @@
 
 1. Search for the existing page or component owner before creating one; extend the narrowest reusable owner. [`SELENIUM-PRACTICES`]
 2. Model user-visible services and components, not every page element or test step. [`SELENIUM-PRACTICES`, `SHAFT-GUIDE`]
-3. Keep locators private and stable, using the SHAFT locator builder or verified platform locator evidence. [`SHAFT-GUIDE`]
+3. Keep locators private and stable: unique author-written `hasAnyTagName().hasId(...)` first, `hasRole(...)` second, native relative `By.xpath(...)` only when neither exists. Never the SHAFT Locator xpath factory or raw id/name/cssSelector/className/tagName factories. [`SHAFT-GUIDE`]
 4. Inject or receive the project-standard SHAFT driver; do not create hidden sessions inside page methods. [`SELENIUM-PRACTICES`, `SHAFT-GUIDE`]
 5. Name methods by intent such as `signInAs` or `addProductToCart`, and keep low-level mechanics behind that contract. [`SELENIUM-PRACTICES`]
 6. Return a new page/component or `this` only when navigation or meaningful fluent composition requires it; avoid decorative chaining. [`SELENIUM-PRACTICES`]

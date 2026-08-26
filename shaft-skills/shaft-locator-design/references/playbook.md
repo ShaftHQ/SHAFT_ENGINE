@@ -6,7 +6,7 @@
 2. Reuse an existing verified locator owned by the current page/component before adding another expression for the same element. [`SELENIUM-PRACTICES`]
 3. For generated web code, first use a unique, stable, author-written ID through `SHAFT.GUI.Locator.hasAnyTagName().hasId(...).build()`. [`SHAFT-GUIDE`]
 4. If no eligible ID exists, use the SHAFT locator builder with an ARIA role and accessible text/attributes, adding container, frame, or shadow context until unique. [`SHAFT-GUIDE`, `W3C-WCAG22`]
-5. Use native relative `By.xpath(...)` only when neither a stable author ID nor usable role exists; never use absolute XPath or `SHAFT.GUI.Locator.xpath(...)`. [`SHAFT-GUIDE`, `SELENIUM-PRACTICES`]
+5. Use native relative `By.xpath(...)` only when neither a stable author ID nor usable role exists; never use absolute XPath or the SHAFT Locator xpath factory. [`SHAFT-GUIDE`, `SELENIUM-PRACTICES`]
 6. Reject framework-generated IDs, positional selectors, layout classes, volatile text, and coordinates as primary identity. [`SELENIUM-PRACTICES`]
 7. Keep Smart Locators only for disposable human exploration; generated or repository code must resolve to a deterministic verified locator. [`SHAFT-GUIDE`]
 8. For mobile, prefer accessibility ID and platform accessibility semantics; inspect context before choosing native XML or web DOM evidence. [`APPIUM`, `ANDROID-TESTING`]

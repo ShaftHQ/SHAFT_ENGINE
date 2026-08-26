@@ -1554,7 +1554,7 @@ final class AssistantMarkdown {
             }
         }
         return containsRejectedJavaFence(unwrapped)
-                || (!containsCodeFence(unwrapped) && looksLikeJava(unwrapped) && isRejectedGeneratedJava("java", unwrapped));
+                || (!containsCodeFence(unwrapped) && containsRejectedUnfencedJava(unwrapped));
     }
 
     static String nativeSeleniumRejectionMarkdown() {
@@ -1808,12 +1808,52 @@ final class AssistantMarkdown {
     }
 
     private static boolean isJava(String language) {
-        return language == null || language.isBlank() || "java".equalsIgnoreCase(language.trim());
+        return language != null && "java".equalsIgnoreCase(language.trim());
     }
 
     private static boolean isRejectedGeneratedJava(String language, String code) {
-        String snippet = code == null ? "" : code;
-        return isJava(language) && !snippet.isBlank() && looksLikeNativeSelenium(snippet);
+        if (code == null || code.isBlank()) {
+            return false;
+        }
+        if (isJava(language)) {
+            return looksLikeNativeSelenium(code);
+        }
+        return language != null && language.isBlank() && containsNativeSeleniumCall(code);
+    }
+
+    private static boolean containsRejectedUnfencedJava(String text) {
+        return text != null && !text.isBlank() && containsNativeSeleniumCall(text);
+    }
+
+    /**
+     * True when the text contains a real native-Selenium or banned-factory call, not a
+     * playbook sentence that only names {@code SHAFT.GUI.Locator.xpath(...)} as forbidden.
+     */
+    static boolean containsNativeSeleniumCall(String code) {
+        return namedCallWithoutProhibition(code, "org.openqa.selenium.WebDriver")
+                || namedCallWithoutProhibition(code, "new ChromeDriver(")
+                || namedCallWithoutProhibition(code, "new FirefoxDriver(")
+                || namedCallWithoutProhibition(code, "new EdgeDriver(")
+                || namedCallWithoutProhibition(code, "driver.get(")
+                || namedCallWithoutProhibition(code, "driver.findElement(")
+                || namedCallWithoutProhibition(code, "driver.findElements(")
+                || namedCallWithoutProhibition(code, "WebElement ")
+                || namedCallWithoutProhibition(code, "SHAFT.GUI.Locator.xpath(");
+    }
+
+    private static boolean namedCallWithoutProhibition(String code, String token) {
+        int index = 0;
+        while ((index = code.indexOf(token, index)) >= 0) {
+            String prefix = code.substring(Math.max(0, index - 48), index).toLowerCase(Locale.ROOT);
+            if (!prefix.contains("never")
+                    && !prefix.contains("do not")
+                    && !prefix.contains("don't")
+                    && !prefix.contains("avoid")) {
+                return true;
+            }
+            index += token.length();
+        }
+        return false;
     }
 
     private static boolean containsRejectedJavaFence(String markdown) {
