@@ -57,17 +57,17 @@ class ValidateAgentSetupTest(unittest.TestCase):
         )
         self.write(
             ".codex/config.toml",
-            f"""[mcp_servers.shaft-memory]
-command = "npx"
-args = ["--yes", "--package", "{validate_agent_setup.MEMORY_PACKAGE}", "--", "memory-mcp"]
-cwd = ".."
+            """[mcp_servers."chaosengine-memory"]
+command = "python3"
+args = [".chaos-engine/tool.py", "memory-mcp"]
+cwd = "."
 enabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]
 default_tools_approval_mode = "auto"
 startup_timeout_sec = 30
 tool_timeout_sec = 60
 required = false
 
-[mcp_servers.shaft-memory.tools.remember_memory]
+[mcp_servers."chaosengine-memory".tools.remember_memory]
 approval_mode = "prompt"
 """,
         )
