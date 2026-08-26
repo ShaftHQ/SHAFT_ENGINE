@@ -67,39 +67,41 @@ sequenceDiagram
 
 ## Solo or orchestrate
 
-One rule decides whether the main thread writes code, and it keys on how many
-independent work streams the session owns — not on the host, and not on the
-size of any one change.
+Default is SOLO regardless of task count. ORCHESTRATOR mode starts only after
+an explicit owner request.
 
 ```mermaid
 flowchart TD
-    Q{"How many independent<br/>work streams?"}
-    Q -->|one| S["<b>Solo</b><br/>implement it yourself, in sequence"]
-    Q -->|"two or more"| O["<b>Orchestrate</b><br/>one agent per stream, up to four"]
+    Q{"Owner explicitly requests<br/>ORCHESTRATOR mode?"}
+    Q -->|no| S["<b>SOLO</b><br/>implement sequentially"]
+    Q -->|yes| O{"Implementer shape?"}
+    O -->|one| OS["one SOLO implementer"]
+    O -->|unspecified or parallel| OP["up to four independent implementers"]
     S --> RV["terminal assurance only<br/>optional review, max two"]
-    O --> OW["main thread implements nothing<br/>and stays reachable"]
+    OS --> OW["main thread implements nothing<br/>and stays reachable"]
+    OP --> OW
     OW --> RV
 ```
 
-Solo avoids two writers in one tree and the cost of specifying a handoff nobody
-needed. Orchestrating keeps the main thread free to answer the owner and
-re-spec a delegate. A reviewer is never counted as a work stream, so review does
-not turn a solo session into an orchestrated one.
+Reviewers and consultants remain available in every mode. They never change
+mode or count as implementers.
 
 ## Delivery cycle
 
-Finish full approved implementation and final scope commit, then fix automated
-CI/comment findings. Run planning-approved adversarial review at most twice,
-then extra local tests. No microstep review, test, validation, commit, push, or
-delivery loops interrupt work.
+Lock plan, create tracker/subtickets, push a tracking commit, and open one draft
+PR. Then ship sequential TDD slices with focused checks, meaningful commits,
+regular pushes, and draft updates. Final consolidated Check handles balanced
+tests, automated feedback, terminal review, and acceptance.
 
 ```mermaid
 flowchart LR
-    AN[analyze] --> PL[plan] --> DE[design] --> RD[RED] --> GR[GREEN] --> RF[refactor] --> CM[commit] --> PR[pull request] --> BG[babysit to green] --> MG[merge]
-    RD -.-> RV{{independent<br/>adversarial review}}
-    GR -.-> RV
-    RF -.-> RV
-    RV -.->|refuted| RD
+    AN[Plan and research] --> LK[Lock plan, tracker, subtickets]
+    LK --> PR[Tracking commit, push, draft PR]
+    PR --> RD[RED] --> GR[smallest GREEN] --> FC[focused check, commit, push]
+    FC -->|next slice| RD
+    FC -->|scope complete| CK[consolidated Check]
+    CK --> RV{{optional independent review, max two}}
+    RV --> AC[acceptance] --> MG[auto-merge and confirm]
 ```
 
 ## The surfaces
@@ -136,6 +138,7 @@ sends you there; the rest by
 - [roles](../../chaos-engine/references/roles.md)
 - [heuristics](../../chaos-engine/references/heuristics.md)
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
+- [orchestrator follow-through](../../chaos-engine/references/orchestrator-follow-through.md)
 - [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)

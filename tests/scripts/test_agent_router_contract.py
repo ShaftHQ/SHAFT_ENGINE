@@ -2113,7 +2113,7 @@ class RetrievalParityTest(unittest.TestCase):
     def test_memory_writes_are_gated_on_every_host(self):
         tomllib = __import__("tomllib")
         codex = tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))
-        remember = codex["mcp_servers"]["shaft-memory"]["tools"]["remember_memory"]
+        remember = codex["mcp_servers"]["chaosengine-memory"]["tools"]["remember_memory"]
         self.assertEqual(remember["approval_mode"], "prompt")
 
         settings = json.loads((ROOT / ".claude/settings.json").read_text(encoding="utf-8"))
