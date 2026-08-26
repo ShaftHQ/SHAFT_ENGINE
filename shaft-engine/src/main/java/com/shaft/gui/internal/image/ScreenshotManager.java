@@ -348,7 +348,7 @@ public class ScreenshotManager {
         }
         return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
                 + " !important; background-color:" + backgroundColor
-                + " !important; color:#102A31 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
+                + " !important; color:#FFFFFF !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
 
     }
 }

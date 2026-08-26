@@ -953,7 +953,9 @@ public class ActionsCoverageUnitTest {
             when(innerHtmlElement.getDomProperty("innerHTML")).thenReturn("inner-text");
             Assert.assertEquals(invoke(actions, "parseElementText", new Class[]{WebElement.class}, innerHtmlElement), "inner-text");
             Assert.assertTrue(((String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, true)).contains("#006EC0"));
-            Assert.assertTrue(((String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, false)).contains("#C53030"));
+            String failureStyle = (String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, false);
+            Assert.assertTrue(failureStyle.contains("#C53030"));
+            Assert.assertTrue(failureStyle.contains("color:#FFFFFF"));
             byte[] rawScreenshot = new byte[]{1, 2, 3};
             Assert.assertEquals((byte[]) invoke(actions, "appendShaftWatermark", new Class[]{byte[].class}, rawScreenshot), rawScreenshot);
         }
@@ -1203,6 +1205,8 @@ public class ActionsCoverageUnitTest {
 
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("ELEMENT");
             Assert.assertNotNull(invoke(actions, "captureScreenshot", new Class[]{WebElement.class, boolean.class}, element, true));
+            imageProcessing.verify(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                    any(Rectangle.class), any(Color.class), any(WebDriver.class), eq("VIEWPORT")));
 
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
             SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
