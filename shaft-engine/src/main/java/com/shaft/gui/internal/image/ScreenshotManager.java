@@ -51,33 +51,35 @@ public class ScreenshotManager {
     }
 
     public byte[] takeScreenshot(WebDriver driver, By targetElementLocator) {
+        return takeScreenshotCapture(driver, targetElementLocator).bytes();
+    }
+
+    private ScreenshotCapture takeScreenshotCapture(WebDriver driver, By targetElementLocator) {
         if (driver instanceof SelfHealingDriver selfHealingDriver) {
             driver = selfHealingDriver.getDelegate();
         }
 
-        byte[] screenshot;
         if (DriverFactoryHelper.isNotMobileExecution()) {
-            screenshot = switch (Screenshots.getType()) {
+            return switch (Screenshots.getType()) {
                 case FULL -> {
                     try {
-                        yield takeFullPageScreenshot(driver);
+                        yield new ScreenshotCapture(takeFullPageScreenshot(driver), Screenshots.FULL);
                     } catch (Throwable throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
                         SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
-                        yield takeScreenshot(driver, null);
+                        yield new ScreenshotCapture(takeViewportScreenshot(driver), Screenshots.VIEWPORT);
                     }
                 }
-                case ELEMENT -> takeElementScreenshot(driver, targetElementLocator, true);
-                default -> this.takeViewportScreenshot(driver);
+                case ELEMENT -> takeElementScreenshotCapture(driver, targetElementLocator, true);
+                default -> new ScreenshotCapture(takeViewportScreenshot(driver), Screenshots.VIEWPORT);
             };
-        } else {
-            if (Screenshots.getType().equals(Screenshots.ELEMENT)) {
-                screenshot = takeElementScreenshot(driver, targetElementLocator, true);
-            } else {
-                screenshot = this.takeViewportScreenshot(driver);
-            }
         }
-        return screenshot;
+        return Screenshots.getType().equals(Screenshots.ELEMENT)
+                ? takeElementScreenshotCapture(driver, targetElementLocator, true)
+                : new ScreenshotCapture(takeViewportScreenshot(driver), Screenshots.VIEWPORT);
+    }
+
+    private record ScreenshotCapture(byte[] bytes, Screenshots type) {
     }
 
     public String generateAttachmentFileName(String actionName) {
@@ -176,23 +178,28 @@ public class ScreenshotManager {
 
     private byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean
             returnRegularScreenshotInCaseOfFailure) {
+        return takeElementScreenshotCapture(driver, targetElementLocator, returnRegularScreenshotInCaseOfFailure).bytes();
+    }
+
+    private ScreenshotCapture takeElementScreenshotCapture(WebDriver driver, By targetElementLocator, Boolean
+            returnRegularScreenshotInCaseOfFailure) {
         try {
             WebElement targetElement = findUniqueElementIgnoringVisibility(driver, targetElementLocator);
             if (targetElement != null) {
-                return targetElement.getScreenshotAs(OutputType.BYTES);
+                return new ScreenshotCapture(targetElement.getScreenshotAs(OutputType.BYTES), Screenshots.ELEMENT);
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
-                    return this.takeViewportScreenshot(driver);
+                    return new ScreenshotCapture(takeViewportScreenshot(driver), Screenshots.VIEWPORT);
                 } else {
-                    return new byte[]{};
+                    return new ScreenshotCapture(new byte[]{}, Screenshots.ELEMENT);
                 }
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
             if (returnRegularScreenshotInCaseOfFailure) {
-                return this.takeViewportScreenshot(driver);
+                return new ScreenshotCapture(takeViewportScreenshot(driver), Screenshots.VIEWPORT);
             } else {
-                return new byte[]{};
+                return new ScreenshotCapture(new byte[]{}, Screenshots.ELEMENT);
             }
         }
     }
@@ -247,15 +254,16 @@ public class ScreenshotManager {
                 elementLocation = elementInformation.getElementRect();
             }
         }
-        byte[] src;
+        ScreenshotCapture capture;
         try {
             //takeScreenshot
-            src = takeScreenshot(driver, elementLocator);
+            capture = takeScreenshotCapture(driver, elementLocator);
         } catch (WebDriverException e) {
             // we genuinely failed to capture a screenshot — nothing to report
             ReportManagerHelper.logDiscrete(e);
             return new byte[0];
         }
+        byte[] src = capture.bytes();
         //highlightElement (best-effort): a highlighting failure must never discard a captured
         //screenshot. The highlight step can throw a non-WebDriverException, or return an
         //empty/null array (e.g. an image it cannot re-encode), so only adopt its result when it
@@ -269,7 +277,7 @@ public class ScreenshotManager {
                     color = new Color(197, 48, 48); // SHAFT failure token
                 }
                 byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(
-                        src, elementLocation, color, driver, Screenshots.getType().name());
+                        src, elementLocation, color, driver, capture.type().name());
                 if (highlighted != null && highlighted.length > 0) {
                     src = highlighted;
                 }
