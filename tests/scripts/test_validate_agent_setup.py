@@ -57,9 +57,9 @@ class ValidateAgentSetupTest(unittest.TestCase):
         )
         self.write(
             ".codex/config.toml",
-            """[mcp_servers.shaft-memory]
+            f"""[mcp_servers.shaft-memory]
 command = "npx"
-args = ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"]
+args = ["--yes", "--package", "{validate_agent_setup.MEMORY_PACKAGE}", "--", "memory-mcp"]
 cwd = ".."
 enabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]
 default_tools_approval_mode = "auto"

@@ -1,6 +1,6 @@
 # ChaosEngine research and adoption matrix
 
-Accessed: 2026-08-12. Primary specifications and first-party product guidance
+Accessed: 2026-08-26. Primary specifications and first-party product guidance
 were checked live. Each adoption points to its local proof owner; no third-party
 code was copied by this review.
 
@@ -13,7 +13,7 @@ code was copied by this review.
 | 5 | [OpenAI skill guidance](https://learn.chatgpt.com/docs/build-skills) | Focus one skill on one job, front-load triggers, prefer instructions, and use scripts for deterministic behavior | Adopted | One canonical router owns policy; deterministic lifecycle work is implemented in `install.py`, `dependencies.py`, `hosts.py`, and `learning.py`. |
 | 6 | [Gemini CLI skills](https://geminicli.com/docs/cli/skills/) | Repository skill discovery with explicit enablement and inspectable local files | Retained | `.gemini/skills/chaos-engine/SKILL.md` and `.gemini/settings.json` are thin receipt-owned adapters verified by `test_chaos_engine_hosts.py`. |
 | 7 | [GitHub Copilot custom instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions-in-your-ide/add-repository-instructions-in-your-ide) | Keep always-on repository facts short; use nearest `AGENTS.md` and skills for detailed procedures | Adopted | `AGENTS.md`/Copilot files only redirect; detailed policy remains in the canonical installed skill and selected project profile. |
-| 8 | [uv tool management](https://docs.astral.sh/uv/concepts/tools/) | Isolated tool environments, explicit upgrades, and reinstall when constraints change | Adopted | `dependencies.py` owns a project-local uv runtime, typed receipts, doctor/freshness checks, atomic repair, and rollback. |
+| 8 | [uv tool management](https://docs.astral.sh/uv/concepts/tools/) | Account-scoped isolated tools, explicit upgrades, and uv-managed Python | Adopted | `dependencies.py` resolves latest stable releases, uses `uv tool install`/`upgrade`, installs exact resolved Python through uv, and records absolute account executables. |
 | 9 | [SLSA 1.2](https://slsa.dev/spec/v1.2/) | Resolve mutable source to immutable provenance and verify the installed artifact against it | Adopted | Latest-main installation records the resolved 40-character commit and per-file SHA-256 ownership in `.chaos-engine/manifest.json`. |
 | 10 | [GitHub issue CLI](https://cli.github.com/manual/gh_issue_create) | Make reviewable, minimal upstream contributions through issues with explicit repository selection | Adopted | `learning.py` deduplicates by a privacy-safe digest, asks with an estimated token cost, queues offline/auth failures, and can create an issue; it never opens a PR. |
 
@@ -57,10 +57,13 @@ and loads them at task start on every host; they are not optional at runtime.
 
 ### Selected approach
 
-Use a standard-library, repository-local, latest-main installer. Resolve the
-configured upstream branch to an immutable commit, stage and verify the core,
-publish thin native adapters, provision receipt-owned local tools, and keep
-self-improvement local until a user explicitly approves a minimal issue.
+Use a standard-library, repository-local, latest-main core installer. Resolve
+the configured upstream branch to an immutable commit, stage and verify the
+core, publish thin native adapters, provision upstream tools for the invoking
+account, and keep self-improvement local until a user explicitly approves a
+minimal issue. Dependency activation requires successful latest-stable
+resolution from each official channel; stale versions never activate merely
+because they remain locally runnable.
 
 ### Marketplace-only alternative
 
@@ -70,13 +73,13 @@ not provide one five-host ownership record, safe migration of mixed existing
 guidance, a shared dependency doctor, or cross-client rollback. They are not
 the canonical ChaosEngine delivery path.
 
-### Global-tool alternative
+### Private-runtime alternative
 
-A globally installed Python or uv command would simplify bootstrap and avoid
-repository copies. It was rejected because global state is not project-owned,
-can select the wrong version or root, and cannot make adapter/config rollback
-atomic with the installed core. The project-local runtime preserves isolation
-and relocation.
+A receipt-owned private Python/uv/Node/Java tree was rejected because plugin
+launchers and ordinary account commands cannot reliably discover it. Standard
+upstream account installations are reused or upgraded only after version and
+functional probes. Project rollback restores ChaosEngine configuration but
+never removes account packages it does not own.
 
 ## Freshness policy
 

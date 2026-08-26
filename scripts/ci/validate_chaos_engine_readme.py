@@ -79,7 +79,7 @@ def _python_libraries(root: Path) -> list[tuple[object, ...]]:
             ", ".join(sorted(set(paths))),
             "required",
             "Windows, Linux, macOS",
-            "system Python 3.10+",
+            "resolved latest stable Python",
             "Python runtime",
             "affected command fails closed",
         )
@@ -195,12 +195,12 @@ def _events(root: Path) -> list[tuple[object, ...]]:
 def inventory_sections(root: Path = ROOT) -> dict[str, str]:
     static: dict[str, list[tuple[object, ...]]] = {
         "prerequisites": [
-            ("Python 3.10+", "Run bootstrap, installer, kernel, and tools.", "install.ps1; install.sh; dependencies.json", "managed", "Windows, Linux, macOS", "verified uv 0.11.29", "immutable dependency generation", "install stops before activation"),
+            ("Latest stable Python", "Run bootstrap, installer, kernel, and tools without old-runtime defects.", "install.ps1; install.sh; dependencies.json", "managed", "Windows, Linux, macOS", "uv managed Python", "user account", "install stops before activation"),
             ("PowerShell or POSIX shell", "Launch the reviewed bootstrap wrapper.", "install.ps1; install.sh", "required", "platform native", "operating system", "consumer environment", "bootstrap does not start"),
             ("curl or wget", "Download immutable source on POSIX.", "install.sh", "required on POSIX", "Linux, macOS", "operator", "consumer environment", "download fails closed"),
-            ("Node.js and npm", "Provision Memory and launch JavaScript hooks.", "dependencies.json; hooks/launch.js", "managed", "Windows, Linux, macOS", "immutable generation installer", "installer receipt", "dependency generation is not published"),
+            ("Node.js, npm, and npx", "Provision Memory, Context7 CLI, and plugin MCP runtimes.", "dependencies.json; hooks/launch.js", "managed", "Windows, Linux, macOS", "platform standard provider", "user account", "install stops before activation"),
             ("network", "Resolve source and provision a fresh or upgraded generation.", "bootstrap.py; dependencies.py", "required for fresh install or upgrade", "Windows, Linux, macOS", "operator", "prior verified generation remains active"),
-            ("Git and Java 25", "Build optional Maven Tools MCP cache.", "dependencies.json; install.py; hosts.py", "optional and managed with `--with-maven-tools`", "Windows, Linux, macOS", "installer", "receipt-owned shared cache", "optional component reports absent"),
+            ("Git and Temurin Java 25", "Build optional Maven Tools MCP cache.", "dependencies.json; install.py; hosts.py", "optional and managed with `--with-maven-tools`", "Windows, Linux, macOS", "platform provider plus upstream Maven wrapper", "receipt-owned shared cache", "optional component reports absent"),
         ],
         "external-services": [
             ("GitHub API and raw content", "Resolve immutable source and deliver pull requests.", "bootstrap.py; work-github-playbook.md", "required for remote install and delivery", "network", "operator credentials", "GitHub and repository owner", "install or delivery blocks"),

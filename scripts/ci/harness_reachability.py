@@ -154,6 +154,12 @@ def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
             if not resolved.exists():
                 broken.append(f"{current} -> {raw}")
                 continue
+            # The tracked `.chaos-engine/` tree is an install snapshot. Adapters
+            # may link into it; walking its markdown follows relative links to
+            # files the snapshot does not keep.
+            if relative == ".chaos-engine" or relative.startswith(".chaos-engine/"):
+                reached.add(relative)
+                continue
             queue.append(relative)
     return reached, broken
 

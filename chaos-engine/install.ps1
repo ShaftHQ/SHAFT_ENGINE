@@ -5,6 +5,7 @@
 param(
     [switch]$ParseOnly,
     [switch]$WithMavenTools,
+    [ValidateSet("native", "docker")][string]$MavenToolsMode = "native",
     [switch]$Interactive
 )
 
@@ -300,13 +301,14 @@ try {
     }
     $arguments = @($bootstrap, "--project", $project, "--repository", $repository, "--branch", $branch)
     if ($WithMavenTools) { $arguments += "--with-maven-tools" }
+    if ($MavenToolsMode -eq "docker") { $arguments += @("--maven-tools-mode", "docker") }
     if ($interactiveRequested) { $arguments += "--interactive" }
     if ($null -eq $python) {
         $uv = Install-ChaosEngineUv $work
         $env:UV_PYTHON_INSTALL_DIR = Join-Path $work "python"
-        & $uv python install 3.11 --no-progress
+        & $uv python install --no-progress
         if ($LASTEXITCODE -ne 0) { throw "uv-managed Python installation failed" }
-        $invoke = @($uv, "run", "--no-project", "--managed-python", "--python", "3.11") + $arguments
+        $invoke = @($uv, "run", "--no-project", "--managed-python") + $arguments
     }
     else { $invoke = @($python) + $arguments }
     & $invoke[0] @($invoke[1..($invoke.Length - 1)])

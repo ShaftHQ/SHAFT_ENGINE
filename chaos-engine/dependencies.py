@@ -72,6 +72,764 @@ SUPPORTED_PLATFORMS = (
     "windows-x64", "windows-arm64", "linux-x64", "linux-arm64",
     "macos-x64", "macos-arm64",
 )
+ACCOUNT_RECEIPT_SCHEMA = 2
+ACCOUNT_RECEIPT_NAME = ".chaos-engine-dependencies.json"
+DEPENDENCY_ACTIONS = frozenset({"reused", "installed", "upgraded", "repaired", "blocked"})
+_UNSTABLE_VERSION = re.compile(
+    r"(?:alpha|beta|rc|pre|preview|dev|snapshot|nightly)", re.IGNORECASE
+)
+_SECRET_KEY = re.compile(
+    r"authorization|credential|password|private.?key|secret|token|api.?key",
+    re.IGNORECASE,
+)
+
+
+def version_key(value: str) -> tuple[int, ...]:
+    """Return a comparable stable numeric version without accepting prereleases."""
+    normalized = value.strip().lstrip("v")
+    if not normalized or _UNSTABLE_VERSION.search(normalized):
+        raise ValueError(f"dependency version is not stable: {value}")
+    release = normalized.split("+", 1)[0]
+    parts = re.findall(r"\d+", release)
+    if not parts:
+        raise ValueError(f"dependency version is invalid: {value}")
+    return tuple(int(part) for part in parts)
+
+
+def latest_compatible_stable(
+    candidates: list[dict[str, object]], *, minimum: str
+) -> str:
+    """Select newest non-yanked stable candidate satisfying the minimum version."""
+    minimum_key = version_key(minimum)
+    accepted: list[tuple[tuple[int, ...], str]] = []
+    for candidate in candidates:
+        value = candidate.get("version")
+        if not isinstance(value, str) or candidate.get("yanked") is True:
+            continue
+        try:
+            key = version_key(value)
+        except ValueError:
+            continue
+        if key >= minimum_key:
+            accepted.append((key, value.lstrip("v")))
+    if not accepted:
+        raise ValueError("no compatible stable dependency version is available")
+    return max(accepted)[1]
+
+
+def dependency_action(
+    *,
+    installed_version: str | None,
+    resolved_version: str | None,
+    healthy: bool,
+    latest_version_verified: bool,
+) -> str:
+    """Classify one dependency without guessing when the stable channel is unavailable."""
+    if installed_version is None:
+        return "installed" if latest_version_verified and resolved_version else "blocked"
+    if not healthy:
+        return "repaired" if latest_version_verified and resolved_version else "blocked"
+    if not latest_version_verified:
+        return "blocked"
+    if resolved_version is None:
+        return "blocked"
+    return (
+        "reused"
+        if installed_version.lstrip("v") == resolved_version.lstrip("v")
+        else "upgraded"
+    )
+
+
+def discover_executables(names: list[str], *, which=shutil.which) -> dict[str, dict[str, str]]:
+    """Resolve every required sibling independently from the invoking user's PATH."""
+    result: dict[str, dict[str, str]] = {}
+    for name in names:
+        selected = which(name)
+        if not selected:
+            result[name] = {"status": "missing"}
+            continue
+        path = Path(selected).expanduser()
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError:
+            result[name] = {"status": "invalid"}
+            continue
+        if any(part.startswith(".chaos-engine-runtime") for part in resolved.parts):
+            result[name] = {"status": "invalid"}
+            continue
+        executable_ok = resolved.is_file() and (
+            os.name == "nt" or os.access(resolved, os.X_OK)
+        )
+        result[name] = (
+            {"status": "healthy", "executable": str(resolved)}
+            if executable_ok
+            else {"status": "invalid"}
+        )
+    return result
+
+
+def sanitize_receipt(value: object, *, home: Path | None = None) -> object:
+    """Remove credential-shaped fields and replace the account home prefix."""
+    account_home = (home or Path.home()).resolve()
+    if isinstance(value, dict):
+        return {
+            str(key): sanitize_receipt(item, home=account_home)
+            for key, item in value.items()
+            if not _SECRET_KEY.search(str(key))
+        }
+    if isinstance(value, list):
+        return [sanitize_receipt(item, home=account_home) for item in value]
+    if isinstance(value, tuple):
+        return [sanitize_receipt(item, home=account_home) for item in value]
+    if isinstance(value, str):
+        rendered = value.replace(str(account_home), "<home>")
+        return rendered.replace(str(account_home).replace("\\", "/"), "<home>")
+    if value is None or type(value) in {bool, int, float}:
+        return value
+    return type(value).__name__
+
+
+def account_tool_plan(
+    project: Path,
+    specification: dict[str, object],
+    *,
+    actions: dict[str, str],
+    executables: dict[str, str],
+) -> dict[str, list[list[str]]]:
+    """Render user-scope tool commands; project initialization is a separate phase."""
+    del project
+    if specification.get("schemaVersion") != 3:
+        raise ValueError("dependency specification schema is unsupported")
+    uv = executables["uv"]
+    npm = executables["npm"]
+
+    def uv_commands(name: str, package: str) -> list[list[str]]:
+        action = actions.get(name)
+        if action in {"installed", "repaired"}:
+            return [[uv, "tool", "install", package]]
+        if action == "upgraded":
+            return [[uv, "tool", "upgrade", package]]
+        return []
+
+    def npm_commands(name: str, package: str) -> list[list[str]]:
+        return (
+            [[npm, "install", "-g", package]]
+            if actions.get(name) in {"installed", "upgraded", "repaired"}
+            else []
+        )
+
+    return {
+        "mempalace": uv_commands("mempalace", "mempalace"),
+        "graphify": uv_commands("graphify", "graphifyy"),
+        "memory": npm_commands("memory", "@aictx/memory@latest"),
+        "context7": npm_commands("context7", "ctx7@latest"),
+    }
+
+
+def prerequisite_command_plan(
+    system: str, provider: str, actions: dict[str, str], *, node_major: int = 22,
+    node_version: str | None = None, python_version: str = "3.14.0",
+    uv_version: str = "0.12.0",
+) -> dict[str, list[list[str]]]:
+    """Render dry platform prerequisite commands with tightly scoped elevation."""
+    wanted = lambda name: actions.get(name) in {"installed", "upgraded", "repaired"}
+    plan: dict[str, list[list[str]]] = {"uv": [], "python": [], "node": [], "java": []}
+    if wanted("uv"):
+        plan["uv"] = (
+            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", f"$ErrorActionPreference='Stop'; $env:UV_INSTALL_DIR=Join-Path $HOME '.local/bin'; $env:UV_NO_MODIFY_PATH='1'; irm https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.ps1 | iex"]]
+            if system == "windows"
+            else [["bash", "-o", "pipefail", "-c", f"curl -fsSL https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" UV_NO_MODIFY_PATH=1 sh"]]
+        )
+    if wanted("python"):
+        plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
+    return plan
+
+
+def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
+    headers = {"Accept": "application/json", "User-Agent": "ChaosEngine-installer"}
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if github_token and url.startswith("https://api.github.com/"):
+        headers["Authorization"] = f"Bearer {github_token}"
+    request = urllib.request.Request(
+        url,
+        headers=headers,
+    )
+    with opener(request, timeout=30) as response:
+        payload = response.read(MAX_CONTROL_BYTES + 1)
+    if len(payload) > MAX_CONTROL_BYTES:
+        raise ValueError("stable-channel response exceeds the size limit")
+    return json.loads(payload)
+
+
+def resolve_stable_version(
+    name: str, contract: dict[str, object], *, opener=urllib.request.urlopen
+) -> str:
+    """Resolve one stable version from its official channel."""
+    url = contract.get("stableChannel")
+    minimum = contract.get("minimumVersion")
+    if not isinstance(url, str) or not url.startswith("https://") or not isinstance(minimum, str):
+        raise ValueError(f"dependency stable-channel contract is invalid: {name}")
+    payload = _read_json_url(url, opener=opener)
+    candidates: list[dict[str, object]] = []
+    if name == "node":
+        if not isinstance(payload, list):
+            raise ValueError("Node stable-channel response is invalid")
+        candidates = [
+            {"version": item.get("version"), "yanked": False}
+            for item in payload
+            if isinstance(item, dict) and item.get("lts") not in (False, None, "")
+        ]
+    elif name == "python":
+        if not isinstance(payload, list):
+            raise ValueError("Python stable-channel response is invalid")
+        for item in payload:
+            release_name = item.get("name") if isinstance(item, dict) else None
+            match = re.fullmatch(r"Python (3\.\d+\.\d+)", release_name or "")
+            if match:
+                candidates.append({
+                    "version": match.group(1),
+                    "yanked": bool(item.get("pre_release"))
+                    or item.get("is_published") is not True,
+                })
+    elif name in {"mempalace", "graphify"}:
+        releases = payload.get("releases") if isinstance(payload, dict) else None
+        if not isinstance(releases, dict):
+            raise ValueError(f"{name} stable-channel response is invalid")
+        for version, files in releases.items():
+            if not isinstance(version, str) or not isinstance(files, list) or not files:
+                continue
+            candidates.append({
+                "version": version,
+                "yanked": all(
+                    isinstance(item, dict) and item.get("yanked") is True
+                    for item in files
+                ),
+            })
+    elif name in {"memory", "context7"}:
+        version = payload.get("version") if isinstance(payload, dict) else None
+        candidates = [{"version": version, "yanked": False}]
+    elif name == "java":
+        releases = payload.get("versions") if isinstance(payload, dict) else None
+        if not isinstance(releases, list):
+            raise ValueError("Java stable-channel response is invalid")
+        candidates = [
+            {"version": match.group(0), "yanked": False}
+            for item in releases
+            if isinstance(item, dict)
+            and item.get("major") == 25
+            and (match := re.match(r"\d+\.\d+\.\d+\+\d+", str(item.get("semver"))))
+        ]
+    else:
+        tag = payload.get("tag_name") if isinstance(payload, dict) else None
+        prerelease = payload.get("prerelease") if isinstance(payload, dict) else True
+        draft = payload.get("draft") if isinstance(payload, dict) else True
+        candidates = [{"version": tag, "yanked": bool(prerelease or draft)}]
+    return latest_compatible_stable(candidates, minimum=minimum)
+
+
+def _version_from_output(output: str) -> str | None:
+    if _UNSTABLE_VERSION.search(output):
+        return None
+    match = re.search(r"(?<!\d)(\d+(?:\.\d+){1,3}(?:[+._-]\d+)?)", output)
+    return match.group(1).replace("_", ".") if match else None
+
+
+def probe_account_dependency(
+    name: str,
+    executable_path: str,
+    contract: dict[str, object],
+    *,
+    runner=subprocess.run,
+) -> dict[str, object]:
+    """Run bounded version and functional probes for one account executable."""
+    probe = contract.get("probe")
+    if not isinstance(probe, list) or not all(isinstance(item, str) for item in probe):
+        raise ValueError(f"dependency probe contract is invalid: {name}")
+    command = [executable_path, *probe[1:]]
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key.upper() not in {"AUTHORIZATION", "TOKEN", "API_KEY"}
+        and not _SECRET_KEY.search(key)
+    }
+    environment["PATH"] = _account_search_path()
+    try:
+        result = runner(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        return {"healthy": False, "version": None, "detail": type(error).__name__}
+    output = f"{result.stdout or ''}\n{result.stderr or ''}".strip()
+    version = _version_from_output(output)
+    if name == "java":
+        build = re.search(r"(?<!\d)(\d+\.\d+\.\d+\+\d+)", output)
+        if build:
+            version = build.group(1)
+    return {
+        "healthy": result.returncode == 0,
+        "version": version,
+        "detail": "passed" if result.returncode == 0 else f"exit-{result.returncode}",
+    }
+
+
+def _account_search_path() -> str:
+    managed_node = Path.home() / ".local/share/chaos-engine/node"
+    node_bins = sorted(
+        (
+            root if os.name == "nt" else root / "bin"
+            for root in managed_node.glob("*")
+            if root.is_dir()
+        ),
+        key=lambda path: tuple(
+            int(part)
+            for part in re.findall(
+                r"\d+", path.name if os.name == "nt" else path.parent.name
+            )
+        ),
+        reverse=True,
+    )
+    candidates = [
+        *node_bins,
+        Path.home() / ".local/bin",
+        Path.home() / ".cargo/bin",
+    ]
+    current = os.environ.get("PATH", "")
+    return os.pathsep.join([*(str(path) for path in candidates), current])
+
+
+def discover_account_commands(
+    specification: dict[str, object], *, preferred_commands: dict[str, str] | None = None,
+    which=shutil.which, runner=subprocess.run
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Discover and probe every dependency, including required sibling commands."""
+    contracts = specification.get("dependencies")
+    if specification.get("schemaVersion") != 3 or not isinstance(contracts, dict):
+        raise ValueError("dependency specification schema is unsupported")
+    commands: dict[str, str] = {}
+    components: dict[str, dict[str, object]] = {}
+    search_path = _account_search_path()
+    for name, value in contracts.items():
+        if not isinstance(value, dict):
+            raise ValueError(f"dependency contract is invalid: {name}")
+        names = value.get("executables")
+        if not isinstance(names, list) or not all(isinstance(item, str) for item in names):
+            raise ValueError(f"dependency executable contract is invalid: {name}")
+        sibling_paths: dict[str, str] = {}
+        for command in names:
+            selected = (preferred_commands or {}).get(command)
+            if not selected or not Path(selected).is_file():
+                selected = which(command, path=search_path)
+            if selected:
+                resolved = Path(selected).resolve()
+                if any(part.startswith(".chaos-engine-runtime") for part in resolved.parts):
+                    continue
+                sibling_paths[command] = str(resolved)
+                commands[command] = sibling_paths[command]
+        primary = names[0] if names else None
+        if primary is None:
+            components[name] = {"status": "not-applicable", "siblings": sibling_paths}
+            continue
+        if len(sibling_paths) != len(names):
+            components[name] = {
+                "status": "missing",
+                "healthy": False,
+                "version": None,
+                "siblings": sibling_paths,
+            }
+            continue
+        probed = probe_account_dependency(
+            name, sibling_paths[primary], value, runner=runner
+        )
+        components[name] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": sibling_paths[primary],
+            "siblings": sibling_paths,
+        }
+    return components, commands
+
+
+def resolve_account_actions(
+    specification: dict[str, object],
+    local: dict[str, dict[str, object]],
+    *,
+    opener=urllib.request.urlopen,
+) -> dict[str, dict[str, object]]:
+    """Combine local health with independently attempted stable-channel resolution."""
+    contracts = specification["dependencies"]
+    resolved: dict[str, dict[str, object]] = {}
+    for name, contract in contracts.items():  # type: ignore[union-attr]
+        if name == "maven-tools-mcp":
+            continue
+        record = local.get(name, {})
+        latest = None
+        verified = False
+        lookup_error = None
+        try:
+            latest = resolve_stable_version(name, contract, opener=opener)
+            verified = True
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            lookup_error = type(error).__name__
+        installed = record.get("version") if isinstance(record.get("version"), str) else None
+        healthy = record.get("healthy") is True
+        action = dependency_action(
+            installed_version=installed,
+            resolved_version=latest,
+            healthy=healthy,
+            latest_version_verified=verified,
+        )
+        resolved[name] = {
+            **record,
+            "provider": contract.get("provider"),
+            "source": contract.get("stableChannel"),
+            "installedVersion": installed,
+            "resolvedVersion": latest,
+            "latestVersionVerified": verified,
+            "action": action,
+            "probe": record.get("detail", "not-run"),
+            **({"lookupError": lookup_error} if lookup_error else {}),
+        }
+    return resolved
+
+
+def read_account_receipt(project: Path) -> dict[str, object]:
+    path = project.resolve() / ACCOUNT_RECEIPT_NAME
+    try:
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("account dependency receipt is missing or invalid") from error
+    if not isinstance(receipt, dict):
+        raise ValueError("account dependency receipt schema is unsupported")
+    if receipt.get("schemaVersion") == 1:
+        receipt = {
+            **receipt,
+            "schemaVersion": ACCOUNT_RECEIPT_SCHEMA,
+            "scope": "user",
+            "migration": "migrated-v1",
+        }
+    if (
+        receipt.get("schemaVersion") != ACCOUNT_RECEIPT_SCHEMA
+        or not isinstance(receipt.get("components"), dict)
+        or not isinstance(receipt.get("commands"), dict)
+    ):
+        raise ValueError("account dependency receipt schema is unsupported")
+    return receipt
+
+
+def write_account_receipt(
+    project: Path,
+    components: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    *,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Publish a secret-free account receipt without claiming global package ownership."""
+    receipt = sanitize_receipt({
+        "schemaVersion": ACCOUNT_RECEIPT_SCHEMA,
+        "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
+        "scope": "user",
+        "components": components,
+        "commands": commands,
+    })
+    if not isinstance(receipt, dict):
+        raise ValueError("account dependency receipt is invalid")
+    receipt["commands"] = {
+        name: str(Path(command).resolve()) for name, command in commands.items()
+    }
+    path = project.resolve() / ACCOUNT_RECEIPT_NAME
+    scratch = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    scratch.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    scratch.replace(path)
+    return receipt
+
+
+def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
+    """Plan current-folder initialization without resetting existing project data."""
+    project = project.resolve()
+    planned: list[list[str]] = []
+    mempalace = commands.get("mempalace")
+    if mempalace:
+        if not (project / "mempalace.yaml").is_file():
+            planned.append([mempalace, "init", "."])
+        if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
+            planned.append([mempalace, "mine", "."])
+    graphify = commands.get("graphify")
+    if graphify:
+        if not (project / ".agents/skills/graphify/SKILL.md").is_file():
+            planned.append(
+                [graphify, "install", "--platform", "agents", "--project"]
+            )
+        if not (project / "graphify-out/graph.json").is_file():
+            planned.append([graphify, "extract", ".", "--code-only"])
+    memory = commands.get("memory")
+    if memory and not (project / ".memory/config.json").is_file():
+        planned.append([memory, "init", "--no-view"])
+    return planned
+
+
+def detected_package_provider(system: str | None = None, *, which=shutil.which) -> str:
+    selected = system or ("windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux")
+    candidates = {
+        "windows": ("winget",),
+        "macos": ("brew",),
+        "linux": ("apt-get", "dnf"),
+    }.get(selected, ())
+    for command in candidates:
+        if which(command):
+            return "apt" if command == "apt-get" else command
+    raise RuntimeError(f"no supported {selected} package provider was detected")
+
+
+def require_user_writable_npm_prefix(
+    npm: str, project: Path, *, runner=subprocess.run
+) -> Path:
+    """Use npm's current writable prefix or configure the standard account prefix."""
+    result = _run_account_command([npm, "config", "get", "prefix"], project, runner=runner)
+    prefix = Path((result.stdout or "").strip()).expanduser()
+    if prefix.is_dir() and os.access(prefix, os.W_OK):
+        return prefix.resolve()
+    prefix = Path.home() / ".local"
+    prefix.mkdir(parents=True, exist_ok=True)
+    _run_account_command(
+        [npm, "config", "set", "prefix", str(prefix)], project, runner=runner
+    )
+    return prefix.resolve()
+
+
+def _run_account_command(
+    command: list[str], project: Path, *, runner=subprocess.run
+) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    environment["PATH"] = _account_search_path()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = runner(
+        command,
+        cwd=project,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=900,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "no process output").strip()
+        raise RuntimeError(
+            f"dependency command failed: {Path(command[0]).name}: {detail[:500]}"
+        )
+    return result
+
+
+def install_account_dependencies(  # noqa: MC0001 - preflight then ordered account mutation.
+    project: Path,
+    specification: dict[str, object],
+    *,
+    runner=subprocess.run,
+    opener=urllib.request.urlopen,
+    which=shutil.which,
+    system: str | None = None,
+    provider: str | None = None,
+    allow_root: bool = False,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Install/upgrade required tools for the invoking account, then initialize cwd."""
+    project = project.resolve()
+    validate_runtime_specification(specification)
+    if os.name != "nt" and hasattr(os, "geteuid") and os.geteuid() == 0 and not allow_root:
+        raise RuntimeError("ChaosEngine installer must not run as root")
+    prior_commands: dict[str, str] = {}
+    try:
+        prior_receipt = read_account_receipt(project)
+        prior = prior_receipt.get("commands")
+        if isinstance(prior, dict):
+            prior_commands = {
+                name: command for name, command in prior.items()
+                if isinstance(name, str) and isinstance(command, str)
+            }
+    except ValueError:
+        pass
+    local, commands = discover_account_commands(
+        specification, preferred_commands=prior_commands, which=which, runner=runner
+    )
+    actions = resolve_account_actions(
+        specification, local, opener=opener
+    )
+    blocked = sorted(
+        name for name, record in actions.items() if record.get("action") == "blocked"
+    )
+    if blocked:
+        raise RuntimeError("dependency setup blocked: " + ", ".join(blocked))
+
+    selected_system = system or (
+        "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    )
+    prerequisite_actions = {
+        name: str(actions[name]["action"])
+        for name in ("uv", "python", "node", "java")
+    }
+    if any(value != "reused" for value in prerequisite_actions.values()):
+        selected_provider = provider or ""
+        prerequisite_commands = prerequisite_command_plan(
+            selected_system,
+            selected_provider,
+            prerequisite_actions,
+            node_major=int(str(actions["node"].get("resolvedVersion") or "22").split(".", 1)[0]),
+            node_version=str(actions["node"].get("resolvedVersion") or ""),
+            python_version=str(actions["python"].get("resolvedVersion") or ""),
+            uv_version=str(actions["uv"].get("resolvedVersion") or ""),
+        )
+        for name in ("uv", "python", "node", "java"):
+            for command in prerequisite_commands[name]:
+                if command[0] == "uv" and commands.get("uv"):
+                    command = [commands["uv"], *command[1:]]
+                _run_account_command(command, project, runner=runner)
+            if name == "uv" and prerequisite_actions["uv"] != "reused":
+                selected_uv = which("uv", path=_account_search_path())
+                if not selected_uv:
+                    raise RuntimeError("latest stable uv executable was not found after installation")
+                commands["uv"] = str(Path(selected_uv).resolve())
+        managed_python = None
+        if prerequisite_actions["python"] != "reused":
+            uv_command = commands.get("uv", "uv")
+            found = _run_account_command(
+                [uv_command, "python", "find", str(actions["python"]["resolvedVersion"])],
+                project,
+                runner=runner,
+            )
+            candidate = Path((found.stdout or "").strip()).resolve()
+            if not candidate.is_file():
+                raise RuntimeError("latest stable Python executable was not found after installation")
+            managed_python = str(candidate)
+        managed_java = None
+        if prerequisite_actions["java"] != "reused":
+            managed_java = install_exact_java(
+                str(actions["java"].get("resolvedVersion") or ""),
+                system=selected_system,
+                opener=opener,
+            )
+        managed_node = None
+        if prerequisite_actions["node"] != "reused":
+            managed_node = install_exact_node(
+                str(actions["node"].get("resolvedVersion") or ""),
+                system=selected_system,
+                opener=opener,
+            )
+            commands.pop("node", None)
+        local, commands = discover_account_commands(
+            specification, preferred_commands=commands, which=which, runner=runner
+        )
+        if managed_python is not None:
+            python_contract = specification["dependencies"]["python"]  # type: ignore[index]
+            probed = probe_account_dependency(
+                "python", managed_python, python_contract, runner=runner  # type: ignore[arg-type]
+            )
+            local["python"] = {
+                "status": "healthy" if probed["healthy"] else "broken",
+                **probed,
+                "executable": managed_python,
+                "siblings": {"python3": managed_python},
+            }
+            commands["python3"] = managed_python
+        if managed_java is not None:
+            java_contract = specification["dependencies"]["java"]  # type: ignore[index]
+            probed = probe_account_dependency(
+                "java", managed_java, java_contract, runner=runner  # type: ignore[arg-type]
+            )
+            local["java"] = {
+                "status": "healthy" if probed["healthy"] else "broken",
+                **probed,
+                "executable": managed_java,
+                "siblings": {"java": managed_java},
+            }
+            commands["java"] = managed_java
+        if managed_node is not None:
+            node_root = Path(managed_node).parent if selected_system == "windows" else Path(managed_node).parent.parent
+            managed_npm = node_root / ("npm.cmd" if selected_system == "windows" else "bin/npm")
+            managed_npx = node_root / ("npx.cmd" if selected_system == "windows" else "bin/npx")
+            if not managed_npm.is_file() or not managed_npx.is_file():
+                raise RuntimeError("latest stable Node sibling executables are incomplete")
+            node_contract = specification["dependencies"]["node"]  # type: ignore[index]
+            probed = probe_account_dependency(
+                "node", managed_node, node_contract, runner=runner  # type: ignore[arg-type]
+            )
+            local["node"] = {
+                "status": "healthy" if probed["healthy"] else "broken",
+                **probed,
+                "executable": managed_node,
+                "siblings": {
+                    "node": managed_node,
+                    "npm": str(managed_npm.resolve()),
+                    "npx": str(managed_npx.resolve()),
+                },
+            }
+            commands.update(
+                node=managed_node,
+                npm=str(managed_npm.resolve()),
+                npx=str(managed_npx.resolve()),
+            )
+        missing = [
+            name for name in ("uv", "python", "node", "java")
+            if local.get(name, {}).get("healthy") is not True
+        ]
+        if missing:
+            raise RuntimeError(
+                "dependency prerequisite verification failed: " + ", ".join(missing)
+            )
+
+    tool_actions = {
+        name: str(actions[name]["action"])
+        for name in ("mempalace", "graphify", "memory", "context7")
+    }
+    if "uv" not in commands or "npm" not in commands:
+        raise RuntimeError("dependency prerequisite siblings are incomplete")
+    if any(value in {"installed", "upgraded", "repaired"} for value in (
+        tool_actions["memory"], tool_actions["context7"]
+    )):
+        require_user_writable_npm_prefix(commands["npm"], project, runner=runner)
+    for name, planned in account_tool_plan(
+        project,
+        specification,
+        actions=tool_actions,
+        executables={"uv": commands["uv"], "npm": commands["npm"]},
+    ).items():
+        for command in planned:
+            _run_account_command(command, project, runner=runner)
+
+    local, commands = discover_account_commands(
+        specification, preferred_commands=commands, which=which, runner=runner
+    )
+    unhealthy = [
+        name
+        for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        if local.get(name, {}).get("healthy") is not True
+    ]
+    if unhealthy:
+        raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
+    for command in project_setup_plan(project, commands):
+        _run_account_command(command, project, runner=runner)
+        if command[1:3] == ["mine", "."]:
+            marker = project / ".chaos-engine-state/mempalace/.mined"
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_bytes(b"current\n")
+
+    final_components: dict[str, dict[str, object]] = {}
+    for name, record in actions.items():
+        observed = local.get(name, {})
+        final_components[name] = {
+            **record,
+            **observed,
+            "installedVersion": observed.get("version"),
+            "scope": "user",
+            "action": record["action"],
+            "probe": observed.get("detail", "passed"),
+        }
+    return write_account_receipt(
+        project, final_components, commands, now=now
+    )
 
 
 def platform_key(*, system: str | None = None, machine: str | None = None) -> str:
@@ -102,8 +860,26 @@ def select_runtime_artifact(
 
 
 def validate_runtime_specification(specification: dict[str, object]) -> None:
-    if specification.get("schemaVersion") != 2:
+    if specification.get("schemaVersion") not in {2, 3}:
         raise ValueError("dependency specification schema is unsupported")
+    if specification.get("schemaVersion") == 3:
+        dependencies = specification.get("dependencies")
+        if not isinstance(dependencies, dict) or not {
+            "uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7",
+            "maven-tools-mcp",
+        } <= set(dependencies):
+            raise ValueError("account dependency specification is invalid")
+        for name, contract in dependencies.items():
+            if (
+                not isinstance(contract, dict)
+                or not isinstance(contract.get("minimumVersion"), str)
+                or not isinstance(contract.get("provider"), str)
+                or not isinstance(contract.get("stableChannel"), str)
+                or not isinstance(contract.get("executables"), list)
+                or not isinstance(contract.get("probe"), list)
+            ):
+                raise ValueError(f"account dependency specification is invalid: {name}")
+        return
     runtimes = specification.get("runtimes")
     if not isinstance(runtimes, dict):
         raise ValueError("dependency runtime specification is invalid")
@@ -251,6 +1027,141 @@ def _extract_runtime_archive(archive: Path, destination: Path) -> None:
         target.write_bytes(payload)
         if os.name != "nt" and mode & stat.S_IXUSR:
             target.chmod(target.stat().st_mode | stat.S_IXUSR)
+
+
+def install_exact_node(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Install one checksum-verified official Node release for this account."""
+    machine = platform.machine().casefold()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    platform_name = {"windows": "win", "macos": "darwin", "linux": "linux"}[system]
+    suffix = ".zip" if system == "windows" else ".tar.gz" if system == "macos" else ".tar.xz"
+    filename = f"node-v{version}-{platform_name}-{architecture}{suffix}"
+    base = f"https://nodejs.org/download/release/v{version}"
+    with opener(f"{base}/SHASUMS256.txt", timeout=30) as response:
+        checksums = response.read(MAX_CONTROL_BYTES + 1)
+    if len(checksums) > MAX_CONTROL_BYTES:
+        raise ValueError("Node checksum manifest exceeds the size limit")
+    expected = next(
+        (
+            line.split()[0]
+            for line in checksums.decode("utf-8").splitlines()
+            if line.split()[1:] == [filename]
+        ),
+        None,
+    )
+    if expected is None or re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise ValueError("Node checksum manifest is missing the selected release")
+    root = Path.home() / ".local/share/chaos-engine/node" / version
+    executable = root / ("node.exe" if system == "windows" else "bin/node")
+    if executable.is_file():
+        _ensure_node_siblings(root, system)
+        return str(executable.resolve())
+    if root.exists() or is_link_or_reparse(root):
+        raise ValueError("existing Node account runtime is invalid")
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    transaction = parent / f".{version}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        _download_artifact(f"{base}/{filename}", archive, expected, opener)
+        _extract_runtime_archive(archive, transaction)
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    if not executable.is_file():
+        raise ValueError("installed Node account runtime is incomplete")
+    _ensure_node_siblings(root, system)
+    return str(executable.resolve())
+
+
+def _ensure_node_siblings(root: Path, system: str) -> None:
+    """Restore safe npm launchers omitted when archive links are rejected."""
+    for name in ("npm", "npx"):
+        launcher = root / (f"{name}.cmd" if system == "windows" else f"bin/{name}")
+        if system == "windows":
+            if not launcher.is_file():
+                raise ValueError("installed Node account runtime is incomplete")
+            continue
+        script = root / "lib/node_modules/npm/bin" / f"{name}-cli.js"
+        if not script.is_file():
+            raise ValueError("installed Node account runtime is incomplete")
+        launcher.write_text(
+            '#!/bin/sh\nexec "$(dirname "$0")/node" "$(dirname "$0")/../lib/node_modules/npm/bin/'
+            f'{name}-cli.js" "$@"\n',
+            encoding="utf-8",
+        )
+        launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
+
+
+def install_exact_java(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Install one checksum-verified official Temurin 25 release for this account."""
+    match = re.fullmatch(r"(25\.\d+\.\d+)\+(\d+)", version)
+    if match is None:
+        raise ValueError("Temurin release version is invalid")
+    feature, build = match.groups()
+    machine = platform.machine().casefold()
+    architecture = (
+        "aarch64"
+        if system != "windows" and machine in {"arm64", "aarch64"}
+        else "x64"
+    )
+    platform_name = {"windows": "windows", "macos": "mac", "linux": "linux"}[system]
+    suffix = ".zip" if system == "windows" else ".tar.gz"
+    filename = (
+        f"OpenJDK25U-jdk_{architecture}_{platform_name}_hotspot_"
+        f"{feature}_{build}{suffix}"
+    )
+    tag = f"jdk-{feature}%2B{build}"
+    url = (
+        "https://github.com/adoptium/temurin25-binaries/releases/download/"
+        f"{tag}/{filename}"
+    )
+    with opener(f"{url}.sha256.txt", timeout=30) as response:
+        checksum = response.read(MAX_CONTROL_BYTES + 1)
+    if len(checksum) > MAX_CONTROL_BYTES:
+        raise ValueError("Temurin checksum manifest exceeds the size limit")
+    expected = checksum.decode("utf-8").split()[0] if checksum.strip() else ""
+    if re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise ValueError("Temurin checksum manifest is invalid")
+    root = Path.home() / ".local/share/chaos-engine/java" / version
+    executable = root / (
+        "bin/java.exe"
+        if system == "windows"
+        else "Contents/Home/bin/java"
+        if system == "macos"
+        else "bin/java"
+    )
+    if executable.is_file():
+        return str(executable.resolve())
+    if root.exists() or is_link_or_reparse(root):
+        raise ValueError("existing Java account runtime is invalid")
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    transaction = parent / f".{feature}-{build}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        _download_artifact(url, archive, expected, opener)
+        _extract_runtime_archive(archive, transaction)
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    if not executable.is_file():
+        raise ValueError("installed Java account runtime is incomplete")
+    return str(executable.resolve())
 
 
 def provision_generation_runtimes(
@@ -718,6 +1629,8 @@ def _open_regular_relative(root: Path, relative: str, label: str) -> int:
                 parts[-1], os.O_RDONLY | binary | nofollow, dir_fd=directory
             )
         except OSError as error:
+            if error.errno == errno.ENOENT:
+                raise ValueError(f"dependency {label} is missing") from error
             raise ValueError(f"dependency {label} has an unsafe ancestor or link") from error
         finally:
             os.close(directory)
@@ -1217,8 +2130,19 @@ def probe_active(
 
 
 def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]:
-    """Resolve one exact dispatch from the authenticated active generation."""
+    """Resolve one account command, falling back to authenticated legacy generations."""
     project = project.absolute()
+    account_path = project / ACCOUNT_RECEIPT_NAME
+    if account_path.is_file() and not is_link_or_reparse(account_path):
+        receipt = read_account_receipt(project)
+        commands = receipt["commands"]
+        command = commands.get(tool) if isinstance(commands, dict) else None
+        if not isinstance(command, str) or not Path(command).is_absolute():
+            raise ValueError(f"account dependency tool dispatch is missing: {tool}")
+        resolved = Path(command).resolve(strict=True)
+        if not resolved.is_file() or (os.name != "nt" and not os.access(resolved, os.X_OK)):
+            raise ValueError(f"account dependency tool dispatch is unhealthy: {tool}")
+        return [str(resolved), *arguments]
     pointer = _read_pointer(project)
     active = _validate_generation_record(pointer.get("active"))
     generation, receipt = _authenticate_selected_generation(
@@ -1345,7 +2269,7 @@ def generation_install_plan(
     generation: Path, specification: dict[str, object]
 ) -> dict[str, list[list[str]]]:
     tools = specification.get("tools")
-    if specification.get("schemaVersion") != 2 or not isinstance(tools, dict):
+    if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
     scripts = "Scripts" if os.name == "nt" else "bin"
     bootstrap = generation / "bootstrap"
@@ -2411,7 +3335,7 @@ def finalize_generation_remove(project: Path) -> None:
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
     tools = specification.get("tools")
-    if specification.get("schemaVersion") != 2 or not isinstance(tools, dict):
+    if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
     environment = runtime / "bootstrap"
     scripts = environment / ("Scripts" if os.name == "nt" else "bin")

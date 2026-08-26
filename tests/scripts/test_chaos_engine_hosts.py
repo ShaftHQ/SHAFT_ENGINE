@@ -92,6 +92,33 @@ def create_chroma_state(path: Path) -> None:
 
 
 class ChaosEngineHostsTest(unittest.TestCase):
+    def test_hook_receipt_reports_exact_hash_trust_and_restart_only_on_change(self):
+        module = load(HOSTS, "chaos_engine_hook_receipt")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+
+            first = module.install(project, core_commit="1" * 40)
+            self.assertTrue(first["restartRequired"])
+            self.assertEqual("review-required", first["hookTrust"])
+            self.assertTrue(first["changedHooks"])
+            self.assertEqual(
+                set(first["hookHashes"]), set(first["changedHooks"])
+            )
+            for digest in first["hookHashes"].values():
+                self.assertRegex(digest, r"^[0-9a-f]{64}$")
+
+            second = module.install(project, core_commit="1" * 40)
+            self.assertFalse(second["restartRequired"])
+            self.assertEqual([], second["changedHooks"])
+            self.assertEqual(first["hookHashes"], second["hookHashes"])
+            status = module.verify(project)
+            self.assertEqual("review-required", status["hookTrust"])
+            self.assertFalse(status["restartRequired"])
+            self.assertEqual(second["hookHashes"], status["hookHashes"])
+
     def test_grok_runtime_requires_trust_and_complete_loaded_lifecycle(self):
         module = load(HOSTS, "chaos_engine_grok_runtime")
         events = (
@@ -649,9 +676,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
             for config in (claude, gemini):
                 servers = config["mcpServers"]
                 self.assertEqual(
-                    {"chaosengine-memory", "chaosengine-mempalace"}, set(servers)
+                    {"chaosengine-memory", "chaosengine-mempalace", "context7"},
+                    set(servers),
                 )
-                for server in servers.values():
+                self.assertEqual(
+                    {"url": "https://mcp.context7.com/mcp"}, servers["context7"]
+                )
+                for name in ("chaosengine-memory", "chaosengine-mempalace"):
+                    server = servers[name]
                     self.assertEqual("python3", server["command"])
                     self.assertNotEqual("-3", server["args"][0])
                     self.assertEqual("py", server["commandWindows"])
@@ -1533,7 +1565,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
         module = load(HOSTS, "chaos_engine_mcp_runtime")
         memory_response = mock.Mock(
             returncode=0,
-            stdout=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}) + "\n",
+            stdout="\n".join((
+                json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                json.dumps({"jsonrpc": "2.0", "id": 2, "result": {"tools": []}}),
+            )) + "\n",
         )
         mempalace_response = mock.Mock(
             returncode=0,
@@ -1544,19 +1579,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         {
                             "jsonrpc": "2.0",
                             "id": 2,
-                            "result": {
-                                "content": [
-                                    {
-                                        "type": "text",
-                                        "text": json.dumps(
-                                            {
-                                                "total_drawers": 0,
-                                                "backend": "sqlite_exact",
-                                            }
-                                        ),
-                                    }
-                                ]
-                            },
+                            "result": {"tools": []},
                         }
                     ),
                 )
@@ -1590,8 +1613,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
             mempalace_requests = run.call_args_list[1].kwargs["input"].splitlines()
             self.assertEqual(3, len(mempalace_requests))
             self.assertEqual(
-                "mempalace_status",
-                json.loads(mempalace_requests[2])["params"]["name"],
+                "tools/list",
+                json.loads(mempalace_requests[2])["method"],
             )
 
             backend_error = mock.Mock(
@@ -1636,7 +1659,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
         module = load(HOSTS, "chaos_engine_doctor_configured_mcp")
         response = mock.Mock(
             returncode=0,
-            stdout=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}) + "\n",
+            stdout="\n".join((
+                json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                json.dumps({"jsonrpc": "2.0", "id": 2, "result": {"tools": []}}),
+            )) + "\n",
         )
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -1654,17 +1680,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     returncode=0,
                     stdout="\n".join((
                         response.stdout.strip(),
-                        json.dumps({
-                            "jsonrpc": "2.0",
-                            "id": 2,
-                            "result": {"content": [{
-                                "type": "text",
-                                "text": json.dumps({
-                                    "backend": "sqlite_exact",
-                                    "total_drawers": 0,
-                                }),
-                            }]},
-                        }),
+                        json.dumps({"jsonrpc": "2.0", "id": 2,
+                                    "result": {"tools": []}}),
                     )) + "\n",
                 )],
             ) as run:
@@ -1773,6 +1790,24 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )
             self.assertFalse(wal.exists())
             self.assertFalse(shared_memory.exists())
+
+            mined = palace / ".mined"
+            mined.write_text("current\n", encoding="utf-8")
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            mined.write_bytes(b"current\r\n")
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            mined.write_text("unexpected\n", encoding="utf-8")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            mined.unlink()
 
             database = sqlite3.connect(exact)
             database.execute("DROP INDEX idx_documents_collection")
@@ -2006,7 +2041,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
             shaft.joinpath(".chaos-engine/tool.py").write_text("# owned\n")
             memory_ok = mock.Mock(
                 returncode=0,
-                stdout=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}) + "\n",
+                stdout="\n".join((
+                    json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                    json.dumps({"jsonrpc": "2.0", "id": 2,
+                                "result": {"tools": []}}),
+                )) + "\n",
             )
             real_run = module.subprocess.run
 
@@ -2135,7 +2174,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
         posix = module.owned_servers("posix")
 
         self.assertEqual(windows, posix)
-        for server in (*windows.values(), *posix.values()):
+        for name in ("chaosengine-memory", "chaosengine-mempalace"):
+            server = windows[name]
             self.assertEqual("python3", server["command"])
             self.assertNotEqual("-3", server["args"][0])
             self.assertEqual("py", server["commandWindows"])
@@ -2152,7 +2192,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(windows_json, posix_json)
         self.assertEqual(windows_codex, posix_codex)
-        for name, server in windows_json.items():
+        self.assertEqual(
+            {"url": "https://mcp.context7.com/mcp"}, windows_json["context7"]
+        )
+        for name in ("chaosengine-memory", "chaosengine-mempalace"):
+            server = windows_json[name]
             self.assertEqual("python3", server["command"], name)
             self.assertNotEqual("-3", server["args"][0], name)
             self.assertIn(".chaos-engine/tool.py", server["args"], name)
@@ -2211,6 +2255,47 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertIn("# Installed agent harness", readme)
         self.assertIn("`.chaos-engine/`", readme)
 
+    def test_exact_legacy_mcp_aliases_migrate_and_unknown_servers_survive(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_aliases")
+        legacy = {
+            "mcpServers": {
+                "shaft-memory": {"command": "/usr/bin/memory-mcp", "args": []},
+                "mempalace": {
+                    "command": "/usr/bin/mempalace-mcp",
+                    "args": ["--palace", ".chaos-engine-state/mempalace"],
+                },
+                "context7": {"command": "npx", "args": ["-y", "@upstash/context7-mcp"]},
+                "user-owned": {"command": "keep-me", "args": ["--exact"]},
+            }
+        }
+
+        rendered = json.loads(module.json_content(json.dumps(legacy).encode()))
+
+        self.assertNotIn("shaft-memory", rendered["mcpServers"])
+        self.assertNotIn("mempalace", rendered["mcpServers"])
+        self.assertEqual(
+            {"command": "keep-me", "args": ["--exact"]},
+            rendered["mcpServers"]["user-owned"],
+        )
+        self.assertEqual(
+            {"url": "https://mcp.context7.com/mcp"},
+            rendered["mcpServers"]["context7"],
+        )
+
+    def test_account_mcp_servers_use_resolved_absolute_executables(self):
+        module = load(HOSTS, "chaos_engine_hosts_account_mcp")
+        commands = {
+            "memory-mcp": "/home/user tools/bin/memory-mcp",
+            "mempalace-mcp": "/home/user tools/bin/mempalace-mcp",
+        }
+
+        servers = module.owned_servers(account_commands=commands)
+
+        self.assertEqual(commands["memory-mcp"], servers["chaosengine-memory"]["command"])
+        self.assertEqual([], servers["chaosengine-memory"]["args"])
+        self.assertEqual(commands["mempalace-mcp"], servers["chaosengine-mempalace"]["command"])
+        self.assertEqual(".", servers["chaosengine-mempalace"]["cwd"])
+
     def test_native_maven_tools_runtime_uses_resolved_host_paths(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven")
         java = Path(r"C:\runtime\jdk-25\bin\java.exe")
@@ -2221,10 +2306,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(str(java), maven["command"])
         self.assertEqual(
-            ["-jar", str(jar), "--spring.profiles.active=docker,no-context7"],
+            ["-jar", str(jar)],
             maven["args"],
         )
         self.assertNotEqual("docker", Path(str(maven["command"])).name.casefold())
+
+    def test_explicit_maven_tools_docker_mode_pins_resolved_image(self):
+        module = load(HOSTS, "chaos_engine_hosts_docker_maven")
+        servers = module.owned_servers(
+            maven_docker=("/usr/bin/docker", "arvindand/maven-tools-mcp:3.2.1")
+        )
+        self.assertEqual(
+            {
+                "command": "/usr/bin/docker",
+                "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.1"],
+            },
+            servers["maven-tools-mcp"],
+        )
 
     def test_native_maven_tools_runtime_is_rendered_for_both_host_configs(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven_configs")
@@ -2238,7 +2336,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(str(java), claude["mcpServers"]["maven-tools-mcp"]["command"])
         self.assertIn(str(jar).replace("\\", "\\\\"), codex)
-        self.assertIn("--spring.profiles.active=docker,no-context7", codex)
+        self.assertNotIn("spring.profiles.active", codex)
 
     def test_native_maven_tools_runtime_discovers_user_paths(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven_discovery")

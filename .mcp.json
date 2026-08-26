@@ -56,7 +56,26 @@
       "command": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java"
     },
     "mempalace": {
-      "command": "mempalace-mcp",
+      "args": [
+        ".chaos-engine/tool.py",
+        "mempalace-mcp",
+        "--palace",
+        ".chaos-engine-state/mempalace",
+        "--backend",
+        "sqlite_exact"
+      ],
+      "argsWindows": [
+        "-3",
+        ".chaos-engine/tool.py",
+        "mempalace-mcp",
+        "--palace",
+        ".chaos-engine-state/mempalace",
+        "--backend",
+        "sqlite_exact"
+      ],
+      "command": "python3",
+      "commandWindows": "py",
+      "cwd": ".",
       "env": {
         "MEMPALACE_BACKEND": "sqlite_exact",
         "MEMPALACE_EMBEDDING_MODEL": "minilm"
@@ -66,7 +85,7 @@
       "args": [
         "--yes",
         "--package",
-        "@aictx/memory@0.1.55",
+        "@aictx/memory@0.2.1",
         "--",
         "memory-mcp"
       ],

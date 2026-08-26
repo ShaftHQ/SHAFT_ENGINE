@@ -93,6 +93,23 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_installed_chaos_engine_guidance_and_profile_catalog(self):
+        self.write(".chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
+        self.write(".chaos-engine/profiles/README.md", "# Project profiles\n")
+        self.write(".chaos-engine/THIRD_PARTY_NOTICES.md", "# Notices\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
+    def test_allows_installed_host_adapter_markdown(self):
+        self.write(".claude/CLAUDE.md", "# Claude adapter\n")
+        self.write("GEMINI.md", "# Gemini adapter\n")
+        self.write(".gemini/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
+        self.write("plugins/chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
+        self.write("plugins/caveman/UPSTREAM.md", "# Upstream\n")
+        self.write("plugins/ponytail/UPSTREAM.md", "# Upstream\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_allows_installable_shaft_skills(self):
         self.write("shaft-skills/evaluation-prompts.md", "# Evaluation Prompts\n")
         self.write("shaft-skills/writing-shaft-tests/SKILL.md", "# Writing SHAFT Tests\n")

@@ -93,6 +93,20 @@ def issue(code: str, message: str) -> dict[str, str]:
     return {"code": code, "path": MARKETPLACE_PATH, "message": message}
 
 
+def skill_container(root: Path, source: str) -> str:
+    """Return the directory that actually holds `<skill>/SKILL.md`.
+
+    SHAFT's published pack lists skill directories as direct children of
+    `source`. Claude plugin packages keep `plugin.json` at `source` and the
+    skills one level down under `skills/`.
+    """
+    plugin_root = root / source
+    nested = plugin_root / "skills"
+    if (plugin_root / ".claude-plugin").exists() and nested.is_dir():
+        return f"{source.rstrip('/')}/skills"
+    return source
+
+
 def directories_missing_skill_md(root: Path, source: str) -> list[str]:
     """Names of directories directly under `source`, excluding `references`,
     that hold no `SKILL.md` (#4501).
@@ -108,6 +122,31 @@ def directories_missing_skill_md(root: Path, source: str) -> list[str]:
         entry.name
         for entry in (root / source).iterdir()
         if entry.is_dir() and entry.name != "references" and not (entry / "SKILL.md").is_file()
+    )
+
+
+def plugin_package_skill_mds(root: Path, source: str) -> list[Path]:
+    """SKILL.md files under `{source}/skills/<name>/`, the Claude plugin layout.
+
+    Installer-owned marketplace entries point at a plugin package, not a
+    skill-container directory. Those packages never declare marketplace
+    `skills[]`; discovery is `{source}/skills/*/SKILL.md`.
+    """
+    skills_dir = root / source / "skills"
+    if not skills_dir.is_dir():
+        return []
+    return sorted(
+        child / "SKILL.md"
+        for child in skills_dir.iterdir()
+        if child.is_dir() and (child / "SKILL.md").is_file()
+    )
+
+
+def is_plugin_package(root: Path, source: str) -> bool:
+    """True when `source` is a Claude/Codex plugin package, not a skill container."""
+    source_dir = root / source
+    return (source_dir / ".claude-plugin" / "plugin.json").is_file() or bool(
+        plugin_package_skill_mds(root, source)
     )
 
 
@@ -129,53 +168,47 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
             )
         ]
 
+    # `skills` missing, not a list, or `[]` -- the fail-open shape #4481 closed
+    # for guidance globs, reused here rather than reimplemented. Without it a
+    # second plugin entry left at `skills: []` reports the whole manifest valid
+    # while installing zero skills. Claude plugin packages are the exception:
+    # hosts.py writes source-only entries whose skills live at
+    # `{source}/skills/<name>/SKILL.md`.
+    listed, list_errors = require_glob_list(plugin, "skills")
+    if list_errors:
+        if is_plugin_package(root, source):
+            return []
+        return [
+            issue(
+                "marketplace-empty-skills",
+                f"plugin '{label}' skills must be a non-empty list",
+            )
+        ]
+
     if not (root / source).is_dir():
         return [
             issue("marketplace-source-missing", f"plugin '{label}' source directory does not exist: {source}")
         ]
 
-    # Claude Code plugin roots auto-discover `skills/*/SKILL.md`; legacy skill
-    # collections keep their explicit marketplace `skills` list.
-    listed, list_errors = require_glob_list(plugin, "skills")
-    skill_source = source
-    if list_errors:
-        if (root / source / ".claude-plugin" / "plugin.json").is_file():
-            listed = None
-            skill_source = f"{source}/skills"
-        else:
-            return [
-                issue(
-                    "marketplace-empty-skills",
-                    f"plugin '{label}' skills must be a non-empty list",
-                )
-            ]
-
-    if not (root / skill_source).is_dir():
-        return [
-            issue(
-                "marketplace-source-empty",
-                f"plugin '{label}' source '{skill_source}' contains no <skill>/SKILL.md directories",
-            )
-        ]
-
+    container = skill_container(root, source)
     missing_skill_md = [
         issue(
             "marketplace-skill-missing-skillmd",
-            f"plugin '{label}' source directory '{source}/{name}' has no SKILL.md",
+            f"plugin '{label}' source directory '{container}/{name}' has no SKILL.md",
         )
-        for name in directories_missing_skill_md(root, skill_source)
+        for name in directories_missing_skill_md(root, container)
     ]
 
     # A source directory holding no `*/SKILL.md` reports nothing when it
     # matches nothing, so route the disk side through the reporting expander
     # too: an empty match is an `empty-glob`, never a silent pass.
-    pattern = f"{skill_source}/*/SKILL.md"
+    pattern = f"{container}/*/SKILL.md"
     found, glob_errors = expand_reported_globs(root, [pattern], f"plugin '{label}' source")
     if glob_errors:
         return missing_skill_md + [
             issue(
                 "marketplace-source-empty",
-                f"plugin '{label}' source '{skill_source}' contains no <skill>/SKILL.md directories",
+                f"plugin '{label}' source '{source}' contains no <skill>/SKILL.md directories",
             )
         ]
 
@@ -183,7 +216,7 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
     # container, so entries must name individual skill directories -- never a
     # container -- for both it and Claude Code to discover the same set.
     on_disk = sorted(f"./{path.parent.name}" for path in found)
-    entries = on_disk if listed is None else [str(entry) for entry in listed]
+    entries = [str(entry) for entry in listed]
     errors = [
         issue(
             "marketplace-entry-unbacked",
@@ -398,6 +431,29 @@ class MarketplaceManifestTest(unittest.TestCase):
         self.write_marketplace()
 
     def test_matching_manifest_passes(self):
+        self.assertEqual(marketplace_errors(self.root), [])
+
+    def test_plugin_package_without_marketplace_skills_list_passes(self):
+        """Installer-owned Claude plugin entries have source, not skills[]."""
+        self.write("plugins/chaos-engine/.claude-plugin/plugin.json", '{"name":"chaos-engine"}\n')
+        self.write("plugins/chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
+        self.marketplace["plugins"].append(
+            {"name": "chaos-engine", "source": "./plugins/chaos-engine"}
+        )
+        self.write_marketplace()
+        self.assertEqual(marketplace_errors(self.root), [])
+
+    def test_claude_plugin_package_skills_live_under_skills_directory(self):
+        self.write("plugins/example/.claude-plugin/plugin.json", "{}\n")
+        self.write("plugins/example/skills/example/SKILL.md", "# Example\n")
+        self.marketplace["plugins"] = [
+            {
+                "name": "example",
+                "source": "./plugins/example",
+                "skills": ["./example"],
+            }
+        ]
+        self.write_marketplace()
         self.assertEqual(marketplace_errors(self.root), [])
 
     def test_rejects_marketplace_entry_without_skill_directory(self):

@@ -71,8 +71,8 @@ Agent-assisted maintenance expects this third-party stack. Full install,
 update, and troubleshooting runbook:
 [Agent tooling](https://shafthq.github.io/docs/maintainers/agent-tooling).
 
-- **memory CLI** — `npm install -g @aictx/memory@0.1.55` (pin matches
-  `scripts/ci/validate_agent_setup.py`); repo store lives in `.memory/`.
+- **memory CLI** — install the pin from `chaos-engine/dependencies.json`
+  (`@aictx/memory@0.2.1`); repo store lives in `.memory/`.
 - **graphify** — deterministic repository map for pre-search file selection:
   `py -3 -m pip install --user graphifyy==0.9.17`, build with `graphify .`
   from the repo root (cache in gitignored `graphify-out/`; see

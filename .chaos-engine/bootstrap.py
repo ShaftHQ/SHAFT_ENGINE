@@ -812,6 +812,7 @@ def install_latest(
     branch: str | None = None,
     skip_tools: bool = False,
     with_maven_tools: bool = False,
+    maven_tools_mode: str = "native",
     distribution: str | None = None,
     opener=urllib.request.urlopen,
     provisioner=None,
@@ -896,6 +897,7 @@ def install_latest(
                 source_record=provenance,
                 distribution=distribution,
                 with_maven_tools=with_maven_tools,
+                maven_tools_mode=maven_tools_mode,
                 reporter=reporter,
                 confirmer=confirm,
             )
@@ -962,6 +964,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--distribution")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
     result.add_argument("--with-maven-tools", action="store_true")
+    result.add_argument(
+        "--maven-tools-mode", choices=("native", "docker"), default="native"
+    )
     result.add_argument("--interactive", action="store_true")
     return result
 
@@ -1101,6 +1106,7 @@ def main() -> int:
             branch=args.branch,
             skip_tools=args.skip_tools,
             with_maven_tools=args.with_maven_tools,
+            maven_tools_mode=args.maven_tools_mode,
             distribution=args.distribution,
             interactive=args.interactive,
             reporter=reporter,
