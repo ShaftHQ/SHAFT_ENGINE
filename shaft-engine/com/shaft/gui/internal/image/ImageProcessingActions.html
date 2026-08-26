@@ -51,6 +51,7 @@
 <ol class="toc-list">
 <li><a href="#compareImageFolders(java.lang.String,java.lang.String,double)" tabindex="0">compareImageFolders(String, String, double)</a></li>
 <li><a href="#highlightElementInScreenshot(byte%5B%5D,org.openqa.selenium.Rectangle,java.awt.Color)" tabindex="0">highlightElementInScreenshot(byte[], Rectangle, Color)</a></li>
+<li><a href="#highlightElementInScreenshot(byte%5B%5D,org.openqa.selenium.Rectangle,java.awt.Color,org.openqa.selenium.WebDriver,java.lang.String)" tabindex="0">highlightElementInScreenshot(byte[], Rectangle, Color, WebDriver, String)</a></li>
 <li><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(String, byte[])</a></li>
 <li><a href="#findImageWithinCurrentPage(com.shaft.gui.image.ImageTarget,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(ImageTarget, byte[])</a></li>
 <li><a href="#formatElementLocatorToImagePath(org.openqa.selenium.By)" tabindex="0">formatElementLocatorToImagePath(By)</a></li>
@@ -192,12 +193,19 @@ baseline using a pixel-level diff.</div>
  org.openqa.selenium.Rectangle&nbsp;elementLocation,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.desktop/java/awt/Color.html" title="class or interface in java.awt" class="external-link">Color</a>&nbsp;highlightColor)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCV()" class="member-name-link">loadOpenCV</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#highlightElementInScreenshot(byte%5B%5D,org.openqa.selenium.Rectangle,java.awt.Color,org.openqa.selenium.WebDriver,java.lang.String)" class="member-name-link">highlightElementInScreenshot</a><wbr>(byte[]&nbsp;targetScreenshot,
+ org.openqa.selenium.Rectangle&nbsp;elementLocation,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.desktop/java/awt/Color.html" title="class or interface in java.awt" class="external-link">Color</a>&nbsp;highlightColor,
+ org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;screenshotType)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCVIfAvailable()" class="member-name-link">loadOpenCVIfAvailable</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCV()" class="member-name-link">loadOpenCV</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCVIfAvailable()" class="member-name-link">loadOpenCVIfAvailable</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Loads the optional visual processing provider when it is available.</div>
 </div>
 </div>
@@ -234,6 +242,18 @@ baseline using a pixel-level diff.</div>
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">byte[]</span>&nbsp;<span class="element-name">highlightElementInScreenshot</span><wbr><span class="parameters">(byte[]&nbsp;targetScreenshot,
  org.openqa.selenium.Rectangle&nbsp;elementLocation,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.desktop/java/awt/Color.html" title="class or interface in java.awt" class="external-link">Color</a>&nbsp;highlightColor)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="highlightElementInScreenshot(byte[],org.openqa.selenium.Rectangle,java.awt.Color,org.openqa.selenium.WebDriver,java.lang.String)">
+<h3>highlightElementInScreenshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">byte[]</span>&nbsp;<span class="element-name">highlightElementInScreenshot</span><wbr><span class="parameters">(byte[]&nbsp;targetScreenshot,
+ org.openqa.selenium.Rectangle&nbsp;elementLocation,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.desktop/java/awt/Color.html" title="class or interface in java.awt" class="external-link">Color</a>&nbsp;highlightColor,
+ org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;screenshotType)</span></div>
 </div>
 </section>
 </li>
