@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:cf0eab5fb0b93df98832d09d15462ee978af9e9da6e9dceff955da77f2319dc3",
+  "content_hash": "sha256:489f1a96c88de6b4a34f5d2388bdea95c5887d1f5a7d8446ab337bafc1afe877",
   "created_at": "2026-07-29T16:47:24+03:00",
   "evidence": [
     {
@@ -8,10 +8,10 @@
       "kind": "file"
     }
   ],
-  "from": "synthesis.repository-map",
+  "from": "decision.repository-map",
   "id": "rel.synthesis-repository-map-related-to-synthesis-stack-and-tooling",
   "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
-  "updated_at": "2026-07-29T16:47:24+03:00"
+  "to": "decision.stack-and-tooling",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

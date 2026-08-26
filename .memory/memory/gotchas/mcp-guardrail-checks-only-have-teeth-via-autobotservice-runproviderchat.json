@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/mcp-guardrail-checks-only-have-teeth-via-autobotservice-runproviderchat.md",
-  "content_hash": "sha256:f42e8812ef4085477b63cc30654d5237351c85dda33613ee9b130f5258fa668f",
+  "content_hash": "sha256:83181d2f2cfec98a17c6f6941137374f7376d38639f8ff2ddcb3e3f10a0c51ce",
   "created_at": "2026-07-26T10:25:51+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.mcp-guardrail-checks-only-have-teeth-via-autobotservice-runproviderchat",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning Loop: record four durable gotchas from today's session (#4040 thread-local Properties, #4048 worktree node_modules, #4044 guardrail single consumer, concurrent-agent .m2 cache races)"
@@ -28,9 +19,11 @@
     "guardrails",
     "shaft-mcp",
     "autobotservice",
-    "codingpartnerservice"
+    "codingpartnerservice",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "MCP guardrail checks only have teeth via AutobotService.runProviderChat",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

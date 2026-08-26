@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:81a406895dcb65b7d5e2cc9437d97e71f8e251f54ef30b5b2994f930381d6f90",
+  "content_hash": "sha256:06a168028f4af90774555f0c6d198b19ab9b9698f97be4640a8d50fe510e39bc",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -10,8 +10,8 @@
   ],
   "from": "gotcha.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open",
   "id": "rel.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-rel-repo-map",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.repository-map",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.repository-map",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

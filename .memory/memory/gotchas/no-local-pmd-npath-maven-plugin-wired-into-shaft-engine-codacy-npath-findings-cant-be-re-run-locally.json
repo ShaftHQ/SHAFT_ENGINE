@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/no-local-pmd-npath-maven-plugin-wired-into-shaft-engine-codacy-npath-findings-cant-be-re-run-locally.md",
-  "content_hash": "sha256:15968f0fd64b1d37ce61df8be54d00cfa128a14189a204889a4d66f43eb589f3",
+  "content_hash": "sha256:02749ed1159b18f85ed2b5958ad3e293338691cc516229c0febfe3184888686d",
   "created_at": "2026-07-27T12:51:24+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.no-local-pmd-npath-maven-plugin-wired-into-shaft-engine-codacy-npath-findings-cant-be-re-run-locally",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Codacy NPath complexity fix on GeneratedCodeGuardrails.isSuspiciousSecretLiteral (PR #4251, adjacent finding from PR #4249)"
@@ -30,9 +21,11 @@
     "shaft-capture",
     "generatedcodeguardrails",
     "pr-4249",
-    "pr-4251"
+    "pr-4251",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "No local PMD/NPath Maven plugin wired into SHAFT_ENGINE -- Codacy NPath findings can't be re-run locally",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

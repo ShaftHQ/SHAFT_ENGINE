@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
+    "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPanelSetupTest.java",
+    "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
+  ],
   "body_path": "memory/decisions/assistant-markdown-copy-controls-are-icon-only.md",
-  "content_hash": "sha256:8541e444a53e8b8f24c66ed5a6f675edda996c2790d7332e018f82ad154b5fd3",
+  "content_hash": "sha256:0683e35ac94d46b36c0027bed8e5737c56745820bf618dcbbd2405c9d65b967e",
   "created_at": "2026-07-02T23:32:22+03:00",
   "evidence": [
     {
@@ -8,21 +13,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPanelSetupTest.java",
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.assistant-markdown-copy-controls-are-icon-only",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Enforce SHAFT-only generated code in IntelliJ Assistant"
@@ -32,9 +23,11 @@
     "intellij",
     "assistant",
     "markdown",
-    "copy-button"
+    "copy-button",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Assistant Markdown copy controls are icon-only",
   "type": "decision",
-  "updated_at": "2026-08-01T21:40:42+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

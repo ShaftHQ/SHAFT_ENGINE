@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:ab8254c512725559083ff52f7ffac04a8d074955324b1c4d3c5ff092d89d979a",
+  "content_hash": "sha256:09db4408a66b877fb8f62729f886085956bd6f4392dff77743a6368ebf79cf5e",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -8,10 +8,10 @@
       "kind": "file"
     }
   ],
-  "from": "constraint.maven-central-version-immutability",
+  "from": "decision.maven-central-version-immutability",
   "id": "rel.maven-central-version-immutability-rel-repo-map",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.repository-map",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.repository-map",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

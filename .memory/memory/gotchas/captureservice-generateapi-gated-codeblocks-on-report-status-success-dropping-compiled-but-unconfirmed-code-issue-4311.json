@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/captureservice-generateapi-gated-codeblocks-on-report-status-success-dropping-compiled-but-unconfirmed-code-issue-4311.md",
-  "content_hash": "sha256:de1e15f8845873eb4266a54b4dfd7c4afca1aa698d043c4f60487d0b6ef1d9d4",
+  "content_hash": "sha256:95f91bb543a89e53390945fbc1af9c4efe5793d68d70122aa9739215cc6c5351",
   "created_at": "2026-07-28T11:29:21+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.captureservice-generateapi-gated-codeblocks-on-report-status-success-dropping-compiled-but-unconfirmed-code-issue-4311",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #4311: Guided Workflows Live E2E nightly failure, capture_api_generate dropped codeBlocks on UNCONFIRMED status"
@@ -35,9 +26,11 @@
     "nightly-ci",
     "4311",
     "4220",
-    "3409"
+    "3409",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "CaptureService#generateApi gated codeBlocks on report.status()==SUCCESS, dropping compiled-but-UNCONFIRMED code (issue #4311)",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

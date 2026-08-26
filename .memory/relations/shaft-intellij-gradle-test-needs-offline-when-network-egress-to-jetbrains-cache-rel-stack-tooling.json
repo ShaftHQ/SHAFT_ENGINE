@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:516286ca2099525971be02528756fff41ace7b05e9ca20e4228f506de9af03d7",
+  "content_hash": "sha256:2264ad5d50460edb3882887dca9a5b76920b7831d3c48ef1d0eba0400082c4cd",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -10,8 +10,8 @@
   ],
   "from": "gotcha.shaft-intellij-gradle-test-needs-offline-when-network-egress-to-jetbrains-cache-redirector-is-blocked",
   "id": "rel.shaft-intellij-gradle-test-needs-offline-when-network-egress-to-jetbrains-cache-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.stack-and-tooling",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

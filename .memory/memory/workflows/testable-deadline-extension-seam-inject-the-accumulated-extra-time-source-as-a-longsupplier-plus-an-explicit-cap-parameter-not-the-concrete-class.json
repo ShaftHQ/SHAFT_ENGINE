@@ -1,18 +1,9 @@
 {
   "body_path": "memory/workflows/testable-deadline-extension-seam-inject-the-accumulated-extra-time-source-as-a-longsupplier-plus-an-explicit-cap-parameter-not-the-concrete-class.md",
-  "content_hash": "sha256:a6e75db2134a9e79e3d24628622924ff3e841387921494ecb758875e21904463",
+  "content_hash": "sha256:38923be6b2f8867e56ec0b5acd7fb4aff291b124b9779cb7e45a362ee899b865",
   "created_at": "2026-07-17T05:25:56+03:00",
   "evidence": [],
-  "facets": {
-    "category": "workflow"
-  },
-  "id": "workflow.testable-deadline-extension-seam-inject-the-accumulated-extra-time-source-as-a-longsupplier-plus-an-explicit-cap-parameter-not-the-concrete-class",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.testable-deadline-extension-seam-inject-the-accumulated-extra-time-source-as-a-longsupplier-plus-an-explicit-cap-parameter-not-the-concrete-class",
   "source": {
     "kind": "agent",
     "task": "shaft-intellij issue #3633 approval-deliberation time must not count against local-agent run timeout"
@@ -23,9 +14,12 @@
     "concurrency",
     "testing",
     "junit",
-    "timeout"
+    "timeout",
+    "legacy-type-workflow",
+    "category-workflow",
+    "scope-project"
   ],
   "title": "Testable deadline-extension seam: inject the accumulated-extra-time source as a LongSupplier plus an explicit cap parameter, not the concrete class",
-  "type": "workflow",
-  "updated_at": "2026-07-17T05:25:56+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/pluginmanagercore-getplugin-pluginid-is-now-internal-fails-shaft-intellij-verifyplugin-gate.md",
-  "content_hash": "sha256:aa8f2f3bf3f22a00a24b102549efe2c578b0aa6998d3204bcf4967c9cb005383",
+  "content_hash": "sha256:e05487f72780ce7c463bc601a4217a78acfc0a7d47c36d07b77e9bfcba0e3bf6",
   "created_at": "2026-07-15T16:34:01+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.pluginmanagercore-getplugin-pluginid-is-now-internal-fails-shaft-intellij-verifyplugin-gate",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix failing CI (verifyPlugin INTERNAL_API_USAGES) on shaft-intellij PR and merge it"
@@ -32,9 +23,11 @@
     "gradle",
     "verify-plugin",
     "intellij-platform-api",
-    "ci"
+    "ci",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "PluginManagerCore.getPlugin(PluginId) is now Internal -- fails shaft-intellij verifyPlugin gate",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

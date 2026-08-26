@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/issue-3425-all-16-onboarding-review-loop-differentiation-items-shipped-in-pr-3427.md",
-  "content_hash": "sha256:ac1d312ddb415f133daedc4f0a14a73e1a26aec2df2332bb829f0fb95ec582dc",
+  "content_hash": "sha256:0282c46ef070307adc6a0af8b1bb52d0283c9eec460f4757603e5f6fe16059a4",
   "created_at": "2026-07-11T12:39:31+03:00",
   "evidence": [
     {
@@ -20,23 +20,17 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.issue-3425-all-16-onboarding-review-loop-differentiation-items-shipped-in-pr-3427",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #3425 folded into PR #3427 (onboarding lanes, review loop, differentiation)"
   },
   "status": "active",
-  "tags": [],
+  "tags": [
+    "category-decision-rationale",
+    "scope-project"
+  ],
   "title": "Issue #3425 (all 16 onboarding/review-loop/differentiation items) shipped in PR #3427",
   "type": "decision",
-  "updated_at": "2026-07-11T12:39:31+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

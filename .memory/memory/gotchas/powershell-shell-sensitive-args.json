@@ -1,6 +1,12 @@
 {
+  "anchors": [
+    "PowerShell",
+    "Maven",
+    "Git",
+    "command validation"
+  ],
   "body_path": "memory/gotchas/powershell-shell-sensitive-args.md",
-  "content_hash": "sha256:3bba0dce34e877c227d0cfa0b47a8c4fd0591b01a23ec7061c9eb7028311b2a6",
+  "content_hash": "sha256:a99d6c4a85f915f757313635f25b95ad04c0a6cfffc10eccbe49968d0d88e55c",
   "created_at": "2026-06-17T11:56:54+03:00",
   "evidence": [
     {
@@ -12,26 +18,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "PowerShell",
-      "Maven",
-      "Git",
-      "command validation"
-    ],
-    "category": "gotcha",
-    "load_modes": [
-      "coding",
-      "debugging"
-    ]
-  },
   "id": "gotcha.powershell-shell-sensitive-args",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "user",
     "task": "Persist correction after repeated PowerShell quoting mistakes"
@@ -42,9 +29,13 @@
     "quoting",
     "maven",
     "git",
-    "validation"
+    "validation",
+    "category-gotcha",
+    "load-coding",
+    "load-debugging",
+    "scope-project"
   ],
   "title": "Quote shell-sensitive PowerShell arguments before running commands",
   "type": "gotcha",
-  "updated_at": "2026-06-28T10:31:53+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

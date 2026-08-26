@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaftassistantpanel-construction-starts-a-background-local-model-refresh-racing-tests.md",
-  "content_hash": "sha256:a9aef7f19437cd7751ed989e8694d2122c181bb37b536a0a622ae90a6ee7ebb2",
+  "content_hash": "sha256:51b3e4594944a3242d06e8c2b108e6d521dfacb6af7721b64033a9d24b1f87f0",
   "created_at": "2026-07-17T05:36:37+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaftassistantpanel-construction-starts-a-background-local-model-refresh-racing-tests",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "PR #3647 CI race investigation"
@@ -34,9 +25,11 @@
     "flaky",
     "swing",
     "edt",
-    "ci"
+    "ci",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "ShaftAssistantPanel construction silently starts a background local-model refresh that races with any test driving applyLocalModels/refreshLocalModelsIfNeeded via reflection",
   "type": "gotcha",
-  "updated_at": "2026-08-10T15:11:29+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

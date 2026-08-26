@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/4332-touch-tap-disambiguation-was-not-merged-into-origin-main-as-of-pr-4343s-branch-point-despite-being-cited-as-already-merged-foundation.md",
-  "content_hash": "sha256:896721f4c5bda7f5d983e76f88dcddc2a4c05f639a9a44d2f26104106d132db1",
+  "content_hash": "sha256:4f055ef6172b3b3cc96f10d4bd5cd8e3f941ff79966e807da2226903e5eccfeb",
   "created_at": "2026-07-28T14:47:44+03:00",
   "evidence": [
     {
@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.4332-touch-tap-disambiguation-was-not-merged-into-origin-main-as-of-pr-4343s-branch-point-despite-being-cited-as-already-merged-foundation",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #4327: extend HealingManager.resolve() to the multi-match branch"
@@ -36,9 +27,11 @@
     "issue-4332",
     "issue-4327",
     "git",
-    "merge-base"
+    "merge-base",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "#4332 (touch/tap disambiguation) was NOT merged into origin/main as of PR #4343's branch point, despite being cited as already-merged foundation",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:00530de2201112fc4a9a31b9f6c58df2869f82f8ef2a3137c91be606652df471",
+  "content_hash": "sha256:da4ba1b7364e16c368f39f4ee6a081ff17a31bdc4860f3a7b1c7c4d3293e1d23",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -10,8 +10,8 @@
   ],
   "from": "gotcha.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings",
   "id": "rel.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-d-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.stack-and-tooling",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

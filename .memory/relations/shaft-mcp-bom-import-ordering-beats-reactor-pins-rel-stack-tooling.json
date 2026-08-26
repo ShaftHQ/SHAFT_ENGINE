@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:2773f10d10213e7da83382538a379636f23810c43f48ca11d3a4da935b911975",
+  "content_hash": "sha256:6af613eeb2bc38d9f58a5d8e8952886e868cceefe6612dc5a8d808d89e113971",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -10,8 +10,8 @@
   ],
   "from": "gotcha.shaft-mcp-bom-import-ordering-beats-reactor-pins",
   "id": "rel.shaft-mcp-bom-import-ordering-beats-reactor-pins-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.stack-and-tooling",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

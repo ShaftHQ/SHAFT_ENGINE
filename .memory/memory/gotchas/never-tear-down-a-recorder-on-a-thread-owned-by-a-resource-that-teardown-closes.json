@@ -1,6 +1,9 @@
 {
+  "anchors": [
+    "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java"
+  ],
   "body_path": "memory/gotchas/never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes.md",
-  "content_hash": "sha256:e89c056ccb6dc77fcdf2f9e17bb237075f13889bf7b76e3a1541b1cc8c3908fb",
+  "content_hash": "sha256:242ace4e6f657476399d0f0363fe660d6e7904a70739f8534f06262cb9378c3c",
   "created_at": "2026-07-10T15:08:06+03:00",
   "evidence": [
     {
@@ -8,19 +11,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3409: recorder stop orphaning the browser, duplicated steps, and codegen replay"
@@ -29,9 +20,11 @@
   "tags": [
     "capture",
     "recorder",
-    "threading"
+    "threading",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Never tear down a recorder on a thread owned by a resource that teardown closes",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

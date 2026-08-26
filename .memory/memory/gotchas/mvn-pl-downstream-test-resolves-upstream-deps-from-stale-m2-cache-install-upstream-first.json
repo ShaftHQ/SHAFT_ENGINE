@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/mvn-pl-downstream-test-resolves-upstream-deps-from-stale-m2-cache-install-upstream-first.md",
-  "content_hash": "sha256:ec924169a5e72397b5ec12801cbf4ccbeb5004fcb50907e45dcc08497cbddc37",
+  "content_hash": "sha256:dc00fe66b8b683fa62b664542d09d334273ae3a6495c297fa6b5afa609ee07f3",
   "created_at": "2026-07-28T06:52:33+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.mvn-pl-downstream-test-resolves-upstream-deps-from-stale-m2-cache-install-upstream-first",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #4271/#4277 unified locator algorithm -- Maven -pl downstream test resolves upstream deps from stale ~/.m2 cache, not working tree"
@@ -29,9 +20,11 @@
     "verification",
     "cross-module-change",
     "m2-cache",
-    "pl-flag"
+    "pl-flag",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "mvn -pl <downstream> test resolves upstream module deps from stale ~/.m2 cache, not the working tree -- install the upstream module first or downstream verification proves nothing",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:07004dc582f38052db16eacf68d38c554efeea60d0b166832c7f08a69c88100b",
+  "content_hash": "sha256:648b75f6b445030790b51e0836d86765e1847065260b465a855f9dfd9fd31086",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -12,10 +12,10 @@
       "kind": "file"
     }
   ],
-  "from": "architecture.current",
+  "from": "decision.current",
   "id": "rel.current-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.stack-and-tooling",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

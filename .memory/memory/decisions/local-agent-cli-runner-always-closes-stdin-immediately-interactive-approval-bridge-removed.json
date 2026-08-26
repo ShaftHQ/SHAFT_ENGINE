@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantLocalAgentRunner.java",
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java",
+    "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureManager.java"
+  ],
   "body_path": "memory/decisions/local-agent-cli-runner-always-closes-stdin-immediately-interactive-approval-bridge-removed.md",
-  "content_hash": "sha256:31e66c0fdc7a94171737f71b63cb4ea30235621650b5e305ad0042e15301df05",
+  "content_hash": "sha256:af2e9e35bc81e84bfc472f69b75a2cb20932bae2636b631f8f3288af1cd6c9a8",
   "created_at": "2026-07-09T11:18:37+03:00",
   "evidence": [
     {
@@ -16,21 +21,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantLocalAgentRunner.java",
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java",
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureManager.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.local-agent-cli-runner-always-closes-stdin-immediately-interactive-approval-bridge-removed",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix SHAFT Assistant local-agent timeouts, approve-all checkbox, approval-box overflow, recorder stop (PR #3410)"
@@ -42,9 +33,11 @@
     "local-agent",
     "approval-bridge",
     "timeout",
-    "stdin"
+    "stdin",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Local-agent CLI runner always closes stdin immediately; interactive approval bridge removed",
   "type": "decision",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "scripts/agents/guard.py",
+    "tests/scripts/test_guard_lifecycle.py"
+  ],
   "body_path": "memory/decisions/a-flag-a-matcher-skips-is-an-assertion-not-noise-compare-its-value-before-widening-the-rule.md",
-  "content_hash": "sha256:5c1da7574453b390724fe6172d597cd21a3c7b1e2c138bf632aeae98a20b19b5",
+  "content_hash": "sha256:fb1719d4259ee345eacf02c369f3c1eaa695f0bd802942bbc6aacd9a15a22e12",
   "created_at": "2026-08-05T15:04:08+03:00",
   "evidence": [
     {
@@ -16,20 +20,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/agents/guard.py",
-      "tests/scripts/test_guard_lifecycle.py"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.a-flag-a-matcher-skips-is-an-assertion-not-noise-compare-its-value-before-widening-the-rule",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "#4554: rename the round-three decision object off the openai_api_key landmine slug (#4005)"
@@ -41,9 +32,11 @@
     "adversarial-review",
     "gh-cli",
     "4554",
-    "4548"
+    "4548",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "A flag a matcher skips is an assertion, not noise: compare its value before widening the rule",
   "type": "decision",
-  "updated_at": "2026-08-05T15:04:08+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "scripts/agents/guard.py",
+    "chaos-engine/hooks/reflection.py"
+  ],
   "body_path": "memory/gotchas/a-reflection-receipt-authorizes-only-the-failure-set-it-proves-a-later-same-symptom-attempt-is-new-evidence.md",
-  "content_hash": "sha256:334fb6d838df0d7cd1b25a2525a8dec6f5d733df0e860c870e4704dcd18ad8cb",
+  "content_hash": "sha256:bde3b32755051e294e58c67113dd8e76ca37d5729bd7dc5eab3e4e1ad8c7300b",
   "created_at": "2026-08-16T08:45:41+03:00",
   "evidence": [
     {
@@ -12,20 +16,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/agents/guard.py",
-      "chaos-engine/hooks/reflection.py"
-    ],
-    "category": "agent-guidance"
-  },
   "id": "gotcha.a-reflection-receipt-authorizes-only-the-failure-set-it-proves-a-later-same-symptom-attempt-is-new-evidence",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Route the correct reflection guard refusal observed during blocked MemPalace task cleanup"
@@ -36,9 +27,11 @@
     "guard",
     "receipt",
     "cleanup",
-    "gotcha"
+    "gotcha",
+    "category-agent-guidance",
+    "scope-project"
   ],
   "title": "A reflection receipt authorizes only the failure set it proves; a later same-symptom attempt is new evidence",
   "type": "gotcha",
-  "updated_at": "2026-08-16T08:45:41+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

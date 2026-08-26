@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/actions-performactions-reporting-only-accessible-name-fetch-only-caught-two-narrow-exception-types-not-generic-webdriverexception.md",
-  "content_hash": "sha256:56a607f430b73a04f9678f825c3dbb984177c16fa1fa3d643484909ac873e352",
+  "content_hash": "sha256:7503b3694b8af7816c314ffbbf96a04b872f65e224e8205ed08695e24f7f5e48",
   "created_at": "2026-07-28T00:51:38+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.actions-performactions-reporting-only-accessible-name-fetch-only-caught-two-narrow-exception-types-not-generic-webdriverexception",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Nightly e2eLocalTests.yml MacOSX_Safari_Local triage: fix accessible-name catch-widening and select() tag-name case-insensitivity, run 30237601576"
@@ -29,9 +20,11 @@
     "accessible-name",
     "actions-java",
     "webdriverexception",
-    "e2e-nightly"
+    "e2e-nightly",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Actions.performAction's reporting-only accessible-name fetch only caught two narrow exception types, not generic WebDriverException",
   "type": "gotcha",
-  "updated_at": "2026-08-01T21:55:58+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

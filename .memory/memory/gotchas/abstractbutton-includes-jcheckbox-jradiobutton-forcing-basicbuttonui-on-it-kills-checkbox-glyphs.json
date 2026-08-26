@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/abstractbutton-includes-jcheckbox-jradiobutton-forcing-basicbuttonui-on-it-kills-checkbox-glyphs.md",
-  "content_hash": "sha256:b12f2628fbcecf035e79845ab59b52ac6c9008e27ec9698723d830304d0c2bc3",
+  "content_hash": "sha256:f32b22c47b804bc12dac7aa051f02026f3ecf44bd2f8ba35df5f6e9b76c2132b",
   "created_at": "2026-07-19T17:59:10+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.abstractbutton-includes-jcheckbox-jradiobutton-forcing-basicbuttonui-on-it-kills-checkbox-glyphs",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix light-theme IntelliJLaf checkbox rendering defect in shaft-intellij headless screenshot renderer (issue #3777)"
@@ -32,9 +23,11 @@
     "swing",
     "screenshot-renderer",
     "gotcha",
-    "issue-3777"
+    "issue-3777",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "AbstractButton includes JCheckBox/JRadioButton -- forcing BasicButtonUI on it kills checkbox glyphs",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

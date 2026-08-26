@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/captureeventpipeline-interaction-consequence-checks-need-interaction-history-not-a-single-scalar.md",
-  "content_hash": "sha256:e959ea2c2f24a55986e0ece06cf8607d4e40813ec86729da31703645f9f1ce7f",
+  "content_hash": "sha256:55ea79c72111ea203a8e64a9456b3aa9a9feea1f4bbc59df74437e8a9a1d0dda",
   "created_at": "2026-07-15T19:45:19+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.captureeventpipeline-interaction-consequence-checks-need-interaction-history-not-a-single-scalar",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix capture-browser-e2e regression: ENTER-triggered second-replace navigation wrongly recorded"
@@ -32,9 +23,11 @@
     "capture-recorder",
     "navigation-consequence",
     "flaky-test",
-    "browser-e2e"
+    "browser-e2e",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "CaptureEventPipeline interaction-consequence checks need interaction HISTORY, not a single scalar",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

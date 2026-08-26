@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaft-mcp-container-smoke-docker-hub-pull-timeout-is-transient-not-a-code-bug.md",
-  "content_hash": "sha256:ab7d78cc6068e82d0ea329eb5bbc7c449722f034ad7be7b058639d3d1e879552",
+  "content_hash": "sha256:dc05998ee8c7d9bd0b2f799569e265c096b13c0f6437a0263e75becc56b8c180",
   "created_at": "2026-07-27T09:15:27+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-mcp-container-smoke-docker-hub-pull-timeout-is-transient-not-a-code-bug",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "investigate issue 4223 shaft-mcp nightly failure"
@@ -28,9 +19,11 @@
     "ci",
     "docker",
     "flaky",
-    "nightly-failure"
+    "nightly-failure",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "shaft-mcp container-smoke Docker Hub pull timeout is transient, not a code bug",
   "type": "gotcha",
-  "updated_at": "2026-08-01T21:02:05+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

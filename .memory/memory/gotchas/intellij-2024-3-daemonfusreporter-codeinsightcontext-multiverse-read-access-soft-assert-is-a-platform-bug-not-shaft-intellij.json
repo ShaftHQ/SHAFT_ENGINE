@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/intellij-2024-3-daemonfusreporter-codeinsightcontext-multiverse-read-access-soft-assert-is-a-platform-bug-not-shaft-intellij.md",
-  "content_hash": "sha256:3b668808ec372b2a6bab36094d9602691b4c79eda36c6639877f9c3ab0c69600",
+  "content_hash": "sha256:2049c1ad565767dc585101369bc13993127982f2b81c4cde049d60854adaf7fb",
   "created_at": "2026-07-16T11:13:45+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-2024-3-daemonfusreporter-codeinsightcontext-multiverse-read-access-soft-assert-is-a-platform-bug-not-shaft-intellij",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Investigate IntelliJ plugin crash reported as release blocker: RuntimeExceptionWithAttachments Read access is allowed from inside read-action only, in DaemonFusReporter/CodeInsightContextManagerImpl (multiverse) chain"
@@ -34,9 +25,11 @@
     "read-action",
     "2024-3",
     "false-positive-investigation",
-    "crash-triage"
+    "crash-triage",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "IntelliJ 2024.3 DaemonFusReporter/CodeInsightContext 'multiverse' read-access soft-assert is a platform bug, not shaft-intellij",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

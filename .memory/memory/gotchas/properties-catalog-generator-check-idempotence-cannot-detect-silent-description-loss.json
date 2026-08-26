@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/properties-catalog-generator-check-idempotence-cannot-detect-silent-description-loss.md",
-  "content_hash": "sha256:a7b9026c619b4a4473a3370890d56fd6e3b3cfd83604a4da6a2af310e79fd2bf",
+  "content_hash": "sha256:dcad6d599dded2e3bfa5e4d79aff0a5c707e2236b1bc067180fdd3815d032274",
   "created_at": "2026-07-19T17:23:54+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.properties-catalog-generator-check-idempotence-cannot-detect-silent-description-loss",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "docs properties-catalog generator review (PR #844)"
@@ -27,9 +18,11 @@
     "docs",
     "properties-catalog",
     "generator",
-    "regression-testing"
+    "regression-testing",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "properties-catalog generator: --check idempotence cannot detect silent description loss",
   "type": "gotcha",
-  "updated_at": "2026-08-01T21:02:05+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

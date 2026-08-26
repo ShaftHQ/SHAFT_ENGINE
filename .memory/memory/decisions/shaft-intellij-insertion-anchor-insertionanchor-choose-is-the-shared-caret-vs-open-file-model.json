@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model.md",
-  "content_hash": "sha256:b846d9dad19f482567593abc61dd91ce6b7eff242bf5571d7407068aafb24bff",
+  "content_hash": "sha256:9f08949bd0ab907b9abb893cf3361492814c316dbb519b1401be4c3813007b35",
   "created_at": "2026-07-17T21:52:12+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "intellij: unify insert-at-caret anchor across Record/Assistant/Guided panels (issue #3662)"
@@ -33,9 +24,11 @@
     "issue-3661",
     "insertion-anchor",
     "recorder",
-    "swing-ui"
+    "swing-ui",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "shaft-intellij insertion anchor: InsertionAnchor.choose is the shared caret-vs-open-file model",
   "type": "decision",
-  "updated_at": "2026-08-01T21:02:05+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

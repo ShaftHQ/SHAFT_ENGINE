@@ -1,18 +1,9 @@
 {
   "body_path": "memory/decisions/obsidian-migration-rejected-memory-already-meets-local-source-controllable-gbrain-accelerator-recovered.md",
-  "content_hash": "sha256:fb131eed97fe12738c2d287befc6464cf5638df6123a3afdfe2ab6f39e23b55c",
+  "content_hash": "sha256:cc13f29f2ffef71409635bcedeac1b834f649ad69857ecf471292a582ea84033",
   "created_at": "2026-07-18T02:55:15+03:00",
   "evidence": [],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.obsidian-migration-rejected-memory-already-meets-local-source-controllable-gbrain-accelerator-recovered",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "research gbrain reliability vs obsidian; vendor caveman; karpathy skills; act-as-fable arch-decision rule; issue #3709 budget"
@@ -24,9 +15,11 @@
     "memory-architecture",
     "gbrain",
     "decision",
-    "mcp"
+    "mcp",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Obsidian migration rejected; .memory already meets local + source-controllable, gbrain accelerator recovered",
   "type": "decision",
-  "updated_at": "2026-08-10T15:11:29+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

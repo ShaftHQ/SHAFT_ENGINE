@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:01f9cde62d9f682f123d0aa80a00cc8413bdb07e013009d35824e5bb74d0cf7a",
+  "content_hash": "sha256:0224c9225b611a202d82242c53257fc0cadf3bd2cd991532185b72d04b594cbe",
   "created_at": "2026-07-29T16:47:24+03:00",
   "evidence": [
     {
@@ -12,10 +12,10 @@
       "kind": "file"
     }
   ],
-  "from": "synthesis.repository-map",
+  "from": "decision.repository-map",
   "id": "rel.synthesis-repository-map-derived-from-source-agents",
-  "predicate": "derived_from",
+  "predicate": "depends_on",
   "status": "active",
-  "to": "source.agents",
-  "updated_at": "2026-07-29T16:47:24+03:00"
+  "to": "gotcha.agents",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

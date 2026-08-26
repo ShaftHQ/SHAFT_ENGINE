@@ -1,6 +1,6 @@
 {
   "body_path": "memory/syntheses/product-intent.md",
-  "content_hash": "sha256:b84bda454f535d10ca02cbf880bdf5a0328abde2493e1c7d8851426adc08a3ff",
+  "content_hash": "sha256:4c4129b9dfcecc6191ec8e8090d466ce800088f27d269a721066cece765a3308",
   "created_at": "2026-06-17T11:14:58+03:00",
   "evidence": [
     {
@@ -8,21 +8,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "category": "product-intent",
-    "load_modes": [
-      "coding",
-      "architecture",
-      "onboarding"
-    ]
-  },
-  "id": "synthesis.product-intent",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.product-intent",
   "source": {
     "kind": "cli",
     "task": "Proposed bootstrap memory patch from deterministic repository analysis"
@@ -30,9 +16,15 @@
   "status": "active",
   "tags": [
     "synthesis",
-    "product-intent"
+    "product-intent",
+    "legacy-type-synthesis",
+    "category-product-intent",
+    "load-coding",
+    "load-architecture",
+    "load-onboarding",
+    "scope-project"
   ],
   "title": "Product intent",
-  "type": "synthesis",
-  "updated_at": "2026-06-17T11:19:41+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

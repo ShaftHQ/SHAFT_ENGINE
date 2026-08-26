@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "shaft-intellij/build.gradle.kts",
+    "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java"
+  ],
   "body_path": "memory/gotchas/intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home.md",
-  "content_hash": "sha256:65946733b04ba0b2212ce81abadf87e1e84ef10be45ea17d1d88060de592d8dc",
+  "content_hash": "sha256:322e6f725da6450a4527af593493d9d0a66c8e68e7157ae5c44555eb2e2cf90b",
   "created_at": "2026-08-12T14:01:11+03:00",
   "evidence": [
     {
@@ -12,24 +16,11 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/build.gradle.kts",
-      "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home",
   "origin": {
     "captured_at": "2026-08-12T14:00:00+03:00",
     "kind": "file",
     "locator": "shaft-intellij/build.gradle.kts"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",
@@ -41,9 +32,11 @@
     "gradle",
     "testkit",
     "windows",
-    "testing"
+    "testing",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "IntelliJ-instrumented Gradle TestKit tests must bind the Gradle runtime and reuse the outer Gradle home",
   "type": "gotcha",
-  "updated_at": "2026-08-12T14:01:11+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

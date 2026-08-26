@@ -550,23 +550,29 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, planning)
 
-    def test_project_scoped_memory_objects_do_not_set_branch_or_task(self):
+    def test_memory_objects_use_native_v5_schema(self):
         gotcha = (
             ROOT
             / ".memory/memory/gotchas"
             / "grok-lifecycle-hooks-must-merge-not-overwrite-foreign-handlers.json"
         )
         payload = json.loads(gotcha.read_text(encoding="utf-8"))
-        self.assertEqual("project", payload["scope"]["kind"])
-        self.assertIsNone(payload["scope"]["task"])
-        self.assertIsNone(payload["scope"]["branch"])
+        allowed_types = {"project", "feature", "decision", "gotcha", "question"}
+        self.assertEqual("gotcha", payload["type"])
+        self.assertNotIn("scope", payload)
+        self.assertNotIn("facets", payload)
 
         offenders = []
         for path in (ROOT / ".memory/memory").rglob("*.json"):
-            scope = json.loads(path.read_text(encoding="utf-8")).get("scope") or {}
-            if scope.get("kind") != "project":
-                continue
-            if scope.get("branch") is not None or scope.get("task") is not None:
+            metadata = json.loads(path.read_text(encoding="utf-8"))
+            object_type = metadata.get("type")
+            identifier = metadata.get("id", "")
+            if (
+                object_type not in allowed_types
+                or identifier.split(".", 1)[0] != object_type
+                or "scope" in metadata
+                or "facets" in metadata
+            ):
                 offenders.append(str(path.relative_to(ROOT)))
         self.assertEqual([], offenders)
 

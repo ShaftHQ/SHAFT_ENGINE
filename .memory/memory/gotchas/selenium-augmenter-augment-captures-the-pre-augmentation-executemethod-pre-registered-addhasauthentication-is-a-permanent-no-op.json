@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/selenium-augmenter-augment-captures-the-pre-augmentation-executemethod-pre-registered-addhasauthentication-is-a-permanent-no-op.md",
-  "content_hash": "sha256:ac83782ae06e8191f29e57305b7e86e798a49aab354f6f707d0608c494d363c3",
+  "content_hash": "sha256:eb6976bdc7a08f56f23a3098a607fd1f9e56cfdaed313a50d6990bdf80fb1ca0",
   "created_at": "2026-07-26T17:14:32+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.selenium-augmenter-augment-captures-the-pre-augmentation-executemethod-pre-registered-addhasauthentication-is-a-permanent-no-op",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "#4086 mid-session Learning Loop: record durable lessons from the day's parallel orchestration run (Augmenter closure bug, Surefire report path shape, GLOBAL_TESTING_SCOPE, find/pipefail, nightly signature progression, Gradle evidence artifacts) before session end risk"
@@ -31,9 +22,11 @@
     "cdp",
     "remotewebdriver",
     "issue-4037",
-    "gotcha"
+    "gotcha",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Selenium Augmenter#augment captures the pre-augmentation ExecuteMethod: pre-registered AddHasAuthentication is a permanent no-op",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

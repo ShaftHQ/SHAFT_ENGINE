@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/claude-claude-md-is-not-hand-maintained-its-canonical-source-is-claude-user-harness-claude-md-in-shaft-engine.md",
-  "content_hash": "sha256:2e801825bd2b1d35ebc3a6cdb93952b7321684c13c7a8b71f3f1470dbf4ecf65",
+  "content_hash": "sha256:8aebc437a8c93b7189f8fa58e94bb58cce2c0cc630aa16b3f151fc38f4f19338",
   "created_at": "2026-07-27T15:59:11+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.claude-claude-md-is-not-hand-maintained-its-canonical-source-is-claude-user-harness-claude-md-in-shaft-engine",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Consolidate the agent harness into a single act-as-mohab orchestrator skill (#4260, PR #4261)"
@@ -27,9 +18,11 @@
     "user-harness",
     "sync",
     "claude-md",
-    "harness"
+    "harness",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "~/.claude/CLAUDE.md is not hand-maintained: its canonical source is .claude/user-harness/CLAUDE.md in SHAFT_ENGINE",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

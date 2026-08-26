@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/pr-issue-prose-is-not-a-merge-state-source-of-truth-check-state-and-mergedat.md",
-  "content_hash": "sha256:f0df3d85175a02989f72bc0a2a071d4aeb1fd74c7ad8fcfd4bbf34f3abfe5c7b",
+  "content_hash": "sha256:bba825f67c7a2e828af179f5c585c1bbca14aada7810064936e1dc633c98d424",
   "created_at": "2026-07-26T18:46:54+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.pr-issue-prose-is-not-a-merge-state-source-of-truth-check-state-and-mergedat",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "record two post-PR-4141 gotchas: negation-blind auto-close keyword matching, and PR prose as false merge-state signal"
@@ -26,9 +17,11 @@
   "tags": [
     "github",
     "pr-state",
-    "verification"
+    "verification",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "PR/issue prose is not a merge-state source of truth -- check state and mergedAt",
   "type": "gotcha",
-  "updated_at": "2026-08-01T22:00:11+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

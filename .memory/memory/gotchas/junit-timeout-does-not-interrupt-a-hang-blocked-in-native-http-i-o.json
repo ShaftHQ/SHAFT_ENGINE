@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureManager.java",
+    "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java",
+    "shaft-capture/src/test/java/com/shaft/capture/runtime/ManagedCaptureRecorderBrowserTest.java"
+  ],
   "body_path": "memory/gotchas/junit-timeout-does-not-interrupt-a-hang-blocked-in-native-http-i-o.md",
-  "content_hash": "sha256:2e738d8fde3db1e8b86ef7e1eb46a78db397fc953d96911f06c79926d25623b6",
+  "content_hash": "sha256:a386d8279b809f56d91f7ccef198a49e279607635e779b860d715ffd03677bb3",
   "created_at": "2026-07-26T10:58:55+03:00",
   "evidence": [
     {
@@ -12,21 +17,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureManager.java",
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java",
-      "shaft-capture/src/test/java/com/shaft/capture/runtime/ManagedCaptureRecorderBrowserTest.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.junit-timeout-does-not-interrupt-a-hang-blocked-in-native-http-i-o",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning Loop second pass: record durable gotchas from #4021, #4046, #4066, #4014, #4057"
@@ -37,9 +28,11 @@
     "testing",
     "hang",
     "process-cleanup",
-    "shaft-capture"
+    "shaft-capture",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "JUnit @Timeout does not interrupt a hang blocked in native HTTP I/O",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

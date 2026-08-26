@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/agent-tool-isolation-worktree-branches-from-session-start-head-not-the-evolving-session-branch.md",
-  "content_hash": "sha256:a6941915c546c543553bf8ff87e13c6bbe2fdd1cc228b5b028d9120008ce937a",
+  "content_hash": "sha256:e1264c2adc28cc771b80c44b5a7b539d966e480e2920bf7960ebae14b8cd4487",
   "created_at": "2026-07-17T13:09:42+03:00",
   "evidence": [
     {
@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.agent-tool-isolation-worktree-branches-from-session-start-head-not-the-evolving-session-branch",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ Phase 4/5 hardening (#3643 umbrella, #3634-#3642): worktree staleness and workflow correction"
@@ -36,9 +27,11 @@
     "agent-tool",
     "isolation",
     "workflow",
-    "intellij"
+    "intellij",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Agent tool isolation:\"worktree\" branches from session-start HEAD, not the evolving session branch",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,22 +1,13 @@
 {
+  "anchors": [
+    "shaft-doctor/src/main/java/com/shaft/doctor/internal/DoctorProviderDiagnosis.java",
+    "shaft-mcp/src/main/java/com/shaft/mcp/McpDoctorRemediationService.java"
+  ],
   "body_path": "memory/gotchas/failed-locator-by-must-not-run-before-getby-on-the-same-line.md",
-  "content_hash": "sha256:7af8d3daf3e8dcc93b37a62e9d14d188e85386355485dd175f45580af35b2223",
+  "content_hash": "sha256:8c7def57c74d1bae5d4dd31205a35b30bcd7e8e9fb708568ade5aa37bc6a78b6",
   "created_at": "2026-08-18T19:17:30+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "shaft-doctor/src/main/java/com/shaft/doctor/internal/DoctorProviderDiagnosis.java",
-      "shaft-mcp/src/main/java/com/shaft/mcp/McpDoctorRemediationService.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.failed-locator-by-must-not-run-before-getby-on-the-same-line",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record locator sanitizer gotcha from #5137/#5138"
@@ -26,9 +17,11 @@
     "doctor",
     "sanitizer",
     "locator",
-    "playwright"
+    "playwright",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "FAILED_LOCATOR By.* must not run before getBy* on the same line",
   "type": "gotcha",
-  "updated_at": "2026-08-18T19:17:30+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

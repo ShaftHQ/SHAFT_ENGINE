@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/harness-rules-that-require-an-action-first-must-be-compiled-into-guard-py-not-written-as-prose.md",
-  "content_hash": "sha256:0335b61f1044c12d78cdc31f89bc1e957e12baff99c4a5a651a253ac478b4adc",
+  "content_hash": "sha256:9162676c24981cd7164ac15e609b808fa08f9bbfc40ac12fd59a3f41b74b0065",
   "created_at": "2026-08-05T05:58:20+03:00",
   "evidence": [
     {
@@ -20,16 +20,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "category": "agent-guidance"
-  },
   "id": "decision.harness-rules-that-require-an-action-first-must-be-compiled-into-guard-py-not-written-as-prose",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record why prose harness rules keep being skipped, and the architectural decision it implies (issue #4540, PR #4539)"
@@ -41,9 +32,11 @@
     "enforcement",
     "context-rot",
     "instruction-adherence",
-    "act-as-mohab"
+    "act-as-mohab",
+    "category-agent-guidance",
+    "scope-project"
   ],
   "title": "Harness rules that require an action first must be compiled into guard.py, not written as prose",
   "type": "decision",
-  "updated_at": "2026-08-05T05:58:20+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

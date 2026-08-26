@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "scripts/local-coding-agent/shaft-architect.ps1",
+    "scripts/local-coding-agent/run_agent.ps1"
+  ],
   "body_path": "memory/gotchas/aider-0-86-2-writes-aider-tags-cache-v4-even-with-history-files-redirected.md",
-  "content_hash": "sha256:a6f121e52e5eb2be31239dba9e1915857ab3829b5dcd25365ef1d039b6a6282a",
+  "content_hash": "sha256:e527c0035e357122bcc8f3f277598a035c64d1ace4110d53bf415055d6e58b4f",
   "created_at": "2026-08-17T22:23:32+03:00",
   "evidence": [
     {
@@ -12,20 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/local-coding-agent/shaft-architect.ps1",
-      "scripts/local-coding-agent/run_agent.ps1"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.aider-0-86-2-writes-aider-tags-cache-v4-even-with-history-files-redirected",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record Aider sidecar cache after #5063 architect runs"
@@ -34,9 +25,11 @@
   "tags": [
     "aider",
     "5017",
-    "local-coding-agent"
+    "local-coding-agent",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Aider 0.86.2 writes .aider.tags.cache.v4 even with history files redirected",
   "type": "gotcha",
-  "updated_at": "2026-08-17T22:23:32+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

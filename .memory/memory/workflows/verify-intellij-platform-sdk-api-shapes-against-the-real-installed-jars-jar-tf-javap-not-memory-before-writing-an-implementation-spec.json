@@ -1,18 +1,9 @@
 {
   "body_path": "memory/workflows/verify-intellij-platform-sdk-api-shapes-against-the-real-installed-jars-jar-tf-javap-not-memory-before-writing-an-implementation-spec.md",
-  "content_hash": "sha256:a4caa2c804ccdfedad013c838710b3e93a5b251767d56449385b29f629fbfbee",
+  "content_hash": "sha256:5897b4c2c379ff6b6cd181486c01a6239a48f1f8d2ff2c6a683fdc3eba54c21e",
   "created_at": "2026-07-17T05:03:33+03:00",
   "evidence": [],
-  "facets": {
-    "category": "workflow"
-  },
-  "id": "workflow.verify-intellij-platform-sdk-api-shapes-against-the-real-installed-jars-jar-tf-javap-not-memory-before-writing-an-implementation-spec",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.verify-intellij-platform-sdk-api-shapes-against-the-real-installed-jars-jar-tf-javap-not-memory-before-writing-an-implementation-spec",
   "source": {
     "kind": "agent",
     "task": "shaft-intellij issue #3631 save transcript to file and #3632 approval prompt keyboard focus"
@@ -22,9 +13,12 @@
     "shaft-intellij",
     "intellij-sdk",
     "workflow",
-    "act-as-mohab"
+    "act-as-mohab",
+    "legacy-type-workflow",
+    "category-workflow",
+    "scope-project"
   ],
   "title": "Verify IntelliJ Platform SDK API shapes against the real installed jars (jar tf / javap), not memory, before writing an implementation spec",
-  "type": "workflow",
-  "updated_at": "2026-08-01T16:14:23+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

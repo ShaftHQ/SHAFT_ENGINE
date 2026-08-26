@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:b41ba6f6f01a2ef1763c1972617565a580280978298b2b2f930fff4197215f69",
+  "content_hash": "sha256:0b7e09fed5716e04c649229ce7124baf0a13a3c5ed3852fc4213f9852d08953a",
   "created_at": "2026-06-15T16:59:56+03:00",
   "evidence": [
     {
@@ -8,7 +8,7 @@
       "kind": "memory"
     },
     {
-      "id": "architecture.current",
+      "id": "decision.current",
       "kind": "memory"
     }
   ],
@@ -16,6 +16,6 @@
   "id": "rel.project-shaft-engine-related-to-architecture-current",
   "predicate": "related_to",
   "status": "active",
-  "to": "architecture.current",
-  "updated_at": "2026-06-15T16:59:56+03:00"
+  "to": "decision.current",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

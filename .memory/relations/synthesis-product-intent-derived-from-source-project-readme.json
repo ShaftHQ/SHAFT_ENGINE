@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:9a0e8629dad385ea111e82aff38070f5cb76089c33908c2915b15cb48f527a40",
+  "content_hash": "sha256:2101a0b22953d2a65c1807f99a9bf5c641ea4624424a6cd737752b1ea8899f87",
   "created_at": "2026-06-17T11:18:10+03:00",
   "evidence": [
     {
@@ -8,10 +8,10 @@
       "kind": "source"
     }
   ],
-  "from": "synthesis.product-intent",
+  "from": "decision.product-intent",
   "id": "rel.synthesis-product-intent-derived-from-source-project-readme",
-  "predicate": "derived_from",
+  "predicate": "depends_on",
   "status": "active",
-  "to": "source.project-readme",
-  "updated_at": "2026-06-17T11:18:10+03:00"
+  "to": "gotcha.project-readme",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

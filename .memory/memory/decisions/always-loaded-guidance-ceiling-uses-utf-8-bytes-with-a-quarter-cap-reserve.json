@@ -1,23 +1,14 @@
 {
+  "anchors": [
+    "scripts/ci/agent_guidance_budget.json",
+    "scripts/ci/validate_agent_guidance.py",
+    "scripts/ci/validate_agent_setup.py"
+  ],
   "body_path": "memory/decisions/always-loaded-guidance-ceiling-uses-utf-8-bytes-with-a-quarter-cap-reserve.md",
-  "content_hash": "sha256:0cf2820838a738f6aec6ce6bc50918c60e2636320015887a408d9841cbf991f7",
+  "content_hash": "sha256:431cb4a583718db7bb1a3dadf21f62d2592d523b1c356750fc8173889ab01e7a",
   "created_at": "2026-08-04T23:52:26+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "scripts/ci/agent_guidance_budget.json",
-      "scripts/ci/validate_agent_guidance.py",
-      "scripts/ci/validate_agent_setup.py"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.always-loaded-guidance-ceiling-uses-utf-8-bytes-with-a-quarter-cap-reserve",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record PR #4537 / issue #4498 guidance-budget decision"
@@ -28,9 +19,11 @@
     "budget",
     "validation",
     "pr-4537",
-    "issue-4498"
+    "issue-4498",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Always-loaded guidance ceiling uses UTF-8 bytes with a quarter-cap reserve",
   "type": "decision",
-  "updated_at": "2026-08-04T23:52:26+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

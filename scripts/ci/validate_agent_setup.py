@@ -111,6 +111,11 @@ RELATION_GLOB = "relations/*.json"
 MEMORY_UPDATE_EVENTS = frozenset(
     {"memory.updated", "memory.marked_stale", "memory.superseded"}
 )
+MEMORY_V5_TYPES = frozenset({"project", "feature", "decision", "gotcha", "question"})
+MEMORY_V5_PREDICATES = frozenset(
+    {"affects", "depends_on", "supersedes", "related_to"}
+)
+MEMORY_V4_ONLY_FIELDS = frozenset({"facets", "scope"})
 # `create_relation` (patch.schema.json #/$defs/createRelation) accepts an
 # optional, caller-supplied `id` -- confirmed live against the real Memory
 # CLI (v0.1.55): a `create_relation` change with no `id` derives one by
@@ -396,6 +401,9 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
     pinned CLI on PATH. Project-scoped objects that set `scope.task` or
     `scope.branch` are the same class of hole: the CLI fail-closes with
     `ObjectScopeInvalid` (#5136) while this validator used to exit 0 (#5156).
+    Schema v5 also removed v4-only fields/types/predicates; enforce those
+    in-process so `--skip-external` cannot certify a corpus the pinned CLI
+    rejects (#5404).
 
     Deliberately no grandfathering set. Every one of the 245 live objects
     with a bumped `updated_at` and an event carries an event whose timestamp
@@ -413,20 +421,37 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
         except (OSError, json.JSONDecodeError) as error:
             errors.append(issue("memory-object", relative, str(error)))
             continue
-        scope = sidecar.get("scope")
-        if isinstance(scope, dict) and scope.get("kind") == "project":
-            set_fields = [
-                field for field in ("branch", "task") if scope.get(field) is not None
-            ]
-            if set_fields:
-                errors.append(
-                    issue(
-                        "memory-project-scope",
-                        relative,
-                        "Project-scoped memory must not set "
-                        f"{' or '.join(set_fields)} (issue #5136).",
-                    )
+        legacy_fields = sorted(MEMORY_V4_ONLY_FIELDS.intersection(sidecar))
+        if legacy_fields:
+            errors.append(
+                issue(
+                    "memory-v5-field",
+                    relative,
+                    f"schema v5 forbids legacy field(s): {', '.join(legacy_fields)}",
                 )
+            )
+        object_type = sidecar.get("type")
+        if object_type not in MEMORY_V5_TYPES:
+            errors.append(
+                issue(
+                    "memory-v5-type",
+                    relative,
+                    f"schema v5 object type is invalid: {object_type!r}",
+                )
+            )
+        identifier = sidecar.get("id")
+        if (
+            isinstance(identifier, str)
+            and isinstance(object_type, str)
+            and identifier.split(".", 1)[0] != object_type
+        ):
+            errors.append(
+                issue(
+                    "memory-v5-id-prefix",
+                    relative,
+                    "object id prefix must match its schema v5 type",
+                )
+            )
         body_path = sidecar.get("body_path")
         if not isinstance(body_path, str) or not body_path:
             # Not a body-backed object; nothing to hash against.
@@ -457,7 +482,6 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
                     "about this (issue #4460).",
                 )
             )
-        identifier = sidecar.get("id")
         created_at, updated_at = sidecar.get("created_at"), sidecar.get("updated_at")
         bumped = (
             isinstance(identifier, str)
@@ -475,6 +499,22 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
                     "carries that timestamp. Append one line to "
                     '.memory/events.jsonl: {"actor":"agent","event":"memory.updated",'
                     f'"id":"{identifier}","timestamp":"{updated_at}"}} (issue #4465).',
+                )
+            )
+    for relation_path in sorted(memory_dir.glob("relations/*.json")):
+        relative = relation_path.relative_to(root).as_posix()
+        try:
+            relation = read_json(relation_path)
+        except (OSError, json.JSONDecodeError) as error:
+            errors.append(issue("memory-relation", relative, str(error)))
+            continue
+        predicate = relation.get("predicate")
+        if predicate not in MEMORY_V5_PREDICATES:
+            errors.append(
+                issue(
+                    "memory-v5-predicate",
+                    relative,
+                    f"schema v5 relation predicate is invalid: {predicate!r}",
                 )
             )
     return errors

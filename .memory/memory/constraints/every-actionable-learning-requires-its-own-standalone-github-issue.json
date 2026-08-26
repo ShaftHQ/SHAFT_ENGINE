@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    ".agents/skills/act-as-mohab/SKILL.md",
+    "scripts/agents/learning_loop.py",
+    "scripts/agents/guard.py"
+  ],
   "body_path": "memory/constraints/every-actionable-learning-requires-its-own-standalone-github-issue.md",
-  "content_hash": "sha256:22d5bcf97dff21905640d643638a4b4bcc536c48a55b7bc522d86dcec0342b72",
+  "content_hash": "sha256:afadc03e94310d8cd1f6208e750d03b1cc7236238b62cad87b0530a83a423159",
   "created_at": "2026-08-11T22:18:25+03:00",
   "evidence": [
     {
@@ -8,21 +13,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".agents/skills/act-as-mohab/SKILL.md",
-      "scripts/agents/learning_loop.py",
-      "scripts/agents/guard.py"
-    ],
-    "category": "concept"
-  },
-  "id": "constraint.every-actionable-learning-requires-its-own-standalone-github-issue",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.every-actionable-learning-requires-its-own-standalone-github-issue",
   "source": {
     "kind": "agent",
     "task": "Make every actionable learning a standalone GitHub issue"
@@ -32,9 +23,12 @@
     "github",
     "learning-loop",
     "tracking",
-    "user-correction"
+    "user-correction",
+    "legacy-type-constraint",
+    "category-concept",
+    "scope-project"
   ],
   "title": "Every actionable learning requires its own standalone GitHub issue",
-  "type": "constraint",
-  "updated_at": "2026-08-11T22:21:03+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

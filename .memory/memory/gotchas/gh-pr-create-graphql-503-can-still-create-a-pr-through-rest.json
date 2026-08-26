@@ -1,22 +1,13 @@
 {
+  "anchors": [
+    "gh pr create",
+    "gh api repos/*/pulls"
+  ],
   "body_path": "memory/gotchas/gh-pr-create-graphql-503-can-still-create-a-pr-through-rest.md",
-  "content_hash": "sha256:03928cba2b6de852401bbf433fd3a7fc6b89c2b5643d4c58fb02d2cb719f7ecb",
+  "content_hash": "sha256:9dd632b9495c61606e5c69c87a443c034df6fb821344c2c683b5d3079252fe54",
   "created_at": "2026-08-17T20:09:49+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "gh pr create",
-      "gh api repos/*/pulls"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.gh-pr-create-graphql-503-can-still-create-a-pr-through-rest",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning loop after #5057 merge and #5059 docs increment"
@@ -26,9 +17,11 @@
     "github",
     "503",
     "docs",
-    "pr"
+    "pr",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "gh pr create GraphQL 503 can still create a PR through REST",
   "type": "gotcha",
-  "updated_at": "2026-08-17T20:09:49+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

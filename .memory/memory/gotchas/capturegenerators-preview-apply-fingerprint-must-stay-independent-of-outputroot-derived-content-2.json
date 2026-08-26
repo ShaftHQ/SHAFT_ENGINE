@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/capturegenerators-preview-apply-fingerprint-must-stay-independent-of-outputroot-derived-content-2.md",
-  "content_hash": "sha256:ffa0e6672b18fa0883f3645d3b256e378aa4e5f8ea128f5280153a77bea69349",
+  "content_hash": "sha256:4a3cfebb17644dca245702525bfe798057b6f0e67d2f34f24bcf8794ce8ea3bf",
   "created_at": "2026-07-27T00:18:16+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.capturegenerators-preview-apply-fingerprint-must-stay-independent-of-outputroot-derived-content-2",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue 4172: wire shaft-capture into the fingerprint-seeding healing seam"
@@ -29,9 +20,11 @@
     "fingerprint",
     "healing",
     "issue-4172",
-    "issue-4161"
+    "issue-4161",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "CaptureGenerator's PREVIEW/APPLY fingerprint must stay independent of outputRoot-derived content",
   "type": "gotcha",
-  "updated_at": "2026-08-01T21:02:05+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

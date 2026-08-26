@@ -1,6 +1,16 @@
 {
+  "anchors": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".agents/skills/act-as-mohab/",
+    "scripts/agents/guard.py",
+    ".claude/settings.json",
+    ".codex/hooks.json",
+    ".mcp.json",
+    "mempalace.yaml"
+  ],
   "body_path": "memory/decisions/unified-agent-harness-single-entrypoint-capability-tiers.md",
-  "content_hash": "sha256:cfd9ce9d6b8c23d3878f001ca65dea08d923a24012c82462052e444c3722350b",
+  "content_hash": "sha256:d59e248bdf004155341050447446fac9c6e8a4a4bed842dd79da58b1732c4606",
   "created_at": "2026-08-01T15:35:31+03:00",
   "evidence": [
     {
@@ -12,26 +22,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "AGENTS.md",
-      "CLAUDE.md",
-      ".agents/skills/act-as-mohab/",
-      "scripts/agents/guard.py",
-      ".claude/settings.json",
-      ".codex/hooks.json",
-      ".mcp.json",
-      "mempalace.yaml"
-    ],
-    "category": "agent-guidance"
-  },
   "id": "decision.unified-agent-harness-single-entrypoint-capability-tiers",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Repair renamed Memory metadata and record the unified agent-harness policy."
@@ -42,9 +33,11 @@
     "portability",
     "act-as-mohab",
     "delegation",
-    "retrieval"
+    "retrieval",
+    "category-agent-guidance",
+    "scope-project"
   ],
   "title": "One provider-agnostic agent entrypoint routes capability tiers and retrieval",
   "type": "decision",
-  "updated_at": "2026-08-01T16:13:09+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

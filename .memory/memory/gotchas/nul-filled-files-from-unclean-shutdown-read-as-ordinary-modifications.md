@@ -9,4 +9,4 @@ How to detect it cheaply, verified live:
 
 Do not sample only a prefix: a legitimately zero-padded file opens with a long NUL run and still carries real content later.
 
-This is now enforced -- see fact.worktree-hygiene-report-and-guard-rule-r10.
+This is now enforced -- see gotcha.worktree-hygiene-report-and-guard-rule-r10.

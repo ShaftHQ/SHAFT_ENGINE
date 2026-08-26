@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "shaft-engine/src/main/resources/examples/**/.idea/runConfigurations/*.xml",
+    "shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java",
+    "scripts/ci/validate_modular_documentation.py"
+  ],
   "body_path": "memory/gotchas/intellij-shared-run-templates-require-one-configuration-per-file.md",
-  "content_hash": "sha256:a6d9f998919ac4e58e77b13bbb9b62b81428be4d62156f6f306a91bf208517dd",
+  "content_hash": "sha256:de9cd6fbf40fdbdff024145f200c1e1f5aa06ecd030df034ff5f8ffdf4eb6b88",
   "created_at": "2026-08-15T07:06:50+03:00",
   "evidence": [
     {
@@ -12,21 +17,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/resources/examples/**/.idea/runConfigurations/*.xml",
-      "shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java",
-      "scripts/ci/validate_modular_documentation.py"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-shared-run-templates-require-one-configuration-per-file",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the durable root-cause constraint discovered while fixing GitHub issue #4923."
@@ -37,9 +28,11 @@
     "project-generator",
     "run-configuration",
     "argfile",
-    "issue-4923"
+    "issue-4923",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "IntelliJ shared run templates require one configuration per file",
   "type": "gotcha",
-  "updated_at": "2026-08-15T07:06:50+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,21 +1,12 @@
 {
+  "anchors": [
+    "DefaultAgentToolsToolchainOperations"
+  ],
   "body_path": "memory/gotchas/agent-tools-host-probes-must-not-use-cacheroot-as-processbuilder-cwd.md",
-  "content_hash": "sha256:544768a99ea58ef374a46b749ea8cad22aa6d36f29097e30f8704dc2c9254412",
+  "content_hash": "sha256:e831a82c20cd005536350c80f6516544cd7b0b8e6be5cbc26b0f5817754f574f",
   "created_at": "2026-08-17T18:21:43+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "DefaultAgentToolsToolchainOperations"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.agent-tools-host-probes-must-not-use-cacheroot-as-processbuilder-cwd",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning after 5052 blockers and 4849 rescope"
@@ -24,9 +15,11 @@
   "tags": [
     "setup",
     "agent-tools",
-    "cwd"
+    "cwd",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Agent-tools host probes must not use cacheRoot as ProcessBuilder cwd",
   "type": "gotcha",
-  "updated_at": "2026-08-17T18:21:43+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

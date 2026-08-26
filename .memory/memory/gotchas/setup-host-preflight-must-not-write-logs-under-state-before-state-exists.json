@@ -1,21 +1,12 @@
 {
+  "anchors": [
+    "shaft-infrastructure"
+  ],
   "body_path": "memory/gotchas/setup-host-preflight-must-not-write-logs-under-state-before-state-exists.md",
-  "content_hash": "sha256:143af967365147d788a20f6ae042e66f9c4190b2b63615b4c05ac76e396d5505",
+  "content_hash": "sha256:ec53196f5ff6434a760dfe3756c25d392c239dc7f48cc994dc117d64a0c81385",
   "created_at": "2026-08-17T14:35:11+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "shaft-infrastructure"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.setup-host-preflight-must-not-write-logs-under-state-before-state-exists",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record Grid setup review gotchas from #5041/#5042"
@@ -24,9 +15,11 @@
   "tags": [
     "setup",
     "docker",
-    "preflight"
+    "preflight",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Setup host preflight must not write logs under state before state exists",
   "type": "gotcha",
-  "updated_at": "2026-08-17T14:35:11+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

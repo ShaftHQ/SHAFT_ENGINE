@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/issue-4239-p0-3-p0-4-pr-4243-captureservice-mcptool-schema-annotations.md",
-  "content_hash": "sha256:c886635ec7a2ba7a9f85d51c9517f421e25b13eed8d1922c354a8bdbba2d08bc",
+  "content_hash": "sha256:7c9f6a391d1cb4b57a900965d04e5be29c5d73871adb25ccd69694decee79528",
   "created_at": "2026-07-27T11:11:04+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.issue-4239-p0-3-p0-4-pr-4243-captureservice-mcptool-schema-annotations",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #4239 P0.3/P0.4 CaptureService tool-schema fixes (PR #4243)"
@@ -34,9 +25,11 @@
     "mcp-tool-schema",
     "capture-generate-replay",
     "capture-start",
-    "mobile"
+    "mobile",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Issue #4239 P0.3+P0.4 shipped in PR #4243: CaptureService.generateReplay had 9 unannotated @McpTool params, not just replay; capture_start mobile fix took the description-only fallback",
   "type": "decision",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }
