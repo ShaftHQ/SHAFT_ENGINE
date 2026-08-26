@@ -548,6 +548,24 @@ def write_account_receipt(
     return receipt
 
 
+def ensure_mempalace_config(project: Path) -> None:
+    """Create the minimal validated config without invoking interactive setup."""
+    path = project / "mempalace.yaml"
+    if path.is_file():
+        return
+    wing = re.sub(r"[^a-z0-9]+", "_", project.name.casefold()).strip("_") or "project"
+    path.write_text(
+        f"wing: {wing}_main\n"
+        "rooms:\n  - name: general\n"
+        "    description: Project source and documentation\n"
+        "    keywords: [project, source, documentation]\n"
+        "exclude_patterns:\n  - mempalace.yaml\n  - .memory/**\n"
+        "  - graphify-out/**\n  - .chaos-engine-runtime/**\n"
+        "  - .chaos-engine-state/**\n",
+        encoding="utf-8",
+    )
+
+
 def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
     """Plan current-folder initialization without resetting existing project data."""
     project = project.resolve()
@@ -561,8 +579,6 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
             "--backend",
             "sqlite_exact",
         ]
-        if not (project / "mempalace.yaml").is_file():
-            planned.append([*mempalace_command, "init", ".", "--yes", "--no-llm"])
         if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
             planned.append([*mempalace_command, "mine", "."])
     graphify = commands.get("graphify")
@@ -816,6 +832,8 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     ]
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
+    if commands.get("mempalace"):
+        ensure_mempalace_config(project)
     for command in project_setup_plan(project, commands):
         _run_account_command(command, project, runner=runner)
         if command[-2:] == ["mine", "."]:

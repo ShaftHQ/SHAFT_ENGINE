@@ -441,20 +441,13 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 "graphify": "/tools/graphify",
                 "memory": "/tools/memory",
             }
+            module.ensure_mempalace_config(project)
             fresh = module.project_setup_plan(project, commands)
-            self.assertEqual(
-                [
-                    "/tools/mempalace",
-                    "--palace",
-                    ".chaos-engine-state/mempalace",
-                    "--backend",
-                    "sqlite_exact",
-                    "init",
-                    ".",
-                    "--yes",
-                    "--no-llm",
-                ],
-                fresh[0],
+            config = (project / "mempalace.yaml").read_text(encoding="utf-8")
+            self.assertIn("wing: tmp", config)
+            self.assertIn("exclude_patterns:", config)
+            self.assertFalse(
+                any(command[0] == "/tools/mempalace" and "init" in command for command in fresh)
             )
             self.assertIn(
                 [
