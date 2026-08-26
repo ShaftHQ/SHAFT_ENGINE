@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -18,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTROLLER = ROOT / "chaos-engine/dependencies.py"
 SPECIFICATION = ROOT / "chaos-engine/dependencies.json"
 TOOL = ROOT / "chaos-engine/tool.py"
+HOSTS = ROOT / "chaos-engine/hosts.py"
 
 
 def load_controller():
@@ -33,6 +35,15 @@ def load_tool():
     spec = importlib.util.spec_from_file_location("chaos_engine_tool", TOOL)
     if spec is None or spec.loader is None:
         raise RuntimeError("tool launcher test module could not be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_hosts():
+    spec = importlib.util.spec_from_file_location("chaos_engine_hosts_for_dependencies", HOSTS)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("host controller test module could not be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -129,6 +140,38 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             with mock.patch.object(module.shutil, "which", return_value="/usr/bin/git"):
                 with mock.patch.object(module.subprocess, "run", return_value=completed):
                     self.assertEqual(primary, module.shared_runtime_project(linked))
+
+    def test_separate_git_directories_keep_retrieval_state_project_isolated(self):
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("Git is unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repositories = [root / "project-one", root / "project-two"]
+            metadata = [root / "metadata/one.git", root / "metadata/two.git"]
+            for project, git_directory in zip(repositories, metadata, strict=True):
+                git_directory.parent.mkdir(parents=True, exist_ok=True)
+                subprocess.run(
+                    [git, "init", "-q", "--separate-git-dir", str(git_directory), str(project)],
+                    check=True,
+                )
+
+            modules = (load_tool(), load_controller(), load_hosts())
+            functions = ("shared_runtime_project", "shared_state_project", "shared_state_project")
+            for module, function in zip(modules, functions, strict=True):
+                owners = [getattr(module, function)(project) for project in repositories]
+                self.assertEqual(
+                    [path / "chaos-engine-worktree-state" for path in metadata], owners
+                )
+                self.assertNotEqual(owners[0], owners[1])
+            modules[2].initialize_mempalace_runtime(repositories[0])
+            self.assertTrue(
+                (
+                    metadata[0]
+                    / "chaos-engine-worktree-state/.chaos-engine-state/mempalace/sqlite_exact.sqlite3"
+                ).is_file()
+            )
+            self.assertFalse((repositories[0] / ".chaos-engine-state").exists())
 
     def test_tool_launcher_shares_retrieval_state_without_project_specific_resolvers(self):
         module = load_tool()

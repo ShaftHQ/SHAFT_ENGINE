@@ -30,7 +30,7 @@ def shared_runtime_project(project: Path) -> Path:
     common = Path(completed.stdout.strip())
     if not common.is_absolute():
         common = (project / common).resolve()
-    return common.parent
+    return common.parent if common.name == ".git" else common / "chaos-engine-worktree-state"
 
 
 def load_host_controller(installed_root: Path):

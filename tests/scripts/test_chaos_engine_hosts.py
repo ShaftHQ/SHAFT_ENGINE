@@ -1988,6 +1988,39 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 (database.parent / "user-owned.bin").read_bytes(),
             )
 
+    def test_linked_worktree_initializes_mempalace_only_in_primary_checkout(self):
+        module = load(HOSTS, "chaos_engine_mempalace_linked_initialize")
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("Git is unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            primary = root / "primary"
+            linked = root / "linked"
+            primary.mkdir()
+            for command in (
+                [git, "init", "-q"],
+                [git, "config", "user.email", "test@example.invalid"],
+                [git, "config", "user.name", "ChaosEngine Test"],
+            ):
+                subprocess.run(command, cwd=primary, check=True, capture_output=True)
+            primary.joinpath("tracked.txt").write_text("tracked\n", encoding="utf-8")
+            subprocess.run([git, "add", "tracked.txt"], cwd=primary, check=True)
+            subprocess.run([git, "commit", "-qm", "fixture"], cwd=primary, check=True)
+            subprocess.run(
+                [git, "worktree", "add", "-qb", "fixture-linked", str(linked)],
+                cwd=primary,
+                check=True,
+            )
+
+            module.initialize_mempalace_runtime(linked)
+
+            self.assertTrue(
+                (primary / ".chaos-engine-state/mempalace/sqlite_exact.sqlite3").is_file()
+            )
+            self.assertFalse((linked / ".chaos-engine-state").exists())
+            self.assertEqual("healthy", module.mempalace_runtime_status(linked)["status"])
+
     def test_fresh_mempalace_initializer_revalidates_paths_after_creation(self):
         module = load(HOSTS, "chaos_engine_mempalace_initialize_race")
         self.assertTrue(hasattr(module, "initialize_mempalace_runtime"))

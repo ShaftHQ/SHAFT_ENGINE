@@ -629,6 +629,13 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             self.assertTrue(any("api.github.com/repos/ShaftHQ/SHAFT_ENGINE/commits/main" in call for call in calls))
 
+            # Reproduce an installation made before upstream provenance shipped.
+            legacy_token = manifest["hostToken"]
+            del manifest["source"]["upstreamRepository"]
+            (project / ".chaos-engine/manifest.json").write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
             open_two, _ = self.opener([(COMMIT_TWO, "two")])
             updated = module.install_latest(
                 project,
@@ -638,6 +645,15 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 opener=open_two,
             )
             self.assertEqual(COMMIT_TWO, updated["commit"])
+            current = json.loads(
+                (project / ".chaos-engine/manifest.json").read_text(encoding="utf-8")
+            )
+            backup = json.loads(
+                (project / ".chaos-engine.backup/manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("shafthq/shaft_engine", current["source"]["upstreamRepository"])
+            self.assertEqual(legacy_token, current["hostToken"])
+            self.assertNotIn("upstreamRepository", backup["source"])
 
             before = (project / ".chaos-engine/manifest.json").read_bytes()
             with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):

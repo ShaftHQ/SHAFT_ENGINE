@@ -110,19 +110,24 @@ def normalize_source_record(source: object) -> dict[str, str]:
         and COMMIT_PATTERN.fullmatch(source.get("commit", "")) is not None
     ):
         return dict(source)
+    digest_fields = {"commit", "kind", "repositorySha256", "branchSha256"}
     if (
-        set(source) == {
-            "commit", "kind", "repositorySha256", "branchSha256", "upstreamRepository"
-        }
+        set(source) in {frozenset(digest_fields), frozenset(digest_fields | {"upstreamRepository"})}
         and source.get("kind") == "git-digest"
         and COMMIT_PATTERN.fullmatch(source.get("commit", "")) is not None
         and re.fullmatch(r"[0-9a-f]{64}", source.get("repositorySha256", "")) is not None
         and re.fullmatch(r"[0-9a-f]{64}", source.get("branchSha256", "")) is not None
-        and REPOSITORY_PATTERN.fullmatch(source.get("upstreamRepository", "")) is not None
-        and len(source.get("upstreamRepository", "").split("/")) == 2
+        and (
+            "upstreamRepository" not in source
+            or (
+                REPOSITORY_PATTERN.fullmatch(source["upstreamRepository"]) is not None
+                and len(source["upstreamRepository"].split("/")) == 2
+            )
+        )
     ):
         result = dict(source)
-        result["upstreamRepository"] = result["upstreamRepository"].casefold()
+        if "upstreamRepository" in result:
+            result["upstreamRepository"] = result["upstreamRepository"].casefold()
         return result
     repository = source.get("repository", "")
     branch = source.get("branch", "")

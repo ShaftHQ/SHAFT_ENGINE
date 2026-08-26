@@ -403,7 +403,7 @@ def shared_state_project(project: Path) -> Path:
     common = Path(completed.stdout.strip())
     if not common.is_absolute():
         common = (project / common).resolve()
-    return common.parent
+    return common.parent if common.name == ".git" else common / "chaos-engine-worktree-state"
 
 
 def centralized_mempalace_status() -> dict[str, str]:
@@ -643,7 +643,7 @@ def initialize_mempalace_runtime(project: Path) -> None:
     validate_path(owner, palace)
     state_root_created = not state_root.exists()
     palace_created = not palace.exists()
-    state_root.mkdir(exist_ok=True)
+    state_root.mkdir(parents=True, exist_ok=True)
     validate_path(owner, palace)
     palace.mkdir(exist_ok=True)
     validate_path(owner, palace)
@@ -658,7 +658,7 @@ def initialize_mempalace_runtime(project: Path) -> None:
     try:
         if any(palace.iterdir()):
             raise ValueError("ChaosEngine will not initialize over existing MemPalace state")
-        validate_path(project, palace)
+        validate_path(owner, palace)
         named_palace = os.stat(palace, follow_symlinks=False)
         if palace_identity != (named_palace.st_dev, named_palace.st_ino):
             raise ValueError("ChaosEngine MemPalace state path changed before initialization")

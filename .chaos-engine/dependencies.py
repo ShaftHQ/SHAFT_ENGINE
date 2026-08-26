@@ -585,7 +585,7 @@ def shared_state_project(project: Path) -> Path:
     common = Path(completed.stdout.strip())
     if not common.is_absolute():
         common = (project / common).resolve()
-    return common.parent
+    return common.parent if common.name == ".git" else common / "chaos-engine-worktree-state"
 
 
 def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
