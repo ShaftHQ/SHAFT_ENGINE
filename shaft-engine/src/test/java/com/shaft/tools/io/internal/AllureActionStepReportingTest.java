@@ -122,6 +122,10 @@ public class AllureActionStepReportingTest extends Tests {
 
     @Test
     public void failedNavigateAgainstInvalidUrlBodyWritesExactlyOneFailedAllureStep() throws IOException {
+        driver.get().quit();
+        SHAFT.Properties.web.set().pageLoadStrategy("normal");
+        SHAFT.Properties.web.set().readinessState("complete");
+        driver.set(new SHAFT.GUI.WebDriver());
         String url = TestPageServer.url("navigationErrorFixture.html");
         SHAFT.Properties.flags.set().forceCheckNavigationWasSuccessful(true);
         RuntimeException thrown = null;
