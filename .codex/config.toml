@@ -1,28 +1,5 @@
-[mcp_servers.shaft-memory]
-command = "npx"
-args = ["--yes", "--package", "@aictx/memory@0.2.1", "--", "memory-mcp"]
-cwd = ".."
-enabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]
-default_tools_approval_mode = "auto"
-startup_timeout_sec = 30
-tool_timeout_sec = 60
-required = false
-
-[mcp_servers.shaft-memory.tools.remember_memory]
-approval_mode = "prompt"
-
-[mcp_servers.mempalace]
-command = "python3"
-args = [".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]
-commandWindows = "py"
-argsWindows = ["-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]
-cwd = "."
-env = { MEMPALACE_EMBEDDING_MODEL = "minilm", MEMPALACE_BACKEND = "sqlite_exact" }
-required = false
-
 [mcp_servers.context7]
-command = "npx"
-args = ["-y", "@upstash/context7-mcp"]
+url = "https://mcp.context7.com/mcp"
 required = false
 # CHAOSENGINE:START
 [mcp_servers."chaosengine-memory"]
@@ -34,13 +11,10 @@ cwd = "."
 
 [mcp_servers."chaosengine-mempalace"]
 command = "python3"
-args = [".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]
+args = [".chaos-engine/tool.py", "mempalace-mcp"]
 commandWindows = "py"
-argsWindows = ["-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]
+argsWindows = ["-3", ".chaos-engine/tool.py", "mempalace-mcp"]
 cwd = "."
 env = { MEMPALACE_EMBEDDING_MODEL = "minilm", MEMPALACE_BACKEND = "sqlite_exact" }
 
-[mcp_servers."maven-tools-mcp"]
-command = "/usr/lib/jvm/java-25-openjdk-amd64/bin/java"
-args = ["-jar", "/home/mohab/.local/share/ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar", "--spring.profiles.active=docker,no-context7"]
 # CHAOSENGINE:END

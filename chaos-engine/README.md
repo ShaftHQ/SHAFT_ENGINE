@@ -321,7 +321,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 <!-- inventory:managed-dependencies:start -->
 | Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| graphify | Managed commands: graphify; packages: graphifyy==0.9.43, tree-sitter-sql==0.3.11. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
+| graphify | Managed commands: graphify; packages: graphifyy==0.9.50, tree-sitter-sql==0.3.11. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
 | memory | Managed commands: memory, memory-mcp; packages: @aictx/memory@0.2.1. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
 | mempalace | Managed commands: mempalace, mempalace-mcp; packages: mempalace==3.8.0. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
 | uv | Managed commands: uv; packages: uv==0.11.29. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |

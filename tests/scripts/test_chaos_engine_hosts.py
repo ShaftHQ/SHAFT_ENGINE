@@ -692,14 +692,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     self.assertIn(".chaos-engine/tool.py", server["argsWindows"])
                 mempalace = servers["chaosengine-mempalace"]
                 self.assertEqual(
-                    ["--backend", "sqlite_exact"],
+                    [".chaos-engine/tool.py", "mempalace-mcp"],
                     mempalace["args"][-2:],
                 )
                 self.assertEqual(module.MEMPALACE_MCP_ENV, mempalace["env"])
             self.assertIn('[mcp_servers."chaosengine-memory"]', codex)
             self.assertIn('".chaos-engine/tool.py", "memory-mcp"]', codex)
-            self.assertIn(".chaos-engine-state/mempalace", str(claude))
-            self.assertIn('"--backend", "sqlite_exact"', codex)
+            self.assertNotIn(".chaos-engine-state/mempalace", str(claude))
+            self.assertNotIn('"--palace"', codex)
             self.assertIn("MEMPALACE_BACKEND = \"sqlite_exact\"", codex)
             self.assertIn("MEMPALACE_EMBEDDING_MODEL = \"minilm\"", codex)
 
@@ -1600,7 +1600,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             self.assertEqual(2, run.call_count)
             self.assertEqual(
-                ["--backend", "sqlite_exact"],
+                [str(project / ".chaos-engine/tool.py"), "mempalace-mcp"],
                 run.call_args_list[1].args[0][-2:],
             )
             for call in run.call_args_list:
@@ -2092,7 +2092,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
             shaft = Path(temporary) / "shaft"
             resolver = shaft / "tools/repository-map/resolve_mempalace.py"
             resolver.parent.mkdir(parents=True)
-            resolver.write_text("# fixture SHAFT resolver\n", encoding="utf-8")
+            resolver.write_text(
+                "from pathlib import Path\n"
+                "def find_shared_mempalace(cwd): return Path(cwd) / 'shared-palace'\n",
+                encoding="utf-8",
+            )
 
             state = module.mempalace_runtime_status(shaft)
             self.assertEqual("degraded", state["status"])
@@ -2144,20 +2148,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project = Path(temporary)
             resolver = project / "tools/repository-map/resolve_mempalace.py"
             resolver.parent.mkdir(parents=True)
-            resolver.write_text("# fixture SHAFT resolver\n", encoding="utf-8")
-            arguments = [
-                "--palace",
-                ".chaos-engine-state/mempalace",
-                "--backend",
-                "sqlite_exact",
-            ]
+            resolver.write_text(
+                "from pathlib import Path\n"
+                "def find_shared_mempalace(cwd): return Path(cwd) / 'shared-palace'\n",
+                encoding="utf-8",
+            )
             with mock.patch.object(
                 tool,
                 "load_host_controller",
-                return_value=hosts.__dict__,
+                return_value={
+                    "mempalace_runtime_status": lambda _project: {
+                        "status": "recovery-required",
+                        "detail": "Run scripts/agents/knowledge_stores.py status.",
+                    }
+                },
             ):
                 with self.assertRaisesRegex(ValueError, r"knowledge_stores\.py"):
-                    tool.guard_mempalace_mcp(project / ".chaos-engine", arguments)
+                    tool.guard_mempalace_mcp(project / ".chaos-engine", [])
 
     def test_hosts_module_source_has_no_portable_forbidden_tokens(self):
         catalog = json.loads((ROOT / "chaos-engine/distributions.json").read_text(encoding="utf-8"))
@@ -2293,7 +2300,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(commands["memory-mcp"], servers["chaosengine-memory"]["command"])
         self.assertEqual([], servers["chaosengine-memory"]["args"])
-        self.assertEqual(commands["mempalace-mcp"], servers["chaosengine-mempalace"]["command"])
+        self.assertEqual("python3", servers["chaosengine-mempalace"]["command"])
+        self.assertEqual(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            servers["chaosengine-mempalace"]["args"],
+        )
         self.assertEqual(".", servers["chaosengine-mempalace"]["cwd"])
 
     def test_native_maven_tools_runtime_uses_resolved_host_paths(self):

@@ -107,7 +107,7 @@ is recorded.
 
 Unclassified extract skips are corpus policy, not a failed install. Noise
 families belong in `.graphifyignore` and `mempalace.yaml` `exclude_patterns`.
-Known first-class SHAFT families that Graphifyy 0.9.43 still drops
+Known first-class SHAFT families that Graphifyy 0.9.50 still drops
 (`.properties`, `META-INF/services/*`, Dockerfiles, plugin XML, `.toml`,
 `.feature`, wrappers) stay on the Graphify allowlist until an upstream
 promote lands. Nightly MemPalace mine force-includes the exact

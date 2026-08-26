@@ -721,7 +721,7 @@ def mcp_runtime_healthy(
             "id": 1,
             "method": "initialize",
             "params": {
-                "protocolVersion": "2025-06-18",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {},
                 "clientInfo": {"name": "chaos-engine-doctor", "version": "1"},
             },
@@ -751,13 +751,7 @@ def mcp_runtime_healthy(
     commands = (
         [account_commands["memory-mcp"]]
         if account_commands is not None else [python, str(tool), "memory-mcp"],
-        ([
-            account_commands["mempalace-mcp"], "--palace",
-            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
-        ] if account_commands is not None else [
-            python, str(tool), "mempalace-mcp", "--palace",
-            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
-        ]),
+        [python, str(tool), "mempalace-mcp"],
     )
     for index, command in enumerate(commands):
         if index == 1 and skip_checkout_mempalace:
@@ -2067,7 +2061,7 @@ def probe_maven_tools_runtime(
 
         initialized = exchange([{
             "jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {},
                        "clientInfo": {"name": "chaosengine-installer", "version": "1"}},
         }])
         if initialized.get("id") != 1 or not isinstance(initialized.get("result"), dict):
@@ -2121,14 +2115,7 @@ def owned_servers(
             [".chaos-engine/tool.py", "memory-mcp"], managed_python=managed_python
         ),
         "chaosengine-mempalace": portable_python_server(
-            [
-                ".chaos-engine/tool.py",
-                "mempalace-mcp",
-                "--palace",
-                ".chaos-engine-state/mempalace",
-                "--backend",
-                "sqlite_exact",
-            ],
+            [".chaos-engine/tool.py", "mempalace-mcp"],
             extra={"env": dict(MEMPALACE_MCP_ENV)},
             managed_python=managed_python,
         ),
@@ -2142,15 +2129,10 @@ def owned_servers(
         servers["chaosengine-memory"] = {
             "command": memory, "args": [], "cwd": "."
         }
-        servers["chaosengine-mempalace"] = {
-            "command": mempalace,
-            "args": [
-                "--palace", ".chaos-engine-state/mempalace",
-                "--backend", "sqlite_exact",
-            ],
-            "cwd": ".",
-            "env": dict(MEMPALACE_MCP_ENV),
-        }
+        servers["chaosengine-mempalace"] = portable_python_server(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            extra={"env": dict(MEMPALACE_MCP_ENV)},
+        )
     if maven_runtime is not None:
         java, jar = maven_runtime
         servers["maven-tools-mcp"] = {
@@ -2585,10 +2567,7 @@ def codex_content(
         posix_command = windows_command = str(managed_python).replace("\\", "\\\\")
     windows_prefix = "" if managed_python is not None else '"-3", '
     memory_args = '".chaos-engine/tool.py", "memory-mcp"'
-    mempalace_args = (
-        '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
-        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"'
-    )
+    mempalace_args = '".chaos-engine/tool.py", "mempalace-mcp"'
     if account_commands is not None:
         memory = account_commands.get("memory-mcp")
         mempalace = account_commands.get("mempalace-mcp")
@@ -2612,10 +2591,14 @@ def codex_content(
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
     if account_commands is not None:
-        mempalace_command = account_commands["mempalace-mcp"].replace("\\", "\\\\")
         block = block.replace(
             f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"',
-            f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{mempalace_command}"',
+            '[mcp_servers."chaosengine-mempalace"]\ncommand = "python3"',
+        ).replace(
+            f'commandWindows = "{windows_command}"\n'
+            f'argsWindows = [{windows_prefix}{mempalace_args}]',
+            'commandWindows = "py"\nargsWindows = ["-3", '
+            f'{mempalace_args}]',
         )
     block = block.replace(
         "# CHAOSENGINE:END\n",
