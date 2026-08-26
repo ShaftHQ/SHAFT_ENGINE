@@ -18,7 +18,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
-    @DefaultValue("10.3.20260824")
+    @DefaultValue("10.3.20260826")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
@@ -32,7 +32,7 @@ public interface Internal extends EngineProperties<Internal> {
      * without changing {@code AllureManager} or any CI script. Use this url for the latest version <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
      */
     @Key("allure3Version")
-    @DefaultValue("3.15.0")
+    @DefaultValue("3.16.0")
     String allure3Version();
 
     /**
@@ -51,7 +51,7 @@ public interface Internal extends EngineProperties<Internal> {
      * a local Appium server without requiring administrator-installed tools.
      */
     @Key("appiumServerVersion")
-    @DefaultValue("3.6.0")
+    @DefaultValue("3.7.0")
     String appiumServerVersion();
 
     /**
