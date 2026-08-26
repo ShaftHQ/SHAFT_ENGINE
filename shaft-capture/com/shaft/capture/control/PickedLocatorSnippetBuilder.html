@@ -66,13 +66,10 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">PickedLocatorSnippetBuilder</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Renders a single copy-paste <code>SHAFT.GUI.Locator...</code> (or <code>By...</code>) Java expression for
-one picked locator candidate, for the live "Pick Locator" flow (see
-<code>CaptureControlServer#pickLocator</code>). Deliberately simpler than
-<code>com.shaft.capture.generate.CaptureGenerator</code>'s codegen-time locator rendering (which also
-has access to the target's semantic role/label/input-vs-clickable classification to prefer
-<code>inputField(...)</code>/<code>clickableField(...)</code>): this builder only sees the picked
-candidate itself, since a live pick has no surrounding recorded scenario to classify against.</div>
+<div class="block">Renders a single copy-paste SHAFT locator Java expression for one picked locator candidate.
+Matches <code>LocatorPolicy</code>'s three-tier emission: builder id, builder role/text, then
+native <code>By.xpath</code>. Never emits the banned <code>SHAFT.GUI.Locator.id/name/cssSelector/xpath</code>
+factories.</div>
 </div>
 </section>
 <section class="summary">
@@ -120,7 +117,7 @@ candidate itself, since a live pick has no surrounding recorded scenario to clas
 <dt>Parameters:</dt>
 <dd><code>candidate</code> - picked locator candidate</dd>
 <dt>Returns:</dt>
-<dd><code>SHAFT.GUI.Locator...</code> or <code>By...</code> Java expression</dd>
+<dd>SHAFT locator-builder or <code>By.xpath</code> Java expression</dd>
 </dl>
 </div>
 </section>
