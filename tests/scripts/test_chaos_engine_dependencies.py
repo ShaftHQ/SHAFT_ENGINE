@@ -442,7 +442,9 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 "memory": "/tools/memory",
             }
             fresh = module.project_setup_plan(project, commands)
-            self.assertEqual(["/tools/mempalace", "init", "."], fresh[0])
+            self.assertEqual(
+                ["/tools/mempalace", "init", ".", "--yes", "--no-llm"], fresh[0]
+            )
             self.assertIn(["/tools/mempalace", "mine", "."], fresh)
             self.assertIn(
                 ["/tools/graphify", "install", "--platform", "agents", "--project"],
