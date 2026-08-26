@@ -779,7 +779,7 @@ def render_text(payload: dict[str, Any]) -> str:
         f"elapsed={payload['timing']['elapsed_seconds']}s/{payload['timing']['budget_seconds']}s"
     ]
     lines.extend(
-        f"{item['id']} status={item['status']} protected={str(item['protected']).lower()} "
+        f"{item['id']} status={item.get('status', 'planned')} protected={str(item['protected']).lower()} "
         f"tests={','.join(item['tests'])} reproduce={item['reproduction_command']}"
         for item in payload["checks"]
     )
