@@ -544,7 +544,8 @@ class InstallReporter:
             active_item = next(
                 (
                     item
-                    for item in operations
+                    for item in [self.current_operation, *self._in_flight]
+                    if item is not None
                     if item == self.current_operation or item in self._in_flight
                 ),
                 None,

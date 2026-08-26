@@ -1,9 +1,7 @@
 {
-  "anchors": [
-    ".memory/"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/memory-saves-use-intent-first-json-on-stdin.md",
-  "content_hash": "sha256:b7163ad414caf8af7764069206b3bb5960a599788172bb48229ec42e3c348ce5",
+  "content_hash": "sha256:02dacd62a0628fae435fa5d76d85eebfbc1bd30dc33f2011fe7ae77d0b6f2ba9",
   "created_at": "2026-06-20T12:08:49+03:00",
   "evidence": [
     {
@@ -30,9 +28,10 @@
     "load-debugging",
     "load-review",
     "scope-project",
-    "applies-to-memory-cli"
+    "applies-to-memory-cli",
+    "applies-to-memory"
   ],
   "title": "Use supported Memory CLI write commands",
   "type": "gotcha",
-  "updated_at": "2026-08-26T18:13:21+03:00"
+  "updated_at": "2026-08-26T18:22:30+03:00"
 }

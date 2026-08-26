@@ -1,9 +1,7 @@
 {
-  "anchors": [
-    ".memory/events.jsonl"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge.md",
-  "content_hash": "sha256:919db5e03b67947e59fa33e0b615e44eb089fdd5f9066edded32893b9f5f821d",
+  "content_hash": "sha256:98f7f538c3b530020b65ba3c0ae402189955cb4c9fa9cc08083026b0b0a1f179",
   "created_at": "2026-07-08T17:09:56+03:00",
   "evidence": [
     {
@@ -33,9 +31,10 @@
     "github",
     "false-positive",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-memory-events-jsonl"
   ],
   "title": ".memory/events.jsonl append-log conflicts on every concurrent-session merge",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:22:30+03:00"
 }

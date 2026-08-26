@@ -1,9 +1,7 @@
 {
-  "anchors": [
-    ".memory/events.jsonl"
-  ],
+  "anchors": [],
   "body_path": "memory/gotchas/blank-events-jsonl-lines-fail-close-aictx-memory.md",
-  "content_hash": "sha256:506b654f175fda9e03662763c5d149755814a04681d2f628ceb8455c45f6b51c",
+  "content_hash": "sha256:edff888b9c8c817215ed2dbfe566536b0cdd02ceb15dd80b23658f67bba94c6b",
   "created_at": "2026-08-20T01:06:05+03:00",
   "evidence": [
     {
@@ -26,9 +24,10 @@
     "jsonl",
     "gotcha",
     "category-gotcha",
-    "scope-project"
+    "scope-project",
+    "applies-to-memory-events-jsonl"
   ],
   "title": "Blank events.jsonl lines fail-close native Memory index",
   "type": "gotcha",
-  "updated_at": "2026-08-26T17:34:29+03:00"
+  "updated_at": "2026-08-26T18:22:30+03:00"
 }
