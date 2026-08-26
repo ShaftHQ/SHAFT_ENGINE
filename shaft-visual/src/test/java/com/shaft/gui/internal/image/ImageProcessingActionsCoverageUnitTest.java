@@ -61,6 +61,30 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ImageProcessingActionsCoverageUnitTest {
+
+    @Test
+    public void screenshotCoordinatesShouldScaleCssRectangleForDprTwoFullPageImage() {
+        org.openqa.selenium.Rectangle transformed = ImageProcessingActions.transformElementRectangle(
+                new org.openqa.selenium.Rectangle(640, 540, 100, 320),
+                2560, 60104, 1280, 30052, 0, 0);
+
+        Assert.assertEquals(transformed.getX(), 1280);
+        Assert.assertEquals(transformed.getY(), 1080);
+        Assert.assertEquals(transformed.getWidth(), 640);
+        Assert.assertEquals(transformed.getHeight(), 200);
+    }
+
+    @Test
+    public void viewportCoordinatesShouldSubtractScrollBeforeScaling() {
+        org.openqa.selenium.Rectangle transformed = ImageProcessingActions.transformElementRectangle(
+                new org.openqa.selenium.Rectangle(300, 900, 50, 200),
+                2400, 1600, 1200, 800, 100, 600);
+
+        Assert.assertEquals(transformed.getX(), 400);
+        Assert.assertEquals(transformed.getY(), 600);
+        Assert.assertEquals(transformed.getWidth(), 400);
+        Assert.assertEquals(transformed.getHeight(), 100);
+    }
     private static final FileActions FILE_ACTIONS = FileActions.getInstance(true);
     private static final Path TEMP_ROOT = Path.of("target", "temp", "imageProcessingActionsCoverageUnitTest");
 

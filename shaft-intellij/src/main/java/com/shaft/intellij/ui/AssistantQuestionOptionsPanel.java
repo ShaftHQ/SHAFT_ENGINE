@@ -35,14 +35,14 @@ final class AssistantQuestionOptionsPanel extends JPanel {
                 JBUI.Borders.empty(2)));
         getAccessibleContext().setAccessibleName("Suggested answers");
         for (String option : options == null ? List.<String>of() : options) {
-            JButton button = new JButton(option);
+            JButton button = ShaftButtonInteractions.create(option);
             button.getAccessibleContext().setAccessibleName("Suggested answer: " + option);
             button.setToolTipText("Fills the message box with this answer; review and send it yourself.");
             button.addActionListener(event -> onOptionChosen.accept(option));
             optionButtons.add(button);
             add(button);
         }
-        customAnswerButton = new JButton("Answer myself");
+        customAnswerButton = ShaftButtonInteractions.create("Answer myself");
         customAnswerButton.getAccessibleContext().setAccessibleName("Answer myself");
         customAnswerButton.setToolTipText("Type your own answer instead of one of the suggestions above.");
         customAnswerButton.addActionListener(event -> onCustomAnswerRequested.run());

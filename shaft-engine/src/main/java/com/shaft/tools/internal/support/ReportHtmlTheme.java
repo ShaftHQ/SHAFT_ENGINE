@@ -32,7 +32,7 @@ public final class ReportHtmlTheme {
                   --shaft-text-muted: #5f6f81;
                   --shaft-border: #d9e2ec;
                   --shaft-pass: #14804a;
-                  --shaft-warn: #b7791f;
+                  --shaft-warn: #8a5a00;
                   --shaft-fail: #c53030;
                   --shaft-shadow: 0 18px 45px rgba(24, 31, 42, .12);
                 }
@@ -50,6 +50,9 @@ public final class ReportHtmlTheme {
                     --shaft-text: #f5fdff;
                     --shaft-text-muted: #c8d6e7;
                     --shaft-border: rgba(223, 245, 244, .24);
+                    --shaft-pass: #4ade80;
+                    --shaft-warn: #fbbf24;
+                    --shaft-fail: #ff6b6b;
                     --shaft-shadow: 0 18px 45px rgba(0, 0, 0, .34);
                   }
                 }

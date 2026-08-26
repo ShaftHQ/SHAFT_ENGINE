@@ -28,6 +28,21 @@ reviewing, or validating UI work.
 - For operational/report UI, prioritize dense scanning, stable layout, clear status, comparison, filtering, and repeat use. For guide/marketing pages, let the brand voice carry more personality while keeping claims verifiable.
 - UI copy is part of design: plain verbs, sentence case, consistent action names, specific errors, useful empty states, no vague apology copy, no unsupported superlatives.
 
+## Canonical Color Contract
+
+Use `design/shaft-design-tokens.properties` as the machine-readable source of truth. Exact identity
+colors are light primary `#006EC0`, deep `#102A31`, deep-alt `#181F2A`, muted `#C8D6E7`, on-dark
+`#FFFFFF`; dark primary `#4CC2FF`, deep `#07111F`, deep-alt `#102A31`, muted `#DFF5F4`, on-dark
+`#F5FDFF`. Exact semantic colors are light pass `#14804A`, warning `#8A5A00`, fail `#C53030`;
+dark pass `#4ADE80`, warning `#FBBF24`, fail `#FF6B6B`.
+
+- Primary means action, focus, selection, or progress. Progress never uses pass or fail colors.
+- Pass means an explicitly passed checkpoint only. Ordinary successful actions remain primary.
+- Fail means a failed checkpoint, error, exception, or throwable only.
+- Warning means an actionable warning. Suppress non-actionable dependency warnings at their narrowest owner.
+- Keep visible labels and behavior consistent for equivalent actions. Runnable setup commands use
+  `Open in Terminal`; copy-only data and links use `Copy`.
+
 ## Quality Floor
 
 - Contrast: body and placeholder text at least 4.5:1; large text at least 3:1.
@@ -66,6 +81,9 @@ Reject and rewrite these unless the brief explicitly requires them and the choic
 - Tool window icons must keep the existing 16x16 and 20x20 SVG light/dark variants registered in `plugin.xml`.
 - Do not hand-draw replacement glyphs in screenshot renderers or paint fake icons over components. If screenshots show blank or broken icons, fix the shared icon source (`ShaftIcons` or assets) so runtime UI and screenshots use the same real icon.
 - Preserve icon-only button shape, size, tooltip, and accessible-name behavior through `ShaftIconButtons`; do not add one-off button styling in individual panels.
+- Preserve labeled-button hover, pressed, focus, disabled, and busy behavior through
+  `ShaftButtonInteractions`; do not style those states per panel. Motion must not shift layout and
+  must have an immediate test/headless path.
 - Validate IntelliJ icon/UI changes with the smallest relevant set: `ShaftIconAssetsTest`, focused panel tests that assert icons paint visible pixels, screenshot renderer output, and visual inspection of light, dark, and narrow states.
 - Swing surfaces obey the same states and color rules as the web surfaces above: focus, loading, empty, and error states are required; one accent role; never pure black or white. The plugin-screenshot renderer is where you verify them, not a browser.
 - Keep icon stroke weight and metaphor consistent across a panel. Avoid cliche metaphors (rocket for run, shield for security) when a platform `AllIcons` entry already names the concept.

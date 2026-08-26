@@ -162,7 +162,7 @@ final class ToolApprovalPromptPanel extends JPanel {
     }
 
     private JButton decisionButton(String toolName, ToolApprovalDecision decision) {
-        JButton button = new JButton(decision.getDisplayLabel());
+        JButton button = ShaftButtonInteractions.create(decision.getDisplayLabel());
         button.getAccessibleContext().setAccessibleName(decision.getDisplayLabel() + " for " + toolName);
         button.getAccessibleContext().setAccessibleDescription(buttonDescription(toolName, decision));
         button.setToolTipText(buttonDescription(toolName, decision));

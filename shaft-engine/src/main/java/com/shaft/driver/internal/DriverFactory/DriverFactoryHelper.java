@@ -96,6 +96,10 @@ public class DriverFactoryHelper {
     // by the GC; once collected, the next `Logger.getLogger(name)` (done internally by Selenium when it
     // logs) creates a fresh Logger with the default (unset) level, silently undoing the suppression below.
     private static final java.util.logging.Logger SELENIUM_WEBSOCKET_LOGGER = java.util.logging.Logger.getLogger(SELENIUM_WEBSOCKET_LISTENER_LOGGER);
+    private static final java.util.logging.Logger SELENIUM_CDP_VERSION_LOGGER =
+            java.util.logging.Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder");
+    private static final java.util.logging.Logger SELENIUM_V151_NETWORK_LOGGER =
+            java.util.logging.Logger.getLogger("org.openqa.selenium.devtools.v151.v151Network");
 
     static {
         // Selenium's WebSocket$Listener.onError logs a benign "Connection reset" WARNING (JUL) whenever
@@ -108,6 +112,11 @@ public class DriverFactoryHelper {
         // racing a level-restore done in a try/finally around the synchronous quit() call (previous
         // approach) and letting the warning leak through non-deterministically.
         SELENIUM_WEBSOCKET_LOGGER.setLevel(java.util.logging.Level.SEVERE);
+        // Chrome can advance one CDP revision before the newest published Selenium artifact. SHAFT
+        // users already run the newest compatible Selenium through SHAFT, so these two warnings
+        // have no actionable remedy. Keep every SEVERE record and every other Selenium logger.
+        SELENIUM_CDP_VERSION_LOGGER.setLevel(java.util.logging.Level.SEVERE);
+        SELENIUM_V151_NETWORK_LOGGER.setLevel(java.util.logging.Level.SEVERE);
     }
 
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();

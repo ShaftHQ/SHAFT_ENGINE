@@ -117,6 +117,12 @@ final class CodexStreamEventMapper implements StreamEventMapper {
         }
         if ("agent_message".equals(itemType)) {
             String text = StreamJson.stringField(item, "text");
+            // Current Codex JSONL owns the final assistant response on the completed
+            // agent_message item. turn.completed carries usage only. Retain updated items for
+            // live rendering, but commit only the completed text as the structured final answer.
+            if ("item.completed".equals(type) && text != null && !text.isBlank()) {
+                state.setAnswer(text);
+            }
             return text != null && !text.isBlank() ? MapResult.rendered(text) : MapResult.UNKNOWN;
         }
         if ("web_search".equals(itemType)) {

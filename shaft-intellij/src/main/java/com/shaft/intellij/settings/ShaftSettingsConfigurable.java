@@ -17,6 +17,7 @@ import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.mcp.ShaftPluginExecutor;
 import com.shaft.intellij.ui.ShaftIconButtons;
+import com.shaft.intellij.ui.ShaftButtonInteractions;
 import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.ui.ShaftStatusPresentation;
 import com.shaft.intellij.ui.ShaftUiLabels;
@@ -217,7 +218,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         mcpCommandManualEdit.setToolTipText(
                 "Edit the wizard-configured MCP command directly when it is not correct");
         mcpCommandManualEdit.addActionListener(event -> updateMcpCommandEditableState());
-        testMcp = new JButton("Test MCP");
+        testMcp = ShaftButtonInteractions.create("Test MCP");
         testMcp.getAccessibleContext().setAccessibleName("Test MCP");
         testMcp.getAccessibleContext().setAccessibleDescription(
                 "Run a one-time SHAFT MCP connection check with current settings.");
@@ -228,7 +229,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         testRecovery = new JLabel();
         testRecovery.getAccessibleContext().setAccessibleName("SHAFT MCP test recovery");
         testRecovery.setVisible(false);
-        testRecoveryAction = new JButton();
+        testRecoveryAction = ShaftButtonInteractions.create();
         testRecoveryAction.getAccessibleContext().setAccessibleName("SHAFT MCP test recovery action");
         // Not run through ShaftIconButtons.apply(): that fixes a button to an icon-only 32x32 slot,
         // but this button's whole point is to show which recovery action applies ("Retry" / "Restart
@@ -275,7 +276,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
                 "Read-only assistant agent configuration saved after the MCP setup check.");
-        configureAgent = new JButton("Configure");
+        configureAgent = ShaftButtonInteractions.create("Configure");
         configureAgent.getAccessibleContext().setAccessibleName("Configure assistant agent");
         configureAgent.getAccessibleContext().setAccessibleDescription(
                 "Edit the assistant agent configuration used by the SHAFT plugin.");
@@ -385,33 +386,33 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         githubKeyStatus = keyStatusLabel("GitHub");
         lmStudioKeyStatus = keyStatusLabel("LM Studio");
         ollamaKeyStatus = keyStatusLabel("Ollama");
-        clearOpenAiKey = new JButton("Clear");
+        clearOpenAiKey = ShaftButtonInteractions.create("Clear");
         configureClearButton(clearOpenAiKey, "Clear stored OpenAI API key", openAiKey, openAiKeyStatus, () -> openAiClearRequested = true);
-        testOpenAiKey = new JButton("Test");
+        testOpenAiKey = ShaftButtonInteractions.create("Test");
         ShaftIconButtons.apply(testOpenAiKey, "Test OpenAI API key", "Test OpenAI API key", ShaftIcons.CHECK);
         testOpenAiKey.addActionListener(event -> testProviderKey(
                 OPENAI_PROVIDER_KEY, openAiKey, openAiKeyStatus, testOpenAiKey, "OpenAI", ProviderKeyProbe::testOpenAi));
-        clearAnthropicKey = new JButton("Clear");
+        clearAnthropicKey = ShaftButtonInteractions.create("Clear");
         configureClearButton(clearAnthropicKey, "Clear stored Anthropic API key", anthropicKey, anthropicKeyStatus, () -> anthropicClearRequested = true);
-        testAnthropicKey = new JButton("Test");
+        testAnthropicKey = ShaftButtonInteractions.create("Test");
         ShaftIconButtons.apply(testAnthropicKey, "Test Anthropic API key", "Test Anthropic API key", ShaftIcons.CHECK);
         testAnthropicKey.addActionListener(event -> testProviderKey(
                 ANTHROPIC_PROVIDER_KEY, anthropicKey, anthropicKeyStatus, testAnthropicKey, "Anthropic", ProviderKeyProbe::testAnthropic));
-        clearGeminiKey = new JButton("Clear");
+        clearGeminiKey = ShaftButtonInteractions.create("Clear");
         configureClearButton(clearGeminiKey, "Clear stored Gemini API key", geminiKey, geminiKeyStatus, () -> geminiClearRequested = true);
-        testGeminiKey = new JButton("Test");
+        testGeminiKey = ShaftButtonInteractions.create("Test");
         ShaftIconButtons.apply(testGeminiKey, "Test Gemini API key", "Test Gemini API key", ShaftIcons.CHECK);
         testGeminiKey.addActionListener(event -> testProviderKey(
                 GEMINI_PROVIDER_KEY, geminiKey, geminiKeyStatus, testGeminiKey, "Gemini", ProviderKeyProbe::testGemini));
-        clearGithubKey = new JButton("Clear");
+        clearGithubKey = ShaftButtonInteractions.create("Clear");
         configureClearButton(clearGithubKey, "Clear stored GitHub API key", githubKey, githubKeyStatus, () -> githubClearRequested = true);
-        clearLmStudioKey = new JButton("Clear");
+        clearLmStudioKey = ShaftButtonInteractions.create("Clear");
         configureClearButton(clearLmStudioKey, "Clear stored LM Studio API key", lmStudioKey, lmStudioKeyStatus,
                 () -> lmStudioClearRequested = true);
-        clearOllamaKey = new JButton("Clear");
+        clearOllamaKey = ShaftButtonInteractions.create("Clear");
         configureClearButton(clearOllamaKey, "Clear stored Ollama API key", ollamaKey, ollamaKeyStatus,
                 () -> ollamaClearRequested = true);
-        testGithubKey = new JButton("Test");
+        testGithubKey = ShaftButtonInteractions.create("Test");
         ShaftIconButtons.apply(testGithubKey, "Test GitHub API key", "Test GitHub API key", ShaftIcons.CHECK);
         testGithubKey.addActionListener(event -> testProviderKey(
                 GITHUB_PROVIDER_KEY, githubKey, githubKeyStatus, testGithubKey, "GitHub", ProviderKeyProbe::testGithub));

@@ -1320,11 +1320,25 @@ public class ValidationsHelper {
     // reportValidationStateWithRichEvidence.
     private void attachEvidenceCard(boolean validationState, Object expected, Object actual,
                                     List<List<Object>> attachments) {
+        if (!shouldAttachEvidenceCard(validationState)) {
+            return;
+        }
         String evidenceCard = AssertionEvidenceReporter.renderCard(
                 this.validationCategoryString, validationState, expected, actual);
         if (!evidenceCard.isBlank()) {
             attachments.add(0, Arrays.asList("Assertion evidence", "assertion-evidence.html", evidenceCard));
         }
+    }
+
+    static boolean shouldAttachEvidenceCard(boolean validationState) {
+        String evidenceLevel = SHAFT.Properties.reporting.evidenceLevel();
+        String normalized = evidenceLevel == null ? "FAILURE_ONLY"
+                : evidenceLevel.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "FAST", "NONE" -> false;
+            case "FAILURE_ONLY" -> !validationState;
+            default -> true;
+        };
     }
 
     // add attachments, profiling the report-attachment step when flake profiling is enabled

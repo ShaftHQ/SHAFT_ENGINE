@@ -1325,7 +1325,7 @@ public class Actions extends ElementActions {
                     AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
                 }
             } else {
-                screenshot = takeScreenshot(element);
+                screenshot = takeScreenshot(element).bytes();
                 // append screenshot to animated gif
                 AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
             }
@@ -1358,8 +1358,9 @@ public class Actions extends ElementActions {
         }
     }
 
-    private byte[] takeScreenshot(WebElement element) {
+    private ScreenshotCapture takeScreenshot(WebElement element) {
         byte[] screenshot;
+        Screenshots actualType = Screenshots.getType();
         switch (Screenshots.getType()) {
             case FULL -> {
                 try {
@@ -1384,6 +1385,7 @@ public class Actions extends ElementActions {
                     // return regular screenshot in case of failure
                     ReportManagerHelper.logDiscrete(throwable);
                     screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
+                    actualType = Screenshots.VIEWPORT;
                 }
             }
             case ELEMENT -> {
@@ -1394,13 +1396,17 @@ public class Actions extends ElementActions {
                     // return regular screenshot in case of failure
                     ReportManagerHelper.logDiscrete(throwable);
                     screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
+                    actualType = Screenshots.VIEWPORT;
                 }
             }
             default -> screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
         }
         //append shaft watermark
         screenshot = appendShaftWatermark(screenshot);
-        return screenshot;
+        return new ScreenshotCapture(screenshot, actualType);
+    }
+
+    private record ScreenshotCapture(byte[] bytes, Screenshots type) {
     }
 
     private WebElement findUniqueElementIgnoringVisibility(By targetElementLocator) {
@@ -1428,17 +1434,19 @@ public class Actions extends ElementActions {
         }
 
         //take screenshot
-        byte[] src = takeScreenshot(element);
+        ScreenshotCapture capture = takeScreenshot(element);
+        byte[] src = capture.bytes();
 
         //highlightElement using OpenCV
         Color color;
         if (isPass) {
-            color = new Color(67, 176, 42); // selenium-green
+            color = new Color(0, 110, 192); // progress/action, not a passed checkpoint
         } else {
-            color = new Color(255, 0, 0); // red
+            color = new Color(197, 48, 48); // SHAFT failure token
         }
         try {
-            byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+            byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color,
+                    driverFactoryHelper.getDriver(), capture.type().name());
             if (highlighted != null && highlighted.length > 0) {
                 src = highlighted;
             }
@@ -1455,7 +1463,7 @@ public class Actions extends ElementActions {
                 setHighlightedElementStyle(isPass));
 
         //take screenshot
-        byte[] src = takeScreenshot(element);
+        byte[] src = takeScreenshot(element).bytes();
 
         //append highlighted element screenshot to GIF
         AnimatedGifManager.startOrAppendToAnimatedGif(src, SHAFT.Properties.visuals.screenshotParamsWatermark());
@@ -1485,15 +1493,16 @@ public class Actions extends ElementActions {
         String backgroundColor;
 
         if (isPass) {
-            background = "#46aad2";
-            backgroundColor = "#A5D2A5";
+            background = "#006EC0";
+            backgroundColor = "#C8D6E7";
         } else {
-            background = "#FF0000";
-            backgroundColor = "#FF0000";
+            background = "#C53030";
+            backgroundColor = "#C53030";
         }
+        String textColor = isPass ? "#102A31" : "#FFFFFF";
         return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
                 + " !important; background-color:" + backgroundColor
-                + " !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
+                + " !important; color:" + textColor + " !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
 
     }
 

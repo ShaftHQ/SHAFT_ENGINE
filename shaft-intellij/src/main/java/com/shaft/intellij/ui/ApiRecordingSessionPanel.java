@@ -90,9 +90,9 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private final JBTable table = new JBTable(tableModel);
     private final TableRowSorter<TransactionTableModel> rowSorter = new TableRowSorter<>(tableModel);
     private final JBTextField filterField = new JBTextField();
-    private final JButton stopButton = new JButton("Stop");
-    private final JButton generateButton = new JButton("Generate");
-    private final JButton pinFieldsButton = new JButton("Pin Fields...");
+    private final JButton stopButton = ShaftButtonInteractions.create("Stop");
+    private final JButton generateButton = ShaftButtonInteractions.create("Generate");
+    private final JButton pinFieldsButton = ShaftButtonInteractions.create("Pin Fields...");
     private final JLabel statusLabel = new JLabel("Recording...");
     private final Alarm pollAlarm;
 
@@ -104,7 +104,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     // proxy port plus a one-click copy of the CA certificate the MITM proxy signs traffic with
     // (issue #3530 A2 -- session panel/status parity for the pure-API path).
     private final JBTextArea pairingInfoArea = new JBTextArea("Waiting for the loopback proxy to start...");
-    private final JButton copyCertificateButton = new JButton("Copy CA Certificate");
+    private final JButton copyCertificateButton = ShaftButtonInteractions.create("Copy CA Certificate");
     private String caCertificatePem = "";
 
     private volatile boolean stopped;

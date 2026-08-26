@@ -201,7 +201,8 @@ public class ScreenshotManagerCoverageUnitTest {
             screenshotHelperMocked.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class)))
                     .thenReturn(createPng(50, 50, Color.CYAN));
             animatedGifMocked.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
-            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), any(Color.class)))
+            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                            any(Rectangle.class), any(Color.class), any(WebDriver.class), anyString()))
                     .thenReturn(createPng(10, 10, Color.MAGENTA));
             javaScriptWaitManagerMocked.when(() -> JavaScriptWaitManager.waitForLazyLoading(any(WebDriver.class)))
                     .thenThrow(new RuntimeException("ignore wait failure"));
@@ -233,7 +234,8 @@ public class ScreenshotManagerCoverageUnitTest {
             byte[] aiFail = manager.internalCaptureScreenshot(driver, RelativeLocator.with(By.tagName("div")).above(By.id("x")), false);
             Assert.assertTrue(aiPass.length > 0);
             Assert.assertTrue(aiFail.length > 0);
-            imageProcessingMocked.verify(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), eq(new Color(255, 0, 0))));
+            imageProcessingMocked.verify(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                    any(Rectangle.class), eq(new Color(197, 48, 48)), any(WebDriver.class), anyString()));
 
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
             byte[] jsShot = manager.internalCaptureScreenshot(driver, By.id("x"), true);
@@ -279,7 +281,8 @@ public class ScreenshotManagerCoverageUnitTest {
             screenshotHelperMocked.when(() -> ScreenshotHelper.takeViewportScreenshot(any(WebDriver.class), anyInt()))
                     .thenReturn(viewport);
             animatedGifMocked.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
-            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), any(Color.class)))
+            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                            any(Rectangle.class), any(Color.class), any(WebDriver.class), anyString()))
                     .thenThrow(new IllegalArgumentException("Failed to decode screenshot bytes."));
 
             ScreenshotManager manager = new ScreenshotManager();
@@ -287,6 +290,43 @@ public class ScreenshotManagerCoverageUnitTest {
 
             Assert.assertTrue(result.length > 0, "a highlight failure must not drop the captured screenshot");
             Assert.assertTrue(Arrays.equals(result, viewport), "should fall back to the un-highlighted viewport screenshot");
+        }
+    }
+
+    @Test
+    public void elementCaptureFailureShouldHighlightViewportWithViewportCoordinates() {
+        SHAFT.Properties.reporting.set().disableLogging(true);
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("ELEMENT");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = mock(WebElement.class);
+        when(element.getScreenshotAs(OutputType.BYTES)).thenThrow(new WebDriverException("element capture failed"));
+
+        try (MockedConstruction<ElementActionsHelper> ignored = Mockito.mockConstruction(ElementActionsHelper.class,
+                (mock, context) -> {
+                    when(mock.identifyUniqueElementIgnoringVisibility(any(WebDriver.class), any(By.class)))
+                            .thenReturn(List.of(1, element, By.id("x"), "", "", "", "", new Rectangle(2, 2, 5, 5)));
+                    when(mock.getMatchingElementsInformation(any(WebDriver.class), any(By.class), eq(false)))
+                            .thenReturn(List.of(1, element));
+                });
+             MockedStatic<ScreenshotHelper> screenshots = Mockito.mockStatic(ScreenshotHelper.class);
+             MockedStatic<AnimatedGifManager> gifs = Mockito.mockStatic(AnimatedGifManager.class);
+             MockedStatic<ImageProcessingActions> images = Mockito.mockStatic(ImageProcessingActions.class)) {
+            byte[] viewport = createPng(30, 30, Color.GREEN);
+            screenshots.when(() -> ScreenshotHelper.takeViewportScreenshot(any(WebDriver.class), anyInt()))
+                    .thenReturn(viewport);
+            gifs.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
+            images.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                    any(Rectangle.class), any(Color.class), any(WebDriver.class), eq("VIEWPORT"))).thenReturn(viewport);
+
+            byte[] result = new ScreenshotManager().internalCaptureScreenshot(driver, By.id("x"), true);
+
+            Assert.assertEquals(result, viewport);
+            images.verify(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                    any(Rectangle.class), any(Color.class), any(WebDriver.class), eq("VIEWPORT")));
         }
     }
 

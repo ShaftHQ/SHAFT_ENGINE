@@ -44,7 +44,7 @@ public interface Log4j extends EngineProperties<Log4j> {
     String appenderConsoleLayoutCharset();
 
     @Key("appender.console.layout.pattern")
-    @DefaultValue("%highlight{[%p]}{FATAL=red blink, ERROR=red bold, WARN=yellow bold, INFO=fg_#0060a8 bold, DEBUG=fg_#43b02a bold, TRACE=black} %style{%d{HH:mm:ss}}{bright_black} %style{|}{bright_black} %m%n")
+    @DefaultValue("%highlight{[%p]}{FATAL=fg_#c53030 blink, ERROR=fg_#c53030 bold, WARN=fg_#8a5a00 bold, INFO=fg_#006ec0 bold, DEBUG=fg_#c8d6e7 bold, TRACE=bright_black} %style{%d{HH:mm:ss}}{bright_black} %style{|}{bright_black} %m%n")
     String appenderConsoleLayoutPattern();
 
     @Key("appender.console.filter.threshold.type")

@@ -366,7 +366,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private static JButton button(String text, String description, Icon icon, Runnable action) {
-        JButton button = new JButton();
+        JButton button = ShaftButtonInteractions.create();
         ShaftIconButtons.apply(button, description, text, icon);
         button.getAccessibleContext().setAccessibleDescription(description);
         button.addActionListener(event -> action.run());

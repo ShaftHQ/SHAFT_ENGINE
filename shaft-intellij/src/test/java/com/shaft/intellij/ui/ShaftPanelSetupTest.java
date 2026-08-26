@@ -811,15 +811,15 @@ class ShaftPanelSetupTest {
 
             assertNull(toolWindowWorkflowSelector(toolWindow));
             assertTrue(containsText(toolWindow, "Runtime"));
-            assertTrue(containsText(toolWindow, "1 Upgrade project"));
-            assertTrue(containsText(toolWindow, "2 Choose agent"));
-            assertTrue(containsText(toolWindow, "3 Setup SHAFT Tools & Skills"));
-            assertTrue(containsText(toolWindow, "5 Check SHAFT agentic tools installation"));
+            assertTrue(containsText(toolWindow, "Optional: Upgrade project"));
+            assertTrue(containsText(toolWindow, "1 Choose agent"));
+            assertTrue(containsText(toolWindow, "2 Install SHAFT tools"));
+            assertTrue(containsText(toolWindow, "3 Verify setup"));
             assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
             // Issue #4314 fix 1: the redundant "Target: X. Runtime: Y." setupSummary caption is
             // removed -- the family/runtime combo boxes above it already show the live selection.
             assertNull(findByAccessibleName(toolWindow, "SHAFT MCP setup summary", JLabel.class));
-            assertNotNull(findByAccessibleName(toolWindow, "Setup SHAFT Tools & Skills state", JLabel.class));
+            assertNotNull(findByAccessibleName(toolWindow, "Install SHAFT tools state", JLabel.class));
             assertNull(findByAccessibleName(toolWindow, "SHAFT MCP command status", JLabel.class));
             assertFalse(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class).isVisible());
             assertFalse(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class).isVisible());
@@ -1219,7 +1219,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupCommandTransferActionsUseTheHonestCopyLabel() {
+    void setupCommandActionsDistinguishTerminalCommandsFromCopyOnlyData() {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
 
@@ -1229,13 +1229,14 @@ class ShaftPanelSetupTest {
                 "Copy SHAFT upgrade command",
                 "Copy SHAFT Engine warm-up command",
                 "Copy setup diagnostic command",
-                "Copy setup diagnostic output",
-                "Copy SHAFT MCP docs link",
                 "Copy assistant CLI restart command")) {
             JButton button = findByAccessibleName(panel, accessibleName, JButton.class);
             assertNotNull(button, accessibleName);
-            assertEquals("Copy", button.getText(), accessibleName);
+            assertEquals("Open in Terminal", button.getText(), accessibleName);
             assertEquals(0, button.getMnemonic(), accessibleName);
+        }
+        for (String accessibleName : List.of("Copy setup diagnostic output", "Copy SHAFT MCP docs link")) {
+            assertEquals("Copy", findByAccessibleName(panel, accessibleName, JButton.class).getText(), accessibleName);
         }
         assertFalse(collectButtons(panel).stream()
                 .anyMatch(button -> List.of("Install", "Reinstall", "Warm up Engine", "Copy command",
@@ -1347,7 +1348,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelUpgradeStepCopyOpensTerminalWithPreparedCommand() throws Exception {
-        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> {
         });
         AtomicReference<String> copied = new AtomicReference<>();
         AtomicReference<String> terminalTab = new AtomicReference<>();
@@ -1363,7 +1364,7 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT upgrade command", JButton.class).isVisible()),
                 () -> assertNotNull(findByAccessibleName(panel, "Check SHAFT project version", JButton.class)),
                 () -> assertNull(findByAccessibleName(panel, "Open terminal for SHAFT upgrade", JButton.class)),
-                () -> assertTrue(containsText(panel, "1 Upgrade project")));
+                () -> assertTrue(containsText(panel, "Optional: Upgrade project")));
 
         clickAccessible(panel, "Copy SHAFT upgrade command");
 
@@ -1382,7 +1383,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void everySetupCommandCopyOpensTerminalWithPreparedCommand() throws Exception {
-        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> {
         });
         List<String> copied = new ArrayList<>();
         List<String> terminalCommands = new ArrayList<>();
@@ -1472,21 +1473,23 @@ class ShaftPanelSetupTest {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
         assertAll(
-                () -> assertEquals("",
+                () -> assertEquals("Waiting",
                         findByAccessibleName(panel, "Upgrade project setup state", JLabel.class).getText()),
                 () -> assertEquals("Waiting",
                         findByAccessibleName(panel, "Choose agent setup state", JLabel.class).getText()),
                 () -> assertEquals("",
-                        findByAccessibleName(panel, "Setup SHAFT Tools & Skills state", JLabel.class).getText()),
+                        findByAccessibleName(panel, "Install SHAFT tools state", JLabel.class).getText()),
+                () -> assertFalse(findByAccessibleName(panel, "Copy SHAFT upgrade command", JButton.class)
+                        .isEnabled(), "project upgrade unlocks only after setup verification"),
                 () -> assertNotEquals("Done",
-                        findByAccessibleName(panel, "Check SHAFT agentic tools installation state", JLabel.class)
+                        findByAccessibleName(panel, "Verify setup state", JLabel.class)
                                 .getText()));
     }
 
     @Test
     void setupPanelReopeningAfterPriorCompletionDoesNotContradictTheDoneBadge() {
         // Issue #4160 area A: reopening the panel in a new IDE session after setup previously
-        // succeeded (settings.mcpSetupComplete persists) shows "5 Check SHAFT agentic tools installation: Done" immediately --
+        // succeeded (settings.mcpSetupComplete persists) shows "3 Verify setup: Done" immediately --
         // but until now the greeting text always said "Press Check now.", as if nothing had ever
         // been verified. A returning user reading "Done" and "Press Check now." side by side has no
         // way to tell whether setup actually works; the guidance must acknowledge the prior success.
@@ -1499,7 +1502,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelUpgradeStepReflectsRealProjectVersionCheck() throws Exception {
-        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> {
         });
         JLabel upgradeState = findByAccessibleName(panel, "Upgrade project setup state", JLabel.class);
         JLabel upgradeDetail = findByAccessibleName(panel, "SHAFT project version status", JLabel.class);
@@ -1524,6 +1527,7 @@ class ShaftPanelSetupTest {
         setField(panel, "upgradeChecker", (java.util.function.Supplier<ShaftProjectVersionCheck.Result>) () ->
                 new ShaftProjectVersionCheck.Result(
                         ShaftProjectVersionCheck.State.UPGRADE_AVAILABLE, "10.2.20260101", "10.3.20260710"));
+        findByAccessibleName(panel, "Check SHAFT project version", JButton.class).setEnabled(true);
         clickAccessible(panel, "Check SHAFT project version");
         assertAll(
                 () -> assertEquals("", upgradeState.getText()),
@@ -1539,12 +1543,13 @@ class ShaftPanelSetupTest {
         // out specifically for "next"; every other state (done/failed/checking/optional) keeps its
         // exact existing text/colors/opacity, and the step name label itself keeps its existing
         // bold/blue "active step" styling -- only the redundant badge pill is removed.
-        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        settings.assistantFamily = "CODEX";
+        settings.defaultAutobotClient = "CODEX";
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         });
-        JLabel upgradeState = findByAccessibleName(panel, "Upgrade project setup state", JLabel.class);
-        // upgradeStep's own accessible NAME is dynamic (rewritten by setStep() to include the live
-        // state), unlike upgradeState's stable name (issue #3603), so it must be read by field.
-        JLabel upgradeStep = (JLabel) getField(panel, "upgradeStep");
+        JLabel upgradeState = findByAccessibleName(panel, "Choose agent setup state", JLabel.class);
+        JLabel upgradeStep = (JLabel) getField(panel, "chooseStep");
 
         assertAll(
                 () -> assertEquals("", upgradeState.getText()),
@@ -1555,10 +1560,7 @@ class ShaftPanelSetupTest {
                 () -> assertEquals(java.awt.Font.BOLD, upgradeStep.getFont().getStyle() & java.awt.Font.BOLD,
                         "the step name label's own bold 'active step' styling is untouched"));
 
-        setField(panel, "upgradeChecker", (java.util.function.Supplier<ShaftProjectVersionCheck.Result>) () ->
-                new ShaftProjectVersionCheck.Result(
-                        ShaftProjectVersionCheck.State.UP_TO_DATE, "10.3.20260710", "10.3.20260710"));
-        clickAccessible(panel, "Check SHAFT project version");
+        invokeApplyChosenAgentCheckResult(panel, ShaftMcpToolResult.success("connected"));
 
         assertAll(
                 () -> assertEquals("Done", upgradeState.getText(), "the done badge is untouched"),
@@ -1571,9 +1573,9 @@ class ShaftPanelSetupTest {
     void setupPanelMcpVersionStepReflectsRealVersionCheck() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
-        // The merged "3 Setup SHAFT Tools & Skills" row's badge is driven by this same check (issue #3560):
+        // The merged "2 Install SHAFT tools" row's badge is driven by this same check (issue #3560):
         // there is no separate "SHAFT MCP version" row anymore.
-        JLabel installState = findByAccessibleName(panel, "Setup SHAFT Tools & Skills state", JLabel.class);
+        JLabel installState = findByAccessibleName(panel, "Install SHAFT tools state", JLabel.class);
         JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
 
         // Nothing is green until the user presses Check (issue #3560/#3426 A4/A5); the "next" badge
@@ -1685,7 +1687,7 @@ class ShaftPanelSetupTest {
         setField(panel, "copySink", (Consumer<String>) copied::set);
 
         assertAll(
-                () -> assertTrue(containsText(panel, "0 Prerequisites")),
+                () -> assertTrue(containsText(panel, "Prerequisites")),
                 () -> assertNotNull(findByAccessibleName(panel, "SHAFT setup prerequisites", JComponent.class)),
                 () -> assertNotNull(findByAccessibleName(panel, "Recheck prerequisites", JButton.class)),
                 () -> assertNotNull(findByAccessibleName(panel, "Copy SHAFT Engine warm-up command", JButton.class)));
@@ -1822,16 +1824,16 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("Select an option", ((JLabel) placeholder).getText()),
                 () -> assertFalse(copy.isEnabled()),
                 () -> assertNull(findByAccessibleName(panel, "Recommended assistant agent", JLabel.class)),
-                () -> assertTrue(containsText(panel, "2 Choose agent")),
-                () -> assertTrue(containsText(panel, "3 Setup SHAFT Tools & Skills")),
-                () -> assertTrue(containsText(panel, "4 Check agent connection")),
-                () -> assertTrue(containsText(panel, "5 Check SHAFT agentic tools installation")),
-                () -> assertNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),
+                () -> assertTrue(containsText(panel, "1 Choose agent")),
+                () -> assertTrue(containsText(panel, "2 Install SHAFT tools")),
+                () -> assertFalse(containsText(panel, "4 Check agent connection")),
+                () -> assertTrue(containsText(panel, "3 Verify setup")),
+                () -> assertNotNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),
                         "Check agent connection", JButton.class)));
     }
 
     @Test
-    void setupToolsRowIsCopyOnlyAndChecksStayDisabledUntilAgentIsSelected() throws Exception {
+    void setupWizardKeepsAgentCheckWithSelectionAndDisablesActionsUntilAgentIsSelected() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
         JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
@@ -1839,7 +1841,7 @@ class ShaftPanelSetupTest {
         JComboBox<?> family = (JComboBox<?>) getField(panel, "family");
 
         assertAll(
-                () -> assertTrue(checkButtons(chooseRow).isEmpty(), "choose-agent must not host a Check"),
+                () -> assertEquals(1, checkButtons(chooseRow).size(), "choose-agent owns its readiness check"),
                 () -> assertTrue(checkButtons(installRow).isEmpty(), "setup-tools row is Copy only"),
                 () -> assertNull(findByAccessibleName(installRow, "Check SHAFT MCP version", JButton.class)),
                 () -> assertFalse(findByAccessibleName(panel, "Copy SHAFT Tools & Skills setup command",
@@ -1959,7 +1961,7 @@ class ShaftPanelSetupTest {
                     () -> assertFalse(findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class).isVisible()),
                     () -> assertTrue(findByAccessibleName(panel, "Copy setup diagnostic output", JButton.class).isEnabled()),
                     () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT MCP docs link", JButton.class).isEnabled()),
-                    () -> assertTrue(containsText(panel, "Recovery: retry Check SHAFT agentic tools installation")),
+                    () -> assertTrue(containsText(panel, "Recovery: retry Verify setup")),
                     () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
                     () -> assertTrue(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isEnabled()));
             clickAccessible(panel, "Copy setup diagnostic output");
@@ -2197,7 +2199,7 @@ class ShaftPanelSetupTest {
     @Test
     void chooseRowOffersAStandaloneCheckButtonMirroringOtherStepsCheckPattern() throws Exception {
         // Issue #4314 fix 2: every other step (Upgrade, Install) already has its own "Check" button
-        // that turns its badge green on its own -- "2 Choose agent" only ever turned green as a side
+        // that turns its badge green on its own -- "1 Choose agent" only ever turned green as a side
         // effect of the full step-4 MCP probe. This button lets a user verify "is my picked agent
         // already installed/connected" without running the whole setup flow.
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
@@ -2205,21 +2207,21 @@ class ShaftPanelSetupTest {
         settings.defaultAutobotClient = "CODEX";
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe());
-        JPanel agentCheckRow = (JPanel) getField(panel, "agentCheckRow");
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
 
-        JButton checkChosenAgent = findByAccessibleName(agentCheckRow, "Check agent connection", JButton.class);
+        JButton checkChosenAgent = findByAccessibleName(chooseRow, "Check agent connection", JButton.class);
 
         assertAll(
                 () -> assertNotNull(checkChosenAgent, "agent check step should carry Check agent connection"),
                 () -> assertTrue(checkChosenAgent.isVisible()),
-                () -> assertNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),
+                () -> assertNull(findByAccessibleName((JPanel) getField(panel, "agentCheckRow"),
                         "Check agent connection", JButton.class)));
     }
 
     @Test
     void checkingTheSelectedAgentReflectsCloudReadinessIntoTheChooseBadgeWithoutTouchingReadyStepWidgets()
             throws Exception {
-        // The Check click must only settle settings.agentLaneReady and the "2 Choose agent" badge --
+        // The Check click must only settle settings.agentLaneReady and the "1 Choose agent" badge --
         // NOT run the full applyAgentLaneState() side effects the Ready step (startChatting/
         // startWithoutAgent/connectAgent) only earns from an actual step-4 MCP probe.
         java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
@@ -2943,6 +2945,7 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe(), keyStore);
+        findByAccessibleName(panel, "Check SHAFT project version", JButton.class).setEnabled(true);
 
         JLabel upgradeDetail = findByAccessibleName(panel, "SHAFT project version status", JLabel.class);
         JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
@@ -2981,6 +2984,8 @@ class ShaftPanelSetupTest {
         setField(panel, "upgradeChecker", (java.util.function.Supplier<ShaftProjectVersionCheck.Result>) () ->
                 new ShaftProjectVersionCheck.Result(
                         ShaftProjectVersionCheck.State.UPGRADE_AVAILABLE, "10.2.20260101", "10.3.20260710"));
+        // This test isolates live accessible copy; normal first-run UI keeps project upgrade locked.
+        findByAccessibleName(panel, "Check SHAFT project version", JButton.class).setEnabled(true);
         clickAccessible(panel, "Check SHAFT project version");
         String secondUpgradeDescription = upgradeDetail.getAccessibleContext().getAccessibleDescription();
         assertAll(
@@ -3129,7 +3134,7 @@ class ShaftPanelSetupTest {
     }
 
     /**
-     * Issue #3771 (professional UX polish): the "2 Choose agent" step stacks "Assistant family" and
+     * Issue #3771 (professional UX polish): the "1 Choose agent" step stacks "Assistant family" and
      * "Runtime" as two independently-packed {@code labeledControl} rows (each its own flow-layout
      * row), so their labels naturally size to their own text ("Assistant family" is longer than
      * "Runtime") and the dropdowns beside them land at different x-offsets -- a ragged left edge
@@ -3158,7 +3163,7 @@ class ShaftPanelSetupTest {
     @Test
     void doneStepRowCollapsesOnceLaterStepIsActiveAndReExpandsOnClick() throws Exception {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
-        // "2 Choose agent" reaches done, and "3 Setup SHAFT Tools & Skills" is still next -- the flow has
+        // "1 Choose agent" reaches done, and "2 Install SHAFT tools" is still next -- the flow has
         // moved past the choose row, so it should collapse (issue #3601 S2) while install stays
         // fully expanded, since it is the step actually in front of the user.
         settings.agentLaneReady = true;
@@ -6257,6 +6262,7 @@ class ShaftPanelSetupTest {
                 .flatMap(panel -> collectButtons(panel).stream())
                 .filter(button -> !isSetupPrimaryAction(button))
                 .filter(button -> !"Copy".equals(button.getText()))
+                .filter(button -> !"Open in Terminal".equals(button.getText()))
                 .filter(button -> !"Copy fresh SHAFT MCP setup command".equals(accessibleName(button)))
                 .filter(button -> !"Reset everything".equals(accessibleName(button)))
                 // Names the exact non-destructive action it runs, distinguishing it at a glance from
@@ -6267,7 +6273,7 @@ class ShaftPanelSetupTest {
                 // The shaft-mcp version step's check button is labeled like its upgrade-step peer
                 // above: it names the exact check being run on a first-run setup screen (issue #3538).
                 .filter(button -> !"Check SHAFT MCP version".equals(accessibleName(button)))
-                // "2 Choose agent"'s own standalone Check button (issue #4314 fix 2) is the same
+                // "1 Choose agent"'s own standalone Check button (issue #4314 fix 2) is the same
                 // first-run-setup-screen Check pattern as the two rows above it.
                 .filter(button -> !"Check agent connection".equals(accessibleName(button)))
                 // Lane/teaching controls keep visible labels by design: the no-agent start names
@@ -6353,6 +6359,30 @@ class ShaftPanelSetupTest {
                 () -> assertNotEquals(ready, hover),
                 () -> assertNotEquals(hover, pressed),
                 () -> assertNotEquals(ready, disabled));
+    }
+
+    @Test
+    void labeledButtonsExposeVisibleHoverPressedAndDisabledFeedbackWithoutLayoutShift() {
+        JButton button = ShaftButtonInteractions.create("Run");
+        Dimension size = button.getPreferredSize();
+        Color ready = button.getBackground();
+
+        button.getModel().setRollover(true);
+        Color hover = button.getBackground();
+        button.getModel().setArmed(true);
+        button.getModel().setPressed(true);
+        Color pressed = button.getBackground();
+        button.setEnabled(false);
+        Color disabled = button.getBackground();
+
+        assertAll(
+                () -> assertTrue(button.isOpaque()),
+                () -> assertTrue(button.isRolloverEnabled()),
+                () -> assertEquals(Cursor.DEFAULT_CURSOR, button.getCursor().getType()),
+                () -> assertNotEquals(ready, hover),
+                () -> assertNotEquals(hover, pressed),
+                () -> assertNotEquals(ready, disabled),
+                () -> assertEquals(size, button.getPreferredSize(), "state feedback must not shift layout"));
     }
 
     @Test
@@ -6953,7 +6983,7 @@ class ShaftPanelSetupTest {
 
         JButton resetAndReinstall = findByAccessibleName(toolWindow, "Copy fresh SHAFT MCP setup command", JButton.class);
         assertAll(
-                () -> assertEquals("Copy", resetAndReinstall.getText()),
+                () -> assertEquals("Open in Terminal", resetAndReinstall.getText()),
                 () -> assertEquals("Clear the saved MCP command and copy a fresh installer command",
                         resetAndReinstall.getToolTipText()),
                 () -> assertTrue(resetAndReinstall.isVisible()),

@@ -23,7 +23,7 @@ class ShaftStatusPresentationTest {
 
     @Test
     void successDarkLegMeetsWcagAaContrastAgainstDarculaPanel() {
-        Color darkLeg = new Color(0x81C784);
+        Color darkLeg = new Color(0x4ADE80);
 
         double contrast = contrastRatio(darkLeg, DARK_PANEL_BACKGROUND);
 
@@ -34,7 +34,7 @@ class ShaftStatusPresentationTest {
 
     @Test
     void successLightLegMeetsWcagAaContrastAgainstLightPanel() {
-        Color lightLeg = new Color(0x0A7F26);
+        Color lightLeg = new Color(0x14804A);
 
         double contrast = contrastRatio(lightLeg, LIGHT_PANEL_BACKGROUND);
 

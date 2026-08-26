@@ -25,7 +25,9 @@ public class ReportThemeConsistencyTest {
     };
 
     /** Status hexes owned by the SHAFT report tokens (not part of the Allure structural block). */
-    private static final String[] STATUS_HEXES = {"#14804a", "#b7791f", "#c53030"};
+    private static final String[] STATUS_HEXES = {
+            "#14804a", "#8a5a00", "#c53030", "#4ade80", "#fbbf24", "#ff6b6b"
+    };
 
     @Test(description = "The SHAFT report tokens and the Allure theme override must share one brand palette")
     public void reportHtmlThemeAndAllureThemeShareTheBrandPalette() {

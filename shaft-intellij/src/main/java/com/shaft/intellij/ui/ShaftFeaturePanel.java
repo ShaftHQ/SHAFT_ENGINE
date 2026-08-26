@@ -140,7 +140,7 @@ final class ShaftFeaturePanel extends JPanel {
         outputCards = new JPanel(new java.awt.CardLayout());
         outputCards.add(outputCard, "card");
         outputCards.add(new JBScrollPane(outputArea), "raw");
-        toggleRawOutputButton = new JButton();
+        toggleRawOutputButton = ShaftButtonInteractions.create();
         ShaftIconButtons.apply(toggleRawOutputButton, "View raw JSON", "Toggle raw SHAFT tool output",
                 ShaftIcons.CODE);
         toggleRawOutputButton.setEnabled(false);
@@ -150,30 +150,30 @@ final class ShaftFeaturePanel extends JPanel {
         progress.setIndeterminate(true);
         progress.setVisible(false);
 
-        runButton = new JButton("Run");
+        runButton = ShaftButtonInteractions.create("Run");
         runButton.getAccessibleContext().setAccessibleName("Run SHAFT tool");
         ShaftIconButtons.apply(runButton, ShaftIcons.SEND);
         runButton.addActionListener(event -> run(project));
-        cancelButton = new JButton("Cancel");
+        cancelButton = ShaftButtonInteractions.create("Cancel");
         cancelButton.getAccessibleContext().setAccessibleName("Cancel SHAFT tool");
         ShaftIconButtons.apply(cancelButton, ShaftIcons.CANCEL);
         cancelButton.setEnabled(false);
         cancelButton.addActionListener(event -> cancelCurrent());
-        restoreDefaultsButton = new JButton("Restore defaults");
+        restoreDefaultsButton = ShaftButtonInteractions.create("Restore defaults");
         restoreDefaultsButton.getAccessibleContext().setAccessibleName("Restore default SHAFT tool arguments");
         ShaftIconButtons.apply(restoreDefaultsButton, ShaftIcons.RESET);
         restoreDefaultsButton.addActionListener(event -> restoreDefaults());
-        copyOutputButton = new JButton("Copy output");
+        copyOutputButton = ShaftButtonInteractions.create("Copy output");
         copyOutputButton.getAccessibleContext().setAccessibleName("Copy SHAFT tool output");
         ShaftIconButtons.apply(copyOutputButton, ShaftIcons.COPY);
         copyOutputButton.setEnabled(false);
         copyOutputButton.addActionListener(event -> copyOutput());
-        refreshCatalogButton = new JButton("Refresh tools");
+        refreshCatalogButton = ShaftButtonInteractions.create("Refresh tools");
         refreshCatalogButton.getAccessibleContext().setAccessibleName("Refresh SHAFT MCP tool catalog");
         ShaftIconButtons.apply(refreshCatalogButton, ShaftIcons.RERUN);
         refreshCatalogButton.setVisible(catalogRefreshEnabled);
         refreshCatalogButton.addActionListener(event -> refreshCatalog(project));
-        recoveryButton = new JButton();
+        recoveryButton = ShaftButtonInteractions.create();
         recoveryButton.getAccessibleContext().setAccessibleName("SHAFT tool recovery action");
         // Not run through ShaftIconButtons.apply(): that fixes a button to an icon-only 32x32 slot,
         // but this button's whole point is to show which recovery action applies ("Retry" / "Restart
@@ -700,7 +700,7 @@ final class ShaftFeaturePanel extends JPanel {
     private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panel.add(new JLabel("Configure SHAFT MCP to run Assistant and Tools."));
-        JButton openSettings = new JButton("Open Settings");
+        JButton openSettings = ShaftButtonInteractions.create("Open Settings");
         openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
         ShaftIconButtons.apply(openSettings, ShaftIcons.SETTINGS);
         openSettings.addActionListener(event -> {

@@ -326,7 +326,7 @@ final class VisualBaselinesPanel extends JPanel {
     }
 
     private static JButton button(String text, String description, Icon icon, Runnable action) {
-        JButton buttonComponent = new JButton();
+        JButton buttonComponent = ShaftButtonInteractions.create();
         ShaftIconButtons.apply(buttonComponent, description, text, icon);
         buttonComponent.getAccessibleContext().setAccessibleDescription(description);
         buttonComponent.addActionListener(event -> action.run());

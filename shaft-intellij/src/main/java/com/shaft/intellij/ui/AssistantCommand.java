@@ -1823,9 +1823,10 @@ final class AssistantCommand {
                 Follow these steps in order and narrate each one:
                 1. Read the project's pom.xml and state the current SHAFT setup (artifact and version), or state clearly that the project does not use SHAFT yet.
                 2. Preview safely first: call the shaft-mcp tool `shaft_project_upgrade` with projectRoot "%s", upgradeType "basic", and dryRun true, then summarize the proposed changes in plain language.
-                3. Apply the upgrade by running the official upgrader non-interactively from the project root:
+                3. Apply through `shaft_project_upgrade` with the same projectRoot and upgradeType, dryRun false, approve true, skipBaselineCompile false, and allowAiRepair false. This uses the upgrader bundled with the installed SHAFT MCP. State that source before applying.
+                   If that tool is unavailable or its bundled upgrader fails, visibly announce the fallback, then run this current origin/main upgrader once:
                    %s
-                   If the script fails, quote its exact error, explain the cause, and either fix the cause and retry or apply the equivalent pom.xml edits yourself.
+                   Quote any exact error. If deterministic upgrade still fails, repair the equivalent project files yourself under the existing source-edit approval; do not silently switch paths.
                 4. Verify by running `mvn -B -q test-compile` in the project root. If compilation fails because of the upgrade, repair the affected files using SHAFT syntax and re-verify.
                 5. Report: previous version -> new version, every file you touched and why, the verification outcome, and anything you could not complete. Never reply with a bare confirmation like "Done".
                 """.formatted(root, root, upgradeApplyCommand(root)).strip();

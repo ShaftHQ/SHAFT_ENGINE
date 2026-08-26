@@ -3,6 +3,13 @@
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
+For owner-authorized work that needs a new PR, create its draft after the first coherent commit,
+then keep it current with meaningful progress commits. An empty tracking commit
+is acceptable when the host requires a pushed branch before opening the draft. In shared
+multi-worktree repositories, never use repository-global `git stash` for this: unstaged work does
+not prevent `git commit --allow-empty`, while stash state is shared and can expose or conflict with
+another worktree's changes.
+
 ## 4. Implement, check, review, deliver
 
 Rule every open design choice on the issue before the first implementing commit;
