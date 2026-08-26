@@ -1699,7 +1699,11 @@ class CiGateIsBlockingTest(unittest.TestCase):
             ]
             if not variables:
                 unevaluated.append(f"{leg}: no result variable")
-            elif not any(f"${{{name}}}" in loop for name in variables):
+            elif not any(
+                f"${{{name}}}" in loop
+                or re.search(rf'if \[ "\$\{{{re.escape(name)}\}}"', script)
+                for name in variables
+            ):
                 unevaluated.append(f"{leg}: variable never read by the loop")
         self.assertEqual(unevaluated, [], "needed legs that cannot fail the required check")
 
