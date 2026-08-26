@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "scripts/agents/guard.py",
+    "scripts/ci/worktree_hygiene.py"
+  ],
   "body_path": "memory/gotchas/a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes.md",
-  "content_hash": "sha256:33384d13ac7521b1f6a342530b20319aa366e912432402ebecac20f641e16b2a",
+  "content_hash": "sha256:740aa84d0d95dd736824d3814d06e4f515417db24443bf15fe6e170acb7c3e70",
   "created_at": "2026-08-04T10:15:43+03:00",
   "evidence": [
     {
@@ -12,20 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/agents/guard.py",
-      "scripts/ci/worktree_hygiene.py"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record what the #4437/#4441 superseding collision cost, for the next agent"
@@ -36,9 +27,11 @@
     "worktree",
     "collision",
     "codacy",
-    "review"
+    "review",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "A superseding pull request may absorb only part of the branch it closes",
   "type": "gotcha",
-  "updated_at": "2026-08-04T10:15:43+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

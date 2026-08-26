@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "shaft-mcp/pom.xml",
+    "pom.xml"
+  ],
   "body_path": "memory/gotchas/spring-boot-bom-overrides-patched-httpcore5-and-log4j-on-shaft-mcp.md",
-  "content_hash": "sha256:5a5e8dae003cdf202660615171fddfeeb1088844d7b0e7fe8d7061a40c761f12",
+  "content_hash": "sha256:7deffa50974363db030d44eda21ca40e0f710f8dc184f273c28f3ef03b53f153",
   "created_at": "2026-08-18T12:05:01+03:00",
   "evidence": [
     {
@@ -16,20 +20,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-mcp/pom.xml",
-      "pom.xml"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.spring-boot-bom-overrides-patched-httpcore5-and-log4j-on-shaft-mcp",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record shaft-mcp Spring Boot BOM override of patched httpcore5 and log4j after Dependabot 18 remediation"
@@ -39,9 +30,11 @@
     "maven",
     "dependabot",
     "spring-boot",
-    "shaft-mcp"
+    "shaft-mcp",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Spring Boot 4.1.0 BOM overrides patched httpcore5 and log4j on shaft-mcp",
   "type": "gotcha",
-  "updated_at": "2026-08-18T12:05:01+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

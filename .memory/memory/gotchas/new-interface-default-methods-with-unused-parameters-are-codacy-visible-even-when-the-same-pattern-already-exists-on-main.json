@@ -1,26 +1,15 @@
 {
+  "anchors": [
+    "shaft-infrastructure"
+  ],
   "body_path": "memory/gotchas/new-interface-default-methods-with-unused-parameters-are-codacy-visible-even-when-the-same-pattern-already-exists-on-main.md",
-  "content_hash": "sha256:0f8007ff2296c434f96380154cba5b195497dfbd68520474ed3e02f5234986d7",
+  "content_hash": "sha256:b764d3d0b25c65770a2655b5cf02bb3f5c771a82ce9c2eb53767db123b38ed46",
   "created_at": "2026-08-17T15:39:58+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "shaft-infrastructure",
-      "#5043",
-      "#5044"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.new-interface-default-methods-with-unused-parameters-are-codacy-visible-even-when-the-same-pattern-already-exists-on-main",
   "origin": {
     "kind": "user",
     "locator": "session:4849-healenium-5044"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",
@@ -30,9 +19,13 @@
   "tags": [
     "codacy",
     "setup",
-    "healenium"
+    "healenium",
+    "category-gotcha",
+    "scope-project",
+    "applies-to-5043",
+    "applies-to-5044"
   ],
   "title": "New interface default methods with unused parameters are Codacy-visible even when the same pattern already exists on main",
   "type": "gotcha",
-  "updated_at": "2026-08-17T15:39:58+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

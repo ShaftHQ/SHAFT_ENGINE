@@ -1,6 +1,12 @@
 {
+  "anchors": [
+    ".github/workflows/mavenCentral_cd.yml",
+    ".github/workflows/publish-intellij-plugin.yml",
+    ".github/workflows/publish-shaft-mcp.yml",
+    ".github/workflows/publishJavaDocs.yml"
+  ],
   "body_path": "memory/gotchas/workflow-run-conclusion-success-is-not-a-reliable-real-delivery-signal.md",
-  "content_hash": "sha256:d3c6123c9b822913fd2eca90d4b315801b8be11b9f3eeb9ad51532651ab3fcd3",
+  "content_hash": "sha256:d85bd3005d9a13e1fabd8a142be1756c791796cfbf5e3faecc1ae5cfc039fe48",
   "created_at": "2026-07-08T07:55:24+03:00",
   "evidence": [
     {
@@ -8,22 +14,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/mavenCentral_cd.yml",
-      ".github/workflows/publish-intellij-plugin.yml",
-      ".github/workflows/publish-shaft-mcp.yml",
-      ".github/workflows/publishJavaDocs.yml"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.workflow-run-conclusion-success-is-not-a-reliable-real-delivery-signal",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3372: Maven Central CD workflow red between releases"
@@ -33,9 +24,11 @@
     "github-actions",
     "release",
     "ci",
-    "workflow-run"
+    "workflow-run",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "workflow_run conclusion=='success' is not a reliable real-delivery signal",
   "type": "gotcha",
-  "updated_at": "2026-08-01T21:55:58+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

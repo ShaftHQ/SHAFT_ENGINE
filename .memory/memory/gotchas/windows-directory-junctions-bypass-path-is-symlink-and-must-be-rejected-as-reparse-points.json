@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "scripts/ci/agnix_conformance.py",
+    "tests/scripts/test_agnix_conformance.py"
+  ],
   "body_path": "memory/gotchas/windows-directory-junctions-bypass-path-is-symlink-and-must-be-rejected-as-reparse-points.md",
-  "content_hash": "sha256:45b07242b1dd2b0385f8379c796ec7f996b08ecd7c3d41b49f30ef56ffbd1857",
+  "content_hash": "sha256:0f266ccd9aadddbff0b5b06149947ec501265f28197987114ee0495e0cc3e1ed",
   "created_at": "2026-08-11T13:48:58+03:00",
   "evidence": [
     {
@@ -20,25 +24,11 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/ci/agnix_conformance.py",
-      "tests/scripts/test_agnix_conformance.py",
-      "Windows filesystem staging and archive extraction"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.windows-directory-junctions-bypass-path-is-symlink-and-must-be-rejected-as-reparse-points",
   "origin": {
     "captured_at": "2026-08-11T10:42:46Z",
     "kind": "external",
     "locator": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4702#issuecomment-5251938758"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",
@@ -50,9 +40,12 @@
     "junction",
     "reparse-point",
     "security",
-    "staging"
+    "staging",
+    "category-gotcha",
+    "scope-project",
+    "applies-to-windows-filesystem-staging-and-archive-extraction"
   ],
   "title": "Windows directory junctions bypass Path.is_symlink and must be rejected as reparse points",
   "type": "gotcha",
-  "updated_at": "2026-08-11T13:48:58+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

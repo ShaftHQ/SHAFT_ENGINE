@@ -795,14 +795,13 @@ class MemoryIntegrityTest(unittest.TestCase):
             "body_path": relative_body,
             "created_at": created,
             "id": f"gotcha.{name}",
-            "scope": scope
-            if scope is not None
-            else {"kind": "project", "project": "project.shaft-engine"},
             "status": "active",
             "title": name,
             "type": "gotcha",
             "updated_at": updated or created,
         }
+        if scope is not None:
+            sidecar["scope"] = scope
         sidecar["content_hash"] = self.expected_hash(
             sidecar, hash_body if hash_body is not None else body
         )
@@ -845,12 +844,10 @@ class MemoryIntegrityTest(unittest.TestCase):
             self.write_events()
         return [error["code"] for error in validate_memory_integrity(self.root)]
 
-    def test_project_scoped_object_with_task_set_fails_the_gate(self):
-        # #5156: restoring scope.task on a project-scoped object used to pass
-        # --skip-external while search_memory fail-closed with ObjectScopeInvalid.
+    def test_legacy_scope_field_fails_the_v5_gate(self):
         self.write_object(
             "taskset",
-            "A project-scoped body that should not carry a task.",
+            "A v5 object must not carry the removed scope field.",
             created="2026-08-01T10:00:00+03:00",
             scope={
                 "kind": "project",
@@ -859,21 +856,42 @@ class MemoryIntegrityTest(unittest.TestCase):
                 "task": "5090",
             },
         )
-        self.assertEqual(self.codes(), ["memory-project-scope"])
+        self.assertEqual(self.codes(), ["memory-v5-field"])
 
-    def test_project_scoped_object_with_branch_set_fails_the_gate(self):
-        self.write_object(
-            "branchset",
-            "A project-scoped body that should not carry a branch.",
-            created="2026-08-01T10:00:00+03:00",
-            scope={
-                "kind": "project",
-                "project": "project.shaft-engine",
-                "branch": "ChaosEngine/memory-project-scope-task-guard-5156",
-                "task": None,
-            },
+    def test_legacy_type_and_mismatched_id_prefix_fail_the_v5_gate(self):
+        sidecar = self.write_object(
+            "legacy", "Legacy workflow.", created="2026-08-01T10:00:00+03:00"
         )
-        self.assertEqual(self.codes(), ["memory-project-scope"])
+        path = self.root / ".memory/memory/gotchas/legacy.json"
+        sidecar["type"] = "workflow"
+        sidecar["content_hash"] = self.expected_hash(sidecar, "Legacy workflow.")
+        path.write_text(json.dumps(sidecar, indent=2), encoding="utf-8")
+        self.assertEqual(
+            self.codes(), ["memory-v5-type", "memory-v5-id-prefix"]
+        )
+
+    def test_legacy_relation_predicate_fails_the_v5_gate(self):
+        self.write_object(
+            "from", "From.", created="2026-08-01T10:00:00+03:00"
+        )
+        self.write_object(
+            "to", "To.", created="2026-08-01T10:00:00+03:00"
+        )
+        relations = self.root / ".memory/relations"
+        relations.mkdir(parents=True)
+        relation = {
+            "id": "rel.legacy",
+            "from": "gotcha.from",
+            "predicate": "documents",
+            "to": "gotcha.to",
+            "status": "active",
+            "created_at": "2026-08-01T10:00:00+03:00",
+            "updated_at": "2026-08-01T10:00:00+03:00",
+        }
+        (relations / "legacy.json").write_text(
+            json.dumps(relation, indent=2), encoding="utf-8"
+        )
+        self.assertEqual(self.codes(), ["memory-v5-predicate"])
 
     def test_a_body_edited_without_its_hash_fails_the_gate(self):
         # The #4460 flow: the body on disk is the corrected text, the hash

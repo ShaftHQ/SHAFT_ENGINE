@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "shaft-intellij/src/test/java/com/shaft/intellij/ui/AssistantGeminiLiveE2ETest.java",
+    "shaft-intellij/src/test/java/com/shaft/intellij/ui/AssistantCommandToolIndexRoutingTest.java"
+  ],
   "body_path": "memory/decisions/live-gemini-e2e-uses-a-neutral-provider-chat-prompt-not-codegen.md",
-  "content_hash": "sha256:99e2d48d537e8a7184c0c3c3155e523ca0e43604c6cc3bee7364f3262cb43f0b",
+  "content_hash": "sha256:d10f1704f20fee1bac4ba38facde05f7ef2e3ed1a53e99b637f00e0f5f159d12",
   "created_at": "2026-08-11T10:50:49+03:00",
   "evidence": [
     {
@@ -20,20 +24,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/AssistantGeminiLiveE2ETest.java",
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/AssistantCommandToolIndexRoutingTest.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.live-gemini-e2e-uses-a-neutral-provider-chat-prompt-not-codegen",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record live Gemini routing test decision from issue #4697"
@@ -43,9 +34,11 @@
     "intellij",
     "gemini",
     "e2e",
-    "routing"
+    "routing",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Live Gemini E2E uses a neutral provider-chat prompt, not /codegen",
   "type": "decision",
-  "updated_at": "2026-08-11T10:50:49+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

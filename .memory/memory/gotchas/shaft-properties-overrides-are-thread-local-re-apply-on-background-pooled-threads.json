@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaft-properties-overrides-are-thread-local-re-apply-on-background-pooled-threads.md",
-  "content_hash": "sha256:a3d2a0c91c8ef6f8eeb28fb7ad68723a3969c86cb008b5d3a84e1290c682fdaf",
+  "content_hash": "sha256:517dd186366ea3a4841d1d39eb2a9a53997b07514b7da9dd3e84108e5aea2605",
   "created_at": "2026-07-26T10:25:51+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-properties-overrides-are-thread-local-re-apply-on-background-pooled-threads",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning Loop: record four durable gotchas from today's session (#4040 thread-local Properties, #4048 worktree node_modules, #4044 guardrail single consumer, concurrent-agent .m2 cache races)"
@@ -28,9 +19,11 @@
     "thread-local",
     "flaky-test",
     "unit-test",
-    "parallel"
+    "parallel",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "SHAFT.Properties overrides are thread-local; re-apply on background/pooled threads",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

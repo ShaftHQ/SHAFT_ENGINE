@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    ".github/workflows/mavenCentral_cd.yml",
+    "scripts/ci/check_maven_release_version.py"
+  ],
   "body_path": "memory/decisions/mavencentral-cd-yml-skips-gracefully-when-the-version-is-already-released.md",
-  "content_hash": "sha256:8e84feea0595bb46bd56433d20bf0623a5e79f55896259a7a522584e083fe933",
+  "content_hash": "sha256:96a1a355e2b297703d48c13d809e2c0505a08ce2d8be55c202fe0ae69ec08ad6",
   "created_at": "2026-07-08T07:55:24+03:00",
   "evidence": [
     {
@@ -8,20 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/mavenCentral_cd.yml",
-      "scripts/ci/check_maven_release_version.py"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.mavencentral-cd-yml-skips-gracefully-when-the-version-is-already-released",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3372: Maven Central CD workflow red between releases"
@@ -31,9 +22,11 @@
     "release",
     "maven-central",
     "ci",
-    "github-actions"
+    "github-actions",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "mavenCentral_cd.yml skips gracefully when the version is already released",
   "type": "decision",
-  "updated_at": "2026-08-01T21:40:42+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

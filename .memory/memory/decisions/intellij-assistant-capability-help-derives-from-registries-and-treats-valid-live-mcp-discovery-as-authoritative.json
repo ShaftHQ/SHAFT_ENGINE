@@ -1,6 +1,12 @@
 {
+  "anchors": [
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCapabilityCatalog.java",
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCommand.java",
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java",
+    "shaft-cli/src/main/resources/META-INF/shaft-cli/command-index.json"
+  ],
   "body_path": "memory/decisions/intellij-assistant-capability-help-derives-from-registries-and-treats-valid-live-mcp-discovery-as-authoritative.md",
-  "content_hash": "sha256:8593944abd33521d3c4f7775b53e094fc63fba2cbac8d440d2944ddaa1ff006e",
+  "content_hash": "sha256:9558dc00433fc02235ef9647e1994a24e9fb2381e444a051a76e368b0c476113",
   "created_at": "2026-08-10T23:54:33+03:00",
   "evidence": [
     {
@@ -12,22 +18,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCapabilityCatalog.java",
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCommand.java",
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java",
-      "shaft-cli/src/main/resources/META-INF/shaft-cli/command-index.json"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.intellij-assistant-capability-help-derives-from-registries-and-treats-valid-live-mcp-discovery-as-authoritative",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record durable IntelliJ Assistant capability and setup-route decisions from issues #4680-#4683 after duplicate search."
@@ -38,9 +29,11 @@
     "assistant",
     "mcp",
     "help",
-    "capability-catalog"
+    "capability-catalog",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "IntelliJ Assistant capability help derives from registries and treats valid live MCP discovery as authoritative",
   "type": "decision",
-  "updated_at": "2026-08-10T23:54:33+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

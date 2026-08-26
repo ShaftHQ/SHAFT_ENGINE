@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/concurrent-agents-in-one-shared-checkout-git-checkout-by-one-agent-silently-moves-head-for-all.md",
-  "content_hash": "sha256:670fea431db13684a90449b7eb6dca74425132932126562024925e39f41d3a43",
+  "content_hash": "sha256:9a0a9f3dc38037742b9e8a0dcea5f986e665ee9492e19028ffbc1f3597175a6a",
   "created_at": "2026-07-21T06:13:44+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.concurrent-agents-in-one-shared-checkout-git-checkout-by-one-agent-silently-moves-head-for-all",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "2026-07-21 tool-architecture-sweep session close: persist git/build gotchas discovered while multiple agents delivered PRs #3881/#3882/#3886/#3887"
@@ -28,9 +19,11 @@
     "concurrency",
     "agents",
     "worktree",
-    "workflow"
+    "workflow",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Concurrent agents in one shared checkout: git checkout by one agent silently moves HEAD for all",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

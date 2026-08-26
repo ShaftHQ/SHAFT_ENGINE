@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "scripts/mcp/install-shaft-mcp.ps1",
+    "scripts/mcp/install-shaft-mcp.sh"
+  ],
   "body_path": "memory/gotchas/installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker.md",
-  "content_hash": "sha256:007fdc3e1e1fb1fa543bafe207818e5e653f785c0afb90ed146f0f78a8a01209",
+  "content_hash": "sha256:96f2b4a543791d2b5dc96c2ccb34ecc71964bf6b1aa150f8cb9d63f56ecd5894",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [
     {
@@ -8,20 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/mcp/install-shaft-mcp.ps1",
-      "scripts/mcp/install-shaft-mcp.sh"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
@@ -31,9 +22,11 @@
     "installer",
     "mcp",
     "bootstrap",
-    "staleness"
+    "staleness",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Installer wrapper scripts must gate co-located-file shortcuts on a repo-checkout marker",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,18 +1,9 @@
 {
   "body_path": "memory/workflows/testability-seam-for-off-edt-file-writes-split-the-pooled-thread-wrapper-from-a-synchronous-reflectable-write-method.md",
-  "content_hash": "sha256:3be5527d86d463e6a1969002b11116cd1aaf6ba5321988a38212a04c50186800",
+  "content_hash": "sha256:cffbc707c0241f08072aad70016d8890bb8c067f6ca4fe3fab38a339e45ecd0a",
   "created_at": "2026-07-17T05:03:33+03:00",
   "evidence": [],
-  "facets": {
-    "category": "workflow"
-  },
-  "id": "workflow.testability-seam-for-off-edt-file-writes-split-the-pooled-thread-wrapper-from-a-synchronous-reflectable-write-method",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.testability-seam-for-off-edt-file-writes-split-the-pooled-thread-wrapper-from-a-synchronous-reflectable-write-method",
   "source": {
     "kind": "agent",
     "task": "shaft-intellij issue #3631 save transcript to file and #3632 approval prompt keyboard focus"
@@ -23,9 +14,12 @@
     "swing",
     "testing",
     "junit",
-    "concurrency"
+    "concurrency",
+    "legacy-type-workflow",
+    "category-workflow",
+    "scope-project"
   ],
   "title": "Testability seam for off-EDT file writes: split the pooled-thread wrapper from a synchronous, reflectable write method",
-  "type": "workflow",
-  "updated_at": "2026-07-17T05:03:33+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

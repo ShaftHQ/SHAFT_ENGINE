@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:1bf1f60f12e8f016242215a63bad2902f2e7bab43b0850e70938b4f7413684d9",
+  "content_hash": "sha256:c3a4feb59a2054ddb5a21db0d0b1d45244435be7dfca86325b57b7e1169b1c8b",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -8,10 +8,10 @@
       "kind": "file"
     }
   ],
-  "from": "constraint.maven-central-version-immutability",
+  "from": "decision.maven-central-version-immutability",
   "id": "rel.maven-central-version-immutability-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.stack-and-tooling",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "shaft-engine/src/main/java/com/shaft/tools/io/internal/FailureTraceReporter.java",
+    "shaft-engine/src/main/java/com/shaft/tools/io/internal/TraceSessionBudget.java"
+  ],
   "body_path": "memory/gotchas/trace-session-budget-must-reserve-before-writing-zip-or-screenshot-sidecars.md",
-  "content_hash": "sha256:462672de2627eae81fc02ebf8492562d32ffa4ac568203b4cad0df733d1ce254",
+  "content_hash": "sha256:2dce3a04b8238fdff6c55d82581c89810bb54a88ffc919341f055321762d6d81",
   "created_at": "2026-08-18T16:50:31+03:00",
   "evidence": [
     {
@@ -12,20 +16,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/tools/io/internal/FailureTraceReporter.java",
-      "shaft-engine/src/main/java/com/shaft/tools/io/internal/TraceSessionBudget.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.trace-session-budget-must-reserve-before-writing-zip-or-screenshot-sidecars",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the #4826 session-budget reserve-before-publish gotcha."
@@ -34,9 +25,11 @@
   "tags": [
     "trace",
     "budget",
-    "archive"
+    "archive",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Trace session budget must reserve before writing ZIP or screenshot sidecars",
   "type": "gotcha",
-  "updated_at": "2026-08-18T16:50:31+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

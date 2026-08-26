@@ -1,26 +1,13 @@
 {
+  "anchors": [],
   "body_path": "memory/gotchas/maven-without-an-explicit-worktree-cwd-runs-the-dirty-primary-checkout-and-skips-new-tests.md",
-  "content_hash": "sha256:a16922c7fd671812f6fc42c0d21ca01f6a8714a006437a10b2032fd46c4f4521",
+  "content_hash": "sha256:f44b1bb4938f48af72048dc7b24dd5043731e2ab0e6042e02259154da3489447",
   "created_at": "2026-08-17T15:39:58+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "setup",
-      "#5041",
-      "#5043"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.maven-without-an-explicit-worktree-cwd-runs-the-dirty-primary-checkout-and-skips-new-tests",
   "origin": {
     "kind": "user",
     "locator": "session:4849-healenium-5044"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",
@@ -30,9 +17,14 @@
   "tags": [
     "maven",
     "worktree",
-    "windows"
+    "windows",
+    "category-gotcha",
+    "scope-project",
+    "applies-to-setup",
+    "applies-to-5041",
+    "applies-to-5043"
   ],
   "title": "Maven without an explicit worktree cwd runs the dirty primary checkout and skips new tests",
   "type": "gotcha",
-  "updated_at": "2026-08-17T15:39:58+03:00"
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "pom.xml",
+    "shaft-engine/",
+    "scripts/ci/"
+  ],
   "body_path": "memory/project.md",
-  "content_hash": "sha256:d9aadaf26e9c94aa7121399bdf534b300c2869cd25ae00ff20a5691f314b0227",
+  "content_hash": "sha256:892ebc3749332c66d9878bcc345e897a8bd1bdc228186d40ab86262dc685ecc3",
   "created_at": "2026-06-15T16:59:56+03:00",
   "evidence": [
     {
@@ -12,27 +17,16 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "pom.xml",
-      "shaft-engine/",
-      "scripts/ci/"
-    ],
-    "category": "project-description"
-  },
   "id": "project.shaft-engine",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "system"
   },
   "status": "active",
-  "tags": [],
+  "tags": [
+    "category-project-description",
+    "scope-project"
+  ],
   "title": "SHAFT Engine",
   "type": "project",
-  "updated_at": "2026-06-15T17:06:51+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

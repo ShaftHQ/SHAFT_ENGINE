@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit.md",
-  "content_hash": "sha256:d96482842422617bc8b02bda83a08ece1914596a5a71137904539286e04a8c2f",
+  "content_hash": "sha256:c9bc629f1b690875890ee59b35be945e1774ba70aae1c3593bab0d8a7b473bb1",
   "created_at": "2026-08-10T15:22:23+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "2026-07-21 tool-architecture-sweep session close: persist git/build gotchas discovered while multiple agents delivered PRs #3881/#3882/#3886/#3887"
@@ -28,9 +19,11 @@
     "rebase",
     "squash-merge",
     "workflow",
-    "companion-docs-repo"
+    "companion-docs-repo",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Rebasing a stacked branch after its shared history was squash-merged: use --onto with the last shared commit",
   "type": "gotcha",
-  "updated_at": "2026-08-10T15:23:17+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

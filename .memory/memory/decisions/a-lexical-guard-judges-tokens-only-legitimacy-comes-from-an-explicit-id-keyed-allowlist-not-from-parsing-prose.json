@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/a-lexical-guard-judges-tokens-only-legitimacy-comes-from-an-explicit-id-keyed-allowlist-not-from-parsing-prose.md",
-  "content_hash": "sha256:0d2fbe16f7acd2d76ce937555257347330301cbee29b7bb3f0324bde2d9ac6f3",
+  "content_hash": "sha256:2dfc5ba358c2d92b8e1ea16b7aaa8b48fcb18fd66fff9881e4858d72063e682f",
   "created_at": "2026-08-04T21:59:34+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.a-lexical-guard-judges-tokens-only-legitimacy-comes-from-an-explicit-id-keyed-allowlist-not-from-parsing-prose",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the design doctrine and the anti-pattern from #4484 / PR #4513, the fourth review round on the superseded-policy scan"
@@ -32,9 +23,11 @@
     "regex",
     "memory-store",
     "agent-harness",
-    "review"
+    "review",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "A lexical guard judges tokens only; legitimacy comes from an explicit id-keyed allowlist, not from parsing prose",
   "type": "decision",
-  "updated_at": "2026-08-04T21:59:34+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java",
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java"
+  ],
   "body_path": "memory/gotchas/intellij-setup-step-titles-wrap-html-so-raw-jlabel-contains-misses-ampersands.md",
-  "content_hash": "sha256:6689126db4201789a692719bc9d25cf69bc1e606d5e5becabc85ed37df6d0e67",
+  "content_hash": "sha256:7a4dac6ceb42b565105b6e3512d9c68485cefcdca67202b9b633a8c205f7670a",
   "created_at": "2026-08-20T03:53:17+03:00",
   "evidence": [
     {
@@ -12,24 +16,11 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java",
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-setup-step-titles-wrap-html-so-raw-jlabel-contains-misses-ampersands",
   "origin": {
     "captured_at": "2026-08-20T01:30:00Z",
     "kind": "file",
     "locator": "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",
@@ -39,9 +30,11 @@
   "tags": [
     "intellij",
     "screenshots",
-    "swing"
+    "swing",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "IntelliJ setup step titles wrap HTML so raw JLabel contains misses ampersands",
   "type": "gotcha",
-  "updated_at": "2026-08-20T03:53:17+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,18 +1,9 @@
 {
   "body_path": "memory/workflows/repairing-memory-object-content-hash-mismatches-objectcontenthashmismatch.md",
-  "content_hash": "sha256:823ed4d03e7ad7883d3469cceb07f794a06507d0e441def2bc1abf22de14ffae",
+  "content_hash": "sha256:c56a5cd96ff79a7d3061273ef39cf77a97d856874af5ed4047d2be698dfba952",
   "created_at": "2026-07-17T09:20:42+03:00",
   "evidence": [],
-  "facets": {
-    "category": "workflow"
-  },
-  "id": "workflow.repairing-memory-object-content-hash-mismatches-objectcontenthashmismatch",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.repairing-memory-object-content-hash-mismatches-objectcontenthashmismatch",
   "source": {
     "kind": "agent",
     "task": "Harness-wide optimization: consolidate agent instructions, prune duplicate plugins, source-control user-level config, codify Haiku-first delegation"
@@ -22,9 +13,12 @@
     "memory-cli",
     "content-hash",
     "repair",
-    "workflow"
+    "workflow",
+    "legacy-type-workflow",
+    "category-workflow",
+    "scope-project"
   ],
   "title": "Repairing memory object content_hash mismatches (ObjectContentHashMismatch)",
-  "type": "workflow",
-  "updated_at": "2026-07-17T09:20:42+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

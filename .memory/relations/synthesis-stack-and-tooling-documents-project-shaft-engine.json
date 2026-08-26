@@ -1,10 +1,10 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:94560772b0d8861619d26d137f51d4a2a899bbbba6f95320e6d0b8bfd886b059",
+  "content_hash": "sha256:85a55050670ae6ce839c207d2db6567cad88e6ea7aa7ef20b07167c5d60ebb71",
   "created_at": "2026-07-29T16:47:24+03:00",
   "evidence": [
     {
-      "id": "synthesis.stack-and-tooling",
+      "id": "decision.stack-and-tooling",
       "kind": "memory"
     },
     {
@@ -12,10 +12,10 @@
       "kind": "memory"
     }
   ],
-  "from": "synthesis.stack-and-tooling",
+  "from": "decision.stack-and-tooling",
   "id": "rel.synthesis-stack-and-tooling-documents-project-shaft-engine",
-  "predicate": "documents",
+  "predicate": "related_to",
   "status": "active",
   "to": "project.shaft-engine",
-  "updated_at": "2026-07-29T16:47:24+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

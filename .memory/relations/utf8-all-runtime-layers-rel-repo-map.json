@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:2cae0aef47560a8eb469d9ee456a09bcb74f81f801b6cc1c6d37cd53ec489184",
+  "content_hash": "sha256:6e58e71b7a9f3b2d9c890ba01fb547b3f97bb2880395ff4815ec16f9f4273be7",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -10,8 +10,8 @@
   ],
   "from": "decision.utf8-all-runtime-layers",
   "id": "rel.utf8-all-runtime-layers-rel-repo-map",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.repository-map",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.repository-map",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689.md",
-  "content_hash": "sha256:424a8f4354b91491333f42b87515069af3bff6f5e98d496befc04eadbb58db2f",
+  "content_hash": "sha256:bf9e61b68b3e42496f91d88fdeb484eaf0a16ab8a07dfdbf7aa4a482ed1c6cd2",
   "created_at": "2026-07-17T21:59:46+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #3674: selectable-answer chips for agent clarifying questions in shaft-intellij"
@@ -28,9 +19,11 @@
     "assistant-panel",
     "clarifying-question",
     "issue-3674",
-    "pr-3689"
+    "pr-3689",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "IntelliJ Assistant clarifying questions render selectable chips via a fenced shaft-options marker (issue #3674, PR #3689)",
   "type": "decision",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

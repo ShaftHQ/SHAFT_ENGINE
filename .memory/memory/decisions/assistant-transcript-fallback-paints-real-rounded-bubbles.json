@@ -1,6 +1,10 @@
 {
+  "anchors": [
+    "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
+    "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
+  ],
   "body_path": "memory/decisions/assistant-transcript-fallback-paints-real-rounded-bubbles.md",
-  "content_hash": "sha256:8784bb263e57c417223f7a6aaa2feaf51b28992672047952812d76df7cca4082",
+  "content_hash": "sha256:1374b7c01e9b1707c978eaeabe05cf5aa65375cf8a595f71512de23309fd50e8",
   "created_at": "2026-07-02T23:32:22+03:00",
   "evidence": [
     {
@@ -8,20 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.assistant-transcript-fallback-paints-real-rounded-bubbles",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Enforce SHAFT-only generated code in IntelliJ Assistant"
@@ -31,9 +22,11 @@
     "intellij",
     "assistant",
     "markdown",
-    "ui"
+    "ui",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Assistant transcript fallback paints real rounded bubbles",
   "type": "decision",
-  "updated_at": "2026-08-01T21:40:42+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

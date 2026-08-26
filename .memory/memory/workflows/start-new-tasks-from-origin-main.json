@@ -1,6 +1,7 @@
 {
+  "anchors": [],
   "body_path": "memory/workflows/start-new-tasks-from-origin-main.md",
-  "content_hash": "sha256:780d72db171073cdb1024e388762b95f1e0cf70cf52d6468b5078d71296e708b",
+  "content_hash": "sha256:ab3e1289e676e434bcc5556e4ee14303e2a3d59bf3d3734fc1998455a1e5521b",
   "created_at": "2026-06-16T08:33:26+03:00",
   "evidence": [
     {
@@ -12,27 +13,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "git",
-      "branches",
-      "pull-requests",
-      "validation",
-      "ci"
-    ],
-    "category": "workflow",
-    "load_modes": [
-      "coding",
-      "review"
-    ]
-  },
-  "id": "workflow.start-new-tasks-from-origin-main",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.start-new-tasks-from-origin-main",
   "source": {
     "kind": "agent",
     "task": "Remember durable workflow correction from user: new SHAFT_ENGINE implementation tasks should start from a fresh branch based on the remote main branch, without waiting for the user to repeat this instruction."
@@ -44,9 +25,19 @@
     "branches",
     "pull-requests",
     "validation",
-    "ci"
+    "ci",
+    "legacy-type-workflow",
+    "category-workflow",
+    "load-coding",
+    "load-review",
+    "scope-project",
+    "applies-to-git",
+    "applies-to-branches",
+    "applies-to-pull-requests",
+    "applies-to-validation",
+    "applies-to-ci"
   ],
   "title": "Run the SHAFT new-task PR flow",
-  "type": "workflow",
-  "updated_at": "2026-07-08T16:41:17+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

@@ -1,6 +1,9 @@
 {
+  "anchors": [
+    ".github/workflows/e2eTests.yml"
+  ],
   "body_path": "memory/gotchas/flutter-demo-app-sparse-checkout-requires-its-server-path-dependency.md",
-  "content_hash": "sha256:3da863258d914bf5530c68fc7819a0c62a2fb4cd4c72e36242fe6bfa296d4865",
+  "content_hash": "sha256:905e445bea63e150377286b104b4e8d64d605e3f142b3066295d1a3d45222f26",
   "created_at": "2026-08-02T08:33:50+03:00",
   "evidence": [
     {
@@ -8,26 +11,17 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/e2eTests.yml"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.flutter-demo-app-sparse-checkout-requires-its-server-path-dependency",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Resolve #4398 E2E Tests nightly failures"
   },
   "status": "active",
-  "tags": [],
+  "tags": [
+    "category-gotcha",
+    "scope-project"
+  ],
   "title": "Flutter demo-app sparse checkout requires its server path dependency",
   "type": "gotcha",
-  "updated_at": "2026-08-02T08:33:50+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/fake-test-applications-getservice-returning-null-defeats-the-editorcolorsmanager-getinstance-never-returns-null-guard.md",
-  "content_hash": "sha256:2d49d75a90c9dd599a07c4328104ca7c4414b8430ff922dbaa2147369be93690",
+  "content_hash": "sha256:8ffd1eaa80e0226f29af23a36de5855feaca75dcb54c5e851407a95c386c9ad2",
   "created_at": "2026-07-27T10:37:22+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.fake-test-applications-getservice-returning-null-defeats-the-editorcolorsmanager-getinstance-never-returns-null-guard",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #4233 nightly Live Tools E2E NPE in AssistantTranscriptView"
@@ -30,9 +21,11 @@
     "live-tools-e2e",
     "issue-4233",
     "issue-4163",
-    "issue-4175"
+    "issue-4175",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Fake test Application's getService() returning null defeats the EditorColorsManager.getInstance()-never-returns-null guard",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

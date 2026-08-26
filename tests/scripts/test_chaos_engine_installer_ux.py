@@ -83,6 +83,52 @@ class InstallerUxTests(unittest.TestCase):
                 reporter.close()
         self.assertFalse(any(thread.name == "chaos-engine-installer" for thread in threading.enumerate()))
 
+    def test_tty_trace_and_cursor_movement_stay_within_terminal_height(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        stream = Tty()
+        terminal_size = os.terminal_size((32, 8))
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm", "NO_COLOR": "1"}), unittest.mock.patch.object(
+            BOOTSTRAP.shutil, "get_terminal_size", return_value=terminal_size
+        ), unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 10.0)
+            try:
+                reporter.current_operation = "Provision dependencies"
+                reporter._in_flight = ["Install core", "Provision dependencies"]
+                reporter.remaining_operations = [
+                    "Download source",
+                    "Provision dependencies",
+                    "Install core",
+                    "Verify installation",
+                    "Activate clients",
+                    "Finalize installation",
+                ]
+                reporter.detail = "Provision dependencies download"
+                reporter.traces = [
+                    (float(index), f"trace {index} " + "wrapped detail " * 8)
+                    for index in range(12)
+                ]
+                reporter.trace_count = len(reporter.traces)
+                reporter._lines = 20
+                stream.seek(0)
+                stream.truncate(0)
+
+                reporter._render_locked()
+
+                output = stream.getvalue()
+                rendered = output.split("\x1b[K\n", 1)[1].splitlines()
+                self.assertLessEqual(len(rendered), terminal_size.lines)
+                self.assertIn("[◉] Provision dependencies  r", output)
+                self.assertIn("Summary", output)
+                self.assertIn(f"\x1b[{terminal_size.lines}F", output)
+                self.assertNotIn("\x1b[20F", output)
+                self.assertLessEqual(reporter._lines, terminal_size.lines)
+            finally:
+                reporter._stop.set()
+                reporter._thread = None
+
     def test_ticker_updates_elapsed_each_second_during_blocking_work(self):
         class Tty(io.StringIO):
             def isatty(self):
@@ -337,6 +383,7 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("waiting for data", output)
         self.assertIn("remaining 00:02", output)
         self.assertNotIn("B/s", output)
+        self.assertNotIn("\x1b", output)
 
     def test_success_cta_reports_agent_session_and_user_guide_on_stderr(self):
         stream = io.StringIO()

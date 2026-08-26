@@ -1,21 +1,12 @@
 {
+  "anchors": [
+    "shaft-infrastructure"
+  ],
   "body_path": "memory/gotchas/compose-inspect-failure-must-not-be-treated-as-stopped.md",
-  "content_hash": "sha256:8f70438e205f575501786d45cd6b35a45c12398ace7bcab38f9be770698834ff",
+  "content_hash": "sha256:cef35ad9dc7cc78e32ad01bb492703967bed49ad263429bca8a53f3a1e74aa7f",
   "created_at": "2026-08-17T14:35:11+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "shaft-infrastructure"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.compose-inspect-failure-must-not-be-treated-as-stopped",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record Grid setup review gotchas from #5041/#5042"
@@ -24,9 +15,11 @@
   "tags": [
     "setup",
     "lifecycle",
-    "docker"
+    "docker",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Compose inspect failure must not be treated as stopped",
   "type": "gotcha",
-  "updated_at": "2026-08-17T14:35:11+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

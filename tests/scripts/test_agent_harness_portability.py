@@ -220,7 +220,7 @@ POLICY_RECORD_ALLOWLIST: dict[str, dict[str, str]] = {
             "asserting no cadence: the exact false positive A1 accepts by "
             "design, taking the exact escape A2 exists to give it."
         ),
-        "workflow.after-opening-a-pr-rely-on-ci-push-notifications-not-a"
+        "decision.after-opening-a-pr-rely-on-ci-push-notifications-not-a"
         "-self-polling-monitor": (
             "The live false negative from #4516. It says \"It idles as a frozen "
             "background agent\" of a self-polling monitor, and separately gives "
@@ -249,9 +249,9 @@ def searchable_text(memory_root: Path, metadata: dict) -> str:
     """Return every field of a memory object a retrieval puts in front of an agent.
 
     One helper for both memory-vs-guidance checks, because they had already
-    drifted apart: one read title and body, the other body, `facets` and
-    `evidence`, so which field a claim sat in decided whether it was caught
-    (#4464). Facet and evidence strings are joined as prose rather than
+    drifted apart: one read title and body, the other body and metadata, so
+    which field a claim sat in decided whether it was caught (#4464). Metadata
+    strings are joined as prose rather than
     `json.dumps`-ed -- serialising injects quotes, braces and escaped
     whitespace into the middle of the prose, which is exactly where a phrase
     match needs the words to stay adjacent.
@@ -260,7 +260,8 @@ def searchable_text(memory_root: Path, metadata: dict) -> str:
         (
             metadata.get("title", ""),
             (memory_root / metadata["body_path"]).read_text(encoding="utf-8"),
-            *string_leaves(metadata.get("facets", {})),
+            *string_leaves(metadata.get("anchors", [])),
+            *string_leaves(metadata.get("tags", [])),
             *string_leaves(metadata.get("evidence", [])),
         )
     )
@@ -1043,11 +1044,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_the_policy_scan_reads_every_field_a_retrieval_shows(self):
         """The two memory-vs-guidance checks were reading different fields.
 
-        Its sibling searched body plus `facets` plus `evidence`; this one gained
+        Its sibling searched body plus metadata and `evidence`; this one gained
         `title` and never gained the other two, so a policy restated in an
         evidence note escaped while the identical sentence in a body failed the
         build (#4464). 89 of the 338 active objects carry more than 120
-        characters of facet or evidence *prose*, and a retrieval puts all of it
+        characters of metadata or evidence *prose*, and a retrieval puts all of it
         in front of the agent. (#4464 says 164; that figure measures the JSON
         serialisation, whose braces, quotes and keys are not text anyone reads.
         Both are right about their own unit.) Strings are joined as prose, not
@@ -1060,7 +1061,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         """
         fields = {
             "evidenced": {"evidence": [{"note": "Confirmed in #3643: still one PR per session."}]},
-            "faceted": {"facets": {"shape": "Still one PR per session."}},
+            "tagged": {"tags": ["Still one PR per session."]},
             "titled": {"title": "Still one PR per session"},
         }
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -1160,9 +1161,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         """
         citable = memory_object_identifiers(ROOT / ".memory")
         for citation in (
-            "See [[constraint.one-branch-one-worktree-one-pr-per-session]] for the incident.",
+            "See [[decision.one-branch-one-worktree-one-pr-per-session]] for the incident.",
             "See [[one-branch-one-worktree-one-pr-per-session]] for the incident.",
-            "See [[workflow.orchestrator-checks-in-on-any-delegated-background-task"
+            "See [[decision.orchestrator-checks-in-on-any-delegated-background-task"
             "-after-30-minutes]].",
             "See [[orchestrator-checks-in-on-any-delegated-background-task-after-30-minutes]].",
         ):
@@ -1183,7 +1184,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         # proves nothing about greed.
         self.assertEqual(
             superseded_policy_offences(
-                "Between [[constraint.one-branch-one-worktree-one-pr-per-session]] and still"
+                "Between [[decision.one-branch-one-worktree-one-pr-per-session]] and still"
                 " one PR per session, see [[gotcha.java25-isuite-mocking]].",
                 citable,
             ),
@@ -1194,9 +1195,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         # which manufactures both a subject and a phrase that no one wrote.
         # Real ids again, for the same reason.
         for fused in (
-            "Wake the sub[[constraint.one-branch-one-worktree-one-pr-per-session]]agent"
+            "Wake the sub[[decision.one-branch-one-worktree-one-pr-per-session]]agent"
             " every 30 minutes.",
-            "The one[[constraint.one-branch-one-worktree-one-pr-per-session]] PR per session"
+            "The one[[decision.one-branch-one-worktree-one-pr-per-session]] PR per session"
             " rule.",
         ):
             with self.subTest(fused=fused[:40]):
@@ -1279,7 +1280,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
              [ONE_PR_PER_SESSION_REASON]),
             ("Check in on a [[delegate]] every 30 minutes.", [DELEGATE_INTERVAL_REASON]),
             ("Check in on a delegate every [[30 minutes]].", [DELEGATE_INTERVAL_REASON]),
-            ("See [[constraint.one-branch-one-worktree-one-pr-per-session and still one PR"
+            ("See [[decision.one-branch-one-worktree-one-pr-per-session and still one PR"
              " per session, see [[gotcha.java25-isuite-mocking]].",
              [ONE_PR_PER_SESSION_REASON]),
         ):
@@ -1290,7 +1291,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         # anything at all -- or from nothing -- would look identical here.
         self.assertEqual(
             superseded_policy_offences(
-                "See [[constraint.one-branch-one-worktree-one-pr-per-session]].", frozenset()
+                "See [[decision.one-branch-one-worktree-one-pr-per-session]].", frozenset()
             ),
             [ONE_PR_PER_SESSION_REASON],
         )
@@ -1494,7 +1495,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         **Why `why` is not required to quote the sentence that trips the
         scan.** That was the obvious stronger rule -- a quote makes staleness
         mechanically detectable rather than merely visible -- and it is
-        unsatisfiable here. `workflow.after-opening-a-pr-rely-on-ci-push-
+        unsatisfiable here. `decision.after-opening-a-pr-rely-on-ci-push-
         notifications-not-a-self-polling-monitor` trips A1 on two strings in
         different places: "It idles as a frozen background agent" supplies the
         subject and a separate `~20-30 min` supplies the figure. No single

@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:4b2e0bfbe7df01b89d33c73792e3b120c7e7733956c4b00407560e4ae80c7d96",
+  "content_hash": "sha256:7fa9f039a1fb99336b92e98eb90b3284a97c50fdbf8e4ccd9ddd3dfae197f8ac",
   "created_at": "2026-08-04T09:39:35+03:00",
   "evidence": [
     {
@@ -12,10 +12,10 @@
       "kind": "file"
     }
   ],
-  "from": "fact.worktree-hygiene-report-and-guard-rule-r10",
+  "from": "gotcha.worktree-hygiene-report-and-guard-rule-r10",
   "id": "rel.fact-worktree-hygiene-report-and-guard-rule-r10-supports-constraint-worktree-housekeeping-at-session-start",
-  "predicate": "supports",
+  "predicate": "related_to",
   "status": "active",
-  "to": "constraint.worktree-housekeeping-at-session-start",
-  "updated_at": "2026-08-10T15:11:29+03:00"
+  "to": "decision.worktree-housekeeping-at-session-start",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

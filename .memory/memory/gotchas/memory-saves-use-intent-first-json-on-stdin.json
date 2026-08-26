@@ -1,6 +1,7 @@
 {
+  "anchors": [],
   "body_path": "memory/gotchas/memory-saves-use-intent-first-json-on-stdin.md",
-  "content_hash": "sha256:4c2206fb03621e8ad8b0cdf8824b0b4c0fc68ae51f77b4b2a152b0f578fd77e0",
+  "content_hash": "sha256:02dacd62a0628fae435fa5d76d85eebfbc1bd30dc33f2011fe7ae77d0b6f2ba9",
   "created_at": "2026-06-20T12:08:49+03:00",
   "evidence": [
     {
@@ -12,25 +13,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".memory/",
-      "Memory CLI"
-    ],
-    "category": "gotcha",
-    "load_modes": [
-      "coding",
-      "debugging",
-      "review"
-    ]
-  },
   "id": "gotcha.memory-saves-use-intent-first-json-on-stdin",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record agent workflow corrections for Memory CLI usage"
@@ -39,9 +22,16 @@
   "tags": [
     "agent-workflow",
     "memory",
-    "cli"
+    "cli",
+    "category-gotcha",
+    "load-coding",
+    "load-debugging",
+    "load-review",
+    "scope-project",
+    "applies-to-memory-cli",
+    "applies-to-memory"
   ],
   "title": "Use supported Memory CLI write commands",
   "type": "gotcha",
-  "updated_at": "2026-06-28T10:31:53+03:00"
+  "updated_at": "2026-08-26T18:22:30+03:00"
 }

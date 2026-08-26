@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaftsettingsconfigurable-createcomponent-calls-reset-internally-so-a-just-constructed-panel-never-observes-raw-constructor-default-label-state.md",
-  "content_hash": "sha256:dc0ca0d7b89fe22054a45af7539864c50744482f3451716683eb596a5ff1c0c1",
+  "content_hash": "sha256:29d4c1c5560a287cf7e2af3d0b49a5cedc33e0d223f09039aea0e3af97ed54c4",
   "created_at": "2026-07-16T12:36:05+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaftsettingsconfigurable-createcomponent-calls-reset-internally-so-a-just-constructed-panel-never-observes-raw-constructor-default-label-state",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ plugin #3605: mirror remaining setupStatusLabel/testStatus-style JLabel text into accessible descriptions"
@@ -29,9 +20,11 @@
     "swing",
     "gotcha",
     "shaftsettingsconfigurable",
-    "issue-3605"
+    "issue-3605",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "ShaftSettingsConfigurable#createComponent() calls reset() internally, so a just-constructed panel never observes raw constructor-default label state",
   "type": "gotcha",
-  "updated_at": "2026-08-01T22:00:11+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

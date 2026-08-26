@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "shaft-capture/src/main/java/com/shaft/capture/generate/",
+    "shaft-doctor/src/main/java/com/shaft/doctor/",
+    "shaft-mcp/src/main/java/com/shaft/mcp/"
+  ],
   "body_path": "memory/facts/deterministic-ai-test-lifecycle-artifacts.md",
-  "content_hash": "sha256:eb871d64c60fdd412dbde58813686ae31e3f79b5578d27cfe2a0619e1c8170b7",
+  "content_hash": "sha256:2429d30b53f9b23a3a3ac74e9a0bb0233ca7141900f8e2991468132e52b59701",
   "created_at": "2026-06-18T13:59:56+03:00",
   "evidence": [
     {
@@ -16,28 +21,18 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/generate/",
-      "shaft-doctor/src/main/java/com/shaft/doctor/",
-      "shaft-mcp/src/main/java/com/shaft/mcp/"
-    ],
-    "category": "product-feature"
-  },
-  "id": "fact.deterministic-ai-test-lifecycle-artifacts",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.deterministic-ai-test-lifecycle-artifacts",
   "source": {
     "kind": "agent",
     "task": "Implement deterministic-first AI enhancement artifacts for SHAFT test lifecycle"
   },
   "status": "active",
-  "tags": [],
+  "tags": [
+    "legacy-type-fact",
+    "category-product-feature",
+    "scope-project"
+  ],
   "title": "Deterministic AI test lifecycle artifacts",
-  "type": "fact",
-  "updated_at": "2026-06-18T13:59:56+03:00"
+  "type": "gotcha",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

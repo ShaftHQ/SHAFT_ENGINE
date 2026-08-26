@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/selenium-pr-17832-debug-logging-consistency-mechanism-five-review-fix-rounds-this-session-landed-clean.md",
-  "content_hash": "sha256:fbe69876cd47a74cccd39df2f022c471541dc5772ac69ac125020941005550a5",
+  "content_hash": "sha256:839cff8326dcb843b45f925286da5cd1cf41b04226fe7a7fa18a9fd3604be995",
   "created_at": "2026-07-29T08:59:53+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.selenium-pr-17832-debug-logging-consistency-mechanism-five-review-fix-rounds-this-session-landed-clean",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Selenium PR #17832: self-review by the fix's own author is not enough for multi-round fix chains"
@@ -30,9 +21,11 @@
   "tags": [
     "selenium",
     "pr-17832",
-    "debug-logging"
+    "debug-logging",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Selenium PR #17832 debug-logging-consistency-mechanism: five review-fix rounds this session, landed clean",
   "type": "decision",
-  "updated_at": "2026-08-01T21:02:05+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

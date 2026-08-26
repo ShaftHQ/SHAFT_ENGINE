@@ -1,6 +1,7 @@
 {
+  "anchors": [],
   "body_path": "memory/constraints/approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval.md",
-  "content_hash": "sha256:c2dcfa00b91042644bd18931d5055985a401d1470aad8a2dcb59480e4f9a6e7f",
+  "content_hash": "sha256:cc19e67a0f5f0af3a0db32b033605431ab6b5a197db6e7c67c6be9d49810172c",
   "created_at": "2026-08-09T20:13:10+03:00",
   "evidence": [
     {
@@ -12,25 +13,11 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".agents/skills/act-as-mohab/SKILL.md",
-      ".agents/skills/act-as-mohab/references/consult-first.md",
-      ".agents/skills/act-as-mohab/references/work-github-planning.md"
-    ],
-    "category": "agent-guidance"
-  },
-  "id": "constraint.approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval",
+  "id": "decision.approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval",
   "origin": {
     "captured_at": "2026-08-09T20:02:00+03:00",
     "kind": "user",
     "locator": "conversation:issue-4644:2026-08-09"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",
@@ -41,9 +28,15 @@
     "user-preference",
     "consultation",
     "approval-gate",
-    "delegation"
+    "delegation",
+    "legacy-type-constraint",
+    "category-agent-guidance",
+    "scope-project",
+    "applies-to-agents-skills-act-as-mohab-skill-md",
+    "applies-to-agents-skills-act-as-mohab-references-consult-first-md",
+    "applies-to-agents-skills-act-as-mohab-references-work-github-planning-md"
   ],
   "title": "Approved designs proceed without repeated user approval; consultation is delegated at the highest capability",
-  "type": "constraint",
-  "updated_at": "2026-08-09T23:46:44+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T18:13:21+03:00"
 }

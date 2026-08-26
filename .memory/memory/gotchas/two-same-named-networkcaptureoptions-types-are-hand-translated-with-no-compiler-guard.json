@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java",
+    "shaft-capture/src/main/java/com/shaft/capture/runtime/NetworkCaptureOptions.java",
+    "shaft-capture/src/main/java/com/shaft/capture/network/NetworkCaptureOptions.java"
+  ],
   "body_path": "memory/gotchas/two-same-named-networkcaptureoptions-types-are-hand-translated-with-no-compiler-guard.md",
-  "content_hash": "sha256:d305f314f881d8b699696d939cb970697294fdc8ef8bdc4cd5891ccdbe716da9",
+  "content_hash": "sha256:c174d88a1ff6e5c77aaf9c9ce913e98d7ee76e9fdb58fb95b9a79d713acab3fe",
   "created_at": "2026-07-26T10:58:55+03:00",
   "evidence": [
     {
@@ -16,21 +21,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java",
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/NetworkCaptureOptions.java",
-      "shaft-capture/src/main/java/com/shaft/capture/network/NetworkCaptureOptions.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.two-same-named-networkcaptureoptions-types-are-hand-translated-with-no-compiler-guard",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning Loop second pass: record durable gotchas from #4021, #4046, #4066, #4014, #4057"
@@ -41,9 +32,11 @@
     "network-capture",
     "translation-seam",
     "java",
-    "gotcha"
+    "gotcha",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "Two same-named NetworkCaptureOptions types are hand-translated with no compiler guard",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:cf6afa4d5b31d76df0f244601fc5400580dfb37b68f31626a7b8233970e98148",
+  "content_hash": "sha256:950dc0267474bd91416594718df24e41b7cd6b0d9b6eb391981886c8272b6ff5",
   "created_at": "2026-07-29T16:50:50+03:00",
   "evidence": [
     {
@@ -10,8 +10,8 @@
   ],
   "from": "gotcha.shlex-split-eats-bare-backslashes-in-windows-paths",
   "id": "rel.shlex-split-eats-bare-backslashes-in-windows-paths-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
-  "updated_at": "2026-07-29T16:50:50+03:00"
+  "to": "decision.stack-and-tooling",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shafthq-github-io-pr-merges-are-blocked-by-branch-protection-review-required-even-with-all-ci-checks-green-use-gh-pr-merge-admin.md",
-  "content_hash": "sha256:1d552017204d4cef1e11811c80d429f68d611af5c73aed04beb40d5dc6e1bd5c",
+  "content_hash": "sha256:cbdb14354bb7d98201a77c9a707c32d9c64b89459fd4ad281e679c5f8927ac56",
   "created_at": "2026-08-01T21:46:42+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shafthq-github-io-pr-merges-are-blocked-by-branch-protection-review-required-even-with-all-ci-checks-green-use-gh-pr-merge-admin",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "work-github issue #797 (shafthq.github.io docs audit) sub-issues 784-796"
@@ -32,9 +23,11 @@
     "github",
     "branch-protection",
     "gh-pr-merge",
-    "work-github"
+    "work-github",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "shafthq-github-io PR merges are blocked by branch protection (REVIEW_REQUIRED) even with all CI checks green -- use gh pr merge --admin",
   "type": "gotcha",
-  "updated_at": "2026-08-11T10:30:04+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

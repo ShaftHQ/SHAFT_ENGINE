@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/mvn-test-in-shaft-engine-silently-runs-zero-junit5-tests-under-the-default-testng-maven-profile.md",
-  "content_hash": "sha256:675ce33b32d7933781a66aebc26aea28625962d076027aab36047fe2c447a75d",
+  "content_hash": "sha256:abf22b587709017ebe798d201c2832a3716f1906c60dd8d7576ece989c241728",
   "created_at": "2026-07-26T16:17:39+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.mvn-test-in-shaft-engine-silently-runs-zero-junit5-tests-under-the-default-testng-maven-profile",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Issue #4103: delegate CI-watch charter rule + four Learning Loop findings from the 2026-07-26 orchestration run (#4086)"
@@ -32,9 +23,11 @@
     "testng",
     "junit5",
     "shaft-engine",
-    "surefire"
+    "surefire",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "mvn test in shaft-engine silently runs zero JUnit5 tests under the default testng Maven profile",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

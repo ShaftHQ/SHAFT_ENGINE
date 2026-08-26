@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/headroom-proxy-removed-2026-07-17-token-savings-not-worth-lost-remote-control-200k-context-cap-and-broken-auto-loaded-skills.md",
-  "content_hash": "sha256:bb491ffdff3495d2e846161e99255640cd3371a1362d982b0c7e06ff0a2c23b8",
+  "content_hash": "sha256:5df85e8f1a932c25835a444164b707119c026ee2f51bb3fc86d42e7ccff2b94a",
   "created_at": "2026-07-17T08:17:35+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.headroom-proxy-removed-2026-07-17-token-savings-not-worth-lost-remote-control-200k-context-cap-and-broken-auto-loaded-skills",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Decommission the headroom context-compression proxy and record why it must not be re-adopted"
@@ -33,9 +24,11 @@
     "proxy",
     "agent-infra",
     "configuration",
-    "context-window"
+    "context-window",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "headroom proxy removed 2026-07-17: token savings not worth lost remote control, 200K context cap, and broken auto-loaded skills",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

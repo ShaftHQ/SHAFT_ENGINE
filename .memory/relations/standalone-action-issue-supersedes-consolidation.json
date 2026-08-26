@@ -1,10 +1,10 @@
 {
-  "content_hash": "sha256:24024ac9e4f84fe3009ad367dcf646b1a094b1f908139b2b012aaf6b9a3ffa2b",
+  "content_hash": "sha256:cf2f437f746a0527c0ced0fd13ab0e4f3ad1c4d59e2fb3ea432e2a040bb18a84",
   "created_at": "2026-08-11T22:22:52+03:00",
-  "from": "constraint.every-actionable-learning-requires-its-own-standalone-github-issue",
+  "from": "decision.every-actionable-learning-requires-its-own-standalone-github-issue",
   "id": "rel.standalone-action-issue-supersedes-consolidation",
   "predicate": "supersedes",
   "status": "active",
-  "to": "constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue",
-  "updated_at": "2026-08-11T22:22:52+03:00"
+  "to": "decision.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

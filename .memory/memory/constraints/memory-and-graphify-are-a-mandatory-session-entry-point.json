@@ -1,15 +1,9 @@
 {
   "body_path": "memory/constraints/memory-and-graphify-are-a-mandatory-session-entry-point.md",
-  "content_hash": "sha256:9d34c53dd9e4e2995cefaf862ea99bc5f3bfd91d07e1822ebc2f2355b677b81a",
+  "content_hash": "sha256:8e703020793b8bf65e3252e160e142c72896b58ead5a411cf9315c73a74e0f3d",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [],
-  "id": "constraint.memory-and-graphify-are-a-mandatory-session-entry-point",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.memory-and-graphify-are-a-mandatory-session-entry-point",
   "source": {
     "kind": "agent",
     "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
@@ -18,9 +12,11 @@
   "tags": [
     "memory",
     "graphify",
-    "workflow"
+    "workflow",
+    "legacy-type-constraint",
+    "scope-project"
   ],
   "title": "Native Memory, MemPalace, and Graphify are routed through act-as-mohab",
-  "type": "constraint",
-  "updated_at": "2026-08-01T16:07:25+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

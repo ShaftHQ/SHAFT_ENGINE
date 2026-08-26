@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaft-intellijs-screenshot-renderer-test-never-runs-its-body-in-ci-assumefalse-on-dshaft-intellij-screenshotdir.md",
-  "content_hash": "sha256:77e2697cc89956b6a98ed53c55022dc1afe72ef293048cfa65ebc17ed72de041",
+  "content_hash": "sha256:882b0cee64099cdcc65b0377182cc8dc06ca1cfc8eabc034d96a0bf7bd527b34",
   "created_at": "2026-07-19T17:59:10+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-intellijs-screenshot-renderer-test-never-runs-its-body-in-ci-assumefalse-on-dshaft-intellij-screenshotdir",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix light-theme IntelliJLaf checkbox rendering defect in shaft-intellij headless screenshot renderer (issue #3777)"
@@ -27,9 +18,11 @@
     "shaft-intellij",
     "ci",
     "gotcha",
-    "screenshot-renderer"
+    "screenshot-renderer",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "shaft-intellij's screenshot renderer test never runs its body in CI (assumeFalse on -Dshaft.intellij.screenshotDir)",
   "type": "gotcha",
-  "updated_at": "2026-08-01T22:00:11+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

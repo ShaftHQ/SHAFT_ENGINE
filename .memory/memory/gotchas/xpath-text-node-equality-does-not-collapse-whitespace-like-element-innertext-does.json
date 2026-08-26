@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/xpath-text-node-equality-does-not-collapse-whitespace-like-element-innertext-does.md",
-  "content_hash": "sha256:2397db0167dbe9a927e1be834fed91e919534a9e098cf933f386f3cbfbfe3246",
+  "content_hash": "sha256:819acad23b7c922fbb755df1581035c67ae9e270158faf64b942c3ded1cbc407",
   "created_at": "2026-07-26T09:52:26+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.xpath-text-node-equality-does-not-collapse-whitespace-like-element-innertext-does",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "capture codegen accessible name locator #4026"
@@ -28,9 +19,11 @@
     "xpath",
     "recorder",
     "normalize-space",
-    "locator"
+    "locator",
+    "category-gotcha",
+    "scope-project"
   ],
   "title": "XPath text-node equality does not collapse whitespace like element.innerText does",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

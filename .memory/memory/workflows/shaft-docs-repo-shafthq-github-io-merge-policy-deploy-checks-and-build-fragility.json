@@ -1,18 +1,9 @@
 {
   "body_path": "memory/workflows/shaft-docs-repo-shafthq-github-io-merge-policy-deploy-checks-and-build-fragility.md",
-  "content_hash": "sha256:b4d1b6e5c47b7076f912b9d78025261aa88150f4d9f26c4ef2e49edc4934eed8",
+  "content_hash": "sha256:6b463dd803745c2a71636123a6c301429a8581bd924e0ac76bb1a4b41574ace9",
   "created_at": "2026-07-15T10:08:58+03:00",
   "evidence": [],
-  "facets": {
-    "category": "workflow"
-  },
-  "id": "workflow.shaft-docs-repo-shafthq-github-io-merge-policy-deploy-checks-and-build-fragility",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "decision.shaft-docs-repo-shafthq-github-io-merge-policy-deploy-checks-and-build-fragility",
   "source": {
     "kind": "agent",
     "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
@@ -22,9 +13,12 @@
     "docs",
     "docusaurus",
     "workflow",
-    "release"
+    "release",
+    "legacy-type-workflow",
+    "category-workflow",
+    "scope-project"
   ],
   "title": "SHAFT docs repo (shafthq.github.io) merge policy, deploy checks, and build fragility",
-  "type": "workflow",
-  "updated_at": "2026-08-11T10:30:04+03:00"
+  "type": "decision",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

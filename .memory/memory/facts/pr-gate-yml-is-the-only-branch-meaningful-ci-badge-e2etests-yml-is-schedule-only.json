@@ -1,6 +1,6 @@
 {
   "body_path": "memory/facts/pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only.md",
-  "content_hash": "sha256:dc718310848b656646469653f9309eeab0d3fa9494d62e98ed89cdd1012c4217",
+  "content_hash": "sha256:9ce70bc1c030283274cd32e27e7b929710ea09f62c64045e2fecca10962b29a0",
   "created_at": "2026-07-28T00:15:42+03:00",
   "evidence": [
     {
@@ -16,16 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only",
   "source": {
     "kind": "agent",
     "task": "root markdown docs quality pass (PRs 4295/4296): badge, coordinate and link-check facts"
@@ -34,9 +25,12 @@
   "tags": [
     "ci",
     "documentation",
-    "badges"
+    "badges",
+    "legacy-type-fact",
+    "category-debugging-fact",
+    "scope-project"
   ],
   "title": "pr-gate.yml is the only branch-meaningful CI badge; e2eTests.yml is schedule-only",
-  "type": "fact",
-  "updated_at": "2026-08-01T21:02:05+03:00"
+  "type": "gotcha",
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }

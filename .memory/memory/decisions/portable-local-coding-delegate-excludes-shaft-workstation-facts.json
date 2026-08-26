@@ -1,6 +1,11 @@
 {
+  "anchors": [
+    "chaos-engine/skills/local-coding-delegate/",
+    "chaos-engine/profiles/portable/references/routing.md",
+    "chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md"
+  ],
   "body_path": "memory/decisions/portable-local-coding-delegate-excludes-shaft-workstation-facts.md",
-  "content_hash": "sha256:6546258312a2383378e91caf28e2c22c72ea78545a7edea4f96da40649d17d06",
+  "content_hash": "sha256:3818f4367a2aae0d981b9e179ccf8c86c6c296422aa76c35f59932b811556e61",
   "created_at": "2026-08-18T00:24:41+03:00",
   "evidence": [
     {
@@ -8,21 +13,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "chaos-engine/skills/local-coding-delegate/",
-      "chaos-engine/profiles/portable/references/routing.md",
-      "chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.portable-local-coding-delegate-excludes-shaft-workstation-facts",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the locked #5081 portable-versus-SHAFT local-coding split so later work does not reopen it."
@@ -32,9 +23,11 @@
     "chaos-engine",
     "portable",
     "local-coding-delegate",
-    "5081"
+    "5081",
+    "category-decision-rationale",
+    "scope-project"
   ],
   "title": "Portable local-coding-delegate excludes SHAFT workstation facts",
   "type": "decision",
-  "updated_at": "2026-08-18T00:24:41+03:00"
+  "updated_at": "2026-08-26T17:34:29+03:00"
 }
