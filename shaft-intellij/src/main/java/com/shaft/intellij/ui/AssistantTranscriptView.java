@@ -790,7 +790,7 @@ final class AssistantTranscriptView extends JPanel {
             clipPanel.setOpaque(false);
             clipPanel.add(htmlPane, BorderLayout.CENTER);
 
-            toggle = new JButton();
+            toggle = ShaftButtonInteractions.create();
             toggle.setVisible(false);
             toggle.addActionListener(event -> {
                 collapsed = !collapsed;
@@ -1161,7 +1161,7 @@ final class AssistantTranscriptView extends JPanel {
         rawScrollPane.setVisible(false);
         rawScrollPane.getAccessibleContext().setAccessibleName("Raw tool output");
 
-        JButton toggle = new JButton("Show raw output");
+        JButton toggle = ShaftButtonInteractions.create("Show raw output");
         toggle.getAccessibleContext().setAccessibleName("Show raw output");
         toggle.addActionListener(event -> {
             boolean expanding = !rawScrollPane.isVisible();

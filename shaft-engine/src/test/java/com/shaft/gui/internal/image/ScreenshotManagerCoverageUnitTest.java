@@ -201,7 +201,8 @@ public class ScreenshotManagerCoverageUnitTest {
             screenshotHelperMocked.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class)))
                     .thenReturn(createPng(50, 50, Color.CYAN));
             animatedGifMocked.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
-            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), any(Color.class)))
+            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                            any(Rectangle.class), any(Color.class), any(WebDriver.class), anyString()))
                     .thenReturn(createPng(10, 10, Color.MAGENTA));
             javaScriptWaitManagerMocked.when(() -> JavaScriptWaitManager.waitForLazyLoading(any(WebDriver.class)))
                     .thenThrow(new RuntimeException("ignore wait failure"));
@@ -233,7 +234,8 @@ public class ScreenshotManagerCoverageUnitTest {
             byte[] aiFail = manager.internalCaptureScreenshot(driver, RelativeLocator.with(By.tagName("div")).above(By.id("x")), false);
             Assert.assertTrue(aiPass.length > 0);
             Assert.assertTrue(aiFail.length > 0);
-            imageProcessingMocked.verify(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), eq(new Color(255, 0, 0))));
+            imageProcessingMocked.verify(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                    any(Rectangle.class), eq(new Color(197, 48, 48)), any(WebDriver.class), anyString()));
 
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
             byte[] jsShot = manager.internalCaptureScreenshot(driver, By.id("x"), true);
@@ -279,7 +281,8 @@ public class ScreenshotManagerCoverageUnitTest {
             screenshotHelperMocked.when(() -> ScreenshotHelper.takeViewportScreenshot(any(WebDriver.class), anyInt()))
                     .thenReturn(viewport);
             animatedGifMocked.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
-            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), any(Color.class)))
+            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class),
+                            any(Rectangle.class), any(Color.class), any(WebDriver.class), anyString()))
                     .thenThrow(new IllegalArgumentException("Failed to decode screenshot bytes."));
 
             ScreenshotManager manager = new ScreenshotManager();

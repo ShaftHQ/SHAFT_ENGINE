@@ -29,9 +29,10 @@ public class ProgressBarLoggerCoverageUnitTest {
     }
 
     @Test
-    public void progressAnsiColorShouldUsePositiveProgressGreen() {
-        Assert.assertEquals(ProgressBarLogger.progressAnsiColor(), "\u001b[32;1m");
+    public void progressAnsiColorShouldUseShaftPrimaryInsteadOfStatusColors() {
+        Assert.assertEquals(ProgressBarLogger.progressAnsiColor(), "\u001b[38;2;76;194;255m");
         Assert.assertFalse(ProgressBarLogger.progressAnsiColor().contains("[31"));
+        Assert.assertFalse(ProgressBarLogger.progressAnsiColor().contains("[32"));
     }
 
     @Test

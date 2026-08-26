@@ -2015,11 +2015,11 @@ class ShaftPluginScreenshotRendererTest {
                 }
             }
         });
-        assertTrue(containsLabelText(allLabelTexts, "3 Setup SHAFT Tools & Skills"),
-                "Screenshot setup must paint FR-001 title 3 Setup SHAFT Tools & Skills. Labels: "
+        assertTrue(containsLabelText(allLabelTexts, "2 Install SHAFT tools"),
+                "Screenshot setup must paint FR-001 title 2 Install SHAFT tools. Labels: "
                         + allLabelTexts);
-        assertTrue(containsLabelText(allLabelTexts, "5 Check SHAFT agentic tools installation"),
-                "Screenshot setup must paint FR-001 title 5 Check SHAFT agentic tools installation. Labels: "
+        assertTrue(containsLabelText(allLabelTexts, "3 Verify setup"),
+                "Screenshot setup must paint FR-001 title 3 Verify setup. Labels: "
                         + allLabelTexts);
         assertFalse(containsLabelText(allLabelTexts, "3 Copy setup command"),
                 "Screenshot setup must not paint the retired Copy setup command title");

@@ -38,6 +38,7 @@ import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.SessionNotCreatedException;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.mockito.MockedConstruction;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -224,6 +225,22 @@ public class DriverFactoryHelperCoverageUnitTest {
                 .isEqualTo(java.util.logging.Level.SEVERE).perform();
         SHAFT.Validations.assertThat().object(webSocketLogger.isLoggable(java.util.logging.Level.WARNING))
                 .isEqualTo(false).perform();
+    }
+
+    @Test
+    public void nonActionableSeleniumCdpWarningsShouldBeSuppressedWithoutMutingSelenium() {
+        new DriverFactoryHelper();
+        java.util.logging.Logger versionLogger =
+                java.util.logging.Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder");
+        java.util.logging.Logger networkLogger =
+                java.util.logging.Logger.getLogger("org.openqa.selenium.devtools.v151.v151Network");
+        java.util.logging.Logger unrelatedLogger =
+                java.util.logging.Logger.getLogger("org.openqa.selenium.some.other.Component");
+
+        Assert.assertEquals(versionLogger.getLevel(), java.util.logging.Level.SEVERE);
+        Assert.assertEquals(networkLogger.getLevel(), java.util.logging.Level.SEVERE);
+        Assert.assertNotEquals(unrelatedLogger.getLevel(), java.util.logging.Level.SEVERE,
+                "Unrelated Selenium warnings must remain visible.");
     }
 
     @Test

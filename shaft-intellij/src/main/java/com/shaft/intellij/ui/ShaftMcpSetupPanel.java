@@ -392,20 +392,20 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         installShaftCli.setSelected(true);
         installShaftCli.addActionListener(event -> installerTargetChanged());
         installerCommand.setText(installerCommand());
-        copyUpgradeCommand = new JButton("Copy");
+        copyUpgradeCommand = ShaftButtonInteractions.create("Open in Terminal");
         copyUpgradeCommand.getAccessibleContext().setAccessibleName("Copy SHAFT upgrade command");
         copyUpgradeCommand.setToolTipText("Copy the SHAFT upgrade command and open a terminal with it pre-typed "
                 + "— just press Enter there to run it");
         applyLabeledAction(copyUpgradeCommand, ShaftIcons.COPY);
         copyUpgradeCommand.addActionListener(event -> copyUpgradeCommand());
-        checkUpgrade = new JButton("Check");
+        checkUpgrade = ShaftButtonInteractions.create("Check");
         checkUpgrade.getAccessibleContext().setAccessibleName("Check SHAFT project version");
         checkUpgrade.setToolTipText("Read this project's pom.xml and compare its SHAFT version "
                 + "against the latest release");
         applyLabeledAction(checkUpgrade, ShaftIcons.CHECK);
         checkUpgrade.addActionListener(event -> runUpgradeCheck(true));
         upgradeDetail = setupStatusLabel("SHAFT project version status");
-        checkMcpVersion = new JButton("Check");
+        checkMcpVersion = ShaftButtonInteractions.create("Check");
         checkMcpVersion.getAccessibleContext().setAccessibleName("Check SHAFT MCP version");
         checkMcpVersion.setToolTipText("Compare the installed SHAFT MCP version against the latest release");
         applyLabeledAction(checkMcpVersion, ShaftIcons.CHECK);
@@ -414,7 +414,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // badge green on its own -- "2 Pick agent" only turned green as a side effect of the full
         // step-4 MCP probe. This lets a user verify "is my picked agent already installed/connected"
         // without running the whole setup flow.
-        checkChosenAgent = new JButton("Check");
+        checkChosenAgent = ShaftButtonInteractions.create("Check");
         checkChosenAgent.getAccessibleContext().setAccessibleName("Check agent connection");
         checkChosenAgent.setToolTipText("Verify the selected agent is already installed and connected, "
                 + "without running the full SHAFT MCP setup check");
@@ -428,7 +428,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // already uses; the plugin never executes the command itself, the user presses Enter.
         // Issue #4314 fix 3: this used to be two functionally near-identical buttons ("Install" and
         // a separate "Copy" that additionally copied to clipboard first) -- merged into this one.
-        installNow = new JButton("Copy");
+        installNow = ShaftButtonInteractions.create("Open in Terminal");
         installNow.getAccessibleContext().setAccessibleName("Copy SHAFT Tools & Skills setup command");
         installNow.setToolTipText("Copies the SHAFT Agentic Tools + skills + shaft-cli install command to the clipboard and "
                 + "opens a terminal with it pre-typed for the selected client -- press Enter there to run it, "
@@ -436,20 +436,20 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         applyLabeledAction(installNow, ShaftIcons.COPY);
         installNow.addActionListener(event -> runInstall());
         mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
-        test = new JButton("Check");
+        test = ShaftButtonInteractions.create("Check");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         test.setToolTipText("Infer the stdio command and verify SHAFT MCP");
         test.setMnemonic(KeyEvent.VK_K);
         applyLabeledAction(test, ShaftIcons.CHECK);
         test.addActionListener(event -> testConnection());
-        startChatting = new JButton("Start chatting");
+        startChatting = ShaftButtonInteractions.create("Start chatting");
         startChatting.getAccessibleContext().setAccessibleName("Start chatting with SHAFT Assistant");
         startChatting.setToolTipText("Open the Assistant with this verified MCP command");
         startChatting.setMnemonic(KeyEvent.VK_S);
         applyLabeledAction(startChatting, ShaftIcons.SEND);
         startChatting.setVisible(false);
         startChatting.addActionListener(event -> connected.run());
-        startWithoutAgent = new JButton("Start without an agent");
+        startWithoutAgent = ShaftButtonInteractions.create("Start without an agent");
         startWithoutAgent.getAccessibleContext().setAccessibleName("Start SHAFT without an agent");
         startWithoutAgent.setToolTipText("Recorder, codegen, doctor, and healer only need the verified SHAFT MCP. "
                 + "Connect an agent later for chat.");
@@ -459,14 +459,14 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // "Connect agent" (issue: Ready step had no way back to a fully green agent lane besides
         // scrolling up and redoing steps 2/4 from scratch): the primary, "get to green" action
         // alongside the startWithoutAgent skip option whenever the agent lane isn't ready yet.
-        connectAgent = new JButton("Connect agent");
+        connectAgent = ShaftButtonInteractions.create("Connect agent");
         connectAgent.getAccessibleContext().setAccessibleName("Connect SHAFT agent");
         connectAgent.setToolTipText("Retry just the agent readiness check for the selected client, without "
                 + "redoing the whole SHAFT MCP setup");
         applyLabeledAction(connectAgent, ShaftIcons.CHECK);
         connectAgent.setVisible(false);
         connectAgent.addActionListener(event -> connectAgentClicked());
-        resetAndReinstall = new JButton("Copy");
+        resetAndReinstall = ShaftButtonInteractions.create("Open in Terminal");
         resetAndReinstall.getAccessibleContext().setAccessibleName("Copy fresh SHAFT MCP setup command");
         resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
         applyLabeledAction(resetAndReinstall, ShaftIcons.COPY);
@@ -481,14 +481,14 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         expertMode.setSelected(settings.advancedUiEnabled);
         expertMode.setVisible(postSetupReentry);
         expertMode.addActionListener(event -> settings.advancedUiEnabled = expertMode.isSelected());
-        connectionAgentsRecheck = new JButton("Connection & agents");
+        connectionAgentsRecheck = ShaftButtonInteractions.create("Connection & agents");
         connectionAgentsRecheck.getAccessibleContext().setAccessibleName("Re-check connection and agents");
         connectionAgentsRecheck.setToolTipText(
                 "Re-check your current connection and agent setup without resetting anything");
         applyLabeledAction(connectionAgentsRecheck, ShaftIcons.CHECK);
         connectionAgentsRecheck.setVisible(postSetupReentry);
         connectionAgentsRecheck.addActionListener(event -> recheckConnectionAndAgents());
-        resetEverything = new JButton("Reset everything");
+        resetEverything = ShaftButtonInteractions.create("Reset everything");
         resetEverything.getAccessibleContext().setAccessibleName("Reset everything");
         resetEverything.setToolTipText("Factory-reset SHAFT settings, saved provider API keys, tool approvals, "
                 + "and Assistant chat history. Your project source code is never touched.");
@@ -525,27 +525,27 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         status.setMinimumSize(JBUI.size(560, 28));
         setStatusText(GUIDE_SETUP_STEP);
         status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
-        copyCommand = new JButton("Copy");
+        copyCommand = ShaftButtonInteractions.create("Open in Terminal");
         copyCommand.getAccessibleContext().setAccessibleName("Copy setup diagnostic command");
         copyCommand.setToolTipText("Copy the diagnostic command and open a terminal with it pre-typed");
         applyLabeledAction(copyCommand, ShaftIcons.COPY);
         copyCommand.setEnabled(false);
         copyCommand.setVisible(false);
         copyCommand.addActionListener(event -> copyDiagnosticCommand());
-        copyOutput = new JButton("Copy");
+        copyOutput = ShaftButtonInteractions.create("Copy");
         copyOutput.getAccessibleContext().setAccessibleName("Copy setup diagnostic output");
         copyOutput.setToolTipText("Copy the setup diagnostic output");
         applyLabeledAction(copyOutput, ShaftIcons.COPY);
         copyOutput.setEnabled(false);
         copyOutput.addActionListener(event -> copyDiagnosticOutput());
-        copyDocs = new JButton("Copy");
+        copyDocs = ShaftButtonInteractions.create("Copy");
         copyDocs.getAccessibleContext().setAccessibleName("Copy SHAFT MCP docs link");
         copyDocs.setToolTipText("Copy the SHAFT MCP setup docs link");
         applyLabeledAction(copyDocs, ShaftIcons.HELP);
         copyDocs.setEnabled(false);
         copyDocs.setVisible(false);
         copyDocs.addActionListener(event -> copyDocsLink());
-        copyRestartCommand = new JButton("Copy");
+        copyRestartCommand = ShaftButtonInteractions.create("Open in Terminal");
         copyRestartCommand.getAccessibleContext().setAccessibleName("Copy assistant CLI restart command");
         copyRestartCommand.setToolTipText(
                 "Copy a command that stops any running sessions of the selected assistant CLI and "
@@ -571,7 +571,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         detailsScroll.setVisible(false);
         // Icon-only, tooltip-flip toggle (issue #3538 convention), mirroring
         // ShaftFeaturePanel#showRawOutput's established raw-output-toggle pattern.
-        toggleDetails = new JButton();
+        toggleDetails = ShaftButtonInteractions.create();
         ShaftIconButtons.apply(toggleDetails, "Show details", "Toggle raw SHAFT MCP setup output", ShaftIcons.VIEW);
         toggleDetails.getAccessibleContext().setAccessibleDescription(
                 "Shows or hides the raw diagnostic output below the recovery guidance.");
@@ -583,12 +583,12 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         upgradeState = setupStateLabel("Upgrade project setup state");
         chooseStep = setupStepLabel("Choose agent setup step");
         chooseState = setupStateLabel("Choose agent setup state");
-        installStep = setupStepLabel("Setup SHAFT Tools & Skills step");
-        installState = setupStateLabel("Setup SHAFT Tools & Skills state");
+        installStep = setupStepLabel("Install SHAFT tools step");
+        installState = setupStateLabel("Install SHAFT tools state");
         agentCheckStep = setupStepLabel("Check agent connection step");
         agentCheckState = setupStateLabel("Check agent connection state");
-        testStep = setupStepLabel("Check SHAFT agentic tools installation step");
-        testState = setupStateLabel("Check SHAFT agentic tools installation state");
+        testStep = setupStepLabel("Verify setup step");
+        testState = setupStateLabel("Verify setup state");
         readyStep = setupStepLabel("Start chatting setup step");
         readyState = setupStateLabel("Start chatting setup state");
         JPanel agentControls = new JPanel();
@@ -609,6 +609,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         apiKeyRow.add(geminiKeyStatus);
         apiKeyRow.setVisible(false);
         agentControls.add(apiKeyRow);
+        agentControls.add(checkChosenAgent);
         recommendedAgent.setVisible(false);
         // Issue #3771: each labeledControl row above packs its own label at that label's natural
         // width ("Assistant family" is longer than "Runtime"), so without this the dropdowns beside
@@ -634,7 +635,6 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         installActions.add(mcpVersionDetail);
         JPanel agentCheckActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         agentCheckActions.setOpaque(false);
-        agentCheckActions.add(checkChosenAgent);
         upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
         installRow = stepRow(installStep, installState, installActions);
@@ -644,7 +644,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         prerequisitesList.setLayout(new javax.swing.BoxLayout(prerequisitesList, javax.swing.BoxLayout.Y_AXIS));
         prerequisitesList.setOpaque(false);
         prerequisitesList.getAccessibleContext().setAccessibleName("SHAFT setup prerequisites");
-        JButton recheckPrerequisites = new JButton("Recheck");
+        JButton recheckPrerequisites = ShaftButtonInteractions.create("Recheck");
         recheckPrerequisites.getAccessibleContext().setAccessibleName("Recheck prerequisites");
         recheckPrerequisites.setToolTipText("Detect the required tools again after installing one");
         applyLabeledAction(recheckPrerequisites, ShaftIcons.CHECK);
@@ -652,7 +652,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             refreshPrerequisites();
             updateActionState(false);
         });
-        JButton copyEngineWarmup = new JButton("Copy");
+        JButton copyEngineWarmup = ShaftButtonInteractions.create("Open in Terminal");
         // Resolve the latest engine release off-EDT now so the click below can pin a real version.
         SetupPrerequisites.prefetchLatestEngineVersion();
         // Same fire-once, off-EDT pattern for the latest shaft-mcp release (issue #3538).
@@ -723,17 +723,15 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
         workflow.add(prerequisitesRow);
         workflow.add(javax.swing.Box.createVerticalStrut(4));
-        workflow.add(upgradeRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(chooseRow);
         workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(installRow);
         workflow.add(javax.swing.Box.createVerticalStrut(4));
-        workflow.add(agentCheckRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(checkRow);
         workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(chatRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
+        workflow.add(upgradeRow);
         JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         targetRow.add(manualInstallerTarget);
         targetRow.add(installerTarget);
@@ -1008,7 +1006,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             label.getAccessibleContext().setAccessibleName(prerequisite.name() + stateText.trim());
             row.add(label);
             if (!prerequisite.present()) {
-                JButton copyInstall = new JButton("Copy");
+                JButton copyInstall = ShaftButtonInteractions.create("Open in Terminal");
                 copyInstall.getAccessibleContext().setAccessibleName(
                         "Copy " + prerequisite.name() + " install command");
                 copyInstall.setToolTipText("Copy the terminal command that installs " + prerequisite.name());
@@ -1021,7 +1019,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             prerequisitesList.add(row);
         }
         prerequisitesAllPresent = allRequiredPresent;
-        setStep(prerequisitesStep, prerequisitesState, "0 Prerequisites", allRequiredPresent ? "done" : "next");
+        setStep(prerequisitesStep, prerequisitesState, "Prerequisites", allRequiredPresent ? "done" : "next");
         styleStepRow(prerequisitesRow, allRequiredPresent ? "done" : "next");
         alignStepLabelWidths();
         prerequisitesList.revalidate();
@@ -1193,7 +1191,9 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             // A missing agent therefore no longer fails setup.
             showAssistStatus("MCP verified — agent optional", ShaftStatusPresentation.progress());
             assistStatus.setVisible(true);
-            showRuntimeVerified();
+            showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " not verified",
+                    ShaftStatusPresentation.progress());
+            runtimeStatus.setVisible(true);
             setStatusText("SHAFT MCP verified. Recorder, codegen, and doctor are ready now — "
                     + "connecting an agent adds chat and is optional.");
             String probeOutputText = mcpProbeOutput == null || mcpProbeOutput.isBlank()
@@ -1362,8 +1362,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         installShaftCli.setEnabled(!running);
         boolean agentChosen = selectedAgentRoute() != null;
         checkChosenAgent.setEnabled(!running && agentChosen);
-        checkUpgrade.setEnabled(!running);
-        copyUpgradeCommand.setEnabled(!running);
+        checkUpgrade.setEnabled(!running && complete);
+        copyUpgradeCommand.setEnabled(!running && complete);
         checkMcpVersion.setEnabled(!running && agentChosen);
         installNow.setEnabled(!running && agentChosen);
         test.setEnabled(!running && agentChosen);
@@ -2359,26 +2359,24 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private void updateSetupSteps(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        setStep(upgradeStep, upgradeState, "1 Upgrade project", upgradeStepState());
-        setStep(chooseStep, chooseState, "2 Choose agent", chooseStepState());
-        setStep(installStep, installState, "3 Setup SHAFT Tools & Skills", mcpVersionStepState());
-        setStep(agentCheckStep, agentCheckState, "4 Check agent connection",
-                selectedAgentRoute() == null ? "wait" : "next");
-        setStep(testStep, testState, "5 Check SHAFT agentic tools installation",
+        setStep(chooseStep, chooseState, "1 Choose agent", chooseStepState());
+        setStep(installStep, installState, "2 Install SHAFT tools", mcpVersionStepState());
+        setStep(testStep, testState, "3 Verify setup",
                 checkStepState(running, complete, hasCommand));
         setStep(null, readyState, "Ready", complete ? "next" : "wait");
+        setStep(upgradeStep, upgradeState, "Optional: Upgrade project",
+                complete ? upgradeStepState() : "wait");
         alignStepLabelWidths();
     }
 
     private void updateWorkflowRows(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        styleStepRow(upgradeRow, upgradeStepState());
         styleStepRow(chooseRow, chooseStepState());
         styleStepRow(installRow, mcpVersionStepState());
-        styleStepRow(agentCheckRow, selectedAgentRoute() == null ? "wait" : "next");
         styleStepRow(checkRow, checkStepState(running, complete, hasCommand));
         styleStepRow(chatRow, complete ? "next" : "wait");
+        styleStepRow(upgradeRow, complete ? upgradeStepState() : "wait");
         manuallyExpandedRows.clear();
         collapseStepsBehindProgress(stepStatesForCollapse(running));
     }
@@ -2576,11 +2574,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         boolean complete = settings.mcpSetupComplete && hasCommand;
         return new String[]{
                 prerequisitesAllPresent ? "done" : "next",
-                upgradeStepState(),
                 chooseStepState(),
                 mcpVersionStepState(),
-                selectedAgentRoute() == null ? "wait" : "next",
-                checkStepState(running, complete, hasCommand)
+                checkStepState(running, complete, hasCommand),
+                complete ? upgradeStepState() : "wait"
         };
     }
 
@@ -2591,7 +2588,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * real setup update (see {@link #updateWorkflowRows}).
      */
     private void collapseStepsBehindProgress(String[] states) {
-        JPanel[] rows = {prerequisitesRow, upgradeRow, chooseRow, installRow, agentCheckRow, checkRow};
+        JPanel[] rows = {prerequisitesRow, chooseRow, installRow, checkRow, upgradeRow};
         int activeStep = activeStepIndex(states);
         for (int index = 0; index < rows.length; index++) {
             JPanel row = rows[index];
@@ -2600,9 +2597,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private static int activeStepIndex(String[] states) {
-        // Project upgrade is advisory, but a missing prerequisite is actionable. The task flow
-        // therefore advances through prerequisites, agent, install, then connection check.
-        for (int index : new int[]{0, 2, 3, 4}) {
+        for (int index = 0; index < states.length; index++) {
             if (!"done".equals(states[index])) {
                 return index;
             }
@@ -2820,7 +2815,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         copyOutput.setEnabled(!diagnosticOutput.isBlank());
         copyDocs.setVisible(!diagnosticOutput.isBlank());
         copyDocs.setEnabled(!diagnosticOutput.isBlank());
-        String recoveryStatusText = "Recovery: retry Check SHAFT agentic tools installation, copy diagnostics, or open the SHAFT MCP docs link.";
+        String recoveryStatusText = "Recovery: retry Verify setup, copy diagnostics, or open the SHAFT MCP docs link.";
         recoveryStatus.setText(recoveryStatusText);
         recoveryStatus.getAccessibleContext().setAccessibleDescription(recoveryStatusText);
         recoveryStatus.setVisible(!diagnosticOutput.isBlank());

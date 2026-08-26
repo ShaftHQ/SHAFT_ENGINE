@@ -255,6 +255,8 @@ class AssistantCommandRoutingTest {
                 // The agent performs the upgrade itself, non-interactively, and must narrate.
                 () -> assertTrue(prompt.contains("Perform the upgrade yourself"), prompt),
                 () -> assertTrue(prompt.contains("shaft_project_upgrade"), prompt),
+                () -> assertTrue(prompt.contains("uses the upgrader bundled with the installed SHAFT MCP"), prompt),
+                () -> assertTrue(prompt.contains("visibly announce the fallback"), prompt),
                 () -> assertTrue(prompt.contains("'--yes'"), prompt),
                 () -> assertTrue(prompt.contains("mvn -B -q test-compile"), prompt),
                 () -> assertTrue(prompt.contains("Never reply with a bare confirmation like \"Done\""), prompt));

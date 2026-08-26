@@ -174,6 +174,8 @@ class ShaftProjectServiceTest {
         String testngProperties = Files.readString(
                 testngProject.resolve("src/main/resources/properties/custom.properties"));
         assertTrue(testngProperties.contains("defaultElementIdentificationTimeout=20"));
+        assertFalse(testngProperties.contains("evidenceLevel="),
+                "fresh projects must inherit failure-only evidence defaults without an override");
 
         McpShaftProjectGenerationResult cucumberResult = service.createProject(
                 "generated-web-cucumber",
@@ -200,6 +202,7 @@ class ShaftProjectServiceTest {
         String cucumberProperties = Files.readString(
                 cucumberResult.projectDirectory().resolve("src/main/resources/properties/custom.properties"));
         assertTrue(cucumberProperties.contains("defaultElementIdentificationTimeout=20"));
+        assertFalse(cucumberProperties.contains("evidenceLevel="));
     }
 
     @Test

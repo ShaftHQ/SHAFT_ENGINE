@@ -74,6 +74,8 @@ class AssistantCodegenWorkflowCoordinatorTest {
                 () -> assertTrue(command.contains("mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\""),
                         command.toString()),
                 () -> assertTrue(enabledTools.contains("capture_start"), enabledTools),
+                () -> assertTrue(enabledTools.contains("capture_checkpoint"), enabledTools),
+                () -> assertTrue(enabledTools.contains("capture_set_mode"), enabledTools),
                 () -> assertTrue(enabledTools.contains("capture_stop"), enabledTools),
                 () -> assertTrue(enabledTools.contains("element_click"), enabledTools),
                 () -> assertFalse(enabledTools.contains("capture_generate_replay"), enabledTools));
@@ -295,7 +297,8 @@ class AssistantCodegenWorkflowCoordinatorTest {
         String recordPrompt = record.arguments().get("prompt").getAsString();
         String mutablePrompt = mutable.arguments().get("prompt").getAsString();
         assertAll(
-                () -> assertTrue(recordPrompt.contains("$shaft-recording-codegen"), recordPrompt),
+                () -> assertTrue(recordPrompt.contains("$shaft-test-recording"), recordPrompt),
+                () -> assertTrue(recordPrompt.contains("capture_checkpoint"), recordPrompt),
                 () -> assertTrue(recordPrompt.contains("SHAFT MCP/CLI"), recordPrompt),
                 () -> assertTrue(recordPrompt.contains("existing test classes and page objects"), recordPrompt),
                 () -> assertTrue(mutablePrompt.contains("$shaft-automated-test-authoring"), mutablePrompt),
@@ -484,10 +487,15 @@ class AssistantCodegenWorkflowCoordinatorTest {
         JsonObject usage = new JsonObject();
         usage.addProperty("input_tokens", 7);
         usage.addProperty("output_tokens", 3);
+        JsonObject agentMessage = new JsonObject();
+        agentMessage.addProperty("type", "item.completed");
+        JsonObject agentMessageItem = new JsonObject();
+        agentMessageItem.addProperty("type", "agent_message");
+        agentMessageItem.addProperty("text", "Recording saved.\nSHAFT_CODEGEN_PROPOSAL " + proposalJson());
+        agentMessage.add("item", agentMessageItem);
+        parser.accept(agentMessage.toString(), ignored -> { });
         JsonObject terminalEvent = new JsonObject();
         terminalEvent.addProperty("type", "turn.completed");
-        terminalEvent.addProperty("last_agent_message",
-                "Recording saved.\nSHAFT_CODEGEN_PROPOSAL " + proposalJson());
         terminalEvent.add("usage", usage);
         parser.accept(terminalEvent.toString(), ignored -> { });
 

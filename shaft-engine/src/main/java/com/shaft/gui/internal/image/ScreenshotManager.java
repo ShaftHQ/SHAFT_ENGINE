@@ -264,11 +264,12 @@ public class ScreenshotManager {
             try {
                 Color color;
                 if (isPass) {
-                    color = new Color(67, 176, 42); // selenium-green
+                    color = new Color(20, 128, 74); // SHAFT passed-checkpoint token
                 } else {
-                    color = new Color(255, 0, 0); // red
+                    color = new Color(197, 48, 48); // SHAFT failure token
                 }
-                byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(
+                        src, elementLocation, color, driver, Screenshots.getType().name());
                 if (highlighted != null && highlighted.length > 0) {
                     src = highlighted;
                 }
@@ -339,15 +340,15 @@ public class ScreenshotManager {
         String backgroundColor;
 
         if (isPass) {
-            background = "#46aad2";
-            backgroundColor = "#A5D2A5";
+            background = "#14804A";
+            backgroundColor = "#14804A";
         } else {
-            background = "#FF0000";
-            backgroundColor = "#FF0000";
+            background = "#C53030";
+            backgroundColor = "#C53030";
         }
         return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
                 + " !important; background-color:" + backgroundColor
-                + " !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
+                + " !important; color:#102A31 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
 
     }
 }

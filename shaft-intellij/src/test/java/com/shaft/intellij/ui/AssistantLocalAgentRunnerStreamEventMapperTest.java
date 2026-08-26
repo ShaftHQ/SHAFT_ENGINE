@@ -138,6 +138,34 @@ class AssistantLocalAgentRunnerStreamEventMapperTest {
     }
 
     @Test
+    void codexMapperUsesCompletedAgentMessageAsFinalAnswerWithCurrentJsonlSchema() {
+        AssistantLocalAgentRunner.StructuredStreamParser state = codexState();
+        CodexStreamEventMapper mapper = new CodexStreamEventMapper(state);
+
+        MapResult message = mapper.map(parse(
+                "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\","
+                        + "\"text\":\"SHAFT_CODEGEN_PROPOSAL {\\\"recordingPath\\\":\\\"recordings/run.json\\\"}\"}}"));
+        MapResult completed = mapper.map(parse(
+                "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":2}}"));
+
+        assertInstanceOf(MapResult.Rendered.class, message);
+        assertSame(MapResult.CONSUMED, completed);
+        assertEquals("SHAFT_CODEGEN_PROPOSAL {\"recordingPath\":\"recordings/run.json\"}",
+                state.currentAnswer());
+    }
+
+    @Test
+    void codexMapperDoesNotCommitPartialUpdatedAgentMessageAsFinalAnswer() {
+        AssistantLocalAgentRunner.StructuredStreamParser state = codexState();
+        CodexStreamEventMapper mapper = new CodexStreamEventMapper(state);
+
+        mapper.map(parse("{\"type\":\"item.updated\",\"item\":{\"type\":\"agent_message\","
+                + "\"text\":\"partial\"}}"));
+
+        assertEquals(null, state.currentAnswer());
+    }
+
+    @Test
     void codexMapperRendersAFatalTopLevelErrorWithAMessage() {
         CodexStreamEventMapper mapper = new CodexStreamEventMapper(codexState());
 

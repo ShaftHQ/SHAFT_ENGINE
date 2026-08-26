@@ -1433,12 +1433,13 @@ public class Actions extends ElementActions {
         //highlightElement using OpenCV
         Color color;
         if (isPass) {
-            color = new Color(67, 176, 42); // selenium-green
+            color = new Color(0, 110, 192); // progress/action, not a passed checkpoint
         } else {
-            color = new Color(255, 0, 0); // red
+            color = new Color(197, 48, 48); // SHAFT failure token
         }
         try {
-            byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+            byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color,
+                    driverFactoryHelper.getDriver(), Screenshots.getType().name());
             if (highlighted != null && highlighted.length > 0) {
                 src = highlighted;
             }
@@ -1485,15 +1486,15 @@ public class Actions extends ElementActions {
         String backgroundColor;
 
         if (isPass) {
-            background = "#46aad2";
-            backgroundColor = "#A5D2A5";
+            background = "#006EC0";
+            backgroundColor = "#C8D6E7";
         } else {
-            background = "#FF0000";
-            backgroundColor = "#FF0000";
+            background = "#C53030";
+            backgroundColor = "#C53030";
         }
         return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
                 + " !important; background-color:" + backgroundColor
-                + " !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
+                + " !important; color:#102A31 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
 
     }
 

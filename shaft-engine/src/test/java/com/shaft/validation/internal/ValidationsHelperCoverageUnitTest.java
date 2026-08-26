@@ -2,6 +2,7 @@ package com.shaft.validation.internal;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums.ValidationCategory;
 import com.shaft.validation.ValidationEnums.ValidationType;
@@ -170,6 +171,29 @@ public class ValidationsHelperCoverageUnitTest {
                 "Legacy Expected Value attachment must remain.");
         Assert.assertTrue(captured.stream().anyMatch(attachment -> "Actual Value".equals(attachment.get(1))),
                 "Legacy Actual Value attachment must remain.");
+    }
+
+    @Test(description = "FAILURE_ONLY must not attach HTML assertion evidence for passed checkpoints")
+    public void failureOnlySkipsPassedAssertionEvidenceCard() {
+        String original = SHAFT.Properties.reporting.evidenceLevel();
+        List<List<Object>> captured = new ArrayList<>();
+        try (MockedStatic<ReportManagerHelper> reportMock = Mockito.mockStatic(ReportManagerHelper.class)) {
+            SHAFT.Properties.reporting.set().evidenceLevel("FAILURE_ONLY");
+            reportMock.when(() -> ReportManagerHelper.attach(any()))
+                    .thenAnswer(invocation -> {
+                        captured.addAll(invocation.getArgument(0));
+                        return null;
+                    });
+
+            ValidationsHelper.reportValidationState(ValidationCategory.SOFT_ASSERT, true,
+                    "expected-alpha", "expected-alpha", null);
+        } finally {
+            SHAFT.Properties.reporting.set().evidenceLevel(original);
+        }
+
+        Assert.assertFalse(captured.stream().anyMatch(attachment -> attachment.size() > 1
+                        && "assertion-evidence.html".equals(attachment.get(1))),
+                "Passed checkpoints must not carry an HTML evidence card under the default profile.");
     }
 
     @Test(description = "reportValidationState must not attach redundant Expected/Actual text or an " +

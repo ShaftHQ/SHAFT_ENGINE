@@ -556,7 +556,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
         cloudApiKey = new JPasswordField(16);
         cloudApiKey.getAccessibleContext().setAccessibleName("Assistant cloud API key");
-        saveCloudApiKey = new JButton("Save key");
+        saveCloudApiKey = ShaftButtonInteractions.create("Save key");
         saveCloudApiKey.getAccessibleContext().setAccessibleName("Save Assistant cloud API key");
         ShaftIconButtons.apply(saveCloudApiKey, ShaftIcons.CHECK);
         saveCloudApiKey.addActionListener(event -> saveCloudApiKey());
@@ -866,7 +866,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         promptActions.add(sendActions, BorderLayout.EAST);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
-        convertSeleniumHint = new JButton("Selenium detected — convert to SHAFT + guardrails");
+        convertSeleniumHint = ShaftButtonInteractions.create("Selenium detected — convert to SHAFT + guardrails");
         convertSeleniumHint.getAccessibleContext().setAccessibleName("Convert pasted Selenium to SHAFT");
         convertSeleniumHint.setToolTipText("Wrap the pasted code in a convert-to-SHAFT request that also runs "
                 + "the SHAFT guardrail check on the result");
@@ -1785,7 +1785,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             String accessibleBubbleName,
             String buttonLabel,
             Runnable applyFix) {
-        JButton fix = new JButton(buttonLabel);
+        JButton fix = ShaftButtonInteractions.create(buttonLabel);
         fix.getAccessibleContext().setAccessibleName(buttonLabel);
         fix.addActionListener(event -> {
             transcript.clearWidget();
@@ -3917,13 +3917,13 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     private void showSkillReadinessGate(AssistantSkillReadiness.Result readiness) {
-        JButton repair = new JButton("Repair SHAFT skills and resend");
+        JButton repair = ShaftButtonInteractions.create("Repair SHAFT skills and resend");
         repair.getAccessibleContext().setAccessibleName("Repair SHAFT skills and resend");
         repair.addActionListener(event -> {
             transcript.clearWidget();
             repairAgentSkills(true);
         });
-        JButton recheck = new JButton("Recheck skills");
+        JButton recheck = ShaftButtonInteractions.create("Recheck skills");
         recheck.getAccessibleContext().setAccessibleName("Recheck SHAFT skills");
         recheck.addActionListener(event -> {
             updateAgentHealth();
@@ -4279,7 +4279,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
     /** One removable attachment chip: name plus a trailing "×", the whole chip is the remove control. */
     private JButton attachmentChip(AssistantAttachment attachment) {
-        JButton chip = new JButton(attachment.displayName() + "  ×");
+        JButton chip = ShaftButtonInteractions.create(attachment.displayName() + "  ×");
         chip.getAccessibleContext().setAccessibleName("Remove attachment " + attachment.displayName());
         String note = attachment.truncated()
                 ? " (truncated to " + AssistantAttachment.MAX_CONTENT_CHARACTERS + " characters)"
@@ -5558,7 +5558,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panel.add(new JLabel("Configure SHAFT MCP to run Assistant feature commands."));
-        JButton openSettings = new JButton("Open Settings");
+        JButton openSettings = ShaftButtonInteractions.create("Open Settings");
         openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
         ShaftIconButtons.apply(openSettings, ShaftIcons.SETTINGS);
         openSettings.addActionListener(event -> {
@@ -5591,7 +5591,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // Distinct visible text from the existing "Dismiss" button on the Capture review panel
         // (dismissCaptureReview): tests and users alike locate buttons by their plain label, and
         // this panel can be present in the tree (just invisible) at the same time as that one.
-        JButton dismiss = new JButton("Got it");
+        JButton dismiss = ShaftButtonInteractions.create("Got it");
         dismiss.getAccessibleContext().setAccessibleName("Dismiss fresh project hint");
         ShaftIconButtons.apply(dismiss, ShaftIcons.CANCEL);
         dismiss.addActionListener(event -> panel.setVisible(false));
@@ -5731,7 +5731,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     private static JButton button(String text, String accessibleName, java.awt.event.ActionListener action) {
-        JButton button = new JButton(text);
+        JButton button = ShaftButtonInteractions.create(text);
         button.getAccessibleContext().setAccessibleName(accessibleName);
         button.addActionListener(action);
         return button;

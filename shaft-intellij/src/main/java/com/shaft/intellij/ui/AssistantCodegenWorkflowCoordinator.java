@@ -39,6 +39,9 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
     private static final String CUSTOM_PROPERTIES = "src/main/resources/properties/custom.properties";
     private static final String SHAFT_MCP_TOOL_PREFIX = "mcp__shaft-mcp__";
     private static final List<String> RECORD_MCP_TOOLS = List.of(
+            "capture_checkpoint",
+            "capture_pick_locator",
+            "capture_set_mode",
             "capture_start",
             "capture_status",
             "capture_stop",
@@ -349,7 +352,7 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
         state.addProperty("recordingPath", AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH);
         return """
                 AutoBot free-text codegen, read-only RECORD invocation. You own all browser and SHAFT MCP actions; the IntelliJ plugin coordinates state and presentation only.
-                Load and follow `$shaft-recording-codegen`, `$shaft-locator-design`, and `$shaft-web-actions` plus the repository's SHAFT recording guidance. Use negotiated SHAFT MCP/CLI capabilities to call capture_start with the exact state below, perform the requested browser journey, and call capture_stop/save. Then inspect existing test classes and page objects and propose which existing owners to reuse and which owners are genuinely missing. Do not edit source. Do not generate, replay, or heal. Preserve MCP timeout, cancellation, shutdown, and client lifecycle.
+                Load and follow `$shaft-test-recording`, `$shaft-locator-design`, and `$shaft-web-actions` plus the repository's SHAFT recording guidance. Use negotiated SHAFT MCP/CLI capabilities to call capture_start with the exact state below, record each requested assertion with capture_checkpoint, perform the requested browser journey, verify capture_status has no unresolved readiness warning, and call capture_stop/save. Then inspect existing test classes and page objects and propose which existing owners to reuse and which owners are genuinely missing. Do not edit source. Do not generate, replay, or heal. Preserve MCP timeout, cancellation, shutdown, and client lifecycle.
 
                 Workflow state:
                 %s

@@ -13,9 +13,8 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Platform;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.remote.Browser;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -85,6 +84,23 @@ public class ImageProcessingActions {
 
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
                                                       org.openqa.selenium.Rectangle elementLocation, Color highlightColor) {
+        return highlightElementInScreenshotPixels(targetScreenshot,
+                legacyScaledRectangle(elementLocation), highlightColor);
+    }
+
+    public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
+                                                      org.openqa.selenium.Rectangle elementLocation,
+                                                      Color highlightColor,
+                                                      WebDriver driver,
+                                                      String screenshotType) {
+        org.openqa.selenium.Rectangle transformed = transformElementRectangle(
+                targetScreenshot, elementLocation, driver, screenshotType);
+        return highlightElementInScreenshotPixels(targetScreenshot, transformed, highlightColor);
+    }
+
+    private static byte[] highlightElementInScreenshotPixels(byte[] targetScreenshot,
+                                                             org.openqa.selenium.Rectangle elementLocation,
+                                                             Color highlightColor) {
         BufferedImage image;
         try (var input = new java.io.ByteArrayInputStream(targetScreenshot)) {
             image = ImageIO.read(input);
@@ -116,35 +132,6 @@ public class ImageProcessingActions {
         double xPos = elementLocation.getX();
         double yPos = elementLocation.getY();
 
-        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.name())
-                || SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())
-                || (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.LINUX.name())
-                && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != 1)) {
-            elementHeight *= 2;
-            elementWidth *= 2;
-            xPos *= 2;
-            yPos *= 2;
-        }
-
-        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.name())
-                && SHAFT.Properties.mobile.browserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            yPos += elementHeight + 2 * outlineThickness;
-        }
-        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.ANDROID.name())
-                && SHAFT.Properties.mobile.appPackage().equalsIgnoreCase("com.android.chrome")) {
-            yPos += 2 * outlineThickness;
-        }
-        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())) {
-            yPos += 2 * outlineThickness;
-        }
-        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.WINDOWS.name())) {
-            double scalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
-            elementHeight *= scalingFactor;
-            elementWidth *= scalingFactor;
-            xPos *= scalingFactor;
-            yPos *= scalingFactor;
-        }
-
         Graphics2D graphics = image.createGraphics();
         try {
             graphics.setColor(highlightColor);
@@ -164,6 +151,72 @@ public class ImageProcessingActions {
             ReportManagerHelper.logDiscrete(e);
         }
         return output.toByteArray();
+    }
+
+    private static org.openqa.selenium.Rectangle transformElementRectangle(byte[] screenshot,
+                                                                           org.openqa.selenium.Rectangle rectangle,
+                                                                           WebDriver driver,
+                                                                           String screenshotType) {
+        try (var input = new java.io.ByteArrayInputStream(screenshot)) {
+            BufferedImage image = ImageIO.read(input);
+            if (image == null || driver == null || !(driver instanceof JavascriptExecutor js)) {
+                return legacyScaledRectangle(rectangle);
+            }
+            if ("ELEMENT".equalsIgnoreCase(screenshotType)) {
+                return new org.openqa.selenium.Rectangle(0, 0, image.getHeight(), image.getWidth());
+            }
+            Object raw = js.executeScript("return {viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,"
+                    + " pageWidth: Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0),"
+                    + " pageHeight: Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0),"
+                    + " scrollX: window.scrollX, scrollY: window.scrollY};");
+            if (!(raw instanceof Map<?, ?> metrics)) {
+                return legacyScaledRectangle(rectangle);
+            }
+            boolean fullPage = "FULL".equalsIgnoreCase(screenshotType);
+            double cssWidth = number(metrics.get(fullPage ? "pageWidth" : "viewportWidth"));
+            double cssHeight = number(metrics.get(fullPage ? "pageHeight" : "viewportHeight"));
+            double scrollX = fullPage ? 0 : number(metrics.get("scrollX"));
+            double scrollY = fullPage ? 0 : number(metrics.get("scrollY"));
+            return transformElementRectangle(rectangle, image.getWidth(), image.getHeight(), cssWidth,
+                    cssHeight, scrollX, scrollY);
+        } catch (IOException | RuntimeException ignored) {
+            return legacyScaledRectangle(rectangle);
+        }
+    }
+
+    static org.openqa.selenium.Rectangle transformElementRectangle(org.openqa.selenium.Rectangle rectangle,
+                                                                   int imageWidth,
+                                                                   int imageHeight,
+                                                                   double cssWidth,
+                                                                   double cssHeight,
+                                                                   double scrollX,
+                                                                   double scrollY) {
+        if (cssWidth <= 0 || cssHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
+            return legacyScaledRectangle(rectangle);
+        }
+        double scaleX = imageWidth / cssWidth;
+        double scaleY = imageHeight / cssHeight;
+        return new org.openqa.selenium.Rectangle(
+                (int) Math.round((rectangle.getX() - scrollX) * scaleX),
+                (int) Math.round((rectangle.getY() - scrollY) * scaleY),
+                (int) Math.round(rectangle.getHeight() * scaleY),
+                (int) Math.round(rectangle.getWidth() * scaleX));
+    }
+
+    private static double number(Object value) {
+        return value instanceof Number number ? number.doubleValue() : 0;
+    }
+
+    private static org.openqa.selenium.Rectangle legacyScaledRectangle(org.openqa.selenium.Rectangle rectangle) {
+        double scale = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
+        if (scale <= 0) {
+            scale = 1;
+        }
+        return new org.openqa.selenium.Rectangle(
+                (int) Math.round(rectangle.getX() * scale),
+                (int) Math.round(rectangle.getY() * scale),
+                (int) Math.round(rectangle.getHeight() * scale),
+                (int) Math.round(rectangle.getWidth() * scale));
     }
 
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
