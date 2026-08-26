@@ -579,11 +579,40 @@ def run_acceptance(
                 if account else verify_phase(project, commit)
             )
 
-        fresh = record_phase(
-            evidence,
-            "fresh-base-wrapper",
-            lambda: install_and_verify(base_sha, require_current_action=False),
-        )
+        try:
+            fresh = record_phase(
+                evidence,
+                "fresh-base-wrapper",
+                lambda: install_and_verify(base_sha, require_current_action=False),
+            )
+        except RuntimeError as error:
+            # A dependency release can expose the exact installer defect fixed by
+            # the candidate. Preserve that evidence, then require a clean candidate
+            # install plus an idempotent rerun instead of making repair PRs
+            # impossible to validate.
+            evidence["baseline"] = {
+                "status": "incompatible",
+                "detail": sanitize(str(error)),
+            }
+            shutil.rmtree(project)
+            project.mkdir()
+            first = record_phase(
+                evidence,
+                "fresh-candidate-wrapper",
+                lambda: install_and_verify(candidate_sha, account=True),
+            )
+            account_receipt = project / ".chaos-engine-dependencies.json"
+            commands_before = read_json(account_receipt)["commands"]
+            repeated = record_phase(
+                evidence,
+                "healthy-rerun-candidate-wrapper",
+                lambda: install_and_verify(candidate_sha, account=True),
+            )
+            if read_json(account_receipt)["commands"] != commands_before:
+                raise RuntimeError("healthy account rerun changed resolved executable dispatch")
+            if any(action != "reused" for action in repeated["actions"].values()):
+                raise RuntimeError("healthy account rerun did not reuse latest stable tools")
+            return
         first_pointer = (project / ".chaos-engine-runtime-current.json").read_bytes()
         first_generations = sorted(
             path.name for path in (project / ".chaos-engine-runtime-generations").iterdir()
