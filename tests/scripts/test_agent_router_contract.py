@@ -2204,21 +2204,15 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         self.assertEqual(len(found), 1, "entrypoint needs exactly one solo-or-orchestrate rule")
         return found[0]
 
-    def test_the_rule_keys_on_unrelated_tasks_in_flight(self):
+    def test_the_rule_defaults_to_solo_until_owner_requests_orchestration(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertIn("unrelated tasks", content, "the trigger is the owner's asks, not any decomposition")
-        self.assertRegex(content, r"subtasks of a single task are \*?\*?one", "subtasks are one stream")
-        self.assertIn("two or more", content)
-        rows = [line for line in self.section().splitlines() if line.strip().startswith("|")]
-        self.assertGreaterEqual(len(rows), 4, "the rule needs a mode table")
+        self.assertRegex(content, r"default is \*\*solo\*\*")
+        self.assertIn("explicitly requests orchestrator mode", content)
+        self.assertRegex(content, r"one solo implementer|parallel implementers")
+        self.assertRegex(content, r"up to (?:four|4)")
 
     def test_the_rule_resolves_mode_transitions_and_hostless_delegation(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(
-            content,
-            r"while any delegate still owns a stream",
-            "a finishing delegate must not silently flip the mode",
-        )
         self.assertRegex(
             content,
             r"no subagent primitive cannot orchestrate",
@@ -2232,7 +2226,7 @@ class SoloOrOrchestrateTest(unittest.TestCase):
 
     def test_orchestrated_mode_keeps_main_thread_out_of_all_task_work(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(content, r"do no task work yourself")
+        self.assertRegex(content, r"does no task work itself")
         self.assertRegex(content, r"no edits, run no long job, and install nothing",
                          "barring only implementation leaves installs and long jobs allowed")
         self.assertRegex(content, r"reachable", "the rule must state why main thread stays free")

@@ -1,10 +1,8 @@
 # PDCA
 
-Personas are phases, not agent identities. They run sequentially in the main
-session. PDCA is a single task, so the entrypoint's solo-or-orchestrate rule
-normally puts it in solo mode: the same thread runs every phase and does the
-work. Only when the session also owns other unrelated streams does Bob dispatch
-instead of implementing.
+Personas are phases, not agent identities. They run sequentially. Default SOLO
+keeps every phase in the main session. Only an explicit owner request enters
+ORCHESTRATOR mode; Bob then shepherds the selected one or parallel implementers.
 
 - Kevin phase plans spec, value, acceptance, risks, and any useful Mermaid or wireframe.
 - Bob phase makes the smallest cross-platform change through observed TDD, or
@@ -12,9 +10,19 @@ instead of implementing.
 - Bruce reviews the actual diff and evidence for defects, ambiguity, and
   confidence, then assigns any required patch to an implementation owner.
 
-Do not merge phases. Run Kevin -> Bob -> Bruce, then repeat that order for two
-passes: quality/simplicity, then intuitiveness/acceptability. Rerun the
-smallest check each pass. Stop at >=90% confidence or a blocker.
+Do not merge phases. Plan is Kevin. Each Bob slice uses TDD and rapid incremental
+delivery. Consolidated Check is Bruce. Act either loops a focused repair through
+Bob or delivers. Scrum-master behavior means exposing scope, dependencies,
+blockers, evidence, and next action; it does not add ceremonies or parallelism.
+
+```mermaid
+flowchart LR
+  P[Kevin / Plan] --> D[Bob / Do: TDD slices]
+  D --> C[Bruce / Check: consolidated evidence]
+  C --> A{Act}
+  A -- repair --> D
+  A -- accepted --> S[Ship and learn]
+```
 
 ## Execution
 
