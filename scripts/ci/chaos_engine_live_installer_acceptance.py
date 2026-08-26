@@ -612,7 +612,7 @@ def run_acceptance(
             }
             shutil.rmtree(project)
             project.mkdir()
-            first = record_phase(
+            record_phase(
                 evidence,
                 "fresh-candidate-wrapper",
                 lambda: install_and_verify(candidate_sha, account=True),
