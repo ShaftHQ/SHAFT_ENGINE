@@ -516,7 +516,7 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             mined_healthy = (
                 not is_link_or_reparse(mined)
                 and mined.is_file()
-                and mined.read_bytes() == b"current\n"
+                and mined.read_bytes() in {b"current\n", b"current\r\n"}
             )
         except OSError:
             mined_healthy = False

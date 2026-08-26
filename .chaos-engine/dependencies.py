@@ -814,7 +814,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         if command[1:3] == ["mine", "."]:
             marker = project / ".chaos-engine-state/mempalace/.mined"
             marker.parent.mkdir(parents=True, exist_ok=True)
-            marker.write_text("current\n", encoding="utf-8")
+            marker.write_bytes(b"current\n")
 
     final_components: dict[str, dict[str, object]] = {}
     for name, record in actions.items():

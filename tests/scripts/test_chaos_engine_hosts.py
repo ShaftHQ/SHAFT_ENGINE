@@ -1797,6 +1797,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "healthy",
                 module.mempalace_runtime_status(project)["status"],
             )
+            mined.write_bytes(b"current\r\n")
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
             mined.write_text("unexpected\n", encoding="utf-8")
             self.assertEqual(
                 "recovery-required",
