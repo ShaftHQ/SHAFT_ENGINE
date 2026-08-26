@@ -111,13 +111,19 @@ def normalize_source_record(source: object) -> dict[str, str]:
     ):
         return dict(source)
     if (
-        set(source) == {"commit", "kind", "repositorySha256", "branchSha256"}
+        set(source) == {
+            "commit", "kind", "repositorySha256", "branchSha256", "upstreamRepository"
+        }
         and source.get("kind") == "git-digest"
         and COMMIT_PATTERN.fullmatch(source.get("commit", "")) is not None
         and re.fullmatch(r"[0-9a-f]{64}", source.get("repositorySha256", "")) is not None
         and re.fullmatch(r"[0-9a-f]{64}", source.get("branchSha256", "")) is not None
+        and REPOSITORY_PATTERN.fullmatch(source.get("upstreamRepository", "")) is not None
+        and len(source.get("upstreamRepository", "").split("/")) == 2
     ):
-        return dict(source)
+        result = dict(source)
+        result["upstreamRepository"] = result["upstreamRepository"].casefold()
+        return result
     repository = source.get("repository", "")
     branch = source.get("branch", "")
     components = repository.split("/")

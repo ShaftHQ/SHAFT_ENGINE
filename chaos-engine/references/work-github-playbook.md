@@ -79,6 +79,12 @@ session over one hour records its terminal reflection receipt before the Learnin
    potential improvement needing work, search for duplicates and then open one
    new standalone GitHub issue for that action. A duplicate hit informs the new
    issue; it does not replace it.
+   When the finding changes ChaosEngine itself, including hooks, skills,
+   adapters, installer behavior, or portable policy, target the configured
+   `source.upstreamRepository` in `.chaos-engine/manifest.json` even when the
+   active project is an adopter repository. Never infer that upstream from the
+   current project's Git remote. Pass it explicitly to `gh --repo` and to
+   `learning.py --upstream`.
 4. Link the receipt ID and incident evidence in the issue, then bind that issue's
    canonical URL during `assess`. A receipt, Memory entry, Graphify flag, or old
    issue comment is evidence only and never replaces the action ticket.

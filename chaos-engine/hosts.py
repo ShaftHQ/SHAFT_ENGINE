@@ -384,6 +384,28 @@ def repository_map_resolver_present(project: Path) -> bool:
     return (project / "tools/repository-map/resolve_mempalace.py").is_file()
 
 
+def shared_state_project(project: Path) -> Path:
+    """Resolve the primary checkout that owns persistent worktree state."""
+    if not (project / ".git").exists():
+        return project.resolve()
+    git = shutil.which("git")
+    if git is None:
+        return project.resolve()
+    completed = subprocess.run(  # nosec B603 - fixed Git introspection.
+        [git, "rev-parse", "--git-common-dir"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return project.resolve()
+    common = Path(completed.stdout.strip())
+    if not common.is_absolute():
+        common = (project / common).resolve()
+    return common.parent
+
+
 def centralized_mempalace_status() -> dict[str, str]:
     return {
         "status": "degraded",
@@ -549,7 +571,7 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
 
 def mempalace_runtime_status(project: Path) -> dict[str, str]:
     """Classify project-local or centralized MemPalace state."""
-    palace = project / ".chaos-engine-state/mempalace"
+    palace = shared_state_project(project) / ".chaos-engine-state/mempalace"
     if is_link_or_reparse(palace):
         return {
             "status": "recovery-required",
@@ -609,7 +631,8 @@ def _cleanup_failed_mempalace_initialization(
 def initialize_mempalace_runtime(project: Path) -> None:
     """Create only a fresh empty sqlite_exact collection; never migrate user state."""
     project = project.resolve()
-    state_root = project / ".chaos-engine-state"
+    owner = shared_state_project(project)
+    state_root = owner / ".chaos-engine-state"
     palace = state_root / "mempalace"
     status = mempalace_runtime_status(project)["status"]
     if status == "healthy":
@@ -617,13 +640,13 @@ def initialize_mempalace_runtime(project: Path) -> None:
     if status != "initialization-required":
         return
 
-    validate_path(project, palace)
+    validate_path(owner, palace)
     state_root_created = not state_root.exists()
     palace_created = not palace.exists()
     state_root.mkdir(exist_ok=True)
-    validate_path(project, palace)
+    validate_path(owner, palace)
     palace.mkdir(exist_ok=True)
-    validate_path(project, palace)
+    validate_path(owner, palace)
     palace_stat = os.stat(palace, follow_symlinks=False)
     if not stat.S_ISDIR(palace_stat.st_mode):
         raise ValueError("ChaosEngine MemPalace state path is not a directory")

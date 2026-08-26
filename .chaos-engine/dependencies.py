@@ -566,20 +566,43 @@ def ensure_mempalace_config(project: Path) -> None:
     )
 
 
+def shared_state_project(project: Path) -> Path:
+    """Resolve the primary checkout that owns persistent worktree state."""
+    if not (project / ".git").exists():
+        return project.resolve()
+    git = shutil.which("git")
+    if git is None:
+        return project.resolve()
+    completed = subprocess.run(  # nosec B603 - fixed Git introspection.
+        [git, "rev-parse", "--git-common-dir"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return project.resolve()
+    common = Path(completed.stdout.strip())
+    if not common.is_absolute():
+        common = (project / common).resolve()
+    return common.parent
+
+
 def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
     """Plan current-folder initialization without resetting existing project data."""
     project = project.resolve()
+    shared = shared_state_project(project)
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
     if mempalace:
         mempalace_command = [
             mempalace,
             "--palace",
-            ".chaos-engine-state/mempalace",
+            str(shared / ".chaos-engine-state/mempalace"),
             "--backend",
             "sqlite_exact",
         ]
-        if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
+        if not (shared / ".chaos-engine-state/mempalace/.mined").is_file():
             planned.append([*mempalace_command, "mine", "."])
     graphify = commands.get("graphify")
     if graphify:
@@ -587,8 +610,8 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
             planned.append(
                 [graphify, "install", "--platform", "agents", "--project"]
             )
-        if not (project / "graphify-out/graph.json").is_file():
-            planned.append([graphify, "extract", ".", "--code-only"])
+        if not (shared / "graphify-out/graph.json").is_file():
+            planned.append([graphify, "extract", ".", "--code-only", "--out", str(shared)])
     memory = commands.get("memory")
     if memory and not (project / ".memory/config.json").is_file():
         planned.append([memory, "init", "--no-view"])
@@ -837,7 +860,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     for command in project_setup_plan(project, commands):
         _run_account_command(command, project, runner=runner)
         if command[-2:] == ["mine", "."]:
-            marker = project / ".chaos-engine-state/mempalace/.mined"
+            marker = shared_state_project(project) / ".chaos-engine-state/mempalace/.mined"
             marker.parent.mkdir(parents=True, exist_ok=True)
             marker.write_bytes(b"current\n")
 

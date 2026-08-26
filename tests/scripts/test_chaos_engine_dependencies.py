@@ -119,11 +119,49 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
     def test_tool_launcher_reuses_primary_runtime_from_linked_worktree(self):
         module = load_tool()
-        linked = Path("/repo/worktree")
-        completed = mock.Mock(stdout="/repo/primary/.git\n", returncode=0)
-        with mock.patch.object(module.shutil, "which", return_value="/usr/bin/git"):
-            with mock.patch.object(module.subprocess, "run", return_value=completed):
-                self.assertEqual(Path("/repo/primary"), module.shared_runtime_project(linked))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            linked = root / "worktree"
+            linked.mkdir()
+            linked.joinpath(".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+            primary = root / "primary"
+            completed = mock.Mock(stdout=str(primary / ".git") + "\n", returncode=0)
+            with mock.patch.object(module.shutil, "which", return_value="/usr/bin/git"):
+                with mock.patch.object(module.subprocess, "run", return_value=completed):
+                    self.assertEqual(primary, module.shared_runtime_project(linked))
+
+    def test_tool_launcher_shares_retrieval_state_without_project_specific_resolvers(self):
+        module = load_tool()
+        project = Path("/repo/worktree")
+        core = project / ".chaos-engine"
+        primary = Path("/repo/primary")
+        controller = {
+            "mempalace_directory_status": lambda palace: {
+                "status": "healthy",
+                "detail": str(palace),
+            }
+        }
+        with mock.patch.object(module, "shared_runtime_project", return_value=primary):
+            with mock.patch.object(module, "load_host_controller", return_value=controller):
+                self.assertEqual(
+                    [
+                        "--palace",
+                        str(primary / ".chaos-engine-state/mempalace"),
+                        "--backend",
+                        "sqlite_exact",
+                    ],
+                    module.mempalace_mcp_arguments(core, []),
+                )
+            self.assertEqual(
+                str(primary / "graphify-out"),
+                module.graphify_environment(core)["GRAPHIFY_OUT"],
+            )
+            self.assertEqual(
+                ["query", "hooks", "--graph", str(primary / "graphify-out/graph.json")],
+                module.graphify_arguments(
+                    core, ["query", "hooks", "--graph", "graphify-out/graph.json"]
+                ),
+            )
 
     @staticmethod
     def fake_runner(root: Path):
@@ -453,7 +491,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 [
                     "/tools/mempalace",
                     "--palace",
-                    ".chaos-engine-state/mempalace",
+                    str(project / ".chaos-engine-state/mempalace"),
                     "--backend",
                     "sqlite_exact",
                     "mine",
@@ -466,7 +504,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 fresh,
             )
             self.assertIn(
-                ["/tools/graphify", "extract", ".", "--code-only"], fresh
+                ["/tools/graphify", "extract", ".", "--code-only", "--out", str(project)], fresh
             )
             self.assertIn(["/tools/memory", "init", "--no-view"], fresh)
 
@@ -484,6 +522,35 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             memory.parent.mkdir()
             memory.write_text("{}\n", encoding="utf-8")
             self.assertEqual([], module.project_setup_plan(project, commands))
+
+    def test_project_setup_plan_targets_primary_state_from_linked_worktree(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            linked = root / "linked"
+            primary = root / "primary"
+            linked.mkdir()
+            primary.mkdir()
+            commands = {"mempalace": "/tools/mempalace", "graphify": "/tools/graphify"}
+
+            with mock.patch.object(module, "shared_state_project", return_value=primary):
+                planned = module.project_setup_plan(linked, commands)
+
+            self.assertIn(
+                [
+                    "/tools/mempalace", "--palace",
+                    str(primary / ".chaos-engine-state/mempalace"),
+                    "--backend", "sqlite_exact", "mine", ".",
+                ],
+                planned,
+            )
+            self.assertIn(
+                [
+                    "/tools/graphify", "extract", ".", "--code-only",
+                    "--out", str(primary),
+                ],
+                planned,
+            )
 
     def test_account_discovery_prefers_receipt_command_over_path(self):
         module = load_controller()

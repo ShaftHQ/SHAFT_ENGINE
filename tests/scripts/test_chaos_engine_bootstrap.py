@@ -56,6 +56,14 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_learning_routes_harness_findings_to_installed_upstream(self):
+        playbook = (ROOT / "chaos-engine/references/work-github-playbook.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("source.upstreamRepository", playbook)
+        self.assertIn("Never infer that upstream from the", playbook)
+        self.assertIn("learning.py --upstream", playbook)
+
     def test_pre_activation_health_ignores_only_the_expected_host_recovery(self):
         bootstrap = load()
         doctor = {
@@ -610,12 +618,15 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     "kind": "git-digest",
                     "repositorySha256": mock.ANY,
                     "branchSha256": mock.ANY,
+                    "upstreamRepository": "shafthq/shaft_engine",
                     "commit": COMMIT_ONE,
                 },
                 manifest["source"],
             )
             self.assertEqual("portable", manifest["distribution"]["id"])
-            self.assertNotIn("shaft", (project / ".chaos-engine/manifest.json").read_text().casefold())
+            self.assertEqual(
+                "shafthq/shaft_engine", manifest["source"]["upstreamRepository"]
+            )
             self.assertTrue(any("api.github.com/repos/ShaftHQ/SHAFT_ENGINE/commits/main" in call for call in calls))
 
             open_two, _ = self.opener([(COMMIT_TWO, "two")])

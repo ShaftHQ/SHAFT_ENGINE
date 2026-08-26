@@ -872,6 +872,7 @@ def install_latest(
                 "kind": "git-digest",
                 "repositorySha256": hashlib.sha256(repository.casefold().encode()).hexdigest(),
                 "branchSha256": hashlib.sha256(resolved_branch.encode()).hexdigest(),
+                "upstreamRepository": repository,
                 "commit": commit,
             }
         else:
