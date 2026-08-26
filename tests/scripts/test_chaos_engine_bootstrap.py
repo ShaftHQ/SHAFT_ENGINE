@@ -56,6 +56,17 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_pre_activation_health_ignores_only_the_expected_host_recovery(self):
+        bootstrap = load()
+        doctor = {
+            "components": {"core": {"status": "healthy", "taskImpact": "required"}},
+            "kernel": {"status": "healthy"},
+            "dependencies": {"status": "healthy"},
+            "hosts": {"status": "recovery-required"},
+        }
+        self.assertTrue(bootstrap._required_install_unhealthy(doctor))
+        self.assertFalse(bootstrap._required_install_unhealthy(doctor, include_hosts=False))
+
     def test_exact_commit_source_does_not_require_revision_lookup(self):
         bootstrap = load()
         opener = mock.Mock(side_effect=AssertionError("network lookup was attempted"))
