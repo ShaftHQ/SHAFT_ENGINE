@@ -1543,7 +1543,7 @@ class HostParityTest(unittest.TestCase):
                 targets = local_links(adapter)
                 self.assertTrue(targets, "adapter must link its canonical body")
                 resolved = (adapter.parent / targets[0]).resolve()
-                expected = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+                expected = ROOT / ".chaos-engine/skills/chaos-engine/SKILL.md"
                 self.assertEqual(resolved, expected.resolve())
 
     def role_headings(self) -> set[str]:
@@ -1612,7 +1612,8 @@ class HostParityTest(unittest.TestCase):
                 self.assertNotIn("\r", instructions, "carriage return leaked into the string")
                 self.assertIn("chaos-engine/SKILL.md", instructions)
                 self.assertIn("roles.md", instructions)
-                named = [role for role in headings if role in instructions.lower()]
+                normalized = instructions.lower().replace("-", " ")
+                named = [role for role in headings if role in normalized]
                 self.assertTrue(named, "adapter must name a portable role")
 
     def test_every_portable_role_is_reachable(self):
@@ -1898,6 +1899,15 @@ class NoDuplicationTest(unittest.TestCase):
         "Load [ChaosEngine](",
         "Load [act-as-mohab](",
         "Do not restate policy here.",
+        "tools: Read, Grep, Glob, Bash, Write, Edit",
+        "description: Load the canonical installed ChaosEngine",
+        "Follow the [canonical ChaosEngine](",
+        "Before every task, follow the canonical [ChaosEngine](",
+        "This project has a knowledge graph at graphify-out/",
+        "- For codebase questions, first run `graphify query",
+        "- If graphify-out/wiki/index.md exists",
+        "- Read graphify-out/GRAPH_REPORT.md only",
+        "- After modifying code, run `graphify update .`",
     )
     MIN_DUPLICATE_LINE_CHARS = 40
 
