@@ -6,7 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed Git fixture commands.
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -151,7 +151,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             metadata = [root / "metadata/one.git", root / "metadata/two.git"]
             for project, git_directory in zip(repositories, metadata, strict=True):
                 git_directory.parent.mkdir(parents=True, exist_ok=True)
-                subprocess.run(
+                subprocess.run(  # nosec B603 - fixed Git fixture command.
                     [git, "init", "-q", "--separate-git-dir", str(git_directory), str(project)],
                     check=True,
                 )
