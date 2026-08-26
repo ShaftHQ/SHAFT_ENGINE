@@ -271,6 +271,8 @@ class ChaosEngineHookTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             session = "learn-complete"
+            with patch.dict(os.environ, environment):
+                reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
             for command in (
                 "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r",
                 "py -3 scripts/agents/learning_session.py finalize --session-id learn-complete",
@@ -289,6 +291,7 @@ class ChaosEngineHookTest(unittest.TestCase):
                 {
                     "hook_event_name": "Stop",
                     "session_id": session,
+                    "last_assistant_message": "final report",
                     "stop_hook_active": False,
                 },
                 environment,
@@ -298,6 +301,75 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertFalse(
                 json.loads(stopped.stdout).get("reason", "").casefold().startswith("learning session:")
             )
+
+    def test_portable_plan_mode_skips_long_session_completion_gate(self):
+        for permission_key in ("permission_mode", "permissionMode"):
+            with self.subTest(permission_key=permission_key), tempfile.TemporaryDirectory() as temporary:
+                environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+                session = f"portable-plan-{permission_key}"
+                with patch.dict(os.environ, environment):
+                    reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
+
+                stopped = self.run_hook(
+                    {
+                        "hook_event_name": "Stop",
+                        "session_id": session,
+                        permission_key: "plan",
+                        "stop_hook_active": False,
+                    },
+                    environment,
+                )
+
+                self.assertEqual(0, stopped.returncode)
+                self.assertNotEqual("block", json.loads(stopped.stdout).get("decision"))
+
+    def test_delivery_after_learning_session_keeps_long_session_complete(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "learn-complete-then-delivery"
+            with patch.dict(os.environ, environment):
+                reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
+                reflection.record_activity(session, "delivery-complete")
+                reflection.record_activity(session, "learning-session-complete")
+                reflection.record_activity(session, "delivery-complete")
+
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "last_assistant_message": "final report",
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+
+            self.assertEqual(0, stopped.returncode)
+            self.assertNotEqual("block", json.loads(stopped.stdout).get("decision"))
+
+    def test_mutation_after_learning_session_reopens_reflection_not_learning_session(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "learn-complete-then-mutation"
+            with patch.dict(os.environ, environment):
+                reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
+                reflection.record_activity(session, "delivery-complete")
+                reflection.record_activity(session, "learning-session-complete")
+                reflection.record_activity(session, "mutation")
+
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "last_assistant_message": "final report",
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+
+            reason = json.loads(stopped.stdout).get("reason", "")
+            self.assertEqual(2, stopped.returncode)
+            self.assertIn("Terminal reflection required", reason)
+            self.assertNotIn("Learning Session", reason)
 
     def test_long_session_receipt_allows_stop_without_terminal_summary_labels(self):
         with tempfile.TemporaryDirectory() as temporary:

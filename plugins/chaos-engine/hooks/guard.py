@@ -379,6 +379,11 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
         event.get("stop_hook_active") or event.get("stopHookActive")
     ):
         return ""
+    permission_mode = str(
+        event.get("permission_mode", event.get("permissionMode", ""))
+    ).strip().lower()
+    if permission_mode == "plan":
+        return ""
     elapsed = reflection.session_elapsed_seconds(session_id)
     if elapsed is not None and elapsed > 3600:
         if reflection.has_valid_terminal_receipt(session_id) or _learning_session_completed(session_id):
@@ -398,7 +403,7 @@ def _learning_session_completed(session_id: str) -> bool:
             continue
         if item.get("activity") == "learning-session-complete":
             completed = True
-        elif item.get("activity") in {"mutation", "delivery-complete"}:
+        elif item.get("activity") == "mutation":
             completed = False
     return completed
 
