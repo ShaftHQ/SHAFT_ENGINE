@@ -35,6 +35,33 @@ def load_acceptance():
 
 
 class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
+    def test_missing_baseline_dependency_does_not_skip_candidate_acceptance(self):
+        module = load_acceptance()
+        evidence = {"phases": []}
+
+        def wrapper(_commit, project, **_kwargs):
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"commands": {"memory": "/managed/memory"}}),
+                encoding="utf-8",
+            )
+
+        candidate = {"actions": {"memory": "reused"}}
+        with mock.patch.object(module, "run_public_wrapper", side_effect=wrapper), mock.patch.object(
+            module, "verify_phase", side_effect=FileNotFoundError("baseline tool")
+        ), mock.patch.object(module, "verify_account_phase", return_value=candidate):
+            module.run_acceptance(
+                ROOT / "chaos-engine",
+                evidence,
+                candidate_sha="b" * 40,
+                base_sha="a" * 40,
+            )
+
+        self.assertEqual("incompatible", evidence["baseline"]["status"])
+        self.assertEqual(
+            ["fresh-candidate-wrapper", "healthy-rerun-candidate-wrapper"],
+            [phase["name"] for phase in evidence["phases"]],
+        )
+
     def test_manual_grok_hook_trust_is_an_expected_local_acceptance_state(self):
         module = load_acceptance()
         result = {

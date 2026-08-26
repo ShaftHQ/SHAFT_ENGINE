@@ -601,7 +601,7 @@ def run_acceptance(
                 "fresh-base-wrapper",
                 lambda: install_and_verify(base_sha, require_current_action=False),
             )
-        except RuntimeError as error:
+        except (RuntimeError, OSError) as error:
             # A dependency release can expose the exact installer defect fixed by
             # the candidate. Preserve that evidence, then require a clean candidate
             # install plus an idempotent rerun instead of making repair PRs
