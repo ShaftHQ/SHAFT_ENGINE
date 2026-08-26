@@ -18,6 +18,7 @@ from scripts.ci.validate_quality_configuration import (
 
 PLAYWRIGHT_GRID_EXCLUSION = "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]"
 LAZY_GRID_EXCLUSION = "!%regex[.*LazyLoadingFixtureLiveTest.*]"
+DOWNLOAD_GRID_EXCLUSION = "!%regex[.*DownloadWithoutPromptTest.*]"
 UNIT_PACKAGE_EXCLUSION = "!%regex[.*testPackage.unitTests.*]"
 
 
@@ -304,6 +305,7 @@ jobs:
                     "!%regex[.*DatabaseActions.*]",
                     PLAYWRIGHT_GRID_EXCLUSION,
                     LAZY_GRID_EXCLUSION,
+                    DOWNLOAD_GRID_EXCLUSION,
                     UNIT_PACKAGE_EXCLUSION,
                     "!%regex[.*ExampleUnitTest.*]",
                 ),
@@ -339,6 +341,7 @@ jobs:
                 workflow_scope(
                     PLAYWRIGHT_GRID_EXCLUSION,
                     LAZY_GRID_EXCLUSION,
+                    DOWNLOAD_GRID_EXCLUSION,
                     UNIT_PACKAGE_EXCLUSION,
                     "!%regex[.*ExampleUnitTest.*]",
                 ),
@@ -362,6 +365,7 @@ jobs:
         for forbidden in (
             PLAYWRIGHT_GRID_EXCLUSION,
             LAZY_GRID_EXCLUSION,
+            DOWNLOAD_GRID_EXCLUSION,
         ):
             with self.subTest(forbidden=forbidden), tempfile.TemporaryDirectory() as temp_dir:
                 root = Path(temp_dir)
@@ -372,6 +376,7 @@ jobs:
                         "!%regex[.*DatabaseActions.*]",
                         PLAYWRIGHT_GRID_EXCLUSION,
                         LAZY_GRID_EXCLUSION,
+                        DOWNLOAD_GRID_EXCLUSION,
                         UNIT_PACKAGE_EXCLUSION,
                     ),
                     encoding="utf-8",
@@ -415,6 +420,7 @@ jobs:
                     workflow_scope(
                         PLAYWRIGHT_GRID_EXCLUSION,
                         LAZY_GRID_EXCLUSION,
+                        DOWNLOAD_GRID_EXCLUSION,
                         UNIT_PACKAGE_EXCLUSION,
                         "!%regex[.*ExampleUnitTest.*]",
                     ),
@@ -435,12 +441,21 @@ jobs:
                 )
 
     def test_requires_each_grid_only_exclusion_exactly_once(self):
-        for missing in (PLAYWRIGHT_GRID_EXCLUSION, LAZY_GRID_EXCLUSION):
+        for missing in (
+            PLAYWRIGHT_GRID_EXCLUSION,
+            LAZY_GRID_EXCLUSION,
+            DOWNLOAD_GRID_EXCLUSION,
+        ):
             with self.subTest(missing=missing), tempfile.TemporaryDirectory() as temp_dir:
                 root = Path(temp_dir)
                 workflows = root / ".github" / "workflows"
                 workflows.mkdir(parents=True)
-                grid_scope = [PLAYWRIGHT_GRID_EXCLUSION, LAZY_GRID_EXCLUSION, UNIT_PACKAGE_EXCLUSION]
+                grid_scope = [
+                    PLAYWRIGHT_GRID_EXCLUSION,
+                    LAZY_GRID_EXCLUSION,
+                    DOWNLOAD_GRID_EXCLUSION,
+                    UNIT_PACKAGE_EXCLUSION,
+                ]
                 grid_scope.remove(missing)
                 (workflows / "e2eTests.yml").write_text(workflow_scope(*grid_scope), encoding="utf-8")
                 (workflows / "e2eLocalTests.yml").write_text(
@@ -488,6 +503,7 @@ jobs:
                     workflow_scope(
                         PLAYWRIGHT_GRID_EXCLUSION,
                         LAZY_GRID_EXCLUSION,
+                        DOWNLOAD_GRID_EXCLUSION,
                         UNIT_PACKAGE_EXCLUSION,
                         "!%regex[.*ExampleUnitTest.*]",
                     ),

@@ -62,6 +62,7 @@ REQUIRED_PR_GATE_SHAFT_ENGINE_UNIT_SELECTORS = (
 GRID_ONLY_SCOPE_EXCLUSIONS = (
     "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]",
     "!%regex[.*LazyLoadingFixtureLiveTest.*]",
+    "!%regex[.*DownloadWithoutPromptTest.*]",
 )
 NATIVE_SELENIUM_GRID_JOBS = (
     "Ubuntu_Firefox_Grid",
