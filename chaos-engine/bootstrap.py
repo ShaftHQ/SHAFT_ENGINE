@@ -253,6 +253,9 @@ class InstallReporter:
     def _width(self) -> int:
         return max(20, shutil.get_terminal_size(fallback=(80, 24)).columns)
 
+    def _height(self) -> int:
+        return max(1, shutil.get_terminal_size(fallback=(80, 24)).lines)
+
     def _truncate(self, value: str) -> str:
         width = self._width()
         if len(value) <= width:
@@ -402,7 +405,21 @@ class InstallReporter:
     def _ticker(self) -> None:
         while not self._stop.wait(1.0):
             with self._lock:
-                self._render_locked()
+                if self._tty:
+                    self._render_locked()
+                else:
+                    self._render_non_tty_heartbeat_locked()
+
+    def _render_non_tty_heartbeat_locked(self) -> None:
+        now = self.clock()
+        if not self._transfer_stalled(now):
+            return
+        remaining = self._remaining(now)
+        metrics = ([f"remaining {remaining}"] if remaining is not None else []) + [
+            "waiting for data"
+        ]
+        self.stream.write(self._truncate("  " + " | ".join(metrics)) + "\n")
+        self.stream.flush()
 
     def _remaining(self, now: float) -> str | None:
         rate = self._download_rate()
@@ -503,20 +520,29 @@ class InstallReporter:
             for ended, result, operation, duration in self.history[-TRACE_LIMIT:]
         ]
         trace_path = self.trace_path or Path(".chaos-engine-state/install-trace.json")
-        lines.extend(
+        trace_heading = [
             self._paint(line, "36")
             for line in self._wrap(
                 f"  Trace (last {len(log)} of {self.trace_count}; full log: {trace_path.as_posix()})"
             )
-        )
+        ]
+        trace_lines: list[str] = []
         for ended, message in log:
-            lines.extend(self._wrap(f"  [+{self._duration(ended)}] {message}"))
-        lines.append(self._paint("  Summary", "36"))
-        lines.append(self._paint(self._truncate("  " + separator.join(metrics)), "36"))
+            trace_lines.extend(self._wrap(f"  [+{self._duration(ended)}] {message}"))
+        summary_lines = [
+            self._paint("  Summary", "36"),
+            self._paint(self._truncate("  " + separator.join(metrics)), "36"),
+        ]
         if self.detail:
-            lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
+            summary_lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
+        height = self._height()
+        trace_budget = max(0, height - len(lines) - len(trace_heading) - len(summary_lines))
+        visible_trace = trace_lines[-trace_budget:] if trace_budget else []
+        lines.extend([*trace_heading, *visible_trace, *summary_lines])
+        if len(lines) > height:
+            lines = lines[-height:]
         if self._lines:
-            self.stream.write(f"\x1b[{self._lines}F")
+            self.stream.write(f"\x1b[{min(self._lines, height)}F")
         rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"
         self.stream.write(rendered)
         self.stream.flush()
