@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import importlib.util
 import json
 import os
@@ -2802,6 +2803,9 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
         gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
         self.assertIn("tests.scripts.test_chaos_engine_installer", gate)
+
+    def test_public_rollback_signature_does_not_expose_resume_control(self):
+        self.assertNotIn("_resume", inspect.signature(MODULE.rollback).parameters)
 
 
 if __name__ == "__main__":

@@ -1088,14 +1088,14 @@ def status(project: Path) -> dict[str, str]:
         }
 
 
-def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
-    project: Path, _locked: bool = False, provisioner=None, _resume: bool = False
+def _rollback_locked(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
+    project: Path, _locked: bool = False, provisioner=None, resume_only: bool = False
 ) -> Path:
     project = project.resolve()
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
     swap = project / f"{INSTALL_DIRECTORY}-rollback"
-    if not _locked or _resume:
+    if not _locked or resume_only:
         with (nullcontext() if _locked else project_lock(project)):
             _recover_transaction(project)
             pending = read_cross_rollback_journal(project)
@@ -1110,13 +1110,15 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                     if pending is None and receipt_value.get("rollbackIntent") is not None:
                         pending = receipt_value["rollbackIntent"]
             if pending is None and (not target.exists() or not backup.exists()):
-                return rollback(project, _locked=True)
+                return _rollback_locked(project, _locked=True)
             verify_install(target)
             verify_install(backup)
             host_receipt = project / ".chaos-engine-hosts.json"
             if not host_receipt.exists() and not is_link_or_reparse(host_receipt):
-                return rollback(project, _locked=True)
+                return _rollback_locked(project, _locked=True)
             if pending is None:
+                if resume_only:
+                    raise ValueError("authenticated rollback recovery intent is required")
                 current_commit = str(verify_install(target)["source"]["commit"])
                 previous_commit = str(verify_install(backup)["source"]["commit"])
                 write_cross_rollback_journal(project, previous_commit, current_commit)
@@ -1186,7 +1188,7 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                         previous_core_sha256,
                     )
             if target_commit != desired_commit:
-                rollback(project, _locked=True)
+                _rollback_locked(project, _locked=True)
             try:
                 previous_hosts = load_installed_controller(target, "hosts")
                 desired_manifest = verify_install(target)
@@ -1290,6 +1292,13 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
         journal.unlink()
         del current
     return target
+
+
+def rollback(
+    project: Path, _locked: bool = False, provisioner=None
+) -> Path:
+    """Roll back one generation, resuming authenticated cross-resource state."""
+    return _rollback_locked(project, _locked=_locked, provisioner=provisioner)
 
 
 def uninstall(
@@ -1553,7 +1562,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if reporter is not None:
                 reporter.trace("resume authenticated rollback before install")
             try:
-                rollback(project, _locked=True, provisioner=provisioner, _resume=True)
+                _rollback_locked(
+                    project, _locked=True, provisioner=provisioner, resume_only=True
+                )
             except (OSError, RuntimeError, ValueError) as error:
                 launcher = "py -3" if os.name == "nt" else "python3"
                 raise ValueError(
