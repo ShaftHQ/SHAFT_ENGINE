@@ -239,6 +239,13 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         self.assertEqual(5450, schedule["seed"])
         self.assertEqual("sha256(seed:task:attempt)-low-bit-first-arm", schedule["algorithm"])
         self.assertEqual(["control", "chaos-engine"], schedule["arms"])
+        self.assertEqual(
+            {"tasks": 12, "trials": 120}, schedule["campaigns"]["publicCalibration"]
+        )
+        self.assertEqual(160, schedule["campaigns"]["fullPilot"]["trials"])
+        self.assertTrue(
+            schedule["campaigns"]["fullPilot"]["requiresPrivatePackageResolution"]
+        )
         rows = []
         for task in self.manifest()["tasks"]:
             for attempt in range(1, schedule["attemptsPerTask"] + 1):

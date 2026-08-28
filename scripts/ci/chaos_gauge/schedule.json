@@ -4,5 +4,9 @@
   "algorithm": "sha256(seed:task:attempt)-low-bit-first-arm",
   "unit": "task-attempt-pair",
   "arms": ["control", "chaos-engine"],
-  "attemptsPerTask": 5
+  "attemptsPerTask": 5,
+  "campaigns": {
+    "publicCalibration": {"tasks": 12, "trials": 120},
+    "fullPilot": {"tasks": 16, "trials": 160, "requiresPrivatePackageResolution": true}
+  }
 }
