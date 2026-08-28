@@ -17,6 +17,45 @@ code was copied by this review.
 | 9 | [SLSA 1.2](https://slsa.dev/spec/v1.2/) | Resolve mutable source to immutable provenance and verify the installed artifact against it | Adopted | Latest-main installation records the resolved 40-character commit and per-file SHA-256 ownership in `.chaos-engine/manifest.json`. |
 | 10 | [GitHub issue CLI](https://cli.github.com/manual/gh_issue_create) | Make reviewable, minimal upstream contributions through issues with explicit repository selection | Adopted | `learning.py` deduplicates by a privacy-safe digest, asks with an estimated token cost, queues offline/auth failures, and can create an issue; it never opens a PR. |
 
+## Public-documentation presentation — Accessed: 2026-08-28
+
+Primary guidance checked live: GitHub's documentation for
+[collapsed sections](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections),
+[Mermaid diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams),
+and [GitHub Flavored Markdown](https://github.github.com/gfm/); W3C guidance for
+[clear content](https://www.w3.org/WAI/tips/writing/) and
+[heading structure](https://www.w3.org/WAI/tutorials/page-structure/headings/);
+and web.dev guidance for
+[`prefers-reduced-motion`](https://web.dev/articles/prefers-reduced-motion).
+
+| Practice | Decision | Application |
+| --- | --- | --- |
+| Audience-first entry points | Adopted | README routes adopters, evaluators, and maintainers before detailed inventories. |
+| One operational source | Adopted | INSTALL owns install, verification, upgrade, recovery, rollback, and uninstall commands. |
+| Progressive disclosure | Adopted | Long inventories, diagrams, and manual recovery recipes use native `<details>` sections. |
+| Semantic headings and link text | Adopted | Sections remain navigable without visual styling or rendered diagrams. |
+| Text-backed diagrams | Adopted | Mermaid augments nearby prose; it never carries the only copy of an invariant. |
+| Animation or a separate documentation site | Rejected | GitHub Markdown is the delivery surface; motion adds no operational value and creates an accessibility obligation. |
+
+## Tool landscape and boundary — Accessed: 2026-08-28
+
+Official product documentation was compared for
+[Playwright](https://playwright.dev/docs/test-agents),
+[Selenium](https://www.selenium.dev/documentation/selenium_manager/),
+[Cypress](https://docs.cypress.io/app/guides/cypress-studio),
+[Appium](https://appium.io/docs/en/latest/),
+[Robot Framework](https://docs.robotframework.org/docs),
+[Katalon](https://docs.katalon.com/katalon-studio),
+[mabl](https://help.mabl.com/hc/en-us/articles/19084159708436-GenAI-Test-Creation),
+and [Testim](https://help.testim.io/docs/testim-copilot).
+
+Those products primarily own test authoring, execution, driver/runtime
+management, recording, healing, or AI-assisted debugging. ChaosEngine does not
+replace them. It governs how a coding agent researches, plans, changes,
+verifies, reviews, delivers, and learns across a repository, including work
+that may use one of those tools. Product-specific integrations remain outside
+scope until a real project flow requires one.
+
 ## Native lifecycle parity — Accessed: 2026-08-28
 
 | Host | Official contract | ChaosEngine projection |
