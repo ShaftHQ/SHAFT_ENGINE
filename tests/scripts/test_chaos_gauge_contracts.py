@@ -35,7 +35,10 @@ class ChaosGaugeContractsTest(TestCase):
         second = MODULE.validate_manifest(copy.deepcopy(manifest), root=ROOT)
 
         self.assertEqual("0.22.0", manifest["harbor"]["version"])
-        self.assertEqual("harbor==0.22.0", (GAUGE / "requirements.lock").read_text().strip())
+        lock = (GAUGE / "requirements.lock").read_text(encoding="utf-8")
+        self.assertIn("harbor==0.22.0", lock)
+        self.assertIn("--hash=sha256:", lock)
+        self.assertIn("# via harbor", lock)
         self.assertEqual(16, len(manifest["tasks"]))
         self.assertEqual(5, manifest["attemptsPerTask"])
         self.assertEqual(160, len(manifest["tasks"]) * len(manifest["arms"]) * 5)

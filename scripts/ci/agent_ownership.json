@@ -56,6 +56,17 @@
         "tests/scripts/test_chaos_engine_promotion.py"
       ]
     },
+    "ChaosGauge evaluation": {
+      "owner": "scripts/ci/chaos_gauge/compare_results.py",
+      "terms": ["task-paired bootstrap inference", "SCORE_VERSION"],
+      "allowed": [
+        "scripts/ci/chaos_gauge/validate_experiment.py",
+        "scripts/ci/chaos_gauge/dataset/metric.py",
+        "tests/scripts/test_chaos_gauge_contracts.py",
+        "tests/scripts/test_chaos_gauge_corpus.py",
+        "tests/scripts/test_chaos_gauge_scoring.py"
+      ]
+    },
     "ChaosEngine README inventory": {
       "owner": "scripts/ci/validate_chaos_engine_readme.py",
       "terms": ["inventory_sections", "rendered_inventory", "REQUIRED_DIAGRAMS"],
