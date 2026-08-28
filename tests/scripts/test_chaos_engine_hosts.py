@@ -871,16 +871,16 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 self.assertIn("hooks", manifest)
                 self.assertNotIn("SessionStart", manifest.get("hooks", {}))
 
-            required_events = {
+            common_events = {
                 "SessionStart",
                 "UserPromptSubmit",
                 "PreToolUse",
                 "PostToolUse",
-                "PostToolUseFailure",
                 "Stop",
                 "SubagentStop",
                 "SessionEnd",
             }
+            required_events = common_events | {"PreCompact"}
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
             claude_lifecycle = json.loads(
                 project.joinpath(".claude/settings.json").read_text()
@@ -899,7 +899,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         event,
                     )
                 self.assertEqual(3, document["SessionEnd"][0]["hooks"][0]["timeout"])
-            claude_events = required_events | {"PreCompact"}
+            claude_events = required_events | {"PostToolUseFailure"}
             self.assertEqual(claude_events, set(claude_lifecycle))
             for event in claude_events:
                 self.assertEqual(1, len(claude_lifecycle[event]), event)
@@ -1029,6 +1029,33 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertEqual({}, json.loads(completed.stdout))
 
+    def test_installed_hook_ignores_foreign_repository_guard(self):
+        module = load(HOSTS, "chaos_engine_hook_foreign_guard")
+        document = json.loads(module.lifecycle_hooks_document("codex"))
+        handler = document["hooks"]["SessionStart"][0]["hooks"][0]
+        command = handler["commandWindows"] if os.name == "nt" else handler["command"]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            foreign = project / "scripts/agents/guard.py"
+            foreign.parent.mkdir(parents=True)
+            foreign.write_text("print('foreign')\n", encoding="utf-8")
+            owned = project / ".chaos-engine/hooks/guard.py"
+            owned.parent.mkdir(parents=True)
+            owned.write_text("print('{}')\n", encoding="utf-8")
+            completed = subprocess.run(  # nosec B602 - generated fixed hook command.
+                command,
+                shell=True,
+                cwd=project,
+                input=json.dumps({"hook_event_name": "SessionStart"}),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertEqual({}, json.loads(completed.stdout))
+
     def test_generated_host_hooks_share_preventive_and_observational_matchers(self):
         module = load(HOSTS, "chaos_engine_hook_matchers")
         preventive = module.PRE_TOOL_MATCHER
@@ -1049,7 +1076,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             hooks = json.loads((ROOT / relative).read_text(encoding="utf-8"))["hooks"]
             self.assertEqual(preventive, hooks["PreToolUse"][0]["matcher"])
             self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
-            self.assertEqual(observational, hooks["PostToolUseFailure"][0]["matcher"])
+        claude_hooks = json.loads(
+            (ROOT / ".claude/settings.json").read_text(encoding="utf-8")
+        )["hooks"]
+        self.assertEqual(
+            observational, claude_hooks["PostToolUseFailure"][0]["matcher"]
+        )
 
         gemini = json.loads(module.gemini_hooks_document())["hooks"]
         self.assertEqual(preventive, gemini["BeforeTool"][0]["matcher"])

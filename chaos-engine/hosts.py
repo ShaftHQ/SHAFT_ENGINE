@@ -2702,6 +2702,9 @@ REQUIRED_HOOK_EVENTS = (
     "SessionEnd",
 )
 CLAUDE_HOOK_EVENTS = (*REQUIRED_HOOK_EVENTS, "PreCompact")
+CODEX_HOOK_EVENTS = tuple(
+    event for event in REQUIRED_HOOK_EVENTS if event != "PostToolUseFailure"
+) + ("PreCompact",)
 
 
 def _tool_matchers() -> tuple[str, str]:
@@ -2735,7 +2738,13 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, ma
         "commandWindows": chaos_guard_locator_command(windows=True, host=host, managed_python=managed_python),
         "timeout": 30,
     }
-    defaults = CLAUDE_HOOK_EVENTS if host == "claude" else REQUIRED_HOOK_EVENTS
+    defaults = (
+        CLAUDE_HOOK_EVENTS
+        if host == "claude"
+        else CODEX_HOOK_EVENTS
+        if host == "codex"
+        else REQUIRED_HOOK_EVENTS
+    )
     selected = events or {event: event for event in defaults}
     hooks = {}
     for native in selected:

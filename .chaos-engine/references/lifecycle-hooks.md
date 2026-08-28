@@ -23,7 +23,8 @@ events and point them at the installed ChaosEngine guard:
 | `UserPromptSubmit` | Keep companion mode tracking if host supports it. |
 | `PreToolUse` | Deny catastrophic or out-of-contract tool use. Hold work that owes a reflection receipt. When a session worktree manifest exists, deny mutations of the primary checkout. |
 | `PostToolUse` | Record mutation, delivery, and outcome for reflection. |
-| `PostToolUseFailure` | Record the failure and inject a pending reflection checkpoint when one is owed. |
+| `PostToolUseFailure` | Record failure and inject a pending reflection checkpoint when owed. Claude and Claude-compatible Grok expose this event. Codex exposes neither this event nor exec exit status in `PostToolUse`, so native failed-exec reflection has no exact Codex equivalent. |
+| `PreCompact` | Preserve observational lifecycle state before compaction. |
 | `Stop` | Collect incomplete delivery duties once without manufacturing work. Never create or delete worktrees; Stop is per-turn. Plan Mode stays read-only: it may finish in a pre-dirty or unverifiable checkout without inheriting unrelated delivery, synchronization, tracking, cleanup, or Learning Session duties; confirmed NUL corruption still blocks with preservation guidance. Normal completion ownership applies to task-created mutation. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. `stop_hook_active` lets the retry proceed. |
 | `SubagentStop` | Apply delegate-owned completion duties only. Never start or inherit the root terminal Learning Session. Never create or delete the root session worktree. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
 | `SessionEnd` | Remove this session's worktree only after merge is recorded locally and the tree is clean. Keep the local branch. Codex caps this handler at 3 seconds. Hosts without SessionEnd rely on the next SessionStart to reap merged leftovers. |
@@ -35,11 +36,13 @@ ChaosEngine selects ultra through every supported host adapter.
 
 ## Registration
 
-`hosts.py` writes the same command groups into source-controlled, project-local
+`hosts.py` projects the same logical duties onto source-controlled, project-local
 hook documents: Codex `hooks.json`, Claude settings, Gemini settings, and
 GitHub Copilot `.github/hooks`. Grok consumes Claude settings through its
 Claude compatibility layer; a native Grok hook document would duplicate every
-handler. Those provider documents are lifecycle owners.
+handler. Those provider documents are lifecycle owners. Native event sets differ only
+where one host folds the same outcome into another event; tests bind each
+projection to the shared kernel.
 ChaosEngine plugin carries
 skills and portable hook code but does not register a second hook pack. Its
 legacy hook document is overwritten with an empty `hooks` mapping during

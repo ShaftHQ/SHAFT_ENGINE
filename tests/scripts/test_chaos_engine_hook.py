@@ -446,6 +446,28 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertEqual(0, mutation.returncode)
             self.assertNotIn("Reflection required", mutation.stdout)
 
+    def test_codex_plain_post_tool_output_does_not_fabricate_failure_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {
+                **os.environ,
+                "CHAOS_ENGINE_HOST": "codex",
+                "TMPDIR": temporary,
+                "TEMP": temporary,
+            }
+            failure = {
+                "hook_event_name": "PostToolUse",
+                "tool_name": "shell_command",
+                "tool_input": {"command": "python3 -m unittest failing.test"},
+                "tool_response": "FAILED (failures=1)",
+                "session_id": "codex-native-post-failure",
+            }
+
+            self.run_hook(failure, environment)
+            second = self.run_hook(failure, environment)
+
+            self.assertEqual(0, second.returncode)
+            self.assertNotIn("Reflection required", second.stdout)
+
     def test_pre_tool_event_blocks_catastrophic_broad_scope(self):
         for command in (
             "rm -rf /",

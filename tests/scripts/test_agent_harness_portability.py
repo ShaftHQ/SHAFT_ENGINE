@@ -626,16 +626,17 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         common = {
             "PreToolUse",
             "PostToolUse",
-            "PostToolUseFailure",
             "SessionStart",
             "SessionEnd",
             "Stop",
             "SubagentStop",
             "UserPromptSubmit",
         }
-        self.assertEqual(common, set(codex_hooks))
-        self.assertEqual(common | {"PreCompact"}, set(claude_hooks))
-        for hooks in (claude_hooks, codex_hooks):
+        self.assertEqual(common | {"PreCompact"}, set(codex_hooks))
+        self.assertEqual(
+            common | {"PostToolUseFailure", "PreCompact"}, set(claude_hooks)
+        )
+        for hook_index, hooks in enumerate((claude_hooks, codex_hooks)):
             commands = {
                 handler["command"]
                 for groups in hooks.values()
@@ -653,7 +654,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 input=json.dumps(
                     {
                         "hook_event_name": "PreToolUse",
-                        "session_id": "portable-hook-contract",
+                        "session_id": f"portable-hook-contract-{os.getpid()}-{hook_index}",
                         "tool_name": "shell_command",
                         "tool_input": {"command": "mvn test"},
                     }
