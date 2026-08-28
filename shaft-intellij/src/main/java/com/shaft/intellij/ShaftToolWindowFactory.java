@@ -7,12 +7,18 @@ import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import com.shaft.intellij.ui.ShaftToolWindowPanel;
+import com.shaft.intellij.project.ShaftProjectDetector;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Creates the SHAFT tool window lazily when the user opens it.
  */
 public final class ShaftToolWindowFactory implements ToolWindowFactory, DumbAware {
+    @Override
+    public boolean shouldBeAvailable(@NotNull Project project) {
+        return ShaftProjectDetector.isShaftProject(project);
+    }
+
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         ShaftToolWindowPanel panel = new ShaftToolWindowPanel(project);

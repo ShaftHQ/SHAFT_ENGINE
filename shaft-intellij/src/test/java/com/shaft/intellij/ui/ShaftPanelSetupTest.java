@@ -812,10 +812,11 @@ class ShaftPanelSetupTest {
             assertNull(toolWindowWorkflowSelector(toolWindow));
             assertTrue(containsText(toolWindow, "Runtime"));
             assertTrue(containsText(toolWindow, "Optional: Upgrade project"));
-            assertTrue(containsText(toolWindow, "1 Choose agent"));
-            assertTrue(containsText(toolWindow, "2 Install SHAFT tools"));
+            assertTrue(containsText(toolWindow, "1 Choose setup route"));
+            assertTrue(containsText(toolWindow, "2 Open setup command"));
             assertTrue(containsText(toolWindow, "3 Verify setup"));
-            assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
+            assertTrue(containsText(toolWindow, "Set up SHAFT tools"));
+            assertTrue(containsText(toolWindow, "SHAFT tools are required. AI agent is optional."));
             // Issue #4314 fix 1: the redundant "Target: X. Runtime: Y." setupSummary caption is
             // removed -- the family/runtime combo boxes above it already show the live selection.
             assertNull(findByAccessibleName(toolWindow, "SHAFT MCP setup summary", JLabel.class));
@@ -875,7 +876,7 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
-                () -> assertTrue(containsText(toolWindow, "Connect SHAFT Assistant")),
+                () -> assertTrue(containsText(toolWindow, "Set up SHAFT tools")),
                 () -> assertTrue(containsText(tools, "Configure SHAFT MCP")),
                 () -> assertTrue(outputText(tools).contains("Configure SHAFT MCP in Settings before running Tools requests.")));
     }
@@ -1223,8 +1224,11 @@ class ShaftPanelSetupTest {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
 
+        JButton primarySetup = findByAccessibleName(panel, "Copy SHAFT Tools & Skills setup command", JButton.class);
+        assertNotNull(primarySetup);
+        assertEquals("Open setup command in terminal", primarySetup.getText());
+        assertTrue(primarySetup.getToolTipText().contains("never runs it"));
         for (String accessibleName : List.of(
-                "Copy SHAFT Tools & Skills setup command",
                 "Copy fresh SHAFT MCP setup command",
                 "Copy SHAFT upgrade command",
                 "Copy SHAFT Engine warm-up command",
@@ -1824,8 +1828,8 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("Select an option", ((JLabel) placeholder).getText()),
                 () -> assertFalse(copy.isEnabled()),
                 () -> assertNull(findByAccessibleName(panel, "Recommended assistant agent", JLabel.class)),
-                () -> assertTrue(containsText(panel, "1 Choose agent")),
-                () -> assertTrue(containsText(panel, "2 Install SHAFT tools")),
+                () -> assertTrue(containsText(panel, "1 Choose setup route")),
+                () -> assertTrue(containsText(panel, "2 Open setup command")),
                 () -> assertFalse(containsText(panel, "4 Check agent connection")),
                 () -> assertTrue(containsText(panel, "3 Verify setup")),
                 () -> assertNotNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),
@@ -2844,13 +2848,13 @@ class ShaftPanelSetupTest {
         // Issue #4314 fix 1: the intro's greyed "Pick an agent -- recording, code generation..."
         // paragraph and the redundant "Target: X. Runtime: Y." setupSummary caption (already
         // restated by the family/runtime combo boxes above it) add no value and cramp the layout --
-        // both are removed, while the bold "Connect SHAFT Assistant" title stays.
+        // both are removed, while the bold task-based setup title stays.
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe());
 
         assertAll(
-                () -> assertTrue(containsText(panel, "Connect SHAFT Assistant")),
+                () -> assertTrue(containsText(panel, "Set up SHAFT tools")),
                 () -> assertFalse(containsText(panel, "Pick an agent")),
                 () -> assertFalse(containsText(panel, "Model Context Protocol")),
                 () -> assertFalse(containsText(panel, "Installs SHAFT MCP locally")),
@@ -3320,7 +3324,7 @@ class ShaftPanelSetupTest {
                     assertNotNull(chatHeader);
                     // Down from two children (title label + chat row) to just the chat row: the
                     // chat-history dropdown is the first real component under this header now.
-                    assertEquals(1, chatHeader.getComponentCount());
+                    assertEquals(2, chatHeader.getComponentCount());
                     assertNotNull(findByAccessibleName(chatHeader, "Assistant chat", JComboBox.class));
                 });
     }
@@ -3330,25 +3334,26 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
 
+        JButton plan = findByAccessibleName(toolWindow, "Plan a test from a scenario", JButton.class);
         JButton record = findByAccessibleName(toolWindow, "Record a sample flow", JButton.class);
-        JButton assertHelp = findByAccessibleName(toolWindow, "Ask how to assert", JButton.class);
-        JButton diagnose = findByAccessibleName(toolWindow, "Diagnose my last failure", JButton.class);
+        JButton diagnose = findByAccessibleName(toolWindow, "Diagnose a failure", JButton.class);
         JLabel invitation = findByAccessibleName(toolWindow, "Assistant empty state invitation", JLabel.class);
 
         assertAll(
                 () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
                         "an empty Assistant should not lead with a long, persistent welcome essay"),
+                () -> assertNotNull(plan),
                 () -> assertNotNull(record),
-                () -> assertNotNull(assertHelp),
                 () -> assertNotNull(diagnose),
-                () -> assertEquals("What would you like to do?", invitation.getText()),
+                () -> assertEquals("Start with an outcome. These actions only prefill your request.", invitation.getText()),
                 () -> assertFalse(settings.firstRunCoachDismissed,
                         "there is no coach dismissal state to persist when no coach is rendered"));
 
-        record.doClick();
+        plan.doClick();
         ShaftAssistantPanel panel = findAssistantPanel(toolWindow);
-        assertTrue(panel.promptText().contains("Record a sample web flow"),
+        assertTrue(panel.promptText().contains("Plan a SHAFT test"),
                 "an empty-state suggestion must prefill for review, never auto-send");
+        assertTrue(panel.transcriptMarkdown().isBlank(), "prefill must never auto-send");
     }
 
     /**
@@ -6316,9 +6321,9 @@ class ShaftPanelSetupTest {
                 .filter(button -> !String.valueOf(accessibleName(button)).matches("Copy .+ install command"))
                 // Empty-state suggestion chips (issue #3500 A6) are content affordances that name
                 // the exact request they pre-fill — an icon alone cannot convey that on first run.
+                .filter(button -> !"Plan a test from a scenario".equals(accessibleName(button)))
                 .filter(button -> !"Record a sample flow".equals(accessibleName(button)))
-                .filter(button -> !"Ask how to assert".equals(accessibleName(button)))
-                .filter(button -> !"Diagnose my last failure".equals(accessibleName(button)))
+                .filter(button -> !"Diagnose a failure".equals(accessibleName(button)))
                 // The first-run coach's acknowledgment (issue #3500 O1) names its one-time action.
                 .filter(button -> !"Dismiss first run coach".equals(accessibleName(button)))
                 // Recovery actions keep visible labels: which of Retry / Restart MCP server / View
@@ -6402,6 +6407,20 @@ class ShaftPanelSetupTest {
                 () -> assertNotEquals(hover, pressed),
                 () -> assertNotEquals(ready, disabled),
                 () -> assertEquals(size, button.getPreferredSize(), "state feedback must not shift layout"));
+    }
+
+    @Test
+    void progressIndicatorsExplainTheirMeaningToAccessibilityTools() throws Exception {
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> { });
+        ShaftAssistantPanel assistant = new ShaftAssistantPanel(null, blankMcpSettings());
+        JProgressBar setupProgress = (JProgressBar) getField(setup, "progress");
+        JProgressBar assistantProgress = (JProgressBar) getField(assistant, "progress");
+
+        assertAll(
+                () -> assertFalse(setupProgress.getAccessibleContext().getAccessibleName().isBlank()),
+                () -> assertFalse(setupProgress.getAccessibleContext().getAccessibleDescription().isBlank()),
+                () -> assertFalse(assistantProgress.getAccessibleContext().getAccessibleName().isBlank()),
+                () -> assertFalse(assistantProgress.getAccessibleContext().getAccessibleDescription().isBlank()));
     }
 
     @Test

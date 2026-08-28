@@ -15,6 +15,7 @@ import java.awt.Cursor;
 import java.awt.GraphicsEnvironment;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.HierarchyEvent;
 
 /** Shared interaction feedback for every labeled SHAFT tool-window button. */
 public final class ShaftButtonInteractions {
@@ -59,6 +60,14 @@ public final class ShaftButtonInteractions {
             @Override
             public void focusLost(FocusEvent event) {
                 animateToState(button);
+            }
+        });
+        button.addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & HierarchyEvent.DISPLAYABILITY_CHANGED) != 0
+                    && !button.isDisplayable()
+                    && button.getClientProperty(ACTIVE_TIMER) instanceof Timer timer) {
+                timer.stop();
+                button.putClientProperty(ACTIVE_TIMER, null);
             }
         });
         applyState(button, target(button));

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
+import javax.swing.AbstractButton;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
@@ -39,6 +40,62 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@link ShaftAssistantChatState}, which is documented as "persisted without raw MCP payloads".
  */
 class AssistantTranscriptViewTest {
+    @Test
+    void assistantKindsRenderAsAuditableRunsWithoutChangingMessagePersistence() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("user", "Run this test");
+        view.append("assistant", "Tool selected: doctor", "", ShaftAssistantChatState.KIND_MILESTONE);
+        view.append("assistant", "Doctor evidence", "{}", ShaftAssistantChatState.KIND_TOOL_EVENT);
+        view.append("assistant", "Doctor failed", "", ShaftAssistantChatState.KIND_ERROR);
+        view.append("assistant", "Final result", "", ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
+
+        assertAll(
+                () -> assertEquals(1, countByClientProperty(view,
+                        AssistantTranscriptView.TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE)),
+                () -> assertEquals(1, findButtonsByText(view, "Show run details").size()),
+                () -> assertTrue(view.markdown().contains("Tool selected: doctor")),
+                () -> assertTrue(view.markdown().contains("Doctor evidence")),
+                () -> assertTrue(view.markdown().contains("Doctor failed")),
+                () -> assertTrue(view.markdown().contains("Final result")));
+
+        Component run = findByClientProperty(view,
+                AssistantTranscriptView.TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE);
+        assertEquals(List.of("Tool selected: doctor", "Doctor evidence", "Doctor failed", "Final result"),
+                editorTextsInComponentOrder(run),
+                "Grouped run stages must render in persisted message order");
+    }
+
+    @Test
+    void toolRawDisclosureRemainsVisibleWhileRunDetailsAreCollapsed() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Doctor evidence", "{\"status\":\"failed\"}",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
+
+        assertAll(
+                () -> assertNotNull(findButtonByText(view, "Show run details")),
+                () -> assertTrue(isVisibleInHierarchy(findButtonByText(view, "Show raw output"))));
+    }
+
+    @Test
+    void approvalOutcomesStayVisibleInsideCollapsedRun() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Approved `capture_start` once.", "",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
+
+        JEditorPane approval = findEditorContaining(view, "Approved");
+        assertTrue(isVisibleInHierarchy(approval));
+    }
+
+
+    @Test
+    void denialOutcomesStayVisibleInsideCollapsedRun() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Denied `capture_start` once.", "",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
+
+        JEditorPane denial = findEditorContaining(view, "Denied");
+        assertTrue(isVisibleInHierarchy(denial));
+    }
     @Test
     void onlyMessagesWithNonBlankRawEvidenceRenderTheDisclosureToggle() {
         AssistantTranscriptView view = new AssistantTranscriptView();
@@ -429,6 +486,22 @@ class AssistantTranscriptViewTest {
                         "The oldest message must not be silently dropped: " + view.markdown()));
     }
 
+
+    @Test
+    void trimmingAGroupedRunKeepsRetainedAndNewStagesRendered() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        for (int i = 0; i <= ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            view.append("assistant", "Milestone " + i, "", ShaftAssistantChatState.KIND_MILESTONE);
+        }
+
+        assertAll(
+                () -> assertNull(findEditorContaining(view, "Milestone 0")),
+                () -> assertTrue(isVisibleInHierarchy(findEditorContaining(view, "Milestone 1"))),
+                () -> assertTrue(isVisibleInHierarchy(findEditorContaining(view, "Milestone 500"))),
+                () -> assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION,
+                        editorTextsInComponentOrder(view).size()));
+    }
+
     @Test
     void replaceLastUpdatesTheExistingBubblesRenderedHtmlInPlace() {
         AssistantTranscriptView view = new AssistantTranscriptView();
@@ -707,7 +780,7 @@ class AssistantTranscriptViewTest {
         AssistantTranscriptView view = new AssistantTranscriptView();
         view.append("assistant", "Ran the analysis.", rawEvidence);
 
-        JLabel preview = awaitByAccessibleName(view, "Evidence screenshot preview", Duration.ofSeconds(5));
+        AbstractButton preview = awaitButtonByAccessibleName(view, "Evidence screenshot preview", Duration.ofSeconds(5));
 
         assertAll(
                 () -> assertNotNull(preview, "A resolvable, readable screenshot must render a preview row"),
@@ -716,13 +789,13 @@ class AssistantTranscriptViewTest {
                         "The preview row must render alongside, not instead of, the existing disclosure"));
     }
 
-    private static JLabel awaitByAccessibleName(Component root, String accessibleName, Duration timeout) {
+    private static AbstractButton awaitButtonByAccessibleName(Component root, String accessibleName, Duration timeout) {
         Instant deadline = Instant.now().plus(timeout);
         while (Instant.now().isBefore(deadline)) {
             pumpEdt();
             Component found = findByAccessibleName(root, accessibleName);
-            if (found instanceof JLabel label) {
-                return label;
+            if (found instanceof AbstractButton button) {
+                return button;
             }
             try {
                 Thread.sleep(20);
@@ -732,6 +805,16 @@ class AssistantTranscriptViewTest {
             }
         }
         return null;
+    }
+
+    private static int countByClientProperty(Component root, String key, Object value) {
+        int count = root instanceof javax.swing.JComponent component && value.equals(component.getClientProperty(key)) ? 1 : 0;
+        if (root instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                count += countByClientProperty(child, key, value);
+            }
+        }
+        return count;
     }
 
     /** Forces the EDT to process every runnable queued so far (e.g. by {@code runOnEdt}'s
@@ -818,6 +901,44 @@ class AssistantTranscriptViewTest {
             }
         }
         return null;
+    }
+
+    private static JEditorPane findEditorContaining(Component component, String text) {
+        if (component instanceof JEditorPane editor && editor.getText().contains(text)) {
+            return editor;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JEditorPane found = findEditorContaining(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+
+    private static List<String> editorTextsInComponentOrder(Component component) {
+        List<String> texts = new ArrayList<>();
+        collectEditorTexts(component, texts);
+        return texts;
+    }
+
+    private static void collectEditorTexts(Component component, List<String> texts) {
+        if (component instanceof JEditorPane editor) {
+            try {
+                texts.add(editor.getDocument().getText(0, editor.getDocument().getLength())
+                        .replace("\u200B", "").trim());
+            } catch (javax.swing.text.BadLocationException impossible) {
+                throw new AssertionError(impossible);
+            }
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                collectEditorTexts(child, texts);
+            }
+        }
     }
 
     private static Component findByAccessibleName(Component component, String accessibleName) {

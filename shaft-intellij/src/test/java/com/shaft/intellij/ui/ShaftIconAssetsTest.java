@@ -19,6 +19,7 @@ class ShaftIconAssetsTest {
     @Test
     void toolWindowIconsUseOfficialShaftLogoSvgVariants() throws IOException {
         Path icons = Path.of("src/main/resources/icons");
+        Path newUiIcons = icons.resolve("expui");
 
         assertAll(
                 () -> assertLogoIcon(icons.resolve("shaftToolWindow.svg"), 16,
@@ -28,6 +29,14 @@ class ShaftIconAssetsTest {
                 () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20.svg"), 20,
                         Path.of("../shaft-engine/src/main/resources/images/shaft_standard.png")),
                 () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20_dark.svg"), 20,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_white.png")),
+                () -> assertLogoIcon(newUiIcons.resolve("shaftToolWindow.svg"), 16,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_standard.png")),
+                () -> assertLogoIcon(newUiIcons.resolve("shaftToolWindow_dark.svg"), 16,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_white.png")),
+                () -> assertLogoIcon(newUiIcons.resolve("shaftToolWindow@20x20.svg"), 20,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_standard.png")),
+                () -> assertLogoIcon(newUiIcons.resolve("shaftToolWindow@20x20_dark.svg"), 20,
                         Path.of("../shaft-engine/src/main/resources/images/shaft_white.png")),
                 () -> assertFalse(Files.exists(icons.resolve("shaftToolWindow.png"))),
                 () -> assertFalse(Files.exists(icons.resolve("shaftToolWindow_dark.png"))));
@@ -72,6 +81,7 @@ class ShaftIconAssetsTest {
     @Test
     void pluginDescriptorRegistersSvgIconsAndRestartRequirement() throws IOException {
         String descriptor = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
+        String mappings = Files.readString(Path.of("src/main/resources/ShaftIconMappings.json"));
         String javaDescriptor = Files.readString(Path.of(
                 "src/main/resources/META-INF/io.github.shafthq.shaft-withJava.xml"));
 
@@ -79,6 +89,14 @@ class ShaftIconAssetsTest {
                 () -> assertTrue(descriptor.contains("require-restart=\"true\"")),
                 () -> assertTrue(descriptor.contains("icon=\"/icons/shaftToolWindow.svg\"")),
                 () -> assertTrue(descriptor.contains("iconDark=\"/icons/shaftToolWindow_dark.svg\"")),
+                () -> assertTrue(descriptor.contains("<iconMapper mappingFile=\"ShaftIconMappings.json\"/>")),
+                () -> assertTrue(mappings.contains("icons/shaftToolWindow.svg")),
+                () -> assertTrue(mappings.contains("shaftToolWindow@20x20.svg")),
+                () -> assertTrue(mappings.contains("shaftToolWindow@20x20_dark.svg")),
+                () -> assertTrue(Files.exists(Path.of("src/main/resources/icons/expui/shaftToolWindow.svg"))),
+                () -> assertTrue(Files.exists(Path.of("src/main/resources/icons/expui/shaftToolWindow_dark.svg"))),
+                () -> assertTrue(Files.exists(Path.of("src/main/resources/icons/expui/shaftToolWindow@20x20.svg"))),
+                () -> assertTrue(Files.exists(Path.of("src/main/resources/icons/expui/shaftToolWindow@20x20_dark.svg"))),
                 () -> assertFalse(descriptor.contains("shaftToolWindow.png")),
                 () -> assertTrue(descriptor.contains("optional=\"true\"")),
                 () -> assertTrue(descriptor.contains("config-file=\"io.github.shafthq.shaft-withJava.xml\"")),

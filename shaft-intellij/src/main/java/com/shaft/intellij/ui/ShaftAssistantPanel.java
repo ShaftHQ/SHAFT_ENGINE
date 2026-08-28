@@ -57,6 +57,7 @@ import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.JTextArea;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -239,6 +240,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
+    private final JTextArea agentTrustSummary;
     private final JButton configure;
     /**
      * Bordered chip wrapping {@link #currentAgentConfiguration} + {@link #configure} together so
@@ -574,6 +576,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // Checked by default: a first-time user asking for a generated test expects it to land in
         // the project, and the per-send approval gate still confirms before the first mutation.
         allowSourceMutation.setSelected(true);
+        allowSourceMutation.addActionListener(event -> updateAgentTrustSummary());
         // Warning-tinted chip so this reads as higher-stakes than the plain verboseAgentOutput/
         // autoCompact checkboxes beside it in routeRow, reusing the same
         // ShaftStatusPresentation.tint(...)+JBUI.Borders.customLine(...) pairing this file already
@@ -595,8 +598,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         unrestrictedLocalAgentAccess.setToolTipText("Recovery option for a broken Windows sandbox. "
                 + "Codex commands and file edits may access paths outside this project.");
         unrestrictedLocalAgentAccess.setSelected(settings.unrestrictedLocalAgentAccess);
-        unrestrictedLocalAgentAccess.addActionListener(event ->
-                settings.unrestrictedLocalAgentAccess = unrestrictedLocalAgentAccess.isSelected());
+        unrestrictedLocalAgentAccess.addActionListener(event -> {
+            settings.unrestrictedLocalAgentAccess = unrestrictedLocalAgentAccess.isSelected();
+            updateAgentTrustSummary();
+        });
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
@@ -645,6 +650,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         progress = new JProgressBar();
         progress.setIndeterminate(true);
         progress.getAccessibleContext().setAccessibleName("Assistant thinking spinner");
+        progress.getAccessibleContext().setAccessibleDescription(
+                "Assistant request is active. Use Cancel to stop it.");
         progress.setPreferredSize(JBUI.size(88, 12));
         progress.setVisible(false);
 
@@ -744,6 +751,15 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 JBUI.Borders.empty(2, 6)));
         currentAgentChip.add(currentAgentConfiguration, BorderLayout.CENTER);
         currentAgentChip.add(this.configure, BorderLayout.EAST);
+        agentTrustSummary = new JTextArea();
+        agentTrustSummary.setEditable(false);
+        agentTrustSummary.setFocusable(false);
+        agentTrustSummary.setOpaque(false);
+        agentTrustSummary.setLineWrap(true);
+        agentTrustSummary.setWrapStyleWord(true);
+        agentTrustSummary.setRows(3);
+        agentTrustSummary.getAccessibleContext().setAccessibleName("Assistant agent and trust summary");
+        agentTrustSummary.setForeground(ShaftStatusPresentation.pending());
 
         mode.addActionListener(event -> onModeOrRouteSelectionChanged());
         providerType.addActionListener(event -> onModeOrRouteSelectionChanged());
@@ -764,6 +780,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         bindContextInsertion();
 
         JPanel transcriptPanel = new JPanel(new BorderLayout(4, 4));
+        transcriptPanel.add(buildEmptyStateChips(), BorderLayout.NORTH);
         transcriptPanel.add(transcript, BorderLayout.CENTER);
         // Single-line-only current-status strip (issue #3695): the separately-scrollable "Run
         // timeline" list that used to live above this row is gone -- every milestone it used to show
@@ -800,6 +817,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         JPanel header = new JPanel(new BorderLayout(4, 2));
         header.getAccessibleContext().setAccessibleName("Assistant chat header");
         header.add(chatRow, BorderLayout.CENTER);
+        header.add(agentTrustSummary, BorderLayout.SOUTH);
 
         actionRow = wrapRow();
         actionRow.add(copyLastResponse);
@@ -893,7 +911,6 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         JPanel composerTop = new JPanel();
         composerTop.setLayout(new BoxLayout(composerTop, BoxLayout.Y_AXIS));
         composerTop.add(buildAttachmentsChipRow());
-        composerTop.add(buildEmptyStateChips());
         composer.add(composerTop, BorderLayout.NORTH);
         composer.add(promptScroll, BorderLayout.CENTER);
         composer.add(composerFooter, BorderLayout.SOUTH);
@@ -3899,6 +3916,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         agentHealthStatus.getAccessibleContext().setAccessibleDescription(message);
         repairAgentSkills.setVisible(!readiness.ready());
         repairAgentSkills.setEnabled(!running && !readiness.ready());
+        updateAgentTrustSummary();
     }
 
     private void repairAgentSkills(boolean resumePrompt) {
@@ -4223,14 +4241,14 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private javax.swing.JPanel buildEmptyStateChips() {
         javax.swing.JPanel chipRow = new javax.swing.JPanel(new WrapLayout(java.awt.FlowLayout.LEFT, 6, 0));
         chipRow.setOpaque(false);
-        JLabel invitation = new JLabel("What would you like to do?");
+        JLabel invitation = new JLabel("Start with an outcome. These actions only prefill your request.");
         invitation.getAccessibleContext().setAccessibleName("Assistant empty state invitation");
         chipRow.add(invitation);
+        chipRow.add(emptyStateChip("Plan a test from a scenario",
+                "Plan a SHAFT test from this scenario: "));
         chipRow.add(emptyStateChip("Record a sample flow",
                 "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test."));
-        chipRow.add(emptyStateChip("Ask how to assert",
-                "How do I add assertions while recording a web flow?"));
-        chipRow.add(emptyStateChip("Diagnose my last failure",
+        chipRow.add(emptyStateChip("Diagnose a failure",
                 "Diagnose my most recent failed test run and propose a fix."));
         emptyStateChips = chipRow;
         return emptyStateChips;
@@ -4270,6 +4288,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         attachmentsChipRow.setVisible(!attachments.isEmpty());
         attachmentsChipRow.revalidate();
         attachmentsChipRow.repaint();
+        updateAgentTrustSummary();
         Container parent = attachmentsChipRow.getParent();
         if (parent != null) {
             parent.revalidate();
@@ -5699,6 +5718,40 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 : ShaftUiLabels.localAgentRoute(assistantFamily.getSelectedItem(), assistantRuntime.getSelectedItem());
         runSettingsToggle.setText("Run settings · " + selectedMode + " · " + route + " · Effort: "
                 + String.valueOf(effort.getSelectedItem()));
+        updateAgentTrustSummary();
+    }
+
+    private void updateAgentTrustSummary() {
+        if (agentTrustSummary == null) {
+            return;
+        }
+        String agent = usesCloud()
+                ? providerRouteLabel(String.valueOf(cloudProvider.getSelectedItem()))
+                : currentAgentConfigurationText();
+        boolean configuredAgent = usesCloud() || assistantFamily.getSelectedItem() != null;
+        if (!configuredAgent || agent == null || agent.isBlank() || agent.contains("Select an option")) {
+            agent = "Not configured";
+        }
+        String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
+        String readiness = usesCloud() ? switch (providerModelState) {
+            case "AVAILABLE" -> "connected";
+            case "AUTHENTICATION_FAILED", "KEY_NEEDED", "KEY_FORWARDING_DISABLED" -> "authentication needed";
+            case "EMPTY", "UNAVAILABLE", "FAILED" -> "unavailable";
+            default -> "checking";
+        } : !configuredAgent || agentHealthStatus == null || agentHealthStatus.getText().isBlank()
+                ? "Not configured" : agentHealthStatus.getText();
+        boolean agentMode = "AGENT".equals(mode.getSelectedItem()) && !usesCloud();
+        String access = !agentMode || !allowSourceMutation.isSelected()
+                ? "read-only"
+                : unrestrictedLocalAgentAccess.isVisible() && unrestrictedLocalAgentAccess.isSelected()
+                        ? "unrestricted"
+                        : "source edits with approval";
+        String context = attachments.isEmpty() ? "none" : attachments.size() + " attached";
+        String text = "Agent: " + agent + " · Status: " + readiness + " · Mode: " + selectedMode + " · Access: " + access
+                + " · Context: " + context;
+        agentTrustSummary.setText(text);
+        agentTrustSummary.setToolTipText(text);
+        agentTrustSummary.getAccessibleContext().setAccessibleDescription(text);
     }
 
     private static String providerRouteLabel(String provider) {
@@ -5789,6 +5842,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         currentAgentConfiguration.setText(text);
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(text);
         currentAgentConfiguration.setToolTipText(currentAgentConfigurationTooltip());
+        updateAgentTrustSummary();
     }
 
     private String currentAgentConfigurationText() {
