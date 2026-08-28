@@ -124,7 +124,7 @@
         <owner.version>1.0.12</owner.version>
         <picocli.version>4.7.7</picocli.version>
         <jsoup.version>1.23.1</jsoup.version>
-        <json.version>20260522</json.version>
+        <json.version>20260814</json.version>
         <rhino.version>1.9.1</rhino.version>
         <tink.version>1.23.0</tink.version>
         <brotli.dec.version>0.1.2</brotli.dec.version>
