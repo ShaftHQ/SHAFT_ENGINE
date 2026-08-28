@@ -40,6 +40,9 @@ public final class PickedLocatorSnippetBuilder {
     }
 
     private static String attributeBuilder(String attribute, String value) {
+        if ("name".equals(attribute) && value.indexOf('"') >= 0) {
+            return "By.name(\"" + javaString(value) + "\")";
+        }
         return "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"" + javaString(attribute)
                 + "\", \"" + javaString(value) + "\").build()";
     }
@@ -86,7 +89,32 @@ public final class PickedLocatorSnippetBuilder {
         if (name.isBlank() || !name.chars().allMatch(ch -> Character.isLetterOrDigit(ch) || ch == '_' || ch == '-')) {
             return null;
         }
-        return new String[] {name, trimmed.substring(valueStart, valueEnd)};
+        return new String[] {name, cssUnescape(trimmed.substring(valueStart, valueEnd))};
+    }
+
+    private static String cssUnescape(String value) {
+        StringBuilder decoded = new StringBuilder();
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            if (character != '\\' || ++index == value.length()) {
+                decoded.append(character);
+                continue;
+            }
+            int hexStart = index;
+            while (index < value.length() && index - hexStart < 6 && Character.digit(value.charAt(index), 16) >= 0) {
+                index++;
+            }
+            if (index == hexStart) {
+                decoded.append(value.charAt(index));
+                continue;
+            }
+            decoded.appendCodePoint(Integer.parseInt(value.substring(hexStart, index), 16));
+            if (index < value.length() && Character.isWhitespace(value.charAt(index))) {
+                index++;
+            }
+            index--;
+        }
+        return decoded.toString();
     }
 
     private static String cssBuilder(String css) {
