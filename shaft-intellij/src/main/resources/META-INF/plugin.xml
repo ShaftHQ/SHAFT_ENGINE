@@ -12,6 +12,7 @@
     <resource-bundle>messages.ShaftBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
+        <iconMapper mappingFile="ShaftIconMappings.json"/>
                     <toolWindow id="SHAFT"
                     anchor="right"
                     icon="/icons/shaftToolWindow.svg"

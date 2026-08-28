@@ -72,6 +72,7 @@ class ShaftIconAssetsTest {
     @Test
     void pluginDescriptorRegistersSvgIconsAndRestartRequirement() throws IOException {
         String descriptor = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
+        String mappings = Files.readString(Path.of("src/main/resources/ShaftIconMappings.json"));
         String javaDescriptor = Files.readString(Path.of(
                 "src/main/resources/META-INF/io.github.shafthq.shaft-withJava.xml"));
 
@@ -79,6 +80,10 @@ class ShaftIconAssetsTest {
                 () -> assertTrue(descriptor.contains("require-restart=\"true\"")),
                 () -> assertTrue(descriptor.contains("icon=\"/icons/shaftToolWindow.svg\"")),
                 () -> assertTrue(descriptor.contains("iconDark=\"/icons/shaftToolWindow_dark.svg\"")),
+                () -> assertTrue(descriptor.contains("<iconMapper mappingFile=\"ShaftIconMappings.json\"/>")),
+                () -> assertTrue(mappings.contains("icons/shaftToolWindow.svg")),
+                () -> assertTrue(Files.exists(Path.of("src/main/resources/icons/expui/shaftToolWindow.svg"))),
+                () -> assertTrue(Files.exists(Path.of("src/main/resources/icons/expui/shaftToolWindow_dark.svg"))),
                 () -> assertFalse(descriptor.contains("shaftToolWindow.png")),
                 () -> assertTrue(descriptor.contains("optional=\"true\"")),
                 () -> assertTrue(descriptor.contains("config-file=\"io.github.shafthq.shaft-withJava.xml\"")),

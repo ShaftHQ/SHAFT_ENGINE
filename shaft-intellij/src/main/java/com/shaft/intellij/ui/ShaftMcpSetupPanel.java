@@ -311,6 +311,9 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
 
         progress = new JProgressBar();
         progress.setIndeterminate(true);
+        progress.getAccessibleContext().setAccessibleName("SHAFT setup progress");
+        progress.getAccessibleContext().setAccessibleDescription(
+                "SHAFT is checking setup prerequisites or connection readiness.");
         progress.setVisible(false);
         progress.setPreferredSize(JBUI.size(96, 14));
         family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", "GROK", GEMINI_FAMILY});

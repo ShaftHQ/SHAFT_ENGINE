@@ -6410,6 +6410,20 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void progressIndicatorsExplainTheirMeaningToAccessibilityTools() {
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> { });
+        ShaftAssistantPanel assistant = new ShaftAssistantPanel(null, blankMcpSettings());
+        JProgressBar setupProgress = (JProgressBar) getField(setup, "progress");
+        JProgressBar assistantProgress = (JProgressBar) getField(assistant, "progress");
+
+        assertAll(
+                () -> assertFalse(setupProgress.getAccessibleContext().getAccessibleName().isBlank()),
+                () -> assertFalse(setupProgress.getAccessibleContext().getAccessibleDescription().isBlank()),
+                () -> assertFalse(assistantProgress.getAccessibleContext().getAccessibleName().isBlank()),
+                () -> assertFalse(assistantProgress.getAccessibleContext().getAccessibleDescription().isBlank()));
+    }
+
+    @Test
     void assistantSendButtonTurnsIntoProgressAndHoverCancelWhileRunning() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);

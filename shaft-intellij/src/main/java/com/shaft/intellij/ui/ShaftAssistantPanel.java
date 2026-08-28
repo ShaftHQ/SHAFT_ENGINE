@@ -649,6 +649,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         progress = new JProgressBar();
         progress.setIndeterminate(true);
         progress.getAccessibleContext().setAccessibleName("Assistant thinking spinner");
+        progress.getAccessibleContext().setAccessibleDescription(
+                "Assistant request is active. Use Cancel to stop it.");
         progress.setPreferredSize(JBUI.size(88, 12));
         progress.setVisible(false);
 
