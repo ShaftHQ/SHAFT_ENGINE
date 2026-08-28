@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import http.client
 import io
 import json
 import os
@@ -207,6 +208,55 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         self.assertEqual(b"ready", value)
         self.assertEqual(2, opener.call_count)
         sleeper.assert_called_once_with(module.RETRY_BASE_SECONDS)
+
+    def test_read_response_retries_incomplete_body_without_progress_inflation(self):
+        module = load()
+        opener = mock.Mock(
+            side_effect=(
+                http.client.IncompleteRead(b"bad", 5),
+                Response(b"ready"),
+            )
+        )
+        progress = mock.Mock()
+        traces = []
+
+        value = module.read_response(
+            opener,
+            "https://user:secret@raw.githubusercontent.com/file",
+            sleeper=mock.Mock(),
+            progress=progress,
+            trace=traces.append,
+        )
+
+        self.assertEqual(b"ready", value)
+        progress.assert_called_once_with(5)
+        self.assertEqual(2, opener.call_count)
+        self.assertIn("error=IncompleteRead", traces[0])
+        self.assertIn("receivedBytes=3", traces[0])
+        self.assertNotIn("secret", traces[0])
+        self.assertNotIn("raw.githubusercontent.com", traces[0])
+
+    def test_read_response_exhausts_bounded_incomplete_reads(self):
+        module = load()
+        opener = mock.Mock(
+            side_effect=tuple(
+                http.client.IncompleteRead(b"", 5)
+                for _ in range(module.MAX_READ_ATTEMPTS)
+            )
+        )
+        traces = []
+
+        with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine") as raised:
+            module.read_response(
+                opener,
+                "https://raw.githubusercontent.com/file",
+                sleeper=mock.Mock(),
+                trace=traces.append,
+            )
+
+        self.assertIsInstance(raised.exception.__cause__, http.client.IncompleteRead)
+        self.assertEqual(module.MAX_READ_ATTEMPTS, opener.call_count)
+        self.assertIn("exhausted=true", traces[-1])
 
     def test_read_response_exhausts_bounded_transient_retries(self):
         module = load()

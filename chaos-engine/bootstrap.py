@@ -8,6 +8,7 @@ from collections import deque
 from contextlib import contextmanager
 import email.utils
 import hashlib
+import http.client
 import json
 import math
 import os
@@ -664,7 +665,10 @@ def retry_delay(error: BaseException, attempt: int) -> float | None:
             return delay
         if error.code == 429:
             return MAX_RETRY_AFTER_SECONDS
-    elif not isinstance(error, (ConnectionError, TimeoutError, urllib.error.URLError)):
+    elif not isinstance(
+        error,
+        (ConnectionError, TimeoutError, urllib.error.URLError, http.client.IncompleteRead),
+    ):
         return None
     return RETRY_BASE_SECONDS * (2**attempt)
 
@@ -676,35 +680,57 @@ def read_response(
     limit: int = MAX_RESPONSE_BYTES,
     sleeper=None,
     progress=None,
+    trace=None,
 ) -> bytes:
     sleeper = time.sleep if sleeper is None else sleeper
     for attempt in range(MAX_READ_ATTEMPTS):
+        total = 0
         try:
             with opener(request(url), timeout=30) as response:
                 chunks = []
-                total = 0
                 while chunk := response.read(min(64 * 1024, limit + 1 - total)):
                     chunks.append(chunk)
                     total += len(chunk)
-                    if progress is not None:
-                        progress(len(chunk))
                     if total > limit:
                         break
                 value = b"".join(chunks)
             break
-        except (OSError, TimeoutError, urllib.error.URLError) as error:
+        except (
+            OSError,
+            TimeoutError,
+            urllib.error.URLError,
+            http.client.IncompleteRead,
+        ) as error:
             try:
                 delay = retry_delay(error, attempt)
             finally:
                 if isinstance(error, urllib.error.HTTPError):
                     error.close()
-            if delay is None or attempt + 1 == MAX_READ_ATTEMPTS:
+            exhausted = delay is None or attempt + 1 == MAX_READ_ATTEMPTS
+            if trace is not None:
+                endpoint = (
+                    "source"
+                    if urllib.parse.urlsplit(url).hostname == "raw.githubusercontent.com"
+                    else "api"
+                    if urllib.parse.urlsplit(url).hostname == "api.github.com"
+                    else "upstream"
+                )
+                received = len(error.partial) if isinstance(error, http.client.IncompleteRead) else total
+                trace(
+                    f"download retry attempt={attempt + 1} endpoint={endpoint} "
+                    f"receivedBytes={received} error={type(error).__name__} "
+                    f"delay={delay if delay is not None else 0} "
+                    f"exhausted={str(exhausted).lower()}"
+                )
+            if exhausted:
                 raise RuntimeError(
                     "unable to resolve latest ChaosEngine from the configured upstream"
                 ) from error
             sleeper(delay)
     if len(value) > limit:
         raise ValueError("ChaosEngine upstream response exceeds the download limit")
+    if progress is not None:
+        progress(len(value))
     return value
 
 
@@ -820,6 +846,7 @@ def download_source(
             f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/chaos-engine/{encoded_path}",
             limit=MAX_FILE_BYTES,
             progress=None if reporter is None else reporter.downloaded,
+            trace=None if reporter is None else reporter.trace,
         )
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
