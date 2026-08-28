@@ -67,13 +67,13 @@ commit = {self._harness_commit!r}
 installer = runpy.run_path(str(source / 'install.py'))
 target = installer['install_with_dependencies'](
     project, source, commit,
-    provisioner=lambda *_args, **_kwargs: None,
     distribution='repository',
 )
 manifest = installer['verify_install'](target)
 hosts = installer['load_installed_controller'](target, 'hosts')
 hosts.activate_detected_plugins(project)
 host_status = hosts.verify(project, core_commit=commit)
+dependency_status = installer['doctor_with_dependencies'](project, verify_clients=False)
 required = [
     project / 'AGENTS.md',
     project / '.codex/hooks.json',
@@ -83,6 +83,8 @@ required = [
 receipt = json.loads((project / '.chaos-engine-hosts.json').read_text())
 if manifest['source']['commit'] != commit or receipt.get('coreCommit') != commit:
     raise RuntimeError('ChaosEngine receipt does not match treatment commit')
+if dependency_status.get('status') != 'healthy':
+    raise RuntimeError('ChaosEngine dependency provisioning is incomplete')
 if host_status.get('status') != 'healthy' or not all(path.is_file() for path in required):
     raise RuntimeError('ChaosEngine Codex host activation is incomplete')
 print(json.dumps({{'status': 'installed', 'coreSha256': hashlib.sha256((target / 'manifest.json').read_bytes()).hexdigest()}}, sort_keys=True))

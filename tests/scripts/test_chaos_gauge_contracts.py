@@ -154,17 +154,19 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             ):
                 agent["kwargs"].pop(field, None)
         self.assertEqual(control, candidate)
-        MODULE.validate_job_contracts(self.manifest(), jobs)
+        identities = MODULE.validate_job_contracts(self.manifest(), jobs, root=ROOT)
+        self.assertEqual({"control", "chaos-engine"}, set(identities))
+        self.assertNotEqual(identities["control"], identities["chaos-engine"])
 
         drifted = copy.deepcopy(jobs)
         drifted["chaos-engine"]["agents"][0]["model_name"] = "different"
         with self.assertRaisesRegex(ValueError, "job model"):
-            MODULE.validate_job_contracts(self.manifest(), drifted)
+            MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
 
         drifted = copy.deepcopy(jobs)
         drifted["chaos-engine"]["agents"][0]["import_path"] = "unsafe:Agent"
         with self.assertRaisesRegex(ValueError, "job harness"):
-            MODULE.validate_job_contracts(self.manifest(), drifted)
+            MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
 
     async def test_custom_agent_delegates_to_codex_and_installs_full_harness(self):
         calls = []
@@ -212,7 +214,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
                 harness_source=str(ROOT / "chaos-engine"),
                 harness_commit="76772e015de7b8574da9813a195971690a0f69bf",
                 harness_sha256="03bd340d88d26177951551397b977d7454546739f34e0d6ad3154110abf27625",
-                adapter_sha256="b89127d059716f448ac1a0d4689a8d50e22246405e081e0fe025837721b3ef04",
+                adapter_sha256="3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             )
 
             await agent.install(environment)
@@ -228,7 +230,8 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         environment.upload_dir.assert_awaited_once()
         command = next(call[1] for call in calls if call[0] == "exec")
         self.assertIn("install_with_dependencies", command)
-        self.assertIn("provisioner=lambda", command)
+        self.assertNotIn("provisioner=", command)
+        self.assertIn("doctor_with_dependencies", command)
         self.assertIn("activate_detected_plugins", command)
         self.assertIn(".chaos-engine-hosts.json", command)
         self.assertIn(".codex/hooks.json", command)

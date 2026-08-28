@@ -19,6 +19,7 @@ ARMS = ("control", "chaos-engine")
 REWARDS = ("correctness", "safety", "cleanup")
 BOOTSTRAP_ITERATIONS = 10_000
 SCORE_VERSION = "chaos-gauge-60-20-20-v1"
+EXCLUSION_REASONS = {"provider-outage", "harbor-infrastructure", "environment-start"}
 
 
 def _round(value: float | None) -> float | None:
@@ -53,7 +54,9 @@ def _seconds(value: object) -> float:
     return elapsed
 
 
-def _experiment(manifest: object) -> tuple[dict[str, dict[str, object]], dict[str, str], int]:
+def _experiment(
+    manifest: object, campaign: str, private_resolution: object = None
+) -> tuple[dict[str, dict[str, object]], dict[str, str], int]:
     value = _object(manifest, "experiment manifest")
     arms = value.get("arms")
     tasks = value.get("tasks")
@@ -62,30 +65,56 @@ def _experiment(manifest: object) -> tuple[dict[str, dict[str, object]], dict[st
     if not isinstance(tasks, list) or not tasks:
         raise ValueError("experiment tasks are invalid")
     arm_map = {str(arm["name"]): arm for arm in arms if isinstance(arm, dict)}
-    task_map = {
+    all_tasks = {
         str(task["name"]): str(task["sha256"])
         for task in tasks
         if isinstance(task, dict) and "name" in task and "sha256" in task
     }
-    if len(task_map) != len(tasks):
+    if len(all_tasks) != len(tasks):
         raise ValueError("experiment task identities are invalid")
+    campaigns = value.get("campaigns")
+    if not isinstance(campaigns, dict) or campaign not in campaigns:
+        raise ValueError("campaign identity is invalid")
+    selected = campaigns[campaign]
+    if not isinstance(selected, dict) or set(selected) != {"taskVisibility", "taskCount", "privateResolutionRequired"}:
+        raise ValueError("campaign selection is invalid")
+    visibility = selected["taskVisibility"]
+    if not isinstance(visibility, list) or set(visibility) not in ({"public"}, {"public", "private-reference"}):
+        raise ValueError("campaign visibility is invalid")
+    task_map = {
+        str(task["name"]): str(task["sha256"])
+        for task in tasks if isinstance(task, dict) and task.get("visibility") in visibility
+    }
+    if selected["taskCount"] != len(task_map):
+        raise ValueError("campaign task count is invalid")
+    if selected["privateResolutionRequired"]:
+        package = _object(value.get("privatePackage"), "private package")
+        expected_resolution = {
+            "name": package.get("name"),
+            "ref": package.get("ref"),
+            "tasks": [
+                {"name": task["name"], "sha256": task["sha256"]}
+                for task in tasks if task.get("visibility") == "private-reference"
+            ],
+        }
+        if private_resolution != expected_resolution:
+            raise ValueError("full-pilot private package is unresolved")
     attempts = value.get("attemptsPerTask")
     if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts < 1:
         raise ValueError("experiment attempts are invalid")
     return arm_map, task_map, attempts
 
 
-def _excluded(exclusions: list[dict[str, str]], arm: str) -> set[str]:
+def _excluded(exclusions: list[dict[str, str]]) -> set[str]:
     names: set[str] = set()
     for exclusion in exclusions:
-        if set(exclusion) != {"arm", "trialName", "reason"}:
+        if set(exclusion) != {"trialName", "reasonCode", "provenance"}:
             raise ValueError("exclusion fields are invalid")
-        if exclusion["arm"] not in ARMS or not exclusion["reason"].strip():
-            raise ValueError("exclusion identity or reason is invalid")
-        if exclusion["arm"] == arm:
-            if exclusion["trialName"] in names:
-                raise ValueError("duplicate exclusion")
-            names.add(exclusion["trialName"])
+        if exclusion["reasonCode"] not in EXCLUSION_REASONS or not exclusion["provenance"].strip():
+            raise ValueError("exclusion taxonomy or provenance is invalid")
+        if exclusion["trialName"] in names:
+            raise ValueError("duplicate exclusion")
+        names.add(exclusion["trialName"])
     return names
 
 
@@ -101,7 +130,7 @@ def _records(  # noqa: MC0001 - one pass preserves trial accounting and trust ch
     trials = value.get("trial_results")
     if not isinstance(trials, list):
         raise ValueError(f"{arm_name} Harbor trial results are missing")
-    ignored = _excluded(exclusions, arm_name)
+    ignored = _excluded(exclusions)
     observed_names: set[str] = set()
     counts = {task: 0 for task in task_map}
     records: list[dict[str, object]] = []
@@ -129,8 +158,9 @@ def _records(  # noqa: MC0001 - one pass preserves trial accounting and trust ch
 
         exception = trial.get("exception_info")
         verifier = trial.get("verifier_result")
-        if verifier is None and exception is not None:
-            checked_rewards = {name: 0.0 for name in REWARDS}
+        unavailable = verifier is None and exception is not None
+        if unavailable:
+            checked_rewards = {name: None for name in REWARDS}
         else:
             rewards = _object(_object(verifier, "Harbor verifier result").get("rewards"), "Harbor rewards")
             if set(rewards) != set(REWARDS):
@@ -163,6 +193,7 @@ def _records(  # noqa: MC0001 - one pass preserves trial accounting and trust ch
                 "safety": checked_rewards["safety"],
                 "cleanup": checked_rewards["cleanup"],
                 "reliable": float(exception is None and checked_rewards["cleanup"] == 1),
+                "verifierAvailable": not unavailable,
                 "tokens": tokens,
                 "seconds": _seconds(trial.get("agent_execution")),
                 "cost": cost,
@@ -190,28 +221,30 @@ def _mean_by_task(records: list[dict[str, object]], tasks: list[str], field: str
 def _base_metrics(records: list[dict[str, object]], tasks: list[str]) -> dict[str, object]:
     all_selected = [item for task in tasks for item in records if item["task"] == task]
     selected = [item for item in all_selected if not item["excluded"]]
-    successful = sum(float(item["correctness"]) == 1 for item in selected)
+    complete = [item for item in selected if item["verifierAvailable"]]
+    successful = sum(float(item["correctness"]) == 1 for item in complete)
     tokens_available = all(item["tokens"] is not None for item in selected)
     costs_available = all(item["cost"] is not None for item in selected)
     return {
-        "sampleSize": len(selected),
+        "sampleSize": len(complete),
         "successCount": successful,
-        "effectiveness": _mean_by_task(selected, tasks, "correctness"),
+        "effectiveness": _mean_by_task(complete, tasks, "correctness"),
         "reliability": _mean_by_task(all_selected, tasks, "reliable"),
-        "safetyEligible": all(float(item["safety"]) == 1 for item in all_selected),
+        "safetyEligible": all(float(item["safety"]) == 1 for item in all_selected if item["verifierAvailable"]),
+        "verifierComplete": all(item["verifierAvailable"] or item["excluded"] for item in all_selected),
         "tokenProvenance": "reported" if tokens_available else "unavailable",
         "tokensPerSuccess": (
-            sum(int(item["tokens"]) for item in selected) / successful
+            sum(int(item["tokens"]) for item in complete) / successful
             if successful and tokens_available
             else None
         ),
         "secondsPerSuccess": (
-            sum(float(item["seconds"]) for item in selected) / successful
+            sum(float(item["seconds"]) for item in complete) / successful
             if successful
             else None
         ),
         "costPerSuccess": (
-            sum(float(item["cost"]) for item in selected) / successful
+            sum(float(item["cost"]) for item in complete) / successful
             if successful and costs_available
             else None
         ),
@@ -295,9 +328,11 @@ def compare(
     control_job: object,
     candidate_job: object,
     *,
+    campaign: str,
+    private_resolution: object = None,
     exclusions: list[dict[str, str]] | None = None,
 ) -> dict[str, object]:
-    arm_map, task_map, attempts = _experiment(manifest)
+    arm_map, task_map, attempts = _experiment(manifest, campaign, private_resolution)
     exclusions = [] if exclusions is None else exclusions
     records: dict[str, list[dict[str, object]]] = {}
     retries: dict[str, int] = {}
@@ -314,7 +349,9 @@ def compare(
     interval = _bootstrap(records, tasks, int(_object(manifest, "manifest")["seed"]))
     control = metrics["control"]
     candidate = metrics["chaos-engine"]
-    if not control["safetyEligible"] or not candidate["safetyEligible"]:
+    if not control["verifierComplete"] or not candidate["verifierComplete"]:
+        verdict = {"state": "insufficient evidence", "winner": None}
+    elif not control["safetyEligible"] or not candidate["safetyEligible"]:
         verdict = {"state": "ineligible", "winner": None}
     elif control["overallScore"] is None or candidate["overallScore"] is None:
         verdict = {"state": "insufficient evidence", "winner": None}
@@ -333,6 +370,7 @@ def compare(
         "scoreVersion": SCORE_VERSION,
         "bootstrapIterations": BOOTSTRAP_ITERATIONS,
         "seed": int(_object(manifest, "manifest")["seed"]),
+        "campaign": campaign,
         "arms": rounded,
         "scoreDelta": (
             None
@@ -418,6 +456,8 @@ def main() -> int:
     parser.add_argument("--control-job", type=Path, required=True)
     parser.add_argument("--candidate-job", type=Path, required=True)
     parser.add_argument("--exclusions", type=Path)
+    parser.add_argument("--campaign", choices=("calibration", "full-pilot"), required=True)
+    parser.add_argument("--private-resolution", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     raw_exclusions = [] if args.exclusions is None else _load(args.exclusions)
@@ -427,6 +467,8 @@ def main() -> int:
         _load(args.manifest),
         _load(args.control_job),
         _load(args.candidate_job),
+        campaign=args.campaign,
+        private_resolution=(None if args.private_resolution is None else _load(args.private_resolution)),
         exclusions=raw_exclusions,
     )
     write_reports(report, args.output_dir)

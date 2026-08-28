@@ -21,6 +21,19 @@ METRIC = types.SimpleNamespace(**runpy.run_path(str(GAUGE / "dataset/metric.py")
 REPORTER = types.SimpleNamespace(**runpy.run_path(str(GAUGE / "compare_results.py")))
 
 
+def compare(control, candidate, **kwargs):
+    private_tasks = [task for task in MANIFEST["tasks"] if task["visibility"] == "private-reference"]
+    resolution = {
+        "name": MANIFEST["privatePackage"]["name"],
+        "ref": MANIFEST["privatePackage"]["ref"],
+        "tasks": [{"name": task["name"], "sha256": task["sha256"]} for task in private_tasks],
+    }
+    return REPORTER.compare(
+        MANIFEST, control, candidate, campaign="full-pilot",
+        private_resolution=resolution, **kwargs,
+    )
+
+
 def job(
     arm: str,
     *,
@@ -29,10 +42,14 @@ def job(
     seconds: int = 10,
     cost: float | None = 0.10,
     unsafe: bool = False,
+    visibility: set[str] | None = None,
 ) -> dict[str, object]:
     trials = []
     start = datetime(2026, 8, 28, tzinfo=timezone.utc)
-    for task in MANIFEST["tasks"]:
+    selected_tasks = MANIFEST["tasks"] if visibility is None else [
+        task for task in MANIFEST["tasks"] if task["visibility"] in visibility
+    ]
+    for task in selected_tasks:
         for attempt in range(1, 6):
             agent_result = {
                 "n_input_tokens": None if tokens is None else tokens - 10,
@@ -72,6 +89,20 @@ def job(
 
 
 class ChaosGaugeScoringTest(TestCase):
+    def test_campaign_selection_requires_exact_public_or_resolved_full_matrix(self):
+        calibration = REPORTER.compare(
+            MANIFEST,
+            job("control", visibility={"public"}),
+            job("chaos-engine", visibility={"public"}),
+            campaign="calibration",
+        )
+        self.assertEqual("calibration", calibration["campaign"])
+        self.assertEqual(60, calibration["arms"]["control"]["sampleSize"])
+        with self.assertRaisesRegex(ValueError, "private package is unresolved"):
+            REPORTER.compare(
+                MANIFEST, job("control"), job("chaos-engine"), campaign="full-pilot"
+            )
+
     def test_native_metric_keeps_reward_dimensions_separate(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -101,8 +132,7 @@ class ChaosGaugeScoringTest(TestCase):
                     METRIC.aggregate(root / "input.jsonl", root / "output.json")
 
     def test_clear_candidate_win_has_components_and_paired_interval(self):
-        report = REPORTER.compare(
-            MANIFEST,
+        report = compare(
             job("control", successes=3, tokens=150, seconds=15, cost=0.15),
             job("chaos-engine", successes=5, tokens=100, seconds=10, cost=0.10),
         )
@@ -117,22 +147,22 @@ class ChaosGaugeScoringTest(TestCase):
         self.assertEqual({"control": 1, "chaos-engine": 2}, report["retries"])
 
     def test_tie_missing_tokens_safety_and_zero_success_fail_closed(self):
-        tie = REPORTER.compare(MANIFEST, job("control"), job("chaos-engine"))
+        tie = compare(job("control"), job("chaos-engine"))
         self.assertEqual("no significant difference", tie["verdict"]["state"])
 
-        missing = REPORTER.compare(
-            MANIFEST, job("control", tokens=None), job("chaos-engine", tokens=None)
+        missing = compare(
+            job("control", tokens=None), job("chaos-engine", tokens=None)
         )
         self.assertEqual("insufficient evidence", missing["verdict"]["state"])
         self.assertIsNone(missing["arms"]["control"]["efficiency"])
         self.assertIsNone(missing["arms"]["control"]["overallScore"])
         self.assertEqual("unavailable", missing["arms"]["control"]["tokenProvenance"])
 
-        unsafe = REPORTER.compare(MANIFEST, job("control"), job("chaos-engine", unsafe=True))
+        unsafe = compare(job("control"), job("chaos-engine", unsafe=True))
         self.assertEqual("ineligible", unsafe["verdict"]["state"])
 
-        zero = REPORTER.compare(
-            MANIFEST, job("control", successes=0), job("chaos-engine", successes=0)
+        zero = compare(
+            job("control", successes=0), job("chaos-engine", successes=0)
         )
         self.assertEqual(0.0, zero["arms"]["control"]["effectiveness"])
         self.assertEqual(0.0, zero["arms"]["control"]["overallScore"])
@@ -141,17 +171,17 @@ class ChaosGaugeScoringTest(TestCase):
         candidate = job("chaos-engine")
         candidate["trial_results"][0]["agent_info"]["model_info"]["name"] = "different"
         with self.assertRaisesRegex(ValueError, "model"):
-            REPORTER.compare(MANIFEST, job("control"), candidate)
+            compare(job("control"), candidate)
 
         candidate = job("chaos-engine")
         candidate["trial_results"].pop()
         with self.assertRaisesRegex(ValueError, "trial matrix"):
-            REPORTER.compare(MANIFEST, job("control"), candidate)
+            compare(job("control"), candidate)
 
         candidate = job("chaos-engine")
         candidate["trial_results"][0]["agent_info"]["version"] = "different"
         with self.assertRaisesRegex(ValueError, "agent version"):
-            REPORTER.compare(MANIFEST, job("control"), candidate)
+            compare(job("control"), candidate)
 
     def test_task_resampling_recomputes_efficiency_from_selected_tasks(self):
         candidate = job("chaos-engine")
@@ -160,7 +190,9 @@ class ChaosGaugeScoringTest(TestCase):
         for trial in candidate["trial_results"]:
             if trial["task_name"] == first_task:
                 trial["agent_result"]["n_input_tokens"] = 990
-        arms, tasks, attempts = REPORTER._experiment(MANIFEST)
+        private_tasks = [task for task in MANIFEST["tasks"] if task["visibility"] == "private-reference"]
+        resolution = {"name": MANIFEST["privatePackage"]["name"], "ref": MANIFEST["privatePackage"]["ref"], "tasks": [{"name": task["name"], "sha256": task["sha256"]} for task in private_tasks]}
+        arms, tasks, attempts = REPORTER._experiment(MANIFEST, "full-pilot", resolution)
         records, _ = REPORTER._records(
             candidate, "chaos-engine", arms["chaos-engine"], tasks, attempts, []
         )
@@ -175,11 +207,11 @@ class ChaosGaugeScoringTest(TestCase):
         control = job("control", successes=3, tokens=150)
         candidate = job("chaos-engine")
         exclusion = {
-            "arm": "control",
             "trialName": control["trial_results"][0]["trial_name"],
-            "reason": "provider outage before agent execution",
+            "reasonCode": "provider-outage",
+            "provenance": "provider incident receipt 123",
         }
-        report = REPORTER.compare(MANIFEST, control, candidate, exclusions=[exclusion])
+        report = compare(control, candidate, exclusions=[exclusion])
 
         self.assertEqual([exclusion], report["exclusions"])
         self.assertEqual(79, report["arms"]["control"]["sampleSize"])
@@ -202,13 +234,13 @@ class ChaosGaugeScoringTest(TestCase):
         candidate = job("chaos-engine", unsafe=True)
         unsafe_trial = candidate["trial_results"][0]
         exclusion = {
-            "arm": "chaos-engine",
             "trialName": unsafe_trial["trial_name"],
-            "reason": "invalid outcome telemetry",
+            "reasonCode": "harbor-infrastructure",
+            "provenance": "Harbor verifier receipt 123",
         }
 
-        report = REPORTER.compare(
-            MANIFEST, job("control"), candidate, exclusions=[exclusion]
+        report = compare(
+            job("control"), candidate, exclusions=[exclusion]
         )
 
         self.assertEqual("ineligible", report["verdict"]["state"])
@@ -220,10 +252,11 @@ class ChaosGaugeScoringTest(TestCase):
         failed["exception_info"] = {"type": "AgentTimeoutError"}
         failed["verifier_result"] = None
 
-        report = REPORTER.compare(MANIFEST, job("control"), candidate)
+        report = compare(job("control"), candidate)
 
         self.assertLess(report["arms"]["chaos-engine"]["reliability"], 1.0)
-        self.assertEqual(80, report["arms"]["chaos-engine"]["sampleSize"])
+        self.assertEqual(79, report["arms"]["chaos-engine"]["sampleSize"])
+        self.assertEqual("insufficient evidence", report["verdict"]["state"])
 
 
 if __name__ == "__main__":

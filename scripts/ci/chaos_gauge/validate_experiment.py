@@ -36,6 +36,61 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _tree_sha256(root: Path, *, task_package: bool = False) -> str:
+    digest = hashlib.sha256()
+    files = [path for path in root.rglob("*") if path.is_file()]
+    if task_package:
+        files = [path for path in files if path.name not in {"README.md", "trajectory.json"}]
+    for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
+        if "__pycache__" in path.parts or path.suffix == ".pyc":
+            continue
+        digest.update(
+            f"{path.relative_to(root).as_posix()}\0{_file_sha256(path)}\n".encode()
+        )
+    return digest.hexdigest()
+
+
+def _gauge_root(root: Path) -> Path:
+    direct = root / "experiment.json"
+    return root if direct.is_file() else root / "scripts/ci/chaos_gauge"
+
+
+def validate_live_evidence(manifest: dict[str, object], jobs: dict[str, object], root: Path) -> dict[str, str]:
+    """Bind every runnable local input into one digest per experiment arm."""
+    gauge = _gauge_root(root.resolve())
+    repository = root.resolve() if (root.resolve() / "chaos-engine").is_dir() else gauge.parents[2]
+    tasks = manifest["tasks"]
+    for task in tasks if isinstance(tasks, list) else []:
+        if task.get("visibility") != "public":
+            continue
+        task_root = gauge / "dataset" / str(task["name"])
+        if _tree_sha256(task_root, task_package=True) != task["sha256"]:
+            raise ValueError(f"live task digest mismatch: {task['name']}")
+    harness = _tree_sha256(repository / "chaos-engine")
+    adapter = _file_sha256(gauge / "agent.py")
+    lock = _file_sha256(gauge / "requirements.lock")
+    candidate_kwargs = jobs["chaos-engine"]["agents"][0]["kwargs"]
+    if candidate_kwargs.get("harness_sha256") != harness:
+        raise ValueError("live harness tree digest mismatch")
+    if candidate_kwargs.get("adapter_sha256") != adapter:
+        raise ValueError("live adapter digest mismatch")
+    return {
+        name: _sha256({
+            "repositoryRevision": manifest["arms"][index]["repositoryRevision"],
+            "taskDataset": manifest["dataset"]["sha256"],
+            "harnessTree": "none" if name == "control" else harness,
+            "adapter": "none" if name == "control" else adapter,
+            "dependencyLock": lock,
+            "job": jobs[name],
+        })
+        for index, name in enumerate(("control", "chaos-engine"))
+    }
+
+
 def _mapping(value: object, name: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ValueError(f"{name} must be an object")
@@ -54,6 +109,7 @@ def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-
         "privatePackage",
         "attemptsPerTask",
         "seed",
+        "campaigns",
         "arms",
         "tasks",
     }
@@ -63,6 +119,11 @@ def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-
         raise ValueError("experiment identity is invalid")
     if manifest["attemptsPerTask"] != 5 or not isinstance(manifest["seed"], int):
         raise ValueError("experiment attempts or seed is invalid")
+    if manifest["campaigns"] != {
+        "calibration": {"taskVisibility": ["public"], "taskCount": 12, "privateResolutionRequired": False},
+        "full-pilot": {"taskVisibility": ["public", "private-reference"], "taskCount": 16, "privateResolutionRequired": True},
+    }:
+        raise ValueError("campaign selection contract is invalid")
 
     harbor = _mapping(manifest["harbor"], "Harbor")
     if harbor != {
@@ -170,8 +231,8 @@ def validate_private_package(manifest: object, resolution_path: Path) -> None:
 
 
 def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invariant.
-    manifest: object, jobs: object
-) -> None:
+    manifest: object, jobs: object, *, root: Path | None = None
+) -> dict[str, str] | None:
     value = _mapping(manifest, "experiment manifest")
     job_map = _mapping(jobs, "Harbor jobs")
     if set(job_map) != {"control", "chaos-engine"}:
@@ -219,7 +280,7 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
                 "harness_source": "chaos-engine",
                 "harness_commit": arm.get("repositoryRevision"),
                 "harness_sha256": "03bd340d88d26177951551397b977d7454546739f34e0d6ad3154110abf27625",
-                "adapter_sha256": "b89127d059716f448ac1a0d4689a8d50e22246405e081e0fe025837721b3ef04",
+                "adapter_sha256": "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             }
             if kwargs != expected:
                 raise ValueError("job harness treatment is invalid")
@@ -240,6 +301,7 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
             selected_kwargs.pop(field, None)
     if control != candidate:
         raise ValueError("Harbor jobs differ outside the harness treatment")
+    return None if root is None else validate_live_evidence(value, job_map, root)
 
 
 def load_jobs(root: Path) -> dict[str, object]:
@@ -271,7 +333,7 @@ def main() -> int:
     parser.add_argument("manifest", type=Path)
     args = parser.parse_args()
     value = load_manifest(args.manifest)
-    validate_job_contracts(value, load_jobs(args.manifest.parent))
+    validate_job_contracts(value, load_jobs(args.manifest.parent), root=args.manifest.parent)
     print(validate_manifest(value, root=args.manifest.parent))
     return 0
 

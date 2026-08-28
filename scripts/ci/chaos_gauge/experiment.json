@@ -18,6 +18,18 @@
   },
   "attemptsPerTask": 5,
   "seed": 5450,
+  "campaigns": {
+    "calibration": {
+      "taskVisibility": ["public"],
+      "taskCount": 12,
+      "privateResolutionRequired": false
+    },
+    "full-pilot": {
+      "taskVisibility": ["public", "private-reference"],
+      "taskCount": 16,
+      "privateResolutionRequired": true
+    }
+  },
   "arms": [
     {
       "name": "control",
