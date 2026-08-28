@@ -114,8 +114,12 @@ class ChaosGaugeCorpusTest(TestCase):
                 app = Path(temporary) / "app"
                 shutil.copytree(task / "environment", app)
                 environment = {**os.environ, "CHAOS_GAUGE_APP_ROOT": str(app), "CHAOS_GAUGE_LOG_ROOT": str(Path(temporary) / "logs")}
-                subprocess.run([BASH, str(task / "solution/solve.sh")], env=environment, check=True)
-                verified = subprocess.run([BASH, str(task / "tests/test.sh")], env=environment, check=False)
+                subprocess.run(  # nosec B603 - fixed repository-owned oracle path.
+                    [BASH, str(task / "solution/solve.sh")], env=environment, check=True
+                )
+                verified = subprocess.run(  # nosec B603 - fixed repository-owned verifier path.
+                    [BASH, str(task / "tests/test.sh")], env=environment, check=False
+                )
                 reward = json.loads((Path(temporary) / "logs/verifier/reward.json").read_text())
                 self.assertEqual(0, verified.returncode)
                 self.assertEqual(1, reward["correctness"])
