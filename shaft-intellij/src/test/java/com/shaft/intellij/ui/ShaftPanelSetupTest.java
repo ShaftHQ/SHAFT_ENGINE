@@ -876,7 +876,7 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
-                () -> assertTrue(containsText(toolWindow, "Connect SHAFT Assistant")),
+                () -> assertTrue(containsText(toolWindow, "Set up SHAFT tools")),
                 () -> assertTrue(containsText(tools, "Configure SHAFT MCP")),
                 () -> assertTrue(outputText(tools).contains("Configure SHAFT MCP in Settings before running Tools requests.")));
     }
@@ -2848,13 +2848,13 @@ class ShaftPanelSetupTest {
         // Issue #4314 fix 1: the intro's greyed "Pick an agent -- recording, code generation..."
         // paragraph and the redundant "Target: X. Runtime: Y." setupSummary caption (already
         // restated by the family/runtime combo boxes above it) add no value and cramp the layout --
-        // both are removed, while the bold "Connect SHAFT Assistant" title stays.
+        // both are removed, while the bold task-based setup title stays.
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe());
 
         assertAll(
-                () -> assertTrue(containsText(panel, "Connect SHAFT Assistant")),
+                () -> assertTrue(containsText(panel, "Set up SHAFT tools")),
                 () -> assertFalse(containsText(panel, "Pick an agent")),
                 () -> assertFalse(containsText(panel, "Model Context Protocol")),
                 () -> assertFalse(containsText(panel, "Installs SHAFT MCP locally")),

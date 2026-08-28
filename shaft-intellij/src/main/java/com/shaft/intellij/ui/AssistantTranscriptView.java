@@ -347,9 +347,11 @@ final class AssistantTranscriptView extends JPanel {
         last.markdown = message;
         // The replaced content no longer corresponds to whatever evidence (if any) was captured for
         // the message being overwritten, and replaceLast() has no evidence of its own to carry over.
+        boolean hadRawEvidence = !messageRawEvidence.isEmpty()
+                && !messageRawEvidence.get(messageRawEvidence.size() - 1).isBlank();
         setLastRawEvidence("");
         markdownDirty = true;
-        if (!kindChanged && updateLastBubbleIncrementally(last.role, message)) {
+        if (!kindChanged && !hadRawEvidence && updateLastBubbleIncrementally(last.role, message)) {
             scrollLatestIntoView();
         } else {
             refresh();
