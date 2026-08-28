@@ -57,6 +57,12 @@ class AssistantTranscriptViewTest {
                 () -> assertTrue(view.markdown().contains("Doctor evidence")),
                 () -> assertTrue(view.markdown().contains("Doctor failed")),
                 () -> assertTrue(view.markdown().contains("Final result")));
+
+        Component run = findByClientProperty(view,
+                AssistantTranscriptView.TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE);
+        assertEquals(List.of("Tool selected: doctor", "Doctor evidence", "Doctor failed", "Final result"),
+                editorTextsInComponentOrder(run),
+                "Grouped run stages must render in persisted message order");
     }
 
     @Test
@@ -78,6 +84,17 @@ class AssistantTranscriptViewTest {
 
         JEditorPane approval = findEditorContaining(view, "Approved");
         assertTrue(isVisibleInHierarchy(approval));
+    }
+
+
+    @Test
+    void denialOutcomesStayVisibleInsideCollapsedRun() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Denied `capture_start` once.", "",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
+
+        JEditorPane denial = findEditorContaining(view, "Denied");
+        assertTrue(isVisibleInHierarchy(denial));
     }
     @Test
     void onlyMessagesWithNonBlankRawEvidenceRenderTheDisclosureToggle() {
@@ -467,6 +484,22 @@ class AssistantTranscriptViewTest {
                                 + "drop the oldest 70: " + view.currentMessageCountForTest()),
                 () -> assertTrue(view.markdown().contains("Milestone 0"),
                         "The oldest message must not be silently dropped: " + view.markdown()));
+    }
+
+
+    @Test
+    void trimmingAGroupedRunKeepsRetainedAndNewStagesRendered() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        for (int i = 0; i <= ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            view.append("assistant", "Milestone " + i, "", ShaftAssistantChatState.KIND_MILESTONE);
+        }
+
+        assertAll(
+                () -> assertNull(findEditorContaining(view, "Milestone 0")),
+                () -> assertTrue(isVisibleInHierarchy(findEditorContaining(view, "Milestone 1"))),
+                () -> assertTrue(isVisibleInHierarchy(findEditorContaining(view, "Milestone 500"))),
+                () -> assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION,
+                        editorTextsInComponentOrder(view).size()));
     }
 
     @Test
@@ -883,6 +916,29 @@ class AssistantTranscriptViewTest {
             }
         }
         return null;
+    }
+
+
+    private static List<String> editorTextsInComponentOrder(Component component) {
+        List<String> texts = new ArrayList<>();
+        collectEditorTexts(component, texts);
+        return texts;
+    }
+
+    private static void collectEditorTexts(Component component, List<String> texts) {
+        if (component instanceof JEditorPane editor) {
+            try {
+                texts.add(editor.getDocument().getText(0, editor.getDocument().getLength())
+                        .replace("\u200B", "").trim());
+            } catch (javax.swing.text.BadLocationException impossible) {
+                throw new AssertionError(impossible);
+            }
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                collectEditorTexts(child, texts);
+            }
+        }
     }
 
     private static Component findByAccessibleName(Component component, String accessibleName) {

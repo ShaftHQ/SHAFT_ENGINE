@@ -297,7 +297,16 @@ final class AssistantTranscriptView extends JPanel {
             }
             if (incrementalBubbleTrackingInSync && !renderedBubbles.isEmpty()) {
                 RenderedBubble oldest = renderedBubbles.remove(0);
-                fallbackPanel.remove(oldest.row);
+                boolean rowStillOwned = renderedBubbles.stream()
+                        .anyMatch(retained -> retained.row == oldest.row);
+                if (rowStillOwned) {
+                    Container run = oldest.bubble.getParent();
+                    if (run != null) {
+                        run.remove(oldest.bubble);
+                    }
+                } else {
+                    fallbackPanel.remove(oldest.row);
+                }
             }
             if (truncationBoundaryIndex >= 0) {
                 truncationBoundaryIndex--;
