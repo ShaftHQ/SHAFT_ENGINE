@@ -5705,13 +5705,6 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
     private void updateRunSettingsSummary() {
         String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
-        String readiness = usesCloud() ? switch (providerModelState) {
-            case "AVAILABLE" -> "connected";
-            case "AUTHENTICATION_FAILED", "KEY_REQUIRED", "KEY_FORWARDING_DISABLED" -> "authentication needed";
-            case "EMPTY", "UNAVAILABLE", "FAILED" -> "unavailable";
-            default -> "checking";
-        } : agentHealthStatus == null || agentHealthStatus.getText().isBlank()
-                ? "Not configured" : agentHealthStatus.getText();
         String route = usesCloud()
                 ? providerRouteLabel(String.valueOf(cloudProvider.getSelectedItem()))
                 : ShaftUiLabels.localAgentRoute(assistantFamily.getSelectedItem(), assistantRuntime.getSelectedItem());
@@ -5729,6 +5722,13 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             agent = "Not configured";
         }
         String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
+        String readiness = usesCloud() ? switch (providerModelState) {
+            case "AVAILABLE" -> "connected";
+            case "AUTHENTICATION_FAILED", "KEY_NEEDED", "KEY_FORWARDING_DISABLED" -> "authentication needed";
+            case "EMPTY", "UNAVAILABLE", "FAILED" -> "unavailable";
+            default -> "checking";
+        } : agentHealthStatus == null || agentHealthStatus.getText().isBlank()
+                ? "Not configured" : agentHealthStatus.getText();
         boolean agentMode = "AGENT".equals(mode.getSelectedItem()) && !usesCloud();
         String access = !agentMode || !allowSourceMutation.isSelected()
                 ? "read-only"

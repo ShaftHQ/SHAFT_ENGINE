@@ -6410,7 +6410,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void progressIndicatorsExplainTheirMeaningToAccessibilityTools() {
+    void progressIndicatorsExplainTheirMeaningToAccessibilityTools() throws Exception {
         ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> { });
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(null, blankMcpSettings());
         JProgressBar setupProgress = (JProgressBar) getField(setup, "progress");
