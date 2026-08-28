@@ -715,7 +715,11 @@ def read_response(
                     if urllib.parse.urlsplit(url).hostname == "api.github.com"
                     else "upstream"
                 )
-                received = len(error.partial) if isinstance(error, http.client.IncompleteRead) else total
+                received = total + (
+                    len(error.partial)
+                    if isinstance(error, http.client.IncompleteRead)
+                    else 0
+                )
                 trace(
                     f"download retry attempt={attempt + 1} endpoint={endpoint} "
                     f"receivedBytes={received} error={type(error).__name__} "
