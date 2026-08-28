@@ -60,8 +60,11 @@ class _CleanupScenario:
             "unexpected_dirty_worktree": False, "change_remote_on_remove": False,
             "desync_primary_on_remove": False, "drop_branch_on_remove": False,
             "add_dirty_worktree_on_remove": False, "denial": "host policy denied",
+            "prunable_unrelated": False,
+            "prunable_task": False,
         }
         self.removal_calls = []
+        self.status_calls = []
 
     def close(self):
         self.temporary.cleanup()
@@ -84,6 +87,7 @@ class _CleanupScenario:
             task_branch = "ChaosEngine/task\n" if self.state["branch_present"] else ""
             return subprocess.CompletedProcess(command, 0, f"main\n{task_branch}", "")
         if "status --porcelain" in joined:
+            self.status_calls.append(Path(kwargs["cwd"]))
             is_unrelated = Path(kwargs["cwd"]) == self.unrelated
             dirty = self.state["dirty"] or (self.state["unexpected_dirty_worktree"] and is_unrelated)
             return subprocess.CompletedProcess(command, 0, " M file\n" if dirty else "", "")
@@ -106,11 +110,17 @@ class _CleanupScenario:
         locked = "\nlocked active-owner" if self.state["locked"] else ""
         unrelated = (
             f"\n\nworktree {self.unrelated}\nbranch refs/heads/unrelated"
-            if self.state["unexpected_dirty_worktree"] else ""
+            + ("\nprunable gitdir file points to non-existent location" if self.state["prunable_unrelated"] else "")
+            if self.state["unexpected_dirty_worktree"] or self.state["prunable_unrelated"] else ""
+        )
+        task_prunable = (
+            "\nprunable gitdir file points to non-existent location"
+            if self.state["prunable_task"] else ""
         )
         output = (
             f"worktree {self.root}\nbranch refs/heads/main\n\nworktree {self.task}"
-            f"\nbranch refs/heads/ChaosEngine/task{locked}{unrelated}\n"
+            f"\nbranch refs/heads/ChaosEngine/task{locked}"
+            f"{task_prunable}{unrelated}\n"
         )
         return subprocess.CompletedProcess(command, 0, output, "")
 
@@ -331,6 +341,31 @@ class DeliveryStatusTest(unittest.TestCase):
 
             plan["cleanup"]["repositories"][0]["unrelatedDirtyWorktrees"] = []
             self.assertFalse(inspect_cleanup(plan, runner=runner, executable="git")["unrelatedDirtyPreserved"])
+
+    def test_unrelated_prunable_worktree_is_preserved_without_entering_missing_path(self):
+        scenario = _CleanupScenario()
+        self.addCleanup(scenario.close)
+        scenario.state["prunable_unrelated"] = True
+        scenario.unrelated.rmdir()
+
+        observed = scenario.inspect()
+
+        self.assertTrue(observed["unrelatedDirtyPreserved"])
+        self.assertNotIn(scenario.unrelated, scenario.status_calls)
+        self.assertEqual(
+            [{"path": _normalized_path(scenario.unrelated), "branch": "unrelated"}],
+            observed["repositories"][0]["preservedUnrelatedPrunableWorktrees"],
+        )
+
+    def test_task_owned_prunable_worktree_still_blocks_cleanup(self):
+        scenario = _CleanupScenario()
+        self.addCleanup(scenario.close)
+        scenario.state["prunable_task"] = True
+
+        observed = scenario.inspect(statuses=[])
+
+        self.assertFalse(observed["taskWorktreesAbsent"])
+        self.assertEqual([], scenario.removal_calls)
 
     def test_degraded_residue_requires_clean_nonunique_unlocked_single_owner_and_denial(self):
         scenario = _CleanupScenario()

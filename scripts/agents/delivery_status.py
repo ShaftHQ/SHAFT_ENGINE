@@ -303,7 +303,11 @@ def _git_read(runner, git: str, root: Path, *arguments: str) -> str:
 def _worktree_records(output: str) -> dict[str, dict[str, object]]:
     records: dict[str, dict[str, object]] = {}
     for block in output.strip().split("\n\n"):
-        record: dict[str, object] = {"branch": None, "locked": False}
+        record: dict[str, object] = {
+            "branch": None,
+            "locked": False,
+            "prunable": False,
+        }
         record_path = None
         for line in block.splitlines():
             if line.startswith("worktree "):
@@ -312,6 +316,8 @@ def _worktree_records(output: str) -> dict[str, dict[str, object]]:
                 record["branch"] = line.removeprefix("branch refs/heads/")
             elif line.startswith("locked"):
                 record["locked"] = True
+            elif line.startswith("prunable"):
+                record["prunable"] = True
         if record_path:
             records[record_path] = record
     return records
@@ -347,6 +353,9 @@ def _cleanup_snapshot(
     records = _worktree_records(worktree_output)
     present = set(records)
     unrelated = present - {_normalized_path(root)} - set(named_worktrees)
+    unrelated_prunable = {
+        path for path in unrelated if records[path].get("prunable") is True
+    }
     return {
         "local": _git_read(runner, git, root, "rev-parse", branch).strip(),
         "remoteHead": _git_read(runner, git, root, "rev-parse", f"origin/{branch}").strip(),
@@ -357,7 +366,11 @@ def _cleanup_snapshot(
         "branches": _git_read(
             runner, git, root, "branch", "--format=%(refname:short)"
         ).splitlines(),
-        "dirtyUnrelated": _dirty_worktrees(runner, git, unrelated),
+        "dirtyUnrelated": _dirty_worktrees(runner, git, unrelated - unrelated_prunable),
+        "preservedUnrelatedPrunableWorktrees": [
+            {"path": path, "branch": records[path].get("branch")}
+            for path in sorted(unrelated_prunable)
+        ],
     }
 
 
@@ -431,6 +444,7 @@ def _residue_scope_is_safe(
         isinstance(record, dict),
         record.get("branch") == residue_branch if isinstance(record, dict) else False,
         record.get("locked") is False if isinstance(record, dict) else False,
+        record.get("prunable") is False if isinstance(record, dict) else False,
     ))
 
 
@@ -446,6 +460,7 @@ def _post_denial_is_safe(
     worktree: Path,
     normalized_worktree: str,
     expected_head: str,
+    unrelated_prunable_expected: list[dict[str, object]],
 ) -> bool:
     snapshot = _cleanup_snapshot(runner, git, root, default_branch, named_worktrees)
     record = snapshot["records"].get(normalized_worktree)
@@ -455,6 +470,8 @@ def _post_denial_is_safe(
         str(snapshot["repository"]).casefold() == str(residue_repository).casefold(),
         residue_branch in snapshot["branches"],
         snapshot["dirtyUnrelated"] == unrelated_expected,
+        snapshot["preservedUnrelatedPrunableWorktrees"]
+        == unrelated_prunable_expected,
         isinstance(record, dict),
         record.get("branch") == residue_branch if isinstance(record, dict) else False,
         record.get("locked") is False if isinstance(record, dict) else False,
@@ -523,6 +540,7 @@ def _inspect_degraded_residue(
         runner, git, root, default_branch, named_worktrees, unrelated_expected,
         residue_repository, residue_branch, resolved_worktree, normalized_worktree,
         expected_head,
+        snapshot["preservedUnrelatedPrunableWorktrees"],
     ):
         return None
     return {
@@ -628,7 +646,16 @@ def inspect_cleanup(
         all_worktrees_absent &= worktrees_absent
         all_branches_absent &= branches_absent
         all_dirty_preserved &= dirty_preserved
-        observations.append({"root": str(root), "primarySynced": synced, "taskWorktreesAbsent": worktrees_absent, "taskBranchesAbsent": branches_absent, "unrelatedDirtyPreserved": dirty_preserved})
+        observations.append({
+            "root": str(root),
+            "primarySynced": synced,
+            "taskWorktreesAbsent": worktrees_absent,
+            "taskBranchesAbsent": branches_absent,
+            "unrelatedDirtyPreserved": dirty_preserved,
+            "preservedUnrelatedPrunableWorktrees": snapshot[
+                "preservedUnrelatedPrunableWorktrees"
+            ],
+        })
     return {
         "outcome": "degraded" if degraded_requested else "complete",
         "primarySynced": all_synced,
