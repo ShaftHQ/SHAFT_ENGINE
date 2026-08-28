@@ -87,7 +87,7 @@
         <commons.csv.version>1.14.1</commons.csv.version>
         <sikulix.version>2.0.5</sikulix.version>
         <jython.slim.version>2.7.4</jython.slim.version>
-        <tess4j.version>5.19.0</tess4j.version>
+        <tess4j.version>5.20.0</tess4j.version>
         <jnr.ffi.version>2.3.1</jnr.ffi.version>
         <jna.version>5.19.1</jna.version>
         <asm.version>9.10.1</asm.version>
