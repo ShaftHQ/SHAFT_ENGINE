@@ -1879,6 +1879,89 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 result["hosts"]["recovery"],
             )
 
+    def test_status_blocks_missing_rollback_generation_without_mutation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed_source = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            shutil.rmtree(project / MODULE.BACKUP_NAME)
+            journal = project / MODULE.CROSS_ROLLBACK_JOURNAL_NAME / "journal.json"
+            receipt = project / ".chaos-engine-hosts.json"
+            before = (journal.read_bytes(), receipt.read_bytes())
+
+            result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("blocked", result["hosts"]["recovery"]["status"])
+            self.assertEqual(
+                "invalid-rollback-state", result["hosts"]["recovery"]["reasonCode"]
+            )
+            self.assertFalse(result["hosts"]["recovery"]["automaticResume"])
+            self.assertEqual(before, (journal.read_bytes(), receipt.read_bytes()))
+
+    def test_status_blocks_unrecognized_authenticated_host_phase(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed_source = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            hosts = MODULE.load_installed_controller(project / MODULE.INSTALL_DIRECTORY, "hosts")
+            hosts.install(project, core_commit="3" * 40)
+
+            result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("blocked", result["hosts"]["recovery"]["status"])
+            self.assertFalse(result["hosts"]["recovery"]["automaticResume"])
+
+    def test_failed_automatic_recovery_is_traced_with_exact_command(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed_source = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            shutil.rmtree(project / MODULE.BACKUP_NAME)
+            reporter = mock.Mock()
+
+            with self.assertRaisesRegex(ValueError, "automatic rollback recovery failed") as raised:
+                MODULE.install_with_dependencies(
+                    project,
+                    changed_source,
+                    "3" * 40,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    reporter=reporter,
+                )
+
+            command = getattr(raised.exception, "recovery_command")
+            self.assertIn("rollback --project .", command)
+            self.assertTrue(
+                any(
+                    "error=ValueError" in call.args[0]
+                    and f"recoveryCommand={command}" in call.args[0]
+                    for call in reporter.trace.call_args_list
+                )
+            )
+
     def test_install_resumes_authenticated_cross_resource_rollback_before_update(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

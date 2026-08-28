@@ -14,7 +14,7 @@ import unittest.mock as mock
 import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from tests.scripts.test_chaos_engine_install_wrappers import (
     has_implicit_string_concat,
@@ -1097,6 +1097,24 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     if "git/trees" not in url
                 )
             )
+
+    def test_install_failure_emits_and_prefills_available_recovery_command(self):
+        module = load()
+        error = ValueError("automatic rollback recovery failed")
+        error.recovery_command = "python3 .chaos-engine/install.py rollback --project ."
+        stream = io.StringIO()
+
+        with mock.patch.object(module.sys, "stderr", stream):
+            module.emit_install_failure(
+                "CE-INSTALL-FAILED", error, "Example/Project", project=ROOT
+            )
+
+        output = unquote(stream.getvalue())
+        self.assertIn(f"Recovery: {error.recovery_command}", output)
+        issue_url = stream.getvalue().splitlines()[-1]
+        self.assertEqual(
+            [error.recovery_command], parse_qs(urlparse(issue_url).query)["recovery_command"]
+        )
 
     def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")

@@ -1514,11 +1514,28 @@ def installed_kernel_status(installed_root: Path) -> dict[str, object]:
 def rollback_recovery_status(project: Path, pending: dict[str, str]) -> dict[str, object]:
     """Describe an authenticated rollback without widening diagnostic schema v2."""
     current_commit = str(verify_install(project / INSTALL_DIRECTORY)["source"]["commit"])
+    backup_commit = str(verify_install(project / BACKUP_NAME)["source"]["commit"])
     host_receipt, _ = load_installed_controller(
         project / INSTALL_DIRECTORY, "hosts"
     ).read_receipt(project)
     host_commit = str(host_receipt.get("coreCommit", ""))
     desired_commit = pending["desiredCommit"]
+    prior_commit = pending["priorCommit"]
+    if {current_commit, backup_commit} != {desired_commit, prior_commit}:
+        raise ValueError("rollback trees do not match the recorded generations")
+    if host_receipt.get("rollbackIntent") != pending:
+        raise ValueError("rollback state does not match the recorded phase")
+    valid_phase = (
+        current_commit == prior_commit
+        and backup_commit == desired_commit
+        and host_commit == prior_commit
+    ) or (
+        current_commit == desired_commit
+        and backup_commit == prior_commit
+        and host_commit in {prior_commit, desired_commit}
+    )
+    if not valid_phase:
+        raise ValueError("rollback state does not match the recorded phase")
     phase = (
         "restore-core"
         if current_commit != desired_commit
@@ -1530,7 +1547,7 @@ def rollback_recovery_status(project: Path, pending: dict[str, str]) -> dict[str
     return {
         "status": "required",
         "desiredCommit": desired_commit,
-        "priorCommit": pending["priorCommit"],
+        "priorCommit": prior_commit,
         "currentCommit": current_commit,
         "phase": phase,
         "automaticResume": True,
@@ -1558,19 +1575,29 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     )
     generation_mode = provisioner is None and not account_mode
     with project_lock(project):
-        if read_cross_rollback_journal(project) is not None:
-            if reporter is not None:
-                reporter.trace("resume authenticated rollback before install")
+        pending_rollback = read_cross_rollback_journal(project)
+        if pending_rollback is not None:
             try:
+                rollback_recovery_status(project, pending_rollback)
+                if reporter is not None:
+                    reporter.trace("resume authenticated rollback before install")
                 _rollback_locked(
                     project, _locked=True, provisioner=provisioner, resume_only=True
                 )
             except (OSError, RuntimeError, ValueError) as error:
                 launcher = "py -3" if os.name == "nt" else "python3"
-                raise ValueError(
+                command = f"{launcher} .chaos-engine/install.py rollback --project ."
+                if reporter is not None:
+                    reporter.trace(
+                        "automatic rollback recovery failed "
+                        f"error={error.__class__.__name__} recoveryCommand={command}"
+                    )
+                wrapped = ValueError(
                     "automatic rollback recovery failed; run: "
-                    f"{launcher} .chaos-engine/install.py rollback --project ."
-                ) from error
+                    + command
+                )
+                wrapped.recovery_command = command  # type: ignore[attr-defined]
+                raise wrapped from error
             if reporter is not None:
                 reporter.trace("authenticated rollback recovery complete")
         current = project / INSTALL_DIRECTORY
@@ -1929,17 +1956,18 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 result["status"] = "recovery-required"
             host_controller = load_installed_controller(target, "hosts")
             rollback_error = None
+            recovery_status = None
             try:
                 pending_rollback = read_cross_rollback_journal(project)
+                if pending_rollback is not None:
+                    recovery_status = rollback_recovery_status(project, pending_rollback)
             except ValueError as error:
                 pending_rollback = None
                 rollback_error = error
             if pending_rollback is not None:
                 result["hosts"] = host_controller.verify(project)
                 result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
-                result["hosts"]["recovery"] = rollback_recovery_status(  # type: ignore[index]
-                    project, pending_rollback
-                )
+                result["hosts"]["recovery"] = recovery_status  # type: ignore[index]
             elif rollback_error is not None:
                 result["hosts"] = host_controller.verify(project)
                 result["hosts"]["status"] = "recovery-required"  # type: ignore[index]

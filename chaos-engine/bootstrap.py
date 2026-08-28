@@ -1123,6 +1123,9 @@ def emit_install_failure(
         print("Rerun the same install command to continue.", file=sys.stderr)
         status_command = "not available; .chaos-engine/install.py is not on disk"
         doctor_command = status_command
+    recovery_command = getattr(error, "recovery_command", None)
+    if isinstance(recovery_command, str) and recovery_command:
+        print(f"Recovery: {recovery_command}", file=sys.stderr)
     if code != "CE-INSTALL-CANCELLED":
         body = "\n".join(
             (
@@ -1147,8 +1150,7 @@ def emit_install_failure(
                 f"Doctor command: {doctor_command}",
             )
         )
-        query = urllib.parse.urlencode(
-            {
+        query_fields = {
                 "template": "chaos-engine-installer.yml",
                 "title": f"[ChaosEngine installer] {code}",
                 "error_code": code,
@@ -1160,7 +1162,9 @@ def emit_install_failure(
                 "status_command": status_command or "",
                 "doctor_command": doctor_command or "",
             }
-        )
+        if isinstance(recovery_command, str) and recovery_command:
+            query_fields["recovery_command"] = recovery_command
+        query = urllib.parse.urlencode(query_fields)
         print(
             "Next step: click this link to open a GitHub issue with this report:",
             file=sys.stderr,
