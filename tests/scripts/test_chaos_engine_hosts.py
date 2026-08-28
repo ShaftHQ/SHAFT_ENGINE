@@ -871,16 +871,16 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 self.assertIn("hooks", manifest)
                 self.assertNotIn("SessionStart", manifest.get("hooks", {}))
 
-            required_events = {
+            common_events = {
                 "SessionStart",
                 "UserPromptSubmit",
                 "PreToolUse",
                 "PostToolUse",
-                "PostToolUseFailure",
                 "Stop",
                 "SubagentStop",
                 "SessionEnd",
             }
+            required_events = common_events | {"PreCompact"}
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
             claude_lifecycle = json.loads(
                 project.joinpath(".claude/settings.json").read_text()
@@ -899,7 +899,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         event,
                     )
                 self.assertEqual(3, document["SessionEnd"][0]["hooks"][0]["timeout"])
-            claude_events = required_events | {"PreCompact"}
+            claude_events = required_events | {"PostToolUseFailure"}
             self.assertEqual(claude_events, set(claude_lifecycle))
             for event in claude_events:
                 self.assertEqual(1, len(claude_lifecycle[event]), event)
@@ -1049,7 +1049,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             hooks = json.loads((ROOT / relative).read_text(encoding="utf-8"))["hooks"]
             self.assertEqual(preventive, hooks["PreToolUse"][0]["matcher"])
             self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
-            self.assertEqual(observational, hooks["PostToolUseFailure"][0]["matcher"])
+        claude_hooks = json.loads(
+            (ROOT / ".claude/settings.json").read_text(encoding="utf-8")
+        )["hooks"]
+        self.assertEqual(
+            observational, claude_hooks["PostToolUseFailure"][0]["matcher"]
+        )
 
         gemini = json.loads(module.gemini_hooks_document())["hooks"]
         self.assertEqual(preventive, gemini["BeforeTool"][0]["matcher"])

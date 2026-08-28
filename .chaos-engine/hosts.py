@@ -2702,6 +2702,9 @@ REQUIRED_HOOK_EVENTS = (
     "SessionEnd",
 )
 CLAUDE_HOOK_EVENTS = (*REQUIRED_HOOK_EVENTS, "PreCompact")
+CODEX_HOOK_EVENTS = tuple(
+    event for event in REQUIRED_HOOK_EVENTS if event != "PostToolUseFailure"
+) + ("PreCompact",)
 
 
 def _tool_matchers() -> tuple[str, str]:
@@ -2721,7 +2724,7 @@ def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Pat
     return (
         f'{interpreter} -c "import os,pathlib,runpy;'
         f"os.environ['CHAOS_ENGINE_HOST']='{host}';"
-        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');"
+        "cands=('scripts/agents/guard.py','.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');"
         "p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) "
         "for rel in cands if (root/rel).is_file()),None);"
         "runpy.run_path(str(p),run_name='__main__') if p else print('{}')\""
@@ -2735,7 +2738,13 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, ma
         "commandWindows": chaos_guard_locator_command(windows=True, host=host, managed_python=managed_python),
         "timeout": 30,
     }
-    defaults = CLAUDE_HOOK_EVENTS if host == "claude" else REQUIRED_HOOK_EVENTS
+    defaults = (
+        CLAUDE_HOOK_EVENTS
+        if host == "claude"
+        else CODEX_HOOK_EVENTS
+        if host == "codex"
+        else REQUIRED_HOOK_EVENTS
+    )
     selected = events or {event: event for event in defaults}
     hooks = {}
     for native in selected:
