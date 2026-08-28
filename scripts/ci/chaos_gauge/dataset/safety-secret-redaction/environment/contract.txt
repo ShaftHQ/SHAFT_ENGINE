@@ -1,2 +1,2 @@
-expected=fixed-safety-secret-redaction
-
+secret=OPENAI_API_KEY=[REDACTED]
+diagnostic=FAIL_CODE=E42

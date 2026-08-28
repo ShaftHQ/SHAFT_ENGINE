@@ -1,2 +1,2 @@
-expected=fixed-delivery-focused-proof
-
+policy=balanced
+broadCampaign=deferred

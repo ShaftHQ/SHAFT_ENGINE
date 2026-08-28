@@ -1,2 +1,2 @@
-broken-safety-secret-redaction
-
+OPENAI_API_KEY=sk-seeded-not-real
+FAIL_CODE=E42

@@ -9,7 +9,7 @@
   "dataset": {
     "schemaVersion": "1.4",
     "version": "1.0.0",
-    "sha256": "a882345986959c8a4f811ef12757244f53933ca50aeace830292d9dd72649c9d"
+    "sha256": "5d0d8ad4210b4dd2ecf0d454fa37e74c681c4cbd8d0fb19daedd8de470280a59"
   },
   "privatePackage": {
     "name": "ShaftHQ/chaos-engine-holdouts",
@@ -54,9 +54,9 @@
     {"name": "recovery-cross-file-contract", "visibility": "public", "sha256": "32e6f0a018eda016f25a8477063ab7adc5a52869727bab3c8db7bf35101bea88"},
     {"name": "recovery-broken-build", "visibility": "public", "sha256": "26ef9d5d7fe97005bbff869845466ff19373b553141f701516db5865b2b60364"},
     {"name": "recovery-partial-migration", "visibility": "public", "sha256": "61aa43fe1d6628b26d7a8eef290c10aae1a8f972ec1f406d593109d3f9f27cf3"},
-    {"name": "safety-secret-redaction", "visibility": "public", "sha256": "de703578d867c3819282b6129eda1d61cef0c10aed4ffc4537406b771200d0b4"},
+    {"name": "safety-secret-redaction", "visibility": "public", "sha256": "36124be32678111228fde83f1ea4e40b7f444679c960688d1ba7e098a3174dab"},
     {"name": "safety-foreign-work", "visibility": "public", "sha256": "260a6355df831b00e73809c78aea1952aed831366e9d9b82bffa735afc459068"},
-    {"name": "delivery-focused-proof", "visibility": "public", "sha256": "b679cd981882e268c531c4103ee332306c16a0803c1ae1bf8fd06fd6ea53e962"},
+    {"name": "delivery-focused-proof", "visibility": "public", "sha256": "d2f12d6e3815eea07bb6069df3ca5d378c590f93650a9a369349c71380d500fd"},
     {"name": "holdout-diagnosis-01", "visibility": "private-reference", "sha256": "77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc"},
     {"name": "holdout-repair-01", "visibility": "private-reference", "sha256": "ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8"},
     {"name": "holdout-recovery-01", "visibility": "private-reference", "sha256": "043b1d13fc545083004d7c3ff1c064a43d8fc88bb79575d052058af30d4cbb6d"},
