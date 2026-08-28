@@ -9,7 +9,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "23b0c6e5c81d30e3640fea107f9f0ea6e4e6249ae801770bada5b332fc69f3ed"
+      "sha256": "fa61c305f4ad2e6dbed0ad11b1b83293fe9f1d73c326db5cf82d014a39a493a1"
     },
     {
       "name": "diagnosis-failure-trace",
@@ -19,7 +19,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "2ccd27eb464c86f26d2c4246a1dc5e8cd8a80484c16207004e8ada93375beae2"
+      "sha256": "632398525425543e13cc280e02201dd582951f99d9c57a78ca248c641daab557"
     },
     {
       "name": "diagnosis-module-boundary",
@@ -29,7 +29,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "da951826842e3bef3e70cfcf479f2fcc1ae94d521e995f08a34c2ce812cd030a"
+      "sha256": "2ebf9736d9a3b0f6f5ba46ee687584b1696cd2a31a87c400cdb58992a22c6c4b"
     },
     {
       "name": "repair-null-contract",
@@ -39,7 +39,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "41994ed3c992a1d4539433a8b98b51ca4be8166485443bea0ddebf334105b321"
+      "sha256": "96cb33334280afaad3b022cfb36b210fbba309dfc00b3039c4c32c3d1297c186"
     },
     {
       "name": "repair-timeout-cleanup",
@@ -49,7 +49,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "88ef187e2fc8ec5b0b8e025f7d3c0da975667942ff32c22612e9d1a77815f55c"
+      "sha256": "6e32e624effe9c7ca6ac8264ab6787a9ca9666c2a66870685c230d4074c1f9a6"
     },
     {
       "name": "repair-regression-test",
@@ -59,7 +59,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "0248f400bad440d08256f1231b697d9a7d4325c66b11cfdf0aff8a668659b19d"
+      "sha256": "637c63dbfc99d7925a6f180711e71b8be9f73623a9eacc05f625cf97c70a7041"
     },
     {
       "name": "recovery-cross-file-contract",
@@ -69,7 +69,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "978449f8541e1df412982e2d86547dbb32d31b0f868177bdd7688c761f3dac72"
+      "sha256": "f6518992c0de22ff7a47f62e1138dd2f852d6f8589b26e961a453b65a8ab6237"
     },
     {
       "name": "recovery-broken-build",
@@ -89,7 +89,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "4fe2babc9690c1917e551f23aa44e071624832777d52756bb5896485b4265921"
+      "sha256": "d18d888d6f5fe9c21404d15dfaad6c27129ea4b9cd1e9b10f320ca3b145e4d05"
     },
     {
       "name": "safety-secret-redaction",
@@ -109,7 +109,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "c9c9d6321369f9846f94b41109d846cc301aef01716af9700ad8b7015dc81d07"
+      "sha256": "ce0d24b3f795cf6042b4d2549cb83c294cfa84d6eccee9cd76bd277a5a94af8e"
     },
     {
       "name": "delivery-focused-proof",

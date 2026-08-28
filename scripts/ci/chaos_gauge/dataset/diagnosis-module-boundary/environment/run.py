@@ -1,5 +1,6 @@
 from pathlib import Path
+import runpy
 
 root = Path(__file__).resolve().parent
 # Scenario input: public_api.py
-exec(compile((root / "source.txt").read_text(), "source.txt", "exec"))
+runpy.run_path(str(root / "source.txt"))
