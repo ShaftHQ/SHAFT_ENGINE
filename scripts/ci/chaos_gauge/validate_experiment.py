@@ -42,7 +42,9 @@ def _mapping(value: object, name: str) -> dict[str, object]:
     return value
 
 
-def validate_manifest(value: object, *, root: Path | None = None) -> str:
+def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-closed.
+    value: object, *, root: Path | None = None
+) -> str:
     manifest = _mapping(value, "experiment manifest")
     expected = {
         "schemaVersion",
@@ -167,7 +169,7 @@ def validate_private_package(manifest: object, resolution_path: Path) -> None:
         raise ValueError("private Harbor package resolution does not match the 4-task holdout")
 
 
-def validate_job_contracts(
+def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invariant.
     manifest: object, jobs: object
 ) -> None:
     value = _mapping(manifest, "experiment manifest")
@@ -217,7 +219,7 @@ def validate_job_contracts(
                 "harness_source": "chaos-engine",
                 "harness_commit": arm.get("repositoryRevision"),
                 "harness_sha256": "03bd340d88d26177951551397b977d7454546739f34e0d6ad3154110abf27625",
-                "adapter_sha256": "ef83517d7a1483de9c96da1039cbb11b3c9b2ae7e1dc5a467757f7015d034a7c",
+                "adapter_sha256": "b89127d059716f448ac1a0d4689a8d50e22246405e081e0fe025837721b3ef04",
             }
             if kwargs != expected:
                 raise ValueError("job harness treatment is invalid")

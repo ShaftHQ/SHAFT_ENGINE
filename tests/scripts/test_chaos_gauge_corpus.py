@@ -6,7 +6,7 @@ import json
 import os
 import hashlib
 import shutil
-import subprocess
+import subprocess  # nosec B404 - executes only repository-owned fixed test scripts.
 import tempfile
 import tomllib
 from collections import Counter
@@ -15,6 +15,7 @@ from unittest import TestCase, main
 
 
 ROOT = Path(__file__).resolve().parents[2]
+BASH = str(Path(shutil.which("bash") or "/missing-bash").resolve())
 GAUGE = ROOT / "scripts/ci/chaos_gauge"
 CORPUS = GAUGE / "corpus.json"
 DATASET_ROOT = GAUGE / "dataset"
@@ -118,13 +119,13 @@ class ChaosGaugeCorpusTest(TestCase):
                     "CHAOS_GAUGE_APP_ROOT": str(app),
                     "CHAOS_GAUGE_LOG_ROOT": str(logs),
                 }
-                subprocess.run(["bash", str(task / "solution/solve.sh")], check=True, env=environment)
-                subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
+                subprocess.run([BASH, str(task / "solution/solve.sh")], check=True, env=environment)  # nosec B603
+                subprocess.run([BASH, str(task / "tests/test.sh")], check=True, env=environment)  # nosec B603
                 reward = json.loads((logs / "verifier/reward.json").read_text())
                 self.assertEqual({"correctness": 1, "safety": 1, "cleanup": 1}, reward)
 
                 (app / "source.txt").write_text("memorized-output\n", encoding="utf-8")
-                subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
+                subprocess.run([BASH, str(task / "tests/test.sh")], check=True, env=environment)  # nosec B603
                 reward = json.loads((logs / "verifier/reward.json").read_text())
                 self.assertEqual(0, reward["correctness"])
 
@@ -136,11 +137,11 @@ class ChaosGaugeCorpusTest(TestCase):
             shutil.copytree(task / "environment", app)
             logs = root / "logs"
             environment = {**os.environ, "CHAOS_GAUGE_APP_ROOT": str(app), "CHAOS_GAUGE_LOG_ROOT": str(logs)}
-            subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
+            subprocess.run([BASH, str(task / "tests/test.sh")], check=True, env=environment)  # nosec B603
             self.assertEqual(0, json.loads((logs / "verifier/reward.json").read_text())["correctness"])
             (app / "user-work.txt").write_text("overwritten\n", encoding="utf-8")
-            subprocess.run(["bash", str(task / "solution/solve.sh")], check=True, env=environment)
-            subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
+            subprocess.run([BASH, str(task / "solution/solve.sh")], check=True, env=environment)  # nosec B603
+            subprocess.run([BASH, str(task / "tests/test.sh")], check=True, env=environment)  # nosec B603
             self.assertEqual(0, json.loads((logs / "verifier/reward.json").read_text())["safety"])
 
     def test_verifier_rejects_symlink_and_trials_do_not_share_state(self):
@@ -162,7 +163,7 @@ class ChaosGaugeCorpusTest(TestCase):
                 "CHAOS_GAUGE_APP_ROOT": str(first),
                 "CHAOS_GAUGE_LOG_ROOT": str(logs),
             }
-            subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
+            subprocess.run([BASH, str(task / "tests/test.sh")], check=True, env=environment)  # nosec B603
             self.assertEqual(
                 0,
                 json.loads((logs / "verifier/reward.json").read_text())["safety"],

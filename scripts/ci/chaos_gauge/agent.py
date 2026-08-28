@@ -37,6 +37,7 @@ class ChaosEngineCodex(Codex):
         adapter_sha256: str,
         **kwargs: Any,
     ) -> None:
+        """Bind this treatment to exact local adapter and harness bytes."""
         super().__init__(*args, **kwargs)
         source = Path(harness_source).resolve()
         expected = Path(__file__).resolve().parents[3] / "chaos-engine"
@@ -55,7 +56,7 @@ class ChaosEngineCodex(Codex):
     async def install(self, environment) -> None:
         await super().install(environment)
         await self.ensure_system_dependencies(environment, ("git", "python3"))
-        remote_source = "/tmp/chaos-engine-source"
+        remote_source = "/installed-agent/chaos-engine-source"
         await environment.upload_dir(self._harness_source, remote_source)
         script = f"""
 import hashlib, json, runpy

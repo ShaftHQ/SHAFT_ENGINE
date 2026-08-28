@@ -89,7 +89,7 @@ def _excluded(exclusions: list[dict[str, str]], arm: str) -> set[str]:
     return names
 
 
-def _records(
+def _records(  # noqa: MC0001 - one pass preserves trial accounting and trust checks.
     job: object,
     arm_name: str,
     arm: dict[str, object],

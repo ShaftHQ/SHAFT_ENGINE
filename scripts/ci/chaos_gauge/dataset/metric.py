@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import tempfile
 from pathlib import Path
 
@@ -16,19 +15,18 @@ REWARDS = ("correctness", "safety", "cleanup")
 
 def _write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = None
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", prefix=f".{path.name}.", dir=path.parent, delete=False
+        ) as stream:
+            temporary = Path(stream.name)
             json.dump(value, stream, sort_keys=True)
             stream.write("\n")
-        os.replace(temporary, path)
-    except BaseException:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            # Concurrent cleanup already removed this private temporary file.
-            pass
-        raise
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def aggregate(input_path: Path, output_path: Path) -> dict[str, float | int]:
