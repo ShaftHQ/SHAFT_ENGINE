@@ -221,7 +221,7 @@ the plumbing differs.
 | Codex | Reads `AGENTS.md`, discovers the repository [ChaosEngine adapter](chaos-engine/SKILL.md) natively — with [metadata](chaos-engine/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
 | Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/chaos-engine/SKILL.md` redirects to the canonical body and `.claude/agents/*.md` carry the roles. |
 | Gemini | Reads `GEMINI.md`, follows `.gemini/skills/chaos-engine/SKILL.md`, and executes native lifecycle hooks from `.gemini/settings.json`. |
-| Grok | Reads `AGENTS.md` and executes `.grok/hooks/lifecycle.json`. |
+| Grok | Reads `AGENTS.md` and consumes Claude-compatible rules, roles, plugins, MCP, and hooks. |
 | Copilot | Reads `.github/copilot-instructions.md`; `.github/skills/*` redirects to canonical playbooks; Copilot CLI and cloud agent execute `.github/hooks/chaos-engine.json`. |
 
 Those five rows are the harness's only inbound edges: each points *into* the
@@ -242,7 +242,7 @@ file is added, moved or deleted, which is the only way a map stays true.
 | Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; `.agents/plugins/marketplace.json`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml`, `.codex/agents/chaos-engine-orchestrator.toml`, `.codex/agents/chaos-engine-implementer.toml`, `.codex/agents/chaos-engine-reviewer.toml`, `.codex/agents/chaos-engine-tester.toml`, `.codex/agents/chaos-engine-mechanical-helper.toml` |
 | Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/chaos-engine/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md`, `.claude/agents/chaos-engine-orchestrator.md`, `.claude/agents/chaos-engine-implementer.md`, `.claude/agents/chaos-engine-reviewer.md`, `.claude/agents/chaos-engine-tester.md`, `.claude/agents/chaos-engine-mechanical-helper.md` |
 | Gemini | `GEMINI.md`; `.gemini/settings.json`; `.gemini/skills/chaos-engine/SKILL.md` |
-| Grok | `AGENTS.md`; `.grok/hooks/lifecycle.json` |
+| Grok | `AGENTS.md`; `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; Claude skills, roles, and plugin marketplace |
 | Copilot | `.github/copilot-instructions.md`; `.github/hooks/chaos-engine.json`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; redirect pack indexed by `.github/skills/README.md`; router redirect `.github/skills/chaos-engine/SKILL.md` |
 | Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |
 

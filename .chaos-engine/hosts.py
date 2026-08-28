@@ -2240,6 +2240,8 @@ def host_routes() -> dict[str, str]:
 def created_directories(project: Path) -> list[str]:
     directories: set[Path] = set()
     for relative in managed_paths():
+        if relative == ".grok/hooks/lifecycle.json":
+            continue
         current = (project / relative).parent
         while current != project:
             if not current.exists() and not is_link_or_reparse(current):
@@ -2893,6 +2895,74 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
+def legacy_grok_group(event: str, group: object) -> bool:
+    """Identify only groups emitted by the retired native Grok adapter."""
+    if event not in REQUIRED_HOOK_EVENTS or not isinstance(group, dict):
+        return False
+    expected_group = json.loads(lifecycle_hooks_document("grok"))["hooks"][event][0]
+    expected_keys = set(expected_group)
+    if set(group) != expected_keys or group.get("matcher") != expected_group.get("matcher"):
+        return False
+    hooks = group.get("hooks")
+    if not isinstance(hooks, list) or len(hooks) != 1 or not isinstance(hooks[0], dict):
+        return False
+    handler = hooks[0]
+    expected = expected_group["hooks"][0]
+    if set(handler) != set(expected) or any(
+        handler.get(key) != expected.get(key) for key in ("type", "timeout")
+    ):
+        return False
+    for key in ("command", "commandWindows"):
+        command = handler.get(key)
+        template = expected.get(key)
+        if not isinstance(command, str) or not isinstance(template, str):
+            return False
+        marker = ' -c "'
+        if marker not in command or command[command.index(marker):] != template[template.index(marker):]:
+            return False
+    return True
+
+
+def without_legacy_grok_hooks(before: bytes | None) -> bytes:
+    try:
+        existing = json.loads(before) if before is not None else {"hooks": {}}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Grok hook configuration") from error
+    hooks = existing.get("hooks") if isinstance(existing, dict) else None
+    if not isinstance(hooks, dict):
+        raise ValueError("invalid Grok hook configuration")
+    for event, groups in list(hooks.items()):
+        if not isinstance(groups, list):
+            raise ValueError("invalid Grok hook configuration")
+        retained = [group for group in groups if not legacy_grok_group(event, group)]
+        if retained:
+            hooks[event] = retained
+        else:
+            del hooks[event]
+    return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
+
+
+def grok_compatibility_content(before: bytes | None) -> bytes | None:
+    """Retire native Grok hooks; Grok consumes the single Claude hook source."""
+    if before is None:
+        return None
+    cleaned = without_legacy_grok_hooks(before)
+    document = json.loads(cleaned)
+    if document == {"hooks": {}}:
+        return None
+    if document == json.loads(before):
+        return before
+    return cleaned
+
+
+def rollback_images(images: dict[str, bytes | None]) -> dict[str, bytes | None]:
+    """Exclude retired owned Grok hooks from uninstall restoration."""
+    baseline = dict(images)
+    relative = ".grok/hooks/lifecycle.json"
+    baseline[relative] = grok_compatibility_content(baseline[relative])
+    return baseline
+
+
 def replace_owned_text_block(
     existing: str, start: str, end: str, block: str, label: str
 ) -> bytes:
@@ -3248,10 +3318,8 @@ def desired_content(
         desired_hooks,
         "Codex",
     )
-    after[".grok/hooks/lifecycle.json"] = hook_content(
-        without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
-        lifecycle_hooks_document("grok", managed_python=managed_python),
-        "Grok",
+    after[".grok/hooks/lifecycle.json"] = grok_compatibility_content(
+        before[".grok/hooks/lifecycle.json"]
     )
     after[".github/hooks/chaos-engine.json"] = copilot_hook_content(
         before[".github/hooks/chaos-engine.json"], managed_node
@@ -3892,7 +3960,7 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
     if value.get("hosts") != host_routes():
         raise ValueError("ChaosEngine host receipt routes are invalid")
     decode_images(value.get("before"), nullable=True)
-    decode_images(value.get("after"), nullable=False)
+    decode_images(value.get("after"), nullable=True)
     before_value = value.get("before")
     after_value = value.get("after")
     if isinstance(before_value, dict) and isinstance(after_value, dict):
@@ -3986,7 +4054,7 @@ def install(
         host_anchor(project)
         receipt, raw = read_receipt(project)
         before = decode_images(receipt["before"], nullable=True)
-        after = decode_images(receipt["after"], nullable=False)
+        after = decode_images(receipt["after"], nullable=True)
         if receipt["phase"] == "installed":
             desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
             version = plugin_cache_version(core_commit)
@@ -4041,6 +4109,7 @@ def install(
                 raise
         prepare_created_directories(project, receipt)
         reconcile(project, after, (before, after))
+        receipt["before"] = encode_images(rollback_images(before))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
         return receipt
@@ -4075,6 +4144,7 @@ def install(
     try:
         prepare_created_directories(project, receipt)
         reconcile(project, after, (before, after))
+        receipt["before"] = encode_images(rollback_images(before))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
         return receipt
@@ -4101,7 +4171,7 @@ def verify(
     verify_created_directories(project, receipt)
     if core_commit is not None and receipt.get("coreCommit") != core_commit:
         raise ValueError("ChaosEngine host receipt does not match the installed core")
-    after = decode_images(receipt.get("after"), nullable=False)
+    after = decode_images(receipt.get("after"), nullable=True)
     current = current_images(project)
     for relative in managed_paths():
         if current[relative] != after[relative]:
@@ -4119,7 +4189,7 @@ def verify(
 def grok_runtime_status(
     project: Path, *, executable: str | None = None, runner=None
 ) -> dict[str, str]:
-    """Verify detected Grok project trust and loaded lifecycle hooks without mutation."""
+    """Verify Grok consumes one complete Claude-compatible harness."""
     command = executable or shutil.which("grok")
     if not command:
         return {"status": "not-detected"}
@@ -4137,24 +4207,85 @@ def grok_runtime_status(
     except (OSError, subprocess.SubprocessError, ValueError):
         payload = {}
     recovery = (
-        "Run `grok inspect --json` from the project. If projectTrusted is false, "
-        "review the project then run `/hooks-trust`; reload hooks and rerun doctor."
+        "Use Grok Build 1.0.10 or newer, then run `grok inspect --json` from the "
+        "project. If projectTrusted is false, review the project, run `/hooks-trust`, "
+        "reload hooks, and rerun doctor."
     )
     if not isinstance(payload, dict) or payload.get("projectTrusted") is not True:
         return {"status": "recovery-required", "detail": recovery}
+    version = payload.get("grokVersion")
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:[-+].*)?", str(version or ""))
+    if match is None or tuple(map(int, match.groups())) < (1, 0, 10):
+        return {"status": "recovery-required", "detail": recovery}
     hooks = payload.get("hooks")
-    loaded = {
-        str(item.get("event"))
-        for item in hooks if isinstance(item, dict)
+    guard_hooks = [
+        item for item in hooks if isinstance(item, dict)
         if "guard.py" in str(item.get("target") or "")
-    } if isinstance(hooks, list) else set()
+    ] if isinstance(hooks, list) else []
     required = {
         "session_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
-        "post_tool_use_failure", "stop", "subagent_stop", "session_end",
+        "post_tool_use_failure", "stop", "subagent_stop", "pre_compact", "session_end",
     }
-    if not required.issubset(loaded):
+    counts = {
+        event: sum(str(item.get("event")) == event for item in guard_hooks)
+        for event in required
+    }
+    claude_sources = all(
+        item.get("vendor") == "claude"
+        and item.get("compatibilityStatus") == "enabled"
+        and "/.claude" in str((item.get("source") or {}).get("path") or "").replace("\\", "/")
+        for item in guard_hooks
+    )
+    plugin_items = payload.get("plugins")
+    server_items = payload.get("mcpServers")
+    agent_items = payload.get("agents")
+    instruction_items = payload.get("projectInstructions")
+    if not all(
+        isinstance(items, list)
+        for items in (plugin_items, server_items, agent_items, instruction_items)
+    ):
         return {"status": "recovery-required", "detail": recovery}
-    return {"status": "healthy"}
+    plugins = {
+        str(item.get("name")): item for item in plugin_items
+        if isinstance(item, dict) and item.get("enabled") is True
+    }
+    companion_plugins = all(
+        isinstance((plugins.get(name) or {}).get("provides"), dict)
+        and isinstance((plugins[name]["provides"]).get("skills"), int)
+        and (plugins[name]["provides"])["skills"] >= 1
+        for name in ("chaos-engine", "caveman", "ponytail")
+    )
+    servers = {
+        str(item.get("name")) for item in server_items
+        if isinstance(item, dict)
+    }
+    agents = {
+        str(item.get("name")) for item in agent_items
+        if isinstance(item, dict)
+    }
+    instructions = {
+        Path(str(item.get("path") or "")).name
+        for item in instruction_items if isinstance(item, dict)
+    }
+    if (
+        any(count != 1 for count in counts.values())
+        or len(guard_hooks) != len(required)
+        or not claude_sources
+        or not companion_plugins
+        or not {"chaosengine-memory", "chaosengine-mempalace", "context7"}.issubset(servers)
+        or not {
+            "chaos-engine-orchestrator", "chaos-engine-implementer",
+            "chaos-engine-reviewer", "chaos-engine-tester",
+            "chaos-engine-mechanical-helper",
+        }.issubset(agents)
+        or not {"AGENTS.md", "CLAUDE.md"}.issubset(instructions)
+    ):
+        return {"status": "recovery-required", "detail": recovery}
+    return {
+        "status": "healthy",
+        "version": str(version),
+        "hookSource": "claude-compatibility",
+    }
 
 
 def snapshot(project: Path) -> dict[str, object]:
@@ -4194,8 +4325,8 @@ def restore_snapshot(project: Path, saved: dict[str, object]) -> None:
         raise ValueError("ChaosEngine host snapshot is invalid")
     current, current_raw = read_receipt(project)
     verify(project, current)
-    previous_after = decode_images(previous.get("after"), nullable=False)
-    current_after = decode_images(current.get("after"), nullable=False)
+    previous_after = decode_images(previous.get("after"), nullable=True)
+    current_after = decode_images(current.get("after"), nullable=True)
     reconcile(project, previous_after, (current_after, previous_after))
     atomic_write(project, project / RECEIPT_NAME, raw, current_raw)
 
@@ -4209,7 +4340,7 @@ def prepare_uninstall(
     project = project.resolve()
     receipt, raw = read_receipt(project)
     before = decode_images(receipt["before"], nullable=True)
-    after = decode_images(receipt["after"], nullable=False)
+    after = decode_images(receipt["after"], nullable=True)
     if receipt["phase"] == "installed":
         verify(project, receipt)
         activation = receipt.get("clientActivation")
@@ -4286,7 +4417,7 @@ def cancel_uninstall(
     if receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host removal is not prepared")
     before = decode_images(receipt["before"], nullable=True)
-    after = decode_images(receipt["after"], nullable=False)
+    after = decode_images(receipt["after"], nullable=True)
     prepare_created_directories(project, receipt)
     reconcile(project, after, (before, after))
     activation = receipt.get("clientActivation")

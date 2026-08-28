@@ -1590,7 +1590,8 @@ def normalize_hook_input(raw: dict) -> dict:
             "session_start": "SessionStart", "user_prompt_submit": "UserPromptSubmit",
             "pre_tool_use": "PreToolUse", "post_tool_use": "PostToolUse",
             "post_tool_use_failure": "PostToolUseFailure", "stop": "Stop",
-            "subagent_stop": "SubagentStop", "session_end": "SessionEnd",
+            "subagent_stop": "SubagentStop", "pre_compact": "PreCompact",
+            "session_end": "SessionEnd",
         }.get(str(normalized.get("hook_event_name") or ""), normalized.get("hook_event_name"))
 
     tool_input = normalized.get("tool_input")
@@ -6792,6 +6793,12 @@ def run_observational_event(_hook_input: dict) -> int:
 
 def _kernel_guarded(callback):
     def dispatch(hook_input: dict, host: str) -> int:
+        if (
+            host == "grok"
+            and hook_input.get("hook_event_name") == "Stop"
+            and hook_input.get("reason") not in (None, "end_turn")
+        ):
+            return 0
         report = _evaluate_kernel_event(hook_input, host)
         if report.decision == "deny":
             if hook_input.get("hook_event_name") == "PreToolUse":

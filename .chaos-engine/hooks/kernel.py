@@ -58,7 +58,7 @@ CODEX_EVENTS = (
     "SubagentStop",
     "SessionEnd",
 )
-GROK_EVENTS = CODEX_EVENTS
+GROK_EVENTS = CLAUDE_EVENTS
 GEMINI_EVENTS = (
     "SessionStart",
     "UserPromptSubmit",
@@ -127,7 +127,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
         GEMINI_EVENTS,
     ),
     "grok": HostCapability(
-        ("AGENTS.md", ".grok/plugins/chaos-engine"),
+        ("AGENTS.md", "CLAUDE.md", ".claude/skills/chaos-engine/SKILL.md"),
         _aliases(
             GROK_EVENTS,
             preToolUse="PreToolUse",
@@ -141,6 +141,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             post_tool_use_failure="PostToolUseFailure",
             stop="Stop",
             subagent_stop="SubagentStop",
+            pre_compact="PreCompact",
             session_end="SessionEnd",
         ),
         GROK_EVENTS,
@@ -237,11 +238,14 @@ class HookEvent:
 
 
 def detect_host(raw: Mapping[str, object] | None = None) -> str:
+    # Grok's Claude compatibility layer executes Claude commands unchanged.
+    # Its documented event variable is therefore stronger evidence than the
+    # launcher's Claude fallback.
+    if os.environ.get("GROK_HOOK_EVENT"):
+        return "grok"
     configured = os.environ.get("CHAOS_ENGINE_HOST", "").strip().lower()
     if configured in HOST_CAPABILITIES:
         return configured
-    if os.environ.get("GROK_HOOK_EVENT"):
-        return "grok"
     supplied = raw or {}
     declared = str(supplied.get("host") or supplied.get("provider") or "").strip().lower()
     if declared in HOST_CAPABILITIES:
