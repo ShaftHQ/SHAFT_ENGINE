@@ -764,6 +764,32 @@ def read_cross_rollback_journal(project: Path) -> dict[str, str] | None:
     }
 
 
+def read_rollback_recovery_intent(project: Path) -> dict[str, str] | None:
+    """Read one authenticated rollback intent, including a receipt-only finalization."""
+    pending = read_cross_rollback_journal(project)
+    if pending is not None:
+        return pending
+    target = project / INSTALL_DIRECTORY
+    receipt_path = project / ".chaos-engine-hosts.json"
+    if not target.exists() or not (receipt_path.exists() or is_link_or_reparse(receipt_path)):
+        return None
+    verify_install(target)
+    receipt, _ = load_installed_controller(target, "hosts").read_receipt(project)
+    intent = receipt.get("rollbackIntent")
+    if intent is None:
+        return None
+    if (
+        not isinstance(intent, dict)
+        or set(intent) != {"desiredCommit", "priorCommit"}
+        or any(COMMIT_PATTERN.fullmatch(str(value)) is None for value in intent.values())
+    ):
+        raise ValueError("authenticated rollback recovery intent is invalid")
+    return {
+        "desiredCommit": str(intent["desiredCommit"]),
+        "priorCommit": str(intent["priorCommit"]),
+    }
+
+
 def publish_staged_tree(stage: Path, target: Path, displaced: Path) -> None:
     previous = target.exists()
     if previous:
@@ -1098,17 +1124,7 @@ def _rollback_locked(  # noqa: MC0001 - cross-resource rollback is one journaled
     if not _locked or resume_only:
         with (nullcontext() if _locked else project_lock(project)):
             _recover_transaction(project)
-            pending = read_cross_rollback_journal(project)
-            receipt_controller = None
-            receipt_value = None
-            if target.exists():
-                verify_install(target)
-                receipt_controller = load_installed_controller(target, "hosts")
-                host_receipt_path = project / ".chaos-engine-hosts.json"
-                if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
-                    receipt_value, _ = receipt_controller.read_receipt(project)
-                    if pending is None and receipt_value.get("rollbackIntent") is not None:
-                        pending = receipt_value["rollbackIntent"]
+            pending = read_rollback_recovery_intent(project)
             if pending is None and (not target.exists() or not backup.exists()):
                 return _rollback_locked(project, _locked=True)
             verify_install(target)
@@ -1575,7 +1591,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     )
     generation_mode = provisioner is None and not account_mode
     with project_lock(project):
-        pending_rollback = read_cross_rollback_journal(project)
+        pending_rollback = read_rollback_recovery_intent(project)
         if pending_rollback is not None:
             try:
                 rollback_recovery_status(project, pending_rollback)
@@ -1958,7 +1974,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             rollback_error = None
             recovery_status = None
             try:
-                pending_rollback = read_cross_rollback_journal(project)
+                pending_rollback = read_rollback_recovery_intent(project)
                 if pending_rollback is not None:
                     recovery_status = rollback_recovery_status(project, pending_rollback)
             except ValueError as error:

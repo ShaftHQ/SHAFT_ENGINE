@@ -2070,6 +2070,71 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
 
+    def test_status_reports_receipt_only_rollback_recovery_after_journal_cleanup_crash(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            MODULE.rollback(project, _locked=True)
+            transaction = project / MODULE.CROSS_ROLLBACK_JOURNAL_NAME
+            transaction.joinpath("journal.json").unlink()
+            transaction.rmdir()
+
+            result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual("recovery-required", result["hosts"]["status"])
+            self.assertEqual(
+                {
+                    "status": "required",
+                    "desiredCommit": TEST_COMMIT,
+                    "priorCommit": "2" * 40,
+                    "currentCommit": TEST_COMMIT,
+                    "phase": "restore-runtime-and-hosts",
+                    "automaticResume": True,
+                    "command": mock.ANY,
+                },
+                result["hosts"]["recovery"],
+            )
+
+    def test_install_resumes_receipt_only_rollback_recovery_after_journal_cleanup_crash(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            MODULE.rollback(project, _locked=True)
+            transaction = project / MODULE.CROSS_ROLLBACK_JOURNAL_NAME
+            transaction.joinpath("journal.json").unlink()
+            transaction.rmdir()
+            third = copy_source(root / "third")
+            third.joinpath("references/roles.md").write_text("third\n", encoding="utf-8")
+
+            with legacy_dependency_controller_fixture():
+                MODULE.install_with_dependencies(
+                    project, third, "3" * 40, provisioner=lambda *_args, **_kwargs: None
+                )
+
+            self.assertEqual("3" * 40, MODULE.status_with_dependencies(project)["commit"])
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            receipt, _ = hosts.read_receipt(project)
+            self.assertIsNone(receipt["rollbackIntent"])
+
     def test_cross_rollback_journal_does_not_require_hard_links(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
