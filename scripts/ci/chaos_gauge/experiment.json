@@ -17,6 +17,7 @@
     "status": "unresolved"
   },
   "attemptsPerTask": 5,
+  "dependencyLockSha256": "c1f14574606f6db01791fd56ca95e49222fa6fb3c3eedfae68e77c7b1b29aa61",
   "seed": 5450,
   "campaigns": {
     "calibration": {
@@ -39,6 +40,7 @@
       "repositoryRevision": "76772e015de7b8574da9813a195971690a0f69bf",
       "harness": "none",
       "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "treatmentSha256": "04fbaaceb0e5f82d5adcf377e30d6c57bb80a1f5b706aab401b6bcc824a20aef",
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
       "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}
@@ -51,6 +53,7 @@
       "repositoryRevision": "76772e015de7b8574da9813a195971690a0f69bf",
       "harness": "chaos-engine",
       "harnessSha256": "a77da2f3029330e7bed16512d58c67267790d06fcae2cb8ad325e80678cde050",
+      "treatmentSha256": "0d1ff3f6294d5a7c86676d8a5052d9bcc409d9101817c4bfe7d5d4a14bceeb11",
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
       "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}

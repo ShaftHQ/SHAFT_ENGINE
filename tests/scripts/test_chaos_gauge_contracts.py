@@ -91,7 +91,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         self.assertEqual("chaos-engine", candidate["harness"])
         self.assertNotEqual(control["harnessSha256"], candidate["harnessSha256"])
         self.assertEqual(
-            {"name", "harness", "harnessSha256"},
+            {"name", "harness", "harnessSha256", "treatmentSha256"},
             {
                 key
                 for key in control

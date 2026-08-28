@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -21,11 +22,12 @@ ARM_FIELDS = {
     "repositoryRevision",
     "harness",
     "harnessSha256",
+    "treatmentSha256",
     "imageDigest",
     "timeoutSeconds",
     "resources",
 }
-TREATMENT_FIELDS = {"name", "harness", "harnessSha256"}
+TREATMENT_FIELDS = {"name", "harness", "harnessSha256", "treatmentSha256"}
 SHA256 = re.compile(r"[0-9a-f]{64}")
 GIT_SHA = re.compile(r"[0-9a-f]{40}")
 IMAGE_DIGEST = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}")
@@ -70,6 +72,14 @@ def validate_live_evidence(manifest: dict[str, object], jobs: dict[str, object],
         task_root = gauge / "dataset" / str(task["name"])
         if _tree_sha256(task_root, task_package=True) != task["sha256"]:
             raise ValueError(f"live task digest mismatch: {task['name']}")
+    dataset = tomllib.loads((gauge / "dataset/dataset.toml").read_text(encoding="utf-8"))
+    metric_digest = _file_sha256(gauge / "dataset/metric.py")
+    task_digests = sorted(item["digest"].removeprefix("sha256:") for item in dataset["tasks"])
+    dataset_digest = hashlib.sha256(
+        (",".join(task_digests) + f";metric.py:{metric_digest}").encode()
+    ).hexdigest()
+    if dataset_digest != manifest["dataset"]["sha256"]:
+        raise ValueError("live dataset digest mismatch")
     harness = _tree_sha256(repository / "chaos-engine")
     adapter = _file_sha256(gauge / "agent.py")
     lock = _file_sha256(gauge / "requirements.lock")
@@ -78,7 +88,7 @@ def validate_live_evidence(manifest: dict[str, object], jobs: dict[str, object],
         raise ValueError("live harness tree digest mismatch")
     if candidate_kwargs.get("adapter_sha256") != adapter:
         raise ValueError("live adapter digest mismatch")
-    return {
+    identities = {
         name: _sha256({
             "repositoryRevision": manifest["arms"][index]["repositoryRevision"],
             "taskDataset": manifest["dataset"]["sha256"],
@@ -89,6 +99,12 @@ def validate_live_evidence(manifest: dict[str, object], jobs: dict[str, object],
         })
         for index, name in enumerate(("control", "chaos-engine"))
     }
+    if lock != manifest.get("dependencyLockSha256"):
+        raise ValueError("live dependency lock digest mismatch")
+    for index, name in enumerate(("control", "chaos-engine")):
+        if identities[name] != manifest["arms"][index].get("treatmentSha256"):
+            raise ValueError(f"live {name} treatment digest mismatch")
+    return identities
 
 
 def _mapping(value: object, name: str) -> dict[str, object]:
@@ -108,6 +124,7 @@ def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-
         "dataset",
         "privatePackage",
         "attemptsPerTask",
+        "dependencyLockSha256",
         "seed",
         "campaigns",
         "arms",
@@ -119,6 +136,8 @@ def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-
         raise ValueError("experiment identity is invalid")
     if manifest["attemptsPerTask"] != 5 or not isinstance(manifest["seed"], int):
         raise ValueError("experiment attempts or seed is invalid")
+    if not SHA256.fullmatch(str(manifest["dependencyLockSha256"])):
+        raise ValueError("dependency lock digest is invalid")
     if manifest["campaigns"] != {
         "calibration": {"taskVisibility": ["public"], "taskCount": 12, "privateResolutionRequired": False},
         "full-pilot": {"taskVisibility": ["public", "private-reference"], "taskCount": 16, "privateResolutionRequired": True},
@@ -159,6 +178,8 @@ def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-
             raise ValueError("arm repository identity is invalid")
         if not SHA256.fullmatch(str(candidate["harnessSha256"])):
             raise ValueError("harness digest is invalid")
+        if not SHA256.fullmatch(str(candidate["treatmentSha256"])):
+            raise ValueError("treatment digest is invalid")
         if not IMAGE_DIGEST.fullmatch(str(candidate["imageDigest"])):
             raise ValueError("image digest is immutable")
         resources = _mapping(candidate["resources"], "arm resources")
