@@ -103,6 +103,37 @@ class ChaosGaugeCorpusTest(TestCase):
                 self.assertTrue((task / "tests/Dockerfile").is_file())
                 self.assertTrue((task / "solution/solve.sh").is_file())
 
+    def test_public_defects_are_distinct_executable_scenarios(self):
+        excluded = {"safety-secret-redaction", "delivery-focused-proof"}
+        tasks = [
+            GAUGE / str(item["path"])
+            for item in self.corpus()
+            if item["visibility"] == "public" and item["name"] not in excluded
+        ]
+
+        for relative in ("instruction.md", "environment/run.py", "environment/source.txt"):
+            bodies = {(task / relative).read_text(encoding="utf-8") for task in tasks}
+            self.assertEqual(10, len(bodies), relative)
+
+        scenario_markers = {
+            "diagnosis-config-precedence": "override.ini",
+            "diagnosis-failure-trace": "trace.log",
+            "diagnosis-module-boundary": "public_api.py",
+            "repair-null-contract": "records.json",
+            "repair-timeout-cleanup": "worker.lock",
+            "repair-regression-test": "cases.csv",
+            "recovery-cross-file-contract": "schema.json",
+            "recovery-broken-build": "build.manifest",
+            "recovery-partial-migration": "legacy.conf",
+            "safety-foreign-work": "foreign-notes.txt",
+        }
+        for task in tasks:
+            combined = "\n".join(
+                (task / relative).read_text(encoding="utf-8")
+                for relative in ("instruction.md", "environment/run.py", "tests/test.sh")
+            )
+            self.assertIn(scenario_markers[task.name], combined)
+
     def test_each_verifier_accepts_oracle_and_rejects_invalid_output(self):
         for item in self.corpus():
             if item["visibility"] != "public":
@@ -143,6 +174,33 @@ class ChaosGaugeCorpusTest(TestCase):
             subprocess.run([BASH, str(task / "solution/solve.sh")], check=True, env=environment)  # nosec B603
             subprocess.run([BASH, str(task / "tests/test.sh")], check=True, env=environment)  # nosec B603
             self.assertEqual(0, json.loads((logs / "verifier/reward.json").read_text())["safety"])
+
+    def test_task_specific_invalid_mutations_fail_hidden_verifiers(self):
+        mutations = {
+            "diagnosis-config-precedence": ("override.ini", "[runner]\nretries = 99\n"),
+            "diagnosis-failure-trace": ("trace.log", "FRAME decoy.py:1\n"),
+            "diagnosis-module-boundary": ("public_api.py", "def render(value): return value\n"),
+            "repair-null-contract": ("records.json", "[]\n"),
+            "repair-timeout-cleanup": ("jobs.txt", "unexpected\n"),
+            "repair-regression-test": ("cases.csv", "score,expected\n70,fail\n"),
+            "recovery-cross-file-contract": ("schema.json", "{}\n"),
+            "recovery-broken-build": ("build.manifest", "entry=other.py\n"),
+            "recovery-partial-migration": ("legacy.conf", "host=attacker.example\n"),
+            "safety-foreign-work": ("foreign-notes.txt", "overwritten\n"),
+        }
+        for task_name, (relative, invalid) in mutations.items():
+            with self.subTest(task=task_name), tempfile.TemporaryDirectory() as temporary:
+                task = DATASET_ROOT / task_name
+                root = Path(temporary)
+                app = root / "app"
+                logs = root / "logs"
+                shutil.copytree(task / "environment", app)
+                environment = {**os.environ, "CHAOS_GAUGE_APP_ROOT": str(app), "CHAOS_GAUGE_LOG_ROOT": str(logs)}
+                subprocess.run([BASH, str(task / "solution/solve.sh")], check=True, env=environment)  # nosec B603
+                (app / relative).write_text(invalid, encoding="utf-8")
+                subprocess.run([BASH, str(task / "tests/test.sh")], check=True, env=environment)  # nosec B603
+                reward = json.loads((logs / "verifier/reward.json").read_text())
+                self.assertTrue(reward["correctness"] == 0 or reward["safety"] == 0 or reward["cleanup"] == 0)
 
     def test_verifier_rejects_symlink_and_trials_do_not_share_state(self):
         task = GAUGE / "dataset/diagnosis-config-precedence"

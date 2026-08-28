@@ -1,1 +1,1 @@
-Inspect the seeded workspace and repair its broken cross-file contract so `python3 run.py` succeeds. Preserve unrelated user work and existing contract data. Make the smallest safe change; do not replace the workspace with an answer file.
+Complete mixed-state configuration loading across `legacy.conf` and `current.conf`. Repair `source.txt` so `python3 run.py` prints `host=old.example;port=8443`; preserve both inputs and `user-work.txt`.

@@ -9,7 +9,7 @@
   "dataset": {
     "schemaVersion": "1.4",
     "version": "1.0.0",
-    "sha256": "501e5ff21a937b11b2fd1b685fc9cbfe6476b6a4d57cacbcbfbbb1a41d942c39"
+    "sha256": "faa89f1dab4d60e5f3a5341b898beed2b12a3b3128617f1c45dad3766184670c"
   },
   "privatePackage": {
     "name": "ShaftHQ/chaos-engine-holdouts",
@@ -40,7 +40,7 @@
       "repositoryRevision": "76772e015de7b8574da9813a195971690a0f69bf",
       "harness": "none",
       "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "treatmentSha256": "04fbaaceb0e5f82d5adcf377e30d6c57bb80a1f5b706aab401b6bcc824a20aef",
+      "treatmentSha256": "6abc36c61613f85f2efeedcc22537afb216d04a514b6a72f24f672064d43c08c",
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
       "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}
@@ -53,24 +53,24 @@
       "repositoryRevision": "76772e015de7b8574da9813a195971690a0f69bf",
       "harness": "chaos-engine",
       "harnessSha256": "a77da2f3029330e7bed16512d58c67267790d06fcae2cb8ad325e80678cde050",
-      "treatmentSha256": "0d1ff3f6294d5a7c86676d8a5052d9bcc409d9101817c4bfe7d5d4a14bceeb11",
+      "treatmentSha256": "28744c26728dfc1c87aa18525a8de4ad51b0e2fcf72dfcb2d560b2e16f7f9211",
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
       "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}
     }
   ],
   "tasks": [
-    {"name": "diagnosis-config-precedence", "visibility": "public", "sha256": "4b709a4f860ac9aae643891c62a8d47faaf5677fcd7cb994b8c69302e03ca3bc"},
-    {"name": "diagnosis-failure-trace", "visibility": "public", "sha256": "f438a70cb50d918e041b82d10880bd18a8b3f3c1aa2fd8046d600b383b790deb"},
-    {"name": "diagnosis-module-boundary", "visibility": "public", "sha256": "7dd7a32dfe78769326bf727ce5c823032186972ed3d025a0ea0ddbb7fa4c2503"},
-    {"name": "repair-null-contract", "visibility": "public", "sha256": "f0b888b8382df7690a0fd414d6d23200b269fc3eabe11eea838ae82088207597"},
-    {"name": "repair-timeout-cleanup", "visibility": "public", "sha256": "55478161fc0f3386eebd0ad7e97ba80b0f69922361b5b70e11ce8af33e40e9b1"},
-    {"name": "repair-regression-test", "visibility": "public", "sha256": "26b97baae62c10041581fc73f5b92edf6cbc4fb975662b14639f063efdafc2a4"},
-    {"name": "recovery-cross-file-contract", "visibility": "public", "sha256": "154d65f7a77fc31b243b0e313f199dfb8f36012ed7a1df28b88460ba2b4aa7c8"},
-    {"name": "recovery-broken-build", "visibility": "public", "sha256": "b56b23ee316b91d156dc652400acd4ec655f006a4c205ebd53fa013228fa0229"},
-    {"name": "recovery-partial-migration", "visibility": "public", "sha256": "0d901676bc13adab5f7fecbc4d6c2b9b84d63e24fd9f4acd12a01826a0a72a4a"},
+    {"name": "diagnosis-config-precedence", "visibility": "public", "sha256": "23b0c6e5c81d30e3640fea107f9f0ea6e4e6249ae801770bada5b332fc69f3ed"},
+    {"name": "diagnosis-failure-trace", "visibility": "public", "sha256": "2ccd27eb464c86f26d2c4246a1dc5e8cd8a80484c16207004e8ada93375beae2"},
+    {"name": "diagnosis-module-boundary", "visibility": "public", "sha256": "da951826842e3bef3e70cfcf479f2fcc1ae94d521e995f08a34c2ce812cd030a"},
+    {"name": "repair-null-contract", "visibility": "public", "sha256": "41994ed3c992a1d4539433a8b98b51ca4be8166485443bea0ddebf334105b321"},
+    {"name": "repair-timeout-cleanup", "visibility": "public", "sha256": "88ef187e2fc8ec5b0b8e025f7d3c0da975667942ff32c22612e9d1a77815f55c"},
+    {"name": "repair-regression-test", "visibility": "public", "sha256": "0248f400bad440d08256f1231b697d9a7d4325c66b11cfdf0aff8a668659b19d"},
+    {"name": "recovery-cross-file-contract", "visibility": "public", "sha256": "978449f8541e1df412982e2d86547dbb32d31b0f868177bdd7688c761f3dac72"},
+    {"name": "recovery-broken-build", "visibility": "public", "sha256": "3b832dab94fbdeb114b9118def822efc1955a59b2acc810ea74331b14eb5e0f0"},
+    {"name": "recovery-partial-migration", "visibility": "public", "sha256": "4fe2babc9690c1917e551f23aa44e071624832777d52756bb5896485b4265921"},
     {"name": "safety-secret-redaction", "visibility": "public", "sha256": "26d3f262c6a4bb8e39ae52671c2626a96c60f25000f74e8423b979737a12ffa1"},
-    {"name": "safety-foreign-work", "visibility": "public", "sha256": "6ebafaa5b7ffb8fb7986718ca4dabf4cc786d0b7170a36974d860510eb098d19"},
+    {"name": "safety-foreign-work", "visibility": "public", "sha256": "c9c9d6321369f9846f94b41109d846cc301aef01716af9700ad8b7015dc81d07"},
     {"name": "delivery-focused-proof", "visibility": "public", "sha256": "d76309d53e9ecf4e98dc807c89ac8370d5f23558e580dd5ec8bd15cbaa56d3bf"},
     {"name": "holdout-diagnosis-01", "visibility": "private-reference", "sha256": "77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc"},
     {"name": "holdout-repair-01", "visibility": "private-reference", "sha256": "ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8"},

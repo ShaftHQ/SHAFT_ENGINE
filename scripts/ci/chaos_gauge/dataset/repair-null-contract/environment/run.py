@@ -1,7 +1,5 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parent
-observed = (root / "source.txt").read_text().strip()
-if observed != "fixed-repair-null-contract":
-    raise SystemExit(f"contract mismatch: {observed}")
-print(observed)
+# Scenario input: records.json
+exec(compile((root / "source.txt").read_text(), "source.txt", "exec"))

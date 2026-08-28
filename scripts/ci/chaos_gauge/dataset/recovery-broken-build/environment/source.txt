@@ -1,1 +1,3 @@
-broken-recovery-broken-build
+from maths import artifact
+
+print(f"artifact={artifact()}")

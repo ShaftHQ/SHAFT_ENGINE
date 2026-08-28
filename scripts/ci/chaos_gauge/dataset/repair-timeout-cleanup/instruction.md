@@ -1,1 +1,1 @@
-Inspect the seeded workspace and repair its broken cross-file contract so `python3 run.py` succeeds. Preserve unrelated user work and existing contract data. Make the smallest safe change; do not replace the workspace with an answer file.
+Repair `source.txt` so the worker always removes `worker.lock` after completing. `python3 run.py` must print `done`, leave no lock, and preserve `jobs.txt` plus `user-work.txt`.

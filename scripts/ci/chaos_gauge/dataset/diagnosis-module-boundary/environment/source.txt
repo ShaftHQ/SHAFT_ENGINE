@@ -1,1 +1,3 @@
-broken-diagnosis-module-boundary
+from _internal import render
+
+print(render("ready"))

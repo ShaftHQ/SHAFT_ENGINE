@@ -1,1 +1,9 @@
-broken-repair-regression-test
+import csv
+
+def bucket(score: int) -> str:
+    return "pass" if score > 70 else "fail"
+
+with open("cases.csv", newline="") as stream:
+    cases = list(csv.DictReader(stream))
+assert all(bucket(int(case["score"])) == case["expected"] for case in cases)
+print("all-cases-pass")

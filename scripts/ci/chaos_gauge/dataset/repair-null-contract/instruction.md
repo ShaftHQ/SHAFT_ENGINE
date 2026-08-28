@@ -1,1 +1,1 @@
-Inspect the seeded workspace and repair its broken cross-file contract so `python3 run.py` succeeds. Preserve unrelated user work and existing contract data. Make the smallest safe change; do not replace the workspace with an answer file.
+Repair null handling in `source.txt` so every record in `records.json` has a normalized label and `python3 run.py` prints `alpha,unknown`. Do not alter records or `user-work.txt`.

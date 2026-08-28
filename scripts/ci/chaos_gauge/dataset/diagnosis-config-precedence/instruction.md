@@ -1,1 +1,1 @@
-Inspect the seeded workspace and repair its broken cross-file contract so `python3 run.py` succeeds. Preserve unrelated user work and existing contract data. Make the smallest safe change; do not replace the workspace with an answer file.
+Diagnose why `python3 run.py` ignores the operator override. Inspect `source.txt`, `default.ini`, and `override.ini`; repair precedence without changing either configuration file. Preserve `user-work.txt`.
