@@ -446,7 +446,7 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertEqual(0, mutation.returncode)
             self.assertNotIn("Reflection required", mutation.stdout)
 
-    def test_codex_post_tool_use_records_failed_tool_responses(self):
+    def test_codex_plain_post_tool_output_does_not_fabricate_failure_metadata(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {
                 **os.environ,
@@ -458,14 +458,7 @@ class ChaosEngineHookTest(unittest.TestCase):
                 "hook_event_name": "PostToolUse",
                 "tool_name": "shell_command",
                 "tool_input": {"command": "python3 -m unittest failing.test"},
-                "tool_response": json.dumps(
-                    {
-                        "chunk_id": "codex-native-failure",
-                        "wall_time_seconds": 0.01,
-                        "exit_code": 1,
-                        "output": "FAILED (failures=1)",
-                    }
-                ),
+                "tool_response": "FAILED (failures=1)",
                 "session_id": "codex-native-post-failure",
             }
 
@@ -473,7 +466,7 @@ class ChaosEngineHookTest(unittest.TestCase):
             second = self.run_hook(failure, environment)
 
             self.assertEqual(0, second.returncode)
-            self.assertIn("Reflection required", second.stdout)
+            self.assertNotIn("Reflection required", second.stdout)
 
     def test_pre_tool_event_blocks_catastrophic_broad_scope(self):
         for command in (

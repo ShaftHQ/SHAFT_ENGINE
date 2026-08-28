@@ -4557,13 +4557,6 @@ def run_posttooluse(hook_input: dict) -> int:
     """Certify successes and reduce bounded failure outcomes into checkpoints."""
     tool_name = hook_input.get("tool_name", "")
     result = hook_input.get("tool_response", hook_input.get("tool_result"))
-    if isinstance(result, str):
-        try:
-            decoded_result = json.loads(result)
-        except json.JSONDecodeError:
-            decoded_result = result
-        if isinstance(decoded_result, dict):
-            result = decoded_result
     invocations = _literal_invocations(hook_input, tool_name)
     command_contexts = tuple(
         (
