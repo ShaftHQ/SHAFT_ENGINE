@@ -1,5 +1,5 @@
 schema_version = "1.4"
-artifacts = ["/app/source.txt", "/app/user-work.txt"]
+artifacts = ["/app"]
 
 [task]
 name = "ShaftHQ/diagnosis-module-boundary"
@@ -17,7 +17,7 @@ contamination_status = "public-calibration"
 [agent]
 timeout_sec = 1800.0
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com", "auth.openai.com", "chatgpt.com", "*.openai.com", "raw.githubusercontent.com", "nodejs.org", "registry.npmjs.org", "deb.debian.org"]
+allowed_hosts = ["api.openai.com", "auth.openai.com", "chatgpt.com", "*.openai.com", "api.github.com", "github.com", "raw.githubusercontent.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "api.adoptium.net", "pypi.org", "files.pythonhosted.org", "www.python.org", "nodejs.org", "registry.npmjs.org", "deb.debian.org"]
 
 [verifier]
 timeout_sec = 60.0
@@ -34,7 +34,7 @@ storage_mb = 1024
 workdir = "/app"
 docker_image = "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f"
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com", "auth.openai.com", "chatgpt.com", "*.openai.com", "raw.githubusercontent.com", "nodejs.org", "registry.npmjs.org", "deb.debian.org"]
+allowed_hosts = ["api.openai.com", "auth.openai.com", "chatgpt.com", "*.openai.com", "api.github.com", "github.com", "raw.githubusercontent.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "api.adoptium.net", "pypi.org", "files.pythonhosted.org", "www.python.org", "nodejs.org", "registry.npmjs.org", "deb.debian.org"]
 cpus = 2
 memory_mb = 4096
 storage_mb = 10240

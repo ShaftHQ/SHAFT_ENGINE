@@ -157,6 +157,10 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         identities = MODULE.validate_job_contracts(self.manifest(), jobs, root=ROOT)
         self.assertEqual({"control", "chaos-engine"}, set(identities))
         self.assertNotEqual(identities["control"], identities["chaos-engine"])
+        drifted_manifest = self.manifest()
+        drifted_manifest["arms"][1]["harnessSha256"] = "f" * 64
+        with self.assertRaisesRegex(ValueError, "manifest harness source"):
+            MODULE.validate_job_contracts(drifted_manifest, jobs, root=ROOT)
 
         drifted = copy.deepcopy(jobs)
         drifted["chaos-engine"]["agents"][0]["model_name"] = "different"

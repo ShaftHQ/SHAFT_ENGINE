@@ -9,6 +9,7 @@ import shutil
 import subprocess  # nosec B404 - executes only repository-owned fixed test scripts.
 import tempfile
 import tomllib
+from urllib.parse import urlparse
 from collections import Counter
 from pathlib import Path
 from unittest import TestCase, main
@@ -95,6 +96,7 @@ class ChaosGaugeCorpusTest(TestCase):
                 self.assertEqual("no-network", config["verifier"]["environment"]["network_mode"])
                 self.assertEqual("allowlist", config["environment"]["network_mode"])
                 self.assertEqual("/app", config["environment"]["workdir"])
+                self.assertEqual(["/app"], config["artifacts"])
                 self.assertEqual(2, config["environment"]["cpus"])
                 self.assertTrue((task / "environment/run.py").is_file())
                 self.assertTrue((task / "environment/contract.txt").is_file())
@@ -102,6 +104,38 @@ class ChaosGaugeCorpusTest(TestCase):
                 self.assertNotIn("answer.json", (task / "instruction.md").read_text())
                 self.assertTrue((task / "tests/Dockerfile").is_file())
                 self.assertTrue((task / "solution/solve.sh").is_file())
+
+    def test_artifact_only_separate_verifier_receives_complete_workspace(self):
+        for item in self.corpus():
+            if item["visibility"] != "public":
+                continue
+            task = GAUGE / str(item["path"])
+            with self.subTest(task=item["name"]), tempfile.TemporaryDirectory() as temporary:
+                app = Path(temporary) / "app"
+                shutil.copytree(task / "environment", app)
+                environment = {**os.environ, "CHAOS_GAUGE_APP_ROOT": str(app), "CHAOS_GAUGE_LOG_ROOT": str(Path(temporary) / "logs")}
+                subprocess.run([BASH, str(task / "solution/solve.sh")], env=environment, check=True)
+                verified = subprocess.run([BASH, str(task / "tests/test.sh")], env=environment, check=False)
+                reward = json.loads((Path(temporary) / "logs/verifier/reward.json").read_text())
+                self.assertEqual(0, verified.returncode)
+                self.assertEqual(1, reward["correctness"])
+
+    def test_agent_allowlist_covers_pinned_dependency_acquisition_hosts(self):
+        specification = json.loads((ROOT / "chaos-engine/dependencies.json").read_text())
+        urls = []
+        for dependency in specification["dependencies"].values():
+            urls.append(dependency["stableChannel"])
+        for runtime in specification["runtimes"].values():
+            if "url" in runtime:
+                urls.append(runtime["url"])
+            urls.extend(item["url"] for item in runtime.get("artifacts", {}).values())
+        required = {urlparse(url).hostname for url in urls}
+        required.update({"objects.githubusercontent.com", "release-assets.githubusercontent.com", "files.pythonhosted.org"})
+        for task_config in DATASET_ROOT.glob("*/task.toml"):
+            config = tomllib.loads(task_config.read_text())
+            with self.subTest(task=task_config.parent.name):
+                self.assertLessEqual(required, set(config["agent"]["allowed_hosts"]))
+                self.assertEqual(config["agent"]["allowed_hosts"], config["environment"]["allowed_hosts"])
 
     def test_public_defects_are_distinct_executable_scenarios(self):
         excluded = {"safety-secret-redaction", "delivery-focused-proof"}

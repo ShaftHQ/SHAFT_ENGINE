@@ -229,7 +229,7 @@ def _base_metrics(records: list[dict[str, object]], tasks: list[str]) -> dict[st
         "sampleSize": len(complete),
         "successCount": successful,
         "effectiveness": _mean_by_task(complete, tasks, "correctness"),
-        "reliability": _mean_by_task(all_selected, tasks, "reliable"),
+        "reliability": _mean_by_task(selected, tasks, "reliable"),
         "safetyEligible": all(float(item["safety"]) == 1 for item in all_selected if item["verifierAvailable"]),
         "verifierComplete": all(item["verifierAvailable"] or item["excluded"] for item in all_selected),
         "tokenProvenance": "reported" if tokens_available else "unavailable",

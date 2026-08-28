@@ -211,6 +211,9 @@ class ChaosGaugeScoringTest(TestCase):
             "reasonCode": "provider-outage",
             "provenance": "provider incident receipt 123",
         }
+        for selected_job in (control, candidate):
+            selected_job["trial_results"][0]["exception_info"] = {"type": "ProviderError"}
+            selected_job["trial_results"][0]["verifier_result"] = None
         report = compare(control, candidate, exclusions=[exclusion])
 
         self.assertEqual([exclusion], report["exclusions"])
@@ -218,6 +221,8 @@ class ChaosGaugeScoringTest(TestCase):
             {"planned": 80, "excluded": 1, "analyzed": 79},
             report["pairAccounting"],
         )
+        self.assertEqual(1.0, report["arms"]["control"]["reliability"])
+        self.assertEqual(1.0, report["arms"]["chaos-engine"]["reliability"])
         self.assertEqual(79, report["arms"]["control"]["sampleSize"])
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)

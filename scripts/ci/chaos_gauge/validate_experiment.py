@@ -86,6 +86,8 @@ def validate_live_evidence(manifest: dict[str, object], jobs: dict[str, object],
     candidate_kwargs = jobs["chaos-engine"]["agents"][0]["kwargs"]
     if candidate_kwargs.get("harness_sha256") != harness:
         raise ValueError("live harness tree digest mismatch")
+    if manifest["arms"][1].get("harnessSha256") != harness:
+        raise ValueError("manifest harness source digest mismatch")
     if candidate_kwargs.get("adapter_sha256") != adapter:
         raise ValueError("live adapter digest mismatch")
     identities = {
