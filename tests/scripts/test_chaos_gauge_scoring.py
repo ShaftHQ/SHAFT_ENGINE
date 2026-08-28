@@ -214,6 +214,10 @@ class ChaosGaugeScoringTest(TestCase):
         report = compare(control, candidate, exclusions=[exclusion])
 
         self.assertEqual([exclusion], report["exclusions"])
+        self.assertEqual(
+            {"planned": 80, "excluded": 1, "analyzed": 79},
+            report["pairAccounting"],
+        )
         self.assertEqual(79, report["arms"]["control"]["sampleSize"])
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)

@@ -381,6 +381,11 @@ def compare(
         "verdict": verdict,
         "retries": retries,
         "exclusions": exclusions,
+        "pairAccounting": {
+            "planned": len(tasks) * attempts,
+            "excluded": len(exclusions),
+            "analyzed": len(tasks) * attempts - len(exclusions),
+        },
     }
 
 
