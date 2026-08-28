@@ -9,51 +9,51 @@ keywords = ["agent-harness", "codex", "chaos-engine"]
 
 [[tasks]]
 name = "ShaftHQ/diagnosis-config-precedence"
-digest = "sha256:d5e54ab790e73db180162c839b7e0e3e468ed9fcb459933b44f08092a4781fe5"
+digest = "sha256:4b709a4f860ac9aae643891c62a8d47faaf5677fcd7cb994b8c69302e03ca3bc"
 
 [[tasks]]
 name = "ShaftHQ/diagnosis-failure-trace"
-digest = "sha256:ff0b508959cd70661b3cc7587f35465972ae7dba45fab7f8ee1c74f623826c0c"
+digest = "sha256:f438a70cb50d918e041b82d10880bd18a8b3f3c1aa2fd8046d600b383b790deb"
 
 [[tasks]]
 name = "ShaftHQ/diagnosis-module-boundary"
-digest = "sha256:27ea85302224776f33a342b1937379d7890af845d3483d5ab556b4990da39529"
+digest = "sha256:7dd7a32dfe78769326bf727ce5c823032186972ed3d025a0ea0ddbb7fa4c2503"
 
 [[tasks]]
 name = "ShaftHQ/repair-null-contract"
-digest = "sha256:5dd23ac5899c57f465ffb38938bde8a9580e737ad39af529c7f9956261480693"
+digest = "sha256:f0b888b8382df7690a0fd414d6d23200b269fc3eabe11eea838ae82088207597"
 
 [[tasks]]
 name = "ShaftHQ/repair-timeout-cleanup"
-digest = "sha256:92bcba5927e0d42608b27b1bd4cee5c1e9ed4e0592c6d321ece9a66ffa701e8d"
+digest = "sha256:55478161fc0f3386eebd0ad7e97ba80b0f69922361b5b70e11ce8af33e40e9b1"
 
 [[tasks]]
 name = "ShaftHQ/repair-regression-test"
-digest = "sha256:be25c540bf4ea49b7c66617ee48821453cb8712d9b0f63f17c06473957716856"
+digest = "sha256:26b97baae62c10041581fc73f5b92edf6cbc4fb975662b14639f063efdafc2a4"
 
 [[tasks]]
 name = "ShaftHQ/recovery-cross-file-contract"
-digest = "sha256:32e6f0a018eda016f25a8477063ab7adc5a52869727bab3c8db7bf35101bea88"
+digest = "sha256:154d65f7a77fc31b243b0e313f199dfb8f36012ed7a1df28b88460ba2b4aa7c8"
 
 [[tasks]]
 name = "ShaftHQ/recovery-broken-build"
-digest = "sha256:26ef9d5d7fe97005bbff869845466ff19373b553141f701516db5865b2b60364"
+digest = "sha256:b56b23ee316b91d156dc652400acd4ec655f006a4c205ebd53fa013228fa0229"
 
 [[tasks]]
 name = "ShaftHQ/recovery-partial-migration"
-digest = "sha256:61aa43fe1d6628b26d7a8eef290c10aae1a8f972ec1f406d593109d3f9f27cf3"
+digest = "sha256:0d901676bc13adab5f7fecbc4d6c2b9b84d63e24fd9f4acd12a01826a0a72a4a"
 
 [[tasks]]
 name = "ShaftHQ/safety-secret-redaction"
-digest = "sha256:36124be32678111228fde83f1ea4e40b7f444679c960688d1ba7e098a3174dab"
+digest = "sha256:26d3f262c6a4bb8e39ae52671c2626a96c60f25000f74e8423b979737a12ffa1"
 
 [[tasks]]
 name = "ShaftHQ/safety-foreign-work"
-digest = "sha256:260a6355df831b00e73809c78aea1952aed831366e9d9b82bffa735afc459068"
+digest = "sha256:6ebafaa5b7ffb8fb7986718ca4dabf4cc786d0b7170a36974d860510eb098d19"
 
 [[tasks]]
 name = "ShaftHQ/delivery-focused-proof"
-digest = "sha256:d2f12d6e3815eea07bb6069df3ca5d378c590f93650a9a369349c71380d500fd"
+digest = "sha256:d76309d53e9ecf4e98dc807c89ac8370d5f23558e580dd5ec8bd15cbaa56d3bf"
 
 [[files]]
 path = "metric.py"

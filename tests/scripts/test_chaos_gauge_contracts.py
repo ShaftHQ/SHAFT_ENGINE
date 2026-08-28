@@ -210,7 +210,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             environment = types.SimpleNamespace(upload_dir=AsyncMock())
             agent = module.ChaosEngineCodex(
                 harness_source=str(ROOT / "chaos-engine"),
-                harness_commit="76772e015d149e66e00bbad2e8d9ee8953248c9c",
+                harness_commit="76772e015de7b8574da9813a195971690a0f69bf",
                 harness_sha256="03bd340d88d26177951551397b977d7454546739f34e0d6ad3154110abf27625",
                 adapter_sha256="b89127d059716f448ac1a0d4689a8d50e22246405e081e0fe025837721b3ef04",
             )
