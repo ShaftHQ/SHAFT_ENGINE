@@ -62,6 +62,7 @@ class _CleanupScenario:
             "add_dirty_worktree_on_remove": False, "denial": "host policy denied",
             "prunable_unrelated": False,
             "prunable_task": False,
+            "missing_unrelated": False,
         }
         self.removal_calls = []
         self.status_calls = []
@@ -89,6 +90,10 @@ class _CleanupScenario:
         if "status --porcelain" in joined:
             self.status_calls.append(Path(kwargs["cwd"]))
             is_unrelated = Path(kwargs["cwd"]) == self.unrelated
+            if is_unrelated and self.state["missing_unrelated"]:
+                return subprocess.CompletedProcess(
+                    command, 128, "", "cannot change to missing worktree"
+                )
             dirty = self.state["dirty"] or (self.state["unexpected_dirty_worktree"] and is_unrelated)
             return subprocess.CompletedProcess(command, 0, " M file\n" if dirty else "", "")
         if "cherry origin/main ChaosEngine/task" in joined:
@@ -111,7 +116,10 @@ class _CleanupScenario:
         unrelated = (
             f"\n\nworktree {self.unrelated}\nbranch refs/heads/unrelated"
             + ("\nprunable gitdir file points to non-existent location" if self.state["prunable_unrelated"] else "")
-            if self.state["unexpected_dirty_worktree"] or self.state["prunable_unrelated"] else ""
+            if self.state["unexpected_dirty_worktree"]
+            or self.state["prunable_unrelated"]
+            or self.state["missing_unrelated"]
+            else ""
         )
         task_prunable = (
             "\nprunable gitdir file points to non-existent location"
@@ -366,6 +374,54 @@ class DeliveryStatusTest(unittest.TestCase):
 
         self.assertFalse(observed["taskWorktreesAbsent"])
         self.assertEqual([], scenario.removal_calls)
+
+    def test_delivery_allows_unrelated_prunable_record_end_to_end(self):
+        scenario = _CleanupScenario()
+        self.addCleanup(scenario.close)
+        scenario.plan["cleanup"]["repositories"][0].update(
+            taskWorktrees=[str(scenario.root / "finished-task")],
+            taskBranches=["ChaosEngine/finished-task"],
+        )
+        scenario.plan["cleanup"]["repositories"][0].pop("degradedResidues")
+        authority = scenario.root / ".git/chaos-engine"
+        authority.mkdir(parents=True)
+        authority.joinpath("user-authority.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "kind": "user-merge-authority",
+                    "repository": "ShaftHQ/SHAFT_ENGINE",
+                    "observedAt": "2026-08-28T00:00:00+00:00",
+                    "decision": "allow",
+                }
+            ),
+            encoding="utf-8",
+        )
+        scenario.plan["ownedPullRequests"][0]["root"] = str(scenario.root)
+        scenario.state["prunable_task"] = True
+        scenario.task.rmdir()
+
+        cleanup = scenario.inspect(statuses=[])
+        receipt = evaluate_delivery(
+            scenario.plan,
+            [merged()],
+            cleanup,
+        )
+
+        self.assertEqual("allow", receipt["decision"])
+        self.assertEqual(
+            [{"path": _normalized_path(scenario.task), "branch": "ChaosEngine/task"}],
+            receipt["cleanup"]["repositories"][0]["preservedUnrelatedPrunableWorktrees"],
+        )
+
+    def test_nonprunable_missing_unrelated_worktree_blocks_inspection(self):
+        scenario = _CleanupScenario()
+        self.addCleanup(scenario.close)
+        scenario.state["missing_unrelated"] = True
+        scenario.unrelated.rmdir()
+
+        with self.assertRaisesRegex(ValueError, "cannot change to missing worktree"):
+            scenario.inspect(statuses=[])
 
     def test_degraded_residue_requires_clean_nonunique_unlocked_single_owner_and_denial(self):
         scenario = _CleanupScenario()
