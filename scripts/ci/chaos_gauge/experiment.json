@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "identity": "ShaftHQ/chaos-engine-effectiveness",
+  "harbor": {
+    "version": "0.22.0",
+    "source": "harbor-framework/harbor@v0.22.0",
+    "commit": "4407eb5227a2ff4f0d3f16b2eb48849382fdf276"
+  },
+  "dataset": {
+    "schemaVersion": "1.4",
+    "version": "1.0.0",
+    "sha256": "e1edcf98ed59cedc7a384e76968875552101413e92809baf7fa4ef8464bb55d1"
+  },
+  "attemptsPerTask": 5,
+  "seed": 5450,
+  "arms": [
+    {
+      "name": "control",
+      "agent": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "repositoryRevision": "76772e015d149e66e00bbad2e8d9ee8953248c9c",
+      "harness": "none",
+      "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
+      "timeoutSeconds": 1800,
+      "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}
+    },
+    {
+      "name": "chaos-engine",
+      "agent": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "repositoryRevision": "76772e015d149e66e00bbad2e8d9ee8953248c9c",
+      "harness": "chaos-engine",
+      "harnessSha256": "7f215bf4f9cd5fd7dc366084c664b4199d1a3f7f2f5194e46b6fa38196c766a8",
+      "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
+      "timeoutSeconds": 1800,
+      "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}
+    }
+  ],
+  "tasks": [
+    {"name": "diagnosis-config-precedence", "visibility": "public", "sha256": "31e3c6d497418655672b5dbf16eb9e0dc858806fd35007cc37548e6bca2e6853"},
+    {"name": "diagnosis-failure-trace", "visibility": "public", "sha256": "a29a2c45de7d164e9d6a227a63e32359110cae87fd88930b718738ae81ad4f44"},
+    {"name": "diagnosis-module-boundary", "visibility": "public", "sha256": "52dd44dd56aac298f4d0308fd719f21cbbea60f319098e0830843238f170c807"},
+    {"name": "repair-null-contract", "visibility": "public", "sha256": "59ba3ff1361b8713b1d74e6a2cb7abc98cfa52336bf5ed30a176891a30227722"},
+    {"name": "repair-timeout-cleanup", "visibility": "public", "sha256": "0a34c14621bfe1b0751b6ec711364534402eea51dbdcaa82a032c90c59e8f8a1"},
+    {"name": "repair-regression-test", "visibility": "public", "sha256": "e672fc1ad5da33cd170f09ee1c63a77775e7f06f988bc59eb037aec3edfa8d3b"},
+    {"name": "recovery-cross-file-contract", "visibility": "public", "sha256": "92df5cfcb55894903323b6414beb13333fca68c206f93181544228f54f077b47"},
+    {"name": "recovery-broken-build", "visibility": "public", "sha256": "19f2d48eac688f1ab2059d470bd89d06697d2676f09dcda0f0188b72b53bd93a"},
+    {"name": "recovery-partial-migration", "visibility": "public", "sha256": "1789c57696b06bd51d85a598067edcaa08f60ff13cd257b3052fd9da6373b5af"},
+    {"name": "safety-secret-redaction", "visibility": "public", "sha256": "8a7465dd7e07d886aac2578620b02842c6cce6c0e3643f69043cd0e88882407a"},
+    {"name": "safety-foreign-work", "visibility": "public", "sha256": "8c22aac7a6a19a609f250472e0c789c64eec05f462850f66ec763017fe1ae6bb"},
+    {"name": "delivery-focused-proof", "visibility": "public", "sha256": "19c140ae856de0553f207182124347878685fb387999314ef06f2dc9bb9c7f5f"},
+    {"name": "holdout-diagnosis-01", "visibility": "private-reference", "sha256": "f10ad3660ff46e6292138bf336decef7405eeac76a3492ca277042c436485197"},
+    {"name": "holdout-repair-01", "visibility": "private-reference", "sha256": "504699150522ad073173aa77ae370138112476e5d5273683b57a04aed15ad94b"},
+    {"name": "holdout-recovery-01", "visibility": "private-reference", "sha256": "3e7891408a509b1816196ecbaa14093f971ca547478625318694858dfabff9a4"},
+    {"name": "holdout-safety-01", "visibility": "private-reference", "sha256": "a8ec9b4f8ca6aa8638baa08de5edbe7868021971de88e243e87e99997517afd2"}
+  ]
+}
