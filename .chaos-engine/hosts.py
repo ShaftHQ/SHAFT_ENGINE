@@ -2895,11 +2895,58 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
+def legacy_grok_group(event: str, group: object) -> bool:
+    """Identify only groups emitted by the retired native Grok adapter."""
+    if event not in REQUIRED_HOOK_EVENTS or not isinstance(group, dict):
+        return False
+    expected_group = json.loads(lifecycle_hooks_document("grok"))["hooks"][event][0]
+    expected_keys = set(expected_group)
+    if set(group) != expected_keys or group.get("matcher") != expected_group.get("matcher"):
+        return False
+    hooks = group.get("hooks")
+    if not isinstance(hooks, list) or len(hooks) != 1 or not isinstance(hooks[0], dict):
+        return False
+    handler = hooks[0]
+    expected = expected_group["hooks"][0]
+    if set(handler) != set(expected) or any(
+        handler.get(key) != expected.get(key) for key in ("type", "timeout")
+    ):
+        return False
+    for key in ("command", "commandWindows"):
+        command = handler.get(key)
+        template = expected.get(key)
+        if not isinstance(command, str) or not isinstance(template, str):
+            return False
+        marker = ' -c "'
+        if marker not in command or command[command.index(marker):] != template[template.index(marker):]:
+            return False
+    return True
+
+
+def without_legacy_grok_hooks(before: bytes | None) -> bytes:
+    try:
+        existing = json.loads(before) if before is not None else {"hooks": {}}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Grok hook configuration") from error
+    hooks = existing.get("hooks") if isinstance(existing, dict) else None
+    if not isinstance(hooks, dict):
+        raise ValueError("invalid Grok hook configuration")
+    for event, groups in list(hooks.items()):
+        if not isinstance(groups, list):
+            raise ValueError("invalid Grok hook configuration")
+        retained = [group for group in groups if not legacy_grok_group(event, group)]
+        if retained:
+            hooks[event] = retained
+        else:
+            del hooks[event]
+    return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
+
+
 def grok_compatibility_content(before: bytes | None) -> bytes | None:
     """Retire native Grok hooks; Grok consumes the single Claude hook source."""
     if before is None:
         return None
-    cleaned = without_chaos_hooks(before, "Grok")
+    cleaned = without_legacy_grok_hooks(before)
     document = json.loads(cleaned)
     if document == {"hooks": {}}:
         return None
@@ -4160,10 +4207,15 @@ def grok_runtime_status(
     except (OSError, subprocess.SubprocessError, ValueError):
         payload = {}
     recovery = (
-        "Run `grok inspect --json` from the project. If projectTrusted is false, "
-        "review the project then run `/hooks-trust`; reload hooks and rerun doctor."
+        "Use Grok Build 1.0.10 or newer, then run `grok inspect --json` from the "
+        "project. If projectTrusted is false, review the project, run `/hooks-trust`, "
+        "reload hooks, and rerun doctor."
     )
     if not isinstance(payload, dict) or payload.get("projectTrusted") is not True:
+        return {"status": "recovery-required", "detail": recovery}
+    version = payload.get("grokVersion")
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:[-+].*)?", str(version or ""))
+    if match is None or tuple(map(int, match.groups())) < (1, 0, 10):
         return {"status": "recovery-required", "detail": recovery}
     hooks = payload.get("hooks")
     guard_hooks = [
@@ -4184,8 +4236,17 @@ def grok_runtime_status(
         and "/.claude" in str((item.get("source") or {}).get("path") or "").replace("\\", "/")
         for item in guard_hooks
     )
+    plugin_items = payload.get("plugins")
+    server_items = payload.get("mcpServers")
+    agent_items = payload.get("agents")
+    instruction_items = payload.get("projectInstructions")
+    if not all(
+        isinstance(items, list)
+        for items in (plugin_items, server_items, agent_items, instruction_items)
+    ):
+        return {"status": "recovery-required", "detail": recovery}
     plugins = {
-        str(item.get("name")): item for item in payload.get("plugins", [])
+        str(item.get("name")): item for item in plugin_items
         if isinstance(item, dict) and item.get("enabled") is True
     }
     companion_plugins = all(
@@ -4195,16 +4256,16 @@ def grok_runtime_status(
         for name in ("chaos-engine", "caveman", "ponytail")
     )
     servers = {
-        str(item.get("name")) for item in payload.get("mcpServers", [])
+        str(item.get("name")) for item in server_items
         if isinstance(item, dict)
     }
     agents = {
-        str(item.get("name")) for item in payload.get("agents", [])
+        str(item.get("name")) for item in agent_items
         if isinstance(item, dict)
     }
     instructions = {
         Path(str(item.get("path") or "")).name
-        for item in payload.get("projectInstructions", []) if isinstance(item, dict)
+        for item in instruction_items if isinstance(item, dict)
     }
     if (
         any(count != 1 for count in counts.values())
@@ -4222,7 +4283,7 @@ def grok_runtime_status(
         return {"status": "recovery-required", "detail": recovery}
     return {
         "status": "healthy",
-        "version": str(payload.get("grokVersion") or "unknown"),
+        "version": str(version),
         "hookSource": "claude-compatibility",
     }
 

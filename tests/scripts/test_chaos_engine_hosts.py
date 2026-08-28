@@ -168,6 +168,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ({**healthy, "plugins": [{**item, "provides": {"skills": 0}} for item in healthy["plugins"]]}, "recovery-required"),
                 ({**healthy, "mcpServers": healthy["mcpServers"][:-1]}, "recovery-required"),
                 ({**healthy, "agents": healthy["agents"][:-1]}, "recovery-required"),
+                ({**healthy, "plugins": None}, "recovery-required"),
+                ({key: value for key, value in healthy.items() if key != "grokVersion"}, "recovery-required"),
+                ({**healthy, "grokVersion": "1.0.9"}, "recovery-required"),
+                ({**healthy, "grokVersion": "development"}, "recovery-required"),
             ):
                 calls = []
                 state = module.grok_runtime_status(
@@ -1180,14 +1184,18 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
             hook_path = project / ".grok/hooks/lifecycle.json"
             hook_path.parent.mkdir(parents=True)
+            legacy_group = json.loads(module.lifecycle_hooks_document("grok"))["hooks"]["SessionStart"][0]
             original = {
                 "ownerMetadata": {"preserve": True},
                 "hooks": {
-                    "SessionStart": [{"hooks": [
-                        {"type": "command", "command": "user-hook"},
-                        {"type": "command", "command": "python3 .chaos-engine/hooks/guard.py"},
-                    ]}],
-                    "Notification": [{"hooks": [{"type": "command", "command": "notify"}]}],
+                    "SessionStart": [
+                        {"hooks": [{"type": "command", "command": "user-hook"}]},
+                        legacy_group,
+                    ],
+                    "Notification": [{"hooks": [{
+                        "type": "command",
+                        "command": "python3 .chaos-engine/hooks/guard.py --audit",
+                    }]}],
                 },
             }
             hook_path.write_text(json.dumps(original), encoding="utf-8")
@@ -1198,6 +1206,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
             self.assertEqual(1, len(merged["hooks"]["SessionStart"][0]["hooks"]))
             self.assertIn("Notification", merged["hooks"])
+            self.assertIn("--audit", merged["hooks"]["Notification"][0]["hooks"][0]["command"])
             self.assertNotIn("Stop", merged["hooks"])
             module.uninstall(project)
             restored = json.loads(hook_path.read_text())
@@ -1205,6 +1214,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("user-hook", restored["hooks"]["SessionStart"][0]["hooks"][0]["command"])
             self.assertEqual(1, len(restored["hooks"]["SessionStart"][0]["hooks"]))
             self.assertIn("Notification", restored["hooks"])
+            self.assertIn("--audit", restored["hooks"]["Notification"][0]["hooks"][0]["command"])
 
     def test_copilot_cli_hooks_preserve_foreign_handlers_and_metadata(self):
         module = load(HOSTS, "chaos_engine_copilot_hook_merge")
