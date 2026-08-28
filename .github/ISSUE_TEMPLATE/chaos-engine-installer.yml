@@ -43,6 +43,10 @@ body:
     id: doctor_command
     attributes:
       label: Doctor command
+  - type: input
+    id: recovery_command
+    attributes:
+      label: Recovery command
   - type: textarea
     id: additional
     attributes:

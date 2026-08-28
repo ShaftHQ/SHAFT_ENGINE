@@ -112,6 +112,10 @@ python .chaos-engine/install.py uninstall --project .
   portable bootstrap. In-place legacy conversion is intentionally refused.
 - **Rollback or uninstall:** only receipt-owned files are changed. Mixed,
   modified, linked, or unknown ownership fails closed.
+- **Interrupted rollback:** the next install resumes an authenticated rollback
+  intent under the installer lock before starting the requested update. If
+  recovery cannot be authenticated, inspect `status --json`, then run
+  `python3 .chaos-engine/install.py rollback --project .` (`py -3` on Windows).
 
 ## Advanced provenance, recovery, and store states
 

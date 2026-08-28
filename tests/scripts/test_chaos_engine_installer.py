@@ -1865,6 +1865,44 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual("recovery-required", result["hosts"]["status"])
+            self.assertEqual(
+                {
+                    "status": "required",
+                    "desiredCommit": TEST_COMMIT,
+                    "priorCommit": "2" * 40,
+                    "currentCommit": TEST_COMMIT,
+                    "phase": "restore-runtime-and-hosts",
+                    "automaticResume": True,
+                    "command": mock.ANY,
+                },
+                result["hosts"]["recovery"],
+            )
+
+    def test_install_resumes_authenticated_cross_resource_rollback_before_update(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            second = copy_source(root / "second")
+            second.joinpath("references/roles.md").write_text("second\n", encoding="utf-8")
+            MODULE.install_with_dependencies(
+                project, second, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            MODULE.rollback(project, _locked=True)
+            third = copy_source(root / "third")
+            third.joinpath("references/roles.md").write_text("third\n", encoding="utf-8")
+
+            with legacy_dependency_controller_fixture():
+                MODULE.install_with_dependencies(
+                    project, third, "3" * 40, provisioner=lambda *_args, **_kwargs: None
+                )
+
+            self.assertEqual("3" * 40, MODULE.status_with_dependencies(project)["commit"])
+            self.assertFalse(project.joinpath(MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
 
     def test_cross_rollback_journal_scratch_recovers_and_swapped_intent_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1089,14 +1089,14 @@ def status(project: Path) -> dict[str, str]:
 
 
 def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
-    project: Path, _locked: bool = False, provisioner=None
+    project: Path, _locked: bool = False, provisioner=None, _resume: bool = False
 ) -> Path:
     project = project.resolve()
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
     swap = project / f"{INSTALL_DIRECTORY}-rollback"
-    if not _locked:
-        with project_lock(project):
+    if not _locked or _resume:
+        with (nullcontext() if _locked else project_lock(project)):
             _recover_transaction(project)
             pending = read_cross_rollback_journal(project)
             receipt_controller = None
@@ -1502,6 +1502,33 @@ def installed_kernel_status(installed_root: Path) -> dict[str, object]:
         return {"status": "recovery-required", "errors": [str(error)]}
 
 
+def rollback_recovery_status(project: Path, pending: dict[str, str]) -> dict[str, object]:
+    """Describe an authenticated rollback without widening diagnostic schema v2."""
+    current_commit = str(verify_install(project / INSTALL_DIRECTORY)["source"]["commit"])
+    host_receipt, _ = load_installed_controller(
+        project / INSTALL_DIRECTORY, "hosts"
+    ).read_receipt(project)
+    host_commit = str(host_receipt.get("coreCommit", ""))
+    desired_commit = pending["desiredCommit"]
+    phase = (
+        "restore-core"
+        if current_commit != desired_commit
+        else "restore-runtime-and-hosts"
+        if host_commit != desired_commit
+        else "finalize"
+    )
+    launcher = "py -3" if os.name == "nt" else "python3"
+    return {
+        "status": "required",
+        "desiredCommit": desired_commit,
+        "priorCommit": pending["priorCommit"],
+        "currentCommit": current_commit,
+        "phase": phase,
+        "automaticResume": True,
+        "command": f"{launcher} .chaos-engine/install.py rollback --project .",
+    }
+
+
 def install_with_dependencies(  # noqa: MC0001 - owned resources share one compensation boundary.
     project: Path,
     source: Path,
@@ -1523,7 +1550,18 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     generation_mode = provisioner is None and not account_mode
     with project_lock(project):
         if read_cross_rollback_journal(project) is not None:
-            raise ValueError("rollback recovery is required before install")
+            if reporter is not None:
+                reporter.trace("resume authenticated rollback before install")
+            try:
+                rollback(project, _locked=True, provisioner=provisioner, _resume=True)
+            except (OSError, RuntimeError, ValueError) as error:
+                launcher = "py -3" if os.name == "nt" else "python3"
+                raise ValueError(
+                    "automatic rollback recovery failed; run: "
+                    f"{launcher} .chaos-engine/install.py rollback --project ."
+                ) from error
+            if reporter is not None:
+                reporter.trace("authenticated rollback recovery complete")
         current = project / INSTALL_DIRECTORY
         old_commit = None
         old_manifest = None
@@ -1883,6 +1921,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             if pending_rollback is not None:
                 result["hosts"] = host_controller.verify(project)
                 result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
+                result["hosts"]["recovery"] = rollback_recovery_status(  # type: ignore[index]
+                    project, pending_rollback
+                )
             else:
                 result["hosts"] = host_controller.verify(
                     project,
