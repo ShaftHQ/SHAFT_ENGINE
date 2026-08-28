@@ -3324,7 +3324,7 @@ class ShaftPanelSetupTest {
                     assertNotNull(chatHeader);
                     // Down from two children (title label + chat row) to just the chat row: the
                     // chat-history dropdown is the first real component under this header now.
-                    assertEquals(1, chatHeader.getComponentCount());
+                    assertEquals(2, chatHeader.getComponentCount());
                     assertNotNull(findByAccessibleName(chatHeader, "Assistant chat", JComboBox.class));
                 });
     }
@@ -3334,25 +3334,26 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
 
+        JButton plan = findByAccessibleName(toolWindow, "Plan a test from a scenario", JButton.class);
         JButton record = findByAccessibleName(toolWindow, "Record a sample flow", JButton.class);
-        JButton assertHelp = findByAccessibleName(toolWindow, "Ask how to assert", JButton.class);
-        JButton diagnose = findByAccessibleName(toolWindow, "Diagnose my last failure", JButton.class);
+        JButton diagnose = findByAccessibleName(toolWindow, "Diagnose a failure", JButton.class);
         JLabel invitation = findByAccessibleName(toolWindow, "Assistant empty state invitation", JLabel.class);
 
         assertAll(
                 () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
                         "an empty Assistant should not lead with a long, persistent welcome essay"),
+                () -> assertNotNull(plan),
                 () -> assertNotNull(record),
-                () -> assertNotNull(assertHelp),
                 () -> assertNotNull(diagnose),
-                () -> assertEquals("What would you like to do?", invitation.getText()),
+                () -> assertEquals("Start with an outcome. These actions only prefill your request.", invitation.getText()),
                 () -> assertFalse(settings.firstRunCoachDismissed,
                         "there is no coach dismissal state to persist when no coach is rendered"));
 
-        record.doClick();
+        plan.doClick();
         ShaftAssistantPanel panel = findAssistantPanel(toolWindow);
-        assertTrue(panel.promptText().contains("Record a sample web flow"),
+        assertTrue(panel.promptText().contains("Plan a SHAFT test"),
                 "an empty-state suggestion must prefill for review, never auto-send");
+        assertTrue(panel.transcriptMarkdown().isBlank(), "prefill must never auto-send");
     }
 
     /**
@@ -6320,9 +6321,9 @@ class ShaftPanelSetupTest {
                 .filter(button -> !String.valueOf(accessibleName(button)).matches("Copy .+ install command"))
                 // Empty-state suggestion chips (issue #3500 A6) are content affordances that name
                 // the exact request they pre-fill — an icon alone cannot convey that on first run.
+                .filter(button -> !"Plan a test from a scenario".equals(accessibleName(button)))
                 .filter(button -> !"Record a sample flow".equals(accessibleName(button)))
-                .filter(button -> !"Ask how to assert".equals(accessibleName(button)))
-                .filter(button -> !"Diagnose my last failure".equals(accessibleName(button)))
+                .filter(button -> !"Diagnose a failure".equals(accessibleName(button)))
                 // The first-run coach's acknowledgment (issue #3500 O1) names its one-time action.
                 .filter(button -> !"Dismiss first run coach".equals(accessibleName(button)))
                 // Recovery actions keep visible labels: which of Retry / Restart MCP server / View
