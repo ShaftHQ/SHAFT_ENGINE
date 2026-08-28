@@ -79,8 +79,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             "INTELLIJ_PLUGIN"
     };
     private static final String GUIDE_SETUP_STEP =
-            "Next: choose your agent, then press Copy -- this opens a terminal with the MCP+skills+CLI "
-                    + "install command ready to go; run it there, then press Check.";
+            "Next: choose a setup route, open the setup command in terminal, run it there, then press Check.";
     private static final String CHECK_NEXT_STEP = "Press Check now.";
     // Issue #4160 area A: a returning user reopening the panel in a new IDE session after setup
     // already succeeded sees "4 Check setup: Done" (settings.mcpSetupComplete persists) alongside
@@ -428,11 +427,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // already uses; the plugin never executes the command itself, the user presses Enter.
         // Issue #4314 fix 3: this used to be two functionally near-identical buttons ("Install" and
         // a separate "Copy" that additionally copied to clipboard first) -- merged into this one.
-        installNow = ShaftButtonInteractions.create("Open in Terminal");
+        installNow = ShaftButtonInteractions.create("Open setup command in terminal");
         installNow.getAccessibleContext().setAccessibleName("Copy SHAFT Tools & Skills setup command");
-        installNow.setToolTipText("Copies the SHAFT Agentic Tools + skills + shaft-cli install command to the clipboard and "
-                + "opens a terminal with it pre-typed for the selected client -- press Enter there to run it, "
-                + "then press Check.");
+        installNow.setToolTipText("Copies the SHAFT tools, skills, and shaft-cli setup command, then opens a terminal "
+                + "with it pre-typed for the selected route. The plugin never runs it; review it, press Enter, then press Check.");
         applyLabeledAction(installNow, ShaftIcons.COPY);
         installNow.addActionListener(event -> runInstall());
         mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
@@ -442,7 +440,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         test.setMnemonic(KeyEvent.VK_K);
         applyLabeledAction(test, ShaftIcons.CHECK);
         test.addActionListener(event -> testConnection());
-        startChatting = ShaftButtonInteractions.create("Start chatting");
+        startChatting = ShaftButtonInteractions.create("Open Assistant");
         startChatting.getAccessibleContext().setAccessibleName("Start chatting with SHAFT Assistant");
         startChatting.setToolTipText("Open the Assistant with this verified MCP command");
         startChatting.setMnemonic(KeyEvent.VK_S);
@@ -760,10 +758,15 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         showAssistNotConfigured();
         updateCloudControls();
         JPanel intro = new JPanel(new BorderLayout(4, 2));
-        JLabel title = new JLabel("Connect SHAFT Assistant");
+        JLabel title = new JLabel("Set up SHAFT tools");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
         // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
         intro.add(title, BorderLayout.NORTH);
+        JLabel setupScope = new JLabel("SHAFT tools are required. AI agent is optional.");
+        setupScope.getAccessibleContext().setAccessibleName("SHAFT setup scope");
+        setupScope.getAccessibleContext().setAccessibleDescription(setupScope.getText());
+        setupScope.setForeground(ShaftStatusPresentation.pending());
+        intro.add(setupScope, BorderLayout.CENTER);
         installerDetailsPanel = FormBuilder.createFormBuilder()
                 .addComponent(targetRow)
                 .addComponent(installShaftCli)
@@ -2359,8 +2362,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private void updateSetupSteps(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        setStep(chooseStep, chooseState, "1 Choose agent", chooseStepState());
-        setStep(installStep, installState, "2 Install SHAFT tools", mcpVersionStepState());
+        setStep(chooseStep, chooseState, "1 Choose setup route", chooseStepState());
+        setStep(installStep, installState, "2 Open setup command", mcpVersionStepState());
         setStep(testStep, testState, "3 Verify setup",
                 checkStepState(running, complete, hasCommand));
         setStep(null, readyState, "Ready", complete ? "next" : "wait");

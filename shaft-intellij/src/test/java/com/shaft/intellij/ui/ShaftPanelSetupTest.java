@@ -812,10 +812,11 @@ class ShaftPanelSetupTest {
             assertNull(toolWindowWorkflowSelector(toolWindow));
             assertTrue(containsText(toolWindow, "Runtime"));
             assertTrue(containsText(toolWindow, "Optional: Upgrade project"));
-            assertTrue(containsText(toolWindow, "1 Choose agent"));
-            assertTrue(containsText(toolWindow, "2 Install SHAFT tools"));
+            assertTrue(containsText(toolWindow, "1 Choose setup route"));
+            assertTrue(containsText(toolWindow, "2 Open setup command"));
             assertTrue(containsText(toolWindow, "3 Verify setup"));
-            assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
+            assertTrue(containsText(toolWindow, "Set up SHAFT tools"));
+            assertTrue(containsText(toolWindow, "SHAFT tools are required. AI agent is optional."));
             // Issue #4314 fix 1: the redundant "Target: X. Runtime: Y." setupSummary caption is
             // removed -- the family/runtime combo boxes above it already show the live selection.
             assertNull(findByAccessibleName(toolWindow, "SHAFT MCP setup summary", JLabel.class));
@@ -1223,8 +1224,11 @@ class ShaftPanelSetupTest {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
 
+        JButton primarySetup = findByAccessibleName(panel, "Copy SHAFT Tools & Skills setup command", JButton.class);
+        assertNotNull(primarySetup);
+        assertEquals("Open setup command in terminal", primarySetup.getText());
+        assertTrue(primarySetup.getToolTipText().contains("never runs it"));
         for (String accessibleName : List.of(
-                "Copy SHAFT Tools & Skills setup command",
                 "Copy fresh SHAFT MCP setup command",
                 "Copy SHAFT upgrade command",
                 "Copy SHAFT Engine warm-up command",
@@ -1824,8 +1828,8 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("Select an option", ((JLabel) placeholder).getText()),
                 () -> assertFalse(copy.isEnabled()),
                 () -> assertNull(findByAccessibleName(panel, "Recommended assistant agent", JLabel.class)),
-                () -> assertTrue(containsText(panel, "1 Choose agent")),
-                () -> assertTrue(containsText(panel, "2 Install SHAFT tools")),
+                () -> assertTrue(containsText(panel, "1 Choose setup route")),
+                () -> assertTrue(containsText(panel, "2 Open setup command")),
                 () -> assertFalse(containsText(panel, "4 Check agent connection")),
                 () -> assertTrue(containsText(panel, "3 Verify setup")),
                 () -> assertNotNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),

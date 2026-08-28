@@ -6,12 +6,19 @@ import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
+import com.shaft.intellij.project.ShaftProjectDetector;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Opens the SHAFT tool window.
  */
 public final class OpenShaftToolWindowAction extends AnAction implements DumbAware {
+    @Override
+    public void update(@NotNull AnActionEvent event) {
+        Project project = event.getProject();
+        event.getPresentation().setEnabledAndVisible(project != null && ShaftProjectDetector.isShaftProject(project));
+    }
+
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
         Project project = event.getProject();
