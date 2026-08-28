@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "name": "diagnosis-config-precedence",
+      "path": "dataset/diagnosis-config-precedence",
+      "visibility": "public",
+      "stratum": "diagnosis",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "9ab425a13a006fff5e371221ebafb1cd293c448bb1a545140abae37518c0dc44"
+    },
+    {
+      "name": "diagnosis-failure-trace",
+      "path": "dataset/diagnosis-failure-trace",
+      "visibility": "public",
+      "stratum": "diagnosis",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "ae4a915127a9843f8246a5a60241256e653394f383ddf1e620c7e87614605bf4"
+    },
+    {
+      "name": "diagnosis-module-boundary",
+      "path": "dataset/diagnosis-module-boundary",
+      "visibility": "public",
+      "stratum": "diagnosis",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "7a579aced20d359784612a2bd3530ee3a9bb9e79904949ca9bb9f1f7c2999041"
+    },
+    {
+      "name": "repair-null-contract",
+      "path": "dataset/repair-null-contract",
+      "visibility": "public",
+      "stratum": "focused-repair",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "3db102becfefb14378d0446f19452517a83abf35896895179fb2e6919fc2cf20"
+    },
+    {
+      "name": "repair-timeout-cleanup",
+      "path": "dataset/repair-timeout-cleanup",
+      "visibility": "public",
+      "stratum": "focused-repair",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "7f7957d67f9ae62a573806d9a5039cb0940b6ba718da7e89673b19ac68a1e11c"
+    },
+    {
+      "name": "repair-regression-test",
+      "path": "dataset/repair-regression-test",
+      "visibility": "public",
+      "stratum": "focused-repair",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "bfdb1714c6ccb34ea3693eb3ba9ca5941c0c7d173ea8327d2463bd96590c20c9"
+    },
+    {
+      "name": "recovery-cross-file-contract",
+      "path": "dataset/recovery-cross-file-contract",
+      "visibility": "public",
+      "stratum": "cross-file-recovery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "1518cdb031a844c997c0b45a59423d9a0d190de497d95cf10f940548fc4cfccd"
+    },
+    {
+      "name": "recovery-broken-build",
+      "path": "dataset/recovery-broken-build",
+      "visibility": "public",
+      "stratum": "cross-file-recovery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "f4c0bad874e89f7823c2f3afecfc7483706feed002e97d55a7adfd175e858562"
+    },
+    {
+      "name": "recovery-partial-migration",
+      "path": "dataset/recovery-partial-migration",
+      "visibility": "public",
+      "stratum": "cross-file-recovery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "6cb85ad05d0fb0e61d068a4af92c70d4f5bda221cb0f556a05c63bb2fcb6100d"
+    },
+    {
+      "name": "safety-secret-redaction",
+      "path": "dataset/safety-secret-redaction",
+      "visibility": "public",
+      "stratum": "safety-delivery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "ebed4e0e2346e73706de39b3a99f21886c39b97320b22fb730dc3d21ac753f16"
+    },
+    {
+      "name": "safety-foreign-work",
+      "path": "dataset/safety-foreign-work",
+      "visibility": "public",
+      "stratum": "safety-delivery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "4574343776bfe3b1c75c6cb0e6e0fdec3957498d8a23f71870be6ccad6334b9a"
+    },
+    {
+      "name": "delivery-focused-proof",
+      "path": "dataset/delivery-focused-proof",
+      "visibility": "public",
+      "stratum": "safety-delivery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "public-calibration",
+      "sha256": "c43b6931db90f177629cc1751b55239de4a68939cfacaf7fe962e17a936471cb"
+    },
+    {
+      "name": "holdout-diagnosis-01",
+      "registryReference": "ShaftHQ/holdout-diagnosis-01@sha256:77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc",
+      "visibility": "private-reference",
+      "stratum": "diagnosis",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "private-holdout",
+      "sha256": "77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc"
+    },
+    {
+      "name": "holdout-repair-01",
+      "registryReference": "ShaftHQ/holdout-repair-01@sha256:ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8",
+      "visibility": "private-reference",
+      "stratum": "focused-repair",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "private-holdout",
+      "sha256": "ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8"
+    },
+    {
+      "name": "holdout-recovery-01",
+      "registryReference": "ShaftHQ/holdout-recovery-01@sha256:043b1d13fc545083004d7c3ff1c064a43d8fc88bb79575d052058af30d4cbb6d",
+      "visibility": "private-reference",
+      "stratum": "cross-file-recovery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "private-holdout",
+      "sha256": "043b1d13fc545083004d7c3ff1c064a43d8fc88bb79575d052058af30d4cbb6d"
+    },
+    {
+      "name": "holdout-safety-01",
+      "registryReference": "ShaftHQ/holdout-safety-01@sha256:e6cf521a008a43aa8e8977c8e8d33a0a034cbf7944d4c292c35e61eeca7ec226",
+      "visibility": "private-reference",
+      "stratum": "safety-delivery",
+      "owner": "ShaftHQ/ChaosEngine",
+      "oracle": "deterministic",
+      "contaminationStatus": "private-holdout",
+      "sha256": "e6cf521a008a43aa8e8977c8e8d33a0a034cbf7944d4c292c35e61eeca7ec226"
+    }
+  ]
+}

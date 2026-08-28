@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "seed": 5450,
+  "algorithm": "sha256(seed:task:attempt)-low-bit-first-arm",
+  "unit": "task-attempt-pair",
+  "arms": ["control", "chaos-engine"],
+  "attemptsPerTask": 5
+}

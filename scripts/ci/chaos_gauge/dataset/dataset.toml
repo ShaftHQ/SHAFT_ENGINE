@@ -1,0 +1,76 @@
+schema_version = "1.0"
+
+[dataset]
+name = "ShaftHQ/chaos-engine-effectiveness"
+version = "1.0.0"
+description = "Paired ChaosEngine effectiveness and efficiency benchmark"
+authors = [{ name = "Mohab Mohie" }]
+keywords = ["agent-harness", "codex", "chaos-engine"]
+
+[[tasks]]
+name = "ShaftHQ/diagnosis-config-precedence"
+digest = "sha256:9ab425a13a006fff5e371221ebafb1cd293c448bb1a545140abae37518c0dc44"
+
+[[tasks]]
+name = "ShaftHQ/diagnosis-failure-trace"
+digest = "sha256:ae4a915127a9843f8246a5a60241256e653394f383ddf1e620c7e87614605bf4"
+
+[[tasks]]
+name = "ShaftHQ/diagnosis-module-boundary"
+digest = "sha256:7a579aced20d359784612a2bd3530ee3a9bb9e79904949ca9bb9f1f7c2999041"
+
+[[tasks]]
+name = "ShaftHQ/repair-null-contract"
+digest = "sha256:3db102becfefb14378d0446f19452517a83abf35896895179fb2e6919fc2cf20"
+
+[[tasks]]
+name = "ShaftHQ/repair-timeout-cleanup"
+digest = "sha256:7f7957d67f9ae62a573806d9a5039cb0940b6ba718da7e89673b19ac68a1e11c"
+
+[[tasks]]
+name = "ShaftHQ/repair-regression-test"
+digest = "sha256:bfdb1714c6ccb34ea3693eb3ba9ca5941c0c7d173ea8327d2463bd96590c20c9"
+
+[[tasks]]
+name = "ShaftHQ/recovery-cross-file-contract"
+digest = "sha256:1518cdb031a844c997c0b45a59423d9a0d190de497d95cf10f940548fc4cfccd"
+
+[[tasks]]
+name = "ShaftHQ/recovery-broken-build"
+digest = "sha256:f4c0bad874e89f7823c2f3afecfc7483706feed002e97d55a7adfd175e858562"
+
+[[tasks]]
+name = "ShaftHQ/recovery-partial-migration"
+digest = "sha256:6cb85ad05d0fb0e61d068a4af92c70d4f5bda221cb0f556a05c63bb2fcb6100d"
+
+[[tasks]]
+name = "ShaftHQ/safety-secret-redaction"
+digest = "sha256:ebed4e0e2346e73706de39b3a99f21886c39b97320b22fb730dc3d21ac753f16"
+
+[[tasks]]
+name = "ShaftHQ/safety-foreign-work"
+digest = "sha256:4574343776bfe3b1c75c6cb0e6e0fdec3957498d8a23f71870be6ccad6334b9a"
+
+[[tasks]]
+name = "ShaftHQ/delivery-focused-proof"
+digest = "sha256:c43b6931db90f177629cc1751b55239de4a68939cfacaf7fe962e17a936471cb"
+
+[[tasks]]
+name = "ShaftHQ/holdout-diagnosis-01"
+digest = "sha256:77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc"
+
+[[tasks]]
+name = "ShaftHQ/holdout-repair-01"
+digest = "sha256:ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8"
+
+[[tasks]]
+name = "ShaftHQ/holdout-recovery-01"
+digest = "sha256:043b1d13fc545083004d7c3ff1c064a43d8fc88bb79575d052058af30d4cbb6d"
+
+[[tasks]]
+name = "ShaftHQ/holdout-safety-01"
+digest = "sha256:e6cf521a008a43aa8e8977c8e8d33a0a034cbf7944d4c292c35e61eeca7ec226"
+
+[[files]]
+path = "metric.py"
+digest = "sha256:74f32c0ba4cf37497db895700c45e4a7390248de0288a6080d11e7eaec1695d7"

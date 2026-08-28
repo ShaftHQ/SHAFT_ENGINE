@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
 from unittest import TestCase, main
+
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -95,6 +98,62 @@ class ChaosGaugeContractsTest(TestCase):
         self.assertIn("/scripts/ci/chaos_gauge/jobs/", ignored)
         self.assertIn("/scripts/ci/chaos_gauge/reports/", ignored)
         self.assertIn("/scripts/ci/chaos_gauge/private/", ignored)
+
+    def test_native_harbor_jobs_differ_only_by_harness_treatment(self):
+        jobs = {
+            name: yaml.safe_load(
+                (GAUGE / f"job-configs/{name}.yaml").read_text(encoding="utf-8")
+            )
+            for name in ("control", "chaos-engine")
+        }
+
+        for name, job in jobs.items():
+            self.assertEqual(5, job["n_attempts"])
+            self.assertEqual(
+                "scripts/ci/chaos_gauge/dataset", job["datasets"][0]["path"]
+            )
+            self.assertEqual("docker", job["environment"]["type"])
+            self.assertTrue(job["environment"]["delete"])
+            self.assertEqual("codex", job["agents"][0]["name"])
+            self.assertEqual("gpt-5.6-terra", job["agents"][0]["model_name"])
+            self.assertEqual("medium", job["agents"][0]["kwargs"]["reasoning_effort"])
+            self.assertEqual(2, job["retry"]["max_retries"])
+        self.assertEqual([], jobs["control"]["agents"][0]["skills"])
+        self.assertEqual([".chaos-engine"], jobs["chaos-engine"]["agents"][0]["skills"])
+        control = copy.deepcopy(jobs["control"])
+        candidate = copy.deepcopy(jobs["chaos-engine"])
+        for job in (control, candidate):
+            job.pop("job_name")
+            job["agents"][0].pop("skills")
+        self.assertEqual(control, candidate)
+        MODULE.validate_job_contracts(self.manifest(), jobs)
+
+        drifted = copy.deepcopy(jobs)
+        drifted["chaos-engine"]["agents"][0]["model_name"] = "different"
+        with self.assertRaisesRegex(ValueError, "job model"):
+            MODULE.validate_job_contracts(self.manifest(), drifted)
+
+        drifted = copy.deepcopy(jobs)
+        drifted["chaos-engine"]["agents"][0]["skills"] = []
+        with self.assertRaisesRegex(ValueError, "job harness"):
+            MODULE.validate_job_contracts(self.manifest(), drifted)
+
+    def test_counterbalanced_schedule_covers_every_planned_trial_once(self):
+        schedule = json.loads((GAUGE / "schedule.json").read_text(encoding="utf-8"))
+        self.assertEqual(5450, schedule["seed"])
+        self.assertEqual("sha256(seed:task:attempt)-low-bit-first-arm", schedule["algorithm"])
+        self.assertEqual(["control", "chaos-engine"], schedule["arms"])
+        rows = []
+        for task in self.manifest()["tasks"]:
+            for attempt in range(1, schedule["attemptsPerTask"] + 1):
+                digest = hashlib.sha256(
+                    f'{schedule["seed"]}:{task["name"]}:{attempt}'.encode()
+                ).digest()
+                first = schedule["arms"][digest[0] & 1]
+                second = schedule["arms"][1 - (digest[0] & 1)]
+                rows.extend([(task["name"], attempt, first), (task["name"], attempt, second)])
+        self.assertEqual(160, len(rows))
+        self.assertEqual(80, len({(task, attempt) for task, attempt, _ in rows}))
 
 
 if __name__ == "__main__":

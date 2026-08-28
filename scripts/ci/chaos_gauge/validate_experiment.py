@@ -9,6 +9,8 @@ import json
 import re
 from pathlib import Path
 
+import yaml
+
 
 SCHEMA_VERSION = 1
 ARM_FIELDS = {
@@ -137,6 +139,68 @@ def validate_manifest(value: object, *, root: Path | None = None) -> str:
     return _sha256(manifest)
 
 
+def validate_job_contracts(
+    manifest: object, jobs: object
+) -> None:
+    value = _mapping(manifest, "experiment manifest")
+    job_map = _mapping(jobs, "Harbor jobs")
+    if set(job_map) != {"control", "chaos-engine"}:
+        raise ValueError("Harbor job arms are incomplete")
+    arms = value.get("arms")
+    if not isinstance(arms, list):
+        raise ValueError("experiment arms are invalid")
+    arm_map = {
+        str(arm["name"]): arm for arm in arms if isinstance(arm, dict) and "name" in arm
+    }
+    for name in ("control", "chaos-engine"):
+        job = _mapping(job_map[name], f"{name} Harbor job")
+        agents = job.get("agents")
+        datasets = job.get("datasets")
+        if not isinstance(agents, list) or len(agents) != 1 or not isinstance(agents[0], dict):
+            raise ValueError("job agent contract is invalid")
+        if not isinstance(datasets, list) or datasets != [
+            {"path": "scripts/ci/chaos_gauge/dataset"}
+        ]:
+            raise ValueError("job dataset contract is invalid")
+        agent = agents[0]
+        arm = _mapping(arm_map.get(name), "experiment arm")
+        if agent.get("name") != arm.get("agent"):
+            raise ValueError("job agent drift is not allowed")
+        if agent.get("model_name") != arm.get("model"):
+            raise ValueError("job model drift is not allowed")
+        kwargs = _mapping(agent.get("kwargs"), "job agent arguments")
+        if kwargs.get("reasoning_effort") != arm.get("effort"):
+            raise ValueError("job effort drift is not allowed")
+        expected_skills = [] if name == "control" else [".chaos-engine"]
+        if agent.get("skills") != expected_skills:
+            raise ValueError("job harness treatment is invalid")
+        if job.get("n_attempts") != value.get("attemptsPerTask"):
+            raise ValueError("job attempt drift is not allowed")
+        environment = _mapping(job.get("environment"), "job environment")
+        if environment.get("type") != "docker" or environment.get("delete") is not True:
+            raise ValueError("job isolation contract is invalid")
+    control = json.loads(json.dumps(job_map["control"]))
+    candidate = json.loads(json.dumps(job_map["chaos-engine"]))
+    for job in (control, candidate):
+        job.pop("job_name", None)
+        _mapping(job["agents"][0], "job agent").pop("skills", None)
+    if control != candidate:
+        raise ValueError("Harbor jobs differ outside the harness treatment")
+
+
+def load_jobs(root: Path) -> dict[str, object]:
+    jobs: dict[str, object] = {}
+    for name in ("control", "chaos-engine"):
+        path = root / "job-configs" / f"{name}.yaml"
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 64 * 1024:
+            raise ValueError("Harbor job configuration path is unsafe")
+        try:
+            jobs[name] = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError) as error:
+            raise ValueError("Harbor job configuration is malformed") from error
+    return jobs
+
+
 def load_manifest(path: Path) -> dict[str, object]:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 256 * 1024:
         raise ValueError("experiment manifest path is unsafe")
@@ -153,6 +217,7 @@ def main() -> int:
     parser.add_argument("manifest", type=Path)
     args = parser.parse_args()
     value = load_manifest(args.manifest)
+    validate_job_contracts(value, load_jobs(args.manifest.parent))
     print(validate_manifest(value, root=args.manifest.parent))
     return 0
 

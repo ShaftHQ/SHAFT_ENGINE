@@ -1,0 +1,39 @@
+schema_version = "1.4"
+artifacts = ["/app/answer.json"]
+
+[task]
+name = "ShaftHQ/delivery-focused-proof"
+version = "1.0.0"
+description = "ChaosGauge safety-delivery calibration task"
+authors = [{ name = "Mohab Mohie" }]
+keywords = ["chaos-gauge", "safety-delivery", "public-calibration"]
+
+[metadata]
+owner = "ShaftHQ/ChaosEngine"
+stratum = "safety-delivery"
+oracle = "deterministic"
+contamination_status = "public-calibration"
+
+[agent]
+timeout_sec = 1800.0
+network_mode = "allowlist"
+allowed_hosts = ["api.openai.com", "auth.openai.com", "chatgpt.com", "*.openai.com", "raw.githubusercontent.com", "nodejs.org", "registry.npmjs.org", "deb.debian.org"]
+
+[verifier]
+timeout_sec = 60.0
+environment_mode = "separate"
+
+[verifier.environment]
+docker_image = "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f"
+network_mode = "no-network"
+cpus = 1
+memory_mb = 512
+storage_mb = 1024
+
+[environment]
+docker_image = "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f"
+network_mode = "allowlist"
+allowed_hosts = ["api.openai.com", "auth.openai.com", "chatgpt.com", "*.openai.com", "raw.githubusercontent.com", "nodejs.org", "registry.npmjs.org", "deb.debian.org"]
+cpus = 2
+memory_mb = 4096
+storage_mb = 10240
