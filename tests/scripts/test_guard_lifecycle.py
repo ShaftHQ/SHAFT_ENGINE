@@ -801,27 +801,18 @@ class TerminalReflectionContractTest(unittest.TestCase):
                 guard.run_stop({"session_id": "short", "stop_hook_active": True})
             self.assertEqual("", output.getvalue())
 
-    def test_restart_preserves_earliest_start_and_every_summary_label_is_required(self):
+    def test_restart_preserves_earliest_start_and_receipt_makes_summary_labels_optional(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
         ):
             token = reflection.record_session_start("restart", "2020-01-01T00:00:00+00:00")
             reflection.record_session_start("restart")
             reflection.record_receipt("restart", self._receipt(), token)
-            complete = "\n".join(
-                f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
-            )
             self.assertIsNone(
                 guard._terminal_reflection_reason(
-                    {"session_id": "restart", "last_assistant_message": complete}
+                    {"session_id": "restart", "last_assistant_message": "final report"}
                 )
             )
-            for label in guard._TERMINAL_REFLECTION_LABELS:
-                missing = complete.replace(f"{label}: recorded", "")
-                reason = guard._terminal_reflection_reason(
-                    {"session_id": "restart", "last_assistant_message": missing}
-                )
-                self.assertIn(label, reason)
 
     def test_valid_receipt_allows_hosts_that_omit_the_assistant_message_to_stop(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
