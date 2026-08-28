@@ -96,6 +96,7 @@ class ChaosEngineKernelTest(TestCase):
             "post_tool_use_failure": "PostToolUseFailure",
             "stop": "Stop",
             "subagent_stop": "SubagentStop",
+            "pre_compact": "PreCompact",
             "session_end": "SessionEnd",
         }
         for native, canonical in aliases.items():

@@ -143,7 +143,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 for event in events
             ],
             "plugins": [
-                {"name": name, "enabled": True}
+                {"name": name, "enabled": True, "provides": {"skills": 1}}
                 for name in ("chaos-engine", "caveman", "ponytail")
             ],
             "mcpServers": [
@@ -165,6 +165,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ({**healthy, "hooks": healthy["hooks"][:-1]}, "recovery-required"),
                 ({**healthy, "hooks": healthy["hooks"] + [healthy["hooks"][0]]}, "recovery-required"),
                 ({**healthy, "plugins": healthy["plugins"][:-1]}, "recovery-required"),
+                ({**healthy, "plugins": [{**item, "provides": {"skills": 0}} for item in healthy["plugins"]]}, "recovery-required"),
                 ({**healthy, "mcpServers": healthy["mcpServers"][:-1]}, "recovery-required"),
                 ({**healthy, "agents": healthy["agents"][:-1]}, "recovery-required"),
             ):
@@ -1199,7 +1200,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn("Notification", merged["hooks"])
             self.assertNotIn("Stop", merged["hooks"])
             module.uninstall(project)
-            self.assertEqual(original, json.loads(hook_path.read_text()))
+            restored = json.loads(hook_path.read_text())
+            self.assertEqual({"preserve": True}, restored["ownerMetadata"])
+            self.assertEqual("user-hook", restored["hooks"]["SessionStart"][0]["hooks"][0]["command"])
+            self.assertEqual(1, len(restored["hooks"]["SessionStart"][0]["hooks"]))
+            self.assertIn("Notification", restored["hooks"])
 
     def test_copilot_cli_hooks_preserve_foreign_handlers_and_metadata(self):
         module = load(HOSTS, "chaos_engine_copilot_hook_merge")

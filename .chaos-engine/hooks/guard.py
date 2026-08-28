@@ -497,6 +497,12 @@ def _run_event(event: dict, _host: str) -> int:
         if isinstance(event, dict)
         else ""
     )
+    if (
+        _host == "grok"
+        and event_name == "Stop"
+        and event.get("reason") not in (None, "end_turn")
+    ):
+        return 0
     root_session_id = str(event.get("session_id") or event.get("sessionId") or "")
     session_id = reflection.scope_session_id(
         root_session_id, event.get("agent_id") or event.get("agentId")

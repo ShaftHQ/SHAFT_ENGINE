@@ -2908,6 +2908,14 @@ def grok_compatibility_content(before: bytes | None) -> bytes | None:
     return cleaned
 
 
+def rollback_images(images: dict[str, bytes | None]) -> dict[str, bytes | None]:
+    """Exclude retired owned Grok hooks from uninstall restoration."""
+    baseline = dict(images)
+    relative = ".grok/hooks/lifecycle.json"
+    baseline[relative] = grok_compatibility_content(baseline[relative])
+    return baseline
+
+
 def replace_owned_text_block(
     existing: str, start: str, end: str, block: str, label: str
 ) -> bytes:
@@ -4054,6 +4062,7 @@ def install(
                 raise
         prepare_created_directories(project, receipt)
         reconcile(project, after, (before, after))
+        receipt["before"] = encode_images(rollback_images(before))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
         return receipt
@@ -4088,6 +4097,7 @@ def install(
     try:
         prepare_created_directories(project, receipt)
         reconcile(project, after, (before, after))
+        receipt["before"] = encode_images(rollback_images(before))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
         return receipt
@@ -4175,9 +4185,15 @@ def grok_runtime_status(
         for item in guard_hooks
     )
     plugins = {
-        str(item.get("name")) for item in payload.get("plugins", [])
+        str(item.get("name")): item for item in payload.get("plugins", [])
         if isinstance(item, dict) and item.get("enabled") is True
     }
+    companion_plugins = all(
+        isinstance((plugins.get(name) or {}).get("provides"), dict)
+        and isinstance((plugins[name]["provides"]).get("skills"), int)
+        and (plugins[name]["provides"])["skills"] >= 1
+        for name in ("chaos-engine", "caveman", "ponytail")
+    )
     servers = {
         str(item.get("name")) for item in payload.get("mcpServers", [])
         if isinstance(item, dict)
@@ -4194,7 +4210,7 @@ def grok_runtime_status(
         any(count != 1 for count in counts.values())
         or len(guard_hooks) != len(required)
         or not claude_sources
-        or not {"chaos-engine", "caveman", "ponytail"}.issubset(plugins)
+        or not companion_plugins
         or not {"chaosengine-memory", "chaosengine-mempalace", "context7"}.issubset(servers)
         or not {
             "chaos-engine-orchestrator", "chaos-engine-implementer",

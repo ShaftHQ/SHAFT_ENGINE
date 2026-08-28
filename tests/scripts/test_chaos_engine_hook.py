@@ -83,7 +83,7 @@ class ChaosEngineHookTest(unittest.TestCase):
                     self.assertEqual({}, json.loads(result.stdout))
 
     def test_exit_two_stop_hosts_write_continuation_prompt_to_stderr(self):
-        for host in ("claude", "codex", "gemini"):
+        for host in ("claude", "codex", "gemini", "grok"):
             with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
                 environment = {
                     **os.environ,
@@ -119,7 +119,7 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertIn("Learning Session", stopped.stderr)
 
     def test_exit_two_pretool_hosts_write_blocking_reason_to_stderr(self):
-        for host in ("claude", "codex", "gemini"):
+        for host in ("claude", "codex", "gemini", "grok"):
             with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
                 blocked = self.run_hook(
                     {
@@ -140,8 +140,8 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertEqual("", blocked.stdout)
             self.assertIn("rejected destructive broad scope", blocked.stderr)
 
-    def test_copilot_and_grok_stop_use_their_native_non_exit_two_contracts(self):
-        for host in ("copilot", "grok"):
+    def test_copilot_stop_uses_its_native_non_exit_two_contract(self):
+        for host in ("copilot",):
             with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
                 environment = {
                     **os.environ,
@@ -168,12 +168,22 @@ class ChaosEngineHookTest(unittest.TestCase):
 
             self.assertEqual(0, stopped.returncode)
             payload = json.loads(stopped.stdout)
-            if host == "copilot":
-                self.assertEqual("block", payload["decision"])
-                self.assertIn("Learning Session", payload["reason"])
-            else:
-                self.assertEqual({}, payload)
-                self.assertIn("Learning Session", stopped.stderr)
+            self.assertEqual("block", payload["decision"])
+            self.assertIn("Learning Session", payload["reason"])
+
+    def test_grok_session_end_stop_is_observational(self):
+        environment = {
+            **os.environ,
+            "CHAOS_ENGINE_HOST": "claude",
+            "GROK_HOOK_EVENT": "stop",
+            "GROK_SESSION_ID": "grok-session-end",
+        }
+        stopped = self.run_hook(
+            {"hookEventName": "stop", "reason": "channel_closed"}, environment
+        )
+        self.assertEqual(0, stopped.returncode)
+        self.assertEqual({}, json.loads(stopped.stdout))
+        self.assertEqual("", stopped.stderr)
 
     def test_source_and_portable_session_start_share_exact_companion_context(self):
         event = {"hook_event_name": "SessionStart", "session_id": "companion-parity", "cwd": str(ROOT)}

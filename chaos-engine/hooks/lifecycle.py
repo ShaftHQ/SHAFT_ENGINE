@@ -182,14 +182,10 @@ def run_hook_protocol(
             output = {}
         result = 0
     if result == 2:
-        if host in {"claude", "codex", "gemini"}:
+        if host in {"claude", "codex", "gemini", "grok"}:
             _write_continuation(continuation)
         elif host == "copilot":
             _write_json(output)
-            result = 0
-        elif host == "grok":
-            _write_continuation(continuation)
-            _write_json({})
             result = 0
         else:
             _write_json(output)

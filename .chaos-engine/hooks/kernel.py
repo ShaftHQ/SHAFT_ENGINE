@@ -141,6 +141,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             post_tool_use_failure="PostToolUseFailure",
             stop="Stop",
             subagent_stop="SubagentStop",
+            pre_compact="PreCompact",
             session_end="SessionEnd",
         ),
         GROK_EVENTS,
