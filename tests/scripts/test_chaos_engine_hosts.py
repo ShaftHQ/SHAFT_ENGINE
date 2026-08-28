@@ -1029,6 +1029,33 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertEqual({}, json.loads(completed.stdout))
 
+    def test_installed_hook_ignores_foreign_repository_guard(self):
+        module = load(HOSTS, "chaos_engine_hook_foreign_guard")
+        document = json.loads(module.lifecycle_hooks_document("codex"))
+        handler = document["hooks"]["SessionStart"][0]["hooks"][0]
+        command = handler["commandWindows"] if os.name == "nt" else handler["command"]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            foreign = project / "scripts/agents/guard.py"
+            foreign.parent.mkdir(parents=True)
+            foreign.write_text("print('foreign')\n", encoding="utf-8")
+            owned = project / ".chaos-engine/hooks/guard.py"
+            owned.parent.mkdir(parents=True)
+            owned.write_text("print('{}')\n", encoding="utf-8")
+            completed = subprocess.run(  # nosec B602 - generated fixed hook command.
+                command,
+                shell=True,
+                cwd=project,
+                input=json.dumps({"hook_event_name": "SessionStart"}),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertEqual({}, json.loads(completed.stdout))
+
     def test_generated_host_hooks_share_preventive_and_observational_matchers(self):
         module = load(HOSTS, "chaos_engine_hook_matchers")
         preventive = module.PRE_TOOL_MATCHER

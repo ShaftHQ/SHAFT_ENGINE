@@ -353,6 +353,13 @@ def _event_commands(tool_name: str, tool_input: object) -> tuple[str, ...]:
 def _tool_result_failed(event_name: str, result: object) -> bool:
     if event_name == "PostToolUseFailure":
         return True
+    if isinstance(result, str):
+        try:
+            decoded_result = json.loads(result)
+        except json.JSONDecodeError:
+            decoded_result = result
+        if isinstance(decoded_result, dict):
+            result = decoded_result
     return bool(
         isinstance(result, dict)
         and (

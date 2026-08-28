@@ -458,7 +458,14 @@ class ChaosEngineHookTest(unittest.TestCase):
                 "hook_event_name": "PostToolUse",
                 "tool_name": "shell_command",
                 "tool_input": {"command": "python3 -m unittest failing.test"},
-                "tool_response": {"status": "failed", "exit_code": 1},
+                "tool_response": json.dumps(
+                    {
+                        "chunk_id": "codex-native-failure",
+                        "wall_time_seconds": 0.01,
+                        "exit_code": 1,
+                        "output": "FAILED (failures=1)",
+                    }
+                ),
                 "session_id": "codex-native-post-failure",
             }
 
