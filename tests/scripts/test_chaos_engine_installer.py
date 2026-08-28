@@ -1933,6 +1933,14 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "not authenticated"):
                 MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
 
+            result = MODULE.status_with_dependencies(project)
+            self.assertEqual("blocked", result["hosts"]["recovery"]["status"])
+            self.assertEqual(
+                "invalid-rollback-state",
+                result["hosts"]["recovery"]["reasonCode"],
+            )
+            self.assertFalse(result["hosts"]["recovery"]["automaticResume"])
+
     def test_cross_rollback_recovery_never_executes_a_drifted_controller(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

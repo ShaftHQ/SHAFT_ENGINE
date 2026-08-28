@@ -1917,18 +1917,34 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             if result["kernel"]["status"] != "healthy":  # type: ignore[index]
                 result["status"] = "recovery-required"
             host_controller = load_installed_controller(target, "hosts")
-            pending_rollback = read_cross_rollback_journal(project)
+            rollback_error = None
+            try:
+                pending_rollback = read_cross_rollback_journal(project)
+            except ValueError as error:
+                pending_rollback = None
+                rollback_error = error
             if pending_rollback is not None:
                 result["hosts"] = host_controller.verify(project)
                 result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
                 result["hosts"]["recovery"] = rollback_recovery_status(  # type: ignore[index]
                     project, pending_rollback
                 )
+            elif rollback_error is not None:
+                result["hosts"] = host_controller.verify(project)
+                result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
+                result["hosts"]["recovery"] = {  # type: ignore[index]
+                    "status": "blocked",
+                    "currentCommit": str(manifest["source"]["commit"]),  # type: ignore[index]
+                    "phase": "inspect",
+                    "automaticResume": False,
+                    "reasonCode": "invalid-rollback-state",
+                }
             else:
                 result["hosts"] = host_controller.verify(
                     project,
                     core_commit=str(manifest["source"]["commit"]),  # type: ignore[index]
                 )
+                result["hosts"]["recovery"] = {"status": "not-required"}  # type: ignore[index]
             if result["hosts"]["status"] != "healthy":  # type: ignore[index]
                 result["status"] = "recovery-required"
             if active_probes:
