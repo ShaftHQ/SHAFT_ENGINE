@@ -2,6 +2,7 @@ package com.shaft.intellij.actions;
 
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
@@ -14,9 +15,18 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class OpenShaftToolWindowAction extends AnAction implements DumbAware {
     @Override
+    public @NotNull ActionUpdateThread getActionUpdateThread() {
+        return ActionUpdateThread.BGT;
+    }
+
+    @Override
     public void update(@NotNull AnActionEvent event) {
         Project project = event.getProject();
-        event.getPresentation().setEnabledAndVisible(project != null && ShaftProjectDetector.isShaftProject(project));
+        event.getPresentation().setEnabledAndVisible(isAvailable(project));
+    }
+
+    static boolean isAvailable(Project project) {
+        return project != null && ShaftProjectDetector.isShaftProject(project);
     }
 
     @Override

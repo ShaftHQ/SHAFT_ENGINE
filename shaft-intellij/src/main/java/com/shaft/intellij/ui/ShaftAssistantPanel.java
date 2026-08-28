@@ -57,6 +57,7 @@ import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.JTextArea;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -239,7 +240,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
-    private final JLabel agentTrustSummary;
+    private final JTextArea agentTrustSummary;
     private final JButton configure;
     /**
      * Bordered chip wrapping {@link #currentAgentConfiguration} + {@link #configure} together so
@@ -750,7 +751,13 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 JBUI.Borders.empty(2, 6)));
         currentAgentChip.add(currentAgentConfiguration, BorderLayout.CENTER);
         currentAgentChip.add(this.configure, BorderLayout.EAST);
-        agentTrustSummary = new JLabel();
+        agentTrustSummary = new JTextArea();
+        agentTrustSummary.setEditable(false);
+        agentTrustSummary.setFocusable(false);
+        agentTrustSummary.setOpaque(false);
+        agentTrustSummary.setLineWrap(true);
+        agentTrustSummary.setWrapStyleWord(true);
+        agentTrustSummary.setRows(3);
         agentTrustSummary.getAccessibleContext().setAccessibleName("Assistant agent and trust summary");
         agentTrustSummary.setForeground(ShaftStatusPresentation.pending());
 
@@ -3909,6 +3916,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         agentHealthStatus.getAccessibleContext().setAccessibleDescription(message);
         repairAgentSkills.setVisible(!readiness.ready());
         repairAgentSkills.setEnabled(!running && !readiness.ready());
+        updateAgentTrustSummary();
     }
 
     private void repairAgentSkills(boolean resumePrompt) {
@@ -5717,8 +5725,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         if (agentTrustSummary == null) {
             return;
         }
-        String agent = currentAgentConfigurationText();
-        boolean configuredAgent = assistantFamily.getSelectedItem() != null;
+        String agent = usesCloud()
+                ? providerRouteLabel(String.valueOf(cloudProvider.getSelectedItem()))
+                : currentAgentConfigurationText();
+        boolean configuredAgent = usesCloud() || assistantFamily.getSelectedItem() != null;
         if (!configuredAgent || agent == null || agent.isBlank() || agent.contains("Select an option")) {
             agent = "Not configured";
         }

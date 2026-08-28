@@ -50,13 +50,34 @@ class AssistantTranscriptViewTest {
         view.append("assistant", "Final result", "", ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
 
         assertAll(
-                () -> assertEquals(3, countByClientProperty(view,
+                () -> assertEquals(1, countByClientProperty(view,
                         AssistantTranscriptView.TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE)),
                 () -> assertEquals(1, findButtonsByText(view, "Show run details").size()),
                 () -> assertTrue(view.markdown().contains("Tool selected: doctor")),
                 () -> assertTrue(view.markdown().contains("Doctor evidence")),
                 () -> assertTrue(view.markdown().contains("Doctor failed")),
                 () -> assertTrue(view.markdown().contains("Final result")));
+    }
+
+    @Test
+    void toolRawDisclosureRemainsVisibleWhileRunDetailsAreCollapsed() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Doctor evidence", "{\"status\":\"failed\"}",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
+
+        assertAll(
+                () -> assertNotNull(findButtonByText(view, "Show run details")),
+                () -> assertTrue(isVisibleInHierarchy(findButtonByText(view, "Show raw output"))));
+    }
+
+    @Test
+    void approvalOutcomesStayVisibleInsideCollapsedRun() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Approved `capture_start` once.", "",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
+
+        JEditorPane approval = findEditorContaining(view, "Approved");
+        assertTrue(isVisibleInHierarchy(approval));
     }
     @Test
     void onlyMessagesWithNonBlankRawEvidenceRenderTheDisclosureToggle() {
@@ -841,6 +862,21 @@ class AssistantTranscriptViewTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 T found = findByType(child, type);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static JEditorPane findEditorContaining(Component component, String text) {
+        if (component instanceof JEditorPane editor && editor.getText().contains(text)) {
+            return editor;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JEditorPane found = findEditorContaining(child, text);
                 if (found != null) {
                     return found;
                 }

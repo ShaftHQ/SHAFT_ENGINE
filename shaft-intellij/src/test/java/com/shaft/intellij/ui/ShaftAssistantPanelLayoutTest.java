@@ -14,6 +14,7 @@ import javax.swing.JComponent;
 import javax.swing.JButton;
 import javax.swing.JScrollPane;
 import javax.swing.JLabel;
+import javax.swing.JTextArea;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JToggleButton;
@@ -52,7 +53,7 @@ class ShaftAssistantPanelLayoutTest {
     void headerKeepsAgentModeAccessAndContextVisibleOutsideRunSettings() throws Exception {
         ShaftSettingsState.Settings settings = readySettingsForExistingProject();
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
-        JLabel summary = (JLabel) fieldOf(panel, "agentTrustSummary");
+        JTextArea summary = (JTextArea) fieldOf(panel, "agentTrustSummary");
         JToggleButton runSettings = (JToggleButton) fieldOf(panel, "runSettingsToggle");
 
         assertAll(
@@ -63,6 +64,53 @@ class ShaftAssistantPanelLayoutTest {
                 () -> assertTrue(summary.getText().contains("Access:"), summary.getText()),
                 () -> assertTrue(summary.getText().contains("Context: none"), summary.getText()),
                 () -> assertFalse(runSettings.isSelected()));
+    }
+
+    @Test
+    void cloudRouteUsesProviderIdentityWithoutLocalAgentSelection() throws Exception {
+        ShaftSettingsState.Settings settings = readySettingsForExistingProject();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "openai";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
+        setField(panel, "providerModelState", "AVAILABLE");
+        java.lang.reflect.Method update = ShaftAssistantPanel.class.getDeclaredMethod("updateAgentTrustSummary");
+        update.setAccessible(true);
+        update.invoke(panel);
+
+        JTextArea summary = (JTextArea) fieldOf(panel, "agentTrustSummary");
+        assertAll(
+                () -> assertTrue(summary.getText().contains("Agent: OpenAI"), summary.getText()),
+                () -> assertTrue(summary.getText().contains("Status: connected"), summary.getText()));
+    }
+
+    @Test
+    void narrowTrustSummaryWrapsWithoutDroppingAnyField() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                null, readySettingsForExistingProject(), new ShaftAssistantChatState());
+        JTextArea summary = (JTextArea) fieldOf(panel, "agentTrustSummary");
+        summary.setSize(new Dimension(320, Short.MAX_VALUE));
+
+        assertAll(
+                () -> assertTrue(summary.getLineWrap()),
+                () -> assertTrue(summary.getWrapStyleWord()),
+                () -> assertTrue(summary.getRows() >= 3),
+                () -> assertTrue(summary.getText().matches("(?s).*Agent:.*Status:.*Mode:.*Access:.*Context:.*")));
+    }
+
+    @Test
+    void readinessRefreshUpdatesThePersistentTrustSummary() throws Exception {
+        ShaftSettingsState.Settings settings = readySettingsForExistingProject();
+        settings.assistantFamily = "codex";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
+        JTextArea summary = (JTextArea) fieldOf(panel, "agentTrustSummary");
+        summary.setText("stale");
+        java.lang.reflect.Method update = ShaftAssistantPanel.class.getDeclaredMethod("updateAgentHealth");
+        update.setAccessible(true);
+
+        update.invoke(panel);
+
+        JLabel health = (JLabel) fieldOf(panel, "agentHealthStatus");
+        assertTrue(summary.getText().contains("Status: " + health.getText()), summary.getText());
     }
 
     @Test

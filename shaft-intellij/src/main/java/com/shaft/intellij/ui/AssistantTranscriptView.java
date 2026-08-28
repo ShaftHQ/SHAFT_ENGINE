@@ -48,6 +48,7 @@ import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -401,6 +402,30 @@ final class AssistantTranscriptView extends JPanel {
 
     private void appendBubbleIncrementally(int index) {
         ShaftAssistantChatState.Message message = messages.get(index);
+        if (!USER_ROLE.equals(normalizedRole(message.role))) {
+            if (index > 0 && !USER_ROLE.equals(normalizedRole(messages.get(index - 1).role))) {
+                RenderedBubble prior = renderedBubbles.get(index - 1);
+                Component candidate = findByClientProperty(prior.row, TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE);
+                if (candidate instanceof JPanel runBubble) {
+                    String rawEvidence = index < messageRawEvidence.size() ? messageRawEvidence.get(index) : "";
+                    RenderedBubble stage = fallbackMessage(message.role, message.kind, message.markdown, rawEvidence);
+                    RenderedBubble handle = asRunStage(stage, prior.row, message.kind);
+                    runBubble.add(handle.bubble);
+                    renderedBubbles.add(handle);
+                    fallbackPanel.revalidate();
+                    fallbackPanel.repaint();
+                    scrollLatestIntoView();
+                    return;
+                }
+            }
+            List<RenderedBubble> run = fallbackRun(index, index + 1);
+            fallbackPanel.add(run.get(0).row);
+            renderedBubbles.addAll(run);
+            fallbackPanel.revalidate();
+            fallbackPanel.repaint();
+            scrollLatestIntoView();
+            return;
+        }
         String rawEvidence = index < messageRawEvidence.size() ? messageRawEvidence.get(index) : "";
         RenderedBubble handle = fallbackMessage(message.role, message.kind, message.markdown, rawEvidence);
         fallbackPanel.add(handle.row);
@@ -712,16 +737,90 @@ final class AssistantTranscriptView extends JPanel {
                 fallbackPanel.add(createTruncationDivider());
             }
             ShaftAssistantChatState.Message message = messages.get(i);
-            String rawEvidence = i < messageRawEvidence.size() ? messageRawEvidence.get(i) : "";
-            RenderedBubble handle = fallbackMessage(message.role, message.kind, message.markdown, rawEvidence);
-            fallbackPanel.add(handle.row);
-            renderedBubbles.add(handle);
+            if (USER_ROLE.equals(normalizedRole(message.role))) {
+                String rawEvidence = i < messageRawEvidence.size() ? messageRawEvidence.get(i) : "";
+                RenderedBubble handle = fallbackMessage(message.role, message.kind, message.markdown, rawEvidence);
+                fallbackPanel.add(handle.row);
+                renderedBubbles.add(handle);
+                continue;
+            }
+            int runEnd = i + 1;
+            while (runEnd < messages.size() && runEnd != truncationBoundaryIndex
+                    && !USER_ROLE.equals(normalizedRole(messages.get(runEnd).role))) {
+                runEnd++;
+            }
+            List<RenderedBubble> run = fallbackRun(i, runEnd);
+            fallbackPanel.add(run.get(0).row);
+            renderedBubbles.addAll(run);
+            i = runEnd - 1;
         }
         if (pendingWidget != null) {
             fallbackPanel.add(widgetRow(pendingWidgetRole, pendingWidget));
         }
         fallbackPanel.revalidate();
         fallbackPanel.repaint();
+    }
+
+    private List<RenderedBubble> fallbackRun(int start, int end) {
+        JPanel row = new PreferredHeightRow(new BorderLayout());
+        row.setOpaque(false);
+        row.setBorder(JBUI.Borders.emptyBottom(10));
+        MessageStyleRegistry.MessageStyle style =
+                MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
+        RoundedBubblePanel runBubble = new RoundedBubblePanel(style.background(), style.stroke(), 18);
+        runBubble.setLayout(new BoxLayout(runBubble, BoxLayout.Y_AXIS));
+        runBubble.setBorder(JBUI.Borders.empty(9, 11));
+        runBubble.setBackground(style.background());
+        runBubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, "assistant");
+        runBubble.putClientProperty(TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE);
+        runBubble.getAccessibleContext().setAccessibleName("Assistant run message bubble");
+        JLabel runLabel = new JLabel("Run");
+        runLabel.getAccessibleContext().setAccessibleName("Assistant run");
+        runBubble.add(runLabel);
+
+        List<RenderedBubble> handles = new ArrayList<>();
+        for (int index = start; index < end; index++) {
+            ShaftAssistantChatState.Message message = messages.get(index);
+            String rawEvidence = index < messageRawEvidence.size() ? messageRawEvidence.get(index) : "";
+            RenderedBubble stage = fallbackMessage(message.role, message.kind, message.markdown, rawEvidence);
+            RenderedBubble handle = asRunStage(stage, row, message.kind);
+            runBubble.add(handle.bubble);
+            handles.add(handle);
+        }
+        row.add(runBubble, BorderLayout.WEST);
+        return handles;
+    }
+
+    private static RenderedBubble asRunStage(RenderedBubble stage, JComponent row, String kind) {
+        JPanel stagePanel = new JPanel(new BorderLayout());
+        stagePanel.setOpaque(false);
+        stagePanel.setBorder(JBUI.Borders.emptyTop(6));
+        BorderLayout sourceLayout = (BorderLayout) stage.bubble.getLayout();
+        for (Component component : stage.bubble.getComponents()) {
+            Object constraints = sourceLayout.getConstraints(component);
+            stage.bubble.remove(component);
+            stagePanel.add(component, constraints);
+        }
+        stagePanel.putClientProperty(TRANSCRIPT_KIND_PROPERTY, kind);
+        RenderedBubble handle = new RenderedBubble(row, stagePanel, stage.htmlPane, stage.role, stage.outputPanel);
+        handle.streamedMarkdown = stage.streamedMarkdown;
+        return handle;
+    }
+
+    private static Component findByClientProperty(Component component, String property, Object value) {
+        if (component instanceof JComponent swingComponent
+                && value.equals(swingComponent.getClientProperty(property))) {
+            return component;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                Component found = findByClientProperty(child, property, value);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -970,14 +1069,15 @@ final class AssistantTranscriptView extends JPanel {
         JPanel runContent = new JPanel(new BorderLayout());
         runContent.setOpaque(false);
         runContent.add(outputPanel, BorderLayout.CENTER);
-        if (rawEvidence != null && !rawEvidence.isBlank()) {
-            runContent.add(evidenceFooter(rawEvidence), BorderLayout.SOUTH);
-        }
+        JComponent evidence = rawEvidence != null && !rawEvidence.isBlank() ? evidenceFooter(rawEvidence) : null;
         if (!auditableRun) {
             bubble.add(runContent, BorderLayout.CENTER);
         } else {
             bubble.add(runHeader(normalizedKind, runContent), BorderLayout.NORTH);
             bubble.add(runContent, BorderLayout.CENTER);
+        }
+        if (evidence != null) {
+            bubble.add(evidence, BorderLayout.SOUTH);
         }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
         RenderedBubble handle = new RenderedBubble(row, bubble, htmlPane, normalizedRole, outputPanel);
@@ -999,8 +1099,9 @@ final class AssistantTranscriptView extends JPanel {
         label.getAccessibleContext().setAccessibleName("Assistant run stage");
         label.getAccessibleContext().setAccessibleDescription(label.getText());
         header.add(label, BorderLayout.WEST);
-        boolean collapsibleDetail = ShaftAssistantChatState.KIND_TOOL_EVENT.equals(kind)
-                || ShaftAssistantChatState.KIND_RAW_VERBOSE.equals(kind);
+        boolean durableDecision = componentText(runContent).matches("(?is).*\\b(approved|denied)\\b.*");
+        boolean collapsibleDetail = !durableDecision && (ShaftAssistantChatState.KIND_TOOL_EVENT.equals(kind)
+                || ShaftAssistantChatState.KIND_RAW_VERBOSE.equals(kind));
         if (collapsibleDetail) {
             JButton toggle = ShaftButtonInteractions.create("Show run details");
             toggle.getAccessibleContext().setAccessibleName("Show run details");
@@ -1017,6 +1118,19 @@ final class AssistantTranscriptView extends JPanel {
             header.add(toggle, BorderLayout.EAST);
         }
         return header;
+    }
+
+    private static String componentText(Component component) {
+        if (component instanceof JEditorPane editor) {
+            return editor.getText();
+        }
+        StringBuilder text = new StringBuilder();
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                text.append(componentText(child));
+            }
+        }
+        return text.toString();
     }
 
     /**
