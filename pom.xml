@@ -87,7 +87,7 @@
         <commons.csv.version>1.14.1</commons.csv.version>
         <sikulix.version>2.0.5</sikulix.version>
         <jython.slim.version>2.7.4</jython.slim.version>
-        <tess4j.version>5.19.0</tess4j.version>
+        <tess4j.version>5.20.0</tess4j.version>
         <jnr.ffi.version>2.3.1</jnr.ffi.version>
         <jna.version>5.19.1</jna.version>
         <asm.version>9.10.1</asm.version>
@@ -114,17 +114,17 @@
         <javassist.version>3.33.0-GA</javassist.version>
         <google.api.client.version>2.9.0</google.api.client.version>
         <google.http.client.version>2.2.0</google.http.client.version>
-        <proto.google.common.protos.version>2.73.0</proto.google.common.protos.version>
-        <proto.google.cloud.kms.v1.version>2.97.0</proto.google.cloud.kms.v1.version>
+        <proto.google.common.protos.version>2.74.0</proto.google.common.protos.version>
+        <proto.google.cloud.kms.v1.version>2.98.0</proto.google.cloud.kms.v1.version>
         <error.prone.annotations.version>2.50.0</error.prone.annotations.version>
-        <checker.qual.version>4.2.1</checker.qual.version>
+        <checker.qual.version>4.2.2</checker.qual.version>
         <jspecify.version>1.0.1</jspecify.version>
         <animal.sniffer.annotations.version>1.27</animal.sniffer.annotations.version>
         <httpcore.version>4.4.16</httpcore.version>
         <owner.version>1.0.12</owner.version>
         <picocli.version>4.7.7</picocli.version>
         <jsoup.version>1.23.1</jsoup.version>
-        <json.version>20260522</json.version>
+        <json.version>20260814</json.version>
         <rhino.version>1.9.1</rhino.version>
         <tink.version>1.23.0</tink.version>
         <brotli.dec.version>0.1.2</brotli.dec.version>
