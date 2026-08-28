@@ -239,6 +239,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
+    private final JLabel agentTrustSummary;
     private final JButton configure;
     /**
      * Bordered chip wrapping {@link #currentAgentConfiguration} + {@link #configure} together so
@@ -574,6 +575,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // Checked by default: a first-time user asking for a generated test expects it to land in
         // the project, and the per-send approval gate still confirms before the first mutation.
         allowSourceMutation.setSelected(true);
+        allowSourceMutation.addActionListener(event -> updateAgentTrustSummary());
         // Warning-tinted chip so this reads as higher-stakes than the plain verboseAgentOutput/
         // autoCompact checkboxes beside it in routeRow, reusing the same
         // ShaftStatusPresentation.tint(...)+JBUI.Borders.customLine(...) pairing this file already
@@ -595,8 +597,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         unrestrictedLocalAgentAccess.setToolTipText("Recovery option for a broken Windows sandbox. "
                 + "Codex commands and file edits may access paths outside this project.");
         unrestrictedLocalAgentAccess.setSelected(settings.unrestrictedLocalAgentAccess);
-        unrestrictedLocalAgentAccess.addActionListener(event ->
-                settings.unrestrictedLocalAgentAccess = unrestrictedLocalAgentAccess.isSelected());
+        unrestrictedLocalAgentAccess.addActionListener(event -> {
+            settings.unrestrictedLocalAgentAccess = unrestrictedLocalAgentAccess.isSelected();
+            updateAgentTrustSummary();
+        });
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
@@ -744,6 +748,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 JBUI.Borders.empty(2, 6)));
         currentAgentChip.add(currentAgentConfiguration, BorderLayout.CENTER);
         currentAgentChip.add(this.configure, BorderLayout.EAST);
+        agentTrustSummary = new JLabel();
+        agentTrustSummary.getAccessibleContext().setAccessibleName("Assistant agent and trust summary");
+        agentTrustSummary.setForeground(ShaftStatusPresentation.pending());
 
         mode.addActionListener(event -> onModeOrRouteSelectionChanged());
         providerType.addActionListener(event -> onModeOrRouteSelectionChanged());
@@ -800,6 +807,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         JPanel header = new JPanel(new BorderLayout(4, 2));
         header.getAccessibleContext().setAccessibleName("Assistant chat header");
         header.add(chatRow, BorderLayout.CENTER);
+        header.add(agentTrustSummary, BorderLayout.SOUTH);
 
         actionRow = wrapRow();
         actionRow.add(copyLastResponse);
@@ -4270,6 +4278,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         attachmentsChipRow.setVisible(!attachments.isEmpty());
         attachmentsChipRow.revalidate();
         attachmentsChipRow.repaint();
+        updateAgentTrustSummary();
         Container parent = attachmentsChipRow.getParent();
         if (parent != null) {
             parent.revalidate();
@@ -5694,11 +5703,42 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
     private void updateRunSettingsSummary() {
         String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
+        String readiness = usesCloud() ? switch (providerModelState) {
+            case "AVAILABLE" -> "connected";
+            case "AUTHENTICATION_FAILED", "KEY_REQUIRED", "KEY_FORWARDING_DISABLED" -> "authentication needed";
+            case "EMPTY", "UNAVAILABLE", "FAILED" -> "unavailable";
+            default -> "checking";
+        } : agentHealthStatus == null || agentHealthStatus.getText().isBlank()
+                ? "Not configured" : agentHealthStatus.getText();
         String route = usesCloud()
                 ? providerRouteLabel(String.valueOf(cloudProvider.getSelectedItem()))
                 : ShaftUiLabels.localAgentRoute(assistantFamily.getSelectedItem(), assistantRuntime.getSelectedItem());
         runSettingsToggle.setText("Run settings · " + selectedMode + " · " + route + " · Effort: "
                 + String.valueOf(effort.getSelectedItem()));
+        updateAgentTrustSummary();
+    }
+
+    private void updateAgentTrustSummary() {
+        if (agentTrustSummary == null) {
+            return;
+        }
+        String agent = currentAgentConfigurationText();
+        if (agent == null || agent.isBlank()) {
+            agent = "Not configured";
+        }
+        String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
+        boolean agentMode = "AGENT".equals(mode.getSelectedItem()) && !usesCloud();
+        String access = !agentMode || !allowSourceMutation.isSelected()
+                ? "read-only"
+                : unrestrictedLocalAgentAccess.isVisible() && unrestrictedLocalAgentAccess.isSelected()
+                        ? "unrestricted"
+                        : "source edits with approval";
+        String context = attachments.isEmpty() ? "none" : attachments.size() + " attached";
+        String text = "Agent: " + agent + " · Status: " + readiness + " · Mode: " + selectedMode + " · Access: " + access
+                + " · Context: " + context;
+        agentTrustSummary.setText(text);
+        agentTrustSummary.setToolTipText(text);
+        agentTrustSummary.getAccessibleContext().setAccessibleDescription(text);
     }
 
     private static String providerRouteLabel(String provider) {
@@ -5789,6 +5829,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         currentAgentConfiguration.setText(text);
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(text);
         currentAgentConfiguration.setToolTipText(currentAgentConfigurationTooltip());
+        updateAgentTrustSummary();
     }
 
     private String currentAgentConfigurationText() {

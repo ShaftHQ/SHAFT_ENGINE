@@ -49,6 +49,23 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 class ShaftAssistantPanelLayoutTest {
 
     @Test
+    void headerKeepsAgentModeAccessAndContextVisibleOutsideRunSettings() throws Exception {
+        ShaftSettingsState.Settings settings = readySettingsForExistingProject();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
+        JLabel summary = (JLabel) fieldOf(panel, "agentTrustSummary");
+        JToggleButton runSettings = (JToggleButton) fieldOf(panel, "runSettingsToggle");
+
+        assertAll(
+                () -> assertTrue(summary.isVisible()),
+                () -> assertTrue(summary.getText().contains("Agent:"), summary.getText()),
+                () -> assertTrue(summary.getText().contains("Status:"), summary.getText()),
+                () -> assertTrue(summary.getText().contains("Mode:"), summary.getText()),
+                () -> assertTrue(summary.getText().contains("Access:"), summary.getText()),
+                () -> assertTrue(summary.getText().contains("Context: none"), summary.getText()),
+                () -> assertFalse(runSettings.isSelected()));
+    }
+
+    @Test
     void environmentBackedCloudRouteNamesItsSourceAndHidesManualKeyEntry() throws Exception {
         ShaftSettingsState.Settings settings = readySettingsForExistingProject();
         settings.assistantProviderType = "CLOUD";
