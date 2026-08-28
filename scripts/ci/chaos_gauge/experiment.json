@@ -33,7 +33,7 @@
       "effort": "medium",
       "repositoryRevision": "76772e015d149e66e00bbad2e8d9ee8953248c9c",
       "harness": "chaos-engine",
-      "harnessSha256": "7f215bf4f9cd5fd7dc366084c664b4199d1a3f7f2f5194e46b6fa38196c766a8",
+      "harnessSha256": "781dd581799224d6d0473cc594a2a496cdb94aadc07d8e79f1219d6da4d36444",
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
       "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}

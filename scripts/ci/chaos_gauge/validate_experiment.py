@@ -164,16 +164,35 @@ def validate_job_contracts(
             raise ValueError("job dataset contract is invalid")
         agent = agents[0]
         arm = _mapping(arm_map.get(name), "experiment arm")
-        if agent.get("name") != arm.get("agent"):
-            raise ValueError("job agent drift is not allowed")
+        if name == "control":
+            if agent.get("name") != "codex" or "import_path" in agent:
+                raise ValueError("job agent drift is not allowed")
+        elif (
+            agent.get("import_path")
+            != "scripts.ci.chaos_gauge.agent:ChaosEngineCodex"
+            or "name" in agent
+        ):
+            raise ValueError("job harness treatment is invalid")
         if agent.get("model_name") != arm.get("model"):
             raise ValueError("job model drift is not allowed")
         kwargs = _mapping(agent.get("kwargs"), "job agent arguments")
         if kwargs.get("reasoning_effort") != arm.get("effort"):
             raise ValueError("job effort drift is not allowed")
-        expected_skills = [] if name == "control" else [".chaos-engine"]
-        if agent.get("skills") != expected_skills:
+        if "skills" in agent:
             raise ValueError("job harness treatment is invalid")
+        if agent.get("override_setup_timeout_sec") != 900:
+            raise ValueError("job setup timeout drift is not allowed")
+        if name == "chaos-engine":
+            expected = {
+                "version": "0.118.0",
+                "reasoning_effort": arm.get("effort"),
+                "harness_source": "chaos-engine",
+                "harness_commit": arm.get("repositoryRevision"),
+                "harness_sha256": "03bd340d88d26177951551397b977d7454546739f34e0d6ad3154110abf27625",
+                "adapter_sha256": "ef83517d7a1483de9c96da1039cbb11b3c9b2ae7e1dc5a467757f7015d034a7c",
+            }
+            if kwargs != expected:
+                raise ValueError("job harness treatment is invalid")
         if job.get("n_attempts") != value.get("attemptsPerTask"):
             raise ValueError("job attempt drift is not allowed")
         environment = _mapping(job.get("environment"), "job environment")
@@ -183,7 +202,12 @@ def validate_job_contracts(
     candidate = json.loads(json.dumps(job_map["chaos-engine"]))
     for job in (control, candidate):
         job.pop("job_name", None)
-        _mapping(job["agents"][0], "job agent").pop("skills", None)
+        selected = _mapping(job["agents"][0], "job agent")
+        selected.pop("name", None)
+        selected.pop("import_path", None)
+        selected_kwargs = _mapping(selected["kwargs"], "job agent arguments")
+        for field in ("harness_source", "harness_commit", "harness_sha256", "adapter_sha256"):
+            selected_kwargs.pop(field, None)
     if control != candidate:
         raise ValueError("Harbor jobs differ outside the harness treatment")
 

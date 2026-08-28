@@ -3,10 +3,6 @@ jobs_dir: scripts/ci/chaos_gauge/jobs
 n_attempts: 5
 n_concurrent_trials: 2
 timeout_multiplier: 1.0
-orchestrator:
-  type: local
-  n_concurrent_trials: 2
-  quiet: false
 environment:
   type: docker
   delete: true
@@ -20,7 +16,7 @@ retry:
 agents:
   - name: codex
     model_name: gpt-5.6-terra
-    skills: []
+    override_setup_timeout_sec: 900
     kwargs:
       version: "0.118.0"
       reasoning_effort: medium

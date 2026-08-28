@@ -3,10 +3,6 @@ jobs_dir: scripts/ci/chaos_gauge/jobs
 n_attempts: 5
 n_concurrent_trials: 2
 timeout_multiplier: 1.0
-orchestrator:
-  type: local
-  n_concurrent_trials: 2
-  quiet: false
 environment:
   type: docker
   delete: true
@@ -18,12 +14,15 @@ retry:
     - EnvironmentStartError
     - EnvironmentBuildError
 agents:
-  - name: codex
+  - import_path: scripts.ci.chaos_gauge.agent:ChaosEngineCodex
     model_name: gpt-5.6-terra
-    skills:
-      - .chaos-engine
+    override_setup_timeout_sec: 900
     kwargs:
       version: "0.118.0"
       reasoning_effort: medium
+      harness_source: chaos-engine
+      harness_commit: "76772e015d149e66e00bbad2e8d9ee8953248c9c"
+      harness_sha256: "03bd340d88d26177951551397b977d7454546739f34e0d6ad3154110abf27625"
+      adapter_sha256: "ef83517d7a1483de9c96da1039cbb11b3c9b2ae7e1dc5a467757f7015d034a7c"
 datasets:
   - path: scripts/ci/chaos_gauge/dataset
