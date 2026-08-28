@@ -39,7 +39,10 @@ The Windows example below uses an `owner/repository` placeholder; replace it
 with the upstream that hosts the wrapper. The macOS/Linux example constructs
 the official upstream URL without embedding source identity in the portable
 payload. The scripts parse their invocation URL and do not copy that identity
-into the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file
+into the adopter payload. The installer also merges receipt-bound LF attributes
+for canonical harness paths, so Windows Git checkouts retain exact owned bytes
+while unrelated `.gitattributes` rules remain untouched.
+`CHAOS_ENGINE_REPOSITORY` remains a local-file
 override when the invocation URL cannot be parsed. Change into the target
 project or folder first; both scripts install into the current working
 directory.
