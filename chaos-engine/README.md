@@ -12,14 +12,22 @@
 
 # ChaosEngine
 
-ChaosEngine is a provider-neutral operating system for agentic software work.
-It gives an agent one canonical entrypoint for research, planning,
-implementation, verification, review, delivery, and learning—without tying the
-project to one model, client, marketplace, maintainer, or source repository.
+ChaosEngine is a provider-neutral working contract for agentic software work.
+It gives every supported coding agent one auditable route through research,
+planning, implementation, verification, review, delivery, and learning—without
+making one model, client, marketplace, maintainer, or source repository the
+owner of project policy.
 
-It is not a code generator or a replacement for a project's own engineering
-rules. It is the control layer that discovers those rules, routes each task to
-the right surface, and demands evidence before claiming the work is done.
+It is not a test runner, code generator, or replacement for a project's own
+engineering rules. It is the control layer that discovers those rules, routes
+each task to the right surface, and requires evidence before work is called
+complete.
+
+| If you are… | Start here | What you get |
+| --- | --- | --- |
+| Adopting ChaosEngine | [Install or upgrade](INSTALL.md) | One reviewed command, active health checks, rollback, and uninstall |
+| Evaluating it for a team | [Why it exists](#why-it-exists) and [trust boundaries](#trust-boundaries) | Scope, operating model, ownership, limitations, and proof |
+| Maintaining or extending it | [Maintainer reference](#maintainer-reference) and [develop and verify](#develop-and-verify) | Source-derived inventories, lifecycle flows, and focused checks |
 
 ## Why it exists
 
@@ -68,17 +76,9 @@ guidance out of the always-loaded context until it is needed.
 
 ## Install
 
-Start with the full [installation and upgrade guide](INSTALL.md). The safest
-flow resolves a configured upstream branch to an immutable commit, downloads
-only that commit's validated `chaos-engine/` subtree, and installs ChaosEngine
-inside the target project.
-
-The Windows example below uses an `owner/repository` placeholder; replace it
-with the upstream that hosts the wrapper. The macOS/Linux example uses the
-official SHAFT upstream. Source identity is not copied into the adopter payload.
-`CHAOS_ENGINE_REPOSITORY` remains a local-file override when the invocation URL
-cannot be parsed. Change into the target project or folder first; both scripts
-install into the current working directory.
+Change into the project you want ChaosEngine to manage, then run its platform
+installer. The bootstrap resolves `main` to an immutable commit, validates the
+source tree, installs into the current directory, and runs active health checks.
 
 Windows PowerShell:
 
@@ -94,36 +94,10 @@ curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-en
 
 Inspect [install.ps1](install.ps1), [install.sh](install.sh), and
 [bootstrap.py](bootstrap.py) first when your trust policy requires review before
-execution. The public default is the neutral `portable` distribution.
-
-A successful command reports the resolved 40-character commit and a healthy
-active doctor result for core, adapters, local tools, hooks, and every detected
-client plugin. Restart an already-running client so it loads the new plugin.
-Runtime dependencies remain project-local; detected clients receive a
-path-unique local marketplace registration and cached plugin.
-
-### Upgrade, recover, or remove
-
-- **Upgrade:** run the same one-liner again. A failed or invalid
-  download leaves the last verified installation unchanged. Transient timeout,
-  connection, rate-limit, and server responses receive bounded retries before
-  that fail-closed result; permanent client errors do not.
-- **Legacy migration:** if status reports `legacy`, uninstall first and then
-  run the portable bootstrap. This deliberate reinstall prevents old
-  repository-specific payloads from surviving in the rollback backup.
-- **Inspect:** run
-  `python .chaos-engine/install.py status --project . --json`. JSON schema v2
-  is deterministic and omits paths and credential-shaped fields.
-- **Explain:** run
-  `python .chaos-engine/install.py explain Stop --project . --host codex --json`
-  to evaluate one event without reading ambient session state.
-- **Roll back:** run
-  `python .chaos-engine/install.py rollback --project .`.
-- **Uninstall:** run
-  `python .chaos-engine/install.py uninstall --project .`.
-
-Rollback and uninstall act only on receipt-owned ChaosEngine files. Mixed or
-unknown ownership fails closed instead of deleting unrelated project content.
+execution. A successful install reports the resolved 40-character commit and a
+healthy active doctor result. The [installation reference](INSTALL.md) owns
+prerequisites, verification, dependency behavior, upgrades, recovery, rollback,
+uninstall, and optional Maven Tools setup.
 
 ## Use it
 
@@ -147,7 +121,15 @@ prefix, companion repositories, and routing table. The
 show the complete shape. The public install path selects the neutral profile by
 default; repository-specific distributions require an explicit selection.
 
-## What gets installed
+## Maintainer reference
+
+The following source-derived detail remains complete and searchable while
+staying out of the primary adoption path.
+
+<details>
+<summary><strong>Installed files, dependencies, hosts, and generated inventories</strong></summary>
+
+### What gets installed
 
 | Path | Responsibility |
 | --- | --- |
@@ -391,6 +373,8 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | reports, caches, and evaluation receipts | Carry bounded diagnostics without transcripts or secrets. | .gitignore; chaos_engine_promotion.py | generated and never tracked | local and CI | requesting command | ephemeral evidence owner | missing evidence blocks promotion |
 <!-- inventory:generated-assets:end -->
 
+</details>
+
 ### Promotion driver contract
 
 The scheduled/manual evaluator accepts one protected JSON driver specification per
@@ -403,6 +387,12 @@ A missing credential, revision, driver, version, or binding produces a terminal
 Blocked report; raw output and transcripts are never published.
 
 ## Installation, lifecycle, and ownership flows
+
+These diagrams are validator-owned operational references. Expand them when
+reviewing installer, lifecycle, or ownership changes.
+
+<details>
+<summary><strong>Show operational flow diagrams</strong></summary>
 
 ```mermaid
 flowchart TD
@@ -548,6 +538,8 @@ stateDiagram-v2
 Repository policy requires companion functional documentation in
 `ShaftHQ/shafthq.github.io` through a separate documentation pull request,
 reviewed and delivered in the same delivery campaign as behavior changes.
+
+</details>
 
 ## Trust boundaries
 

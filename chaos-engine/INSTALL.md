@@ -8,15 +8,10 @@
 
 # Install or upgrade ChaosEngine
 
-ChaosEngine is a portable, provider-neutral working contract for software
-agents. It routes work through research, planning, focused playbooks, empirical
-verification, independent adversarial review, and a durable learning session.
-
-This page is the direct installation reference. Start with the human-facing
-[`README.md`](README.md) for the purpose, operating loop, trust boundaries, and
-portable layout. The canonical operating model lives in
-[`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md), and the reusable
-vector masters and application rules live in the [identity guide](assets/brand/BRAND.md).
+This is the operational reference for installing, verifying, upgrading,
+recovering, and removing ChaosEngine. For its purpose and trust model, start
+with the [README](README.md). The canonical agent contract lives in
+[`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md).
 
 Give the following instruction to a coding agent while its working directory is
 the project you want to manage:
@@ -33,23 +28,12 @@ the project you want to manage:
 > canonical harness and route any existing agent guidance through it without
 > deleting unrelated user content.
 
-That agent instruction owns the complete flow: the bootstrap installs the
-neutral core, latest compatible stable account tools, Memory and isolated MemPalace MCP servers,
-Graphify CLI, skills, playbooks, five role adapters, ChaosEngine lifecycle
-hooks, the pinned Caveman and Ponytail companion skills and hooks, the MIT license
-and third-party notices, Codex and Claude plugin manifests/marketplaces for
-ChaosEngine plus those companions, retrieval configuration, and runtime ignore
-rules. Companion skills install with the core and load by default at runtime;
-user off-switches still win. When a detected client
-requires marketplace registration, the agent registers the project marketplace
-and installs `chaos-engine`, `caveman`, and `ponytail` at project local scope,
-then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
+The bootstrap installs the neutral core, routed guidance, host adapters,
+lifecycle hooks, pinned companion skills, and selected local tools. It then
+runs active doctor probes. Generated indexes, caches, receipts, and runtimes
 remain untracked; canonical configuration and adapters remain trackable.
-Origin identity masters under `assets/brand/`, the origin adoption matrix
-`RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
-into the adopter payload. The installer also merges receipt-bound LF attributes for canonical harness paths,
-so Windows Git checkouts retain the exact owned bytes while unrelated
-`.gitattributes` rules remain untouched.
+
+## Install
 
 The Windows example below uses an `owner/repository` placeholder; replace it
 with the upstream that hosts the wrapper. The macOS/Linux example constructs
@@ -108,6 +92,31 @@ requires review before execution. The bootstrap resolves the default branch to
 an immutable commit and downloads only its validated `chaos-engine/` subtree;
 `portable` is already the default and need not be supplied. Restart any client
 that was open during installation so it loads its verified local plugin cache.
+
+## Verify and operate
+
+Installation is complete only when the active doctor reports the resolved
+40-character commit and every required selected component healthy.
+
+```text
+python .chaos-engine/install.py status --project . --json
+python .chaos-engine/install.py doctor --project . --json
+python .chaos-engine/install.py explain Stop --project . --host codex --json
+python .chaos-engine/install.py rollback --project .
+python .chaos-engine/install.py uninstall --project .
+```
+
+- **Upgrade:** run the platform one-liner again. A failed candidate leaves the
+  last verified installation active.
+- **Legacy install:** if status reports `legacy`, uninstall first, then run the
+  portable bootstrap. In-place legacy conversion is intentionally refused.
+- **Rollback or uninstall:** only receipt-owned files are changed. Mixed,
+  modified, linked, or unknown ownership fails closed.
+
+## Advanced provenance, recovery, and store states
+
+<details>
+<summary><strong>Show branch resolution, repair, ownership, and knowledge-store details</strong></summary>
 
 Set `CHAOS_ENGINE_BRANCH` to override the repository's configured default
 branch (otherwise `main`). The bootstrap resolves that mutable branch through
@@ -168,6 +177,8 @@ ordinary tasks but remain strict in `doctor`; an unhealthy selected store still
 returns `recovery-required`. Maven Tools MCP is auto-installed when the project
 has a root `pom.xml`. On non-Maven projects it stays optional and absent does
 not make project health fail.
+
+</details>
 
 ## Optional native Maven Tools MCP
 
@@ -230,6 +241,9 @@ takes a non-waiting user-cache lock and removes only the verified receipt-owned
 JAR and receipt. It refuses modified, linked, unknown, broad, or busy targets;
 an absent version is already successful.
 
+<details>
+<summary><strong>Manual receipt publication after a source build</strong></summary>
+
 An installing agent can use this PowerShell sequence after the source build:
 
 ```powershell
@@ -268,3 +282,5 @@ printf '{"version":"%s","commit":"%s","jar":"%s","sha256":"%s"}\n' \
   > "$staging/install-receipt.json"
 python3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.chaos-engine/hosts.py'); api.get('publish_maven_tools_cache')(Path(sys.argv[1]), root=Path(sys.argv[2]))" "$staging" "$cache_root"
 ```
+
+</details>

@@ -1,9 +1,11 @@
 # Spec: migrate ChaosEngine to ShaftHQ/chaos-engine
 
-Status: approved for later implementation. This file is origin-only and is not
-copied into adopter payloads. Tracker: ShaftHQ/SHAFT_ENGINE#5225 (parent #5223).
-Do not create the GitHub repository, rewrite history, or change bootstrap prefix
-selection in the same change that only records this spec.
+Status: specification delivered by ShaftHQ/SHAFT_ENGINE#5225; migration not
+implemented as of 2026-08-28. This file is origin-only and is not copied into
+adopter payloads. Parent tracker: ShaftHQ/SHAFT_ENGINE#5223. The current
+bootstrap still selects the nested `chaos-engine/` source prefix, and no
+standalone repository is assumed to exist. Do not create the repository,
+rewrite history, or change prefix selection in a documentation-only change.
 
 ## Goal
 
