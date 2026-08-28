@@ -5718,7 +5718,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             return;
         }
         String agent = currentAgentConfigurationText();
-        if (agent == null || agent.isBlank()) {
+        boolean configuredAgent = assistantFamily.getSelectedItem() != null;
+        if (!configuredAgent || agent == null || agent.isBlank() || agent.contains("Select an option")) {
             agent = "Not configured";
         }
         String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
@@ -5727,7 +5728,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             case "AUTHENTICATION_FAILED", "KEY_NEEDED", "KEY_FORWARDING_DISABLED" -> "authentication needed";
             case "EMPTY", "UNAVAILABLE", "FAILED" -> "unavailable";
             default -> "checking";
-        } : agentHealthStatus == null || agentHealthStatus.getText().isBlank()
+        } : !configuredAgent || agentHealthStatus == null || agentHealthStatus.getText().isBlank()
                 ? "Not configured" : agentHealthStatus.getText();
         boolean agentMode = "AGENT".equals(mode.getSelectedItem()) && !usesCloud();
         String access = !agentMode || !allowSourceMutation.isSelected()

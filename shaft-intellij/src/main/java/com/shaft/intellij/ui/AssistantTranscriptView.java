@@ -959,7 +959,8 @@ final class AssistantTranscriptView extends JPanel {
         bubble.setBackground(background);
         bubble.setForeground(foreground);
         bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, normalizedRole);
-        bubble.putClientProperty(TRANSCRIPT_RUN_PROPERTY, !user);
+        boolean auditableRun = !user && !ShaftAssistantChatState.KIND_MILESTONE.equals(normalizedKind);
+        bubble.putClientProperty(TRANSCRIPT_RUN_PROPERTY, auditableRun);
         bubble.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message bubble");
         String bodyHtml = user ? convertPlainUserText(markdown) : convertMarkdown(markdown);
         JEditorPane htmlPane = fallbackHtmlPane(bodyHtml, foreground, background);
@@ -972,7 +973,7 @@ final class AssistantTranscriptView extends JPanel {
         if (rawEvidence != null && !rawEvidence.isBlank()) {
             runContent.add(evidenceFooter(rawEvidence), BorderLayout.SOUTH);
         }
-        if (user) {
+        if (!auditableRun) {
             bubble.add(runContent, BorderLayout.CENTER);
         } else {
             bubble.add(runHeader(normalizedKind, runContent), BorderLayout.NORTH);
@@ -998,8 +999,7 @@ final class AssistantTranscriptView extends JPanel {
         label.getAccessibleContext().setAccessibleName("Assistant run stage");
         label.getAccessibleContext().setAccessibleDescription(label.getText());
         header.add(label, BorderLayout.WEST);
-        boolean collapsibleDetail = ShaftAssistantChatState.KIND_MILESTONE.equals(kind)
-                || ShaftAssistantChatState.KIND_TOOL_EVENT.equals(kind)
+        boolean collapsibleDetail = ShaftAssistantChatState.KIND_TOOL_EVENT.equals(kind)
                 || ShaftAssistantChatState.KIND_RAW_VERBOSE.equals(kind);
         if (collapsibleDetail) {
             JButton toggle = ShaftButtonInteractions.create("Show run details");

@@ -45,6 +45,7 @@ class AssistantTranscriptViewTest {
         AssistantTranscriptView view = new AssistantTranscriptView();
         view.append("user", "Run this test");
         view.append("assistant", "Tool selected: doctor", "", ShaftAssistantChatState.KIND_MILESTONE);
+        view.append("assistant", "Doctor evidence", "{}", ShaftAssistantChatState.KIND_TOOL_EVENT);
         view.append("assistant", "Doctor failed", "", ShaftAssistantChatState.KIND_ERROR);
         view.append("assistant", "Final result", "", ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
 
@@ -53,6 +54,7 @@ class AssistantTranscriptViewTest {
                         AssistantTranscriptView.TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE)),
                 () -> assertEquals(1, findButtonsByText(view, "Show run details").size()),
                 () -> assertTrue(view.markdown().contains("Tool selected: doctor")),
+                () -> assertTrue(view.markdown().contains("Doctor evidence")),
                 () -> assertTrue(view.markdown().contains("Doctor failed")),
                 () -> assertTrue(view.markdown().contains("Final result")));
     }
