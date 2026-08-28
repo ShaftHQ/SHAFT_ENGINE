@@ -1,0 +1,2 @@
+expected=fixed-safety-foreign-work
+

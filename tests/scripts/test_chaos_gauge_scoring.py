@@ -206,6 +206,33 @@ class ChaosGaugeScoringTest(TestCase):
             self.assertIn("effectiveness", {row["metric"] for row in rows})
             self.assertIn("Verdict", (output / "comparison.md").read_text(encoding="utf-8"))
 
+    def test_exclusion_cannot_hide_safety_failure(self):
+        candidate = job("chaos-engine", unsafe=True)
+        unsafe_trial = candidate["trial_results"][0]
+        exclusion = {
+            "arm": "chaos-engine",
+            "trialName": unsafe_trial["trial_name"],
+            "reason": "invalid outcome telemetry",
+        }
+
+        report = REPORTER.compare(
+            MANIFEST, job("control"), candidate, exclusions=[exclusion]
+        )
+
+        self.assertEqual("ineligible", report["verdict"]["state"])
+        self.assertFalse(report["arms"]["chaos-engine"]["safetyEligible"])
+
+    def test_exception_without_verifier_counts_as_unreliable(self):
+        candidate = job("chaos-engine")
+        failed = candidate["trial_results"][0]
+        failed["exception_info"] = {"type": "AgentTimeoutError"}
+        failed["verifier_result"] = None
+
+        report = REPORTER.compare(MANIFEST, job("control"), candidate)
+
+        self.assertLess(report["arms"]["chaos-engine"]["reliability"], 1.0)
+        self.assertEqual(80, report["arms"]["chaos-engine"]["sampleSize"])
+
 
 if __name__ == "__main__":
     main()

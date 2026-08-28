@@ -85,6 +85,7 @@ ALLOWED_GLOBS = (
     "agent-plugins/**/*.md",
     "plugins/**/*.md",
     "tools/**/*.md",
+    "scripts/ci/chaos_gauge/dataset/*/instruction.md",
     "*/src/test/resources/fixtures/**/*.md",
 )
 FORBIDDEN_LINK_FRAGMENTS = (

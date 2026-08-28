@@ -1,3 +1,2 @@
-Producer renamed terminalReason to terminal_reason while consumer still requires terminalReason. State the compatible recovery.
+Inspect the seeded workspace and repair its broken cross-file contract so `python3 run.py` succeeds. Preserve unrelated user work and existing contract data. Make the smallest safe change; do not replace the workspace with an answer file.
 
-Write only `/app/answer.json` with exactly two string fields: `finding` and `evidence`.

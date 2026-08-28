@@ -9,7 +9,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "9ab425a13a006fff5e371221ebafb1cd293c448bb1a545140abae37518c0dc44"
+      "sha256": "37ef8038837b29f9d300d645131ef84459ed6ef90253c4eb95585ca3b2bc16e6"
     },
     {
       "name": "diagnosis-failure-trace",
@@ -19,7 +19,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "ae4a915127a9843f8246a5a60241256e653394f383ddf1e620c7e87614605bf4"
+      "sha256": "6e2af7572d16514f288dba8a5d6fbd172d1696dab1b10470af98efd3cbed3830"
     },
     {
       "name": "diagnosis-module-boundary",
@@ -29,7 +29,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "7a579aced20d359784612a2bd3530ee3a9bb9e79904949ca9bb9f1f7c2999041"
+      "sha256": "9e57bf1423c1142ec70586e53f233349471b03fa9e2986a72d397a7e8766f6f8"
     },
     {
       "name": "repair-null-contract",
@@ -39,7 +39,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "3db102becfefb14378d0446f19452517a83abf35896895179fb2e6919fc2cf20"
+      "sha256": "5bf5d7c2a1a2baf815a2b84ab976046619d31e3d4fc5ac7a592b6af92f0ca703"
     },
     {
       "name": "repair-timeout-cleanup",
@@ -49,7 +49,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "7f7957d67f9ae62a573806d9a5039cb0940b6ba718da7e89673b19ac68a1e11c"
+      "sha256": "091442c3af5bf4965de0d5551c2a299f1ca3d3ef68657824264ae9f1695c92f4"
     },
     {
       "name": "repair-regression-test",
@@ -59,7 +59,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "bfdb1714c6ccb34ea3693eb3ba9ca5941c0c7d173ea8327d2463bd96590c20c9"
+      "sha256": "fc75b76758a34285e9aa88661b1fa71e0276723b564ca824fc62e48209468c7c"
     },
     {
       "name": "recovery-cross-file-contract",
@@ -69,7 +69,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "1518cdb031a844c997c0b45a59423d9a0d190de497d95cf10f940548fc4cfccd"
+      "sha256": "16d7a541f1040e809313a47ad5607cb81d74cf7e642fbfd2a2da08a9289ae9b5"
     },
     {
       "name": "recovery-broken-build",
@@ -79,7 +79,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "f4c0bad874e89f7823c2f3afecfc7483706feed002e97d55a7adfd175e858562"
+      "sha256": "49d5c77c2e80eed033cb7e3ee9096370fa2e2df168dcad70f0981fe40c8d233b"
     },
     {
       "name": "recovery-partial-migration",
@@ -89,7 +89,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "6cb85ad05d0fb0e61d068a4af92c70d4f5bda221cb0f556a05c63bb2fcb6100d"
+      "sha256": "fcfc851ffeb4d891f7a70a5f8fefd0bc6f144eb3f3e2429b10a9c1d6d51914b4"
     },
     {
       "name": "safety-secret-redaction",
@@ -99,7 +99,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "ebed4e0e2346e73706de39b3a99f21886c39b97320b22fb730dc3d21ac753f16"
+      "sha256": "35452d58b2b84e1ccdc024ef5a16292fb418501404219edf5b344cde49a1ff53"
     },
     {
       "name": "safety-foreign-work",
@@ -109,7 +109,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "4574343776bfe3b1c75c6cb0e6e0fdec3957498d8a23f71870be6ccad6334b9a"
+      "sha256": "a761a02fbb8a48df45d2449d46e49d5d02a9497cf9d919f25fd548431839bbd0"
     },
     {
       "name": "delivery-focused-proof",
@@ -119,7 +119,7 @@
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "public-calibration",
-      "sha256": "c43b6931db90f177629cc1751b55239de4a68939cfacaf7fe962e17a936471cb"
+      "sha256": "c8e475822fc9726804587dd35ea8f136d858ce768cb7cb4c5f7cbec8ebb3192f"
     },
     {
       "name": "holdout-diagnosis-01",

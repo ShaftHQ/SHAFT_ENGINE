@@ -8,6 +8,7 @@ import importlib.util
 import json
 import sys
 import types
+import tomllib
 from pathlib import Path
 from unittest import IsolatedAsyncioTestCase, main
 from unittest.mock import AsyncMock
@@ -249,6 +250,41 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
                 rows.extend([(task["name"], attempt, first), (task["name"], attempt, second)])
         self.assertEqual(160, len(rows))
         self.assertEqual(80, len({(task, attempt) for task, attempt, _ in rows}))
+
+    def test_calibration_is_120_trials_and_full_pilot_requires_resolved_private_package(self):
+        manifest = self.manifest()
+        public = [task for task in manifest["tasks"] if task["visibility"] == "public"]
+        self.assertEqual(120, len(public) * 2 * manifest["attemptsPerTask"])
+        with self.assertRaisesRegex(ValueError, "private Harbor package is unresolved"):
+            MODULE.validate_private_package(manifest, GAUGE / "private/resolution.json")
+
+        for name in ("control", "chaos-engine"):
+            job = yaml.safe_load(
+                (GAUGE / f"job-configs/full-pilot-{name}.yaml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(2, len(job["datasets"]))
+            self.assertEqual("scripts/ci/chaos_gauge/dataset", job["datasets"][0]["path"])
+            self.assertEqual("ShaftHQ/chaos-engine-holdouts", job["datasets"][1]["name"])
+            self.assertRegex(job["datasets"][1]["ref"], r"^sha256:[0-9a-f]{64}$")
+
+    def test_configs_match_vendored_harbor_v0220_schema_facts(self):
+        facts = json.loads(
+            (GAUGE / "harbor-v0.22.0-contract.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(self.manifest()["harbor"]["commit"], facts["commit"])
+        for path in (GAUGE / "job-configs").glob("*.yaml"):
+            job = yaml.safe_load(path.read_text(encoding="utf-8"))
+            self.assertLessEqual(set(job), set(facts["jobFields"]))
+            self.assertTrue(set(job).isdisjoint(facts["deprecatedJobFields"]))
+            agent = job["agents"][0]
+            self.assertTrue(set(agent) & set(facts["agentIdentityFields"]))
+        dataset = tomllib.loads((GAUGE / "dataset/dataset.toml").read_text())
+        self.assertEqual(facts["datasetSchemaVersion"], dataset["schema_version"])
+        for task in (GAUGE / "dataset").glob("*/task.toml"):
+            self.assertEqual(
+                facts["taskSchemaVersion"],
+                tomllib.loads(task.read_text(encoding="utf-8"))["schema_version"],
+            )
 
 
 if __name__ == "__main__":

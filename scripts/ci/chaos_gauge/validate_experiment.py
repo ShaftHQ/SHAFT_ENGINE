@@ -49,6 +49,7 @@ def validate_manifest(value: object, *, root: Path | None = None) -> str:
         "identity",
         "harbor",
         "dataset",
+        "privatePackage",
         "attemptsPerTask",
         "seed",
         "arms",
@@ -74,6 +75,14 @@ def validate_manifest(value: object, *, root: Path | None = None) -> str:
         raise ValueError("dataset identity is invalid")
     if not SHA256.fullmatch(str(dataset.get("sha256", ""))):
         raise ValueError("dataset digest is invalid")
+
+    private_package = _mapping(manifest["privatePackage"], "private package")
+    if private_package != {
+        "name": "ShaftHQ/chaos-engine-holdouts",
+        "ref": "sha256:9ff490552e845c1279704a6c680cef29b88484c44d222f6cc51a71798d4c9f9c",
+        "status": "unresolved",
+    }:
+        raise ValueError("private package plan is invalid")
 
     arms = manifest["arms"]
     if not isinstance(arms, list) or len(arms) != 2:
@@ -137,6 +146,25 @@ def validate_manifest(value: object, *, root: Path | None = None) -> str:
         raise ValueError("task visibility split must be 12 public and 4 private references")
 
     return _sha256(manifest)
+
+
+def validate_private_package(manifest: object, resolution_path: Path) -> None:
+    value = _mapping(manifest, "experiment manifest")
+    package = _mapping(value.get("privatePackage"), "private package")
+    if resolution_path.is_symlink() or not resolution_path.is_file():
+        raise ValueError("private Harbor package is unresolved")
+    try:
+        resolution = json.loads(resolution_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError("private Harbor package is unresolved") from error
+    private_tasks = [task for task in value.get("tasks", []) if task.get("visibility") == "private-reference"]
+    expected = {
+        "name": package.get("name"),
+        "ref": package.get("ref"),
+        "tasks": [{"name": task["name"], "sha256": task["sha256"]} for task in private_tasks],
+    }
+    if resolution != expected or len(private_tasks) != 4:
+        raise ValueError("private Harbor package resolution does not match the 4-task holdout")
 
 
 def validate_job_contracts(

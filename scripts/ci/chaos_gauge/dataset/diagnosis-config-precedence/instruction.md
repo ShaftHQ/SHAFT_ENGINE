@@ -1,3 +1,2 @@
-Configuration says timeout=30 in the file, timeout=45 in environment, and timeout=60 as a JVM system property. Identify the effective value and winning source.
+Inspect the seeded workspace and repair its broken cross-file contract so `python3 run.py` succeeds. Preserve unrelated user work and existing contract data. Make the smallest safe change; do not replace the workspace with an answer file.
 
-Write only `/app/answer.json` with exactly two string fields: `finding` and `evidence`.

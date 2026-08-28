@@ -26,6 +26,7 @@ def _write_json(path: Path, value: object) -> None:
         try:
             os.unlink(temporary)
         except FileNotFoundError:
+            # Concurrent cleanup already removed this private temporary file.
             pass
         raise
 

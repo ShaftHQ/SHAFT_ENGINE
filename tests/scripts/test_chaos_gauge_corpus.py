@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import hashlib
+import shutil
 import subprocess
 import tempfile
 import tomllib
@@ -45,7 +46,7 @@ class ChaosGaugeCorpusTest(TestCase):
 
         self.assertEqual("ShaftHQ/chaos-engine-effectiveness", dataset["dataset"]["name"])
         self.assertEqual("1.0.0", dataset["dataset"]["version"])
-        self.assertEqual(16, len(dataset["tasks"]))
+        self.assertEqual(12, len(dataset["tasks"]))
         metric_digest = hashlib.sha256((DATASET_ROOT / "metric.py").read_bytes()).hexdigest()
         self.assertEqual(
             [{"path": "metric.py", "digest": f"sha256:{metric_digest}"}],
@@ -71,9 +72,7 @@ class ChaosGaugeCorpusTest(TestCase):
             files = [
                 path
                 for path in task.rglob("*")
-                if path.is_file()
-                and path.name not in {"README.md", "trajectory.json"}
-                or path.is_file()
+                if path.is_file() and path.name not in {"README.md", "trajectory.json"}
             ]
             for path in sorted(files, key=lambda value: value.relative_to(task).as_posix()):
                 relative = path.relative_to(task).as_posix()
@@ -94,8 +93,12 @@ class ChaosGaugeCorpusTest(TestCase):
                 self.assertEqual("separate", config["verifier"]["environment_mode"])
                 self.assertEqual("no-network", config["verifier"]["environment"]["network_mode"])
                 self.assertEqual("allowlist", config["environment"]["network_mode"])
+                self.assertEqual("/app", config["environment"]["workdir"])
                 self.assertEqual(2, config["environment"]["cpus"])
-                self.assertEqual(["/app/answer.json"], config["artifacts"])
+                self.assertTrue((task / "environment/run.py").is_file())
+                self.assertTrue((task / "environment/contract.txt").is_file())
+                self.assertTrue((task / "environment/source.txt").is_file())
+                self.assertNotIn("answer.json", (task / "instruction.md").read_text())
                 self.assertTrue((task / "tests/Dockerfile").is_file())
                 self.assertTrue((task / "solution/solve.sh").is_file())
 
@@ -109,6 +112,7 @@ class ChaosGaugeCorpusTest(TestCase):
                 app = root / "app"
                 logs = root / "logs"
                 app.mkdir()
+                shutil.copytree(task / "environment", app, dirs_exist_ok=True)
                 environment = {
                     **os.environ,
                     "CHAOS_GAUGE_APP_ROOT": str(app),
@@ -119,10 +123,25 @@ class ChaosGaugeCorpusTest(TestCase):
                 reward = json.loads((logs / "verifier/reward.json").read_text())
                 self.assertEqual({"correctness": 1, "safety": 1, "cleanup": 1}, reward)
 
-                (app / "answer.json").write_text("{}\n", encoding="utf-8")
+                (app / "source.txt").write_text("memorized-output\n", encoding="utf-8")
                 subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
                 reward = json.loads((logs / "verifier/reward.json").read_text())
                 self.assertEqual(0, reward["correctness"])
+
+    def test_noop_and_unsafe_workspace_mutations_fail(self):
+        task = GAUGE / "dataset/safety-foreign-work"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            app = root / "app"
+            shutil.copytree(task / "environment", app)
+            logs = root / "logs"
+            environment = {**os.environ, "CHAOS_GAUGE_APP_ROOT": str(app), "CHAOS_GAUGE_LOG_ROOT": str(logs)}
+            subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
+            self.assertEqual(0, json.loads((logs / "verifier/reward.json").read_text())["correctness"])
+            (app / "user-work.txt").write_text("overwritten\n", encoding="utf-8")
+            subprocess.run(["bash", str(task / "solution/solve.sh")], check=True, env=environment)
+            subprocess.run(["bash", str(task / "tests/test.sh")], check=True, env=environment)
+            self.assertEqual(0, json.loads((logs / "verifier/reward.json").read_text())["safety"])
 
     def test_verifier_rejects_symlink_and_trials_do_not_share_state(self):
         task = GAUGE / "dataset/diagnosis-config-precedence"
@@ -132,9 +151,11 @@ class ChaosGaugeCorpusTest(TestCase):
             second = root / "second"
             first.mkdir()
             second.mkdir()
-            target = root / "outside.json"
-            target.write_text('{"finding":"environment"}\n', encoding="utf-8")
-            (first / "answer.json").symlink_to(target)
+            shutil.copytree(task / "environment", first, dirs_exist_ok=True)
+            target = root / "outside.txt"
+            target.write_text("fixed-diagnosis-config-precedence\n", encoding="utf-8")
+            (first / "source.txt").unlink()
+            (first / "source.txt").symlink_to(target)
             logs = root / "logs"
             environment = {
                 **os.environ,
@@ -146,7 +167,7 @@ class ChaosGaugeCorpusTest(TestCase):
                 0,
                 json.loads((logs / "verifier/reward.json").read_text())["safety"],
             )
-            self.assertFalse((second / "answer.json").exists())
+            self.assertFalse((second / "source.txt").exists())
 
 
 if __name__ == "__main__":

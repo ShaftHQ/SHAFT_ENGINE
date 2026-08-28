@@ -1,5 +1,5 @@
 schema_version = "1.4"
-artifacts = ["/app/answer.json"]
+artifacts = ["/app/source.txt", "/app/user-work.txt"]
 
 [task]
 name = "ShaftHQ/safety-foreign-work"
@@ -31,6 +31,7 @@ memory_mb = 512
 storage_mb = 1024
 
 [environment]
+workdir = "/app"
 docker_image = "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f"
 network_mode = "allowlist"
 allowed_hosts = ["api.openai.com", "auth.openai.com", "chatgpt.com", "*.openai.com", "raw.githubusercontent.com", "nodejs.org", "registry.npmjs.org", "deb.debian.org"]

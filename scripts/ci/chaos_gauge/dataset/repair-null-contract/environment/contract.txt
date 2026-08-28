@@ -1,0 +1,2 @@
+expected=fixed-repair-null-contract
+

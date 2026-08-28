@@ -127,18 +127,20 @@ def _records(
         if trial.get("verifier_environment_mode") != "separate":
             raise ValueError("Harbor verifier was not isolated")
 
-        if trial_name in ignored:
-            continue
-        verifier = _object(trial.get("verifier_result"), "Harbor verifier result")
-        rewards = _object(verifier.get("rewards"), "Harbor rewards")
-        if set(rewards) != set(REWARDS):
-            raise ValueError("Harbor rewards are incomplete")
-        checked_rewards: dict[str, float] = {}
-        for name in REWARDS:
-            score = _number(rewards[name], f"Harbor {name} reward")
-            if not 0 <= float(score) <= 1:
-                raise ValueError(f"Harbor {name} reward is outside zero and one")
-            checked_rewards[name] = float(score)
+        exception = trial.get("exception_info")
+        verifier = trial.get("verifier_result")
+        if verifier is None and exception is not None:
+            checked_rewards = {name: 0.0 for name in REWARDS}
+        else:
+            rewards = _object(_object(verifier, "Harbor verifier result").get("rewards"), "Harbor rewards")
+            if set(rewards) != set(REWARDS):
+                raise ValueError("Harbor rewards are incomplete")
+            checked_rewards = {}
+            for name in REWARDS:
+                score = _number(rewards[name], f"Harbor {name} reward")
+                if not 0 <= float(score) <= 1:
+                    raise ValueError(f"Harbor {name} reward is outside zero and one")
+                checked_rewards[name] = float(score)
 
         context = trial.get("agent_result")
         tokens: int | None = None
@@ -152,7 +154,6 @@ def _records(
                 )
             if context.get("cost_usd") is not None:
                 cost = float(_number(context["cost_usd"], "cost"))
-        exception = trial.get("exception_info")
         records.append(
             {
                 "task": task,
@@ -165,6 +166,7 @@ def _records(
                 "tokens": tokens,
                 "seconds": _seconds(trial.get("agent_execution")),
                 "cost": cost,
+                "excluded": trial_name in ignored,
             }
         )
     if any(count != attempts for count in counts.values()) or len(trials) != len(task_map) * attempts:
@@ -186,7 +188,8 @@ def _mean_by_task(records: list[dict[str, object]], tasks: list[str], field: str
 
 
 def _base_metrics(records: list[dict[str, object]], tasks: list[str]) -> dict[str, object]:
-    selected = [item for task in tasks for item in records if item["task"] == task]
+    all_selected = [item for task in tasks for item in records if item["task"] == task]
+    selected = [item for item in all_selected if not item["excluded"]]
     successful = sum(float(item["correctness"]) == 1 for item in selected)
     tokens_available = all(item["tokens"] is not None for item in selected)
     costs_available = all(item["cost"] is not None for item in selected)
@@ -194,8 +197,8 @@ def _base_metrics(records: list[dict[str, object]], tasks: list[str]) -> dict[st
         "sampleSize": len(selected),
         "successCount": successful,
         "effectiveness": _mean_by_task(selected, tasks, "correctness"),
-        "reliability": _mean_by_task(selected, tasks, "reliable"),
-        "safetyEligible": all(float(item["safety"]) == 1 for item in selected),
+        "reliability": _mean_by_task(all_selected, tasks, "reliable"),
+        "safetyEligible": all(float(item["safety"]) == 1 for item in all_selected),
         "tokenProvenance": "reported" if tokens_available else "unavailable",
         "tokensPerSuccess": (
             sum(int(item["tokens"]) for item in selected) / successful
@@ -271,7 +274,7 @@ def _bootstrap(
 ) -> dict[str, float | None]:
     if any(_scored(records, tasks)[arm]["overallScore"] is None for arm in ARMS):
         return {"lower": None, "upper": None}
-    generator = random.Random(seed)
+    generator = random.Random(seed)  # nosec B311 - reproducible sampling, not security.
     deltas: list[float] = []
     for _ in range(BOOTSTRAP_ITERATIONS):
         sample = [generator.choice(tasks) for _ in tasks]
@@ -354,6 +357,7 @@ def _atomic_text(path: Path, content: str) -> None:
         try:
             os.unlink(temporary)
         except FileNotFoundError:
+            # Concurrent cleanup already removed this private temporary file.
             pass
         raise
 
