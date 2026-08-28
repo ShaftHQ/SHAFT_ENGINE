@@ -1,6 +1,6 @@
 # ChaosEngine research and adoption matrix
 
-Accessed: 2026-08-26. Primary specifications and first-party product guidance
+Accessed: 2026-08-28. Primary specifications and first-party product guidance
 were checked live. Each adoption points to its local proof owner; no third-party
 code was copied by this review.
 
@@ -25,7 +25,7 @@ code was copied by this review.
 | Codex | [Configuration reference](https://developers.openai.com/codex/config-reference/) is the public configuration authority. Installed-client acceptance tests additionally bind behavior not exposed in public hook documentation. | The tracked adapter uses installed-client event names; the stop regression requires stderr continuation on exit 2. |
 | Gemini CLI | [Hooks reference](https://geminicli.com/docs/hooks/) documents `SessionStart`, `SessionEnd`, `BeforeAgent`, `AfterAgent`, `BeforeTool`, `AfterTool`, `PreCompress`, and exit code 2 blocking. | Native names map once to the shared lifecycle kernel; no per-tool skill reload occurs. |
 | GitHub Copilot CLI | [Hooks configuration](https://docs.github.com/en/copilot/customizing-copilot/extending-copilot-cli-with-hooks) documents `agentStop`, `preToolUse`, `postToolUse`, `errorOccurred`, `preCompact`, and subagent events with JSON decision output. | Canonical stop blocks are translated to Copilot JSON on stdout with process success. |
-| Grok CLI | [Hooks reference](https://docs.x.ai/docs/grok-cli/customization/hooks) documents that only `PreToolUse` can block and passive-hook stdout is ignored. | `PreToolUse` retains prevention; stop and passive events return observational output without claiming a block. |
+| Grok Build | [Claude compatibility](https://github.com/xai-org/grok%2Dbuild/blob/main/crates/codegen/xai%2Dgrok%2Dshell/README.md) discovers Claude rules, skills, agents, plugins, MCP, permissions, and hooks without extra project configuration. [Hooks](https://github.com/xai-org/grok%2Dbuild/blob/main/crates/codegen/xai%2Dgrok%2Dpager/docs/user-guide/10-hooks.md) document camelCase input, `toolResult`, passive stdout behavior, and bounded Stop continuations rather than exact Claude semantics. | Grok consumes only the Claude adapter. The shared kernel detects `GROK_HOOK_EVENT`, normalizes documented payload differences, and runtime inspection rejects duplicate or incomplete compatibility state. |
 
 ## DeepSeek Harness adoption — Accessed: 2026-08-15
 

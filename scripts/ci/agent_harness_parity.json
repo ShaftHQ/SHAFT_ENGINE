@@ -5,8 +5,17 @@
     "claude": ["CLAUDE.md", ".claude/settings.json"],
     "codex": ["AGENTS.md", ".codex/hooks.json", ".codex/config.toml"],
     "gemini": ["AGENTS.md", ".gemini/skills/chaos-engine/SKILL.md", ".gemini/settings.json"],
-    "grok": ["AGENTS.md", ".grok/hooks/lifecycle.json", ".mcp.json"],
+    "grok": ["AGENTS.md", "CLAUDE.md", ".claude/settings.json", ".mcp.json"],
     "copilot": [".github/copilot-instructions.md", ".github/hooks/chaos-engine.json", ".mcp.json"]
+  },
+  "compatibility_consumers": {
+    "grok": {
+      "source_host": "claude",
+      "scope": "all capabilities",
+      "runtime_check": "chaos-engine/hosts.py::grok_runtime_status",
+      "normalization_owner": "chaos-engine/hooks/kernel.py",
+      "native_config": null
+    }
   },
   "future_host_contract": "A compatible host must load the canonical entrypoint once, project native lifecycle events onto the kernel, use canonical MCP launchers, and add executable parity evidence before support is claimed.",
   "capabilities": [

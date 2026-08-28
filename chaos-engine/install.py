@@ -1212,7 +1212,7 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                             restored_host_receipt["before"], nullable=True
                         ),
                         previous_hosts.decode_images(
-                            restored_host_receipt["after"], nullable=False
+                            restored_host_receipt["after"], nullable=True
                         ),
                     )
                     previous_hosts.write_receipt(
@@ -1800,7 +1800,6 @@ def attach_component_status(
             target / "hooks/lifecycle.py",
             target / "hooks/reflection.py",
             project / ".codex/hooks.json",
-            project / ".grok/hooks/lifecycle.json",
             project / ".gemini/settings.json",
             project / ".github/hooks/chaos-engine.json",
             project / "plugins/chaos-engine/hooks/hooks.json",

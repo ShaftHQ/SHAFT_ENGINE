@@ -123,12 +123,38 @@ class ChaosEngineHostsTest(unittest.TestCase):
         module = load(HOSTS, "chaos_engine_grok_runtime")
         events = (
             "session_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
-            "post_tool_use_failure", "stop", "subagent_stop", "session_end",
+            "post_tool_use_failure", "stop", "subagent_stop", "pre_compact", "session_end",
         )
-        healthy = {"projectTrusted": True, "hooks": [
-            {"event": event, "target": "python3 .chaos-engine/hooks/guard.py"}
-            for event in events
-        ]}
+        healthy = {
+            "grokVersion": "1.0.10",
+            "projectTrusted": True,
+            "projectInstructions": [
+                {"path": "/project/AGENTS.md"},
+                {"path": "/project/CLAUDE.md"},
+            ],
+            "hooks": [
+                {
+                    "event": event,
+                    "target": "python3 .chaos-engine/hooks/guard.py",
+                    "source": {"path": "/project/.claude"},
+                    "vendor": "claude",
+                    "compatibilityStatus": "enabled",
+                }
+                for event in events
+            ],
+            "plugins": [
+                {"name": name, "enabled": True}
+                for name in ("chaos-engine", "caveman", "ponytail")
+            ],
+            "mcpServers": [
+                {"name": name}
+                for name in ("chaosengine-memory", "chaosengine-mempalace", "context7")
+            ],
+            "agents": [
+                {"name": f"chaos-engine-{role}"}
+                for role in ("orchestrator", "implementer", "reviewer", "tester", "mechanical-helper")
+            ],
+        }
         def result(payload, returncode=0):
             return subprocess.CompletedProcess([], returncode, json.dumps(payload), "")
         with tempfile.TemporaryDirectory() as temporary:
@@ -137,6 +163,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 (healthy, "healthy"),
                 ({**healthy, "projectTrusted": False}, "recovery-required"),
                 ({**healthy, "hooks": healthy["hooks"][:-1]}, "recovery-required"),
+                ({**healthy, "hooks": healthy["hooks"] + [healthy["hooks"][0]]}, "recovery-required"),
+                ({**healthy, "plugins": healthy["plugins"][:-1]}, "recovery-required"),
+                ({**healthy, "mcpServers": healthy["mcpServers"][:-1]}, "recovery-required"),
+                ({**healthy, "agents": healthy["agents"][:-1]}, "recovery-required"),
             ):
                 calls = []
                 state = module.grok_runtime_status(
@@ -146,6 +176,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 self.assertEqual(expected, state["status"])
                 self.assertEqual(["grok", "inspect", "--json"], calls[0][0])
                 self.assertNotIn("--trust", calls[0][0])
+                if expected == "healthy":
+                    self.assertEqual("1.0.10", state["version"])
+                    self.assertEqual("claude-compatibility", state["hookSource"])
             failed = module.grok_runtime_status(
                 project, executable="grok", runner=lambda *_a, **_k: result({}, 1)
             )
@@ -727,7 +760,6 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/hooks/lifecycle.py",
                 "plugins/chaos-engine/hooks/reflection.py",
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
-                ".grok/hooks/lifecycle.json",
                 ".github/hooks/chaos-engine.json",
                 "plugins/caveman/.codex-plugin/plugin.json",
                 "plugins/caveman/.claude-plugin/plugin.json",
@@ -845,13 +877,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "SessionEnd",
             }
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
-            grok_lifecycle = json.loads(
-                project.joinpath(".grok/hooks/lifecycle.json").read_text()
-            )["hooks"]
             claude_lifecycle = json.loads(
                 project.joinpath(".claude/settings.json").read_text()
             )["hooks"]
-            for document in (lifecycle, grok_lifecycle):
+            self.assertFalse(project.joinpath(".grok").exists())
+            for document in (lifecycle,):
                 self.assertEqual(required_events, set(document))
                 for event in required_events:
                     self.assertEqual(1, len(document[event]), event)
@@ -1141,22 +1171,33 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )
             self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
 
-    def test_grok_hooks_preserve_unrelated_events(self):
-        module = load(HOSTS, "chaos_engine_grok_hook_merge")
+    def test_grok_migration_removes_only_owned_hooks_and_keeps_foreign_state(self):
+        module = load(HOSTS, "chaos_engine_grok_hook_migration")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
             hook_path = project / ".grok/hooks/lifecycle.json"
             hook_path.parent.mkdir(parents=True)
-            original = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "user-hook"}]}]}}
+            original = {
+                "ownerMetadata": {"preserve": True},
+                "hooks": {
+                    "SessionStart": [{"hooks": [
+                        {"type": "command", "command": "user-hook"},
+                        {"type": "command", "command": "python3 .chaos-engine/hooks/guard.py"},
+                    ]}],
+                    "Notification": [{"hooks": [{"type": "command", "command": "notify"}]}],
+                },
+            }
             hook_path.write_text(json.dumps(original), encoding="utf-8")
 
             module.install(project)
             merged = json.loads(hook_path.read_text())
+            self.assertEqual({"preserve": True}, merged["ownerMetadata"])
             self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
-            self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
-            self.assertIn("Stop", merged["hooks"])
+            self.assertEqual(1, len(merged["hooks"]["SessionStart"][0]["hooks"]))
+            self.assertIn("Notification", merged["hooks"])
+            self.assertNotIn("Stop", merged["hooks"])
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
 

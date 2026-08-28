@@ -108,6 +108,21 @@ class ChaosEngineKernelTest(TestCase):
                 self.assertEqual(canonical, event.name)
                 self.assertEqual("grok-session", event.session_id)
 
+    def test_grok_environment_overrides_claude_compatibility_launcher_default(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "CHAOS_ENGINE_HOST": "claude",
+                "GROK_HOOK_EVENT": "pre_tool_use",
+                "GROK_SESSION_ID": "grok-session",
+            },
+            clear=False,
+        ):
+            event = self.kernel.normalize_event({})
+        self.assertEqual("grok", event.host)
+        self.assertEqual("PreToolUse", event.name)
+        self.assertEqual("grok-session", event.session_id)
+
     def test_grok_payload_wins_and_environment_never_leaks_to_other_hosts(self):
         with mock.patch.dict(
             os.environ,

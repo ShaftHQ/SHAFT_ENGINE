@@ -26,7 +26,7 @@ events and point them at the installed ChaosEngine guard:
 | `PostToolUseFailure` | Record the failure and inject a pending reflection checkpoint when one is owed. |
 | `Stop` | Collect incomplete delivery duties once without manufacturing work. Never create or delete worktrees; Stop is per-turn. Plan Mode stays read-only: it may finish in a pre-dirty or unverifiable checkout without inheriting unrelated delivery, synchronization, tracking, cleanup, or Learning Session duties; confirmed NUL corruption still blocks with preservation guidance. Normal completion ownership applies to task-created mutation. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. `stop_hook_active` lets the retry proceed. |
 | `SubagentStop` | Apply delegate-owned completion duties only. Never start or inherit the root terminal Learning Session. Never create or delete the root session worktree. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
-| `SessionEnd` | Remove this session's worktree only after merge is recorded locally and the tree is clean. Keep the local branch. Codex and Grok cap this handler at 3 seconds. Hosts without SessionEnd rely on the next SessionStart to reap merged leftovers. |
+| `SessionEnd` | Remove this session's worktree only after merge is recorded locally and the tree is clean. Keep the local branch. Codex caps this handler at 3 seconds. Hosts without SessionEnd rely on the next SessionStart to reap merged leftovers. |
 
 A host with no hook primitive cannot enforce this table. Say so in the install
 receipt. Do not pretend a README sentence is a substitute. Hosts that ignore
@@ -35,10 +35,11 @@ ChaosEngine selects ultra through every supported host adapter.
 
 ## Registration
 
-`hosts.py` writes the same command groups into the source-controlled,
-project-local hook document for each host with a hook primitive: Codex
-`hooks.json`, Claude settings, Gemini settings, Grok project hooks, and GitHub
-Copilot `.github/hooks`. Those direct provider documents are lifecycle owners.
+`hosts.py` writes the same command groups into source-controlled, project-local
+hook documents: Codex `hooks.json`, Claude settings, Gemini settings, and
+GitHub Copilot `.github/hooks`. Grok consumes Claude settings through its
+Claude compatibility layer; a native Grok hook document would duplicate every
+handler. Those provider documents are lifecycle owners.
 ChaosEngine plugin carries
 skills and portable hook code but does not register a second hook pack. Its
 legacy hook document is overwritten with an empty `hooks` mapping during
@@ -64,7 +65,7 @@ decision or durable lifecycle state. Research-first remains one compact
 SessionStart instruction; it is not reconstructed from host-specific tool
 observations or enforced on every mutation. A future rule for a read-only
 surface must restore only the lifecycle events it needs with a contract test.
-Gemini, Claude, Codex, and Grok use native matcher fields. Copilot's workspace
+Gemini, Claude, Codex, and Claude-compatible Grok use native matcher fields. Copilot's workspace
 hook format has no matcher field, so `hooks/launch.js` applies the same policy
 before starting Python.
 
