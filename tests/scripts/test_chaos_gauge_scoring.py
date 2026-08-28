@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
 import json
+import runpy
 import tempfile
+import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import TestCase, main
@@ -16,17 +17,8 @@ GAUGE = ROOT / "scripts/ci/chaos_gauge"
 MANIFEST = json.loads((GAUGE / "experiment.json").read_text(encoding="utf-8"))
 
 
-def load(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"{name} could not be loaded")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-METRIC = load("chaos_gauge_metric", GAUGE / "dataset/metric.py")
-REPORTER = load("chaos_gauge_compare", GAUGE / "compare_results.py")
+METRIC = types.SimpleNamespace(**runpy.run_path(str(GAUGE / "dataset/metric.py")))
+REPORTER = types.SimpleNamespace(**runpy.run_path(str(GAUGE / "compare_results.py")))
 
 
 def job(
