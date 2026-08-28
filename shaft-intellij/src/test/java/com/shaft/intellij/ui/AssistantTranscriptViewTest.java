@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
+import javax.swing.AbstractButton;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
@@ -39,6 +40,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@link ShaftAssistantChatState}, which is documented as "persisted without raw MCP payloads".
  */
 class AssistantTranscriptViewTest {
+    @Test
+    void assistantKindsRenderAsAuditableRunsWithoutChangingMessagePersistence() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("user", "Run this test");
+        view.append("assistant", "Tool selected: doctor", "", ShaftAssistantChatState.KIND_MILESTONE);
+        view.append("assistant", "Doctor failed", "", ShaftAssistantChatState.KIND_ERROR);
+        view.append("assistant", "Final result", "", ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
+
+        assertAll(
+                () -> assertEquals(3, countByClientProperty(view,
+                        AssistantTranscriptView.TRANSCRIPT_RUN_PROPERTY, Boolean.TRUE)),
+                () -> assertEquals(1, findButtonsByText(view, "Show run details").size()),
+                () -> assertTrue(view.markdown().contains("Tool selected: doctor")),
+                () -> assertTrue(view.markdown().contains("Doctor failed")),
+                () -> assertTrue(view.markdown().contains("Final result")));
+    }
     @Test
     void onlyMessagesWithNonBlankRawEvidenceRenderTheDisclosureToggle() {
         AssistantTranscriptView view = new AssistantTranscriptView();
@@ -707,7 +724,7 @@ class AssistantTranscriptViewTest {
         AssistantTranscriptView view = new AssistantTranscriptView();
         view.append("assistant", "Ran the analysis.", rawEvidence);
 
-        JLabel preview = awaitByAccessibleName(view, "Evidence screenshot preview", Duration.ofSeconds(5));
+        AbstractButton preview = awaitButtonByAccessibleName(view, "Evidence screenshot preview", Duration.ofSeconds(5));
 
         assertAll(
                 () -> assertNotNull(preview, "A resolvable, readable screenshot must render a preview row"),
@@ -716,13 +733,13 @@ class AssistantTranscriptViewTest {
                         "The preview row must render alongside, not instead of, the existing disclosure"));
     }
 
-    private static JLabel awaitByAccessibleName(Component root, String accessibleName, Duration timeout) {
+    private static AbstractButton awaitButtonByAccessibleName(Component root, String accessibleName, Duration timeout) {
         Instant deadline = Instant.now().plus(timeout);
         while (Instant.now().isBefore(deadline)) {
             pumpEdt();
             Component found = findByAccessibleName(root, accessibleName);
-            if (found instanceof JLabel label) {
-                return label;
+            if (found instanceof AbstractButton button) {
+                return button;
             }
             try {
                 Thread.sleep(20);
@@ -732,6 +749,16 @@ class AssistantTranscriptViewTest {
             }
         }
         return null;
+    }
+
+    private static int countByClientProperty(Component root, String key, Object value) {
+        int count = root instanceof javax.swing.JComponent component && value.equals(component.getClientProperty(key)) ? 1 : 0;
+        if (root instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                count += countByClientProperty(child, key, value);
+            }
+        }
+        return count;
     }
 
     /** Forces the EDT to process every runnable queued so far (e.g. by {@code runOnEdt}'s

@@ -108,6 +108,7 @@ final class AssistantTranscriptView extends JPanel {
     // ShaftAssistantChatState kind (KIND_USER/KIND_ASSISTANT_TEXT/...) rather than its role, so
     // callers/tests can observe which MessageStyleRegistry entry a rendered row actually used.
     static final String TRANSCRIPT_KIND_PROPERTY = "shaft.transcript.kind";
+    static final String TRANSCRIPT_RUN_PROPERTY = "shaft.transcript.run";
 
     private final Project project;
     private final JPanel fallbackPanel;
@@ -956,20 +957,64 @@ final class AssistantTranscriptView extends JPanel {
         bubble.setBackground(background);
         bubble.setForeground(foreground);
         bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, normalizedRole);
+        bubble.putClientProperty(TRANSCRIPT_RUN_PROPERTY, !user);
         bubble.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message bubble");
         String bodyHtml = user ? convertPlainUserText(markdown) : convertMarkdown(markdown);
         JEditorPane htmlPane = fallbackHtmlPane(bodyHtml, foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
         CollapsibleOutputPanel outputPanel = new CollapsibleOutputPanel(htmlPane, this::bodyLineHeight);
         outputPanel.updateCollapseState();
-        bubble.add(outputPanel, BorderLayout.CENTER);
+        JPanel runContent = new JPanel(new BorderLayout());
+        runContent.setOpaque(false);
+        runContent.add(outputPanel, BorderLayout.CENTER);
         if (rawEvidence != null && !rawEvidence.isBlank()) {
-            bubble.add(evidenceFooter(rawEvidence), BorderLayout.SOUTH);
+            runContent.add(evidenceFooter(rawEvidence), BorderLayout.SOUTH);
+        }
+        if (user) {
+            bubble.add(runContent, BorderLayout.CENTER);
+        } else {
+            bubble.add(runHeader(normalizedKind, runContent), BorderLayout.NORTH);
+            bubble.add(runContent, BorderLayout.CENTER);
         }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
         RenderedBubble handle = new RenderedBubble(row, bubble, htmlPane, normalizedRole, outputPanel);
         handle.streamedMarkdown = markdown;
         return handle;
+    }
+
+    private JComponent runHeader(String kind, JComponent runContent) {
+        JPanel header = new JPanel(new BorderLayout(8, 0));
+        header.setOpaque(false);
+        header.setBorder(JBUI.Borders.emptyBottom(6));
+        JLabel label = new JLabel("Run · " + switch (kind) {
+            case ShaftAssistantChatState.KIND_MILESTONE -> "Progress";
+            case ShaftAssistantChatState.KIND_TOOL_EVENT -> "Action and evidence";
+            case ShaftAssistantChatState.KIND_RAW_VERBOSE -> "Raw activity";
+            case ShaftAssistantChatState.KIND_ERROR -> "Failed";
+            default -> "Result";
+        });
+        label.getAccessibleContext().setAccessibleName("Assistant run stage");
+        label.getAccessibleContext().setAccessibleDescription(label.getText());
+        header.add(label, BorderLayout.WEST);
+        boolean collapsibleDetail = ShaftAssistantChatState.KIND_MILESTONE.equals(kind)
+                || ShaftAssistantChatState.KIND_TOOL_EVENT.equals(kind)
+                || ShaftAssistantChatState.KIND_RAW_VERBOSE.equals(kind);
+        if (collapsibleDetail) {
+            JButton toggle = ShaftButtonInteractions.create("Show run details");
+            toggle.getAccessibleContext().setAccessibleName("Show run details");
+            runContent.setVisible(false);
+            toggle.addActionListener(event -> {
+                boolean show = !runContent.isVisible();
+                runContent.setVisible(show);
+                String text = show ? "Hide run details" : "Show run details";
+                toggle.setText(text);
+                toggle.getAccessibleContext().setAccessibleName(text);
+                fallbackPanel.revalidate();
+                fallbackPanel.repaint();
+            });
+            header.add(toggle, BorderLayout.EAST);
+        }
+        return header;
     }
 
     /**
@@ -1065,22 +1110,20 @@ final class AssistantTranscriptView extends JPanel {
      * @return preview row component
      */
     private static JComponent previewRow(EvidencePreview preview) {
-        JLabel imageLabel = new JLabel(preview.icon());
-        imageLabel.setToolTipText(preview.path().toString());
-        imageLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        imageLabel.getAccessibleContext().setAccessibleName("Evidence screenshot preview");
-        imageLabel.getAccessibleContext().setAccessibleDescription(
+        JButton imageButton = ShaftButtonInteractions.create();
+        imageButton.setIcon(preview.icon());
+        imageButton.setToolTipText(preview.path().toString());
+        imageButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        imageButton.setBorderPainted(false);
+        imageButton.setContentAreaFilled(false);
+        imageButton.getAccessibleContext().setAccessibleName("Evidence screenshot preview");
+        imageButton.getAccessibleContext().setAccessibleDescription(
                 "Opens " + preview.path() + " in the platform viewer");
-        imageLabel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent event) {
-                BrowserUtil.browse(preview.path().toUri());
-            }
-        });
+        imageButton.addActionListener(event -> BrowserUtil.browse(preview.path().toUri()));
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         row.setOpaque(false);
         row.setBorder(JBUI.Borders.emptyTop(6));
-        row.add(imageLabel);
+        row.add(imageButton);
         return row;
     }
 
