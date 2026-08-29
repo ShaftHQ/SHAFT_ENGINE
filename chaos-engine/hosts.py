@@ -245,7 +245,13 @@ def validate_mempalace_config(content: bytes) -> None:
         text = content.decode("utf-8")
     except UnicodeDecodeError as error:
         raise ValueError("invalid MemPalace configuration") from error
-    wing_matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", text)
+    wing_value = (
+        r'(?:[A-Za-z_][A-Za-z0-9_.-]*|'
+        r'"(?:[^"\\\r\n]|\\(?:[0abtnvfre "/\\N_LP]|x[0-9A-Fa-f]{2}|'
+        r'u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}))+"|'
+        r"'(?:[^'\r\n]|'')+')"
+    )
+    wing_matches = re.findall(rf"(?m)^wing:\s*{wing_value}\s*$", text)
     rooms = re.search(
         r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^[A-Za-z_][\w-]*:\s*$|\Z)",
         text,

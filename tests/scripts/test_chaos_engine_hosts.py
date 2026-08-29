@@ -1441,6 +1441,32 @@ class ChaosEngineHostsTest(unittest.TestCase):
             b"  keywords: []\n"
         )
 
+    def test_native_mempalace_init_accepts_quoted_unicode_wing(self):
+        module = load(HOSTS, "chaos_engine_native_unicode_mempalace_config")
+
+        module.validate_mempalace_config(
+            b'wing: "blank_consumer_with_spaces_\\u03C9"\n'
+            b"rooms:\n"
+            b"- name: general\n"
+            b"  description: All project files\n"
+            b"  keywords: []\n"
+        )
+
+    def test_mempalace_config_rejects_malformed_or_non_string_wings(self):
+        module = load(HOSTS, "chaos_engine_mempalace_wing_schema")
+        suffix = (
+            b"rooms:\n"
+            b"- name: general\n"
+            b"  description: All project files\n"
+            b"  keywords: []\n"
+        )
+
+        for wing in (b'"native\\z"', b"42", b"[native]"):
+            with self.subTest(wing=wing), self.assertRaisesRegex(
+                ValueError, "invalid MemPalace configuration"
+            ):
+                module.validate_mempalace_config(b"wing: " + wing + b"\n" + suffix)
+
     def test_healthy_adopter_v4_memory_and_unindented_mempalace_installs(self):
         module = load(HOSTS, "chaos_engine_healthy_v4_retrieval")
         v4_config = {
