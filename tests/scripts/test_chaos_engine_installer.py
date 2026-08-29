@@ -1655,6 +1655,67 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertFalse(project.joinpath("graphify-out").exists())
             self.assertFalse(project.joinpath(".agents/skills/graphify").exists())
 
+    def test_receipt_preflight_allows_a_legacy_core_binding_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            receipt, _ = hosts.read_receipt(project)
+            receipt["coreCommit"] = "7" * 40
+            project.joinpath(".chaos-engine-hosts.json").write_bytes(
+                hosts.receipt_bytes(receipt, project)
+            )
+            specification = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
+            account_setup = mock.Mock(return_value={
+                "commands": {
+                    name: str(Path(sys.executable).resolve())
+                    for name in ("python3", "node", "memory-mcp", "mempalace-mcp")
+                }
+            })
+            controller = SimpleNamespace(
+                load_specification=lambda _path: specification,
+                install_account_dependencies=account_setup,
+            )
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(
+                    MODULE, "install", return_value=project / ".chaos-engine"
+                ) as core_install:
+                    MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            core_install.assert_called_once()
+            account_setup.assert_called_once_with(project, specification)
+            repaired, _ = hosts.read_receipt(project)
+            self.assertEqual("2" * 40, repaired["coreCommit"])
+
+    def test_receipt_preflight_rejects_tampering_before_core_or_account_setup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            receipt_path = project / ".chaos-engine-hosts.json"
+            receipt_path.write_bytes(receipt_path.read_bytes().replace(b"installed", b"tampered", 1))
+
+            account_setup = mock.Mock()
+            controller = SimpleNamespace(
+                install_account_dependencies=account_setup,
+            )
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(MODULE, "install") as core_install:
+                    with self.assertRaisesRegex(ValueError, "integrity drift"):
+                        MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            core_install.assert_not_called()
+            account_setup.assert_not_called()
+
     def test_post_setup_host_failure_restores_exact_project_setup_outputs(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

@@ -1596,9 +1596,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 host_receipt_path = project / candidate_host_controller.RECEIPT_NAME
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
                     receipt, raw = candidate_host_controller.read_receipt(project)
-                    candidate_host_controller.verify(
-                        project, receipt, core_commit=old_commit
-                    )
+                    candidate_host_controller.verify(project, receipt)
                     host_snapshot = {"receipt": receipt, "raw": raw}
                 if generation_mode:
                     try:
