@@ -554,7 +554,7 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
     if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
-        if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
+        if not mempalace_project_setup_complete(project):
             planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
     graphify = commands.get("graphify")
     if graphify:
@@ -568,6 +568,15 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     if memory and not (project / ".memory/config.json").is_file():
         planned.append([memory, "init", "--no-view"])
     return planned
+
+
+def mempalace_project_setup_complete(project: Path) -> bool:
+    """A marker is trustworthy only beside the exact project SQLite target."""
+    palace = project.resolve() / ".chaos-engine-state/mempalace"
+    return (
+        (palace / ".mined").is_file()
+        and (palace / "sqlite_exact.sqlite3").is_file()
+    )
 
 
 def mempalace_project_setup_environment(

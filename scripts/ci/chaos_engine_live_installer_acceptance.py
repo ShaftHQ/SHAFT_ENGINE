@@ -678,6 +678,11 @@ def run_acceptance(
             "exclude_patterns:\n  - .chaos-engine-state/**\n"
         ).encode()
         base_project.joinpath("mempalace.yaml").write_bytes(user_config)
+        # The historical base checks only this marker before invoking global mine.
+        # The candidate treats it as stale because the exact SQLite target is absent.
+        base_marker = base_project / ".chaos-engine-state/mempalace/.mined"
+        base_marker.parent.mkdir(parents=True)
+        base_marker.write_bytes(b"current\n")
         base_sentinel = base_project / "user-sentinel.txt"
         base_sentinel.write_bytes(b"preserve base user data\n")
         blank_sentinel = blank_project / "user-sentinel.txt"

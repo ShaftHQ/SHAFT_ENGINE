@@ -493,6 +493,14 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             state = project / ".chaos-engine-state/mempalace"
             state.mkdir(parents=True)
             state.joinpath(".mined").write_text("current\n", encoding="utf-8")
+            self.assertIn(
+                [
+                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
+                    "--auto-mine",
+                ],
+                module.project_setup_plan(project, commands),
+            )
+            state.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\\x00")
             graph = project / "graphify-out/graph.json"
             graph.parent.mkdir()
             graph.write_text("{}\n", encoding="utf-8")
