@@ -147,6 +147,15 @@ prefix, companion repositories, and routing table. The
 show the complete shape. The public install path selects the neutral profile by
 default; repository-specific distributions require an explicit selection.
 
+## Recommended add-on: OmniRoute
+
+[OmniRoute](guides/omniroute.md) is an optional, user-account-local gateway for
+selectively delegating suitable bounded work to verified free-tier models. It
+is not installed, configured, started, or managed by ChaosEngine. The guide
+keeps the normal primary provider in control, requires explicit model targets
+and fail-closed routing, and includes manual account onboarding, privacy
+warnings, validation, and complete rollback steps.
+
 ## What gets installed
 
 | Path | Responsibility |
