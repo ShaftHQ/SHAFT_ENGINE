@@ -219,6 +219,80 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 mcp["mcpServers"]["context7"]["url"],
             )
 
+    def test_successful_install_reconciles_only_stale_detected_client_plugins(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            activations = []
+            load_controller = MODULE.load_installed_controller
+
+            def load_with_activation_probe(root, name):
+                controller = load_controller(root, name)
+                if name == "hosts":
+                    controller.activate_detected_plugins = mock.Mock(return_value={"clients": {}})
+                    controller.detected_plugin_status = mock.Mock(
+                        return_value={"codex": {"plugin": "stale"}}
+                    )
+                    activations.append(controller.activate_detected_plugins)
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_installed_controller", side_effect=load_with_activation_probe
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+
+            self.assertEqual(1, sum(item.call_count for item in activations))
+
+    def test_successful_install_does_not_activate_absent_client_plugins(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            activations = []
+            load_controller = MODULE.load_installed_controller
+
+            def load_with_absent_client(root, name):
+                controller = load_controller(root, name)
+                if name == "hosts":
+                    controller.activate_detected_plugins = mock.Mock(return_value={"clients": {}})
+                    controller.detected_plugin_status = mock.Mock(
+                        return_value={"codex": {"plugin": "absent"}}
+                    )
+                    activations.append(controller.activate_detected_plugins)
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_installed_controller", side_effect=load_with_absent_client
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+
+            self.assertEqual(0, sum(item.call_count for item in activations))
+
     def test_account_update_rollback_does_not_require_a_generation_pointer(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
@@ -801,6 +875,43 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 "healthy",
                 result["components"]["retrieval-config"]["status"],
             )
+
+    def test_doctor_reports_known_legacy_memory_as_compatible_but_not_healthy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            legacy_reason = "installed Memory runtime rejects known legacy v5 storage"
+            with mock.patch.object(
+                controller,
+                "retrieval_runtime_status",
+                return_value={
+                    "status": "compatible-legacy",
+                    "compatibility": "legacy-v5-read-only",
+                    "reason": legacy_reason,
+                },
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual(
+                "compatible-legacy",
+                result["components"]["memory"]["status"],
+            )
+            self.assertEqual(legacy_reason, result["components"]["memory"]["reason"])
 
     def test_doctor_rejects_an_mcp_runtime_that_cannot_initialize(self):
         with tempfile.TemporaryDirectory() as temporary:

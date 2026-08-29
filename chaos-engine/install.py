@@ -1780,6 +1780,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     published_pointer.get("previous"),
                 ):
                     controller.remove_generation(project, retired_generation)
+            if old_commit is not None:
+                client_plugins = host_controller.detected_plugin_status(project)
+                if any(item.get("plugin") == "stale" for item in client_plugins.values()):
+                    host_controller.activate_detected_plugins(project)
         except BaseException as error:
             if isinstance(error, (KeyboardInterrupt, SystemExit)):
                 raise
@@ -2118,7 +2122,7 @@ def doctor_with_dependencies(
         result["status"] = "recovery-required"
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("memory"), dict):
-            components["memory"]["status"] = "recovery-required"
+            components["memory"]["status"] = retrieval["status"]
             if retrieval.get("reason"):
                 components["memory"]["reason"] = retrieval["reason"]
     dependency = result.get("dependencies")

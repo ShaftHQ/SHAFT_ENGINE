@@ -1643,6 +1643,52 @@ class ChaosEngineHostsTest(unittest.TestCase):
             ):
                 self.assertFalse(module.retrieval_runtime_healthy(project))
 
+    def test_retrieval_runtime_accepts_only_known_legacy_memory_objects_read_only(self):
+        module = load(HOSTS, "chaos_engine_legacy_memory_compatibility")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            shutil.copytree(ROOT / ".memory", project / ".memory")
+            project.joinpath(".chaos-engine").mkdir()
+            project.joinpath(".chaos-engine/tool.py").write_text("# owned\n", encoding="utf-8")
+            architecture = project / ".memory/memory/architecture.json"
+            before = architecture.read_bytes()
+            incompatible = mock.Mock(
+                returncode=1,
+                stdout=json.dumps({
+                    "ok": False,
+                    "error": {"code": "MemorySchemaValidationFailed"},
+                }),
+                stderr="",
+            )
+
+            with mock.patch.object(module.subprocess, "run", return_value=incompatible) as run:
+                status = module.retrieval_runtime_status(project)
+                healthy = module.retrieval_runtime_healthy(project)
+
+            self.assertEqual("compatible-legacy", status["status"])
+            self.assertEqual("legacy-v5-read-only", status["compatibility"])
+            self.assertFalse(healthy)
+            self.assertEqual(before, architecture.read_bytes())
+            self.assertEqual(2, run.call_count)
+
+            malformed = json.loads(before)
+            malformed["unrecognized"] = True
+            architecture.write_text(json.dumps(malformed), encoding="utf-8")
+            with mock.patch.object(module.subprocess, "run", return_value=incompatible):
+                rejected = module.retrieval_runtime_status(project)
+
+            self.assertEqual("recovery-required", rejected["status"])
+
+            architecture.write_bytes(before)
+            relation = project / ".memory/relations/current-rel-repo-map.json"
+            malformed_relation = json.loads(relation.read_bytes())
+            malformed_relation["predicate"] = "unknown"
+            relation.write_text(json.dumps(malformed_relation), encoding="utf-8")
+            with mock.patch.object(module.subprocess, "run", return_value=incompatible):
+                rejected_relation = module.retrieval_runtime_status(project)
+
+            self.assertEqual("recovery-required", rejected_relation["status"])
+
     def test_mcp_runtime_executes_both_initialize_handshakes(self):
         module = load(HOSTS, "chaos_engine_mcp_runtime")
         memory_response = mock.Mock(

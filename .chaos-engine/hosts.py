@@ -283,6 +283,122 @@ def retrieval_configs_healthy(project: Path) -> bool:
     return True
 
 
+LEGACY_MEMORY_V5_OBJECT_FIELDS = frozenset(
+    {
+        "body_path", "content_hash", "created_at", "evidence", "facets", "id",
+        "origin", "scope", "source", "status", "superseded_by", "tags", "title",
+        "type", "updated_at",
+    }
+)
+LEGACY_MEMORY_V5_REQUIRED_FIELDS = frozenset(
+    {
+        "body_path", "content_hash", "created_at", "evidence", "id", "scope", "source",
+        "status", "tags", "title", "type", "updated_at",
+    }
+)
+LEGACY_MEMORY_V5_TYPES = frozenset(
+    {
+        "architecture", "constraint", "decision", "fact", "gotcha", "project",
+        "question", "source", "synthesis", "workflow",
+    }
+)
+LEGACY_MEMORY_V5_RELATION_FIELDS = frozenset(
+    {
+        "confidence", "content_hash", "created_at", "evidence", "from", "id",
+        "predicate", "status", "to", "updated_at",
+    }
+)
+LEGACY_MEMORY_V5_RELATION_REQUIRED_FIELDS = frozenset(
+    {"content_hash", "created_at", "from", "id", "predicate", "status", "to", "updated_at"}
+)
+LEGACY_MEMORY_V5_PREDICATES = frozenset(
+    {"affects", "derived_from", "documents", "mentions", "related_to", "summarizes", "supersedes", "supports"}
+)
+
+
+def legacy_memory_v5_objects_compatible(project: Path) -> bool:
+    """Recognize the historical v5 corpus without rewriting persistent data."""
+    try:
+        config = json.loads((project / ".memory/config.json").read_bytes())
+        if not isinstance(config, dict) or config.get("version") != 5:
+            return False
+        validate_memory_config((project / ".memory/config.json").read_bytes())
+        validate_memory_storage(project)
+        root = project / ".memory/memory"
+        objects = sorted(root.rglob("*.json"))
+        relations = sorted((project / ".memory/relations").rglob("*.json"))
+        if (
+            is_link_or_reparse(root)
+            or not objects
+            or any(is_link_or_reparse(path) for path in root.rglob("*"))
+        ):
+            return False
+        for path in objects:
+            value = json.loads(path.read_bytes())
+            if not isinstance(value, dict) or not LEGACY_MEMORY_V5_REQUIRED_FIELDS <= set(value):
+                return False
+            if not set(value) <= LEGACY_MEMORY_V5_OBJECT_FIELDS:
+                return False
+            if value.get("type") not in LEGACY_MEMORY_V5_TYPES:
+                return False
+            if not all(isinstance(value.get(key), str) and value[key] for key in (
+                "id", "title", "body_path", "content_hash", "created_at", "updated_at", "status",
+            )):
+                return False
+            if not isinstance(value.get("source"), dict) or not isinstance(value.get("scope"), dict):
+                return False
+            if not isinstance(value.get("tags"), list) or not isinstance(value.get("evidence"), list):
+                return False
+            if "facets" in value and not isinstance(value["facets"], dict):
+                return False
+            if "origin" in value and not isinstance(value["origin"], dict):
+                return False
+            if "superseded_by" in value and not isinstance(value["superseded_by"], str):
+                return False
+            body_relative = Path(value["body_path"])
+            body = project / ".memory" / body_relative
+            if (
+                body_relative.is_absolute()
+                or project / ".memory" not in body.resolve().parents
+                or is_link_or_reparse(body)
+                or not body.is_file()
+            ):
+                return False
+        relation_root = project / ".memory/relations"
+        if is_link_or_reparse(relation_root) or any(
+            is_link_or_reparse(path) for path in relation_root.rglob("*")
+        ):
+            return False
+        for path in relations:
+            value = json.loads(path.read_bytes())
+            if not isinstance(value, dict) or not LEGACY_MEMORY_V5_RELATION_REQUIRED_FIELDS <= set(value):
+                return False
+            if not set(value) <= LEGACY_MEMORY_V5_RELATION_FIELDS:
+                return False
+            if value.get("predicate") not in LEGACY_MEMORY_V5_PREDICATES:
+                return False
+            if not all(isinstance(value.get(key), str) and value[key] for key in (
+                "id", "from", "to", "content_hash", "created_at", "updated_at", "status",
+            )):
+                return False
+            if "confidence" in value and not isinstance(value["confidence"], str):
+                return False
+            if "evidence" in value and not isinstance(value["evidence"], list):
+                return False
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        return False
+    return True
+
+
+def memory_schema_validation_failure(output: str) -> bool:
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError:
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    return isinstance(error, dict) and error.get("code") == "MemorySchemaValidationFailed"
+
+
 def retrieval_runtime_status(project: Path) -> dict[str, str]:
     tool = project / ".chaos-engine/tool.py"
     for arguments in (("status", "--json"), ("check", "--json")):
@@ -295,6 +411,12 @@ def retrieval_runtime_status(project: Path) -> dict[str, str]:
             timeout=30,
         )
         if result.returncode != 0:
+            if memory_schema_validation_failure(result.stdout) and legacy_memory_v5_objects_compatible(project):
+                return {
+                    "status": "compatible-legacy",
+                    "compatibility": "legacy-v5-read-only",
+                    "reason": "installed Memory runtime rejects known legacy v5 storage",
+                }
             detail = (result.stderr or result.stdout or "memory tool exited non-zero").strip()
             return {
                 "status": "recovery-required",
