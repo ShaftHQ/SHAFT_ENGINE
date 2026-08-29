@@ -86,6 +86,30 @@ approval_mode = "prompt"
     def test_valid_memory_setup_passes(self):
         self.assertEqual(validate_memory_setup(self.root), [])
 
+    def test_rejects_duplicate_or_checkout_bound_mempalace_servers(self):
+        self.write(
+            ".mcp.json",
+            json.dumps({"mcpServers": {
+                "chaosengine-mempalace": {
+                    "command": "python3",
+                    "args": [
+                        ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+                        ".chaos-engine-state/mempalace",
+                    ],
+                },
+                "mempalace": {"command": "mempalace-mcp", "args": []},
+            }}),
+        )
+        self.assertIn("mempalace-mcp", self.codes())
+
+    def test_rejects_legacy_codex_mempalace_section(self):
+        self.write(
+            ".codex/config.toml",
+            (self.root / ".codex/config.toml").read_text(encoding="utf-8")
+            + '\n[mcp_servers.mempalace]\ncommand = "mempalace-mcp"\nargs = []\n',
+        )
+        self.assertIn("mempalace-mcp", self.codes())
+
     def test_rejects_large_default_memory_budget(self):
         config = json.loads((self.root / ".memory/config.json").read_text(encoding="utf-8"))
         config["memory"]["defaultTokenBudget"] = 6000

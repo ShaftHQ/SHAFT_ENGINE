@@ -21,26 +21,33 @@ def load_host_controller(installed_root: Path):
     return runpy.run_path(str(path), run_name="_chaos_engine_runtime_hosts")
 
 
-def guard_mempalace_mcp(installed_root: Path, arguments: list[str]) -> None:
-    """Refuse the real MCP launch unless project-local SQLite-exact state is healthy."""
+def mempalace_mcp_arguments(installed_root: Path, arguments: list[str]) -> list[str]:
+    """Resolve the one owned palace and return its native MCP arguments."""
     project = installed_root.resolve().parent
-    expected_arguments = [
-        "--palace",
-        ".chaos-engine-state/mempalace",
-        "--backend",
-        "sqlite_exact",
-    ]
-    if arguments != expected_arguments:
+    if arguments:
         raise ValueError(
-            "MemPalace MCP requires the exact project-local sqlite_exact launch contract"
+            "MemPalace MCP does not accept host-supplied storage arguments"
         )
+    resolver = project / "tools/repository-map/resolve_mempalace.py"
+    palace = project / ".chaos-engine-state/mempalace"
+    if resolver.is_file():
+        namespace = runpy.run_path(str(resolver), run_name="_chaos_engine_mempalace_resolver")
+        palace = Path(namespace["find_shared_mempalace"](project)).resolve()
+    if not palace.is_absolute():
+        raise ValueError("MemPalace MCP resolver returned a relative path")
     controller = load_host_controller(installed_root)
-    state = controller["mempalace_runtime_status"](project)
+    state = controller["mempalace_directory_status"](palace)
     if state.get("status") != "healthy":
         raise ValueError(
             f"MemPalace runtime is {state.get('status', 'unknown')}: "
             f"{state.get('detail', 'operator action required')}"
         )
+    return ["--palace", str(palace), "--backend", "sqlite_exact"]
+
+
+def guard_mempalace_mcp(installed_root: Path, arguments: list[str]) -> None:
+    """Compatibility wrapper for callers that only need validation."""
+    mempalace_mcp_arguments(installed_root, arguments)
 
 
 def resolve_command(
@@ -65,7 +72,7 @@ def main() -> int:
         tool = sys.argv[1]
         arguments = sys.argv[2:]
         if tool == "mempalace-mcp":
-            guard_mempalace_mcp(installed_root, arguments)
+            arguments = mempalace_mcp_arguments(installed_root, arguments)
         command = resolve_command(installed_root, tool, arguments)
         environment = os.environ.copy()
         environment["PYTHONDONTWRITEBYTECODE"] = "1"

@@ -291,11 +291,16 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
             is not None
         ),
     }
-    for name, valid in checks.items():
-        if not valid:
-            errors.append(
-                issue("memory-mcp", ".codex/config.toml", f"invalid shaft-memory {name}")
-            )
+    if server_content or remember_content:
+        for name, valid in checks.items():
+            if not valid:
+                errors.append(
+                    issue("memory-mcp", ".codex/config.toml", f"invalid shaft-memory {name}")
+                )
+    if "[mcp_servers.mempalace]" in codex_content:
+        errors.append(
+            issue("mempalace-mcp", ".codex/config.toml", "legacy mempalace server is duplicated")
+        )
     mcp_path = root / ".mcp.json"
     if mcp_path.is_file():
         try:
@@ -322,13 +327,22 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
                                 f"{name} pins {item}, expected {MEMORY_PACKAGE}",
                             )
                         )
-                command = Path(str(server.get("command") or "")).name
-                if command.startswith("mempalace-mcp") and "--palace" not in args:
+                if name == "mempalace":
                     errors.append(
                         issue(
                             "mempalace-mcp",
                             ".mcp.json",
-                            f"{name} launches mempalace-mcp without a project palace",
+                            "legacy mempalace server is duplicated",
+                        )
+                    )
+                if name == "chaosengine-mempalace" and args != [
+                    ".chaos-engine/tool.py", "mempalace-mcp"
+                ]:
+                    errors.append(
+                        issue(
+                            "mempalace-mcp",
+                            ".mcp.json",
+                            "canonical MemPalace server must use the storage-resolving launcher",
                         )
                     )
     return errors

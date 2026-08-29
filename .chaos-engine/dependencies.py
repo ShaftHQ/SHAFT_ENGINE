@@ -553,7 +553,7 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     project = project.resolve()
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
-    if mempalace:
+    if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
         if not (project / "mempalace.yaml").is_file():
             planned.append([mempalace, "init", "."])
         if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
