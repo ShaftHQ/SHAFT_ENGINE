@@ -441,7 +441,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('base_project = root / "base consumer with spaces Ω"', source)
         self.assertIn('blank_project = root / "blank consumer with spaces Ω"', source)
-        self.assertIn("base_marker = base_project / \".chaos-engine-state/mempalace/.mined\"", source)
+        self.assertIn("seed_exact_mempalace(source, base_project)", source)
         self.assertIn("rollback", source)
 
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
