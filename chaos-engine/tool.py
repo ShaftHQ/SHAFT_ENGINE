@@ -32,9 +32,10 @@ def mempalace_mcp_arguments(installed_root: Path, arguments: list[str]) -> list[
     palace = project / ".chaos-engine-state/mempalace"
     if resolver.is_file():
         namespace = runpy.run_path(str(resolver), run_name="_chaos_engine_mempalace_resolver")
-        palace = Path(namespace["find_shared_mempalace"](project)).resolve()
+        palace = Path(namespace["find_shared_mempalace"](project))
     if not palace.is_absolute():
         raise ValueError("MemPalace MCP resolver returned a relative path")
+    palace = palace.resolve()
     controller = load_host_controller(installed_root)
     state = controller["mempalace_directory_status"](palace)
     if state.get("status") != "healthy":

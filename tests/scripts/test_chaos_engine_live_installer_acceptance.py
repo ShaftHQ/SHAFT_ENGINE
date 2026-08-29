@@ -97,16 +97,22 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         process.communicate.return_value = (
             '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18",'
             '"capabilities":{"tools":{}},"serverInfo":{"name":"fixture",'
-            '"version":"1"}}}\n',
+            '"version":"1"}}}\n'
+            '{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}\n',
             "",
         )
         process.returncode = 0
 
         module.probe_mcp(["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process)
 
-        request = json.loads(process.communicate.call_args.args[0])
-        self.assertEqual("initialize", request["method"])
-        self.assertEqual(1, request["id"])
+        requests = [
+            json.loads(line) for line in process.communicate.call_args.args[0].splitlines()
+        ]
+        self.assertEqual("initialize", requests[0]["method"])
+        self.assertEqual(1, requests[0]["id"])
+        self.assertEqual("notifications/initialized", requests[1]["method"])
+        self.assertEqual("tools/list", requests[2]["method"])
+        self.assertEqual(2, requests[2]["id"])
 
     def test_mcp_probe_rejects_closed_initialize_handshake(self):
         module = load_acceptance()
@@ -173,6 +179,54 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
 
         commands = {call.args[0][2] for call in probe.call_args_list}
         self.assertEqual({"memory-mcp", "mempalace-mcp"}, commands)
+
+    def test_project_mcp_probe_never_supplies_mempalace_storage_arguments(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        tool = ROOT / ".chaos-engine/tool.py"
+        with mock.patch.object(module, "probe_mcp") as probe:
+            module.probe_project_mcps(tool, ROOT)
+
+        mempalace = next(
+            call.args[0] for call in probe.call_args_list if call.args[0][2] == "mempalace-mcp"
+        )
+        self.assertEqual([sys.executable, str(tool), "mempalace-mcp"], mempalace)
+
+    def test_generated_mcp_commands_use_platform_fields_with_common_fallback(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".mcp.json").write_text(json.dumps({
+                "mcpServers": {
+                    "chaosengine-memory": {
+                        "command": "memory-mcp", "args": [], "cwd": ".",
+                    },
+                    "chaosengine-mempalace": {
+                        "command": "python3", "args": [".chaos-engine/tool.py", "mempalace-mcp"],
+                        "commandWindows": "py",
+                        "argsWindows": ["-3", ".chaos-engine/tool.py", "mempalace-mcp"],
+                        "cwd": ".", "env": {"MEMPALACE_BACKEND": "sqlite_exact"},
+                    },
+                },
+            }), encoding="utf-8")
+
+            commands = {
+                name: command
+                for name, command, _cwd, _environment in module.generated_mcp_commands(
+                    project, windows=True
+                )
+            }
+
+        self.assertEqual(["memory-mcp"], commands["chaosengine-memory"])
+        self.assertEqual(
+            ["py", "-3", ".chaos-engine/tool.py", "mempalace-mcp"],
+            commands["chaosengine-mempalace"],
+        )
 
     def test_offline_environment_blocks_package_network_and_hides_secrets(self):
         module = load_acceptance()
@@ -382,6 +436,12 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertIn("--candidate-sha", source)
         self.assertIn("source_record=manifest['source']", source)
         self.assertIn("offline_environment(block_path=True)", source)
+
+    def test_acceptance_uses_preseeded_base_and_blank_candidate_projects(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('base_project = root / "base consumer with spaces Ω"', source)
+        self.assertIn('blank_project = root / "blank consumer with spaces Ω"', source)
+        self.assertIn("rollback", source)
 
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))

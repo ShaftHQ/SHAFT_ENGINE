@@ -554,10 +554,8 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
     if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
-        if not (project / "mempalace.yaml").is_file():
-            planned.append([mempalace, "init", ".", "--yes", "--no-llm"])
         if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
-            planned.append([mempalace, "mine", "."])
+            planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
     graphify = commands.get("graphify")
     if graphify:
         if not (project / ".agents/skills/graphify/SKILL.md").is_file():
@@ -570,6 +568,28 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     if memory and not (project / ".memory/config.json").is_file():
         planned.append([memory, "init", "--no-view"])
     return planned
+
+
+def mempalace_project_setup_environment(
+    project: Path, command: list[str]
+) -> dict[str, str]:
+    """Bind non-resolver initialization to its one exact project-owned palace."""
+    if command[1:3] != ["init", "."]:
+        return {}
+    return {
+        "MEMPALACE_PALACE_PATH": str(
+            project.resolve() / ".chaos-engine-state/mempalace"
+        ),
+        "MEMPALACE_BACKEND": "sqlite_exact",
+    }
+
+
+def mark_mempalace_project_setup(project: Path) -> None:
+    """Mark only a successful sqlite_exact project setup as mined."""
+    palace = project.resolve() / ".chaos-engine-state/mempalace"
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        raise RuntimeError("MemPalace init did not create the exact target")
+    (palace / ".mined").write_bytes(b"current\n")
 
 
 def detected_package_provider(system: str | None = None, *, which=shutil.which) -> str:
@@ -602,11 +622,17 @@ def require_user_writable_npm_prefix(
 
 
 def _run_account_command(
-    command: list[str], project: Path, *, runner=subprocess.run
+    command: list[str],
+    project: Path,
+    *,
+    runner=subprocess.run,
+    extra_environment: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
     environment["PATH"] = _account_search_path()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    if extra_environment:
+        environment.update(extra_environment)
     result = runner(
         command,
         cwd=project,
@@ -810,11 +836,14 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     for command in project_setup_plan(project, commands):
-        _run_account_command(command, project, runner=runner)
-        if command[1:3] == ["mine", "."]:
-            marker = project / ".chaos-engine-state/mempalace/.mined"
-            marker.parent.mkdir(parents=True, exist_ok=True)
-            marker.write_bytes(b"current\n")
+        _run_account_command(
+            command,
+            project,
+            runner=runner,
+            extra_environment=mempalace_project_setup_environment(project, command),
+        )
+        if command[1:3] == ["init", "."]:
+            mark_mempalace_project_setup(project)
 
     final_components: dict[str, dict[str, object]] = {}
     for name, record in actions.items():

@@ -299,8 +299,14 @@ def run_public_wrapper(
         raise RuntimeError("public wrapper did not report detected client activation")
 
 
-def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> None:
-    request = json.dumps(
+def probe_mcp(
+    command: list[str],
+    project: Path,
+    *,
+    environment: dict[str, str] | None = None,
+    popen=subprocess.Popen,
+) -> None:
+    requests = (
         {
             "jsonrpc": "2.0",
             "id": 1,
@@ -310,12 +316,19 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
                 "capabilities": {},
                 "clientInfo": {"name": "chaos-engine-acceptance", "version": "1"},
             },
-        }
-    ) + "\n"
+        },
+        {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+    )
+    request = "".join(json.dumps(item) + "\n" for item in requests)
     process = popen(  # nosec B603
         command,
         cwd=project,
-        env={**clean_environment(), "PYTHONDONTWRITEBYTECODE": "1"},
+        env={
+            **clean_environment(),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            **(environment or {}),
+        },
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -334,11 +347,21 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
             process.communicate(timeout=5)
         raise RuntimeError("MCP initialize timed out")
     try:
-        response = json.loads(stdout.splitlines()[0])
+        responses = [
+            json.loads(line) for line in stdout.splitlines() if line.strip().startswith("{")
+        ]
     except (IndexError, json.JSONDecodeError) as error:
         raise RuntimeError(
             f"MCP connection closed during initialize: {sanitize(stderr or stdout)}"
         ) from error
+    response = next(
+        (item for item in responses if item.get("id") == 1),
+        None,
+    )
+    if not isinstance(response, dict):
+        raise RuntimeError(
+            f"MCP connection closed during initialize: {sanitize(stderr or stdout)}"
+        )
     result = response.get("result")
     server = result.get("serverInfo") if isinstance(result, dict) else None
     if (
@@ -357,22 +380,66 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
             f"MCP initialize failed: {sanitize(stderr or stdout)}"
         )
 
+    listed = next((item for item in responses if item.get("id") == 2), None)
+    tools = listed.get("result", {}).get("tools") if isinstance(listed, dict) else None
+    if not isinstance(tools, list):
+        raise RuntimeError(f"MCP tools/list failed: {sanitize(stderr or stdout)}")
+
 
 def probe_project_mcps(tool: Path, project: Path) -> None:
     commands = (
         [sys.executable, str(tool), "memory-mcp"],
-        [
-            sys.executable,
-            str(tool),
-            "mempalace-mcp",
-            "--palace",
-            ".chaos-engine-state/mempalace",
-            "--backend",
-            "sqlite_exact",
-        ],
+        [sys.executable, str(tool), "mempalace-mcp"],
     )
     for command in commands:
-        probe_mcp(command, project)
+        probe_mcp(
+            command,
+            project,
+            environment={"MEMPALACE_BACKEND": "sqlite_exact"},
+        )
+
+
+def generated_mcp_commands(
+    project: Path, *, windows: bool
+) -> list[tuple[str, list[str], Path, dict[str, str]]]:
+    """Read generated project commands, including platform-specific launch fields."""
+    servers = read_json(project / ".mcp.json").get("mcpServers")
+    if not isinstance(servers, dict):
+        raise RuntimeError("generated MCP configuration is missing servers")
+    command_key = "commandWindows" if windows else "command"
+    arguments_key = "argsWindows" if windows else "args"
+    commands: list[tuple[str, list[str], Path, dict[str, str]]] = []
+    for name in ("chaosengine-memory", "chaosengine-mempalace"):
+        server = servers.get(name)
+        if not isinstance(server, dict):
+            raise RuntimeError(f"generated MCP configuration is missing {name}")
+        executable = server.get(command_key, server.get("command"))
+        arguments = server.get(arguments_key, server.get("args"))
+        cwd = server.get("cwd", ".")
+        environment = server.get("env", {})
+        if (
+            not isinstance(executable, str)
+            or not isinstance(arguments, list)
+            or any(not isinstance(argument, str) for argument in arguments)
+            or not isinstance(cwd, str)
+            or not isinstance(environment, dict)
+            or any(not isinstance(key, str) or not isinstance(value, str)
+                   for key, value in environment.items())
+        ):
+            raise RuntimeError(f"generated MCP command is invalid: {name}")
+        working_directory = (project / cwd).resolve()
+        if not working_directory.is_relative_to(project.resolve()):
+            raise RuntimeError(f"generated MCP working directory escapes project: {name}")
+        commands.append((name, [executable, *arguments], working_directory, environment))
+    return commands
+
+
+def probe_generated_mcps(project: Path) -> None:
+    # Parse both platform forms before executing current host's generated command.
+    generated_mcp_commands(project, windows=False)
+    commands = generated_mcp_commands(project, windows=os.name == "nt")
+    for _name, command, cwd, environment in commands:
+        probe_mcp(command, cwd, environment=environment)
 
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
@@ -465,7 +532,9 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     }
 
 
-def verify_account_phase(project: Path, expected_commit: str) -> dict[str, object]:
+def verify_account_phase(
+    project: Path, expected_commit: str, *, probe_generated: bool = True
+) -> dict[str, object]:
     installed = project / ".chaos-engine"
     for command in ("status", "doctor"):
         result = json.loads(
@@ -521,8 +590,9 @@ def verify_account_phase(project: Path, expected_commit: str) -> dict[str, objec
     for name, arguments in PROBES.items():
         run_checked([sys.executable, str(tool), name, *arguments], cwd=project, timeout=120)
         dispatches[name] = "pass"
-    probe_project_mcps(tool, project)
-    dispatches.update({"memory-mcp": "pass", "mempalace-mcp": "pass"})
+    if probe_generated:
+        probe_generated_mcps(project)
+        dispatches.update({"memory-mcp": "pass", "mempalace-mcp": "pass"})
     return {
         "status": "healthy",
         "dispatches": dispatches,
@@ -555,6 +625,39 @@ def record_phase(
     return checks
 
 
+def project_snapshot(project: Path) -> dict[str, bytes]:
+    """Read disposable-project state for an exact offline no-mutation proof."""
+    return {
+        path.relative_to(project).as_posix(): path.read_bytes()
+        for path in sorted(project.rglob("*"))
+        if path.is_file()
+    }
+
+
+def assert_local_mempalace(project: Path) -> None:
+    palace = project / ".chaos-engine-state/mempalace"
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        raise RuntimeError("candidate did not initialize the exact local MemPalace")
+    if (palace / ".mined").read_bytes() not in {b"current\n", b"current\r\n"}:
+        raise RuntimeError("candidate MemPalace mine marker is invalid")
+
+
+def assert_single_generated_mempalace(project: Path) -> None:
+    servers = read_json(project / ".mcp.json").get("mcpServers")
+    if not isinstance(servers, dict):
+        raise RuntimeError("generated MCP configuration is missing servers")
+    registrations = [
+        name for name in servers if "mempalace" in name.casefold()
+    ]
+    if registrations != ["chaosengine-mempalace"]:
+        raise RuntimeError("generated MCP configuration has duplicate MemPalace servers")
+    for _name, command, _cwd, _environment in generated_mcp_commands(
+        project, windows=os.name == "nt"
+    ):
+        if "--palace" in command:
+            raise RuntimeError("generated MCP configuration supplied MemPalace storage")
+
+
 def run_acceptance(
     source: Path,
     evidence: dict[str, object],
@@ -565,61 +668,122 @@ def run_acceptance(
     source = source.resolve()
     with tempfile.TemporaryDirectory(prefix="chaos-engine-live-") as temporary:
         root = Path(temporary)
-        project = root / "consumer with spaces Ω"
-        project.mkdir()
+        base_project = root / "base consumer with spaces Ω"
+        blank_project = root / "blank consumer with spaces Ω"
+        base_project.mkdir()
+        blank_project.mkdir()
+        user_config = (
+            "wing: acceptance\n"
+            "rooms:\n  - name: general\n    description: Acceptance project\n"
+            "exclude_patterns:\n  - .chaos-engine-state/**\n"
+        ).encode()
+        base_project.joinpath("mempalace.yaml").write_bytes(user_config)
+        base_sentinel = base_project / "user-sentinel.txt"
+        base_sentinel.write_bytes(b"preserve base user data\n")
+        blank_sentinel = blank_project / "user-sentinel.txt"
+        blank_sentinel.write_bytes(b"preserve blank user data\n")
 
         def install_and_verify(
-            commit: str, *, require_current_action: bool = True, account: bool = False
+            project: Path,
+            commit: str,
+            *,
+            require_current_action: bool = True,
+            probe_generated: bool = True,
         ) -> dict[str, object]:
             run_public_wrapper(
                 commit, project, require_current_action=require_current_action
             )
-            return (
-                verify_account_phase(project, commit)
-                if account else verify_phase(project, commit)
+            return verify_account_phase(
+                project, commit, probe_generated=probe_generated
             )
 
-        fresh = record_phase(
+        record_phase(
             evidence,
-            "fresh-base-wrapper",
-            lambda: install_and_verify(base_sha, require_current_action=False),
+            "preseeded-base-wrapper",
+            lambda: install_and_verify(
+                base_project, base_sha, require_current_action=False, probe_generated=False
+            ),
         )
-        first_pointer = (project / ".chaos-engine-runtime-current.json").read_bytes()
-        first_generations = sorted(
-            path.name for path in (project / ".chaos-engine-runtime-generations").iterdir()
-        )
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("base public install rewrote valid user configuration")
+        if base_sentinel.read_bytes() != b"preserve base user data\n":
+            raise RuntimeError("base public install rewrote user sentinel")
+        if (base_project / ".chaos-engine-runtime-current.json").exists():
+            raise RuntimeError("base account install unexpectedly created a generation")
         offline_source = download_commit_source(
             source, base_sha, root / "offline-base-source"
         )
+        base_before_offline = project_snapshot(base_project)
 
-        def healthy_rerun() -> dict[str, object]:
-            run_offline_rerun(project, offline_source)
-            if first_pointer != (project / ".chaos-engine-runtime-current.json").read_bytes():
-                raise RuntimeError("healthy rerun rewrote active pointer")
-            if first_generations != sorted(
-                path.name
-                for path in (project / ".chaos-engine-runtime-generations").iterdir()
-            ):
-                raise RuntimeError("healthy rerun built a dependency generation")
-            return verify_phase(project, base_sha)
+        def base_offline_no_mutation() -> dict[str, object]:
+            run_offline_rerun(base_project, offline_source)
+            if project_snapshot(base_project) != base_before_offline:
+                raise RuntimeError("offline base rerun mutated the account project")
+            return verify_account_phase(base_project, base_sha, probe_generated=False)
 
-        record_phase(evidence, "healthy-offline-rerun-base", healthy_rerun)
-        upgrade = record_phase(
+        record_phase(evidence, "base-offline-no-mutation", base_offline_no_mutation)
+        record_phase(
             evidence,
             "upgrade-candidate-wrapper",
-            lambda: install_and_verify(candidate_sha, account=True),
+            lambda: install_and_verify(base_project, candidate_sha),
         )
-        account_receipt = project / ".chaos-engine-dependencies.json"
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("candidate upgrade rewrote valid user configuration")
+        assert_local_mempalace(base_project)
+        assert_single_generated_mempalace(base_project)
+
+        def rollback_base() -> dict[str, object]:
+            installed = base_project / ".chaos-engine/install.py"
+            result = json.loads(
+                run_checked(
+                    [
+                        sys.executable, str(installed), "rollback", "--project",
+                        str(base_project), "--json",
+                    ],
+                    cwd=base_project,
+                ).stdout
+            )
+            if result.get("status") != "rolled-back":
+                raise RuntimeError("candidate rollback did not report rolled-back")
+            return verify_account_phase(base_project, base_sha)
+
+        record_phase(evidence, "rollback-base-account-and-hosts", rollback_base)
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("rollback rewrote valid user configuration")
+        if base_sentinel.read_bytes() != b"preserve base user data\n":
+            raise RuntimeError("rollback rewrote user sentinel")
+
+        first_blank = record_phase(
+            evidence,
+            "blank-candidate-wrapper",
+            lambda: install_and_verify(blank_project, candidate_sha),
+        )
+        if any(action != "reused" for action in first_blank["actions"].values()):
+            raise RuntimeError("blank candidate install did not reuse account tools")
+        if blank_sentinel.read_bytes() != b"preserve blank user data\n":
+            raise RuntimeError("candidate install rewrote blank user sentinel")
+        assert_local_mempalace(blank_project)
+        assert_single_generated_mempalace(blank_project)
+        account_receipt = blank_project / ".chaos-engine-dependencies.json"
         commands_before = read_json(account_receipt)["commands"]
+        marker_before = (
+            blank_project / ".chaos-engine-state/mempalace/.mined"
+        ).read_bytes()
         repeated = record_phase(
             evidence,
-            "healthy-rerun-candidate-wrapper",
-            lambda: install_and_verify(candidate_sha, account=True),
+            "blank-candidate-rerun",
+            lambda: install_and_verify(blank_project, candidate_sha),
         )
         if read_json(account_receipt)["commands"] != commands_before:
             raise RuntimeError("healthy account rerun changed resolved executable dispatch")
         if any(action != "reused" for action in repeated["actions"].values()):
             raise RuntimeError("healthy account rerun did not reuse latest stable tools")
+        if (blank_project / ".chaos-engine-state/mempalace/.mined").read_bytes() != marker_before:
+            raise RuntimeError("healthy account rerun repeated MemPalace mining")
+        if blank_sentinel.read_bytes() != b"preserve blank user data\n":
+            raise RuntimeError("candidate rerun rewrote blank user sentinel")
+        assert_local_mempalace(blank_project)
+        assert_single_generated_mempalace(blank_project)
 
 
 def write_evidence(path: Path, evidence: dict[str, object]) -> None:
