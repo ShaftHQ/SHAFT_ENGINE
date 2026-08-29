@@ -259,8 +259,10 @@ def validate_mempalace_config(content: bytes) -> None:
         or rooms is None
         or re.search(r"(?m)^\s*- name:\s*\S+", rooms.group("body")) is None
         or re.search(r"(?m)^\s*description:\s*\S+", rooms.group("body")) is None
-        or excludes is None
-        or re.search(r"(?m)^\s*-\s+\S+", excludes.group("body")) is None
+        or (
+            excludes is not None
+            and re.search(r"(?m)^\s*-\s+\S+", excludes.group("body")) is None
+        )
     ):
         raise ValueError("invalid MemPalace configuration")
 

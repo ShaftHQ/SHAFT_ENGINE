@@ -1430,6 +1430,17 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     module.install(project)
                 self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
 
+    def test_native_mempalace_init_config_without_exclusions_is_valid(self):
+        module = load(HOSTS, "chaos_engine_native_mempalace_config")
+
+        module.validate_mempalace_config(
+            b"wing: native-project\n"
+            b"rooms:\n"
+            b"- name: general\n"
+            b"  description: Files that do not fit another room\n"
+            b"  keywords: []\n"
+        )
+
     def test_healthy_adopter_v4_memory_and_unindented_mempalace_installs(self):
         module = load(HOSTS, "chaos_engine_healthy_v4_retrieval")
         v4_config = {
