@@ -64,7 +64,9 @@ def download_environment(base: dict[str, str] | None = None) -> dict[str, str]:
     return environment
 
 
-def wrapper_environment() -> dict[str, str]:
+def wrapper_environment(
+    *, account_command_root: Path | None = None
+) -> dict[str, str]:
     """Keep public-wrapper acceptance independent of ambient optional hosts."""
     environment = download_environment()
     if os.name == "nt":
@@ -72,7 +74,33 @@ def wrapper_environment() -> dict[str, str]:
         environment["PATH"] = os.pathsep.join((str(Path(system_root) / "System32"), system_root))
     else:
         environment["PATH"] = os.defpath
+    if account_command_root is not None:
+        if not account_command_root.is_absolute() or not account_command_root.is_dir():
+            raise ValueError("acceptance account command root is invalid")
+        environment["PATH"] = os.pathsep.join((
+            str(account_command_root), environment["PATH"],
+        ))
     return environment
+
+
+def prepare_account_command_root(
+    root: Path, commands: dict[str, object]
+) -> Path:
+    """Expose the one installed Python command without admitting ambient hosts."""
+    python_command = commands.get("python3")
+    if not isinstance(python_command, str):
+        raise RuntimeError("base account receipt is missing Python")
+    owned_python = Path(python_command)
+    if not owned_python.is_absolute() or not owned_python.is_file():
+        raise RuntimeError("base account Python command is invalid")
+    root.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        root.joinpath("python3.cmd").write_text(
+            f'@"{owned_python}" %*\r\n', encoding="utf-8"
+        )
+    else:
+        root.joinpath("python3").symlink_to(owned_python)
+    return root
 
 
 def offline_environment(
@@ -290,12 +318,13 @@ def run_offline_rerun(project: Path, source: Path) -> None:
 
 
 def run_public_wrapper(
-    commit: str, project: Path, *, require_current_action: bool = True
+    commit: str, project: Path, *, require_current_action: bool = True,
+    environment: dict[str, str] | None = None,
 ) -> None:
     result = run_checked(
         public_wrapper_command(commit, windows=os.name == "nt"),
         cwd=project,
-        environment=wrapper_environment(),
+        environment=environment or wrapper_environment(),
     )
     if not (project / ".chaos-engine/install.py").is_file():
         raise RuntimeError("public wrapper did not create the installation tree")
@@ -549,10 +578,11 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
 
 
 def verify_account_phase(
-    project: Path, expected_commit: str, *, probe_generated: bool = True
+    project: Path, expected_commit: str, *, probe_generated: bool = True,
+    environment: dict[str, str] | None = None,
 ) -> dict[str, object]:
     installed = project / ".chaos-engine"
-    environment = wrapper_environment()
+    environment = environment or wrapper_environment()
     for command in ("status", "doctor"):
         result = json.loads(
             run_checked(
@@ -727,12 +757,14 @@ def run_acceptance(
             *,
             require_current_action: bool = True,
             probe_generated: bool = True,
+            environment: dict[str, str] | None = None,
         ) -> dict[str, object]:
             run_public_wrapper(
-                commit, project, require_current_action=require_current_action
+                commit, project, require_current_action=require_current_action,
+                environment=environment,
             )
             return verify_account_phase(
-                project, commit, probe_generated=probe_generated
+                project, commit, probe_generated=probe_generated, environment=environment
             )
 
         record_phase(
@@ -791,10 +823,22 @@ def run_acceptance(
         if base_sentinel.read_bytes() != b"preserve base user data\n":
             raise RuntimeError("rollback rewrote user sentinel")
 
+        base_commands = read_json(
+            base_project / ".chaos-engine-dependencies.json"
+        ).get("commands")
+        if not isinstance(base_commands, dict):
+            raise RuntimeError("base account receipt has no command mapping")
+        blank_environment = wrapper_environment(
+            account_command_root=prepare_account_command_root(
+                root / "account-commands", base_commands
+            )
+        )
         first_blank = record_phase(
             evidence,
             "blank-candidate-wrapper",
-            lambda: install_and_verify(blank_project, candidate_sha),
+            lambda: install_and_verify(
+                blank_project, candidate_sha, environment=blank_environment
+            ),
         )
         if any(action != "reused" for action in first_blank["actions"].values()):
             raise RuntimeError("blank candidate install did not reuse account tools")
@@ -810,7 +854,9 @@ def run_acceptance(
         repeated = record_phase(
             evidence,
             "blank-candidate-rerun",
-            lambda: install_and_verify(blank_project, candidate_sha),
+            lambda: install_and_verify(
+                blank_project, candidate_sha, environment=blank_environment
+            ),
         )
         if read_json(account_receipt)["commands"] != commands_before:
             raise RuntimeError("healthy account rerun changed resolved executable dispatch")

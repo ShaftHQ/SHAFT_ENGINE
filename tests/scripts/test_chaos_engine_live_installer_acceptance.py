@@ -312,6 +312,31 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertNotIn("OPENAI_API_KEY", child_environment)
         self.assertEqual(os.defpath, child_environment["PATH"])
 
+    def test_disposable_account_root_exposes_only_the_installer_python(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            owned_python = root / "python3.14"
+            owned_python.write_text("fixture", encoding="utf-8")
+            account_root = module.prepare_account_command_root(
+                root / "account-commands", {"python3": str(owned_python)}
+            )
+
+            alias = account_root / ("python3.cmd" if os.name == "nt" else "python3")
+            if os.name == "nt":
+                self.assertIn(str(owned_python), alias.read_text(encoding="utf-8"))
+            else:
+                self.assertTrue(alias.is_symlink())
+                self.assertEqual(owned_python, alias.resolve())
+            environment = module.wrapper_environment(account_command_root=account_root)
+
+        self.assertEqual(
+            os.pathsep.join((str(account_root), os.defpath)), environment["PATH"]
+        )
+
     def test_account_verification_uses_the_isolated_wrapper_environment(self):
         module = load_acceptance()
         self.assertIsNotNone(module)
