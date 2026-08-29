@@ -4064,12 +4064,20 @@ def strip_known_json_ownership(
     recorded_servers = recorded.get("mcpServers", {})
     if not isinstance(servers, dict) or not isinstance(original_servers, dict) or not isinstance(recorded_servers, dict):
         raise ValueError("invalid MCP server configuration")
-    for name in ("chaosengine-memory", "chaosengine-mempalace"):
+    for name in ("chaosengine-memory", "chaosengine-mempalace", "context7", "maven-tools-mcp"):
         if name not in servers:
             continue
-        expected = (original_servers.get(name), recorded_servers.get(name))
-        if servers[name] in expected or replaceable_owned_server(
-            name, servers[name], owned_servers()[name]
+        expected = [
+            collection[name]
+            for collection in (original_servers, recorded_servers)
+            if name in collection
+        ]
+        legacy_server = name in {"chaosengine-memory", "chaosengine-mempalace"} and servers[name] in (
+            legacy_owned_python_server(name, "nt"),
+            legacy_owned_python_server(name, "posix"),
+        )
+        if servers[name] in expected or legacy_server or (
+            name == "maven-tools-mcp" and servers[name] == LEGACY_MAVEN_TOOLS_SERVER
         ):
             del servers[name]
             continue
@@ -4078,16 +4086,6 @@ def strip_known_json_ownership(
         if name not in servers:
             continue
         if not exact_legacy_alias(name, servers[name]):
-            raise ValueError(f"ChaosEngine MCP server collision: {name}")
-        del servers[name]
-    name = "maven-tools-mcp"
-    if name in servers:
-        expected = [
-            collection[name]
-            for collection in (original_servers, recorded_servers)
-            if name in collection
-        ]
-        if servers[name] != LEGACY_MAVEN_TOOLS_SERVER and servers[name] not in expected:
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
         del servers[name]
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
@@ -4121,6 +4119,22 @@ def upgrade_before_images(
         if relative in LIVE_PERSISTENT_PATHS:
             restored[relative] = observed
             continue
+        if relative == ".mcp.json" and observed is not None:
+            restored[relative] = strip_known_json_ownership(
+                observed, before[relative], after[relative], label="MCP"
+            )
+            continue
+        if relative == ".gemini/settings.json" and observed is not None:
+            stripped = strip_known_json_ownership(
+                observed, before[relative], after[relative], label="Gemini"
+            )
+            restored[relative] = without_chaos_hooks(stripped, "Gemini")
+            continue
+        if relative == ".codex/config.toml" and observed is not None:
+            restored[relative] = strip_known_codex_ownership(
+                observed, before[relative], after[relative]
+            )
+            continue
         if observed in (before[relative], after[relative]):
             continue
         if relative == ".agents/skills/README.md":
@@ -4141,22 +4155,6 @@ def upgrade_before_images(
                 ".claude/settings.json": "Claude",
             }[relative]
             restored[relative] = without_chaos_hooks(observed, label)
-            continue
-        if relative == ".mcp.json":
-            restored[relative] = strip_known_json_ownership(
-                observed or b"{}", before[relative], after[relative], label="MCP"
-            )
-            continue
-        if relative == ".gemini/settings.json":
-            stripped = strip_known_json_ownership(
-                observed or b"{}", before[relative], after[relative], label="Gemini"
-            )
-            restored[relative] = without_chaos_hooks(stripped, "Gemini")
-            continue
-        if relative == ".codex/config.toml":
-            restored[relative] = strip_known_codex_ownership(
-                observed or b"", before[relative], after[relative]
-            )
             continue
         raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
     return restored

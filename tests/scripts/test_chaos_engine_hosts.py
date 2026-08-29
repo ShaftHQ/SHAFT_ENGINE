@@ -3557,47 +3557,99 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "MCP server collision"):
                         module.preflight(project)
 
-    def test_preflight_inverts_an_authenticated_legacy_maven_server_only(self):
-        module = load(HOSTS, "chaos_engine_hosts_legacy_maven_fragment")
-        legacy = {
-            "command": "/usr/bin/java",
-            "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
+    def test_preflight_inverts_exact_receipt_mcp_servers_and_legacy_aliases(self):
+        module = load(HOSTS, "chaos_engine_hosts_receipt_mcp_reconciliation")
+        candidate_servers = {
+            "chaosengine-memory": {
+                "command": "python3", "args": [".chaos-engine/tool.py", "memory-mcp"], "cwd": ".",
+            },
+            "chaosengine-mempalace": {
+                "command": "python3", "args": [".chaos-engine/tool.py", "mempalace-mcp"], "cwd": ".",
+            },
+            "maven-tools-mcp": {
+                "command": "/usr/bin/java",
+                "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
+            },
         }
-        current = json.dumps(
-            {
-                "mcpServers": {
-                    "maven-tools-mcp": legacy,
-                    "user-server": {"command": "keep", "args": []},
-                }
-            }
-        ).encode()
-        before = json.dumps({"mcpServers": {"maven-tools-mcp": legacy}}).encode()
-
-        stripped = json.loads(
-            module.strip_known_json_ownership(
-                current, before, b'{"mcpServers": {}}', label="MCP"
-            )
-        )
-
-        self.assertEqual(
-            {"user-server": {"command": "keep", "args": []}},
-            stripped["mcpServers"],
-        )
-
-    def test_preflight_rejects_one_field_mutation_of_authenticated_maven_server(self):
-        module = load(HOSTS, "chaos_engine_hosts_maven_fragment_mutation")
-        legacy = {
-            "command": "/usr/bin/java",
-            "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
+        aliases = {
+            "shaft-memory": {
+                "command": "npx",
+                "args": ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"],
+                "cwd": ".",
+            },
+            "mempalace": {"command": "mempalace-mcp", "args": [], "cwd": "."},
         }
-        mutated = {**legacy, "args": [*legacy["args"], "--foreign"]}
-        current = json.dumps({"mcpServers": {"maven-tools-mcp": mutated}}).encode()
-        before = json.dumps({"mcpServers": {"maven-tools-mcp": legacy}}).encode()
+        user_server = {"command": "keep", "args": []}
+        for relative in (".mcp.json", ".gemini/settings.json"):
+            with self.subTest(route=relative):
+                before = {path: None for path in module.managed_paths()}
+                document = {"mcpServers": {**candidate_servers, "user-server": user_server}}
+                before[relative] = (json.dumps(document, sort_keys=True) + "\n").encode()
+                after = dict(before)
+                snapshot = module.upgrade_before_images(Path("."), before, after, dict(after))
+                self.assertEqual(
+                    {"user-server": user_server},
+                    json.loads(snapshot[relative])["mcpServers"],
+                )
 
-        with self.assertRaisesRegex(ValueError, "MCP server collision: maven-tools-mcp"):
-            module.strip_known_json_ownership(
-                current, before, b'{"mcpServers": {}}', label="MCP"
-            )
+                current = dict(after)
+                document = json.loads(current[relative])
+                document["mcpServers"].update(aliases)
+                current[relative] = (json.dumps(document, sort_keys=True) + "\n").encode()
+                snapshot = module.upgrade_before_images(Path("."), before, after, current)
+                self.assertEqual(
+                    {"user-server": user_server},
+                    json.loads(snapshot[relative])["mcpServers"],
+                )
+
+    def test_preflight_rejects_one_field_mcp_mutations_after_receipt_reconciliation(self):
+        module = load(HOSTS, "chaos_engine_hosts_receipt_mcp_mutations")
+        servers = {
+            "chaosengine-memory": {
+                "command": "python3", "args": [".chaos-engine/tool.py", "memory-mcp"], "cwd": ".",
+            },
+            "chaosengine-mempalace": {
+                "command": "python3", "args": [".chaos-engine/tool.py", "mempalace-mcp"], "cwd": ".",
+            },
+            "maven-tools-mcp": {
+                "command": "/usr/bin/java",
+                "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
+            },
+            "shaft-memory": {
+                "command": "npx",
+                "args": ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"],
+                "cwd": ".",
+            },
+            "mempalace": {"command": "mempalace-mcp", "args": [], "cwd": "."},
+        }
+        for relative in (".mcp.json", ".gemini/settings.json"):
+            for name, server in servers.items():
+                with self.subTest(route=relative, server=name):
+                    before = {path: None for path in module.managed_paths()}
+                    if name not in {"shaft-memory", "mempalace"}:
+                        before[relative] = json.dumps({"mcpServers": {name: server}}).encode()
+                    after = dict(before)
+                    mutated = {**server, "args": [*server["args"], "--foreign"]}
+                    current = dict(after)
+                    current[relative] = json.dumps({"mcpServers": {name: mutated}}).encode()
+                    with self.assertRaisesRegex(ValueError, f"MCP server collision: {name}"):
+                        module.upgrade_before_images(Path("."), before, after, current)
+
+    def test_preflight_inverts_exact_receipt_codex_block_and_rejects_mutation(self):
+        module = load(HOSTS, "chaos_engine_hosts_receipt_codex_reconciliation")
+        before = {path: None for path in module.managed_paths()}
+        before[".codex/config.toml"] = module.codex_content(None)
+        after = dict(before)
+
+        snapshot = module.upgrade_before_images(Path("."), before, after, dict(after))
+        self.assertEqual(b"", snapshot[".codex/config.toml"])
+
+        current = dict(after)
+        current[".codex/config.toml"] = current[".codex/config.toml"].replace(
+            b'"memory-mcp"', b'"memory-mcp-foreign"', 1
+        )
+        with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
+            module.upgrade_before_images(Path("."), before, after, current)
 
     def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")
