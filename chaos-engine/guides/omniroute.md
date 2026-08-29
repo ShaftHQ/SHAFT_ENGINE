@@ -65,7 +65,7 @@ packages required by the distribution:
 npm install --global --include=optional omniroute@3.8.50
 command -v omniroute
 omniroute --version
-omniroute doctor --json
+omniroute doctor --no-liveness
 ```
 
 Do not substitute `latest` for the reviewed version until a new release has
@@ -75,7 +75,7 @@ repeat all route tests, then run:
 ```bash
 npm install --global --include=optional omniroute@<reviewed-version>
 omniroute --version
-omniroute doctor --json
+omniroute doctor --no-liveness
 ```
 
 Start it only when needed. `HOST=127.0.0.1` keeps the gateway on loopback; do
@@ -89,7 +89,8 @@ In a separate terminal, verify the service and only then open the local
 dashboard at `http://127.0.0.1:20128` if you need the visual provider picker:
 
 ```bash
-curl --fail --silent http://127.0.0.1:20128/health
+curl --fail --silent http://127.0.0.1:20128/api/health
+omniroute health --json
 omniroute providers available --search groq
 omniroute providers list
 ```
@@ -144,7 +145,7 @@ The unit remains disabled until explicitly enabled:
 systemctl --user daemon-reload
 systemctl --user start omniroute
 systemctl --user status omniroute --no-pager
-curl --fail --silent http://127.0.0.1:20128/health
+curl --fail --silent http://127.0.0.1:20128/api/health
 systemctl --user stop omniroute
 ```
 
@@ -160,18 +161,25 @@ and tool-use tests below. Provider signup remains manual: accept terms, complete
 email verification, and stop if the service requests a card, phone number,
 KYC, or CAPTCHA that you do not wish to provide.
 
+There is no safe keyless bootstrap on the reviewed machine. When no provider
+key exists, the minimum onboarding checkpoint is a manually created Groq
+account and a new `GROQ_API_KEY`; do not configure a coding subagent until that
+exact target passes both tests. A catalog entry or a successful `providers add`
+command is never proof of availability, free entitlement, tool support, or
+privacy.
+
 | Rank and status | Provider and official signup | First coding model / OmniRoute ID | Free-use snapshot and account steps | Caveats |
 | --- | --- | --- | --- | --- |
 | 1 — recommended | [Groq Console](https://console.groq.com/) | `openai/gpt-oss-120b` / `groq` | Create account, verify email, create API key, save as `GROQ_API_KEY`. Groq publishes free-plan limits; its current page lists 1,000 requests/day and 200K tokens/day for this model family. | Shared organization limits; low minute limits can bind first. Personal/internal use only; do not expose the gateway to others. |
-| 2 — recommended for non-sensitive work | [Pollinations](https://enter.pollinations.ai/) | `qwen-coder` / `pollinations` | No account or upstream key for reviewed keyless models. In Dashboard, add **Pollinations** and choose `qwen-coder`; CLI command below uses `--no-credential`. | No published allowance, no SLA, model set can change. Treat prompts as non-sensitive and test tool calling. |
-| 3 — recommended for non-sensitive work after testing | [UncloseAI](https://uncloseai.com/) | `qwen3.6:27b` / `uncloseai` | The reviewed route is keyless: add **UncloseAI**, select `qwen3.6:27b`, and test. | No published allowance or durable privacy commitment in reviewed material; service availability and tool compatibility require live proof. |
-| 4 — conditional | [Mistral Console](https://console.mistral.ai/) | `codestral-latest` / `mistral` | Create account, verify email, create an API key, save as `MISTRAL_API_KEY`. OmniRoute's audited catalogue records a 1B-token/month shared pool, but confirm the live console before relying on it. | Signup/eligibility and quota can change; confirm no paid overage or card requirement before enabling. |
-| 5 — conditional | [SambaNova Cloud](https://cloud.sambanova.ai/) | `DeepSeek-V3.2` / `sambanova` | Create account, verify email, create key, save as `SAMBANOVA_API_KEY`. OmniRoute catalog estimates a shared 6M-token/month recurring pool. | Review privacy/terms and regional access; published onboarding details can change. |
-| 6 — trial-only | [Cerebras Cloud](https://cloud.cerebras.ai/) | `gpt-oss-120b` / `cerebras` | Create account, verify email, create key, save as `CEREBRAS_API_KEY`. OmniRoute catalog records a no-card 1M-token/day free trial (about 30M/month). | Treat as finite trial capacity: confirm expiry, account gate, and model access in the current console. |
-| 7 — conditional | [OpenRouter Keys](https://openrouter.ai/keys) | an explicit current `:free` model / `openrouter` | Create account, create key, save as `OPENROUTER_API_KEY`, then select one specific free model from the live catalogue. Its free pool is request-limited; never use `auto` as a no-cost guarantee. | Multi-provider routing changes privacy/data handling. A paid top-up changes quota and is outside this guide. |
-| 8 — conditional | [Hugging Face tokens](https://huggingface.co/settings/tokens) | `deepseek-ai/DeepSeek-V3` / `huggingface` | Create account, verify email, accept model terms when prompted, create a fine-grained inference token, save as `HF_TOKEN`. OmniRoute catalog estimates a small shared monthly pool (about 200K tokens). | Third-party inference routing and model licenses apply; not enough capacity for routine coding delegation. |
-| 9 — conditional | [Cloudflare dashboard](https://dash.cloudflare.com/) | `@cf/qwen/qwen2.5-coder-32b-instruct` / `cloudflare-ai` | Create account, create a Workers AI API token with least privilege, save as `CLOUDFLARE_API_TOKEN`, and record account ID only outside the repository. Cloudflare publishes 10,000 Neurons/day; the limit resets at 00:00 UTC. | Practical coding volume depends on model Neuron price. Some frontier models require Workers Paid or prepaid credit. |
-| 10 — prototyping-only | [NVIDIA Build](https://build.nvidia.com/) | `mistralai/devstral-2-123b-instruct-2512` / `nvidia` | Create account, accept terms, generate NIM key, save as `NVIDIA_API_KEY`, then verify the chosen model is still available. | NVIDIA does not publish a stable numeric hosted allowance here; use only for development/evaluation, never production or a cost guarantee. |
+| 2 — conditional | [Google AI Studio](https://aistudio.google.com/) | `gemini-3.7-flash` / `gemini` | Create account, verify email, create API key, save as `GEMINI_API_KEY`. Before adding it, manually confirm **AI Studio Plan = Free** and that no Cloud Billing account is attached. Current limits are visible only in AI Studio. | Owner-local gateway only. Google free-tier handling can include training and human review: public, non-sensitive prompts only. Tool support must pass the live test below. |
+| 3 — not admitted by default | [Pollinations](https://enter.pollinations.ai/) | current model ID discovered live / `pollinations` | Do not treat no-key registration as a usable route. On the reviewed machine, no-key registration failed and the documented `qwen-coder` target returned 404. Use a personal key only if the current service terms permit it, then discover and test an exact model. | Anonymous access is unstable/credit-gated. OmniRoute's fingerprint/session pool conflicts with this guide's anti-bot boundary. Keep out of the initial combo. |
+| 4 — not admitted by default | [UncloseAI](https://uncloseai.com/) | current model ID discovered live / `uncloseai` | Do not rely on stale built-in IDs. The live `lorbus` model accepted chat on the reviewed machine, but tool use returned HTTP 500. Add no target until both tests pass. | No durable privacy commitment or reliable tool-use proof. Keep out of the initial combo. |
+| 5 — conditional | [Mistral Console](https://console.mistral.ai/) | `codestral-latest` / `mistral` | Create account, verify email, create an API key, save as `MISTRAL_API_KEY`. OmniRoute's audited catalogue records a 1B-token/month shared pool, but confirm the live console before relying on it. | Signup/eligibility and quota can change; confirm no paid overage or card requirement before enabling. |
+| 6 — conditional | [SambaNova Cloud](https://cloud.sambanova.ai/) | `DeepSeek-V3.2` / `sambanova` | Create account, verify email, create key, save as `SAMBANOVA_API_KEY`. OmniRoute catalog estimates a shared 6M-token/month recurring pool. | Review privacy/terms and regional access; published onboarding details can change. |
+| 7 — trial-only | [Cerebras Cloud](https://cloud.cerebras.ai/) | `gpt-oss-120b` / `cerebras` | Create account, verify email, create key, save as `CEREBRAS_API_KEY`. OmniRoute catalog records a no-card 1M-token/day free trial (about 30M/month). | Treat as finite trial capacity: confirm expiry, account gate, and model access in the current console. |
+| 8 — conditional | [OpenRouter Keys](https://openrouter.ai/keys) | an explicit current `:free` model / `openrouter` | Create account, create key, save as `OPENROUTER_API_KEY`, then select one specific free model from the live catalogue. Its free pool is request-limited; never use `auto` as a no-cost guarantee. | Multi-provider routing changes privacy/data handling. A paid top-up changes quota and is outside this guide. |
+| 9 — conditional | [Hugging Face tokens](https://huggingface.co/settings/tokens) | `deepseek-ai/DeepSeek-V3` / `huggingface` | Create account, verify email, accept model terms when prompted, create a fine-grained inference token, save as `HF_TOKEN`. OmniRoute catalog estimates a small shared monthly pool (about 200K tokens). | Third-party inference routing and model licenses apply; not enough capacity for routine coding delegation. |
+| 10 — conditional | [Cloudflare dashboard](https://dash.cloudflare.com/) | `@cf/qwen/qwen2.5-coder-32b-instruct` / `cloudflare-ai` | Create account, create a Workers AI API token with least privilege, save as `CLOUDFLARE_API_TOKEN`, and record account ID only outside the repository. Cloudflare publishes 10,000 Neurons/day; the limit resets at 00:00 UTC. | Practical coding volume depends on model Neuron price. Some frontier models require Workers Paid or prepaid credit. |
 
 ### Add and test each provider
 
@@ -182,13 +190,11 @@ Cloudflare account ID), use **Providers → Add Provider** and enter the value
 there; never place it in repository configuration.
 
 ```bash
-# Keyless routes: connection succeeds without an upstream credential.
-omniroute providers add pollinations --no-credential --yes --default-model qwen-coder
-omniroute providers add uncloseai --no-credential --yes --default-model qwen3.6:27b
-
 # API-key routes: export one value only for this command, then unset it.
 omniroute providers add groq --credential-env GROQ_API_KEY --yes \
   --default-model openai/gpt-oss-120b
+omniroute providers add gemini --credential-env GEMINI_API_KEY --yes \
+  --default-model gemini-3.7-flash
 omniroute providers add mistral --credential-env MISTRAL_API_KEY --yes \
   --default-model codestral-latest
 omniroute providers add sambanova --credential-env SAMBANOVA_API_KEY --yes \
@@ -201,13 +207,18 @@ omniroute providers add huggingface --credential-env HF_TOKEN --yes \
   --default-model deepseek-ai/DeepSeek-V3
 omniroute providers add cloudflare-ai --credential-env CLOUDFLARE_API_TOKEN --yes \
   --default-model @cf/qwen/qwen2.5-coder-32b-instruct
-omniroute providers add nvidia --credential-env NVIDIA_API_KEY --yes \
-  --default-model mistralai/devstral-2-123b-instruct-2512
 
 omniroute providers list
 omniroute providers test groq
 omniroute providers validate
 ```
+
+Do not run `providers add ... --no-credential` for Pollinations or UncloseAI
+as an initial route. Their reviewed keyless claims did not survive live
+validation. If you later evaluate either route, use a separate disposable
+connection, select a currently discovered exact model, and remove it after a
+failed Responses or tool-use test; never use fingerprint/session-pool features
+to make it work.
 
 `providers test` can intentionally skip a no-auth connection because no API key
 probe exists. That is not proof of working inference. Test every exact target
@@ -247,26 +258,35 @@ chat-completions success alone is insufficient.
 
 Do not use `auto`, `auto/coding`, “best available,” model aliases, or broad
 fallbacks as a zero-cost promise. They may select paid or unreviewed routes.
-Create a named priority combo only from individual targets that you have just
-tested and whose current terms state that quota exhaustion fails rather than
-bills. Get each connection ID from `omniroute providers list` or the provider
-detail page, then replace every placeholder below with your recorded proven
-provider/model/connection tuple:
+Create the initial named priority combo with exactly one individually tested
+target whose current terms state that quota exhaustion fails rather than bills.
+Get its connection UUID from `omniroute providers list` or the provider detail
+page, then replace the placeholder below with that recorded tuple:
 
 ```bash
 omniroute combo create chaosengine-free-coding --strategy priority \
   --models '[
-    {"providerId":"groq","model":"openai/gpt-oss-120b","connectionId":"<groq-connection-id>"},
-    {"providerId":"pollinations","model":"qwen-coder","connectionId":"<pollinations-connection-id>"},
-    {"providerId":"uncloseai","model":"qwen3.6:27b","connectionId":"<uncloseai-connection-id>"}
+    {"providerId":"groq","model":"openai/gpt-oss-120b","connectionId":"<groq-connection-uuid>"}
   ]'
 omniroute combo list
 omniroute combo switch chaosengine-free-coding
 ```
 
-The combo must contain only exact provider/model/connection tuples. In the
-dashboard's combo editor, remove every implicit fallback and require the
-request to fail when all listed targets fail, rate-limit, or exhaust quota.
+The combo must contain only exact provider/model/connection UUID tuples. Add a
+second target only after a new direct Responses and tool-use proof; edit the
+existing combo in the dashboard and preserve priority order. Remove every
+implicit fallback and require the request to fail when all listed targets fail,
+rate-limit, or exhaust quota. No `auto`, wildcard, bare-model, alias, or broad
+fallback target is allowed.
+
+Create a dedicated endpoint key in **Dashboard → API Keys** after the first
+combo exists. In that key's restriction editor, set restricted model access and
+allow only `chaosengine-free-coding`, the exact combo, and the exact connection
+UUID above; set **No log** enabled and `autoResolve` disabled. The 3.8.50 CLI's
+`keys policy set` exposes only a subset of those controls, so use the dashboard
+for the full restriction set. Save, then verify a request with this endpoint
+key cannot use a direct provider/model or any other connection.
+
 Run a direct request against `chaosengine-free-coding`, then deliberately test
 an unapproved model, a nonexistent target, and an exhausted/disabled target.
 Each must return an error, not reroute to a paid or broad automatic target.
@@ -325,8 +345,9 @@ task:
 
 ```bash
 omniroute --version
-omniroute doctor --json
-curl --fail --silent http://127.0.0.1:20128/health
+omniroute doctor --no-liveness
+omniroute health --json
+curl --fail --silent http://127.0.0.1:20128/api/health
 curl --fail --silent http://127.0.0.1:20128/v1/models \
   -H "Authorization: Bearer $OMNIROUTE_API_KEY"
 omniroute providers validate
@@ -377,5 +398,5 @@ used first for the reviewed release.
 - [OmniRoute v3.8.50 free-tier reference](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/reference/FREE_TIERS.md)
 - [OmniRoute v3.8.50 quick start](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/getting-started/QUICK-START.md)
 - [Groq free-plan rate limits](https://console.groq.com/docs/rate-limits)
+- [Google AI Studio](https://aistudio.google.com/)
 - [Cloudflare Workers AI pricing and free allowance](https://developers.cloudflare.com/workers-ai/platform/pricing/)
-- [NVIDIA NIM Run Anywhere terms](https://docs.api.nvidia.com/nim/re/docs/run-anywhere)
