@@ -776,7 +776,7 @@ def run_acceptance(
                 run_checked(
                     [
                         sys.executable, str(installed), "rollback", "--project",
-                        str(base_project), "--json",
+                        str(base_project),
                     ],
                     cwd=base_project,
                 ).stdout

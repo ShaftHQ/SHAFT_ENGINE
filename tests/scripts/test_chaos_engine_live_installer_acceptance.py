@@ -465,6 +465,10 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertIn('blank_project = root / "blank consumer with spaces Ω"', source)
         self.assertIn("seed_exact_mempalace(source, base_project)", source)
         self.assertIn("rollback", source)
+        rollback_body = source.split("def rollback_base()", 1)[1].split(
+            'record_phase(evidence, "rollback-base-account-and-hosts"', 1
+        )[0]
+        self.assertNotIn('"--json"', rollback_body)
 
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
