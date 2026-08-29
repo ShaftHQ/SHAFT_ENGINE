@@ -2211,6 +2211,29 @@ def managed_paths() -> tuple[str, ...]:
     )
 
 
+LIVE_PERSISTENT_PATHS = frozenset({".memory/events.jsonl", "mempalace.yaml"})
+
+
+def receipt_owned_paths() -> tuple[str, ...]:
+    """Return files ChaosEngine may replace or remove from a receipt."""
+    return tuple(path for path in managed_paths() if path not in LIVE_PERSISTENT_PATHS)
+
+
+def validate_live_persistent_images(images: dict[str, bytes | None]) -> None:
+    """Validate project data without making its bytes receipt-owned."""
+    events = images[".memory/events.jsonl"]
+    if events is not None:
+        try:
+            for line in events.decode("utf-8").splitlines():
+                if line.strip() and not isinstance(json.loads(line), dict):
+                    raise ValueError("invalid Memory storage")
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Memory storage") from error
+    config = images["mempalace.yaml"]
+    if config is not None:
+        validate_mempalace_config(config)
+
+
 def host_routes() -> dict[str, str]:
     return {
         "codex": ".agents/skills/chaos-engine/SKILL.md",
@@ -2485,7 +2508,16 @@ def exact_legacy_alias(name: str, server: object) -> bool:
     executable = server["command"].replace("\\", "/").rsplit("/", 1)[-1].casefold()
     args = server.get("args", [])
     if name == "sha" + "ft-memory":
-        return executable in {"memory-mcp", "memory-mcp.exe"} and args == []
+        return (
+            executable in {"memory-mcp", "memory-mcp.exe"} and args == []
+        ) or (
+            executable in {"npx", "npx.cmd", "npx.exe"}
+            and args in tuple(
+                ["--yes", "--package", f"@aictx/memory@{version}", "--", "memory-mcp"]
+                for version in ("0.1.55", "0.2.1")
+            )
+            and server.get("cwd") == "."
+        )
     if name == "mempalace":
         direct_arguments = (
             ["--palace", ".chaos-engine-state/mempalace"],
@@ -2497,7 +2529,7 @@ def exact_legacy_alias(name: str, server: object) -> bool:
         )
         return (
             executable in {"mempalace-mcp", "mempalace-mcp.exe"}
-            and args in direct_arguments
+            and args in (*direct_arguments, [])
         ) or (
             executable in {"python", "python3", "python.exe", "py", "py.exe"}
             and args in wrapped_arguments
@@ -2542,6 +2574,76 @@ def remove_exact_legacy_codex_mempalace(existing: str) -> str:
             for candidate in (block, block.replace("\n", "\r\n")):
                 existing = existing.replace(candidate, "")
     return existing
+
+
+def remove_exact_legacy_codex_store_aliases(existing: str) -> str:
+    """Remove only historical project aliases; preserve every other TOML byte."""
+    legacy_memory = "sha" + "ft-memory"
+    for header in (f"[mcp_servers.{legacy_memory}]", f'[mcp_servers."{legacy_memory}"]'):
+        for version in ("0.1.55", "0.2.1"):
+            memory_args = f'["--yes", "--package", "@aictx/memory@{version}", "--", "memory-mcp"]'
+            block = f'{header}\ncommand = "npx"\nargs = {memory_args}\ncwd = "."\n'
+            for candidate in (block, block.replace("\n", "\r\n")):
+                existing = existing.replace(candidate, "")
+        configured_block = (
+            f'{header}\ncommand = "npx"\n'
+            'args = ["--yes", "--package", "@aictx/memory@0.2.1", "--", "memory-mcp"]\n'
+            'cwd = "."\nenabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]\n'
+            'default_tools_approval_mode = "auto"\nstartup_timeout_sec = 30\ntool_timeout_sec = 60\n'
+            'required = false\n\n'
+            f'[{header[1:-1]}.tools.remember_memory]\napproval_mode = "prompt"\n'
+        )
+        for candidate in (configured_block, configured_block.replace("\n", "\r\n")):
+            existing = existing.replace(candidate, "")
+    for header in ('[mcp_servers.mempalace]', '[mcp_servers."mempalace"]'):
+        block = f'{header}\ncommand = "mempalace-mcp"\nargs = []\ncwd = "."\n'
+        for candidate in (block, block.replace("\n", "\r\n")):
+            existing = existing.replace(candidate, "")
+    return remove_exact_legacy_codex_mempalace(existing)
+
+
+def managed_codex_block(content: str) -> str | None:
+    start = content.find("# CHAOSENGINE:START")
+    end = content.find("# CHAOSENGINE:END")
+    if start < 0 and end < 0:
+        return None
+    if start < 0 or end < start or content.find("# CHAOSENGINE:START", start + 1) >= 0 or content.find("# CHAOSENGINE:END", end + 1) >= 0:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    finish = end + len("# CHAOSENGINE:END")
+    if content[finish:finish + 2] == "\r\n":
+        finish += 2
+    elif content[finish:finish + 1] == "\n":
+        finish += 1
+    return content[start:finish]
+
+
+def strip_known_codex_ownership(
+    current: bytes, before: bytes | None, after: bytes | None
+) -> bytes:
+    """Invert an exact managed block while retaining foreign TOML content."""
+    try:
+        existing = current.decode("utf-8")
+        recorded = after.decode("utf-8") if after is not None else ""
+    except UnicodeDecodeError as error:
+        raise ValueError("invalid Codex configuration") from error
+    existing = remove_exact_legacy_codex_store_aliases(existing)
+    block = managed_codex_block(existing)
+    if block is None:
+        return existing.encode()
+    before_block = managed_codex_block(
+        before.decode("utf-8") if before is not None else ""
+    )
+    recorded_block = managed_codex_block(recorded)
+    legacy = tuple(legacy_codex_python_block(platform) for platform in ("nt", "posix"))
+    normalized = block.replace("\r\n", "\n")
+    accepted = {
+        item.replace("\r\n", "\n")
+        for item in (*legacy, before_block, recorded_block)
+        if item is not None
+    }
+    if normalized not in accepted:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    return existing.replace(block, "", 1).encode()
 
 
 def json_content(
@@ -2604,7 +2706,7 @@ def codex_content(
     for legacy in legacy_blocks:
         for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
             existing = existing.replace(newline_variant, "")
-    existing = remove_exact_legacy_codex_mempalace(existing)
+    existing = remove_exact_legacy_codex_store_aliases(existing)
     del platform_name
     posix_command, _posix_prefix = interpreter("posix")
     windows_command, _windows_prefix = interpreter("nt")
@@ -2670,8 +2772,9 @@ def codex_content(
             "# CHAOSENGINE:END\n",
         )
     if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:
-        if block in existing:
-            return existing.encode()
+        for candidate in (block, block.replace("\n", "\r\n")):
+            if candidate in existing:
+                return existing.replace(candidate, block).encode()
         for platform in ("nt", "posix"):
             legacy = legacy_codex_python_block(platform)
             for candidate in (legacy, legacy.replace("\n", "\r\n")):
@@ -3174,6 +3277,15 @@ def desired_content(
     if existing_claude_plugin is not None and existing_claude_plugin != claude_plugin_entry:
         if existing_claude_plugin.get("skills") in (None, []):
             existing_claude_plugin["skills"] = claude_plugin_entry["skills"]
+        versionless = dict(existing_claude_plugin)
+        versionless.pop("version", None)
+        expected_versionless = dict(claude_plugin_entry)
+        expected_versionless.pop("version")
+        if (
+            versionless == expected_versionless
+            and isinstance(existing_claude_plugin.get("version"), str)
+        ):
+            existing_claude_plugin["version"] = plugin_version
         if existing_claude_plugin != claude_plugin_entry:
             raise ValueError("ChaosEngine Claude marketplace collision")
     if existing_claude_plugin is None:
@@ -3935,13 +4047,138 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
     return value, raw
 
 
+def strip_known_json_ownership(
+    current: bytes, before: bytes | None, after: bytes | None, *, label: str
+) -> bytes:
+    """Invert exact owned MCP entries and leave unrelated servers untouched."""
+    try:
+        value = json.loads(current)
+        original = json.loads(before) if before is not None else {}
+        recorded = json.loads(after) if after is not None else {}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid {label} configuration") from error
+    if not isinstance(value, dict) or not isinstance(original, dict) or not isinstance(recorded, dict):
+        raise ValueError(f"invalid {label} configuration")
+    servers = value.get("mcpServers", {})
+    original_servers = original.get("mcpServers", {})
+    recorded_servers = recorded.get("mcpServers", {})
+    if not isinstance(servers, dict) or not isinstance(original_servers, dict) or not isinstance(recorded_servers, dict):
+        raise ValueError("invalid MCP server configuration")
+    for name in ("chaosengine-memory", "chaosengine-mempalace"):
+        if name not in servers:
+            continue
+        expected = (original_servers.get(name), recorded_servers.get(name))
+        if servers[name] in expected or replaceable_owned_server(
+            name, servers[name], owned_servers()[name]
+        ):
+            del servers[name]
+            continue
+        raise ValueError(f"ChaosEngine MCP server collision: {name}")
+    for name in ("sha" + "ft-memory", "mempalace"):
+        if name not in servers:
+            continue
+        if not exact_legacy_alias(name, servers[name]):
+            raise ValueError(f"ChaosEngine MCP server collision: {name}")
+        del servers[name]
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+
+
+def known_legacy_guard(project: Path, current: bytes) -> bool:
+    """Accept only an exact installed-core guard while replacing its plugin copy."""
+    for relative in (
+        ".chaos-engine/hooks/guard.py",
+        ".chaos-engine.backup/hooks/guard.py",
+    ):
+        try:
+            if read_file(project, project / relative) == current:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def upgrade_before_images(
+    project: Path,
+    before: dict[str, bytes | None],
+    after: dict[str, bytes | None],
+    current: dict[str, bytes | None],
+) -> dict[str, bytes | None]:
+    """Classify authenticated legacy images and retain only their foreign residue."""
+    validate_live_persistent_images(current)
+    restored = dict(before)
+    for relative in managed_paths():
+        observed = current[relative]
+        if relative in LIVE_PERSISTENT_PATHS:
+            restored[relative] = observed
+            continue
+        if observed in (before[relative], after[relative]):
+            continue
+        if relative == ".agents/skills/README.md":
+            restored[relative] = observed
+            continue
+        if relative == "plugins/chaos-engine/hooks/guard.py":
+            if not isinstance(observed, bytes) or not known_legacy_guard(project, observed):
+                raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            continue
+        if relative in {
+            ".codex/hooks.json",
+            ".grok/hooks/lifecycle.json",
+            ".claude/settings.json",
+        }:
+            label = {
+                ".codex/hooks.json": "Codex",
+                ".grok/hooks/lifecycle.json": "Grok",
+                ".claude/settings.json": "Claude",
+            }[relative]
+            restored[relative] = without_chaos_hooks(observed, label)
+            continue
+        if relative == ".mcp.json":
+            restored[relative] = strip_known_json_ownership(
+                observed or b"{}", before[relative], after[relative], label="MCP"
+            )
+            continue
+        if relative == ".gemini/settings.json":
+            stripped = strip_known_json_ownership(
+                observed or b"{}", before[relative], after[relative], label="Gemini"
+            )
+            restored[relative] = without_chaos_hooks(stripped, "Gemini")
+            continue
+        if relative == ".codex/config.toml":
+            restored[relative] = strip_known_codex_ownership(
+                observed or b"", before[relative], after[relative]
+            )
+            continue
+        raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+    return restored
+
+
+def preflight(project: Path) -> dict[str, object]:
+    """Authenticate and snapshot an installed host before an installer swaps cores."""
+    project = project.resolve()
+    receipt, raw = read_receipt(project)
+    if receipt["phase"] != "installed":
+        raise ValueError("ChaosEngine host installation recovery is required")
+    before = decode_images(receipt["before"], nullable=True)
+    after = decode_images(receipt["after"], nullable=True)
+    current = current_images(project)
+    return {
+        "receipt": receipt,
+        "raw": raw,
+        "images": current,
+        "before": upgrade_before_images(project, before, after, current),
+    }
+
+
 def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for every host.
     project: Path,
     desired: dict[str, bytes | None],
     allowed: tuple[dict[str, bytes | None], ...],
 ) -> None:
     snapshots = current_images(project)
+    validate_live_persistent_images(snapshots)
     for relative, current in snapshots.items():
+        if relative in LIVE_PERSISTENT_PATHS:
+            continue
         if not any(current == candidate[relative] for candidate in allowed):
             raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
     changed: list[tuple[str, bytes | None, bytes | None]] = []
@@ -3949,6 +4186,12 @@ def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for ev
         for relative in managed_paths():
             current = read_file(project, project / relative)
             wanted = desired[relative]
+            if (
+                relative in LIVE_PERSISTENT_PATHS
+                and current is not None
+                and not (current == b"" and wanted is None)
+            ):
+                continue
             if current == wanted:
                 continue
             if wanted is None:
@@ -3988,6 +4231,7 @@ def install(
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    upgrade_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
@@ -4006,28 +4250,53 @@ def install(
         before = decode_images(receipt["before"], nullable=True)
         after = decode_images(receipt["after"], nullable=True)
         if receipt["phase"] == "installed":
+            if upgrade_snapshot is None:
+                try:
+                    snapshot = preflight(project)
+                except ValueError as error:
+                    raise ValueError(
+                        f"ChaosEngine host adapter drift detected: {project}"
+                    ) from error
+            else:
+                snapshot = upgrade_snapshot
+            snapshot_raw = snapshot.get("raw")
+            snapshot_images = snapshot.get("images")
+            snapshot_before = snapshot.get("before")
+            if (
+                snapshot_raw != raw
+                or not isinstance(snapshot_images, dict)
+                or not isinstance(snapshot_before, dict)
+                or set(snapshot_images) != set(managed_paths())
+                or set(snapshot_before) != set(managed_paths())
+            ):
+                raise ValueError("ChaosEngine host preflight snapshot is invalid")
+            current = {relative: snapshot_images[relative] for relative in managed_paths()}
+            migration_before = {relative: snapshot_before[relative] for relative in managed_paths()}
+            if any(content is not None and not isinstance(content, bytes) for content in (*current.values(), *migration_before.values())):
+                raise ValueError("ChaosEngine host preflight snapshot is invalid")
             desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
             version = plugin_cache_version(core_commit)
             wanted = desired_content(
-                before,
+                migration_before,
                 project_name=project_identity_name(project),
                 plugin_version=version,
                 dependency_runtime=dependency_runtime,
                 account_commands=account_commands,
                 maven_docker=maven_docker,
             )
-            current = current_images(project)
-            for relative in managed_paths():
-                if current[relative] not in (after[relative], wanted[relative]):
-                    raise ValueError(
-                        f"ChaosEngine host adapter drift detected: {project / relative}"
-                    )
+            for relative in LIVE_PERSISTENT_PATHS:
+                wanted[relative] = current[relative]
+            receipt_before = dict(migration_before)
+            receipt_after = dict(wanted)
+            for relative in LIVE_PERSISTENT_PATHS:
+                receipt_before[relative] = before[relative]
+                receipt_after[relative] = after[relative]
             if (
-                after == wanted
+                after == receipt_after
                 and receipt.get("coreCommit") == core_commit
                 and receipt.get("capabilityPolicySha256") == desired_capability_digest
             ):
-                apply_hook_receipt(receipt, after, wanted)
+                apply_hook_receipt(receipt, after, receipt_after)
                 write_receipt(project, receipt, raw)
                 return receipt
             next_receipt = dict(receipt)
@@ -4035,8 +4304,9 @@ def install(
             next_receipt["coreCommit"] = core_commit
             if desired_capability_digest is not None:
                 next_receipt["capabilityPolicySha256"] = desired_capability_digest
-            next_receipt["after"] = encode_images(wanted)
-            apply_hook_receipt(next_receipt, after, wanted)
+            next_receipt["before"] = encode_images(receipt_before)
+            next_receipt["after"] = encode_images(receipt_after)
+            apply_hook_receipt(next_receipt, after, receipt_after)
             new_directories = created_directories(project)
             next_receipt["createdDirectories"] = sorted(
                 set(receipt_directories(receipt)) | set(new_directories),
@@ -4045,12 +4315,12 @@ def install(
             next_raw = write_receipt(project, next_receipt, raw)
             try:
                 prepare_created_directories(project, next_receipt)
-                reconcile(project, wanted, (after, wanted))
+                reconcile(project, wanted, (current, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
                 return next_receipt
             except BaseException:
-                reconcile(project, after, (after, wanted))
+                reconcile(project, current, (current, wanted))
                 if new_directories:
                     cleanup_receipt = dict(next_receipt)
                     cleanup_receipt["createdDirectories"] = new_directories
@@ -4121,7 +4391,8 @@ def verify(
         raise ValueError("ChaosEngine host receipt does not match the installed core")
     after = decode_images(receipt.get("after"), nullable=True)
     current = current_images(project)
-    for relative in managed_paths():
+    validate_live_persistent_images(current)
+    for relative in receipt_owned_paths():
         if current[relative] != after[relative]:
             raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
     return {
@@ -4211,10 +4482,17 @@ def restore_snapshot(project: Path, saved: dict[str, object]) -> None:
     if not isinstance(previous, dict) or not isinstance(raw, bytes):
         raise ValueError("ChaosEngine host snapshot is invalid")
     current, current_raw = read_receipt(project)
-    verify(project, current)
     previous_after = decode_images(previous.get("after"), nullable=True)
     current_after = decode_images(current.get("after"), nullable=True)
-    reconcile(project, previous_after, (current_after, previous_after))
+    actual = saved.get("images")
+    if actual is None:
+        actual = previous_after
+    if not isinstance(actual, dict) or set(actual) != set(managed_paths()):
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    preflight = {relative: actual[relative] for relative in managed_paths()}
+    if any(content is not None and not isinstance(content, bytes) for content in preflight.values()):
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    reconcile(project, preflight, (current_after, preflight))
     atomic_write(project, project / RECEIPT_NAME, raw, current_raw)
 
 
@@ -4283,6 +4561,9 @@ def remove_created_directories(project: Path, receipt: dict[str, object]) -> Non
                 path.rmdir()
             except OSError as error:
                 if any(path.iterdir()):
+                    if relative == ".memory":
+                        claim.unlink()
+                        continue
                     atomic_write(project, marker, directory_marker(project, receipt, relative), None)
                     if claim.exists():
                         claim.unlink()
@@ -4332,8 +4613,16 @@ def finalize_uninstall(project: Path) -> None:
     if receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host removal is not prepared")
     before = decode_images(receipt["before"], nullable=True)
-    observed = {relative: read_file(project, project / relative) for relative in before}
-    if observed != before:
+    observed = {
+        relative: read_file(project, project / relative)
+        for relative in before
+        if relative not in LIVE_PERSISTENT_PATHS
+    }
+    expected = {
+        relative: content for relative, content in before.items()
+        if relative not in LIVE_PERSISTENT_PATHS
+    }
+    if observed != expected:
         raise ValueError("ChaosEngine host removal state drift detected")
     remove_created_directories(project, receipt)
     anchor = host_anchor_path(project)

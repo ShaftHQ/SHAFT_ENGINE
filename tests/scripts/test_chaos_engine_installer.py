@@ -1768,7 +1768,13 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 loaded = original_load(installed_root, name)
                 if name == "hosts" and fail_once:
                     fail_once = False
-                    loaded.install = mock.Mock(side_effect=RuntimeError("host install failed"))
+                    def fail_after_foreign_graphify_update(*_args, **_kwargs):
+                        project.joinpath("graphify-out/concurrent.json").write_text(
+                            '{"user":true}\n', encoding="utf-8"
+                        )
+                        raise RuntimeError("host install failed")
+
+                    loaded.install = mock.Mock(side_effect=fail_after_foreign_graphify_update)
                 return loaded
 
             with mock.patch.object(
@@ -1784,7 +1790,6 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 ".chaos-engine-dependencies.json",
                 ".agents/skills/graphify/SKILL.md",
                 "graphify-out/graph.json",
-                ".chaos-engine-state/mempalace/sqlite_exact.sqlite3",
             ):
                 self.assertFalse(project.joinpath(relative).exists(), relative)
             self.assertEqual(
@@ -1795,14 +1800,18 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 "keep graph\n", project.joinpath("graphify-out/user.txt").read_text(encoding="utf-8")
             )
             self.assertEqual(
-                "keep memory\n", project.joinpath(".memory/config.json").read_text(encoding="utf-8")
+                '{"user":true}\n',
+                project.joinpath("graphify-out/concurrent.json").read_text(encoding="utf-8"),
             )
             self.assertEqual(
-                "keep palace\n",
-                project.joinpath(".chaos-engine-state/mempalace/user.txt").read_text(encoding="utf-8"),
+                "{}\n", project.joinpath(".memory/config.json").read_text(encoding="utf-8")
             )
             self.assertEqual(
-                "wing: keep\n", project.joinpath("mempalace.yaml").read_text(encoding="utf-8")
+                b"SQLite format 3\\x00",
+                project.joinpath(".chaos-engine-state/mempalace/sqlite_exact.sqlite3").read_bytes(),
+            )
+            self.assertEqual(
+                "wing: generated\n", project.joinpath("mempalace.yaml").read_text(encoding="utf-8")
             )
             self.assertFalse(project.joinpath(".chaos-engine").exists())
 

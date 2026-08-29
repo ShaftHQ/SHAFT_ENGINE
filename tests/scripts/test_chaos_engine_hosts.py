@@ -1250,6 +1250,34 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.uninstall(project)
             self.assertEqual(original, path.read_bytes())
 
+    def test_known_claude_plugin_version_is_normalized_without_losing_foreign_plugins(self):
+        module = load(HOSTS, "chaos_engine_claude_version_migration")
+        before = {relative: None for relative in module.managed_paths()}
+        before[".claude-plugin/marketplace.json"] = json.dumps(
+            {
+                "name": "user-marketplace",
+                "plugins": [
+                    {"name": "user-plugin", "source": "./user", "permissions": ["keep"]},
+                    {
+                        "name": "chaos-engine",
+                        "source": "./plugins/chaos-engine",
+                        "description": "Neutral project-local agent harness.",
+                        "version": "0.1.0",
+                        "skills": ["./chaos-engine"],
+                    },
+                ],
+            }
+        ).encode()
+
+        rendered = json.loads(
+            module.desired_content(before, plugin_version="2.0.0")[
+                ".claude-plugin/marketplace.json"
+            ]
+        )
+
+        self.assertEqual({"name": "user-plugin", "source": "./user", "permissions": ["keep"]}, rendered["plugins"][0])
+        self.assertEqual("2.0.0", rendered["plugins"][1]["version"])
+
     def test_conflicting_claude_plugin_fails_closed_without_mutation(self):
         module = load(HOSTS, "chaos_engine_claude_marketplace_collision")
         with tempfile.TemporaryDirectory() as temporary:
@@ -2296,10 +2324,16 @@ class ChaosEngineHostsTest(unittest.TestCase):
         module = load(HOSTS, "chaos_engine_hosts_legacy_aliases")
         legacy = {
             "mcpServers": {
-                "shaft-memory": {"command": "/usr/bin/memory-mcp", "args": []},
+                "shaft-memory": {
+                    "command": "npx",
+                    "args": [
+                        "--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp",
+                    ],
+                    "cwd": ".",
+                },
                 "mempalace": {
                     "command": "/usr/bin/mempalace-mcp",
-                    "args": ["--palace", ".chaos-engine-state/mempalace"],
+                    "args": [],
                 },
                 "context7": {"command": "npx", "args": ["-y", "@upstash/context7-mcp"]},
                 "user-owned": {"command": "keep-me", "args": ["--exact"]},
@@ -2318,6 +2352,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
             {"url": "https://mcp.context7.com/mcp"},
             rendered["mcpServers"]["context7"],
         )
+
+        legacy["mcpServers"]["shaft-memory"]["args"][2] = "@aictx/memory@0.2.1"
+        rendered = json.loads(module.json_content(json.dumps(legacy).encode()))
+        self.assertNotIn("shaft-memory", rendered["mcpServers"])
 
     def test_exact_legacy_wrapped_mempalace_alias_migrates(self):
         module = load(HOSTS, "chaos_engine_hosts_wrapped_mempalace_alias")
@@ -3345,6 +3383,179 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     if path.is_dir()
                 },
             )
+
+    def test_live_memory_events_and_mempalace_config_survive_verify_and_uninstall(self):
+        module = load(HOSTS, "chaos_engine_hosts_live_persistent_data")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text(
+                "# C\n", encoding="utf-8"
+            )
+            module.install(project)
+            events = b'{"event":"live"}\n'
+            project.joinpath(".memory/events.jsonl").write_bytes(events)
+            yaml = project.joinpath("mempalace.yaml")
+            live_yaml = yaml.read_bytes() + b"# live state\n"
+            yaml.write_bytes(live_yaml)
+
+            self.assertEqual("healthy", module.verify(project)["status"])
+            module.uninstall(project)
+
+            self.assertEqual(events, project.joinpath(".memory/events.jsonl").read_bytes())
+            self.assertEqual(live_yaml, yaml.read_bytes())
+
+    def test_late_failure_restores_actual_preflight_images_and_keeps_concurrent_events(self):
+        module = load(HOSTS, "chaos_engine_hosts_actual_snapshot")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text(
+                "# C\n", encoding="utf-8"
+            )
+            module.install(project, core_commit="1" * 40)
+            project.joinpath(".agents/skills/README.md").write_text(
+                "foreign README\n", encoding="utf-8"
+            )
+            before_receipt = project.joinpath(module.RECEIPT_NAME).read_bytes()
+            snapshot = module.preflight(project)
+
+            module.install(project, core_commit="2" * 40, upgrade_snapshot=snapshot)
+            events = project / ".memory/events.jsonl"
+            events.write_bytes(b'{"event":"concurrent"}\n')
+            module.restore_snapshot(project, snapshot)
+
+            self.assertEqual(
+                "foreign README\n",
+                project.joinpath(".agents/skills/README.md").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(b'{"event":"concurrent"}\n', events.read_bytes())
+            self.assertEqual(before_receipt, project.joinpath(module.RECEIPT_NAME).read_bytes())
+
+    def test_authenticated_preflight_reconciles_known_legacy_images_losslessly(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_reconciliation")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            core = project / ".chaos-engine"
+            core.joinpath("skills/chaos-engine").mkdir(parents=True)
+            core.joinpath("skills/chaos-engine/SKILL.md").write_text("# C\n", encoding="utf-8")
+            old_guard = b"legacy owned guard\n"
+            core.joinpath("hooks").mkdir()
+            core.joinpath("hooks/guard.py").write_bytes(old_guard)
+            module.install(project, core_commit="1" * 40)
+            receipt, _ = module.read_receipt(project)
+            after = module.decode_images(receipt["after"], nullable=True)
+            persistent_receipt_images = {
+                section: {
+                    relative: receipt[section][relative]
+                    for relative in module.LIVE_PERSISTENT_PATHS
+                }
+                for section in ("before", "after")
+            }
+            current = dict(after)
+            current[".agents/skills/README.md"] = b"project README survives\n"
+            current["plugins/chaos-engine/hooks/guard.py"] = old_guard
+            for relative, key, value in (
+                (".codex/hooks.json", "description", "keep Codex metadata"),
+                (".grok/hooks/lifecycle.json", "description", "legacy Grok whole document"),
+                (".claude/settings.json", "permissions", {"allow": ["Read(*)"]}),
+            ):
+                document = json.loads(current[relative])
+                document[key] = value
+                current[relative] = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
+            for relative in (".mcp.json", ".gemini/settings.json"):
+                document = json.loads(current[relative])
+                document["mcpServers"]["shaft-memory"] = {
+                    "command": "npx",
+                    "args": [
+                        "--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp",
+                    ],
+                    "cwd": ".",
+                }
+                document["mcpServers"]["mempalace"] = {
+                    "command": "mempalace-mcp", "args": [], "cwd": ".",
+                }
+                current[relative] = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
+            current[".codex/config.toml"] = (
+                current[".codex/config.toml"]
+                + b'\n[mcp_servers.shaft-memory]\ncommand = "npx"\n'
+                + b'args = ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"]\n'
+                + b'cwd = "."\n\n[mcp_servers.mempalace]\ncommand = "mempalace-mcp"\nargs = []\ncwd = "."\n'
+            ).replace(b"\n", b"\r\n")
+            current[".memory/events.jsonl"] = b'{"event":"concurrent"}\n'
+            current["mempalace.yaml"] = after["mempalace.yaml"] + b"# live state\n"
+            for relative, content in current.items():
+                if content is None:
+                    continue
+                path = project / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+
+            snapshot = module.preflight(project)
+
+            self.assertEqual(current, snapshot["images"])
+            module.install(project, core_commit="2" * 40, upgrade_snapshot=snapshot)
+            upgraded_receipt, _ = module.read_receipt(project)
+            self.assertEqual(
+                persistent_receipt_images,
+                {
+                    section: {
+                        relative: upgraded_receipt[section][relative]
+                        for relative in module.LIVE_PERSISTENT_PATHS
+                    }
+                    for section in ("before", "after")
+                },
+            )
+            self.assertEqual(current[".memory/events.jsonl"], project.joinpath(".memory/events.jsonl").read_bytes())
+            self.assertEqual(current["mempalace.yaml"], project.joinpath("mempalace.yaml").read_bytes())
+            self.assertEqual(
+                (ROOT / "chaos-engine/hooks/guard.py").read_bytes(),
+                project.joinpath("plugins/chaos-engine/hooks/guard.py").read_bytes(),
+            )
+            self.assertEqual(
+                "keep Codex metadata", json.loads(project.joinpath(".codex/hooks.json").read_text())["description"]
+            )
+            self.assertEqual(
+                {"allow": ["Read(*)"]}, json.loads(project.joinpath(".claude/settings.json").read_text())["permissions"]
+            )
+            for relative in (".mcp.json", ".gemini/settings.json"):
+                servers = json.loads(project.joinpath(relative).read_text())["mcpServers"]
+                self.assertNotIn("shaft-memory", servers)
+                self.assertNotIn("mempalace", servers)
+            codex = project.joinpath(".codex/config.toml").read_text(encoding="utf-8")
+            self.assertNotIn("[mcp_servers.shaft-memory]", codex)
+            self.assertNotIn("[mcp_servers.mempalace]", codex)
+
+    def test_preflight_rejects_an_unknown_reserved_mcp_alias(self):
+        module = load(HOSTS, "chaos_engine_hosts_unknown_legacy_alias")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text(
+                "# C\n", encoding="utf-8"
+            )
+            module.install(project)
+            path = project / ".mcp.json"
+            baseline = path.read_text(encoding="utf-8")
+            variants = {
+                "mempalace": {
+                    "command": "mempalace-mcp", "args": ["--unrecognized"], "cwd": ".",
+                },
+                "shaft-memory": {
+                    "command": "npx",
+                    "args": [
+                        "--yes", "--package", "@aictx/memory@0.2.2", "--", "memory-mcp",
+                    ],
+                    "cwd": ".",
+                },
+            }
+            for name, server in variants.items():
+                with self.subTest(name=name):
+                    document = json.loads(baseline)
+                    document["mcpServers"][name] = server
+                    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "MCP server collision"):
+                        module.preflight(project)
 
     def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")

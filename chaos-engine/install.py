@@ -55,10 +55,7 @@ CAPABILITY_COMPONENTS = {
 }
 PROJECT_SETUP_OUTPUTS = (
     ".agents/skills/graphify",
-    ".chaos-engine-state/mempalace",
-    ".memory",
     "graphify-out",
-    "mempalace.yaml",
 )
 
 
@@ -518,51 +515,87 @@ def remove_repairable_tree(path: Path) -> None:
         path.unlink()
 
 
-def snapshot_project_setup_outputs(project: Path) -> tuple[Path, tuple[str, ...]]:
-    """Keep exact preimages for project setup paths until host setup commits."""
+def project_setup_output_files(project: Path, relative: str) -> tuple[bool, dict[str, str]]:
+    """Return one Graphify output tree's exact regular-file digests."""
+    root = project / relative
+    reject_link_or_reparse(root)
+    if not root.exists():
+        return False, {}
+    if not root.is_dir():
+        raise ValueError(f"project setup output is not a directory: {root}")
+    files: dict[str, str] = {}
+    for child in root.rglob("*"):
+        reject_link_or_reparse(child)
+        if child.is_file():
+            files[child.relative_to(root).as_posix()] = file_sha256(child)
+        elif not child.is_dir():
+            raise ValueError(f"project setup output is not a file or directory: {child}")
+    return True, files
+
+
+def snapshot_project_setup_outputs(
+    project: Path,
+) -> tuple[Path, dict[str, tuple[bool, dict[str, str]]]]:
+    """Keep Graphify preimages until host setup commits under the project lock."""
     snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-project-setup-"))
-    present: list[str] = []
+    before: dict[str, tuple[bool, dict[str, str]]] = {}
     try:
         for relative in PROJECT_SETUP_OUTPUTS:
             original = project / relative
-            reject_link_or_reparse(original)
-            if not original.exists():
+            exists, files = project_setup_output_files(project, relative)
+            before[relative] = (exists, files)
+            if not exists:
                 continue
-            for child in original.rglob("*") if original.is_dir() else ():
-                reject_link_or_reparse(child)
             saved = snapshot / relative
             saved.parent.mkdir(parents=True, exist_ok=True)
-            if original.is_dir():
-                shutil.copytree(original, saved)
-            elif original.is_file():
-                shutil.copy2(original, saved)
-            else:
-                raise ValueError(f"project setup output is not a file or directory: {original}")
-            present.append(relative)
+            shutil.copytree(original, saved)
     except BaseException:
         shutil.rmtree(snapshot, ignore_errors=True)
         raise
-    return snapshot, tuple(present)
+    return snapshot, before
+
+
+def project_setup_after_images(project: Path) -> dict[str, dict[str, str]]:
+    """Capture exact setup-owned Graphify files just before host publication."""
+    return {
+        relative: project_setup_output_files(project, relative)[1]
+        for relative in PROJECT_SETUP_OUTPUTS
+    }
 
 
 def restore_project_setup_outputs(
-    project: Path, snapshot: Path, present: tuple[str, ...]
+    project: Path,
+    snapshot: Path,
+    before: dict[str, tuple[bool, dict[str, str]]],
+    after: dict[str, dict[str, str]],
 ) -> None:
-    """Remove only setup-owned outputs, then put their exact preimages back."""
+    """Undo only unchanged transaction output files; foreign residue always wins."""
     for relative in PROJECT_SETUP_OUTPUTS:
-        current = project / relative
-        reject_link_or_reparse(current)
-        if current.exists():
-            remove_repairable_tree(current)
-    for relative in present:
-        saved = snapshot / relative
-        restored = project / relative
-        reject_link_or_reparse(saved)
-        restored.parent.mkdir(parents=True, exist_ok=True)
-        if saved.is_dir():
-            shutil.copytree(saved, restored)
-        else:
-            shutil.copy2(saved, restored)
+        prior_exists, prior_files = before[relative]
+        published_files = after[relative]
+        _current_exists, current_files = project_setup_output_files(project, relative)
+        root = project / relative
+        for child, published_digest in published_files.items():
+            path = root / child
+            current_digest = current_files.get(child)
+            prior_digest = prior_files.get(child)
+            if prior_digest is None:
+                if current_digest == published_digest:
+                    path.unlink()
+                continue
+            if current_digest == published_digest and prior_digest != published_digest:
+                saved = snapshot / relative / child
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(saved.read_bytes())
+        if not prior_exists and root.exists() and root.is_dir():
+            for directory in sorted(
+                (item for item in root.rglob("*") if item.is_dir()),
+                key=lambda item: len(item.parts), reverse=True,
+            ):
+                if not any(directory.iterdir()):
+                    directory.rmdir()
+            if not any(root.iterdir()):
+                root.rmdir()
 
 
 @contextmanager
@@ -1587,7 +1620,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             and not is_link_or_reparse(account_receipt_path) else None
         )
         project_setup_snapshot = None
-        project_setup_present: tuple[str, ...] = ()
+        project_setup_before: dict[str, tuple[bool, dict[str, str]]] = {}
+        project_setup_after: dict[str, dict[str, str]] | None = None
         if current.exists():
             old_manifest = inspect_current_install(current)
             if old_manifest is not None:
@@ -1595,9 +1629,12 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 candidate_host_controller = load_installed_controller(source, "hosts")
                 host_receipt_path = project / candidate_host_controller.RECEIPT_NAME
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
-                    receipt, raw = candidate_host_controller.read_receipt(project)
-                    candidate_host_controller.verify(project, receipt)
-                    host_snapshot = {"receipt": receipt, "raw": raw}
+                    try:
+                        host_snapshot = candidate_host_controller.preflight(project)
+                    except ValueError as error:
+                        raise ValueError(
+                            f"ChaosEngine host adapter drift detected (receipt integrity drift): {project}"
+                        ) from error
                 if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
@@ -1617,7 +1654,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                         old_specification_sha256 = None
                         old_core_sha256 = None
         if account_mode:
-            project_setup_snapshot, project_setup_present = snapshot_project_setup_outputs(
+            project_setup_snapshot, project_setup_before = snapshot_project_setup_outputs(
                 project
             )
         try:
@@ -1709,6 +1746,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     if account_receipt_path.is_file() else None
                 )
                 account_commands = account_receipt.get("commands")
+                project_setup_after = project_setup_after_images(project)
             host_controller.install(
                 project,
                 core_commit=commit,
@@ -1716,6 +1754,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 dependency_runtime=dependency_generation,
                 account_commands=account_commands,
                 maven_docker=maven_docker,
+                **({"upgrade_snapshot": host_snapshot} if host_snapshot is not None else {}),
             )
             host_created = not host_existed
             if not account_mode and not generation_mode:
@@ -1798,10 +1837,17 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     host_controller.uninstall(project)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            if can_compensate and project_setup_snapshot is not None:
+            if (
+                can_compensate
+                and project_setup_snapshot is not None
+                and project_setup_after is not None
+            ):
                 try:
                     restore_project_setup_outputs(
-                        project, project_setup_snapshot, project_setup_present
+                        project,
+                        project_setup_snapshot,
+                        project_setup_before,
+                        project_setup_after,
                     )
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
