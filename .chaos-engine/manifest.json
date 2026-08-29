@@ -101,7 +101,7 @@
     "assets/memory-v5/relation.schema.json": "df445907616886574f127277c36985e2036aa78b43c48a1cf2e808e33e2102dc",
     "bootstrap.py": "c683ebd90570d7465dde492fc226f7f64fd6ba355f2913e678b354e6d0a46b00",
     "dependencies.json": "c3ad73f4afa7a1cae751bf6704de35705b22b05d7b19f72a549161c80f88bee0",
-    "dependencies.py": "c98d24b2ea0f6b5008eaff2b32ff704b82e876adaa0d1df4f0558caba3859fce",
+    "dependencies.py": "6c08017ccda0009ba3ad881ef49ada209809ddce9e7868d1f10fab91bc01769b",
     "hooks/guard.py": "9871d82293afee31ffda5aecd83ca92e73f87a21549509bbba72095adfdca27b",
     "hooks/kernel.py": "f73fe58894991b1b1f9824cfaaccd6a8112d5f85f747a960a30e38c01b7d2d11",
     "hooks/launch.js": "697ede00485da25ec520fa5d9eda67335cd81ab497ce106a187913ac709d1d64",
