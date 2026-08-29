@@ -1142,7 +1142,11 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             current_dependencies = load_dependency_controller(target)
             desired_root = target if target_commit == desired_commit else backup
             previous_dependencies = load_dependency_controller(desired_root)
-            if hasattr(current_dependencies, "validated_previous") and hasattr(
+            previous_account_mode = (
+                hasattr(previous_dependencies, "install_account_dependencies")
+                and (project / ".chaos-engine-dependencies.json").is_file()
+            )
+            if not previous_account_mode and hasattr(current_dependencies, "validated_previous") and hasattr(
                 previous_dependencies, "publish_pointer"
             ):
                 previous_specification = previous_dependencies.load_specification(
@@ -1218,7 +1222,7 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                         expected_specification_sha256=previous_specification_sha256,
                         expected_core_sha256=previous_core_sha256,
                     )
-                else:
+                elif not previous_account_mode:
                     runtime = project / ".chaos-engine-runtime"
                     removed_newer_runtime = False
                     if not hasattr(previous_dependencies, "RUNTIME_CONTRACT_VERSION"):

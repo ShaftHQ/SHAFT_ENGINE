@@ -66,6 +66,34 @@ class LegacyDependencyController:
         return getattr(self._controller, name)
 
 
+class AccountDependencyController:
+    """Retain generation helpers while replacing only account provisioning."""
+
+    def __init__(self, controller):
+        self._controller = controller
+
+    def __getattr__(self, name):
+        return getattr(self._controller, name)
+
+    def install_account_dependencies(self, project, _specification):
+        receipt = {
+            "schemaVersion": 2,
+            "scope": "user",
+            "components": {
+                name: {"status": "healthy", "action": "reused"}
+                for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+            },
+            "commands": {
+                name: str(Path(sys.executable).resolve())
+                for name in ("python3", "node", "memory-mcp", "mempalace-mcp")
+            },
+        }
+        project.joinpath(".chaos-engine-dependencies.json").write_text(
+            json.dumps(receipt), encoding="utf-8"
+        )
+        return receipt
+
+
 def legacy_dependency_controller_fixture():
     load_controller = MODULE.load_dependency_controller
 
@@ -190,6 +218,25 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 "https://mcp.context7.com/mcp",
                 mcp["mcpServers"]["context7"]["url"],
             )
+
+    def test_account_update_rollback_does_not_require_a_generation_pointer(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                MODULE.rollback(project)
+
+            self.assertEqual("1" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
 
     def test_status_reads_account_dependency_receipt_without_network_or_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:
