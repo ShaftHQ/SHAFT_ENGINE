@@ -3910,7 +3910,7 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
     if value.get("hosts") != host_routes():
         raise ValueError("ChaosEngine host receipt routes are invalid")
     decode_images(value.get("before"), nullable=True)
-    decode_images(value.get("after"), nullable=False)
+    decode_images(value.get("after"), nullable=True)
     before_value = value.get("before")
     after_value = value.get("after")
     if isinstance(before_value, dict) and isinstance(after_value, dict):
@@ -4004,7 +4004,7 @@ def install(
         host_anchor(project)
         receipt, raw = read_receipt(project)
         before = decode_images(receipt["before"], nullable=True)
-        after = decode_images(receipt["after"], nullable=False)
+        after = decode_images(receipt["after"], nullable=True)
         if receipt["phase"] == "installed":
             desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
             version = plugin_cache_version(core_commit)
@@ -4119,7 +4119,7 @@ def verify(
     verify_created_directories(project, receipt)
     if core_commit is not None and receipt.get("coreCommit") != core_commit:
         raise ValueError("ChaosEngine host receipt does not match the installed core")
-    after = decode_images(receipt.get("after"), nullable=False)
+    after = decode_images(receipt.get("after"), nullable=True)
     current = current_images(project)
     for relative in managed_paths():
         if current[relative] != after[relative]:
@@ -4212,8 +4212,8 @@ def restore_snapshot(project: Path, saved: dict[str, object]) -> None:
         raise ValueError("ChaosEngine host snapshot is invalid")
     current, current_raw = read_receipt(project)
     verify(project, current)
-    previous_after = decode_images(previous.get("after"), nullable=False)
-    current_after = decode_images(current.get("after"), nullable=False)
+    previous_after = decode_images(previous.get("after"), nullable=True)
+    current_after = decode_images(current.get("after"), nullable=True)
     reconcile(project, previous_after, (current_after, previous_after))
     atomic_write(project, project / RECEIPT_NAME, raw, current_raw)
 
@@ -4227,7 +4227,7 @@ def prepare_uninstall(
     project = project.resolve()
     receipt, raw = read_receipt(project)
     before = decode_images(receipt["before"], nullable=True)
-    after = decode_images(receipt["after"], nullable=False)
+    after = decode_images(receipt["after"], nullable=True)
     if receipt["phase"] == "installed":
         verify(project, receipt)
         activation = receipt.get("clientActivation")
@@ -4304,7 +4304,7 @@ def cancel_uninstall(
     if receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host removal is not prepared")
     before = decode_images(receipt["before"], nullable=True)
-    after = decode_images(receipt["after"], nullable=False)
+    after = decode_images(receipt["after"], nullable=True)
     prepare_created_directories(project, receipt)
     reconcile(project, after, (before, after))
     activation = receipt.get("clientActivation")

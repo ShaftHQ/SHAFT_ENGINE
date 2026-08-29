@@ -53,6 +53,13 @@ CAPABILITY_COMPONENTS = {
     "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
     "graphify", "maven-tools-mcp",
 }
+PROJECT_SETUP_OUTPUTS = (
+    ".agents/skills/graphify",
+    ".chaos-engine-state/mempalace",
+    ".memory",
+    "graphify-out",
+    "mempalace.yaml",
+)
 
 
 def legacy_capability_policy() -> dict[str, dict[str, str]]:
@@ -509,6 +516,53 @@ def remove_repairable_tree(path: Path) -> None:
         shutil.rmtree(path)
     elif path.exists():
         path.unlink()
+
+
+def snapshot_project_setup_outputs(project: Path) -> tuple[Path, tuple[str, ...]]:
+    """Keep exact preimages for project setup paths until host setup commits."""
+    snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-project-setup-"))
+    present: list[str] = []
+    try:
+        for relative in PROJECT_SETUP_OUTPUTS:
+            original = project / relative
+            reject_link_or_reparse(original)
+            if not original.exists():
+                continue
+            for child in original.rglob("*") if original.is_dir() else ():
+                reject_link_or_reparse(child)
+            saved = snapshot / relative
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            if original.is_dir():
+                shutil.copytree(original, saved)
+            elif original.is_file():
+                shutil.copy2(original, saved)
+            else:
+                raise ValueError(f"project setup output is not a file or directory: {original}")
+            present.append(relative)
+    except BaseException:
+        shutil.rmtree(snapshot, ignore_errors=True)
+        raise
+    return snapshot, tuple(present)
+
+
+def restore_project_setup_outputs(
+    project: Path, snapshot: Path, present: tuple[str, ...]
+) -> None:
+    """Remove only setup-owned outputs, then put their exact preimages back."""
+    for relative in PROJECT_SETUP_OUTPUTS:
+        current = project / relative
+        reject_link_or_reparse(current)
+        if current.exists():
+            remove_repairable_tree(current)
+    for relative in present:
+        saved = snapshot / relative
+        restored = project / relative
+        reject_link_or_reparse(saved)
+        restored.parent.mkdir(parents=True, exist_ok=True)
+        if saved.is_dir():
+            shutil.copytree(saved, restored)
+        else:
+            shutil.copy2(saved, restored)
 
 
 @contextmanager
@@ -1205,7 +1259,7 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                             restored_host_receipt["before"], nullable=True
                         ),
                         previous_hosts.decode_images(
-                            restored_host_receipt["after"], nullable=False
+                            restored_host_receipt["after"], nullable=True
                         ),
                     )
                     previous_hosts.write_receipt(
@@ -1508,6 +1562,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     confirmer=None,
 ) -> Path:
     project = project.resolve()
+    source = source.absolute()
+    reject_link_or_reparse(source)
+    source = source.resolve()
     with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
     source_dependencies = load_dependency_controller(source)
     account_mode = provisioner is None and hasattr(
@@ -1523,14 +1580,25 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         host_snapshot = None
         old_specification_sha256 = None
         old_core_sha256 = None
+        account_receipt_path = project / ".chaos-engine-dependencies.json"
+        account_receipt_before = (
+            account_receipt_path.read_bytes()
+            if account_mode and account_receipt_path.is_file()
+            and not is_link_or_reparse(account_receipt_path) else None
+        )
+        project_setup_snapshot = None
+        project_setup_present: tuple[str, ...] = ()
         if current.exists():
             old_manifest = inspect_current_install(current)
             if old_manifest is not None:
                 old_commit = str(old_manifest["source"]["commit"])
-                old_host_controller = load_installed_controller(current, "hosts")
-                host_receipt_path = project / old_host_controller.RECEIPT_NAME
+                candidate_host_controller = load_installed_controller(source, "hosts")
+                host_receipt_path = project / candidate_host_controller.RECEIPT_NAME
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
-                    receipt, raw = old_host_controller.read_receipt(project)
+                    receipt, raw = candidate_host_controller.read_receipt(project)
+                    candidate_host_controller.verify(
+                        project, receipt, core_commit=old_commit
+                    )
                     host_snapshot = {"receipt": receipt, "raw": raw}
                 if generation_mode:
                     try:
@@ -1550,14 +1618,23 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     except (OSError, ValueError):
                         old_specification_sha256 = None
                         old_core_sha256 = None
-        target = install(
-            project,
-            source,
-            commit,
-            _locked=True,
-            source_record=source_record,
-            distribution=distribution,
-        )
+        if account_mode:
+            project_setup_snapshot, project_setup_present = snapshot_project_setup_outputs(
+                project
+            )
+        try:
+            target = install(
+                project,
+                source,
+                commit,
+                _locked=True,
+                source_record=source_record,
+                distribution=distribution,
+            )
+        except BaseException:
+            if project_setup_snapshot is not None:
+                shutil.rmtree(project_setup_snapshot, ignore_errors=True)
+            raise
         installed_manifest = verify_install(target)
         core_changed = old_manifest is None or {
             key: value
@@ -1579,12 +1656,6 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         candidate = None
         retired_generation = None
         candidate_published = False
-        account_receipt_path = project / ".chaos-engine-dependencies.json"
-        account_receipt_before = (
-            account_receipt_path.read_bytes()
-            if account_mode and account_receipt_path.is_file()
-            and not is_link_or_reparse(account_receipt_path) else None
-        )
         account_receipt_after = None
         try:
             controller = load_dependency_controller(target)
@@ -1729,6 +1800,13 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     host_controller.uninstall(project)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
+            if can_compensate and project_setup_snapshot is not None:
+                try:
+                    restore_project_setup_outputs(
+                        project, project_setup_snapshot, project_setup_present
+                    )
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
             if can_compensate:
                 try:
                     backup_path = project / BACKUP_NAME
@@ -1758,6 +1836,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 details = "; ".join(str(item) for item in compensation_errors)
                 raise RuntimeError(f"ChaosEngine compensation failures: {details}") from error
             raise
+        finally:
+            if project_setup_snapshot is not None:
+                shutil.rmtree(project_setup_snapshot, ignore_errors=True)
         return target
 
 

@@ -1621,6 +1621,130 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=fail)
             self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
 
+    def test_nullable_legacy_receipt_preflight_blocks_before_core_or_account_setup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            receipt, _ = hosts.read_receipt(project)
+            legacy_path = ".grok/hooks/lifecycle.json"
+            receipt["before"][legacy_path] = None
+            receipt["after"][legacy_path] = None
+            project.joinpath(legacy_path).unlink()
+            project.joinpath(legacy_path).write_text("unexpected\n", encoding="utf-8")
+            project.joinpath(".chaos-engine-hosts.json").write_bytes(
+                hosts.receipt_bytes(receipt, project)
+            )
+
+            account_setup = mock.Mock()
+            controller = SimpleNamespace(
+                install_account_dependencies=account_setup,
+            )
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(MODULE, "install") as core_install:
+                    with self.assertRaisesRegex(ValueError, "host adapter drift"):
+                        MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            core_install.assert_not_called()
+            account_setup.assert_not_called()
+            self.assertFalse(project.joinpath("graphify-out").exists())
+            self.assertFalse(project.joinpath(".agents/skills/graphify").exists())
+
+    def test_post_setup_host_failure_restores_exact_project_setup_outputs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            specification = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
+            project.joinpath(".agents/skills/graphify/user.txt").parent.mkdir(parents=True)
+            project.joinpath(".agents/skills/graphify/user.txt").write_text(
+                "keep graphify\n", encoding="utf-8"
+            )
+            project.joinpath("graphify-out/user.txt").parent.mkdir(parents=True)
+            project.joinpath("graphify-out/user.txt").write_text("keep graph\n", encoding="utf-8")
+            project.joinpath(".memory/config.json").parent.mkdir(parents=True)
+            project.joinpath(".memory/config.json").write_text("keep memory\n", encoding="utf-8")
+            project.joinpath(".chaos-engine-state/mempalace/user.txt").parent.mkdir(parents=True)
+            project.joinpath(".chaos-engine-state/mempalace/user.txt").write_text(
+                "keep palace\n", encoding="utf-8"
+            )
+            project.joinpath("mempalace.yaml").write_text("wing: keep\n", encoding="utf-8")
+
+            def install_account_dependencies(target, _specification):
+                target.joinpath(".chaos-engine-dependencies.json").write_text(
+                    "new receipt\n", encoding="utf-8"
+                )
+                target.joinpath(".agents/skills/graphify/SKILL.md").parent.mkdir(
+                    parents=True, exist_ok=True
+                )
+                target.joinpath(".agents/skills/graphify/SKILL.md").write_text(
+                    "generated\n", encoding="utf-8"
+                )
+                target.joinpath("graphify-out/graph.json").parent.mkdir(parents=True, exist_ok=True)
+                target.joinpath("graphify-out/graph.json").write_text("{}\n", encoding="utf-8")
+                target.joinpath(".memory/config.json").parent.mkdir(parents=True, exist_ok=True)
+                target.joinpath(".memory/config.json").write_text("{}\n", encoding="utf-8")
+                target.joinpath(".chaos-engine-state/mempalace").mkdir(parents=True, exist_ok=True)
+                target.joinpath(".chaos-engine-state/mempalace/sqlite_exact.sqlite3").write_bytes(
+                    b"SQLite format 3\\x00"
+                )
+                target.joinpath("mempalace.yaml").write_text("wing: generated\n", encoding="utf-8")
+                return {"commands": {}}
+
+            controller = SimpleNamespace(
+                load_specification=lambda _path: specification,
+                install_account_dependencies=install_account_dependencies,
+            )
+            original_load = MODULE.load_installed_controller
+            fail_once = True
+
+            def load_with_post_setup_failure(installed_root, name):
+                nonlocal fail_once
+                loaded = original_load(installed_root, name)
+                if name == "hosts" and fail_once:
+                    fail_once = False
+                    loaded.install = mock.Mock(side_effect=RuntimeError("host install failed"))
+                return loaded
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(
+                    MODULE, "load_installed_controller", side_effect=load_with_post_setup_failure
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "host install failed"):
+                        MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT)
+
+            for relative in (
+                ".chaos-engine-dependencies.json",
+                ".agents/skills/graphify/SKILL.md",
+                "graphify-out/graph.json",
+                ".chaos-engine-state/mempalace/sqlite_exact.sqlite3",
+            ):
+                self.assertFalse(project.joinpath(relative).exists(), relative)
+            self.assertEqual(
+                "keep graphify\n",
+                project.joinpath(".agents/skills/graphify/user.txt").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                "keep graph\n", project.joinpath("graphify-out/user.txt").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                "keep memory\n", project.joinpath(".memory/config.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                "keep palace\n",
+                project.joinpath(".chaos-engine-state/mempalace/user.txt").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                "wing: keep\n", project.joinpath("mempalace.yaml").read_text(encoding="utf-8")
+            )
+            self.assertFalse(project.joinpath(".chaos-engine").exists())
+
     def test_keyboard_interrupt_skips_install_compensation(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
