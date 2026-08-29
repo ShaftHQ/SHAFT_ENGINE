@@ -3557,6 +3557,48 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "MCP server collision"):
                         module.preflight(project)
 
+    def test_preflight_inverts_an_authenticated_legacy_maven_server_only(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_maven_fragment")
+        legacy = {
+            "command": "/usr/bin/java",
+            "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
+        }
+        current = json.dumps(
+            {
+                "mcpServers": {
+                    "maven-tools-mcp": legacy,
+                    "user-server": {"command": "keep", "args": []},
+                }
+            }
+        ).encode()
+        before = json.dumps({"mcpServers": {"maven-tools-mcp": legacy}}).encode()
+
+        stripped = json.loads(
+            module.strip_known_json_ownership(
+                current, before, b'{"mcpServers": {}}', label="MCP"
+            )
+        )
+
+        self.assertEqual(
+            {"user-server": {"command": "keep", "args": []}},
+            stripped["mcpServers"],
+        )
+
+    def test_preflight_rejects_one_field_mutation_of_authenticated_maven_server(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_fragment_mutation")
+        legacy = {
+            "command": "/usr/bin/java",
+            "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
+        }
+        mutated = {**legacy, "args": [*legacy["args"], "--foreign"]}
+        current = json.dumps({"mcpServers": {"maven-tools-mcp": mutated}}).encode()
+        before = json.dumps({"mcpServers": {"maven-tools-mcp": legacy}}).encode()
+
+        with self.assertRaisesRegex(ValueError, "MCP server collision: maven-tools-mcp"):
+            module.strip_known_json_ownership(
+                current, before, b'{"mcpServers": {}}', label="MCP"
+            )
+
     def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")
         with tempfile.TemporaryDirectory() as temporary:

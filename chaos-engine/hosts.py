@@ -4080,6 +4080,16 @@ def strip_known_json_ownership(
         if not exact_legacy_alias(name, servers[name]):
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
         del servers[name]
+    name = "maven-tools-mcp"
+    if name in servers:
+        expected = [
+            collection[name]
+            for collection in (original_servers, recorded_servers)
+            if name in collection
+        ]
+        if servers[name] != LEGACY_MAVEN_TOOLS_SERVER and servers[name] not in expected:
+            raise ValueError(f"ChaosEngine MCP server collision: {name}")
+        del servers[name]
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
