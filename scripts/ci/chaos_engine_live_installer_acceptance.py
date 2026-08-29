@@ -315,6 +315,7 @@ def probe_mcp(
     project: Path,
     *,
     environment: dict[str, str] | None = None,
+    base_environment: dict[str, str] | None = None,
     popen=subprocess.Popen,
 ) -> None:
     requests = (
@@ -336,7 +337,7 @@ def probe_mcp(
         command,
         cwd=project,
         env={
-            **clean_environment(),
+            **(base_environment or clean_environment()),
             "PYTHONDONTWRITEBYTECODE": "1",
             **(environment or {}),
         },
@@ -445,12 +446,16 @@ def generated_mcp_commands(
     return commands
 
 
-def probe_generated_mcps(project: Path) -> None:
+def probe_generated_mcps(
+    project: Path, *, base_environment: dict[str, str] | None = None
+) -> None:
     # Parse both platform forms before executing current host's generated command.
     generated_mcp_commands(project, windows=False)
     commands = generated_mcp_commands(project, windows=os.name == "nt")
     for _name, command, cwd, environment in commands:
-        probe_mcp(command, cwd, environment=environment)
+        probe_mcp(
+            command, cwd, environment=environment, base_environment=base_environment
+        )
 
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
@@ -547,6 +552,7 @@ def verify_account_phase(
     project: Path, expected_commit: str, *, probe_generated: bool = True
 ) -> dict[str, object]:
     installed = project / ".chaos-engine"
+    environment = wrapper_environment()
     for command in ("status", "doctor"):
         result = json.loads(
             run_checked(
@@ -559,6 +565,7 @@ def verify_account_phase(
                     "--json",
                 ],
                 cwd=project,
+                environment=environment,
             ).stdout
         )
         if result.get("status") != "healthy" or result.get("commit") != expected_commit:
@@ -599,10 +606,15 @@ def verify_account_phase(
     tool = installed / "tool.py"
     dispatches: dict[str, str] = {}
     for name, arguments in PROBES.items():
-        run_checked([sys.executable, str(tool), name, *arguments], cwd=project, timeout=120)
+        run_checked(
+            [sys.executable, str(tool), name, *arguments],
+            cwd=project,
+            environment=environment,
+            timeout=120,
+        )
         dispatches[name] = "pass"
     if probe_generated:
-        probe_generated_mcps(project)
+        probe_generated_mcps(project, base_environment=environment)
         dispatches.update({"memory-mcp": "pass", "mempalace-mcp": "pass"})
     return {
         "status": "healthy",

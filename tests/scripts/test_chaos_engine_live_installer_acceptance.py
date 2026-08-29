@@ -312,6 +312,27 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertNotIn("OPENAI_API_KEY", child_environment)
         self.assertEqual(os.defpath, child_environment["PATH"])
 
+    def test_account_verification_uses_the_isolated_wrapper_environment(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".chaos-engine").mkdir()
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"schemaVersion": 2, "components": {}, "commands": {}}),
+                encoding="utf-8",
+            )
+            healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
+            with mock.patch.object(
+                module, "run_checked", return_value=CompletedProcess([], 0, healthy, "")
+            ) as runner:
+                module.verify_account_phase(project, "a" * 40, probe_generated=False)
+
+        for call in runner.call_args_list:
+            self.assertEqual(os.defpath, call.kwargs["environment"]["PATH"])
+
     def test_failure_still_writes_sanitized_json_evidence(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
