@@ -310,6 +310,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         child_environment = runner.call_args.kwargs["environment"]
         self.assertEqual(allowed, child_environment["GITHUB_TOKEN"])
         self.assertNotIn("OPENAI_API_KEY", child_environment)
+        self.assertEqual(os.defpath, child_environment["PATH"])
 
     def test_failure_still_writes_sanitized_json_evidence(self):
         module = load_acceptance()

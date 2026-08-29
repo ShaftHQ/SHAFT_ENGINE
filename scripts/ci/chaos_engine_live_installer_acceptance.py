@@ -64,6 +64,17 @@ def download_environment(base: dict[str, str] | None = None) -> dict[str, str]:
     return environment
 
 
+def wrapper_environment() -> dict[str, str]:
+    """Keep public-wrapper acceptance independent of ambient optional hosts."""
+    environment = download_environment()
+    if os.name == "nt":
+        system_root = environment.get("SystemRoot", r"C:\\Windows")
+        environment["PATH"] = os.pathsep.join((str(Path(system_root) / "System32"), system_root))
+    else:
+        environment["PATH"] = os.defpath
+    return environment
+
+
 def offline_environment(
     base: dict[str, str] | None = None, *, block_path: bool = False
 ) -> dict[str, str]:
@@ -284,7 +295,7 @@ def run_public_wrapper(
     result = run_checked(
         public_wrapper_command(commit, windows=os.name == "nt"),
         cwd=project,
-        environment=download_environment(),
+        environment=wrapper_environment(),
     )
     if not (project / ".chaos-engine/install.py").is_file():
         raise RuntimeError("public wrapper did not create the installation tree")
