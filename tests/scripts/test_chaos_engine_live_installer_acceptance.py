@@ -387,12 +387,56 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         error = raised.exception
         self.assertEqual("doctor", error.command[2])
         self.assertEqual(
-            "unhealthy", error.component_statuses["doctor"]["components"]["hooks"]
+            "unhealthy",
+            error.component_statuses["doctor"]["components"]["hooks"]["status"],
         )
         self.assertEqual(
             "unhealthy",
-            error.component_statuses["doctor"]["dependencyComponents"]["memory"],
+            error.component_statuses["doctor"]["dependencyComponents"]["memory"]["status"],
         )
+
+    def test_wrapper_failure_collects_read_only_doctor_component_details(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".chaos-engine").mkdir()
+            project.joinpath(".chaos-engine/install.py").write_text("# fixture\n")
+            error = RuntimeError("wrapper failed")
+            error.command = ["wrapper", "--fixture"]
+            healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
+            unhealthy = json.dumps({
+                "status": "recovery-required", "commit": "a" * 40,
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "recovery-required"},
+                "dependencies": {
+                    "status": "recovery-required",
+                    "components": {
+                        "memory": {
+                            "status": "unhealthy", "action": "repaired", "probe": "exit-1",
+                        },
+                    },
+                },
+                "components": {
+                    "hooks": {"status": "unhealthy", "detail": "missing-managed-hook"},
+                },
+            })
+            with mock.patch.object(module, "run_public_wrapper", side_effect=error), mock.patch.object(
+                module, "run_checked", side_effect=(
+                    CompletedProcess([], 0, healthy, ""),
+                    CompletedProcess([], 0, unhealthy, ""),
+                ),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "wrapper failed") as raised:
+                    module.run_public_wrapper_with_diagnostics("a" * 40, project)
+
+        self.assertIs(error, raised.exception)
+        doctor = error.component_statuses["doctor"]
+        self.assertEqual("missing-managed-hook", doctor["components"]["hooks"]["detail"])
+        self.assertEqual("repaired", doctor["dependencyComponents"]["memory"]["action"])
+        self.assertEqual("exit-1", doctor["dependencyComponents"]["memory"]["probe"])
 
     def test_failure_still_writes_sanitized_json_evidence(self):
         module = load_acceptance()
@@ -434,8 +478,17 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                         "status": "unhealthy",
                         "hosts": "unhealthy",
                         "dependencies": "healthy",
-                        "components": {"hooks": "unhealthy", "mcps": "unhealthy"},
-                        "dependencyComponents": {"memory": "healthy"},
+                        "components": {
+                            "hooks": {
+                                "status": "unhealthy", "detail": "missing-managed-hook",
+                            },
+                            "mcps": {"status": "unhealthy"},
+                        },
+                        "dependencyComponents": {
+                            "memory": {
+                                "status": "healthy", "action": "reused", "probe": "passed",
+                            },
+                        },
                     }
                 }
 
@@ -453,6 +506,14 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertEqual("doctor", evidence["failure"]["command"][2])
         self.assertEqual(
             "unhealthy", evidence["failure"]["componentStatuses"]["doctor"]["hosts"]
+        )
+        self.assertEqual(
+            "missing-managed-hook",
+            evidence["failure"]["componentStatuses"]["doctor"]["components"]["hooks"]["detail"],
+        )
+        self.assertEqual(
+            "reused",
+            evidence["failure"]["componentStatuses"]["doctor"]["dependencyComponents"]["memory"]["action"],
         )
         self.assertEqual("fail", evidence["phases"][0]["status"])
         serialized = json.dumps(evidence)

@@ -46,6 +46,8 @@ SANITIZER_INPUT_LIMIT = 8192
 SANITIZER_OUTPUT_LIMIT = 500
 SANITIZER_TRUNCATION_MARKER = "\n...<truncated>...\n"
 STATUS_SUMMARY_FIELDS = ("status", "commit", "kernel", "hosts", "dependencies")
+HOST_COMPONENT_FIELDS = ("status", "detail", "code")
+DEPENDENCY_COMPONENT_FIELDS = ("status", "action", "probe", "detail", "code")
 
 
 class AcceptancePhaseFailure(RuntimeError):
@@ -236,11 +238,28 @@ def sanitized_component_statuses(value: object) -> dict[str, dict[str, object]] 
                 continue
             if not isinstance(components, dict):
                 return None
-            statuses: dict[str, str] = {}
+            statuses: dict[str, object] = {}
+            fields = (
+                HOST_COMPONENT_FIELDS
+                if name == "components"
+                else DEPENDENCY_COMPONENT_FIELDS
+            )
             for component, status in components.items():
-                if not isinstance(component, str) or not isinstance(status, str):
+                if not isinstance(component, str):
                     return None
-                statuses[sanitize(component)] = sanitize(status)
+                if isinstance(status, str):
+                    statuses[sanitize(component)] = sanitize(status)
+                    continue
+                if not isinstance(status, dict):
+                    return None
+                detail = {
+                    field: sanitize(status[field])
+                    for field in fields
+                    if isinstance(status.get(field), str)
+                }
+                if not detail:
+                    return None
+                statuses[sanitize(component)] = detail
             summary[name] = statuses
         result[sanitize(command)] = summary
     return result
@@ -667,7 +686,11 @@ def component_status_summary(result: object) -> dict[str, object]:
     components = result.get("components")
     if isinstance(components, dict):
         summary["components"] = {
-            name: record["status"]
+            name: {
+                field: record[field]
+                for field in HOST_COMPONENT_FIELDS
+                if isinstance(record.get(field), str)
+            }
             for name, record in components.items()
             if isinstance(name, str)
             and isinstance(record, dict)
@@ -677,13 +700,67 @@ def component_status_summary(result: object) -> dict[str, object]:
     dependency_components = dependencies.get("components") if isinstance(dependencies, dict) else None
     if isinstance(dependency_components, dict):
         summary["dependencyComponents"] = {
-            name: record["status"]
+            name: {
+                field: record[field]
+                for field in DEPENDENCY_COMPONENT_FIELDS
+                if isinstance(record.get(field), str)
+            }
             for name, record in dependency_components.items()
             if isinstance(name, str)
             and isinstance(record, dict)
             and isinstance(record.get("status"), str)
         }
     return summary
+
+
+def read_only_account_statuses(
+    project: Path, *, environment: dict[str, str] | None = None
+) -> dict[str, dict[str, object]]:
+    """Collect status labels after a wrapper failure without replacing that failure."""
+    installed = project / ".chaos-engine"
+    install = installed / "install.py"
+    if not install.is_file():
+        return {}
+    reports: dict[str, dict[str, object]] = {}
+    for command in ("status", "doctor"):
+        try:
+            completed = run_checked(
+                [
+                    sys.executable, str(install), command, "--project", str(project),
+                    "--json",
+                ],
+                cwd=project,
+                environment=environment,
+            )
+            payload = json.loads(completed.stdout)
+        except (AcceptanceCommandFailure, json.JSONDecodeError):
+            continue
+        summary = component_status_summary(payload)
+        if summary:
+            reports[command] = summary
+    return reports
+
+
+def run_public_wrapper_with_diagnostics(
+    commit: str,
+    project: Path,
+    *,
+    require_current_action: bool = True,
+    environment: dict[str, str] | None = None,
+) -> None:
+    """Preserve the wrapper failure while recording its installed read-only state."""
+    try:
+        run_public_wrapper(
+            commit,
+            project,
+            require_current_action=require_current_action,
+            environment=environment,
+        )
+    except Exception as error:
+        statuses = read_only_account_statuses(project, environment=environment)
+        if statuses:
+            error.component_statuses = statuses
+        raise
 
 
 def verify_account_phase(
@@ -866,7 +943,7 @@ def run_acceptance(
             probe_generated: bool = True,
             environment: dict[str, str] | None = None,
         ) -> dict[str, object]:
-            run_public_wrapper(
+            run_public_wrapper_with_diagnostics(
                 commit, project, require_current_action=require_current_action,
                 environment=environment,
             )
