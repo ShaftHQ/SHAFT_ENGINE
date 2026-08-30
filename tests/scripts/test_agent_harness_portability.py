@@ -507,19 +507,20 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         delegation = (ROOT / "chaos-engine/references/delegation.md").read_text(
             encoding="utf-8"
         )
-        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
+        workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(
             encoding="utf-8"
         )
-        compact = re.sub(r"\s+", " ", "\n".join((delegation, skill)))
+        compact = re.sub(r"\s+", " ", delegation)
         for required in (
             "fewest PRs that still keep one problem per issue",
             "stay available",
             "live status table",
             "keep working until every in-scope ticket is delivered",
-            "one writer at a time",
-            'Do not wait for the owner to say "orchestrate"',
         ):
             self.assertIn(required, compact)
+        self.assertIn("[execution workflows](execution-workflows.md)", delegation)
+        self.assertIn("sole normative owner of execution-workflow selection", workflows)
+        self.assertNotIn("one writer at a time", delegation.lower())
 
     def test_host_token_budgets_include_mandatory_entrypoint(self):
         budget = json.loads(
@@ -594,10 +595,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_pdca_personas_are_main_thread_phases_that_follow_the_mode(self):
         """PDCA is one task, so it is normally worked solo.
 
-        This previously required Bob to dispatch unconditionally, which put the
-        playbook in direct conflict with the entrypoint's solo-or-orchestrate
-        rule: a single task means one work stream, and one stream is worked by
-        the same thread. Bob now follows the mode instead of overriding it.
+        This previously required Bob to dispatch unconditionally. The playbook
+        now reaches the canonical workflow owner instead of duplicating its
+        selection rule, and Bob follows the selected mode.
         """
         pdca = (
             ROOT
@@ -605,11 +605,15 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         compact = re.sub(r"\s+", " ", pdca)
         self.assertIn("personas are phases, not agent identities", pdca.lower())
-        self.assertRegex(
-            compact,
-            r"solo-or-orchestrate rule",
-            "the playbook must defer to the mode rule rather than state its own",
+        self.assertIn(
+            "[execution workflows](../../../../references/execution-workflows.md)",
+            pdca,
         )
+        workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("sole normative owner of execution-workflow selection", workflows)
+        self.assertNotIn("solo-or-orchestrate rule", pdca.lower())
         self.assertRegex(
             compact,
             r"Bob phase[^.]*through observed TDD[^.]*when orchestrating",
