@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
+from unittest.mock import patch
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.error import HTTPError
@@ -519,7 +519,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         RUNNER._write_json(self.state / "processes/run-4.json", {
             "schemaVersion": 1, "pid": 4343, "pgid": 4343, "processIdentity": "delegate",
         })
-        with mock.patch.object(RUNNER, "_group_alive", return_value=False):
+        with patch.object(RUNNER, "_group_alive", return_value=False):
             result = RUNNER.status("run-4", self.state, process_identity=lambda _: None)
         self.assertEqual("review", result["status"])
         self.assertEqual(0, result["diagnostics"]["exitCode"])
@@ -581,7 +581,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         def once(path):
             calls.append(path)
             return original(path)
-        with mock.patch.object(RUNNER, "_read_config", side_effect=once):
+        with patch.object(RUNNER, "_read_config", side_effect=once):
             self._dispatch(run_id="sealed", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
                 opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
@@ -636,7 +636,7 @@ class OmniRootRunnerTest(unittest.TestCase):
 
     def test_learning_registration_failure_prevents_launch_and_cleans_reservation(self):
         launched = []
-        with mock.patch("scripts.agents.learning_session.register_runtime_participant",
+        with patch("scripts.agents.learning_session.register_runtime_participant",
                         side_effect=RuntimeError("closed")):
             with self.assertRaisesRegex(RUNNER.OmniRootError, "learning registration"):
                 self._dispatch(run_id="learning-fail", worktree=self.worktree, state_dir=self.state,
@@ -660,9 +660,9 @@ class OmniRootRunnerTest(unittest.TestCase):
             "schemaVersion": 1, "pid": 4343, "pgid": 4343, "processIdentity": "delegate",
         })
         signals = []
-        with mock.patch.object(RUNNER, "_group_alive", side_effect=([True] * 50) + [False]), \
-                mock.patch.object(RUNNER.os, "killpg", side_effect=lambda pid, sig: signals.append((pid, sig))), \
-                mock.patch.object(RUNNER.time, "sleep"):
+        with patch.object(RUNNER, "_group_alive", side_effect=([True] * 50) + [False]), \
+                patch.object(RUNNER.os, "killpg", side_effect=lambda pid, sig: signals.append((pid, sig))), \
+                patch.object(RUNNER.time, "sleep"):
             result = RUNNER.cancel("cancel-child", self.state,
                                    process_identity=lambda pid: "monitor" if pid == 4242 else "delegate")
         self.assertEqual("cancelled", result["status"])
@@ -691,7 +691,7 @@ class OmniRootRunnerTest(unittest.TestCase):
 
     def test_unsupported_platform_fails_before_state_mutation(self):
         state = self.root / "never-created"
-        with mock.patch.object(RUNNER.sys, "platform", "win32"):
+        with patch.object(RUNNER.sys, "platform", "win32"):
             with self.assertRaises(RUNNER.OmniRootError):
                 self._dispatch(run_id="unsupported", worktree=self.worktree, state_dir=state,
                     config_path=self.config, target="host-cli", delegate_args=[])
@@ -699,7 +699,7 @@ class OmniRootRunnerTest(unittest.TestCase):
 
     def test_receipt_publish_failure_leaves_no_partial_target(self):
         target = self.state / "receipts/fail.json"
-        with mock.patch.object(RUNNER.os, "link", side_effect=OSError("publish failed")):
+        with patch.object(RUNNER.os, "link", side_effect=OSError("publish failed")):
             with self.assertRaises(OSError):
                 RUNNER._create_immutable_json(target, {"ok": True})
         self.assertFalse(target.exists())

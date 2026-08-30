@@ -176,10 +176,8 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
             os.fsync(descriptor)
             os.close(descriptor)
             descriptor = -1
-            try:
+            with contextlib.suppress(FileExistsError):
                 os.link(temporary, sealed, follow_symlinks=False)
-            except FileExistsError:
-                pass
         finally:
             if descriptor >= 0:
                 os.close(descriptor)
