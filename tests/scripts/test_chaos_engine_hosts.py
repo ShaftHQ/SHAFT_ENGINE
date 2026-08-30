@@ -3991,7 +3991,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             command = runtime / ("mempalace.exe" if os.name == "nt" else "mempalace")
             command.write_text("tool\n", encoding="utf-8")
             with mock.patch.object(module.sys, "argv", ["tool.py", "mempalace", "status"]):
-                with mock.patch.object(module, "resolve_command", return_value=command):
+                with mock.patch.object(
+                    module, "shared_project_root", return_value=project
+                ), mock.patch.object(module, "resolve_command", return_value=command):
                     with mock.patch.object(module.subprocess, "call", return_value=0) as call:
                         self.assertEqual(0, module.main())
 
