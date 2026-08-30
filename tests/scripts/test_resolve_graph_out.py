@@ -29,6 +29,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         (self.primary / "source.py").write_text("print('indexed')\n", encoding="utf-8")
         self.git("add", "source.py", cwd=self.primary)
         self.git("commit", "-m", "indexed source", cwd=self.primary)
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD", cwd=self.primary)
         self.graph_out = self.primary / "graphify-out"
         self.graph_out.mkdir()
         (self.graph_out / "manifest.json").write_text("{}\n", encoding="utf-8")
@@ -135,6 +136,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         (self.primary / "later.py").write_text("print('later')\n", encoding="utf-8")
         self.git("add", "later.py", cwd=self.primary)
         self.git("commit", "-m", "later tracked source", cwd=self.primary)
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD", cwd=self.primary)
         requested = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
 
         completed = self.resolver("--check")
@@ -144,7 +146,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertIn(f"indexed={indexed}", completed.stderr)
         self.assertIn(f"requested={requested}", completed.stderr)
 
-    def test_linked_worktree_is_checked_against_its_own_revision(self):
+    def test_linked_worktree_uses_shared_origin_main_revision(self):
         self.assertEqual(0, self.resolver("--record-current").returncode)
         linked = self.sandbox / "linked"
         self.git("worktree", "add", "-b", "feature", str(linked), cwd=self.primary)
@@ -155,11 +157,20 @@ class ResolveGraphOutTest(unittest.TestCase):
         completed = self.resolver("--check", cwd=linked)
         record_attempt = self.resolver("--record-current", cwd=linked)
 
-        self.assertEqual(1, completed.returncode)
-        self.assertIn("stale -", completed.stderr)
-        self.assertIn("requested=", completed.stderr)
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertEqual(str(self.graph_out), completed.stdout.strip())
         self.assertEqual(1, record_attempt.returncode)
         self.assertIn("primary checkout", record_attempt.stderr)
+
+    def test_divergent_primary_cannot_record_origin_main_cache(self):
+        (self.primary / "local.py").write_text("print('local')\n", encoding="utf-8")
+        self.git("add", "local.py", cwd=self.primary)
+        self.git("commit", "-m", "local-only source", cwd=self.primary)
+
+        completed = self.resolver("--record-current")
+
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("must equal origin/main", completed.stderr)
 
     def test_linked_worktree_cannot_record_into_an_overridden_cache(self):
         linked = self.sandbox / "linked"
@@ -345,7 +356,7 @@ if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
 
         for required in (
             "The existing maintenance controller is the sole Graphify refresh owner.",
-            "A linked-worktree revision mismatch or an active refresh lock is an expected "
+            "A shared `origin/main` revision mismatch or an active refresh lock is an expected "
             "degraded condition and does not block implementation.",
             "must not refresh, wait or retry-loop, clear or replace the lock, freshness "
             "marker, or cache, or switch, reset, or overwrite the primary checkout",

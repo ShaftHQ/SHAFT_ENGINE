@@ -70,12 +70,12 @@ def require_primary_checkout(cwd: Path) -> None:
 
 
 def git_revision(cwd: Path) -> str:
-    """Return the exact checked-out revision whose source files will be inspected."""
+    """Return the shared cache source revision from origin/main."""
     git_executable = shutil.which("git")
     if git_executable is None:
         raise RuntimeError("git is not on PATH")
     completed = subprocess.run(  # nosec B603
-        [git_executable, "rev-parse", "HEAD"],
+        [git_executable, "rev-parse", "refs/remotes/origin/main"],
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -90,7 +90,7 @@ def manifest_digest(graph_out: Path) -> str:
 
 
 def cache_freshness(cwd: Path, graph_out: Path) -> tuple[bool, str]:
-    """Report whether the shared cache exactly matches the requested revision."""
+    """Report whether the shared cache exactly matches origin/main."""
     if not graph_out.is_dir() or not any(graph_out.iterdir()):
         return False, (
             "absent - build it from the main checkout "
@@ -129,6 +129,18 @@ def cache_freshness(cwd: Path, graph_out: Path) -> tuple[bool, str]:
 def record_current_cache(cwd: Path, graph_out: Path) -> Path:
     """Bind a completed primary-checkout cache build to its source revision."""
     require_primary_checkout(cwd)
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        raise RuntimeError("git is not on PATH")
+    head = subprocess.run(  # nosec B603
+        [git_executable, "rev-parse", "HEAD"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if head != git_revision(cwd):
+        raise RuntimeError("primary checkout HEAD must equal origin/main before recording")
     if cwd.resolve() != graph_out.parent.resolve():
         raise RuntimeError("record the Graphify revision only from the primary checkout")
     if not (graph_out / MANIFEST_NAME).is_file():
@@ -152,7 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
     action.add_argument(
         "--check",
         action="store_true",
-        help="Exit 0 only if the shared cache matches the checked-out revision.",
+        help="Exit 0 only if the shared cache matches origin/main.",
     )
     action.add_argument(
         "--record-current",

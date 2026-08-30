@@ -87,7 +87,7 @@ targeted `rg` plus live files for every blast-radius conclusion. Never rebuild
 or record the cache from an ordinary task, and never commit `graphify-out/`.
 
 The existing maintenance controller is the sole Graphify refresh owner. A
-linked-worktree revision mismatch or an active refresh lock is an expected
+shared `origin/main` revision mismatch or an active refresh lock is an expected
 degraded condition and does not block implementation. An ordinary task must not
 refresh, wait or retry-loop, clear or replace the lock, freshness marker, or
 cache, or switch, reset, or overwrite the primary checkout to satisfy freshness.

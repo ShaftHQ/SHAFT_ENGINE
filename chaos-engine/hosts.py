@@ -2701,6 +2701,36 @@ def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, objec
     return server
 
 
+def exact_legacy_native_maven_server(server: object) -> bool:
+    if not isinstance(server, dict) or set(server) != {"command", "args"}:
+        return False
+    command = server.get("command")
+    args = server.get("args")
+    if not isinstance(command, str) or not isinstance(args, list):
+        return False
+    normalized_command = command.replace("\\", "/")
+    absolute_command = normalized_command.startswith("/") or re.match(
+        r"^[A-Za-z]:/", normalized_command
+    )
+    if not absolute_command or normalized_command.rsplit("/", 1)[-1].casefold() not in {
+        "java", "java.exe",
+    }:
+        return False
+    if len(args) != 3 or args[0] != "-jar" or args[2] != (
+        "--spring.profiles.active=docker,no-context7"
+    ):
+        return False
+    jar = args[1]
+    if not isinstance(jar, str):
+        return False
+    normalized_jar = jar.replace("\\", "/")
+    return (
+        normalized_jar.startswith("/") or re.match(r"^[A-Za-z]:/", normalized_jar)
+    ) and normalized_jar.endswith(
+        "/ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar"
+    )
+
+
 def replaceable_owned_server(name: str, existing: object, desired: dict[str, object]) -> bool:
     if existing == desired:
         return True
@@ -2709,6 +2739,8 @@ def replaceable_owned_server(name: str, existing: object, desired: dict[str, obj
             {"command": "npx", "args": ["-y", "@upstash/context7-mcp"]},
             {"command": "npx", "args": ["-y", "@upstash/context7-mcp@latest"]},
         )
+    if name == "maven-tools-mcp":
+        return exact_legacy_native_maven_server(existing)
     if name not in {"chaosengine-memory", "chaosengine-mempalace"}:
         return False
     arguments = [".chaos-engine/tool.py", "memory-mcp"] if name == "chaosengine-memory" else [

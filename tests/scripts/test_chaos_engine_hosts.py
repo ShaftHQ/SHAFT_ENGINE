@@ -2481,6 +2481,32 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.codex_content(legacy_codex.replace(b"\n", b"\r\n")),
             )
 
+    def test_exact_legacy_native_maven_server_is_replaced_not_collided(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_native_maven")
+        legacy = {
+            "command": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java",
+            "args": [
+                "-jar",
+                "/home/user/.local/share/ChaosEngine/tools/maven-tools-mcp/3.2.0/"
+                "maven-tools-mcp-3.2.0.jar",
+                "--spring.profiles.active=docker,no-context7",
+            ],
+        }
+        desired = {
+            "command": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java",
+            "args": ["-jar", "/cache/maven-tools-mcp-3.2.1.jar"],
+        }
+
+        self.assertTrue(module.replaceable_owned_server("maven-tools-mcp", legacy, desired))
+        for mutation in (
+            {**legacy, "command": "/usr/bin/custom-java"},
+            {**legacy, "args": [*legacy["args"], "--custom"]},
+            {**legacy, "args": ["-jar", "/tmp/maven-tools-mcp-3.2.0.jar"]},
+        ):
+            self.assertFalse(
+                module.replaceable_owned_server("maven-tools-mcp", mutation, desired)
+            )
+
     def test_exact_legacy_mcp_aliases_migrate_and_unknown_servers_survive(self):
         module = load(HOSTS, "chaos_engine_hosts_legacy_aliases")
         legacy = {
