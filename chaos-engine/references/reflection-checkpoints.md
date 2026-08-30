@@ -67,3 +67,9 @@ its failures, recoveries, blockers, token costs, dead ends, or improvement ideas
 the root deduplicates them before the one Learning Session. Persist only the
 minimal privacy-safe evidence and never persist provider, model, private route,
 credential, transcript, or machine-local path data.
+
+Dispatch freezes runtime membership before work begins. Terminal reflection
+uses that immutable registry, not a participant list reconstructed at the end.
+Each registered main or delegate must have dispositions for its incidents or a
+no-learning attestation. Only an unreachable delegate may use an explicit
+unavailable attestation; absence is never treated as no learning.

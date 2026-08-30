@@ -86,11 +86,15 @@ use `repair-or-revert` to record one repair requirement; recurrence freezes the
 candidate and records a revert requirement. The normal git/GitHub workflow
 performs and verifies the repair or revert.
 
-For an orchestrated runtime, finish with `finalize-runtime`. Pass the root session
-and every participant session exactly once, plus one disposition for every
-deduplicated incident hash. This writes one immutable root-owned completion that
-proves delegate evidence was considered without copying transcripts, private
-routes, model identities, credentials, or local paths.
+For an orchestrated runtime, dispatch first freezes the root and every delegate
+exactly once with `register-runtime`. Registration is immutable; a later caller
+cannot replace, omit, or add participants. Before `finalize-runtime`, every
+registered participant must contribute incident dispositions, a structured
+no-learning attestation, or, for an unreachable delegate only, an explicit
+`attest-unavailable` record. Finalization reads membership from the frozen
+registry rather than accepting a caller-supplied participant list. It writes one
+immutable root-owned completion without copying transcripts, private routes,
+model identities, credentials, or local paths.
 
 ## 7. Push, PR, green, merge, compact
 
