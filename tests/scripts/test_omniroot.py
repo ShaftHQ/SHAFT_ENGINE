@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
@@ -62,6 +63,9 @@ class OmniRootProbeTest(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
         self.config = self.root / "omniroot.json"
+        self.launcher = self.root / "launcher"
+        self.launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        self.launcher.chmod(0o700)
 
     def _config(self, *, expired: bool = False) -> None:
         now = datetime.now(UTC)
@@ -69,7 +73,7 @@ class OmniRootProbeTest(unittest.TestCase):
         self.config.write_text(json.dumps({
             "schemaVersion": 1,
             "routeId": "opaque-route",
-            "launcher": "omniroute",
+            "launcher": {"argv": [str(self.launcher), "opaque-profile"], "credentialMode": "environment"},
             "attestation": {
                 "schemaVersion": 1,
                 "routePolicySha256": "a" * 64,
@@ -80,6 +84,10 @@ class OmniRootProbeTest(unittest.TestCase):
                 "noCostConfirmed": True,
                 "noPaidFallbackConfirmed": True,
                 "privacyConfirmed": True,
+                "termsConfirmed": True,
+                "deniedProbeTargetSha256": "c" * 64,
+                "deniedProbeConfirmed": True,
+                "deniedProbeTargetKnownExistingConfirmed": True,
             },
         }), encoding="utf-8")
 
@@ -100,6 +108,26 @@ class OmniRootProbeTest(unittest.TestCase):
         )
         self.assertEqual("READY", result["state"])
         self.assertNotIn("present-but-never-recorded", json.dumps(result))
+
+    def test_protected_operator_launcher_needs_no_parent_endpoint_key(self):
+        now = datetime.now(UTC)
+        self.config.write_text(json.dumps({
+            "schemaVersion": 1,
+            "routeId": "opaque-route",
+            "launcher": {"argv": [str(self.launcher), "opaque-profile"], "credentialMode": "launcher"},
+            "attestation": {
+                "schemaVersion": 1, "routePolicySha256": "a" * 64,
+                "endpointKeyIdentitySha256": "b" * 64, "deniedProbeTargetSha256": "c" * 64,
+                "serverBuild": "test", "verifiedAt": now.isoformat(),
+                "expiresAt": (now + timedelta(minutes=20)).isoformat(),
+                "noCostConfirmed": True, "noPaidFallbackConfirmed": True,
+                "privacyConfirmed": True, "termsConfirmed": True, "deniedProbeConfirmed": True,
+                "deniedProbeTargetKnownExistingConfirmed": True,
+            },
+        }), encoding="utf-8")
+        result = RUNNER.probe(config_path=self.config, opener=lambda *_, **__: _Response(), environ={})
+        self.assertEqual("READY", result["state"])
+        self.assertNotIn("opaque-profile", json.dumps(result))
 
     def test_expired_or_oversized_gateway_reply_fails_closed(self):
         self._config(expired=True)
@@ -134,13 +162,22 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp())
         self.worktree = self.root / "worktree"
         self.worktree.mkdir()
+        subprocess.run(["git", "init", "-q", str(self.worktree)], check=True)
+        subprocess.run(["git", "-C", str(self.worktree), "config", "user.email", "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(self.worktree), "config", "user.name", "test"], check=True)
+        (self.worktree / "README.md").write_text("test\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.worktree), "add", "README.md"], check=True)
+        subprocess.run(["git", "-C", str(self.worktree), "commit", "-qm", "init"], check=True)
         self.state = self.root / "state"
         self.config = self.root / "omniroot.json"
+        self.launcher = self.root / "launcher"
+        self.launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        self.launcher.chmod(0o700)
         now = datetime.now(UTC)
         self.config.write_text(json.dumps({
             "schemaVersion": 1,
             "routeId": "opaque-route",
-            "launcher": "omniroute",
+            "launcher": {"argv": [str(self.launcher), "opaque-profile"], "credentialMode": "environment"},
             "attestation": {
                 "schemaVersion": 1,
                 "routePolicySha256": "a" * 64,
@@ -151,6 +188,10 @@ class OmniRootRunnerTest(unittest.TestCase):
                 "noCostConfirmed": True,
                 "noPaidFallbackConfirmed": True,
                 "privacyConfirmed": True,
+                "termsConfirmed": True,
+                "deniedProbeTargetSha256": "c" * 64,
+                "deniedProbeConfirmed": True,
+                "deniedProbeTargetKnownExistingConfirmed": True,
             },
         }), encoding="utf-8")
 
@@ -173,12 +214,48 @@ class OmniRootRunnerTest(unittest.TestCase):
             process_identity=lambda _: "identity",
         )
         self.assertEqual("running", manifest["status"])
-        self.assertEqual(["omniroute", "run", "host-cli"], launched[0][0][:3])
+        self.assertEqual([str(self.launcher), "opaque-profile", "host-cli"], launched[0][0][:3])
         self.assertFalse(launched[0][1].get("shell", True))
         self.assertEqual(str(self.worktree), launched[0][1]["cwd"])
         self.assertNotIn("secret", json.dumps(manifest))
+        self.assertEqual("ORCHESTRATOR + SINGLE IMPLEMENTER", manifest["workflow"])
+        self.assertEqual("task-unspecified", manifest["taskId"])
+        self.assertEqual("success", RUNNER.complete(
+            run_id="run-2", state_dir=self.state, exit_code=0, changed_paths=[],
+            learning_disposition="nothing-durable",
+        )["outcome"])
         path = self.state / "runs/run-1.json"
         self.assertEqual(0o600, path.stat().st_mode & 0o777)
+
+    def test_manifest_freezes_full_delegate_contract_without_private_assignment_data(self):
+        manifest = RUNNER.dispatch(
+            run_id="full-1", worktree=self.worktree, state_dir=self.state, config_path=self.config,
+            target="host-cli", delegate_args=["--task", "bounded"], opener=lambda *_, **__: _Response(),
+            environ={"PATH": "/bin", "OMNIROUTE_API_KEY": "secret"}, popen=lambda *_a, **_k: _Process(),
+            process_identity=lambda _: "identity", task_id="task-1", root_session_id="root-1",
+            base_commit="a" * 40, integration_branch="ChaosEngine/test",
+            integration_worktree=self.worktree, delegate={"identity": "writer-a", "role": "implementer",
+                "capability": "default", "assignment": "opaque task", "pathOwnership": ["docs/file.md"]},
+            cadence_seconds=600, deadline="2030-01-01T00:00:00+00:00",
+        )
+        required = {"schemaVersion", "runId", "taskId", "workflow", "rootSessionId", "baseCommit",
+                    "integration", "qualification", "delegate", "pid", "processIdentity", "status",
+                    "cadenceSeconds", "deadline", "timestamps", "head", "receipt"}
+        self.assertTrue(required <= manifest.keys())
+        self.assertNotIn("opaque task", json.dumps(manifest))
+
+    def test_dispatch_rejects_dirty_worktree_and_overlapping_or_secret_ownership(self):
+        (self.worktree / "README.md").write_text("dirty\n", encoding="utf-8")
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER.dispatch(run_id="dirty", worktree=self.worktree, state_dir=self.state, config_path=self.config,
+                target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
+                environ={"OMNIROUTE_API_KEY": "secret"})
+        subprocess.run(["git", "-C", str(self.worktree), "checkout", "--", "README.md"], check=True)
+        for run_id, paths in (("secret", [".env"]), ("private", ["private/key.txt"])):
+            with self.assertRaises(RUNNER.OmniRootError):
+                RUNNER.dispatch(run_id=run_id, worktree=self.worktree, state_dir=self.state, config_path=self.config,
+                    target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
+                    environ={"OMNIROUTE_API_KEY": "secret"}, delegate={"pathOwnership": paths})
 
     def test_dispatch_rejects_non_ready_and_stale_cancel_quarantines(self):
         with self.assertRaises(RUNNER.OmniRootError):
@@ -198,10 +275,14 @@ class OmniRootRunnerTest(unittest.TestCase):
         receipt = RUNNER.complete(
             run_id="run-1", state_dir=self.state, exit_code=0,
             changed_paths=["chaos-engine/skills/omniroot/SKILL.md"],
-            learning_disposition="nothing-durable",
+            learning_disposition="nothing-durable", head="a" * 40, clean=True,
+            checks=["python3 -m unittest"], blockers=[], adjacent_findings=[],
         )
         self.assertEqual("completed", receipt["status"])
         self.assertEqual("nothing-durable", receipt["learningDisposition"])
+        self.assertEqual("success", receipt["outcome"])
+        self.assertEqual("a" * 40, receipt["head"])
+        self.assertEqual(["python3 -m unittest"], receipt["checks"])
         self.assertEqual(0o600, (self.state / "receipts/run-1.json").stat().st_mode & 0o777)
 
 
