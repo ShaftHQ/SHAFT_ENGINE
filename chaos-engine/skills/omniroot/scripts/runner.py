@@ -16,11 +16,12 @@ import subprocess  # nosec B404 - dispatches a fixed local launcher with argv.
 import sys
 import tempfile
 import threading
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 
 DEFAULT_ENDPOINT = "http://127.0.0.1:20128/"
@@ -56,7 +57,8 @@ def default_config_path() -> Path:
 
 
 def _open(request: Request, *, timeout: int):
-    return build_opener(_NoRedirect()).open(request, timeout=timeout)
+    # Fixed loopback health must never inherit ambient proxies or redirects.
+    return build_opener(ProxyHandler({}), _NoRedirect()).open(request, timeout=timeout)
 
 
 def _utc_now() -> datetime:
@@ -102,7 +104,7 @@ def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
     return list(argv), mode, invocation_mode
 
 
-def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, int, int]] | None:
+def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, int, int, int, int, str]] | None:
     executable = Path(argv[0]) if os.path.sep in argv[0] else Path(shutil.which(argv[0]) or "")
     try:
         resolved = executable.resolve(strict=True)
@@ -114,10 +116,17 @@ def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, in
         return None
     if os.name == "posix" and metadata.st_uid != os.getuid():
         return None
-    return [str(resolved), *argv[1:]], (metadata.st_dev, metadata.st_ino, metadata.st_uid, mode)
+    try:
+        digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    except OSError:
+        return None
+    return [str(resolved), *argv[1:]], (
+        metadata.st_dev, metadata.st_ino, metadata.st_uid, mode,
+        metadata.st_size, metadata.st_mtime_ns, digest,
+    )
 
 
-def _same_executable(argv: list[str], identity: tuple[int, int, int, int]) -> bool:
+def _same_executable(argv: list[str], identity: tuple[int, int, int, int, int, int, str]) -> bool:
     qualified = _resolved_executable(argv)
     return qualified is not None and qualified[0][0] == argv[0] and qualified[1] == identity
 
@@ -186,6 +195,7 @@ def probe(
     opener: Callable[..., Any] = _open,
     environ: dict[str, str] | None = None,
     now: Callable[[], datetime] = _utc_now,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Return a secret-free readiness result for the fixed loopback gateway."""
     payload, error = _health(opener)
@@ -198,7 +208,7 @@ def probe(
         return {**result, "state": "RUNTIME_EXHAUSTED"}
     if error is not None or payload is None:
         return result
-    config = _read_config(config_path or default_config_path())
+    config = config if config is not None else _read_config(config_path or default_config_path())
     if config is None or not _attestation_valid(config, payload["build"], now()):
         return {**result, "state": "ROUTE_UNQUALIFIED"}
     launcher = _launcher(config)
@@ -280,6 +290,27 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
             os.unlink(temporary)
 
 
+def _create_immutable_json(path: Path, value: dict[str, Any]) -> None:
+    """Create one receipt once; never replace an existing terminal claim."""
+    _private_directory(path.parent)
+    try:
+        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError as error:
+        raise OmniRootError("terminal receipt already exists") from error
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        if os.name == "posix":
+            path.chmod(0o400)
+    except Exception:
+        with contextlib.suppress(OSError):
+            path.unlink()
+        raise
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     try:
         _reject_symlink_components(path)
@@ -288,7 +319,7 @@ def _load_json(path: Path) -> dict[str, Any]:
         if not path.is_file() or path.is_symlink() or metadata.st_size > MAX_RESPONSE_BYTES:
             raise OmniRootError("run state is missing or unsafe")
         if os.name == "posix" and (
-            metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600
+            metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) not in {0o400, 0o600}
             or any(parent.stat().st_uid != os.getuid() or stat.S_IMODE(parent.stat().st_mode) & 0o077 for parent in parents)
         ):
             raise OmniRootError("run state is missing or unsafe")
@@ -365,13 +396,15 @@ _SECRET_TEXT = re.compile(
 )
 
 
-def _redact_diagnostic(value: bytes) -> tuple[str, bool]:
+def _redact_diagnostic(value: bytes, *, secrets: list[str] | None = None) -> tuple[str, bool]:
     """Decode, redact, and cap one diagnostic stream."""
     text = value.decode("utf-8", errors="replace")
     text = _SECRET_TEXT.sub(
         lambda match: (match.group(1) or match.group(3) or match.group(5)) + "[REDACTED]",
         text,
     )
+    for secret in sorted((item for item in (secrets or []) if item), key=len, reverse=True):
+        text = text.replace(secret, "[REDACTED]")
     encoded = text.encode("utf-8")
     truncated = len(encoded) > MAX_DIAGNOSTIC_BYTES
     if truncated:
@@ -396,7 +429,43 @@ def _read_bounded(stream: Any) -> tuple[bytes, bool]:
     return bytes(kept), truncated
 
 
-def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int) -> None:
+def _group_alive(pid: int) -> bool:
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def _terminate_group(process: Any) -> int:
+    if os.name != "posix" or not hasattr(os, "killpg"):
+        raise OmniRootError("durable process identity and tree termination are unsupported; use native fallback")
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGTERM)
+    try:
+        code = process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        try:
+            code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired as error:
+            raise OmniRootError("process group survived SIGKILL; state must remain quarantined") from error
+    if _group_alive(process.pid):
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        for _ in range(50):
+            if not _group_alive(process.pid):
+                break
+            time.sleep(0.1)
+        else:
+            raise OmniRootError("process group death could not be proven; state must remain quarantined")
+    return int(code)
+
+
+def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int, secrets: list[str] | None = None) -> None:
     """Drain both pipes, enforce runtime bound, then persist only redacted caps."""
     streams: dict[str, tuple[bytes, bool]] = {}
 
@@ -411,21 +480,13 @@ def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int) -> N
         exit_code = process.wait(timeout=timeout_seconds)
     except subprocess.TimeoutExpired:
         timed_out = True
-        if os.name != "posix":
-            raise OmniRootError("bounded process-tree timeout is unsupported on this host")
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-            exit_code = process.wait(timeout=5)
-        except (AttributeError, OSError, subprocess.TimeoutExpired):
-            with contextlib.suppress(AttributeError, OSError):
-                os.killpg(process.pid, signal.SIGKILL)
-            exit_code = -signal.SIGKILL
+        exit_code = _terminate_group(process)
     for reader in readers:
         reader.join(timeout=5)
     output: dict[str, Any] = {"schemaVersion": SCHEMA_VERSION, "exitCode": exit_code, "timedOut": timed_out}
     for name in ("stdout", "stderr"):
         value, read_truncated = streams.get(name, (b"", True))
-        redacted, redact_truncated = _redact_diagnostic(value)
+        redacted, redact_truncated = _redact_diagnostic(value, secrets=secrets)
         output[name] = redacted
         output[f"{name}Truncated"] = read_truncated or redact_truncated
     _write_json(path, output)
@@ -433,16 +494,16 @@ def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int) -> N
 
 def _capture_command(arguments: list[str]) -> int:
     """Run one qualified launcher in a durable monitor subprocess."""
-    if len(arguments) < 8 or arguments[6] != "--":
+    if len(arguments) < 11 or arguments[9] != "--":
         raise OmniRootError("capture arguments are invalid")
     try:
         timeout_seconds = int(arguments[1])
-        expected_identity = tuple(int(value) for value in arguments[2:6])
+        expected_identity = (*tuple(int(value) for value in arguments[2:8]), arguments[8])
     except ValueError as error:
         raise OmniRootError("capture timeout is invalid") from error
     if not 1 <= timeout_seconds <= 86400:
         raise OmniRootError("capture timeout is invalid")
-    command = arguments[7:]
+    command = arguments[10:]
     if not command or not all(value and "\x00" not in value for value in command):
         raise OmniRootError("capture command is invalid")
     if os.name != "posix":
@@ -467,8 +528,22 @@ def _capture_command(arguments: list[str]) -> int:
     if os.name == "posix":
         signal.signal(signal.SIGTERM, forward)
         signal.signal(signal.SIGINT, forward)
-    _collect_diagnostics(process, Path(arguments[0]), timeout_seconds=timeout_seconds)
+    _collect_diagnostics(
+        process, Path(arguments[0]), timeout_seconds=timeout_seconds,
+        secrets=[os.environ.get("OMNIROUTE_API_KEY", "")],
+    )
     return int(process.returncode or 0)
+
+
+def _validated_diagnostic(value: dict[str, Any]) -> dict[str, Any]:
+    if (value.get("schemaVersion") != SCHEMA_VERSION
+            or not isinstance(value.get("exitCode"), int)
+            or not isinstance(value.get("timedOut"), bool)
+            or not all(isinstance(value.get(name), str) for name in ("stdout", "stderr"))
+            or not all(isinstance(value.get(name), bool)
+                       for name in ("stdoutTruncated", "stderrTruncated"))):
+        raise OmniRootError("terminal diagnostic is invalid")
+    return value
 
 
 def _git(worktree: Path, *args: str) -> str:
@@ -488,9 +563,17 @@ def _validate_worktree(worktree: Path) -> tuple[Path, str]:
         raise OmniRootError("existing isolated worktree is required") from error
     if not resolved.is_dir() or _git(resolved, "rev-parse", "--is-inside-work-tree") != "true":
         raise OmniRootError("a real clean git worktree is required")
-    if _git(resolved, "status", "--porcelain", "--untracked-files=no"):
-        raise OmniRootError("tracked source worktree must be clean")
+    git_dir = Path(_git(resolved, "rev-parse", "--path-format=absolute", "--git-dir"))
+    common_dir = Path(_git(resolved, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+    if git_dir == common_dir:
+        raise OmniRootError("a linked isolated git worktree is required")
+    if _git(resolved, "status", "--porcelain", "--untracked-files=all"):
+        raise OmniRootError("source worktree must be clean, including untracked files")
     return resolved, _git(resolved, "rev-parse", "HEAD")
+
+
+def _repository_identity(worktree: Path) -> Path:
+    return Path(_git(worktree, "rev-parse", "--path-format=absolute", "--git-common-dir")).resolve()
 
 
 def _delegate_contract(delegate: dict[str, Any] | None, worktree: Path, target: str, command: list[str], environment: dict[str, str]) -> dict[str, Any]:
@@ -515,20 +598,15 @@ def _delegate_contract(delegate: dict[str, Any] | None, worktree: Path, target: 
 
 
 def _overlaps_owned_paths(state_dir: Path, ownership: list[str]) -> bool:
-    if not ownership:
-        return False
     runs = state_dir / "runs"
     if not runs.is_dir():
         return False
     for path in runs.glob("*.json"):
-        try:
-            manifest = _load_json(path)
-        except OmniRootError:
-            continue
+        manifest = _load_json(path)
         if manifest.get("status") not in {"planned", "running", "stalled", "blocked", "review"}:
             continue
         existing = manifest.get("delegate", {}).get("pathOwnership", [])
-        if isinstance(existing, list):
+        if ownership and isinstance(existing, list):
             for requested in map(Path, ownership):
                 for held in map(Path, existing):
                     if requested == held or requested in held.parents or held in requested.parents:
@@ -564,11 +642,11 @@ def dispatch(
     environ: dict[str, str] | None = None,
     popen: Callable[..., Any] = subprocess.Popen,
     process_identity: Callable[[int], str | None] = process_identity,
-    task_id: str = "task-unspecified",
-    workflow: str = "ORCHESTRATOR + SINGLE IMPLEMENTER",
-    root_session_id: str = "root-unspecified",
+    task_id: str | None = None,
+    workflow: str | None = None,
+    root_session_id: str | None = None,
     base_commit: str | None = None,
-    integration_branch: str = "integration-unspecified",
+    integration_branch: str | None = None,
     integration_worktree: Path | None = None,
     delegate: dict[str, Any] | None = None,
     cadence_seconds: int = 600,
@@ -580,27 +658,41 @@ def dispatch(
         raise OmniRootError("target or delegated arguments are invalid")
     if workflow not in {"ORCHESTRATOR + SINGLE IMPLEMENTER", "ORCHESTRATOR + PARALLEL IMPLEMENTERS"}:
         raise OmniRootError("dispatch requires an orchestrated workflow")
-    if not all(isinstance(value, str) and value for value in (task_id, root_session_id, integration_branch)):
+    if not all(isinstance(value, str) and value and "unspecified" not in value
+               for value in (task_id, root_session_id, integration_branch)):
         raise OmniRootError("runtime identity is invalid")
     if not isinstance(cadence_seconds, int) or cadence_seconds not in {300, 600, 900}:
         raise OmniRootError("cadence must be 300, 600, or 900 seconds")
     if not isinstance(timeout_seconds, int) or not 1 <= timeout_seconds <= 86400:
         raise OmniRootError("timeout must be between 1 and 86400 seconds")
     worktree, actual_head = _validate_worktree(Path(worktree))
-    integration = worktree if integration_worktree is None else Path(integration_worktree).resolve(strict=True)
+    if integration_worktree is None:
+        raise OmniRootError("integration worktree is required")
+    integration = Path(integration_worktree).resolve(strict=True)
     _validate_worktree(integration)
-    frozen_base = actual_head if base_commit is None else base_commit
+    if _repository_identity(worktree) != _repository_identity(integration):
+        raise OmniRootError("delegate and integration worktrees must belong to the same repository")
+    frozen_base = base_commit
     if not isinstance(frozen_base, str) or not re.fullmatch(r"[0-9a-f]{40}", frozen_base):
         raise OmniRootError("base commit must be a full git object id")
+    _git(worktree, "cat-file", "-e", f"{frozen_base}^{{commit}}")
+    _git(worktree, "merge-base", "--is-ancestor", frozen_base, actual_head)
+    parsed_deadline = _parse_time(deadline)
+    if parsed_deadline is None or parsed_deadline <= _utc_now():
+        raise OmniRootError("a future timezone-aware deadline is required")
+    if not isinstance(delegate, dict) or not delegate.get("pathOwnership"):
+        raise OmniRootError("explicit non-empty delegate ownership is required")
     environment = os.environ.copy() if environ is None else dict(environ)
-    readiness = probe(config_path=config_path, opener=opener, environ=environment)
+    config = _read_config(config_path or default_config_path())
+    if config is None:
+        raise OmniRootError("OmniRoute is not ready: ROUTE_UNQUALIFIED")
+    readiness = probe(config_path=config_path, opener=opener, environ=environment, config=config)
     if readiness["state"] != "READY":
         raise OmniRootError(f"OmniRoute is not ready: {readiness['state']}")
     path = _run_path(Path(state_dir), run_id)
     if path.exists():
         raise OmniRootError("run id already exists")
-    config = _read_config(config_path or default_config_path())
-    launcher = _launcher(config or {})
+    launcher = _launcher(config)
     if launcher is None:
         raise OmniRootError("launcher is unqualified")
     launcher_argv, credential_mode, invocation_mode = launcher
@@ -657,6 +749,14 @@ def dispatch(
         with contextlib.suppress(OSError):
             path.unlink()
         raise OmniRootError("launcher did not expose a safe process id")
+    identity = process_identity(pid)
+    if not isinstance(identity, str) or not identity:
+        if os.name == "posix" and hasattr(os, "killpg"):
+            with contextlib.suppress(OSError):
+                os.killpg(pid, signal.SIGKILL)
+        with contextlib.suppress(OSError):
+            path.unlink()
+        raise OmniRootError("durable process identity cannot be proven; use native fallback")
     timestamp = _utc_now().isoformat()
     manifest = {
         "schemaVersion": SCHEMA_VERSION, "runId": run_id, "taskId": task_id, "workflow": workflow,
@@ -664,7 +764,7 @@ def dispatch(
         "integration": {"branch": integration_branch, "worktree": str(integration)},
         "qualification": {"state": readiness["state"], "fingerprint": readiness["qualificationFingerprint"],
                             "serverBuild": readiness["serverBuild"]},
-        "delegate": delegate_manifest, "pid": pid, "processIdentity": process_identity(pid), "status": "running",
+        "delegate": delegate_manifest, "pid": pid, "processIdentity": identity, "status": "running",
         "cadenceSeconds": cadence_seconds, "deadline": deadline,
         "timeoutSeconds": timeout_seconds,
         "timestamps": {"startedAt": timestamp, "updatedAt": timestamp}, "head": actual_head,
@@ -682,7 +782,8 @@ def dispatch(
         threading.Thread(
             target=_collect_diagnostics,
             args=(process, diagnostic_path),
-            kwargs={"timeout_seconds": timeout_seconds},
+            kwargs={"timeout_seconds": timeout_seconds,
+                    "secrets": [environment.get("OMNIROUTE_API_KEY", "")]},
             daemon=True,
         ).start()
     return manifest
@@ -696,7 +797,7 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
         raise OmniRootError("run status is invalid")
     if manifest.get("status") == "running":
         diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
-        diagnostic = _load_json(diagnostic_path) if diagnostic_path.is_file() else None
+        diagnostic = _validated_diagnostic(_load_json(diagnostic_path)) if diagnostic_path.is_file() else None
         if diagnostic is not None and isinstance(diagnostic.get("exitCode"), int):
             manifest["status"] = "review" if diagnostic["exitCode"] == 0 else "blocked"
             manifest["diagnostics"] = {
@@ -732,7 +833,19 @@ def cancel(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
     else:
         try:
             os.killpg(pid, signal.SIGTERM)
-        except (OSError, ProcessLookupError):
+            for _ in range(50):
+                if process_identity(pid) is None:
+                    break
+                time.sleep(0.1)
+            else:
+                os.killpg(pid, signal.SIGKILL)
+                for _ in range(50):
+                    if process_identity(pid) is None:
+                        break
+                    time.sleep(0.1)
+                else:
+                    raise OmniRootError("process group survived SIGKILL")
+        except (OSError, ProcessLookupError, OmniRootError):
             manifest["status"] = "quarantined"
             manifest["reason"] = "process termination could not be proven"
         else:
@@ -756,40 +869,67 @@ def complete(
         raise OmniRootError("receipt evidence is invalid")
     outcome = "success" if exit_code == 0 else "failed"
     manifest_path = _run_path(Path(state_dir), run_id)
-    manifest = _load_json(manifest_path) if manifest_path.is_file() else None
+    manifest = _load_json(manifest_path)
+    if manifest.get("status") not in {"review", "blocked", "cancelled"}:
+        raise OmniRootError("completion requires a terminal review, blocked, or cancelled manifest")
     diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
-    diagnostic = _load_json(diagnostic_path) if diagnostic_path.is_file() else None
-    if diagnostic is not None and diagnostic.get("exitCode") != exit_code:
+    diagnostic = _validated_diagnostic(_load_json(diagnostic_path))
+    if diagnostic.get("exitCode") != exit_code:
         raise OmniRootError("receipt exit code conflicts with captured process evidence")
-    if manifest is not None and manifest.get("status") == "cancelled":
+    if manifest.get("status") == "cancelled":
         outcome = "cancelled"
+    delegate = manifest.get("delegate")
+    ownership = delegate.get("pathOwnership") if isinstance(delegate, dict) else None
+    worktree_value = delegate.get("worktree") if isinstance(delegate, dict) else None
+    if not isinstance(ownership, list) or not isinstance(worktree_value, str):
+        raise OmniRootError("manifest lacks ownership-bound worktree evidence")
+    normalized = _relative_paths(changed_paths)
+    for changed in map(Path, normalized):
+        if not any(changed == Path(owned) or Path(owned) in changed.parents for owned in ownership):
+            raise OmniRootError("changed path falls outside delegate ownership")
+    verified_worktree, verified_head = _validate_worktree(Path(worktree_value))
+    integration_value = manifest.get("integration")
+    integration_path = integration_value.get("worktree") if isinstance(integration_value, dict) else None
+    if not isinstance(integration_path, str):
+        raise OmniRootError("manifest lacks integration worktree evidence")
+    verified_integration, _ = _validate_worktree(Path(integration_path))
+    if _repository_identity(verified_worktree) != _repository_identity(verified_integration):
+        raise OmniRootError("receipt worktrees do not belong to the same repository")
+    if clean is not True or head != verified_head:
+        raise OmniRootError("receipt HEAD and clean evidence must match the delegate worktree")
     timestamp = _utc_now().isoformat()
     receipt = {
         "schemaVersion": SCHEMA_VERSION, "runId": run_id, "outcome": outcome,
         "status": "completed" if outcome == "success" else "blocked" if outcome == "failed" else "cancelled",
-        "exitCode": exit_code, "head": head, "clean": clean, "changedPaths": _relative_paths(changed_paths),
+        "exitCode": exit_code, "head": head, "clean": clean, "changedPaths": normalized,
         "checks": checks or [], "blockers": blockers or [], "adjacentFindings": adjacent_findings or [],
         "learningDisposition": learning_disposition, "completedAt": timestamp,
-        "diagnostics": None if diagnostic is None else {
+        "diagnostics": {
             "sha256": _sha256(diagnostic), "timedOut": diagnostic.get("timedOut") is True,
             "stdoutTruncated": diagnostic.get("stdoutTruncated") is True,
             "stderrTruncated": diagnostic.get("stderrTruncated") is True,
         },
     }
     receipt_path = _receipt_path(Path(state_dir), run_id)
-    _write_json(receipt_path, receipt)
-    if manifest is not None:
-        manifest["status"] = receipt["status"]
-        manifest.setdefault("timestamps", {})["updatedAt"] = timestamp
-        manifest["head"] = head or manifest.get("head")
-        manifest["receipt"] = {"path": str(receipt_path), "sha256": _sha256(receipt)}
-        _write_json(manifest_path, manifest)
+    _create_immutable_json(receipt_path, receipt)
+    manifest["status"] = receipt["status"]
+    manifest.setdefault("timestamps", {})["updatedAt"] = timestamp
+    manifest["head"] = head
+    manifest["receipt"] = {"path": str(receipt_path), "sha256": _sha256(receipt)}
+    _write_json(manifest_path, manifest)
     return receipt
 
 
 def _print(value: dict[str, Any]) -> int:
     print(json.dumps(value, sort_keys=True))
     return 0
+
+
+def _private_contract(path: Path) -> dict[str, Any]:
+    value = _read_config(path)
+    if value is None:
+        raise OmniRootError("contract must be one owner-owned 0600 JSON file")
+    return value
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -806,26 +946,46 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("probe")
     dispatch_parser = commands.add_parser("dispatch")
-    dispatch_parser.add_argument("--run-id", required=True)
-    dispatch_parser.add_argument("--worktree", type=Path, required=True)
-    dispatch_parser.add_argument("--target", required=True)
-    dispatch_parser.add_argument("delegate_args", nargs=argparse.REMAINDER)
+    dispatch_parser.add_argument("--contract", type=Path, required=True)
     status_parser = commands.add_parser("status")
     status_parser.add_argument("--run-id", required=True)
     cancel_parser = commands.add_parser("cancel")
     cancel_parser.add_argument("--run-id", required=True)
+    complete_parser = commands.add_parser("complete")
+    complete_parser.add_argument("--contract", type=Path, required=True)
     args = parser.parse_args(raw_arguments)
     try:
         if args.command == "probe":
             return _print(probe(config_path=args.config))
         if args.command == "dispatch":
-            return _print(dispatch(
-                run_id=args.run_id, worktree=args.worktree, state_dir=args.state_dir,
-                config_path=args.config, target=args.target, delegate_args=args.delegate_args,
-            ))
+            contract = _private_contract(args.contract)
+            required = {"runId", "worktree", "target", "delegateArgs", "taskId", "workflow",
+                        "rootSessionId", "baseCommit", "integrationBranch", "integrationWorktree",
+                        "delegate", "cadenceSeconds", "deadline", "timeoutSeconds"}
+            if set(contract) != required:
+                raise OmniRootError("dispatch contract fields are invalid")
+            return _print(dispatch(run_id=contract["runId"], worktree=Path(contract["worktree"]),
+                state_dir=args.state_dir, config_path=args.config, target=contract["target"],
+                delegate_args=contract["delegateArgs"], task_id=contract["taskId"],
+                workflow=contract["workflow"], root_session_id=contract["rootSessionId"],
+                base_commit=contract["baseCommit"], integration_branch=contract["integrationBranch"],
+                integration_worktree=Path(contract["integrationWorktree"]), delegate=contract["delegate"],
+                cadence_seconds=contract["cadenceSeconds"], deadline=contract["deadline"],
+                timeout_seconds=contract["timeoutSeconds"]))
         if args.command == "status":
             return _print(status(args.run_id, args.state_dir))
-        return _print(cancel(args.run_id, args.state_dir))
+        if args.command == "cancel":
+            return _print(cancel(args.run_id, args.state_dir))
+        contract = _private_contract(args.contract)
+        required = {"runId", "exitCode", "changedPaths", "learningDisposition", "head", "clean",
+                    "checks", "blockers", "adjacentFindings"}
+        if set(contract) != required:
+            raise OmniRootError("complete contract fields are invalid")
+        return _print(complete(run_id=contract["runId"], state_dir=args.state_dir,
+            exit_code=contract["exitCode"], changed_paths=contract["changedPaths"],
+            learning_disposition=contract["learningDisposition"], head=contract["head"],
+            clean=contract["clean"], checks=contract["checks"], blockers=contract["blockers"],
+            adjacent_findings=contract["adjacentFindings"]))
     except OmniRootError as error:
         print(str(error), file=sys.stderr)
         return 1

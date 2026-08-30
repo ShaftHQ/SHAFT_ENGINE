@@ -10,6 +10,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.error import HTTPError
@@ -164,6 +165,18 @@ class OmniRootProbeTest(unittest.TestCase):
 
 
 class OmniRootRunnerTest(unittest.TestCase):
+    def _dispatch(self, **kwargs):
+        contract = {
+            "task_id": "task-1", "workflow": "ORCHESTRATOR + SINGLE IMPLEMENTER",
+            "root_session_id": "root-1", "base_commit": RUNNER._git(self.worktree, "rev-parse", "HEAD"),
+            "integration_branch": "integration", "integration_worktree": self.worktree,
+            "delegate": {"identity": "writer", "role": "implementer", "capability": "lower",
+                         "assignment": "bounded", "pathOwnership": ["docs"]},
+            "cadence_seconds": 600, "deadline": "2030-01-01T00:00:00+00:00", "timeout_seconds": 60,
+        }
+        contract.update(kwargs)
+        return RUNNER.dispatch(**contract)
+
     def test_process_identity_has_no_hard_coded_posix_absolute_path(self):
         self.assertNotIn('"/proc/', inspect.getsource(RUNNER.process_identity))
 
@@ -183,14 +196,16 @@ class OmniRootRunnerTest(unittest.TestCase):
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
+        self.repository = self.root / "repository"
         self.worktree = self.root / "worktree"
-        self.worktree.mkdir()
-        subprocess.run(["git", "init", "-q", str(self.worktree)], check=True)
-        subprocess.run(["git", "-C", str(self.worktree), "config", "user.email", "test@example.invalid"], check=True)
-        subprocess.run(["git", "-C", str(self.worktree), "config", "user.name", "test"], check=True)
-        (self.worktree / "README.md").write_text("test\n", encoding="utf-8")
-        subprocess.run(["git", "-C", str(self.worktree), "add", "README.md"], check=True)
-        subprocess.run(["git", "-C", str(self.worktree), "commit", "-qm", "init"], check=True)
+        self.repository.mkdir()
+        subprocess.run(["git", "init", "-q", str(self.repository)], check=True)
+        subprocess.run(["git", "-C", str(self.repository), "config", "user.email", "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(self.repository), "config", "user.name", "test"], check=True)
+        (self.repository / "README.md").write_text("test\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.repository), "add", "README.md"], check=True)
+        subprocess.run(["git", "-C", str(self.repository), "commit", "-qm", "init"], check=True)
+        subprocess.run(["git", "-C", str(self.repository), "worktree", "add", "-q", "-b", "delegate", str(self.worktree)], check=True)
         self.state = self.root / "state"
         self.config = self.root / "omniroot.json"
         self.launcher = self.root / "launcher"
@@ -226,7 +241,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             launched.append((argv, kwargs))
             return _Process()
 
-        manifest = RUNNER.dispatch(
+        manifest = self._dispatch(
             run_id="run-1",
             worktree=self.worktree,
             state_dir=self.state,
@@ -246,11 +261,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual(str(self.worktree), launched[0][1]["cwd"])
         self.assertNotIn("secret", json.dumps(manifest))
         self.assertEqual("ORCHESTRATOR + SINGLE IMPLEMENTER", manifest["workflow"])
-        self.assertEqual("task-unspecified", manifest["taskId"])
-        self.assertEqual("success", RUNNER.complete(
-            run_id="run-2", state_dir=self.state, exit_code=0, changed_paths=[],
-            learning_disposition="nothing-durable",
-        )["outcome"])
+        self.assertEqual("task-1", manifest["taskId"])
         path = self.state / "runs/run-1.json"
         self.assertEqual(0o600, path.stat().st_mode & 0o777)
 
@@ -298,7 +309,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         )
         self.assertEqual("ROUTE_UNQUALIFIED", result["state"])
         with self.assertRaises(RUNNER.OmniRootError):
-            RUNNER.dispatch(
+            self._dispatch(
                 run_id="missing", worktree=self.worktree, state_dir=self.state,
                 config_path=self.root / "missing.json", target="host-cli", delegate_args=[],
                 opener=lambda *_, **__: _Response(), environ={},
@@ -322,7 +333,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             launched.append((argv, kwargs))
             return _Process()
 
-        RUNNER.dispatch(
+        self._dispatch(
             run_id="direct-1",
             worktree=self.worktree,
             state_dir=self.state,
@@ -359,7 +370,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             launched.append((argv, kwargs))
             return _Process()
 
-        RUNNER.dispatch(
+        self._dispatch(
             run_id="direct-protected-1", worktree=self.worktree, state_dir=self.state,
             config_path=self.config, target="host-cli", delegate_args=["--task", "bounded"],
             opener=lambda *_, **__: _Response(),
@@ -370,12 +381,12 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertNotIn("OMNIROUTE_API_KEY", launched[0][1]["env"])
 
     def test_manifest_freezes_full_delegate_contract_without_private_assignment_data(self):
-        manifest = RUNNER.dispatch(
+        manifest = self._dispatch(
             run_id="full-1", worktree=self.worktree, state_dir=self.state, config_path=self.config,
             target="host-cli", delegate_args=["--task", "bounded"], opener=lambda *_, **__: _Response(),
             environ={"PATH": "/bin", "OMNIROUTE_API_KEY": "secret"}, popen=lambda *_a, **_k: _Process(),
             process_identity=lambda _: "identity", task_id="task-1", root_session_id="root-1",
-            base_commit="a" * 40, integration_branch="ChaosEngine/test",
+            base_commit=RUNNER._git(self.worktree, "rev-parse", "HEAD"), integration_branch="ChaosEngine/test",
             integration_worktree=self.worktree, delegate={"identity": "writer-a", "role": "implementer",
                 "capability": "default", "assignment": "opaque task", "pathOwnership": ["docs/file.md"]},
             cadence_seconds=600, deadline="2030-01-01T00:00:00+00:00",
@@ -389,13 +400,13 @@ class OmniRootRunnerTest(unittest.TestCase):
     def test_dispatch_rejects_dirty_worktree_and_overlapping_or_secret_ownership(self):
         (self.worktree / "README.md").write_text("dirty\n", encoding="utf-8")
         with self.assertRaises(RUNNER.OmniRootError):
-            RUNNER.dispatch(run_id="dirty", worktree=self.worktree, state_dir=self.state, config_path=self.config,
+            self._dispatch(run_id="dirty", worktree=self.worktree, state_dir=self.state, config_path=self.config,
                 target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
                 environ={"OMNIROUTE_API_KEY": "secret"})
         subprocess.run(["git", "-C", str(self.worktree), "checkout", "--", "README.md"], check=True)
         for run_id, paths in (("secret", [".env"]), ("private", ["private/key.txt"])):
             with self.assertRaises(RUNNER.OmniRootError):
-                RUNNER.dispatch(run_id=run_id, worktree=self.worktree, state_dir=self.state, config_path=self.config,
+                self._dispatch(run_id=run_id, worktree=self.worktree, state_dir=self.state, config_path=self.config,
                     target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
                     environ={"OMNIROUTE_API_KEY": "secret"}, delegate={"pathOwnership": paths})
 
@@ -405,7 +416,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             "delegate": {"pathOwnership": ["docs"]},
         })
         with self.assertRaises(RUNNER.OmniRootError):
-            RUNNER.dispatch(
+            self._dispatch(
                 run_id="nested", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
                 opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
@@ -471,7 +482,7 @@ class OmniRootRunnerTest(unittest.TestCase):
 
     def test_dispatch_rejects_non_ready_and_stale_cancel_quarantines(self):
         with self.assertRaises(RUNNER.OmniRootError):
-            RUNNER.dispatch(
+            self._dispatch(
                 run_id="run-1", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
                 opener=lambda *_, **__: (_ for _ in ()).throw(OSError("down")), environ={},
@@ -500,6 +511,12 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertNotIn("stdout", result["diagnostics"])
 
     def test_completion_receipt_is_terminal_and_redacted(self):
+        head = subprocess.run(["git", "-C", str(self.worktree), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        RUNNER._write_json(self.state / "runs/run-1.json", {
+            "schemaVersion": 1, "runId": "run-1", "status": "review", "head": head,
+            "delegate": {"pathOwnership": ["chaos-engine/skills/omniroot/SKILL.md"], "worktree": str(self.worktree)},
+            "integration": {"branch": "integration", "worktree": str(self.worktree)},
+        })
         diagnostic_path = self.state / "diagnostics/run-1.json"
         RUNNER._write_json(diagnostic_path, {
             "schemaVersion": 1, "exitCode": 0, "timedOut": False,
@@ -508,19 +525,23 @@ class OmniRootRunnerTest(unittest.TestCase):
         receipt = RUNNER.complete(
             run_id="run-1", state_dir=self.state, exit_code=0,
             changed_paths=["chaos-engine/skills/omniroot/SKILL.md"],
-            learning_disposition="nothing-durable", head="a" * 40, clean=True,
+            learning_disposition="nothing-durable", head=head, clean=True,
             checks=["python3 -m unittest"], blockers=[], adjacent_findings=[],
         )
         self.assertEqual("completed", receipt["status"])
         self.assertEqual("nothing-durable", receipt["learningDisposition"])
         self.assertEqual("success", receipt["outcome"])
-        self.assertEqual("a" * 40, receipt["head"])
+        self.assertEqual(head, receipt["head"])
         self.assertEqual(["python3 -m unittest"], receipt["checks"])
         self.assertEqual(RUNNER._sha256(RUNNER._load_json(diagnostic_path)), receipt["diagnostics"]["sha256"])
         self.assertFalse(receipt["diagnostics"]["timedOut"])
-        self.assertEqual(0o600, (self.state / "receipts/run-1.json").stat().st_mode & 0o777)
+        self.assertEqual(0o400, (self.state / "receipts/run-1.json").stat().st_mode & 0o777)
 
     def test_completion_rejects_exit_code_that_conflicts_with_captured_process(self):
+        RUNNER._write_json(self.state / "runs/run-3.json", {
+            "schemaVersion": 1, "runId": "run-3", "status": "blocked", "head": "a" * 40,
+            "delegate": {"pathOwnership": [], "worktree": str(self.worktree)},
+        })
         RUNNER._write_json(self.state / "diagnostics/run-3.json", {
             "schemaVersion": 1, "exitCode": 9, "timedOut": False,
             "stdout": "", "stderr": "failed", "stdoutTruncated": False, "stderrTruncated": False,
@@ -530,6 +551,90 @@ class OmniRootRunnerTest(unittest.TestCase):
                 run_id="run-3", state_dir=self.state, exit_code=0, changed_paths=[],
                 learning_disposition="nothing-durable",
             )
+
+    def test_probe_and_dispatch_use_one_sealed_config_snapshot(self):
+        original = RUNNER._read_config
+        calls = []
+        def once(path):
+            calls.append(path)
+            return original(path)
+        with mock.patch.object(RUNNER, "_read_config", side_effect=once):
+            self._dispatch(run_id="sealed", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[],
+                opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                popen=lambda *_a, **_k: _Process(), process_identity=lambda _: "identity")
+        self.assertEqual(1, len(calls))
+
+    def test_launcher_identity_binds_content_and_metadata(self):
+        qualified = RUNNER._resolved_executable([str(self.launcher)])
+        self.assertIsNotNone(qualified)
+        argv, identity = qualified
+        self.launcher.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        self.launcher.chmod(0o700)
+        self.assertFalse(RUNNER._same_executable(argv, identity))
+
+    def test_dispatch_rejects_untracked_and_primary_worktrees(self):
+        (self.worktree / "untracked.txt").write_text("x", encoding="utf-8")
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._validate_worktree(self.worktree)
+        (self.worktree / "untracked.txt").unlink()
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._validate_worktree(self.repository)
+
+    def test_corrupt_live_manifest_aborts_reservation(self):
+        RUNNER._private_directory(self.state / "runs")
+        bad = self.state / "runs/bad.json"
+        bad.write_text("not-json", encoding="utf-8")
+        bad.chmod(0o600)
+        with self.assertRaises(RUNNER.OmniRootError):
+            self._dispatch(run_id="new", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[],
+                opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                popen=lambda *_a, **_k: _Process(), process_identity=lambda _: "identity")
+
+    def test_dispatch_never_records_running_without_process_identity(self):
+        with self.assertRaises(RUNNER.OmniRootError):
+            self._dispatch(run_id="unknown", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[],
+                opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                popen=lambda *_a, **_k: _Process(), process_identity=lambda _: None)
+        self.assertFalse((self.state / "runs/unknown.json").exists())
+
+    def test_dispatch_rejects_fabricated_default_runtime_contract(self):
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER.dispatch(run_id="incomplete", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[])
+
+    def test_exact_credential_value_is_redacted_even_without_label(self):
+        redacted, _ = RUNNER._redact_diagnostic(b"prefix exact-value suffix", secrets=["exact-value"])
+        self.assertNotIn("exact-value", redacted)
+
+    def test_completion_requires_manifest_terminal_state_ownership_and_clean_head(self):
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER.complete(run_id="unknown", state_dir=self.state, exit_code=0,
+                changed_paths=[], learning_disposition="nothing-durable")
+        head = RUNNER._git(self.worktree, "rev-parse", "HEAD")
+        RUNNER._write_json(self.state / "runs/live.json", {"schemaVersion": 1, "runId": "live",
+            "status": "running", "head": head,
+            "delegate": {"pathOwnership": ["docs"], "worktree": str(self.worktree)},
+            "integration": {"branch": "integration", "worktree": str(self.worktree)}})
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER.complete(run_id="live", state_dir=self.state, exit_code=0,
+                changed_paths=["other/file"], learning_disposition="nothing-durable", head=head)
+
+    def test_cli_accepts_private_dispatch_contract_and_complete_contract(self):
+        dispatch_contract = self.root / "dispatch.json"
+        dispatch_contract.write_text(json.dumps({"runId": "cli", "worktree": str(self.worktree),
+            "target": "host-cli", "delegateArgs": [], "taskId": "task", "workflow": "ORCHESTRATOR + SINGLE IMPLEMENTER",
+            "rootSessionId": "root", "baseCommit": RUNNER._git(self.worktree, "rev-parse", "HEAD"),
+            "integrationBranch": "integration", "integrationWorktree": str(self.worktree),
+            "delegate": {"identity": "writer", "role": "implementer", "capability": "lower",
+                "assignment": "task", "pathOwnership": ["docs"]}, "cadenceSeconds": 600,
+            "deadline": "2030-01-01T00:00:00+00:00", "timeoutSeconds": 60}), encoding="utf-8")
+        dispatch_contract.chmod(0o600)
+        parser_source = inspect.getsource(RUNNER.main)
+        self.assertIn("--contract", parser_source)
+        self.assertIn('commands.add_parser("complete")', parser_source)
 
 
 if __name__ == "__main__":

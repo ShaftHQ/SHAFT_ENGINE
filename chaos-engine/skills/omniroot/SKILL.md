@@ -23,9 +23,10 @@ Use only the standard-library [runner](scripts/runner.py):
 
 ```text
 python3 chaos-engine/skills/omniroot/scripts/runner.py probe
-python3 chaos-engine/skills/omniroot/scripts/runner.py dispatch ...
+python3 chaos-engine/skills/omniroot/scripts/runner.py dispatch --contract /private/dispatch.json
 python3 chaos-engine/skills/omniroot/scripts/runner.py status ...
 python3 chaos-engine/skills/omniroot/scripts/runner.py cancel ...
+python3 chaos-engine/skills/omniroot/scripts/runner.py complete --contract /private/complete.json
 ```
 
 The only automatic endpoint is `http://127.0.0.1:20128/`. The runner permits
@@ -53,20 +54,33 @@ qualification hash; manifests never record route or model names.
 Qualification is freshly probed before every dispatch; volatile health and
 authentication facts never come from a stale `READY` cache. Operator config is
 a regular owner-owned private file (mode `0600` where permission bits exist).
-Dispatch resolves one absolute protected executable, attests its identity, and
-re-stats it immediately before execution. Dispatch requires a clean real Git
-worktree, interprocess-atomic ownership reservation, ancestor/descendant path
+Dispatch seals one config snapshot for qualification and launch. Loopback
+health disables ambient proxies and rejects redirects. Dispatch resolves one
+absolute protected executable, binds device, inode, owner, mode, size, mtime,
+and SHA-256 content, then revalidates it immediately before execution. Dispatch
+requires a clean linked Git worktree from the expected repository, including
+no untracked files, interprocess-atomic ownership reservation, ancestor/descendant path
 overlap rejection, argument-list process invocation, a minimal environment, a
 bounded runtime, and private state whose components reject symlinks and unsafe
 ownership or permissions. Standard output and error are drained without an unbounded buffer,
 secret-shaped values are redacted, and each retained stream is capped at 16
-KiB in a private diagnostic artifact. A timeout terminates the isolated process
-group; unsupported or unprovable termination fails closed. Its manifest
+KiB in a private diagnostic artifact. Redaction removes exact known credential
+values before persistence plus credential-shaped patterns. A timeout or cancel
+waits after `SIGTERM`, sends `SIGKILL` to survivors, and proves process-group
+death before releasing state. Unsupported durable process identity or process-tree
+termination fails closed to native delegation; OmniRoot transport is not claimed
+on that platform. Its manifest
 freezes task/workflow/root/base/integration/qualification/delegate/process/
 cadence/deadline/timeout/HEAD/diagnostic/receipt facts; its terminal receipt freezes outcome,
 exit, clean state, changed paths, checks, blockers, adjacent findings, and
 learning disposition plus the diagnostic hash and truncation/timeout flags.
-Receipt creation rejects an exit code that conflicts with captured process
+Dispatch and completion each consume one owner-owned `0600` JSON contract,
+covering workflow, root/task identity, ownership, integration target, cadence,
+deadline, timeout, and terminal evidence. Corrupt or unsafe live manifests abort
+reservation. Completion requires an existing manifest already in review,
+blocked, or cancelled state; captured terminal diagnostics; ownership-bound
+changed paths; verified clean Git HEAD; then creates one atomic non-replaceable
+private receipt. Receipt creation rejects an exit code that conflicts with captured process
 evidence. Unsupported cancellation or stale process identity
 quarantines state. Root verifies all returned claims and imports each delegate
 learning disposition before the sole Learning Session.
