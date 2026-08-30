@@ -2324,7 +2324,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                         expected_core_sha256=core_sha256,
                     )[0]
             elif account_mode:
-                if old_manifest is not None:
+                if old_manifest is not None and old_commit != commit:
                     prior_host_receipt = (
                         host_snapshot.get("raw") if isinstance(host_snapshot, dict) else None
                     )
