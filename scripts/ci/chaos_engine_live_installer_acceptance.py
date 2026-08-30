@@ -749,15 +749,16 @@ def run_public_wrapper_with_diagnostics(
     environment: dict[str, str] | None = None,
 ) -> None:
     """Preserve the wrapper failure while recording its installed read-only state."""
+    child_environment = environment or wrapper_environment()
     try:
         run_public_wrapper(
             commit,
             project,
             require_current_action=require_current_action,
-            environment=environment,
+            environment=child_environment,
         )
     except Exception as error:
-        statuses = read_only_account_statuses(project, environment=environment)
+        statuses = read_only_account_statuses(project, environment=child_environment)
         if statuses:
             error.component_statuses = statuses
         raise

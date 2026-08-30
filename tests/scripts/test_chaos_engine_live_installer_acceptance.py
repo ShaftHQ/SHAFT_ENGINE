@@ -423,16 +423,24 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                     "hooks": {"status": "unhealthy", "detail": "missing-managed-hook"},
                 },
             })
-            with mock.patch.object(module, "run_public_wrapper", side_effect=error), mock.patch.object(
+            isolated_environment = {"PATH": "isolated-account-tools"}
+            with mock.patch.object(
+                module, "wrapper_environment", return_value=isolated_environment
+            ), mock.patch.object(
+                module, "run_public_wrapper", side_effect=error
+            ) as wrapper, mock.patch.object(
                 module, "run_checked", side_effect=(
                     CompletedProcess([], 0, healthy, ""),
                     CompletedProcess([], 0, unhealthy, ""),
-                ),
-            ):
+                )
+            ) as runner:
                 with self.assertRaisesRegex(RuntimeError, "wrapper failed") as raised:
                     module.run_public_wrapper_with_diagnostics("a" * 40, project)
 
         self.assertIs(error, raised.exception)
+        self.assertIs(isolated_environment, wrapper.call_args.kwargs["environment"])
+        for call in runner.call_args_list:
+            self.assertIs(isolated_environment, call.kwargs["environment"])
         doctor = error.component_statuses["doctor"]
         self.assertEqual("missing-managed-hook", doctor["components"]["hooks"]["detail"])
         self.assertEqual("repaired", doctor["dependencyComponents"]["memory"]["action"])
