@@ -875,37 +875,84 @@ def _runtime_registry_path(state: Path, root_session_id: str) -> Path:
     return _contained_directory(Path(state), "runtime-registries") / f"{_session_hash(root_session_id)}.json"
 
 
-def register_runtime(
-    state: Path, root_session_id: str, participant_session_ids: list[str]
-) -> dict:
-    """Freeze dispatch-owned runtime membership before terminal assessment."""
-    participants = sorted(participant_session_ids)
-    if len(set(participants)) != len(participants):
-        raise ValueError("runtime participants must appear exactly once")
-    if root_session_id not in participants:
-        raise ValueError("runtime participants must include the root session")
-    if any(not isinstance(item, str) or not item.strip() for item in participants):
-        raise ValueError("runtime participants must be nonempty session identifiers")
+def _runtime_registry_value(root_session_id: str, participant_hashes: list[str], status: str) -> dict:
     identity = {
         "kind": "learning-runtime-registry",
         "root_session_hash": _session_hash(root_session_id),
-        "participant_hashes": sorted(_session_hash(item) for item in participants),
+        "participant_hashes": sorted(participant_hashes),
+        "status": status,
     }
-    value = {
-        "schema_version": 1,
+    return {
+        "schema_version": 2,
         "registry_id": _hash_text(_canonical(identity)),
         **identity,
-        "registered_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    with _state_lock(Path(state), f"runtime-registry-{identity['root_session_hash']}"):
+
+
+def create_runtime(state: Path, root_session_id: str) -> dict:
+    """Create an open root-owned registry before any delegate dispatch."""
+    if not isinstance(root_session_id, str) or not root_session_id.strip():
+        raise ValueError("runtime root must be a nonempty session identifier")
+    root_hash = _session_hash(root_session_id)
+    with _state_lock(Path(state), f"runtime-registry-{root_hash}"):
         path = _runtime_registry_path(Path(state), root_session_id)
         if path.is_file():
-            existing = _load_json_object(path)
-            if existing is None or {key: existing.get(key) for key in identity} != identity:
-                raise ValueError("runtime participants are already registered")
-            return existing
+            return _load_runtime_registry(Path(state), root_session_id)
+        value = _runtime_registry_value(root_session_id, [root_hash], "open")
         _atomic_json(path, value)
     return value
+
+
+def register_runtime_participant(
+    state: Path, root_session_id: str, participant_session_id: str
+) -> dict:
+    """Atomically bind one participant before its process is launched."""
+    if not isinstance(participant_session_id, str) or not participant_session_id.strip():
+        raise ValueError("runtime participant must be a nonempty session identifier")
+    root_hash = _session_hash(root_session_id)
+    participant_hash = _session_hash(participant_session_id)
+    with _state_lock(Path(state), f"runtime-registry-{root_hash}"):
+        registry = _load_runtime_registry(Path(state), root_session_id)
+        if registry["status"] != "open":
+            raise ValueError("runtime participant registry is closed")
+        if participant_hash in registry["participant_hashes"]:
+            return registry
+        value = _runtime_registry_value(
+            root_session_id, registry["participant_hashes"] + [participant_hash], "open"
+        )
+        _atomic_json(_runtime_registry_path(Path(state), root_session_id), value)
+        return value
+
+
+def close_runtime(state: Path, root_session_id: str) -> dict:
+    """Freeze membership explicitly; finalization also closes implicitly."""
+    root_hash = _session_hash(root_session_id)
+    with _state_lock(Path(state), f"runtime-registry-{root_hash}"):
+        registry = _load_runtime_registry(Path(state), root_session_id)
+        if registry["status"] == "closed":
+            return registry
+        value = _runtime_registry_value(
+            root_session_id, registry["participant_hashes"], "closed"
+        )
+        _atomic_json(_runtime_registry_path(Path(state), root_session_id), value)
+        return value
+
+
+def register_runtime(
+    state: Path, root_session_id: str, participant_session_ids: list[str]
+) -> dict:
+    """Compatibility wrapper: create an open runtime and add known participants."""
+    if len(set(participant_session_ids)) != len(participant_session_ids):
+        raise ValueError("runtime participants must appear exactly once")
+    if root_session_id not in participant_session_ids:
+        raise ValueError("runtime participants must include the root session")
+    registry = create_runtime(Path(state), root_session_id)
+    for participant_session_id in participant_session_ids:
+        registry = register_runtime_participant(
+            Path(state), root_session_id, participant_session_id
+        )
+    return registry
 
 
 def _load_runtime_registry(state: Path, root_session_id: str) -> dict:
@@ -914,18 +961,20 @@ def _load_runtime_registry(state: Path, root_session_id: str) -> dict:
         "kind": "learning-runtime-registry",
         "root_session_hash": _session_hash(root_session_id),
         "participant_hashes": value.get("participant_hashes") if value else None,
+        "status": value.get("status") if value else None,
     }
     if (
         value is None
-        or set(value) != {"schema_version", "registry_id", "kind", "root_session_hash", "participant_hashes", "registered_at"}
-        or value.get("schema_version") != 1
+        or set(value) != {"schema_version", "registry_id", "kind", "root_session_hash", "participant_hashes", "status", "updated_at"}
+        or value.get("schema_version") != 2
         or not isinstance(value.get("participant_hashes"), list)
         or not value["participant_hashes"]
         or len(set(value["participant_hashes"])) != len(value["participant_hashes"])
         or any(not isinstance(item, str) or not SHA256_RE.fullmatch(item) for item in value["participant_hashes"])
         or identity["root_session_hash"] not in value["participant_hashes"]
+        or value.get("status") not in {"open", "closed"}
         or value.get("registry_id") != _hash_text(_canonical(identity))
-        or not _valid_utc_timestamp(value.get("registered_at"))
+        or not _valid_utc_timestamp(value.get("updated_at"))
     ):
         raise ValueError("runtime participant registry is missing or invalid")
     return value
@@ -962,7 +1011,7 @@ def _load_unavailable_attestation(state: Path, root_hash: str, participant_hash:
 def attest_participant_unavailable(
     state: Path, root_session_id: str, participant_session_id: str, reason_code: str
 ) -> dict:
-    """Attest why a frozen delegate cannot produce terminal evidence."""
+    """Attest why a registered delegate cannot produce terminal evidence."""
     registry = _load_runtime_registry(Path(state), root_session_id)
     participant_hash = _session_hash(participant_session_id)
     if participant_hash not in registry["participant_hashes"]:
@@ -1000,7 +1049,7 @@ def finalize_runtime_session(
     dispositions: dict[str, str],
 ) -> dict:
     """Close one root-owned runtime after considering root and delegate receipts."""
-    registry = _load_runtime_registry(Path(state), root_session_id)
+    registry = close_runtime(Path(state), root_session_id)
     participant_hashes = registry["participant_hashes"]
     participant_receipts = {
         participant_hash: _load_receipts_by_hash(Path(state), participant_hash)
@@ -1587,6 +1636,13 @@ def build_parser() -> argparse.ArgumentParser:
     none.add_argument("--reason-code", choices=sorted(NO_LEARNING_REASONS), required=True)
     final = commands.add_parser("finalize")
     final.add_argument("--session-id", required=True)
+    create = commands.add_parser("create-runtime")
+    create.add_argument("--session-id", required=True)
+    participant = commands.add_parser("register-participant")
+    participant.add_argument("--session-id", required=True)
+    participant.add_argument("--participant-session-id", required=True)
+    close = commands.add_parser("close-runtime")
+    close.add_argument("--session-id", required=True)
     register = commands.add_parser("register-runtime")
     register.add_argument("--session-id", required=True)
     register.add_argument("--participant-session-id", action="append", required=True)
@@ -1660,6 +1716,14 @@ def main(arguments: list[str] | None = None) -> int:
             )
         elif options.command == "finalize":
             result = finalize_session(state, options.session_id)
+        elif options.command == "create-runtime":
+            result = create_runtime(state, options.session_id)
+        elif options.command == "register-participant":
+            result = register_runtime_participant(
+                state, options.session_id, options.participant_session_id
+            )
+        elif options.command == "close-runtime":
+            result = close_runtime(state, options.session_id)
         elif options.command == "register-runtime":
             result = register_runtime(state, options.session_id, options.participant_session_id)
         elif options.command == "attest-unavailable":

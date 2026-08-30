@@ -1349,6 +1349,36 @@ class TerminalLearningSessionTest(unittest.TestCase):
                 ),
             )
 
+    def test_runtime_created_root_only_accepts_delegate_before_finalization(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            created = controller.create_runtime(state, "root")
+            self.assertEqual(1, len(created["participant_hashes"]))
+
+            registered = controller.register_runtime_participant(
+                state, "root", "later-delegate"
+            )
+            self.assertEqual(2, len(registered["participant_hashes"]))
+            controller.attest_no_learning(state, "root", "no_new_evidence")
+
+            with self.assertRaisesRegex(ValueError, "delegate.*terminal evidence"):
+                controller.finalize_runtime_session(
+                    state, root_session_id="root", dispositions={}
+                )
+
+    def test_runtime_finalization_closes_registry_against_late_delegate(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.create_runtime(state, "root")
+            controller.attest_no_learning(state, "root", "no_new_evidence")
+            controller.finalize_runtime_session(
+                state, root_session_id="root", dispositions={}
+            )
+            with self.assertRaisesRegex(ValueError, "closed"):
+                controller.register_runtime_participant(state, "root", "late")
+
     def test_root_runtime_rejects_missing_delegate_disposition(self):
         controller = self.controller()
         with tempfile.TemporaryDirectory() as directory:
@@ -1385,13 +1415,11 @@ class TerminalLearningSessionTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "delegate.*terminal evidence"):
                 controller.finalize_runtime_session(state, root_session_id="root", dispositions={})
 
-    def test_runtime_registry_is_immutable_and_rejects_invented_participant(self):
+    def test_runtime_registry_rejects_invented_participant(self):
         controller = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             controller.register_runtime(state, "root", ["root", "delegate"])
-            with self.assertRaisesRegex(ValueError, "already registered"):
-                controller.register_runtime(state, "root", ["root", "invented"])
             with self.assertRaisesRegex(ValueError, "not registered"):
                 controller.attest_participant_unavailable(
                     state, "root", "invented", "delegate_unavailable"
@@ -1456,6 +1484,32 @@ class TerminalLearningSessionTest(unittest.TestCase):
                     ]
                 )
             self.assertEqual(0, result)
+
+    def test_cli_creates_runtime_then_registers_delegate(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            with patch.object(controller, "default_state_dir", return_value=state), redirect_stdout(
+                io.StringIO()
+            ):
+                self.assertEqual(
+                    0, controller.main(["create-runtime", "--session-id", "root-cli"])
+                )
+                self.assertEqual(
+                    0,
+                    controller.main(
+                        [
+                            "register-participant",
+                            "--session-id",
+                            "root-cli",
+                            "--participant-session-id",
+                            "delegate-cli",
+                        ]
+                    ),
+                )
+            registry = controller._load_runtime_registry(state, "root-cli")
+            self.assertEqual("open", registry["status"])
+            self.assertEqual(2, len(registry["participant_hashes"]))
 
     def test_cli_finalize_emits_the_existing_single_completion(self):
         controller = self.controller()

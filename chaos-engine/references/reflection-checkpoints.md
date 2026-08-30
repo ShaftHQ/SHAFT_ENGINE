@@ -68,8 +68,10 @@ the root deduplicates them before the one Learning Session. Persist only the
 minimal privacy-safe evidence and never persist provider, model, private route,
 credential, transcript, or machine-local path data.
 
-Dispatch freezes runtime membership before work begins. Terminal reflection
-uses that immutable registry, not a participant list reconstructed at the end.
+The root creates an open runtime registry before delegation. Every dispatch
+atomically registers its participant before process launch. Finalization closes
+and freezes the registry, then terminal reflection reads that stored membership
+rather than a caller-supplied list reconstructed at the end.
 Each registered main or delegate must have dispositions for its incidents or a
 no-learning attestation. Only an unreachable delegate may use an explicit
 unavailable attestation; absence is never treated as no learning.
