@@ -26,6 +26,7 @@ from pathlib import Path, PurePosixPath
 
 RECEIPT_NAME = ".chaos-engine-hosts.json"
 ROLLBACK_PREVIOUS_RECEIPT = "rollbackPreviousReceipt"
+ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT = "rollbackPreviousAccountReceipt"
 ANCHOR_NAME = ".chaos-engine-hosts.anchor"
 ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
@@ -3995,6 +3996,34 @@ def rollback_previous_receipt(project: Path, expected_core_commit: str) -> bytes
     return raw
 
 
+def rollback_previous_account_receipt(
+    project: Path, expected_core_commit: str
+) -> bytes | None:
+    """Return the authenticated exact account receipt saved with the prior hosts."""
+    if rollback_previous_receipt(project, expected_core_commit) is None:
+        return None
+    receipt, _ = read_receipt(project)
+    encoded = receipt.get(ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT)
+    if encoded is None:
+        return None
+    if not isinstance(encoded, str):
+        raise ValueError("ChaosEngine account rollback receipt is invalid")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+        previous = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, TypeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine account rollback receipt is invalid") from error
+    if (
+        base64.b64encode(raw).decode("ascii") != encoded
+        or not isinstance(previous, dict)
+        or previous.get("schemaVersion") != 2
+        or not isinstance(previous.get("components"), dict)
+        or not isinstance(previous.get("commands"), dict)
+    ):
+        raise ValueError("ChaosEngine account rollback receipt is invalid")
+    return raw
+
+
 def atomic_write(  # noqa: MC0001 - one descriptor-bound transaction protects user files.
     project: Path, path: Path, content: bytes, expected: bytes | None
 ) -> None:
@@ -4390,6 +4419,7 @@ def install(
     capability_policy_digest: str | None = None,
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
+    rollback_account_receipt: bytes | None = None,
     maven_docker: tuple[str, str] | None = None,
     upgrade_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -4464,10 +4494,26 @@ def install(
             if not isinstance(previous_receipt, dict):
                 raise ValueError("ChaosEngine host preflight snapshot is invalid")
             previous_receipt.pop(ROLLBACK_PREVIOUS_RECEIPT, None)
+            previous_receipt.pop(ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT, None)
             previous_receipt["rollbackIntent"] = None
             next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
                 receipt_bytes(previous_receipt, project)
             ).decode("ascii")
+            if rollback_account_receipt is not None:
+                try:
+                    account_receipt = json.loads(rollback_account_receipt.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                    raise ValueError("ChaosEngine account rollback receipt is invalid") from error
+                if (
+                    not isinstance(account_receipt, dict)
+                    or account_receipt.get("schemaVersion") != 2
+                    or not isinstance(account_receipt.get("components"), dict)
+                    or not isinstance(account_receipt.get("commands"), dict)
+                ):
+                    raise ValueError("ChaosEngine account rollback receipt is invalid")
+                next_receipt[ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT] = base64.b64encode(
+                    rollback_account_receipt
+                ).decode("ascii")
             next_receipt["phase"] = "installing"
             next_receipt["coreCommit"] = core_commit
             if desired_capability_digest is not None:

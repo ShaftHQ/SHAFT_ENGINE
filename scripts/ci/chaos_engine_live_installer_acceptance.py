@@ -54,15 +54,11 @@ POSIX_BASE_FAILURE_DETAIL = (
     "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
     "failed phase: Verify installation; unhealthy: hooks, mcps"
 )
-WINDOWS_BASE_FAILURE_DETAIL = (
-    "CE-INSTALL-FAILED: dependency verification failed: memory, context7; "
-    "failed phase: Provision dependencies; unhealthy: not reported"
-)
 ACCOUNT_COMMAND_NAMES = frozenset((
-    "uv", "python3", "node", "npm", "npx", "java", "mempalace",
-    "mempalace-mcp", "graphify", "memory", "memory-mcp", "context7",
+    "uv", "uvx", "python3", "node", "npm", "npx", "java", "mempalace",
+    "mempalace-mcp", "graphify", "memory", "memory-mcp", "ctx7",
 ))
-OS_PREREQUISITE_COMMANDS = frozenset(("python3",))
+OPTIONAL_ACCOUNT_COMMAND_NAMES = ACCOUNT_COMMAND_NAMES - {"python3"}
 
 
 class AcceptancePhaseFailure(RuntimeError):
@@ -100,9 +96,7 @@ def download_environment(base: dict[str, str] | None = None) -> dict[str, str]:
     return environment
 
 
-def wrapper_environment(
-    *, account_command_root: Path | None = None
-) -> dict[str, str]:
+def wrapper_environment() -> dict[str, str]:
     """Keep public-wrapper acceptance independent of ambient optional hosts."""
     environment = download_environment()
     if os.name == "nt":
@@ -110,18 +104,10 @@ def wrapper_environment(
         environment["PATH"] = os.pathsep.join((str(Path(system_root) / "System32"), system_root))
     else:
         environment["PATH"] = os.defpath
-    if account_command_root is not None:
-        if not account_command_root.is_absolute() or not account_command_root.is_dir():
-            raise ValueError("acceptance account command root is invalid")
-        environment["PATH"] = os.pathsep.join((
-            str(account_command_root), environment["PATH"],
-        ))
     return environment
 
 
-def isolated_account_environment(
-    root: Path, *, account_command_root: Path | None = None
-) -> dict[str, str]:
+def isolated_account_environment(root: Path) -> dict[str, str]:
     """Create one disposable account without inheriting any user cache root."""
     root = root.resolve()
     roots = {
@@ -132,6 +118,9 @@ def isolated_account_environment(
         "xdg-config": root / "xdg-config",
         "xdg-data": root / "xdg-data",
         "xdg-state": root / "xdg-state",
+        "xdg-runtime": root / "xdg-runtime",
+        "xdg-bin": root / "xdg-bin",
+        "temp": root / "tmp",
         "npm-cache": root / "npm-cache",
         "npm-prefix": root / "npm-prefix",
         "npm-config": root / "npm-config",
@@ -139,11 +128,21 @@ def isolated_account_environment(
         "uv-tools": root / "uv-tools",
         "uv-tool-bin": root / "uv-tool-bin",
         "uv-python": root / "uv-python",
+        "uv-python-bin": root / "uv-python-bin",
+        "python-user": root / "python-user",
+        "pip-cache": root / "pip-cache",
+        "pip-config": root / "pip-config",
     }
     for path in roots.values():
         path.mkdir(parents=True, exist_ok=True)
     home = roots["home"]
-    environment = wrapper_environment(account_command_root=account_command_root)
+    environment = wrapper_environment()
+    for name in (
+        "CONDA_PREFIX", "PIP_CONFIG_FILE", "PIP_REQUIRE_VIRTUALENV", "PIP_USER",
+        "PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "UV_CONFIG_FILE",
+        "UV_PROJECT_ENVIRONMENT", "XDG_BIN_HOME",
+    ):
+        environment.pop(name, None)
     environment.update({
         "HOME": str(home),
         "USERPROFILE": str(home),
@@ -153,19 +152,31 @@ def isolated_account_environment(
         "XDG_CONFIG_HOME": str(roots["xdg-config"]),
         "XDG_DATA_HOME": str(roots["xdg-data"]),
         "XDG_STATE_HOME": str(roots["xdg-state"]),
+        "XDG_RUNTIME_DIR": str(roots["xdg-runtime"]),
+        "XDG_BIN_HOME": str(roots["xdg-bin"]),
+        "TMPDIR": str(roots["temp"]),
+        "TEMP": str(roots["temp"]),
+        "TMP": str(roots["temp"]),
         "NPM_CONFIG_CACHE": str(roots["npm-cache"]),
         "NPM_CONFIG_PREFIX": str(roots["npm-prefix"]),
         "NPM_CONFIG_USERCONFIG": str(roots["npm-config"] / "npmrc"),
+        "NPM_CONFIG_GLOBALCONFIG": str(roots["npm-config"] / "global-npmrc"),
         "UV_CACHE_DIR": str(roots["uv-cache"]),
         "UV_TOOL_DIR": str(roots["uv-tools"]),
         "UV_TOOL_BIN_DIR": str(roots["uv-tool-bin"]),
         "UV_PYTHON_INSTALL_DIR": str(roots["uv-python"]),
+        "UV_PYTHON_BIN_DIR": str(roots["uv-python-bin"]),
         "UV_PYTHON_DIR": str(roots["uv-python"]),
-        "PYTHONUSERBASE": str(root / "python-user"),
-        "PIP_CACHE_DIR": str(root / "pip-cache"),
+        "PYTHONUSERBASE": str(roots["python-user"]),
+        "PIP_CACHE_DIR": str(roots["pip-cache"]),
+        "PIP_CONFIG_FILE": str(roots["pip-config"] / "pip.conf"),
+        "PYTHONNOUSERSITE": "1",
     })
-    Path(environment["PYTHONUSERBASE"]).mkdir(parents=True, exist_ok=True)
-    Path(environment["PIP_CACHE_DIR"]).mkdir(parents=True, exist_ok=True)
+    npm_executable_bin = roots["npm-prefix"] / ("Scripts" if os.name == "nt" else "bin")
+    npm_executable_bin.mkdir(parents=True, exist_ok=True)
+    environment["PATH"] = os.pathsep.join((
+        environment["UV_TOOL_BIN_DIR"], str(npm_executable_bin), environment["PATH"],
+    ))
     if os.name == "nt":
         drive = home.drive
         if not drive:
@@ -184,16 +195,26 @@ def assert_account_command_roots(commands: object, account_root: Path) -> None:
     """Reject any optional account dispatcher escaping its disposable account."""
     if not isinstance(commands, dict):
         raise RuntimeError("account command receipt is invalid")
-    account_root = account_root.resolve()
+    account_root = account_root.resolve(strict=True)
+    expected = set(ACCOUNT_COMMAND_NAMES)
+    if os.name == "nt" and "python" in commands:
+        expected.remove("python3")
+        expected.add("python")
+    if set(commands) != expected:
+        raise RuntimeError("account command receipt executables are incomplete")
     for name, value in commands.items():
-        if name not in ACCOUNT_COMMAND_NAMES or not isinstance(value, str):
+        if name not in expected or not isinstance(value, str):
             raise RuntimeError("unknown account command")
         command = Path(value)
         if not command.is_absolute():
             raise RuntimeError("account command is not absolute")
-        if command.is_relative_to(account_root):
-            continue
-        if name not in OS_PREREQUISITE_COMMANDS:
+        try:
+            resolved = command.resolve(strict=True)
+        except OSError as error:
+            raise RuntimeError("account command is not a file") from error
+        if not resolved.is_file():
+            raise RuntimeError("account command is not a file")
+        if name in OPTIONAL_ACCOUNT_COMMAND_NAMES and not resolved.is_relative_to(account_root):
             raise RuntimeError(f"account command outside isolated account: {name}")
 
 
@@ -242,47 +263,21 @@ def known_base_component_statuses(base_sha: str) -> dict[str, dict[str, object]]
 def exact_base_compatibility_transition(
     error: Exception, base_sha: str, *, windows: bool
 ) -> str:
-    """Allow one observed immutable-base incompatibility; propagate every other failure."""
+    """Allow only the observed post-provision doctor incompatibility."""
     if (
         not isinstance(error, AcceptanceCommandFailure)
         or base_sha != KNOWN_BASE_SHA
+        or windows
         or error.returncode != 1
         or tuple(error.command) != tuple(public_wrapper_command(base_sha, windows=windows))
     ):
         raise error
-    expected = WINDOWS_BASE_FAILURE_DETAIL if windows else POSIX_BASE_FAILURE_DETAIL
-    if str(error) != f"command failed (1): {expected}":
+    if str(error) != f"command failed (1): {POSIX_BASE_FAILURE_DETAIL}":
         raise error
     statuses = getattr(error, "component_statuses", None)
-    if windows:
-        if statuses is not None:
-            raise error
-        return "windows"
     if statuses != known_base_component_statuses(base_sha):
         raise error
-    return "posix"
-
-
-def prepare_account_command_root(
-    root: Path, commands: dict[str, object]
-) -> Path:
-    """Expose exactly the account receipt commands; never rediscover host tools."""
-    if not isinstance(commands.get("python3"), str):
-        raise RuntimeError("base account receipt is missing Python")
-    root.mkdir(parents=True, exist_ok=True)
-    for name, command in sorted(commands.items()):
-        if name not in ACCOUNT_COMMAND_NAMES or not isinstance(command, str):
-            raise RuntimeError("base account receipt contains an unknown command")
-        owned_command = Path(command)
-        if not owned_command.is_absolute() or not owned_command.is_file():
-            raise RuntimeError(f"base account command is invalid: {name}")
-        if os.name == "nt":
-            root.joinpath(f"{name}.cmd").write_text(
-                f'@"{owned_command}" %*\r\n', encoding="utf-8"
-            )
-        else:
-            root.joinpath(name).symlink_to(owned_command)
-    return root
+    return "post-provision-doctor"
 
 
 def offline_environment(
@@ -516,18 +511,6 @@ def stage_source(source: Path, destination: Path) -> Path:
     return destination
 
 
-def download_commit_source(source: Path, commit: str, destination: Path) -> Path:
-    specification = importlib.util.spec_from_file_location(
-        "chaos_engine_acceptance_bootstrap", source / "bootstrap.py"
-    )
-    if specification is None or specification.loader is None:
-        raise RuntimeError("candidate bootstrap could not be loaded")
-    module = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(module)
-    destination.mkdir()
-    return module.download_source("ShaftHQ/SHAFT_ENGINE", commit, destination)
-
-
 def load_source_controller(source: Path, name: str):
     specification = importlib.util.spec_from_file_location(
         f"chaos_engine_acceptance_{name}", source / f"{name}.py"
@@ -544,6 +527,30 @@ def account_receipt_commands(project: Path, account_root: Path) -> dict[str, str
     commands = receipt.get("commands")
     assert_account_command_roots(commands, account_root)
     return dict(commands)
+
+
+def assert_account_search_paths(
+    base_project: Path, candidate_source: Path, environment: dict[str, str]
+) -> None:
+    """Prove both public base and candidate discovery see isolated executable bins."""
+    expected = {
+        environment["UV_TOOL_BIN_DIR"],
+        str(Path(environment["NPM_CONFIG_PREFIX"]) / (
+            "Scripts" if os.name == "nt" else "bin"
+        )),
+    }
+    previous = os.environ.copy()
+    try:
+        os.environ.clear()
+        os.environ.update(environment)
+        for source in (base_project / ".chaos-engine", candidate_source):
+            controller = load_source_controller(source, "dependencies")
+            search = set(controller._account_search_path().split(os.pathsep))
+            if not expected <= search:
+                raise RuntimeError("account dependency search path omits configured executable bins")
+    finally:
+        os.environ.clear()
+        os.environ.update(previous)
 
 
 def capture_files(root: Path, relative: str) -> dict[str, bytes]:
@@ -563,6 +570,9 @@ def snapshot_base_state(project: Path) -> dict[str, object]:
     installed = project / ".chaos-engine"
     manifest = (installed / "manifest.json").read_bytes()
     host_receipt = (project / ".chaos-engine-hosts.json").read_bytes()
+    account_receipt = project / ".chaos-engine-dependencies.json"
+    if not account_receipt.is_file() or account_receipt.is_symlink():
+        raise RuntimeError("base account dependency receipt is invalid")
     try:
         receipt = json.loads(host_receipt.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -587,6 +597,7 @@ def snapshot_base_state(project: Path) -> dict[str, object]:
     return {
         "manifest": manifest,
         "hostReceipt": host_receipt,
+        "accountReceipt": account_receipt.read_bytes(),
         "managed": managed,
         "configuration": {
             **capture_files(project, "mempalace.yaml"),
@@ -602,6 +613,8 @@ def assert_base_state_restored(project: Path, snapshot: dict[str, object]) -> No
         raise RuntimeError("rollback did not restore the exact base manifest")
     if (project / ".chaos-engine-hosts.json").read_bytes() != snapshot["hostReceipt"]:
         raise RuntimeError("rollback did not restore the exact base host receipt")
+    if (project / ".chaos-engine-dependencies.json").read_bytes() != snapshot["accountReceipt"]:
+        raise RuntimeError("rollback did not restore the exact base dependency receipt")
     managed = snapshot.get("managed")
     if not isinstance(managed, dict):
         raise RuntimeError("base snapshot is invalid")
@@ -625,38 +638,6 @@ def assert_base_state_restored(project: Path, snapshot: dict[str, object]) -> No
         } != sentinels
     ):
         raise RuntimeError("rollback rewrote base configuration or sentinel data")
-
-
-def reconstruct_windows_base(
-    project: Path, source: Path, base_sha: str, account_root: Path
-) -> None:
-    """Recreate only the verified public-base core and generated hosts after its known failure."""
-    base_source = download_commit_source(source, base_sha, project.parent / "base-source")
-    installer = load_source_controller(base_source, "install")
-    dependencies = load_source_controller(base_source, "dependencies")
-    hosts = load_source_controller(base_source, "hosts")
-    distribution = installer.detect_distribution(project, base_source)
-    target = installer.install(
-        project,
-        base_source,
-        base_sha,
-        source_record={
-            "kind": "git", "repository": "shafthq/shaft_engine",
-            "branch": base_sha, "commit": base_sha,
-        },
-        distribution=distribution,
-    )
-    specification = dependencies.load_specification(base_source / "dependencies.json")
-    _observed, commands = dependencies.discover_account_commands(specification)
-    assert_account_command_roots(commands, account_root)
-    manifest = installer.verify_install(target)
-    hosts.install(
-        project,
-        core_commit=base_sha,
-        capability_policy_digest=manifest.get("capabilityPolicySha256"),
-        account_commands=commands,
-    )
-    hosts.verify(project, core_commit=base_sha)
 
 
 def raw_wrapper_url(commit: str, *, windows: bool) -> str:
@@ -1178,20 +1159,6 @@ def project_snapshot(project: Path) -> dict[str, bytes]:
     }
 
 
-def seed_exact_mempalace(source: Path, project: Path) -> None:
-    """Make the disposable legacy account project healthy without global mining."""
-    specification = importlib.util.spec_from_file_location(
-        "chaos_engine_acceptance_hosts", source / "hosts.py"
-    )
-    if specification is None or specification.loader is None:
-        raise RuntimeError("candidate hosts controller could not be loaded")
-    controller = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(controller)
-    controller.initialize_mempalace_runtime(project)
-    marker = project / ".chaos-engine-state/mempalace/.mined"
-    marker.write_bytes(b"current\n")
-
-
 def assert_local_mempalace(project: Path) -> None:
     palace = project / ".chaos-engine-state/mempalace"
     if not (palace / "sqlite_exact.sqlite3").is_file():
@@ -1226,23 +1193,24 @@ def run_acceptance(
     source = source.resolve()
     with tempfile.TemporaryDirectory(prefix="chaos-engine-live-") as temporary:
         root = Path(temporary)
-        account_root = root / "isolated account"
+        account_root = root / "base isolated account"
         account_environment = isolated_account_environment(account_root)
+        fresh_account_root = root / "fresh isolated account"
+        fresh_environment = isolated_account_environment(fresh_account_root)
         base_project = root / "base consumer with spaces Ω"
-        blank_project = root / "blank consumer with spaces Ω"
+        fresh_project = root / "fresh consumer with spaces Ω"
         base_project.mkdir()
-        blank_project.mkdir()
+        fresh_project.mkdir()
         user_config = (
             "wing: acceptance\n"
             "rooms:\n  - name: general\n    description: Acceptance project\n"
             "exclude_patterns:\n  - .chaos-engine-state/**\n"
         ).encode()
         base_project.joinpath("mempalace.yaml").write_bytes(user_config)
-        seed_exact_mempalace(source, base_project)
         base_sentinel = base_project / "user-sentinel.txt"
         base_sentinel.write_bytes(b"preserve base user data\n")
-        blank_sentinel = blank_project / "user-sentinel.txt"
-        blank_sentinel.write_bytes(b"preserve blank user data\n")
+        fresh_sentinel = fresh_project / "user-sentinel.txt"
+        fresh_sentinel.write_bytes(b"preserve fresh user data\n")
 
         def install_and_verify(
             project: Path,
@@ -1261,14 +1229,14 @@ def run_acceptance(
             )
 
         def install_candidate_and_verify(
-            project: Path, *, environment: dict[str, str]
+            project: Path, account: Path, *, environment: dict[str, str]
         ) -> dict[str, object]:
             result = install_and_verify(project, candidate_sha, environment=environment)
-            commands = account_receipt_commands(project, account_root)
+            commands = account_receipt_commands(project, account)
             result["accountCommandNames"] = sorted(commands)
             return result
 
-        def establish_base_compatibility() -> dict[str, object]:
+        def establish_base() -> dict[str, object]:
             try:
                 run_public_wrapper_with_diagnostics(
                     base_sha,
@@ -1281,22 +1249,19 @@ def run_acceptance(
                     error, base_sha, windows=os.name == "nt"
                 )
             else:
-                raise RuntimeError(
-                    "immutable base wrapper unexpectedly bypassed its known compatibility transition"
-                )
-            if transition == "windows":
-                reconstruct_windows_base(base_project, source, base_sha, account_root)
+                transition = None
             commands = account_receipt_commands(base_project, account_root)
+            assert_account_search_paths(base_project, source, account_environment)
             return {
-                "status": "base-compatibility-transition",
-                "transition": transition,
+                "status": "base-public-wrapper",
+                "transition": transition or "none",
                 "accountCommandNames": sorted(commands),
             }
 
         record_phase(
             evidence,
-            "preseeded-base-wrapper",
-            establish_base_compatibility,
+            "base-public-wrapper",
+            establish_base,
         )
         if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
             raise RuntimeError("base public install rewrote valid user configuration")
@@ -1305,9 +1270,7 @@ def run_acceptance(
         if (base_project / ".chaos-engine-runtime-current.json").exists():
             raise RuntimeError("base account install unexpectedly created a generation")
         base_snapshot = snapshot_base_state(base_project)
-        offline_source = download_commit_source(
-            source, base_sha, root / "offline-base-source"
-        )
+        offline_source = base_project / ".chaos-engine"
         base_before_offline = project_snapshot(base_project)
 
         def base_offline_no_mutation() -> dict[str, object]:
@@ -1324,7 +1287,7 @@ def run_acceptance(
             evidence,
             "upgrade-candidate-wrapper",
             lambda: install_candidate_and_verify(
-                base_project, environment=account_environment
+                base_project, account_root, environment=account_environment
             ),
         )
         if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
@@ -1360,48 +1323,53 @@ def run_acceptance(
         if base_sentinel.read_bytes() != b"preserve base user data\n":
             raise RuntimeError("rollback rewrote user sentinel")
 
-        base_commands = account_receipt_commands(base_project, account_root)
-        blank_environment = isolated_account_environment(
-            account_root,
-            account_command_root=prepare_account_command_root(
-                account_root / "commands", base_commands
-            ),
-        )
-        first_blank = record_phase(
+        record_phase(
             evidence,
-            "blank-candidate-wrapper",
+            "reupgrade-candidate-wrapper",
             lambda: install_candidate_and_verify(
-                blank_project, environment=blank_environment
+                base_project, account_root, environment=account_environment
             ),
         )
-        if any(action != "reused" for action in first_blank["actions"].values()):
-            raise RuntimeError("blank candidate install did not reuse account tools")
-        if blank_sentinel.read_bytes() != b"preserve blank user data\n":
-            raise RuntimeError("candidate install rewrote blank user sentinel")
-        assert_local_mempalace(blank_project)
-        assert_single_generated_mempalace(blank_project)
-        account_receipt = blank_project / ".chaos-engine-dependencies.json"
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("candidate reupgrade rewrote valid user configuration")
+        assert_local_mempalace(base_project)
+        assert_single_generated_mempalace(base_project)
+
+        first_fresh = record_phase(
+            evidence,
+            "fresh-account-candidate-wrapper",
+            lambda: install_candidate_and_verify(
+                fresh_project, fresh_account_root, environment=fresh_environment
+            ),
+        )
+        if all(action == "reused" for action in first_fresh["actions"].values()):
+            raise RuntimeError("fresh account candidate install did not install isolated tools")
+        if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":
+            raise RuntimeError("candidate install rewrote fresh user sentinel")
+        assert_local_mempalace(fresh_project)
+        assert_single_generated_mempalace(fresh_project)
+        account_receipt = fresh_project / ".chaos-engine-dependencies.json"
         commands_before = read_json(account_receipt)["commands"]
         marker_before = (
-            blank_project / ".chaos-engine-state/mempalace/.mined"
+            fresh_project / ".chaos-engine-state/mempalace/.mined"
         ).read_bytes()
         repeated = record_phase(
             evidence,
-            "blank-candidate-rerun",
+            "fresh-account-rerun",
             lambda: install_candidate_and_verify(
-                blank_project, environment=blank_environment
+                fresh_project, fresh_account_root, environment=fresh_environment
             ),
         )
         if read_json(account_receipt)["commands"] != commands_before:
             raise RuntimeError("healthy account rerun changed resolved executable dispatch")
         if any(action != "reused" for action in repeated["actions"].values()):
             raise RuntimeError("healthy account rerun did not reuse latest stable tools")
-        if (blank_project / ".chaos-engine-state/mempalace/.mined").read_bytes() != marker_before:
+        if (fresh_project / ".chaos-engine-state/mempalace/.mined").read_bytes() != marker_before:
             raise RuntimeError("healthy account rerun repeated MemPalace mining")
-        if blank_sentinel.read_bytes() != b"preserve blank user data\n":
-            raise RuntimeError("candidate rerun rewrote blank user sentinel")
-        assert_local_mempalace(blank_project)
-        assert_single_generated_mempalace(blank_project)
+        if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":
+            raise RuntimeError("candidate rerun rewrote fresh user sentinel")
+        assert_local_mempalace(fresh_project)
+        assert_single_generated_mempalace(fresh_project)
 
 
 def write_evidence(path: Path, evidence: dict[str, object]) -> None:

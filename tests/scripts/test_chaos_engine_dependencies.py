@@ -345,6 +345,27 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
             self.assertTrue(search[0].endswith("24.19.0/bin"))
 
+    def test_account_search_path_includes_configured_uv_and_npm_executable_bins(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            module.Path, "home", return_value=Path(temporary)
+        ), mock.patch.dict(
+            module.os.environ,
+            {
+                "UV_TOOL_BIN_DIR": str(Path(temporary) / "uv-tool-bin"),
+                "NPM_CONFIG_PREFIX": str(Path(temporary) / "npm-prefix"),
+                "PATH": "/system/bin",
+            },
+            clear=True,
+        ):
+            search = module._account_search_path().split(os.pathsep)
+
+        self.assertIn(str(Path(temporary) / "uv-tool-bin"), search)
+        self.assertIn(
+            str(Path(temporary) / "npm-prefix" / ("Scripts" if os.name == "nt" else "bin")),
+            search,
+        )
+
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
         module = load_controller()
         calls = []

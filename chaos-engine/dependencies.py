@@ -378,7 +378,8 @@ def probe_account_dependency(
 
 
 def _account_search_path() -> str:
-    managed_node = Path.home() / ".local/share/chaos-engine/node"
+    home = Path.home()
+    managed_node = home / ".local/share/chaos-engine/node"
     node_bins = sorted(
         (
             root if os.name == "nt" else root / "bin"
@@ -393,10 +394,15 @@ def _account_search_path() -> str:
         ),
         reverse=True,
     )
+    uv_tool_bin = Path(os.environ.get("UV_TOOL_BIN_DIR") or home / ".local/bin")
+    npm_prefix = Path(os.environ.get("NPM_CONFIG_PREFIX") or home / ".local")
+    npm_bin = npm_prefix / ("Scripts" if os.name == "nt" else "bin")
     candidates = [
         *node_bins,
-        Path.home() / ".local/bin",
-        Path.home() / ".cargo/bin",
+        uv_tool_bin,
+        npm_bin,
+        home / ".local/bin",
+        home / ".cargo/bin",
     ]
     current = os.environ.get("PATH", "")
     return os.pathsep.join([*(str(path) for path in candidates), current])

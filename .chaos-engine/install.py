@@ -1258,23 +1258,41 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 current_commit = str(verify_install(target)["source"]["commit"])
                 previous_commit = str(verify_install(backup)["source"]["commit"])
                 previous_dependencies = load_dependency_controller(backup)
+                account_receipt_path = project / ".chaos-engine-dependencies.json"
                 account_rollback = (
                     hasattr(previous_dependencies, "install_account_dependencies")
-                    and (project / ".chaos-engine-dependencies.json").is_file()
+                    and account_receipt_path.is_file()
                 )
                 previous_receipt = getattr(
                     receipt_controller, "rollback_previous_receipt", None
                 )
                 if account_rollback:
+                    if is_link_or_reparse(account_receipt_path):
+                        raise ValueError(
+                            "account rollback has no exact prior dependency receipt"
+                        )
                     if not callable(previous_receipt):
                         raise ValueError("account rollback has no exact prior host receipt")
                     raw = previous_receipt(project, previous_commit)
                     if not isinstance(raw, bytes):
                         raise ValueError("account rollback has no exact prior host receipt")
+                    previous_account_receipt = getattr(
+                        receipt_controller, "rollback_previous_account_receipt", None
+                    )
+                    if not callable(previous_account_receipt):
+                        raise ValueError(
+                            "account rollback has no exact prior dependency receipt"
+                        )
+                    account_raw = previous_account_receipt(project, previous_commit)
+                    if not isinstance(account_raw, bytes):
+                        raise ValueError(
+                            "account rollback has no exact prior dependency receipt"
+                        )
                     pending = {
                         "desiredCommit": previous_commit,
                         "priorCommit": current_commit,
                         "priorHostReceipt": raw,
+                        "priorAccountReceipt": account_raw,
                     }
                 else:
                     write_cross_rollback_journal(project, previous_commit, current_commit)
@@ -1311,10 +1329,13 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             current_dependencies = load_dependency_controller(target)
             desired_root = target if target_commit == desired_commit else backup
             previous_dependencies = load_dependency_controller(desired_root)
+            account_receipt_path = project / ".chaos-engine-dependencies.json"
             previous_account_mode = (
                 hasattr(previous_dependencies, "install_account_dependencies")
-                and (project / ".chaos-engine-dependencies.json").is_file()
+                and account_receipt_path.is_file()
             )
+            if previous_account_mode and is_link_or_reparse(account_receipt_path):
+                raise ValueError("account rollback has no exact prior dependency receipt")
             if not previous_account_mode and hasattr(current_dependencies, "validated_previous") and hasattr(
                 previous_dependencies, "publish_pointer"
             ):
@@ -1359,6 +1380,14 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                     if isinstance(prior_host_receipt, bytes)
                     else None
                 )
+                prior_account_receipt = pending.get("priorAccountReceipt")
+                prior_account_receipt_value = (
+                    prior_account_receipt
+                    if isinstance(prior_account_receipt, bytes)
+                    else None
+                )
+                if previous_account_mode and prior_account_receipt_value is None:
+                    raise ValueError("account rollback has no exact prior dependency receipt")
                 restored_prior_host_receipt = (
                     previous_account_mode and prior_host_receipt_value is not None
                 )
@@ -1405,6 +1434,16 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                             project, restored_host_receipt, restored_host_raw
                         )
                 previous_dependencies = load_dependency_controller(target)
+                if previous_account_mode:
+                    current_account_receipt = account_receipt_path.read_bytes()
+                    previous_hosts.atomic_write(
+                        project,
+                        account_receipt_path,
+                        prior_account_receipt_value,
+                        current_account_receipt,
+                    )
+                    if account_receipt_path.read_bytes() != prior_account_receipt_value:
+                        raise ValueError("account dependency receipt changed during rollback")
                 if (
                     generation_previous is not None
                     and not generation_pointer_already_published
@@ -1931,6 +1970,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 dependency_runtime=dependency_generation,
                 account_commands=account_commands,
                 maven_docker=maven_docker,
+                **(
+                    {"rollback_account_receipt": account_receipt_before}
+                    if account_mode and account_receipt_before is not None
+                    else {}
+                ),
                 **({"upgrade_snapshot": host_snapshot} if host_snapshot is not None else {}),
             )
             host_created = not host_existed

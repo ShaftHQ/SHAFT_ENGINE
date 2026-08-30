@@ -312,30 +312,14 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertNotIn("OPENAI_API_KEY", child_environment)
         self.assertEqual(os.defpath, child_environment["PATH"])
 
-    def test_disposable_account_root_exposes_only_the_installer_python(self):
+    def test_public_wrapper_environment_exposes_only_system_prerequisites(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
         if module is None:
             return
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            owned_python = root / "python3.14"
-            owned_python.write_text("fixture", encoding="utf-8")
-            account_root = module.prepare_account_command_root(
-                root / "account-commands", {"python3": str(owned_python)}
-            )
+        environment = module.wrapper_environment()
 
-            alias = account_root / ("python3.cmd" if os.name == "nt" else "python3")
-            if os.name == "nt":
-                self.assertIn(str(owned_python), alias.read_text(encoding="utf-8"))
-            else:
-                self.assertTrue(alias.is_symlink())
-                self.assertEqual(owned_python, alias.resolve())
-            environment = module.wrapper_environment(account_command_root=account_root)
-
-        self.assertEqual(
-            os.pathsep.join((str(account_root), os.defpath)), environment["PATH"]
-        )
+        self.assertEqual(os.defpath, environment["PATH"])
 
     def test_account_verification_uses_the_isolated_wrapper_environment(self):
         module = load_acceptance()
@@ -643,11 +627,13 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         required = {
             "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA",
             "LOCALAPPDATA", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME",
-            "XDG_STATE_HOME", "NPM_CONFIG_CACHE", "NPM_CONFIG_PREFIX",
-            "NPM_CONFIG_USERCONFIG", "UV_CACHE_DIR", "UV_TOOL_DIR",
-            "UV_TOOL_BIN_DIR", "UV_PYTHON_INSTALL_DIR", "UV_PYTHON_DIR",
+            "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "XDG_BIN_HOME", "TMPDIR", "TEMP", "TMP",
+            "NPM_CONFIG_CACHE",
+            "NPM_CONFIG_PREFIX", "NPM_CONFIG_USERCONFIG", "NPM_CONFIG_GLOBALCONFIG",
+            "UV_CACHE_DIR", "UV_TOOL_DIR", "UV_TOOL_BIN_DIR",
+            "UV_PYTHON_INSTALL_DIR", "UV_PYTHON_BIN_DIR", "UV_PYTHON_DIR",
         }
-        self.assertTrue(required <= set(environment))
+        self.assertLessEqual(required, set(environment))
         for name in required:
             with self.subTest(name=name):
                 if name in {"HOMEDRIVE", "HOMEPATH"} and os.name == "nt":
@@ -657,28 +643,62 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             self.assertTrue(
                 Path(environment["HOMEDRIVE"] + environment["HOMEPATH"]).is_relative_to(root)
             )
+        search = environment["PATH"].split(os.pathsep)
+        self.assertIn(environment["UV_TOOL_BIN_DIR"], search)
+        self.assertIn(
+            str(Path(environment["NPM_CONFIG_PREFIX"]) / ("Scripts" if os.name == "nt" else "bin")),
+            search,
+        )
 
-    def test_isolated_account_command_check_rejects_optional_outside_root(self):
+    def test_isolated_account_command_check_uses_exact_executables_and_rejects_escape(self):
         module = load_acceptance()
         self.assertIsNotNone(module)
         if module is None:
             return
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            owned = root / "bin/mempalace"
-            owned.parent.mkdir()
+            account = root / "account"
+            owned = account / "bin/mempalace"
+            owned.parent.mkdir(parents=True)
             owned.write_text("fixture", encoding="utf-8")
+            commands = {
+                name: str(account / "bin" / name)
+                for name in (
+                    "uv", "uvx", "python3", "node", "npm", "npx", "java",
+                    "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp",
+                    "ctx7",
+                )
+            }
+            for path in map(Path, commands.values()):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("fixture", encoding="utf-8")
             module.assert_account_command_roots(
-                {"mempalace": str(owned), "python3": sys.executable}, root
+                commands, account
             )
             with self.assertRaisesRegex(RuntimeError, "outside isolated account"):
                 module.assert_account_command_roots(
-                    {"mempalace": sys.executable}, root
+                    {**commands, "mempalace": sys.executable}, account
                 )
-            with self.assertRaisesRegex(RuntimeError, "unknown account command"):
+            with self.assertRaisesRegex(RuntimeError, "outside isolated account"):
                 module.assert_account_command_roots(
-                    {"unexpected": str(owned)}, root
+                    {**commands, "uv": sys.executable}, account
                 )
+            with self.assertRaisesRegex(RuntimeError, "executables are incomplete"):
+                module.assert_account_command_roots(
+                    {**commands, "context7": str(owned)}, account
+                )
+            escaped = root / "outside-memory"
+            escaped.write_text("fixture", encoding="utf-8")
+            memory = Path(commands["memory"])
+            memory.unlink()
+            try:
+                memory.symlink_to(escaped)
+            except OSError as error:
+                if os.name == "nt" and getattr(error, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink privilege is unavailable")
+                raise
+            with self.assertRaisesRegex(RuntimeError, "outside isolated account"):
+                module.assert_account_command_roots(commands, account)
 
     def test_only_exact_platform_base_failure_enters_compatibility_transition(self):
         module = load_acceptance()
@@ -695,7 +715,8 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         posix.component_statuses = module.known_base_component_statuses(base)
 
         self.assertEqual(
-            "posix", module.exact_base_compatibility_transition(posix, base, windows=False)
+            "post-provision-doctor",
+            module.exact_base_compatibility_transition(posix, base, windows=False),
         )
         for mutation in (
             ("sha", "f" * 40),
@@ -737,10 +758,6 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             "CE-INSTALL-FAILED: dependency verification failed: memory, context7; "
             "failed phase: Provision dependencies; unhealthy: not reported",
         )
-        self.assertEqual(
-            "windows", module.exact_base_compatibility_transition(windows, base, windows=True)
-        )
-        windows.component_statuses = {"status": {}}
         with self.assertRaises(module.AcceptanceCommandFailure):
             module.exact_base_compatibility_transition(windows, base, windows=True)
 
@@ -819,51 +836,10 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         project_probe.assert_not_called()
         generated_probe.assert_not_called()
 
-    def test_windows_base_reconstruction_uses_discovered_account_commands(self):
-        module = load_acceptance()
-        self.assertIsNotNone(module)
-        if module is None:
-            return
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            project = root / "project"
-            project.mkdir()
-            account = root / "account"
-            owned = account / "bin/mempalace"
-            owned.parent.mkdir(parents=True)
-            owned.write_text("fixture", encoding="utf-8")
-            base_source = root / "base-source"
-            base_source.mkdir()
-            installer = mock.Mock()
-            installer.detect_distribution.return_value = "repository"
-            installer.install.return_value = project / ".chaos-engine"
-            installer.verify_install.return_value = {"capabilityPolicySha256": "digest"}
-            dependencies = mock.Mock()
-            dependencies.load_specification.return_value = {"fixture": True}
-            discovered = {"python3": sys.executable, "mempalace": str(owned)}
-            dependencies.discover_account_commands.return_value = ({}, discovered)
-            hosts = mock.Mock()
-            with mock.patch.object(
-                module, "download_commit_source", return_value=base_source
-            ), mock.patch.object(
-                module, "load_source_controller", side_effect=(installer, dependencies, hosts)
-            ):
-                module.reconstruct_windows_base(
-                    project, root / "candidate", module.KNOWN_BASE_SHA, account
-                )
-
-        installer.install.assert_called_once_with(
-            project,
-            base_source,
-            module.KNOWN_BASE_SHA,
-            source_record={
-                "kind": "git", "repository": "shafthq/shaft_engine",
-                "branch": module.KNOWN_BASE_SHA, "commit": module.KNOWN_BASE_SHA,
-            },
-            distribution="repository",
-        )
-        self.assertEqual(discovered, hosts.install.call_args.kwargs["account_commands"])
-        hosts.verify.assert_called_once_with(project, core_commit=module.KNOWN_BASE_SHA)
+    def test_base_authentication_has_no_synthetic_reconstruction(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("reconstruct_windows_base", source)
+        self.assertNotIn("download_commit_source(source, base_sha", source)
 
     def test_main_rejects_an_unrecognized_base_commit_before_running_acceptance(self):
         module = load_acceptance()
@@ -892,16 +868,29 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertIn("source_record=manifest['source']", source)
         self.assertIn("offline_environment(block_path=True)", source)
 
-    def test_acceptance_uses_preseeded_base_and_blank_candidate_projects(self):
+    def test_acceptance_uses_real_base_and_disjoint_fresh_account(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('base_project = root / "base consumer with spaces Ω"', source)
-        self.assertIn('blank_project = root / "blank consumer with spaces Ω"', source)
-        self.assertIn("seed_exact_mempalace(source, base_project)", source)
+        self.assertIn('fresh_project = root / "fresh consumer with spaces Ω"', source)
+        self.assertIn('fresh_account_root = root / "fresh isolated account"', source)
+        self.assertNotIn("seed_exact_mempalace", source)
+        self.assertNotIn("prepare_account_command_root", source)
         self.assertIn("rollback", source)
         rollback_body = source.split("def rollback_base()", 1)[1].split(
             'record_phase(evidence, "rollback-base-account-and-hosts"', 1
         )[0]
         self.assertNotIn('"--json"', rollback_body)
+        phases = [
+            "base-public-wrapper",
+            "base-offline-no-mutation",
+            "upgrade-candidate-wrapper",
+            "rollback-base-account-and-hosts",
+            "reupgrade-candidate-wrapper",
+            "fresh-account-candidate-wrapper",
+            "fresh-account-rerun",
+        ]
+        positions = [source.index(f'"{phase}"') for phase in phases]
+        self.assertEqual(positions, sorted(positions))
 
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
