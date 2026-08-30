@@ -15,10 +15,18 @@ class OmniRootTddPdcaTest(unittest.TestCase):
             "Focused RED-GREEN-REFACTOR runs occur during PDCA Do; consolidated "
             "Check begins only after the implementation batch and final scope commit."
         )
-        for path in paths:
-            content = (ROOT / path).read_text(encoding="utf-8")
+        contents = {
+            path: (ROOT / path).read_text(encoding="utf-8") for path in paths
+        }
+        for content in contents.values():
             self.assertIn("execution-workflows.md", content)
-            self.assertIn(statement, " ".join(content.split()))
+        normalized = {path: " ".join(content.split()) for path, content in contents.items()}
+        self.assertIn(statement, normalized[paths[0]])
+        self.assertEqual(1, sum(content.count(statement) for content in normalized.values()))
+        self.assertIn(
+            "../../../../references/tdd.md#workflow",
+            contents[paths[1]],
+        )
 
 
 if __name__ == "__main__":

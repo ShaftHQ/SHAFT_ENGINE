@@ -23,5 +23,4 @@ rounds. Bruce judges the actual diff plus real checks, never a self-report;
 hunt stubs and weakened assertions. Gaps are closed by whoever the mode says
 implements. Record which phase produced each commit.
 
-Focused RED-GREEN-REFACTOR runs occur during PDCA Do; consolidated Check begins
-only after the implementation batch and final scope commit.
+Use the canonical [TDD/PDCA phase boundary](../../../../references/tdd.md#workflow).
