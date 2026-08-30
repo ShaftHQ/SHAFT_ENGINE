@@ -283,7 +283,7 @@ def _relative_paths(paths: list[str]) -> list[str]:
 def process_identity(pid: int) -> str | None:
     """Return a Linux process-start identity; unsupported hosts never kill."""
     try:
-        fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()
+        fields = Path(os.sep, "proc", str(pid), "stat").read_text(encoding="utf-8").split()
         return fields[21] if len(fields) > 21 else None
     except (OSError, UnicodeError):
         return None

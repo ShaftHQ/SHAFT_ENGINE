@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import inspect
 import json
 import os
 import subprocess
@@ -159,6 +160,9 @@ class OmniRootProbeTest(unittest.TestCase):
 
 
 class OmniRootRunnerTest(unittest.TestCase):
+    def test_process_identity_has_no_hard_coded_posix_absolute_path(self):
+        self.assertNotIn('"/proc/', inspect.getsource(RUNNER.process_identity))
+
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
         self.worktree = self.root / "worktree"
