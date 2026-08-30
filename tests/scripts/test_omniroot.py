@@ -92,6 +92,8 @@ class OmniRootProbeTest(unittest.TestCase):
                 "deniedProbeTargetKnownExistingConfirmed": True,
             },
         }), encoding="utf-8")
+        if os.name == "posix":
+            self.config.chmod(0o600)
 
     def test_absent_gateway_is_normal_not_an_exception(self):
         result = RUNNER.probe(config_path=self.config, opener=lambda *_, **__: (_ for _ in ()).throw(OSError("down")))
@@ -127,6 +129,8 @@ class OmniRootProbeTest(unittest.TestCase):
                 "deniedProbeTargetKnownExistingConfirmed": True,
             },
         }), encoding="utf-8")
+        if os.name == "posix":
+            self.config.chmod(0o600)
         result = RUNNER.probe(config_path=self.config, opener=lambda *_, **__: _Response(), environ={})
         self.assertEqual("READY", result["state"])
         self.assertNotIn("opaque-profile", json.dumps(result))
@@ -162,6 +166,20 @@ class OmniRootProbeTest(unittest.TestCase):
 class OmniRootRunnerTest(unittest.TestCase):
     def test_process_identity_has_no_hard_coded_posix_absolute_path(self):
         self.assertNotIn('"/proc/', inspect.getsource(RUNNER.process_identity))
+
+    def test_process_identity_parses_names_containing_spaces_and_parentheses(self):
+        line = "42 (worker name) tricky) S " + " ".join(str(i) for i in range(1, 30))
+        self.assertEqual("19", RUNNER._linux_start_time(line))
+
+    def test_executable_identity_detects_replacement_before_launch(self):
+        qualified = RUNNER._resolved_executable([str(self.launcher)])
+        self.assertIsNotNone(qualified)
+        argv, identity = qualified
+        replacement = self.root / "replacement"
+        replacement.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        replacement.chmod(0o700)
+        os.replace(replacement, self.launcher)
+        self.assertFalse(RUNNER._same_executable(argv, identity))
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
@@ -199,6 +217,8 @@ class OmniRootRunnerTest(unittest.TestCase):
                 "deniedProbeTargetKnownExistingConfirmed": True,
             },
         }), encoding="utf-8")
+        if os.name == "posix":
+            self.config.chmod(0o600)
 
     def test_dispatch_is_fail_closed_and_writes_private_manifest(self):
         launched = []
@@ -261,6 +281,14 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual(7, diagnostic["exitCode"])
         self.assertEqual(0o600, path.stat().st_mode & 0o777)
 
+    def test_diagnostics_redact_basic_json_and_split_cli_secrets(self):
+        raw = (b"Authorization: Basic abc123\n"
+               b'{"token":"json-token","password": "json-pass", "api_key":"json-key"}\n'
+               b"tool --secret split-secret --api-key=inline-secret\n")
+        redacted, _ = RUNNER._redact_diagnostic(raw)
+        for secret in ("abc123", "json-token", "json-pass", "json-key", "split-secret", "inline-secret"):
+            self.assertNotIn(secret, redacted)
+
     def test_missing_config_is_normal_fallback_and_never_launches(self):
         launched = []
         result = RUNNER.probe(
@@ -280,6 +308,8 @@ class OmniRootRunnerTest(unittest.TestCase):
         config = json.loads(self.config.read_text(encoding="utf-8"))
         config["launcher"]["invocationMode"] = "direct"
         self.config.write_text(json.dumps(config), encoding="utf-8")
+        if os.name == "posix":
+            self.config.chmod(0o600)
         launched = []
         runtime = {
             "HOME": "/home/agent", "USERPROFILE": "C:/Users/agent",
@@ -319,6 +349,8 @@ class OmniRootRunnerTest(unittest.TestCase):
         config = json.loads(self.config.read_text(encoding="utf-8"))
         config["launcher"].update({"invocationMode": "direct", "credentialMode": "launcher"})
         self.config.write_text(json.dumps(config), encoding="utf-8")
+        if os.name == "posix":
+            self.config.chmod(0o600)
         launched = []
 
         def popen(argv, **kwargs):
@@ -364,6 +396,68 @@ class OmniRootRunnerTest(unittest.TestCase):
                 RUNNER.dispatch(run_id=run_id, worktree=self.worktree, state_dir=self.state, config_path=self.config,
                     target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
                     environ={"OMNIROUTE_API_KEY": "secret"}, delegate={"pathOwnership": paths})
+
+    def test_dispatch_rejects_ancestor_descendant_ownership_overlap(self):
+        RUNNER._write_json(self.state / "runs/existing.json", {
+            "schemaVersion": 1, "runId": "existing", "status": "running",
+            "delegate": {"pathOwnership": ["docs"]},
+        })
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER.dispatch(
+                run_id="nested", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[],
+                opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                delegate={"pathOwnership": ["docs/guide.md"]}, popen=lambda *_a, **_k: _Process(),
+            )
+
+    def test_dispatch_reservation_is_interprocess_atomic(self):
+        runs = RUNNER._private_directory(self.state / "runs")
+        lock = runs / ".reservation.lock"
+        descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.close(descriptor)
+        try:
+            with self.assertRaises(RUNNER.OmniRootError):
+                with RUNNER._reservation(self.state):
+                    self.fail("reservation must not be shared")
+        finally:
+            lock.unlink()
+
+    def test_state_root_rejects_symlink_component(self):
+        real = self.root / "real-state"
+        real.mkdir(mode=0o700)
+        linked = self.root / "linked-state"
+        linked.symlink_to(real, target_is_directory=True)
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._write_json(linked / "runs/run.json", {"ok": True})
+
+    def test_state_reader_rejects_non_private_file(self):
+        path = self.state / "runs/run.json"
+        RUNNER._write_json(path, {"ok": True})
+        if os.name != "posix":
+            self.skipTest("POSIX permission contract")
+        path.chmod(0o644)
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._load_json(path)
+
+    def test_config_requires_private_owner_mode_on_posix(self):
+        if os.name != "posix":
+            self.skipTest("POSIX permission contract")
+        self.config.chmod(0o644)
+        result = RUNNER.probe(
+            config_path=self.config, opener=lambda *_, **__: _Response(),
+            environ={"OMNIROUTE_API_KEY": "secret"},
+        )
+        self.assertEqual("ROUTE_UNQUALIFIED", result["state"])
+
+    def test_ready_cache_reprobes_volatile_health(self):
+        cache = RUNNER.QualificationCache()
+        first = cache.probe(config_path=self.config, opener=lambda *_, **__: _Response(),
+                            environ={"OMNIROUTE_API_KEY": "secret"})
+        second = cache.probe(config_path=self.config,
+                             opener=lambda *_, **__: (_ for _ in ()).throw(OSError("down")),
+                             environ={"OMNIROUTE_API_KEY": "secret"})
+        self.assertEqual("READY", first["state"])
+        self.assertEqual("ABSENT", second["state"])
 
     def test_dispatch_rejects_non_ready_and_stale_cancel_quarantines(self):
         with self.assertRaises(RUNNER.OmniRootError):

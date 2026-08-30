@@ -50,11 +50,15 @@ launcher argv followed by delegate arguments, for protected launchers that own
 their endpoint and profile. The mode is validated and included only in the
 qualification hash; manifests never record route or model names.
 
-Qualification is cached only for the root session and invalidated when route,
-server build, launcher, or attestation changes. Dispatch requires a clean real
-Git worktree, non-overlapping non-private path ownership, argument-list process
-invocation, a minimal environment, a bounded runtime, and atomic mode-`0600`
-state. Standard output and error are drained without an unbounded buffer,
+Qualification is freshly probed before every dispatch; volatile health and
+authentication facts never come from a stale `READY` cache. Operator config is
+a regular owner-owned private file (mode `0600` where permission bits exist).
+Dispatch resolves one absolute protected executable, attests its identity, and
+re-stats it immediately before execution. Dispatch requires a clean real Git
+worktree, interprocess-atomic ownership reservation, ancestor/descendant path
+overlap rejection, argument-list process invocation, a minimal environment, a
+bounded runtime, and private state whose components reject symlinks and unsafe
+ownership or permissions. Standard output and error are drained without an unbounded buffer,
 secret-shaped values are redacted, and each retained stream is capped at 16
 KiB in a private diagnostic artifact. A timeout terminates the isolated process
 group; unsupported or unprovable termination fails closed. Its manifest

@@ -75,7 +75,10 @@ def _parse_time(value: object) -> datetime | None:
 
 def _read_config(path: Path) -> dict[str, Any] | None:
     try:
-        if not path.is_file() or path.is_symlink() or path.stat().st_size > MAX_RESPONSE_BYTES:
+        metadata = path.stat()
+        if not path.is_file() or path.is_symlink() or metadata.st_size > MAX_RESPONSE_BYTES:
+            return None
+        if os.name == "posix" and (metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600):
             return None
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
@@ -99,14 +102,24 @@ def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
     return list(argv), mode, invocation_mode
 
 
-def _protected_executable(argv: list[str]) -> bool:
+def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, int, int]] | None:
     executable = Path(argv[0]) if os.path.sep in argv[0] else Path(shutil.which(argv[0]) or "")
     try:
         resolved = executable.resolve(strict=True)
-        mode = resolved.stat().st_mode
+        metadata = resolved.stat()
     except OSError:
-        return False
-    return resolved.is_file() and bool(mode & stat.S_IXUSR) and not bool(mode & (stat.S_IWGRP | stat.S_IWOTH))
+        return None
+    mode = metadata.st_mode
+    if not resolved.is_file() or not bool(mode & stat.S_IXUSR) or bool(mode & (stat.S_IWGRP | stat.S_IWOTH)):
+        return None
+    if os.name == "posix" and metadata.st_uid != os.getuid():
+        return None
+    return [str(resolved), *argv[1:]], (metadata.st_dev, metadata.st_ino, metadata.st_uid, mode)
+
+
+def _same_executable(argv: list[str], identity: tuple[int, int, int, int]) -> bool:
+    qualified = _resolved_executable(argv)
+    return qualified is not None and qualified[0][0] == argv[0] and qualified[1] == identity
 
 
 def _attestation_valid(config: dict[str, Any], build: object, now: datetime) -> bool:
@@ -115,7 +128,7 @@ def _attestation_valid(config: dict[str, Any], build: object, now: datetime) -> 
     if not isinstance(config.get("routeId"), str) or not config["routeId"].strip():
         return False
     launcher = _launcher(config)
-    if launcher is None or not _protected_executable(launcher[0]):
+    if launcher is None or _resolved_executable(launcher[0]) is None:
         return False
     attestation = config.get("attestation")
     if not isinstance(attestation, dict) or attestation.get("schemaVersion") != SCHEMA_VERSION:
@@ -189,38 +202,49 @@ def probe(
     if config is None or not _attestation_valid(config, payload["build"], now()):
         return {**result, "state": "ROUTE_UNQUALIFIED"}
     launcher = _launcher(config)
-    assert launcher is not None
+    if launcher is None:
+        return {**result, "state": "ROUTE_UNQUALIFIED"}
+    resolved = _resolved_executable(launcher[0])
+    if resolved is None:
+        return {**result, "state": "ROUTE_UNQUALIFIED"}
     environment = os.environ if environ is None else environ
     if launcher[1] == "environment" and not environment.get("OMNIROUTE_API_KEY"):
         return {**result, "state": "UNAUTHENTICATED"}
     fingerprint = hashlib.sha256(json.dumps({
-        "config": config, "serverBuild": payload["build"], "launcher": launcher[0],
+        "config": config, "serverBuild": payload["build"], "launcher": resolved[0],
     }, sort_keys=True).encode("utf-8")).hexdigest()
     return {**result, "state": "READY", "serverBuild": payload["build"], "qualificationFingerprint": fingerprint}
 
 
 class QualificationCache:
-    """Root-session-only readiness cache keyed by non-secret qualification facts."""
+    """Compatibility wrapper; volatile readiness is always freshly probed."""
 
     def __init__(self):
         self._fingerprint: str | None = None
         self._result: dict[str, str] | None = None
 
     def probe(self, **kwargs: Any) -> dict[str, str]:
-        path = Path(kwargs.get("config_path") or default_config_path())
-        content = _read_config(path)
-        fingerprint = hashlib.sha256(json.dumps(content, sort_keys=True).encode("utf-8")).hexdigest()
-        if self._fingerprint == fingerprint and self._result is not None and self._result["state"] == "READY":
-            return dict(self._result)
         result = probe(**kwargs)
-        self._fingerprint, self._result = fingerprint, dict(result)
+        self._result = dict(result)
         return result
 
 
 def _private_directory(path: Path) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    with contextlib.suppress(OSError):
-        path.chmod(0o700)
+    missing: list[Path] = []
+    cursor = path
+    while not cursor.exists():
+        missing.append(cursor)
+        cursor = cursor.parent
+    if cursor.is_symlink():
+        raise OmniRootError("state path must not contain symlinks")
+    for component in reversed(missing):
+        component.mkdir(mode=0o700)
+    for cursor in (path.parent, path):
+        metadata = cursor.lstat()
+        if stat.S_ISLNK(metadata.st_mode):
+            raise OmniRootError("state path must not contain symlinks")
+        if os.name == "posix" and (metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) & 0o077):
+            raise OmniRootError("state directory must be owner-owned and private")
     return path
 
 
@@ -246,7 +270,16 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
-        if not path.is_file() or path.is_symlink() or path.stat().st_size > MAX_RESPONSE_BYTES:
+        metadata = path.stat()
+        parents = (path.parent, path.parent.parent)
+        if any(parent.is_symlink() for parent in parents):
+            raise OmniRootError("run state is missing or unsafe")
+        if not path.is_file() or path.is_symlink() or metadata.st_size > MAX_RESPONSE_BYTES:
+            raise OmniRootError("run state is missing or unsafe")
+        if os.name == "posix" and (
+            metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600
+            or any(parent.stat().st_uid != os.getuid() or stat.S_IMODE(parent.stat().st_mode) & 0o077 for parent in parents)
+        ):
             raise OmniRootError("run state is missing or unsafe")
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -282,10 +315,17 @@ def _relative_paths(paths: list[str]) -> list[str]:
 def process_identity(pid: int) -> str | None:
     """Return a Linux process-start identity; unsupported hosts never kill."""
     try:
-        fields = Path(os.sep, "proc", str(pid), "stat").read_text(encoding="utf-8").split()
-        return fields[21] if len(fields) > 21 else None
+        return _linux_start_time(Path(os.sep, "proc", str(pid), "stat").read_text(encoding="utf-8"))
     except (OSError, UnicodeError):
         return None
+
+
+def _linux_start_time(value: str) -> str | None:
+    end = value.rfind(")")
+    if end < 0:
+        return None
+    fields = value[end + 1:].split()
+    return fields[19] if len(fields) > 19 else None
 
 
 def _dispatch_environment(environ: dict[str, str], credential_mode: str) -> dict[str, str]:
@@ -306,14 +346,21 @@ def _sha256(value: object) -> str:
 
 
 _SECRET_TEXT = re.compile(
-    r"(?i)(authorization\s*:\s*bearer\s+|(?:api[_-]?key|token|secret|password)\s*[=:]\s*)([^\s]+)"
+    r'''(?ix)
+    (authorization\s*:\s*(?:bearer|basic)\s+)([^\s]+)
+    |("(?:api[_-]?key|token|secret|password)"\s*:\s*")([^"]+)
+    |((?:--)?(?:api[_-]?key|token|secret|password)(?:\s*[=:]\s*|\s+))([^\s]+)
+    '''
 )
 
 
 def _redact_diagnostic(value: bytes) -> tuple[str, bool]:
     """Decode, redact, and cap one diagnostic stream."""
     text = value.decode("utf-8", errors="replace")
-    text = _SECRET_TEXT.sub(lambda match: match.group(1) + "[REDACTED]", text)
+    text = _SECRET_TEXT.sub(
+        lambda match: (match.group(1) or match.group(3) or match.group(5)) + "[REDACTED]" + ('"' if match.group(3) else ''),
+        text,
+    )
     encoded = text.encode("utf-8")
     truncated = len(encoded) > MAX_DIAGNOSTIC_BYTES
     if truncated:
@@ -353,6 +400,8 @@ def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int) -> N
         exit_code = process.wait(timeout=timeout_seconds)
     except subprocess.TimeoutExpired:
         timed_out = True
+        if os.name != "posix":
+            raise OmniRootError("bounded process-tree timeout is unsupported on this host")
         try:
             os.killpg(process.pid, signal.SIGTERM)
             exit_code = process.wait(timeout=5)
@@ -373,17 +422,26 @@ def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int) -> N
 
 def _capture_command(arguments: list[str]) -> int:
     """Run one qualified launcher in a durable monitor subprocess."""
-    if len(arguments) < 4 or arguments[2] != "--":
+    if len(arguments) < 8 or arguments[6] != "--":
         raise OmniRootError("capture arguments are invalid")
     try:
         timeout_seconds = int(arguments[1])
+        expected_identity = tuple(int(value) for value in arguments[2:6])
     except ValueError as error:
         raise OmniRootError("capture timeout is invalid") from error
     if not 1 <= timeout_seconds <= 86400:
         raise OmniRootError("capture timeout is invalid")
-    command = arguments[3:]
+    command = arguments[7:]
     if not command or not all(value and "\x00" not in value for value in command):
         raise OmniRootError("capture command is invalid")
+    if os.name != "posix":
+        raise OmniRootError("bounded process-tree timeout is unsupported on this host")
+    qualified = _resolved_executable(command)
+    if qualified is None:
+        raise OmniRootError("qualified launcher changed before execution")
+    command, identity = qualified
+    if identity != expected_identity or not _same_executable(command, identity):
+        raise OmniRootError("qualified launcher changed before execution")
     try:
         process = subprocess.Popen(  # nosec B603 - argv was qualified before monitor launch.
             command, shell=False, close_fds=True, start_new_session=True,
@@ -459,9 +517,28 @@ def _overlaps_owned_paths(state_dir: Path, ownership: list[str]) -> bool:
         if manifest.get("status") not in {"planned", "running", "stalled", "blocked", "review"}:
             continue
         existing = manifest.get("delegate", {}).get("pathOwnership", [])
-        if isinstance(existing, list) and set(ownership) & set(existing):
-            return True
+        if isinstance(existing, list):
+            for requested in map(Path, ownership):
+                for held in map(Path, existing):
+                    if requested == held or requested in held.parents or held in requested.parents:
+                        return True
     return False
+
+
+@contextlib.contextmanager
+def _reservation(state_dir: Path):
+    runs = _private_directory(state_dir / "runs")
+    lock = runs / ".reservation.lock"
+    try:
+        descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError as error:
+        raise OmniRootError("another dispatch reservation is active") from error
+    try:
+        os.close(descriptor)
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            lock.unlink()
 
 
 def dispatch(
@@ -516,6 +593,10 @@ def dispatch(
     if launcher is None:
         raise OmniRootError("launcher is unqualified")
     launcher_argv, credential_mode, invocation_mode = launcher
+    qualified = _resolved_executable(launcher_argv)
+    if qualified is None:
+        raise OmniRootError("launcher is unqualified")
+    launcher_argv, launcher_identity = qualified
     if invocation_mode == "direct":
         argv = [*launcher_argv, *delegate_args]
     else:
@@ -525,26 +606,45 @@ def dispatch(
         argv.extend(["--", *delegate_args])
     dispatch_environment = _dispatch_environment(environment, credential_mode)
     delegate_manifest = _delegate_contract(delegate, worktree, target, argv, dispatch_environment)
-    if _overlaps_owned_paths(Path(state_dir), delegate_manifest["pathOwnership"]):
-        raise OmniRootError("delegate ownership overlaps a live run")
+    with _reservation(Path(state_dir)):
+        if path.exists():
+            raise OmniRootError("run id already exists")
+        if _overlaps_owned_paths(Path(state_dir), delegate_manifest["pathOwnership"]):
+            raise OmniRootError("delegate ownership overlaps a live run")
+        _write_json(path, {
+            "schemaVersion": SCHEMA_VERSION, "runId": run_id, "status": "planned",
+            "delegate": delegate_manifest,
+        })
     diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
     durable_monitor = popen is subprocess.Popen
+    if durable_monitor and os.name != "posix":
+        with contextlib.suppress(OSError):
+            path.unlink()
+        raise OmniRootError("bounded process-tree timeout is unsupported on this host")
     launched_argv = (
         [sys.executable, str(Path(__file__).resolve()), "_capture", str(diagnostic_path),
-         str(timeout_seconds), "--", *argv]
+         str(timeout_seconds), *(str(value) for value in launcher_identity), "--", *argv]
         if durable_monitor else argv
     )
     try:
+        if not _same_executable(launcher_argv, launcher_identity):
+            raise OmniRootError("qualified launcher changed before execution")
         process = popen(
             launched_argv, cwd=str(worktree), env=dispatch_environment, shell=False,
             close_fds=True, start_new_session=True,
             stdout=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
             stderr=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
         )
-    except OSError as error:
+    except (OSError, OmniRootError) as error:
+        with contextlib.suppress(OSError):
+            path.unlink()
+        if isinstance(error, OmniRootError):
+            raise
         raise OmniRootError("OmniRoute launcher could not start") from error
     pid = getattr(process, "pid", None)
     if not isinstance(pid, int) or pid <= 1:
+        with contextlib.suppress(OSError):
+            path.unlink()
         raise OmniRootError("launcher did not expose a safe process id")
     timestamp = _utc_now().isoformat()
     manifest = {
