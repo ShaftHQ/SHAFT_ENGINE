@@ -313,9 +313,11 @@ def known_windows_base_component_statuses(base_sha: str) -> dict[str, dict[str, 
     statuses = known_base_component_statuses(base_sha)
     for report in statuses.values():
         dependencies = report.get("dependencyComponents") if isinstance(report, dict) else None
-        python = dependencies.get("python") if isinstance(dependencies, dict) else None
-        if isinstance(python, dict):
-            python["action"] = "installed"
+        if isinstance(dependencies, dict):
+            for name in ("python", "java"):
+                component = dependencies.get(name)
+                if isinstance(component, dict):
+                    component["action"] = "installed"
     return statuses
 
 

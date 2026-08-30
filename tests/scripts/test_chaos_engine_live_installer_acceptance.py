@@ -800,6 +800,10 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         windows_post.component_statuses = module.known_windows_base_component_statuses(base)
 
         self.assertEqual(
+            "installed",
+            windows_post.component_statuses["status"]["dependencyComponents"]["java"]["action"],
+        )
+        self.assertEqual(
             "post-provision-doctor",
             module.exact_base_compatibility_transition(windows_post, base, windows=True),
         )
