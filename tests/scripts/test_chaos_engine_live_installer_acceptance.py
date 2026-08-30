@@ -35,6 +35,25 @@ def load_acceptance():
     return module
 
 
+def write_account_receipt(project: Path, account: Path) -> dict[str, str]:
+    names = [
+        "uv", "uvx", "python3", "node", "npm", "npx", "java", "mempalace",
+        "mempalace-mcp", "graphify", "memory", "memory-mcp", "ctx7",
+    ]
+    if os.name == "nt":
+        names[names.index("python3")] = "python"
+    commands = {name: str(account / "bin" / name) for name in names}
+    for command in commands.values():
+        path = Path(command)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("fixture", encoding="utf-8")
+    project.joinpath(".chaos-engine-dependencies.json").write_text(
+        json.dumps({"schemaVersion": 2, "components": {}, "commands": commands}),
+        encoding="utf-8",
+    )
+    return commands
+
+
 class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
     def test_wrapper_failure_keeps_installer_phase_and_component(self):
         module = load_acceptance()
@@ -379,18 +398,23 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             project.joinpath(".chaos-engine").mkdir()
-            project.joinpath(".chaos-engine-dependencies.json").write_text(
-                json.dumps({"schemaVersion": 2, "components": {}, "commands": {}}),
-                encoding="utf-8",
-            )
+            account = project / "account"
+            commands = write_account_receipt(project, account)
+            environment = module.isolated_account_environment(account)
             healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
             with mock.patch.object(
                 module, "run_checked", return_value=CompletedProcess([], 0, healthy, "")
             ) as runner:
-                module.verify_account_phase(project, "a" * 40, probe_generated=False)
+                module.verify_account_phase(
+                    project, "a" * 40, probe_generated=False, environment=environment
+                )
 
         for call in runner.call_args_list:
-            self.assertEqual(os.defpath, call.kwargs["environment"]["PATH"])
+            self.assertEqual(
+                str(Path(commands["node"]).resolve().parent)
+                + os.pathsep + environment["PATH"],
+                call.kwargs["environment"]["PATH"],
+            )
 
     def test_account_doctor_failure_carries_component_statuses_and_command(self):
         module = load_acceptance()
@@ -400,6 +424,9 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             project.joinpath(".chaos-engine").mkdir()
+            account = project / "account"
+            write_account_receipt(project, account)
+            environment = module.isolated_account_environment(account)
             healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
             unhealthy = json.dumps({
                 "status": "unhealthy", "commit": "a" * 40,
@@ -416,7 +443,9 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 CompletedProcess([], 0, unhealthy, ""),
             )):
                 with self.assertRaisesRegex(RuntimeError, "doctor did not report") as raised:
-                    module.verify_account_phase(project, "a" * 40, probe_generated=False)
+                    module.verify_account_phase(
+                        project, "a" * 40, probe_generated=False, environment=environment
+                    )
 
         error = raised.exception
         self.assertEqual("doctor", error.command[2])
@@ -438,6 +467,9 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             project = Path(temporary)
             project.joinpath(".chaos-engine").mkdir()
             project.joinpath(".chaos-engine/install.py").write_text("# fixture\n")
+            account = project / "account"
+            commands = write_account_receipt(project, account)
+            isolated_environment = module.isolated_account_environment(account)
             error = RuntimeError("wrapper failed")
             error.command = ["wrapper", "--fixture"]
             healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
@@ -457,11 +489,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                     "hooks": {"status": "unhealthy", "detail": "missing-managed-hook"},
                 },
             })
-            isolated_environment = {"PATH": "isolated-account-tools"}
-            with mock.patch.object(
-                module, "wrapper_environment", return_value=isolated_environment
-            ), mock.patch.object(
-                module, "run_public_wrapper", side_effect=error
+            with mock.patch.object(module, "run_public_wrapper", side_effect=error
             ) as wrapper, mock.patch.object(
                 module, "run_checked", side_effect=(
                     CompletedProcess([], 0, healthy, ""),
@@ -469,12 +497,18 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 )
             ) as runner:
                 with self.assertRaisesRegex(RuntimeError, "wrapper failed") as raised:
-                    module.run_public_wrapper_with_diagnostics("a" * 40, project)
+                    module.run_public_wrapper_with_diagnostics(
+                        "a" * 40, project, environment=isolated_environment
+                    )
 
         self.assertIs(error, raised.exception)
         self.assertIs(isolated_environment, wrapper.call_args.kwargs["environment"])
         for call in runner.call_args_list:
-            self.assertIs(isolated_environment, call.kwargs["environment"])
+            self.assertEqual(
+                str(Path(commands["node"]).resolve().parent)
+                + os.pathsep + isolated_environment["PATH"],
+                call.kwargs["environment"]["PATH"],
+            )
         doctor = error.component_statuses["doctor"]
         self.assertEqual("missing-managed-hook", doctor["components"]["hooks"]["detail"])
         self.assertEqual("repaired", doctor["dependencyComponents"]["memory"]["action"])
@@ -885,22 +919,25 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             project.joinpath(".chaos-engine").mkdir()
-            project.joinpath(".chaos-engine-dependencies.json").write_text(
-                json.dumps({"schemaVersion": 2, "components": {}, "commands": {}}),
-                encoding="utf-8",
-            )
+            account = project / "account"
+            commands = write_account_receipt(project, account)
+            environment = module.isolated_account_environment(account)
             healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
             with mock.patch.object(
                 module, "run_checked", return_value=CompletedProcess([], 0, healthy, "")
             ), mock.patch.object(module, "probe_project_mcps") as project_probe, mock.patch.object(
                 module, "probe_generated_mcps"
             ) as generated_probe:
-                module.verify_account_phase(project, "a" * 40)
+                module.verify_account_phase(project, "a" * 40, environment=environment)
 
         project_probe.assert_called_once_with(
             project / ".chaos-engine/tool.py", project, base_environment=mock.ANY
         )
         generated_probe.assert_called_once()
+        self.assertEqual(
+            str(Path(commands["node"]).resolve().parent) + os.pathsep + environment["PATH"],
+            project_probe.call_args.kwargs["base_environment"]["PATH"],
+        )
 
     def test_account_phase_can_explicitly_omit_both_mcp_probe_families(self):
         module = load_acceptance()
@@ -910,17 +947,18 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             project.joinpath(".chaos-engine").mkdir()
-            project.joinpath(".chaos-engine-dependencies.json").write_text(
-                json.dumps({"schemaVersion": 2, "components": {}, "commands": {}}),
-                encoding="utf-8",
-            )
+            account = project / "account"
+            write_account_receipt(project, account)
+            environment = module.isolated_account_environment(account)
             healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
             with mock.patch.object(
                 module, "run_checked", return_value=CompletedProcess([], 0, healthy, "")
             ), mock.patch.object(module, "probe_project_mcps") as project_probe, mock.patch.object(
                 module, "probe_generated_mcps"
             ) as generated_probe:
-                module.verify_account_phase(project, "a" * 40, probe_generated=False)
+                module.verify_account_phase(
+                    project, "a" * 40, probe_generated=False, environment=environment
+                )
 
         project_probe.assert_not_called()
         generated_probe.assert_not_called()

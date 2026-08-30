@@ -733,6 +733,24 @@ def account_receipt_commands(project: Path, account_root: Path) -> dict[str, str
     return dict(commands)
 
 
+def account_command_environment(project: Path, environment: dict[str, str]) -> dict[str, str]:
+    """Prepend receipt-validated Node for account command and MCP probes."""
+    home = environment.get("HOME")
+    if not isinstance(home, str):
+        raise RuntimeError("isolated account home is unavailable")
+    try:
+        account_root = Path(home).resolve(strict=True).parent
+        commands = account_receipt_commands(project, account_root)
+        node = Path(commands["node"]).resolve(strict=True)
+    except (KeyError, OSError, RuntimeError, UnicodeError, ValueError) as error:
+        raise RuntimeError("isolated account receipt is invalid") from error
+    result = dict(environment)
+    result["PATH"] = os.pathsep.join(
+        part for part in (str(node.parent), result.get("PATH", "")) if part
+    )
+    return result
+
+
 def assert_account_search_paths(
     base_project: Path, candidate_source: Path, environment: dict[str, str]
 ) -> None:
@@ -1208,6 +1226,12 @@ def read_only_account_statuses(
     install = installed / "install.py"
     if not install.is_file():
         return {}
+    try:
+        environment = account_command_environment(
+            project, environment or wrapper_environment()
+        )
+    except RuntimeError:
+        return {}
     reports: dict[str, dict[str, object]] = {}
     for command in ("status", "doctor"):
         try:
@@ -1256,7 +1280,9 @@ def verify_account_phase(
     environment: dict[str, str] | None = None,
 ) -> dict[str, object]:
     installed = project / ".chaos-engine"
-    environment = environment or wrapper_environment()
+    environment = account_command_environment(
+        project, environment or wrapper_environment()
+    )
     status_reports: dict[str, dict[str, object]] = {}
     for command in ("status", "doctor"):
         command_line = [
