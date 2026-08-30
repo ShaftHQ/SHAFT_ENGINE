@@ -156,7 +156,7 @@ again that the listener is loopback-only with `ss -ltnp | rg ':20128'`.
 
 This is a ranked shortlist, not a claim that all ten are equal. “Best model” is
 the reviewed OmniRoute identifier to test first, not a quality guarantee. A
-provider must be admitted to a combo only after it passes the direct Responses
+provider must be admitted to the selected route only after it passes the direct Responses
 and tool-use tests below. Provider signup remains manual: accept terms, complete
 email verification, and stop if the service requests a card, phone number,
 KYC, or CAPTCHA that you do not wish to provide.
@@ -171,7 +171,7 @@ privacy.
 | Rank and status | Provider and official signup | First coding model / OmniRoute ID | Free-use snapshot and account steps | Caveats |
 | --- | --- | --- | --- | --- |
 | 1 — recommended | [Groq Console](https://console.groq.com/) | `openai/gpt-oss-120b` / `groq` | Create account, verify email, create API key, save as `GROQ_API_KEY`. Groq publishes free-plan limits; its current page lists 1,000 requests/day and 200K tokens/day for this model family. | Shared organization limits; low minute limits can bind first. Personal/internal use only; do not expose the gateway to others. |
-| 2 — conditional | [Google AI Studio](https://aistudio.google.com/) | `gemini-3.7-flash` / `gemini` | Create account, verify email, create API key, save as `GEMINI_API_KEY`. Before adding it, manually confirm **AI Studio Plan = Free** and that no Cloud Billing account is attached. Current limits are visible only in AI Studio. | Owner-local gateway only. Google free-tier handling can include training and human review: public, non-sensitive prompts only. Tool support must pass the live test below. |
+| 2 — verified default | [Google AI Studio](https://aistudio.google.com/) | `gemini-2.5-flash` / `gemini` | Create account, verify email, create API key, save as `GEMINI_API_KEY`. Before adding it, manually confirm **AI Studio Plan = Free** and that no Cloud Billing account is attached. Current limits are visible only in AI Studio. | Verified on the reviewed machine with a restricted local endpoint key. Google free-tier handling can include training and human review: public, non-sensitive prompts only. `gemini-3.7-flash` returned high-demand HTTP 503 and is not admitted. |
 | 3 — not admitted by default | [Pollinations](https://enter.pollinations.ai/) | current model ID discovered live / `pollinations` | Do not treat no-key registration as a usable route. On the reviewed machine, no-key registration failed and the documented `qwen-coder` target returned 404. Use a personal key only if the current service terms permit it, then discover and test an exact model. | Anonymous access is unstable/credit-gated. OmniRoute's fingerprint/session pool conflicts with this guide's anti-bot boundary. Keep out of the initial combo. |
 | 4 — not admitted by default | [UncloseAI](https://uncloseai.com/) | current model ID discovered live / `uncloseai` | Do not rely on stale built-in IDs. The live `lorbus` model accepted chat on the reviewed machine, but tool use returned HTTP 500. Add no target until both tests pass. | No durable privacy commitment or reliable tool-use proof. Keep out of the initial combo. |
 | 5 — conditional | [Mistral Console](https://console.mistral.ai/) | `codestral-latest` / `mistral` | Create account, verify email, create an API key, save as `MISTRAL_API_KEY`. OmniRoute's audited catalogue records a 1B-token/month shared pool, but confirm the live console before relying on it. | Signup/eligibility and quota can change; confirm no paid overage or card requirement before enabling. |
@@ -194,7 +194,7 @@ there; never place it in repository configuration.
 omniroute providers add groq --credential-env GROQ_API_KEY --yes \
   --default-model openai/gpt-oss-120b
 omniroute providers add gemini --credential-env GEMINI_API_KEY --yes \
-  --default-model gemini-3.7-flash
+  --default-model gemini-2.5-flash
 omniroute providers add mistral --credential-env MISTRAL_API_KEY --yes \
   --default-model codestral-latest
 omniroute providers add sambanova --credential-env SAMBANOVA_API_KEY --yes \
@@ -251,25 +251,25 @@ curl --fail-with-body http://127.0.0.1:20128/v1/responses \
   }'
 ```
 
-If Responses or tool use fails, leave that target out of the coding combo; a
+If Responses or tool use fails, leave that target out of the selected route; a
 chat-completions success alone is insufficient.
 
-## Strict, fail-closed free coding combo
+## Strict, fail-closed free coding target
 
 Do not use `auto`, `auto/coding`, “best available,” model aliases, or broad
 fallbacks as a zero-cost promise. They may select paid or unreviewed routes.
-Create the initial named priority combo with exactly one individually tested
-target whose current terms state that quota exhaustion fails rather than bills.
-Get its connection UUID from `omniroute providers list` or the provider detail
-page, then replace the placeholder below with that recorded tuple:
+The reviewed setup admits exactly one stable target:
+`gemini/gemini-2.5-flash`. It must fail at quota exhaustion rather than bill or
+fall back. A named combo is optional convenience, not the target the dedicated
+endpoint key is permitted to use. If you create one, give it exactly one
+Gemini 2.5 Flash connection tuple:
 
 ```bash
 omniroute combo create chaosengine-free-coding --strategy priority \
   --models '[
-    {"providerId":"groq","model":"openai/gpt-oss-120b","connectionId":"<groq-connection-uuid>"}
+    {"providerId":"gemini","model":"gemini-2.5-flash","connectionId":"<gemini-connection-uuid>"}
   ]'
 omniroute combo list
-omniroute combo switch chaosengine-free-coding
 ```
 
 The combo must contain only exact provider/model/connection UUID tuples. Add a
@@ -279,19 +279,32 @@ implicit fallback and require the request to fail when all listed targets fail,
 rate-limit, or exhaust quota. No `auto`, wildcard, bare-model, alias, or broad
 fallback target is allowed.
 
-Create a dedicated endpoint key in **Dashboard → API Keys** after the first
-combo exists. In that key's restriction editor, set restricted model access and
-allow only `chaosengine-free-coding`, the exact combo, and the exact connection
-UUID above; set **No log** enabled and `autoResolve` disabled. The 3.8.50 CLI's
-`keys policy set` exposes only a subset of those controls, so use the dashboard
-for the full restriction set. Save, then verify a request with this endpoint
-key cannot use a direct provider/model or any other connection.
+Create a dedicated endpoint key in **Dashboard → API Keys** after the target
+exists. In that key's restriction editor, allow only the exact
+`gemini/gemini-2.5-flash` target and its Gemini connection UUID; set **No log**
+enabled and `autoResolve` disabled. The 3.8.50 CLI's `keys policy set` exposes
+only a subset of those controls, so use the dashboard for the full restriction
+set. Save the key in a mode-600 user-owned environment file or an
+operating-system secret store; never in a repository or profile. Then verify a
+request with this endpoint key cannot use any other model or connection.
 
-Run a direct request against `chaosengine-free-coding`, then deliberately test
+Run a direct request against `gemini/gemini-2.5-flash`, then deliberately test
 an unapproved model, a nonexistent target, and an exhausted/disabled target.
-Each must return an error, not reroute to a paid or broad automatic target.
+Each must return an error, not reroute to a paid or broad automatic target. The
+reviewed restricted-token proof returned HTTP 403 for unapproved
+`gemini/gemini-3.7-flash`; record the status and sanitized body, never the
+token:
 
-## Codex configuration: selective delegation by default
+```bash
+curl --silent --show-error --output /tmp/omniroute-restricted.json \
+  --write-out '%{http_code}\n' http://127.0.0.1:20128/v1/responses \
+  -H "Authorization: Bearer $OMNIROUTE_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gemini/gemini-3.7-flash","input":"Return only: deny-check"}'
+# Expected: 403. Do not add a fallback to make this request succeed.
+```
+
+## Codex configuration: separate free session
 
 Back up the Codex configuration before editing it. Refuse a collision with an
 existing `model_providers.omniroute` definition rather than overwriting it:
@@ -302,7 +315,7 @@ cp ~/.codex/config.toml ~/.codex/backups/config.toml.before-omniroute.$(date +%Y
 ```
 
 Add this provider block to `~/.codex/config.toml`; preserve the existing
-top-level `model_provider` so the parent session remains on its normal primary
+top-level `model_provider` so normal Codex sessions remain on their primary
 provider:
 
 ```toml
@@ -313,35 +326,94 @@ requires_openai_auth = false
 wire_api = "responses"
 ```
 
-Set `OMNIROUTE_API_KEY` only in the launch environment or a secret manager
-integration. It must not be committed to Codex project configuration.
-
-Create three *personal* agent definitions under `~/.codex/agents/`. Each agent
-uses `model_provider = "omniroute"` and
-`model = "chaosengine-free-coding"`, then contains only a thin role locator:
+Set `OMNIROUTE_API_KEY` only in a mode-600 launch environment file or an
+operating-system secret manager. It must not be committed to Codex project
+configuration. Create an opt-in free-session profile at
+`~/.codex/omniroute-free.config.toml`:
 
 ```toml
-# ~/.codex/agents/omniroute_explorer.toml
-name = "omniroute_explorer"
+# OMNIROUTE_API_KEY is loaded by the launcher, not stored here.
 model_provider = "omniroute"
-model = "chaosengine-free-coding"
-developer_instructions = "Load applicable AGENTS.md, the canonical ChaosEngine skill, and the explorer role before work. Stay read-only."
+model = "gemini/gemini-2.5-flash"
+model_reasoning_effort = "low"
+web_search = "disabled"
+
+# Required today: OmniRoute's Gemini translation rejects host App/MCP schemas.
+[apps._default]
+enabled = false
 ```
 
-Create corresponding `omniroute_worker.toml` and `omniroute_tester.toml` with
-the named worker/tester role in the instruction. Do not move architecture or
-terminal reviewer work to this provider. Invoke these named subagents only for
-low-risk work after the exact combo is proven.
+Create a user-owned launcher that reads its secret file and starts a separate
+Codex process. Substitute your actual home-relative locations; do not copy a
+different user's absolute path or credentials. The launcher needs mode 700 and
+the environment file needs mode 600:
 
-An optional all-free profile can use the same provider and exact combo for a
-low-risk, explicitly launched session. It is not the default profile and does
-not replace the parent provider. Smoke-test it without making it persistent,
-then discard it if it fails Responses or tool-use tests.
+```bash
+mkdir -p "$HOME/.config/omniroute"
+chmod 700 "$HOME/.config/omniroute"
+```
+
+Write the following contents to `$HOME/.local/bin/chaosengine-omniroute`; do
+not execute this block in the current shell:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+readonly env_file="$HOME/.config/omniroute/chaosengine-free-coding.env"
+readonly profile_file="$HOME/.codex/omniroute-free.config.toml"
+[[ -r "$env_file" && -r "$profile_file" ]] || {
+  printf '%s\n' 'OmniRoute free profile is not configured for this user.' >&2
+  exit 2
+}
+set -a
+# shellcheck disable=SC1090
+. "$env_file"
+set +a
+exec codex --profile omniroute-free --disable apps "$@"
+```
+
+```bash
+chmod 700 "$HOME/.local/bin/chaosengine-omniroute"
+```
+
+The secret file contains only an `OMNIROUTE_API_KEY` assignment for the
+dedicated restricted endpoint key, for example
+`OMNIROUTE_API_KEY=<retrieve-from-your-secret-manager>`. Do not place an
+upstream Gemini key there. Start a bounded free session with:
+
+```bash
+chmod 600 "$HOME/.config/omniroute/chaosengine-free-coding.env"
+```
+
+```bash
+chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only \
+  '<bounded task>'
+```
+
+This launches a separate Codex process. It is the verified path for a free
+delegate-style task today. That child still loads the repository's `AGENTS.md`,
+the canonical ChaosEngine skill, and the role named in its task instructions.
+Keep its scope read-only and non-sensitive.
+
+### Current subagent limitation
+
+Do not claim that `spawn_agent` can currently select this free OmniRoute route.
+The built-in all-free subagent path returns
+`multi_agent_v1_spawn_agent` unsupported. A ChatGPT-authenticated parent also
+rejects a cross-provider Gemini child. Named personal files such as
+`omniroute_explorer.toml`, `omniroute_worker.toml`, and
+`omniroute_tester.toml` are experimental/future wiring only; do not create or
+recommend them as a working delegation mechanism. Re-evaluate only after both
+host limitations are resolved and the full acceptance sequence below passes.
+
+Do not move architecture, terminal review, or confidential work to this
+separate free session. Apps must remain disabled in its dedicated profile until
+OmniRoute's Gemini adapter accepts the host App/MCP tool schemas.
 
 ## Acceptance checks
 
-Perform these checks after each provider change and before delegating a real
-task:
+Perform these checks after each provider change and before using the separate
+free session for a real bounded task:
 
 ```bash
 omniroute --version
@@ -353,6 +425,20 @@ curl --fail --silent http://127.0.0.1:20128/v1/models \
 omniroute providers validate
 omniroute combo list
 ```
+
+Then prove the exact admitted route before relying on it:
+
+1. Direct Responses request succeeds through `gemini/gemini-2.5-flash` and
+   returns that exact route in sanitized OmniRoute evidence.
+2. Harmless function-call request succeeds through that same exact target.
+3. The unapproved `gemini/gemini-3.7-flash` request with the restricted
+   endpoint key returns HTTP 403, as shown above; it must not route elsewhere.
+4. `chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only '<bounded task>'`
+   succeeds as a separate process. The task reports the loaded `AGENTS.md`,
+   canonical ChaosEngine skill, role, exact command, and decisive output.
+5. Built-in `spawn_agent` is not an acceptance test until it stops returning
+   `multi_agent_v1_spawn_agent` unsupported. Do not treat a parent-model reply
+   as proof that the free route ran.
 
 Record the following facts in a private, secret-free inventory. “No account
 created” is a valid status; do not fabricate account completion.
@@ -371,14 +457,16 @@ created” is a valid status; do not fabricate account completion.
 - **A provider returns 401/403/429:** confirm the account, key scope, current
   quota, and provider terms. Do not create another account or bypass controls.
 - **A model is missing or tool calls fail:** refresh the provider's current
-  catalogue, retest the exact ID, and remove it from the combo until it works.
+  catalogue, retest the exact ID, and remove it from the selected route until
+  it works.
 - **Unexpected model or charge:** stop the gateway, disable the connection,
   revoke the endpoint and upstream keys, review OmniRoute logs for the exact
   route, and notify the provider if its billing page shows a charge.
 
 To remove the integration, stop and disable the optional unit, remove the
-personal agents and provider block, restore the saved Codex backup, revoke
-endpoint/upstream keys, then uninstall the user-global package:
+free-session profile and launcher, remove any experimental personal agents and
+provider block, restore the saved Codex backup, revoke endpoint/upstream keys,
+then uninstall the user-global package:
 
 ```bash
 systemctl --user disable --now omniroute 2>/dev/null || true
