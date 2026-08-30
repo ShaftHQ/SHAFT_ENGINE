@@ -1250,7 +1250,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     hosts if name == "hosts" else original_load(root, name)
                 ),
             ):
-                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+                MODULE.doctor_with_dependencies(project, verify_clients=False)
 
             self.assertEqual(
                 str(account_python.resolve()),
