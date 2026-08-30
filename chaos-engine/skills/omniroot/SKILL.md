@@ -54,11 +54,13 @@ qualification hash; manifests never record route or model names.
 Qualification is freshly probed before every dispatch; volatile health and
 authentication facts never come from a stale `READY` cache. Operator config is
 a regular owner-owned private file (mode `0600` where permission bits exist).
-Dispatch seals one config snapshot for qualification and launch. Loopback
+Dispatch reads one no-follow config descriptor, seals the verified launcher
+into owner-private state, and executes that immutable copy. Loopback
 health disables ambient proxies and rejects redirects. Dispatch resolves one
 absolute protected executable, binds device, inode, owner, mode, size, mtime,
 and SHA-256 content, then revalidates it immediately before execution. Dispatch
-requires a clean linked Git worktree from the expected repository, including
+requires distinct clean linked delegate and integration Git worktrees from the
+expected repository, including
 no untracked files, interprocess-atomic ownership reservation, ancestor/descendant path
 overlap rejection, argument-list process invocation, a minimal environment, a
 bounded runtime, and private state whose components reject symlinks and unsafe
@@ -68,21 +70,29 @@ KiB in a private diagnostic artifact. Redaction removes exact known credential
 values before persistence plus credential-shaped patterns. A timeout or cancel
 waits after `SIGTERM`, sends `SIGKILL` to survivors, and proves process-group
 death before releasing state. Unsupported durable process identity or process-tree
-termination fails closed to native delegation; OmniRoot transport is not claimed
+termination fails closed before state mutation to native delegation; OmniRoot transport is not claimed
 on that platform. Its manifest
 freezes task/workflow/root/base/integration/qualification/delegate/process/
 cadence/deadline/timeout/HEAD/diagnostic/receipt facts; its terminal receipt freezes outcome,
 exit, clean state, changed paths, checks, blockers, adjacent findings, and
 learning disposition plus the diagnostic hash and truncation/timeout flags.
+Runtime state defaults to the user's platform state directory, outside the
+repository; explicit state paths inside managed worktrees are rejected.
 Dispatch and completion each consume one owner-owned `0600` JSON contract,
 covering workflow, root/task identity, ownership, integration target, cadence,
-deadline, timeout, and terminal evidence. Corrupt or unsafe live manifests abort
+deadline, timeout, learning-runtime identity, and terminal evidence. The root
+creates the learning runtime first; dispatch atomically registers the delegate
+before launch and fails closed if registration cannot be proven. Corrupt or unsafe live manifests abort
 reservation. Completion requires an existing manifest already in review,
 blocked, or cancelled state; captured terminal diagnostics; ownership-bound
-changed paths; verified clean Git HEAD; then creates one atomic non-replaceable
+changed paths exactly matching the frozen-base-to-submitted-HEAD Git diff;
+verified ancestry, real files, ownership, and clean Git HEAD; then creates one
+fsynced atomic non-replaceable
 private receipt. Receipt creation rejects an exit code that conflicts with captured process
 evidence. Unsupported cancellation or stale process identity
-quarantines state. Root verifies all returned claims and imports each delegate
+quarantines state. Monitor and delegate PID, process identity, and process group
+are tracked separately. Review and cancellation require proven delegate-group
+death; surviving or unverifiable groups quarantine the run. Root verifies all returned claims and imports each delegate
 learning disposition before the sole Learning Session.
 
 The operator configures the user-local configuration and attestation outside

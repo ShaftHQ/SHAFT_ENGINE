@@ -9,6 +9,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -170,10 +171,12 @@ class OmniRootRunnerTest(unittest.TestCase):
         contract = {
             "task_id": "task-1", "workflow": "ORCHESTRATOR + SINGLE IMPLEMENTER",
             "root_session_id": "root-1", "base_commit": RUNNER._git(self.worktree, "rev-parse", "HEAD"),
-            "integration_branch": "integration", "integration_worktree": self.worktree,
+            "integration_branch": "integration", "integration_worktree": self.integration,
             "delegate": {"identity": "writer", "role": "implementer", "capability": "lower",
                          "assignment": "bounded", "pathOwnership": ["docs"]},
             "cadence_seconds": 600, "deadline": "2030-01-01T00:00:00+00:00", "timeout_seconds": 60,
+            "learning_state": self.learning_state, "learning_root_session_id": "root-1",
+            "delegate_session_id": kwargs.get("run_id", "delegate-1"),
         }
         contract.update(kwargs)
         return RUNNER.dispatch(**contract)
@@ -199,6 +202,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp())
         self.repository = self.root / "repository"
         self.worktree = self.root / "worktree"
+        self.integration = self.root / "integration"
         self.repository.mkdir()
         subprocess.run(["git", "init", "-q", str(self.repository)], check=True)
         subprocess.run(["git", "-C", str(self.repository), "config", "user.email", "test@example.invalid"], check=True)
@@ -207,6 +211,10 @@ class OmniRootRunnerTest(unittest.TestCase):
         subprocess.run(["git", "-C", str(self.repository), "add", "README.md"], check=True)
         subprocess.run(["git", "-C", str(self.repository), "commit", "-qm", "init"], check=True)
         subprocess.run(["git", "-C", str(self.repository), "worktree", "add", "-q", "-b", "delegate", str(self.worktree)], check=True)
+        subprocess.run(["git", "-C", str(self.repository), "worktree", "add", "-q", "-b", "integration", str(self.integration)], check=True)
+        self.learning_state = self.root / "learning.json"
+        from scripts.agents.learning_session import create_runtime
+        create_runtime(self.learning_state, "root-1")
         self.state = self.root / "state"
         self.config = self.root / "omniroot.json"
         self.launcher = self.root / "launcher"
@@ -255,7 +263,9 @@ class OmniRootRunnerTest(unittest.TestCase):
             process_identity=lambda _: "identity",
         )
         self.assertEqual("running", manifest["status"])
-        self.assertEqual([str(self.launcher), "opaque-profile", "host-cli"], launched[0][0][:3])
+        self.assertEqual("opaque-profile", launched[0][0][1])
+        self.assertEqual("host-cli", launched[0][0][2])
+        self.assertIn("launchers", Path(launched[0][0][0]).parts)
         self.assertFalse(launched[0][1].get("shell", True))
         self.assertEqual(subprocess.PIPE, launched[0][1]["stdout"])
         self.assertEqual(subprocess.PIPE, launched[0][1]["stderr"])
@@ -347,10 +357,8 @@ class OmniRootRunnerTest(unittest.TestCase):
             popen=popen,
             process_identity=lambda _: "identity",
         )
-        self.assertEqual(
-            [str(self.launcher), "opaque-profile", "--task", "bounded"],
-            launched[0][0],
-        )
+        self.assertEqual(["opaque-profile", "--task", "bounded"], launched[0][0][1:])
+        self.assertIn("launchers", Path(launched[0][0][0]).parts)
         expected_runtime = ({"HOME": runtime["HOME"], "TEMP": runtime["TEMP"], "TMP": runtime["TMP"]}
                             if os.name == "posix"
                             else {name: runtime[name] for name in ("USERPROFILE", "SystemRoot", "TEMP", "TMP")})
@@ -387,13 +395,13 @@ class OmniRootRunnerTest(unittest.TestCase):
             target="host-cli", delegate_args=["--task", "bounded"], opener=lambda *_, **__: _Response(),
             environ={"PATH": "/bin", "OMNIROUTE_API_KEY": "secret"}, popen=lambda *_a, **_k: _Process(),
             process_identity=lambda _: "identity", task_id="task-1", root_session_id="root-1",
-            base_commit=RUNNER._git(self.worktree, "rev-parse", "HEAD"), integration_branch="ChaosEngine/test",
-            integration_worktree=self.worktree, delegate={"identity": "writer-a", "role": "implementer",
+            base_commit=RUNNER._git(self.worktree, "rev-parse", "HEAD"), integration_branch="integration",
+            integration_worktree=self.integration, delegate={"identity": "writer-a", "role": "implementer",
                 "capability": "default", "assignment": "opaque task", "pathOwnership": ["docs/file.md"]},
             cadence_seconds=600, deadline="2030-01-01T00:00:00+00:00",
         )
         required = {"schemaVersion", "runId", "taskId", "workflow", "rootSessionId", "baseCommit",
-                    "integration", "qualification", "delegate", "pid", "processIdentity", "status",
+                    "integration", "qualification", "delegate", "monitor", "status",
                     "cadenceSeconds", "deadline", "timestamps", "head", "receipt"}
         self.assertLessEqual(required, manifest.keys())
         self.assertNotIn("opaque task", json.dumps(manifest))
@@ -505,7 +513,11 @@ class OmniRootRunnerTest(unittest.TestCase):
             "stdout": "done", "stderr": "", "stdoutTruncated": False, "stderrTruncated": False,
         }
         RUNNER._write_json(self.state / "diagnostics/run-4.json", diagnostic)
-        result = RUNNER.status("run-4", self.state, process_identity=lambda _: None)
+        RUNNER._write_json(self.state / "processes/run-4.json", {
+            "schemaVersion": 1, "pid": 4343, "pgid": 4343, "processIdentity": "delegate",
+        })
+        with mock.patch.object(RUNNER, "_group_alive", return_value=False):
+            result = RUNNER.status("run-4", self.state, process_identity=lambda _: None)
         self.assertEqual("review", result["status"])
         self.assertEqual(0, result["diagnostics"]["exitCode"])
         self.assertEqual(RUNNER._sha256(diagnostic), result["diagnostics"]["sha256"])
@@ -516,13 +528,20 @@ class OmniRootRunnerTest(unittest.TestCase):
         RUNNER._write_json(self.state / "runs/run-1.json", {
             "schemaVersion": 1, "runId": "run-1", "status": "review", "head": head,
             "delegate": {"pathOwnership": ["chaos-engine/skills/omniroot/SKILL.md"], "worktree": str(self.worktree)},
-            "integration": {"branch": "integration", "worktree": str(self.worktree)},
+            "integration": {"branch": "integration", "worktree": str(self.integration)},
+            "baseCommit": head,
         })
         diagnostic_path = self.state / "diagnostics/run-1.json"
         RUNNER._write_json(diagnostic_path, {
             "schemaVersion": 1, "exitCode": 0, "timedOut": False,
             "stdout": "ok", "stderr": "", "stdoutTruncated": False, "stderrTruncated": False,
         })
+        changed = self.worktree / "chaos-engine/skills/omniroot/SKILL.md"
+        changed.parent.mkdir(parents=True)
+        changed.write_text("test\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.worktree), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(self.worktree), "commit", "-qm", "change"], check=True)
+        head = RUNNER._git(self.worktree, "rev-parse", "HEAD")
         receipt = RUNNER.complete(
             run_id="run-1", state_dir=self.state, exit_code=0,
             changed_paths=["chaos-engine/skills/omniroot/SKILL.md"],
@@ -574,6 +593,17 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.launcher.chmod(0o700)
         self.assertFalse(RUNNER._same_executable(argv, identity))
 
+    def test_sealing_rejects_launcher_replaced_after_qualification(self):
+        qualified = RUNNER._resolved_executable([str(self.launcher)])
+        self.assertIsNotNone(qualified)
+        argv, identity = qualified
+        replacement = self.root / "new-launcher"
+        replacement.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        replacement.chmod(0o700)
+        os.replace(replacement, self.launcher)
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._seal_launcher(argv, identity, self.state)
+
     def test_dispatch_rejects_untracked_and_primary_worktrees(self):
         (self.worktree / "untracked.txt").write_text("x", encoding="utf-8")
         with self.assertRaises(RUNNER.OmniRootError):
@@ -601,6 +631,18 @@ class OmniRootRunnerTest(unittest.TestCase):
                 popen=lambda *_a, **_k: _Process(), process_identity=lambda _: None)
         self.assertFalse((self.state / "runs/unknown.json").exists())
 
+    def test_learning_registration_failure_prevents_launch_and_cleans_reservation(self):
+        launched = []
+        with mock.patch("scripts.agents.learning_session.register_runtime_participant",
+                        side_effect=RuntimeError("closed")):
+            with self.assertRaisesRegex(RUNNER.OmniRootError, "learning registration"):
+                self._dispatch(run_id="learning-fail", worktree=self.worktree, state_dir=self.state,
+                    config_path=self.config, target="host-cli", delegate_args=[],
+                    opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                    popen=lambda *args, **kwargs: launched.append((args, kwargs)))
+        self.assertEqual([], launched)
+        self.assertFalse((self.state / "runs/learning-fail.json").exists())
+
     def test_dispatch_rejects_fabricated_default_runtime_contract(self):
         with self.assertRaises(RUNNER.OmniRootError):
             RUNNER.dispatch(run_id="incomplete", worktree=self.worktree, state_dir=self.state,
@@ -609,17 +651,89 @@ class OmniRootRunnerTest(unittest.TestCase):
     def test_cancel_kills_surviving_process_group_after_leader_exits(self):
         RUNNER._write_json(self.state / "runs/cancel-child.json", {
             "schemaVersion": 1, "runId": "cancel-child", "status": "running",
-            "pid": 4242, "processIdentity": "identity", "timestamps": {},
+            "monitor": {"pid": 4242, "pgid": 4242, "processIdentity": "monitor"}, "timestamps": {},
         })
-        identities = iter(["identity", None])
+        RUNNER._write_json(self.state / "processes/cancel-child.json", {
+            "schemaVersion": 1, "pid": 4343, "pgid": 4343, "processIdentity": "delegate",
+        })
         signals = []
         with mock.patch.object(RUNNER, "_group_alive", side_effect=([True] * 50) + [False]), \
                 mock.patch.object(RUNNER.os, "killpg", side_effect=lambda pid, sig: signals.append((pid, sig))), \
                 mock.patch.object(RUNNER.time, "sleep"):
             result = RUNNER.cancel("cancel-child", self.state,
-                                   process_identity=lambda _pid: next(identities))
+                                   process_identity=lambda pid: "monitor" if pid == 4242 else "delegate")
         self.assertEqual("cancelled", result["status"])
-        self.assertEqual([signal.SIGTERM, signal.SIGKILL], [item[1] for item in signals])
+        self.assertEqual([signal.SIGTERM, signal.SIGKILL, signal.SIGTERM], [item[1] for item in signals])
+
+    def test_capture_records_real_delegate_group_with_surviving_child(self):
+        if sys.platform != "linux":
+            self.skipTest("Linux process topology contract")
+        launcher = self.root / "forking-launcher"
+        launcher.write_text("#!/usr/bin/env python3\nimport os,time\npid=os.fork()\nif pid==0:\n os.close(1); os.close(2); time.sleep(30)\n", encoding="utf-8")
+        launcher.chmod(0o700)
+        argv, identity = RUNNER._resolved_executable([str(launcher)])
+        diagnostic = self.state / "diagnostics/real.json"
+        process_state = self.state / "processes/real.json"
+        completed = subprocess.run([sys.executable, str(RUNNER_PATH), "_capture", str(diagnostic),
+            str(process_state), "5", *(str(value) for value in identity), "--", *argv],
+            check=False, timeout=10)
+        self.assertEqual(0, completed.returncode)
+        captured = RUNNER._load_json(process_state)
+        self.assertTrue(RUNNER._group_alive(captured["pgid"]))
+        os.killpg(captured["pgid"], signal.SIGKILL)
+
+    def test_default_state_is_outside_current_worktree(self):
+        self.assertNotEqual(Path.cwd(), RUNNER.default_state_path())
+        self.assertNotIn(Path.cwd(), RUNNER.default_state_path().parents)
+
+    def test_unsupported_platform_fails_before_state_mutation(self):
+        state = self.root / "never-created"
+        with mock.patch.object(RUNNER.sys, "platform", "win32"):
+            with self.assertRaises(RUNNER.OmniRootError):
+                self._dispatch(run_id="unsupported", worktree=self.worktree, state_dir=state,
+                    config_path=self.config, target="host-cli", delegate_args=[])
+        self.assertFalse(state.exists())
+
+    def test_receipt_publish_failure_leaves_no_partial_target(self):
+        target = self.state / "receipts/fail.json"
+        with mock.patch.object(RUNNER.os, "link", side_effect=OSError("publish failed")):
+            with self.assertRaises(OSError):
+                RUNNER._create_immutable_json(target, {"ok": True})
+        self.assertFalse(target.exists())
+
+    def test_dispatch_rejects_state_inside_managed_worktree(self):
+        with self.assertRaises(RUNNER.OmniRootError):
+            self._dispatch(run_id="inside", worktree=self.worktree,
+                state_dir=self.worktree / ".state", config_path=self.config,
+                target="host-cli", delegate_args=[])
+
+    def test_dispatch_rejects_shared_delegate_and_integration_worktree(self):
+        with self.assertRaisesRegex(RUNNER.OmniRootError, "distinct"):
+            self._dispatch(run_id="shared", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[],
+                integration_worktree=self.worktree, integration_branch="delegate")
+
+    def test_completion_rejects_fabricated_changed_path_claim(self):
+        base = RUNNER._git(self.worktree, "rev-parse", "HEAD")
+        real = self.worktree / "docs/real.md"
+        real.parent.mkdir()
+        real.write_text("real\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.worktree), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(self.worktree), "commit", "-qm", "real"], check=True)
+        head = RUNNER._git(self.worktree, "rev-parse", "HEAD")
+        RUNNER._write_json(self.state / "runs/fabricated.json", {
+            "schemaVersion": 1, "runId": "fabricated", "status": "review", "baseCommit": base,
+            "delegate": {"pathOwnership": ["docs"], "worktree": str(self.worktree)},
+            "integration": {"branch": "integration", "worktree": str(self.integration)},
+        })
+        RUNNER._write_json(self.state / "diagnostics/fabricated.json", {
+            "schemaVersion": 1, "exitCode": 0, "timedOut": False, "stdout": "", "stderr": "",
+            "stdoutTruncated": False, "stderrTruncated": False,
+        })
+        with self.assertRaisesRegex(RUNNER.OmniRootError, "git diff"):
+            RUNNER.complete(run_id="fabricated", state_dir=self.state, exit_code=0,
+                changed_paths=["docs/fake.md"], learning_disposition="nothing-durable",
+                head=head, clean=True)
 
     def test_exact_credential_value_is_redacted_even_without_label(self):
         redacted, _ = RUNNER._redact_diagnostic(b"prefix exact-value suffix", secrets=["exact-value"])
@@ -643,10 +757,12 @@ class OmniRootRunnerTest(unittest.TestCase):
         dispatch_contract.write_text(json.dumps({"runId": "cli", "worktree": str(self.worktree),
             "target": "host-cli", "delegateArgs": [], "taskId": "task", "workflow": "ORCHESTRATOR + SINGLE IMPLEMENTER",
             "rootSessionId": "root", "baseCommit": RUNNER._git(self.worktree, "rev-parse", "HEAD"),
-            "integrationBranch": "integration", "integrationWorktree": str(self.worktree),
+            "integrationBranch": "integration", "integrationWorktree": str(self.integration),
             "delegate": {"identity": "writer", "role": "implementer", "capability": "lower",
                 "assignment": "task", "pathOwnership": ["docs"]}, "cadenceSeconds": 600,
-            "deadline": "2030-01-01T00:00:00+00:00", "timeoutSeconds": 60}), encoding="utf-8")
+            "deadline": "2030-01-01T00:00:00+00:00", "timeoutSeconds": 60,
+            "learningState": str(self.learning_state), "learningRootSessionId": "root-1",
+            "delegateSessionId": "cli"}), encoding="utf-8")
         dispatch_contract.chmod(0o600)
         parser_source = inspect.getsource(RUNNER.main)
         self.assertIn("--contract", parser_source)
