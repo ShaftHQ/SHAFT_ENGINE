@@ -2622,6 +2622,25 @@ class ChaosEngineHostsTest(unittest.TestCase):
             servers["chaosengine-mempalace"]["args"],
         )
         self.assertEqual(".", servers["chaosengine-mempalace"]["cwd"])
+        legacy = {
+            "command": "python3",
+            "args": [
+                ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+                ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+            ],
+            "commandWindows": "py",
+            "argsWindows": [
+                "-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+                ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+            ],
+            "cwd": ".",
+            "env": dict(module.MEMPALACE_MCP_ENV),
+        }
+        self.assertTrue(
+            module.replaceable_owned_server(
+                "chaosengine-mempalace", legacy, servers["chaosengine-mempalace"]
+            )
+        )
 
     def test_native_maven_tools_runtime_uses_resolved_host_paths(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven")

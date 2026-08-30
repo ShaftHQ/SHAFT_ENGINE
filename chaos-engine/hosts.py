@@ -2711,7 +2711,18 @@ def replaceable_owned_server(name: str, existing: object, desired: dict[str, obj
         )
     if name not in {"chaosengine-memory", "chaosengine-mempalace"}:
         return False
+    arguments = [".chaos-engine/tool.py", "memory-mcp"] if name == "chaosengine-memory" else [
+        ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+        ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+    ]
+    portable = {
+        "command": "python3", "args": arguments,
+        "commandWindows": "py", "argsWindows": ["-3", *arguments], "cwd": ".",
+    }
+    if name == "chaosengine-mempalace":
+        portable["env"] = dict(MEMPALACE_MCP_ENV)
     return existing in (
+        portable,
         legacy_owned_python_server(name, "nt"),
         legacy_owned_python_server(name, "posix"),
     )
