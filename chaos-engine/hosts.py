@@ -424,6 +424,7 @@ def retrieval_runtime_status(project: Path) -> dict[str, str]:
             return {
                 "status": "recovery-required",
                 "reason": f"memory {' '.join(arguments)} failed: {detail[:240]}",
+                "code": f"memory-{arguments[0]}-exit",
             }
         try:
             payload = json.loads(result.stdout)
@@ -431,16 +432,19 @@ def retrieval_runtime_status(project: Path) -> dict[str, str]:
             return {
                 "status": "recovery-required",
                 "reason": f"memory {' '.join(arguments)} did not return JSON",
+                "code": f"memory-{arguments[0]}-invalid-json",
             }
         if not isinstance(payload, dict) or payload.get("ok") is not True:
             return {
                 "status": "recovery-required",
                 "reason": f"memory {' '.join(arguments)} reported not ok",
+                "code": f"memory-{arguments[0]}-not-ok",
             }
         if arguments[0] == "check" and payload.get("data", {}).get("valid") is not True:
             return {
                 "status": "recovery-required",
                 "reason": "memory check reported invalid store",
+                "code": "memory-check-invalid-store",
             }
     return {"status": "healthy"}
 

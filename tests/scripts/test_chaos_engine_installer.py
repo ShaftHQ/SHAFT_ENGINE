@@ -1112,7 +1112,11 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with mock.patch.object(
                 controller,
                 "retrieval_runtime_status",
-                return_value={"status": "recovery-required", "reason": "memory check reported invalid store"},
+                return_value={
+                    "status": "recovery-required",
+                    "reason": "memory check reported invalid store",
+                    "code": "memory-check-invalid-store",
+                },
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
@@ -1130,6 +1134,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(
                 "memory check reported invalid store",
                 result["components"]["memory"]["reason"],
+            )
+            self.assertEqual(
+                "memory-check-invalid-store",
+                result["components"]["memory"]["code"],
             )
             self.assertEqual(
                 "healthy",

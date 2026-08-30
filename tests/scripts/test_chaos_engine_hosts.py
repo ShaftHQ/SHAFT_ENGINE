@@ -1643,6 +1643,19 @@ class ChaosEngineHostsTest(unittest.TestCase):
             ):
                 self.assertFalse(module.retrieval_runtime_healthy(project))
 
+            failed = mock.Mock(
+                returncode=17,
+                stdout="secret /tmp/account output",
+                stderr="",
+            )
+            with mock.patch.object(module.subprocess, "run", return_value=failed):
+                status = module.retrieval_runtime_status(project)
+
+            self.assertEqual("recovery-required", status["status"])
+            self.assertEqual("memory-status-exit", status["code"])
+            self.assertNotIn("secret", status["code"])
+            self.assertNotIn("/tmp", status["code"])
+
     def test_retrieval_runtime_accepts_only_known_legacy_memory_objects_read_only(self):
         module = load(HOSTS, "chaos_engine_legacy_memory_compatibility")
         with tempfile.TemporaryDirectory() as temporary:

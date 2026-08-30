@@ -2447,6 +2447,9 @@ def doctor_with_dependencies(
             components["memory"]["status"] = retrieval["status"]
             if retrieval.get("reason"):
                 components["memory"]["reason"] = retrieval["reason"]
+            code = retrieval.get("code")
+            if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", code):
+                components["memory"]["code"] = code
     dependency = result.get("dependencies")
     generation_path = dependency.get("path") if isinstance(dependency, dict) else None
     account_commands = None
