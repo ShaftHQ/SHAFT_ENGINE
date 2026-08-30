@@ -170,20 +170,27 @@ def discover_executables(names: list[str], *, which=shutil.which) -> dict[str, d
 
 def sanitize_receipt(value: object, *, home: Path | None = None) -> object:
     """Remove credential-shaped fields and replace the account home prefix."""
-    account_home = (home or Path.home()).resolve()
+    lexical_home = home or Path.home()
+    account_homes = tuple(dict.fromkeys((
+        str(lexical_home),
+        str(lexical_home.resolve()),
+    )))
     if isinstance(value, dict):
         return {
-            str(key): sanitize_receipt(item, home=account_home)
+            str(key): sanitize_receipt(item, home=lexical_home)
             for key, item in value.items()
             if not _SECRET_KEY.search(str(key))
         }
     if isinstance(value, list):
-        return [sanitize_receipt(item, home=account_home) for item in value]
+        return [sanitize_receipt(item, home=lexical_home) for item in value]
     if isinstance(value, tuple):
-        return [sanitize_receipt(item, home=account_home) for item in value]
+        return [sanitize_receipt(item, home=lexical_home) for item in value]
     if isinstance(value, str):
-        rendered = value.replace(str(account_home), "<home>")
-        return rendered.replace(str(account_home).replace("\\", "/"), "<home>")
+        rendered = value
+        for account_home in account_homes:
+            rendered = rendered.replace(account_home, "<home>")
+            rendered = rendered.replace(account_home.replace("\\", "/"), "<home>")
+        return rendered
     if value is None or type(value) in {bool, int, float}:
         return value
     return type(value).__name__
@@ -378,7 +385,8 @@ def probe_account_dependency(
 
 
 def _account_search_path() -> str:
-    managed_node = Path.home() / ".local/share/chaos-engine/node"
+    home = Path.home()
+    managed_node = home / ".local/share/chaos-engine/node"
     node_bins = sorted(
         (
             root if os.name == "nt" else root / "bin"
@@ -393,10 +401,16 @@ def _account_search_path() -> str:
         ),
         reverse=True,
     )
+    uv_tool_bin = Path(os.environ.get("UV_TOOL_BIN_DIR") or home / ".local/bin")
+    npm_prefix = Path(os.environ.get("NPM_CONFIG_PREFIX") or home / ".local")
+    npm_bin = npm_prefix / ("Scripts" if os.name == "nt" else "bin")
     candidates = [
         *node_bins,
-        Path.home() / ".local/bin",
-        Path.home() / ".cargo/bin",
+        uv_tool_bin,
+        *((npm_prefix,) if os.name == "nt" else ()),
+        npm_bin,
+        home / ".local/bin",
+        home / ".cargo/bin",
     ]
     current = os.environ.get("PATH", "")
     return os.pathsep.join([*(str(path) for path in candidates), current])
@@ -553,11 +567,12 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     project = project.resolve()
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
-    if mempalace:
-        if not (project / "mempalace.yaml").is_file():
-            planned.append([mempalace, "init", "."])
-        if not (project / ".chaos-engine-state/mempalace/.mined").is_file():
+    if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
+        configured = mempalace_project_configuration_exists(project)
+        if configured and not mempalace_project_setup_complete(project):
             planned.append([mempalace, "mine", "."])
+        elif not configured:
+            planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
     graphify = commands.get("graphify")
     if graphify:
         if not (project / ".agents/skills/graphify/SKILL.md").is_file():
@@ -570,6 +585,47 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     if memory and not (project / ".memory/config.json").is_file():
         planned.append([memory, "init", "--no-view"])
     return planned
+
+
+def mempalace_project_setup_complete(project: Path) -> bool:
+    """Return whether a valid configuration already has exact local state."""
+    project = project.resolve()
+    palace = project / ".chaos-engine-state/mempalace"
+    return (palace / "sqlite_exact.sqlite3").is_file()
+
+
+def mempalace_project_configuration_exists(project: Path) -> bool:
+    """Reject unsafe config entries and report a regular legacy configuration."""
+    configuration = project.resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration):
+        raise ValueError("MemPalace project configuration is a link or reparse point")
+    if not configuration.exists():
+        return False
+    if not configuration.is_file():
+        raise ValueError("MemPalace project configuration is not a regular file")
+    return True
+
+
+def mempalace_project_setup_environment(
+    project: Path, command: list[str]
+) -> dict[str, str]:
+    """Bind non-resolver initialization to its one exact project-owned palace."""
+    if command[1:3] not in (["init", "."], ["mine", "."]):
+        return {}
+    return {
+        "MEMPALACE_PALACE_PATH": str(
+            project.resolve() / ".chaos-engine-state/mempalace"
+        ),
+        "MEMPALACE_BACKEND": "sqlite_exact",
+    }
+
+
+def mark_mempalace_project_setup(project: Path) -> None:
+    """Mark only a successful sqlite_exact project setup as mined."""
+    palace = project.resolve() / ".chaos-engine-state/mempalace"
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        raise RuntimeError("MemPalace init did not create the exact target")
+    (palace / ".mined").write_bytes(b"current\n")
 
 
 def detected_package_provider(system: str | None = None, *, which=shutil.which) -> str:
@@ -602,11 +658,17 @@ def require_user_writable_npm_prefix(
 
 
 def _run_account_command(
-    command: list[str], project: Path, *, runner=subprocess.run
+    command: list[str],
+    project: Path,
+    *,
+    runner=subprocess.run,
+    extra_environment: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
     environment["PATH"] = _account_search_path()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    if extra_environment:
+        environment.update(extra_environment)
     result = runner(
         command,
         cwd=project,
@@ -810,11 +872,14 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     for command in project_setup_plan(project, commands):
-        _run_account_command(command, project, runner=runner)
-        if command[1:3] == ["mine", "."]:
-            marker = project / ".chaos-engine-state/mempalace/.mined"
-            marker.parent.mkdir(parents=True, exist_ok=True)
-            marker.write_bytes(b"current\n")
+        _run_account_command(
+            command,
+            project,
+            runner=runner,
+            extra_environment=mempalace_project_setup_environment(project, command),
+        )
+        if command[1:3] in (["init", "."], ["mine", "."]):
+            mark_mempalace_project_setup(project)
 
     final_components: dict[str, dict[str, object]] = {}
     for name, record in actions.items():

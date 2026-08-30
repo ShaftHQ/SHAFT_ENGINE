@@ -25,6 +25,9 @@ from pathlib import Path, PurePosixPath
 
 
 RECEIPT_NAME = ".chaos-engine-hosts.json"
+ROLLBACK_PREVIOUS_RECEIPT = "rollbackPreviousReceipt"
+ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT = "rollbackPreviousAccountReceipt"
+ROLLBACK_PREVIOUS_MEMPALACE_STATE = "rollbackPreviousMempalaceState"
 ANCHOR_NAME = ".chaos-engine-hosts.anchor"
 ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
@@ -245,7 +248,13 @@ def validate_mempalace_config(content: bytes) -> None:
         text = content.decode("utf-8")
     except UnicodeDecodeError as error:
         raise ValueError("invalid MemPalace configuration") from error
-    wing_matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", text)
+    wing_value = (
+        r'(?:[A-Za-z_][A-Za-z0-9_.-]*|'
+        r'"(?:[^"\\\r\n]|\\(?:[0abtnvfre "/\\N_LP]|x[0-9A-Fa-f]{2}|'
+        r'u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}))+"|'
+        r"'(?:[^'\r\n]|'')+')"
+    )
+    wing_matches = re.findall(rf"(?m)^wing:\s*{wing_value}\s*$", text)
     rooms = re.search(
         r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^[A-Za-z_][\w-]*:\s*$|\Z)",
         text,
@@ -259,8 +268,10 @@ def validate_mempalace_config(content: bytes) -> None:
         or rooms is None
         or re.search(r"(?m)^\s*- name:\s*\S+", rooms.group("body")) is None
         or re.search(r"(?m)^\s*description:\s*\S+", rooms.group("body")) is None
-        or excludes is None
-        or re.search(r"(?m)^\s*-\s+\S+", excludes.group("body")) is None
+        or (
+            excludes is not None
+            and re.search(r"(?m)^\s*-\s+\S+", excludes.group("body")) is None
+        )
     ):
         raise ValueError("invalid MemPalace configuration")
 
@@ -275,8 +286,143 @@ def retrieval_configs_healthy(project: Path) -> bool:
     return True
 
 
-def retrieval_runtime_status(project: Path) -> dict[str, str]:
+LEGACY_MEMORY_V5_OBJECT_FIELDS = frozenset(
+    {
+        "body_path", "content_hash", "created_at", "evidence", "facets", "id",
+        "origin", "scope", "source", "status", "superseded_by", "tags", "title",
+        "type", "updated_at",
+    }
+)
+LEGACY_MEMORY_V5_REQUIRED_FIELDS = frozenset(
+    {
+        "body_path", "content_hash", "created_at", "evidence", "id", "scope", "source",
+        "status", "tags", "title", "type", "updated_at",
+    }
+)
+LEGACY_MEMORY_V5_TYPES = frozenset(
+    {
+        "architecture", "constraint", "decision", "fact", "gotcha", "project",
+        "question", "source", "synthesis", "workflow",
+    }
+)
+LEGACY_MEMORY_V5_RELATION_FIELDS = frozenset(
+    {
+        "confidence", "content_hash", "created_at", "evidence", "from", "id",
+        "predicate", "status", "to", "updated_at",
+    }
+)
+LEGACY_MEMORY_V5_RELATION_REQUIRED_FIELDS = frozenset(
+    {"content_hash", "created_at", "from", "id", "predicate", "status", "to", "updated_at"}
+)
+LEGACY_MEMORY_V5_PREDICATES = frozenset(
+    {"affects", "derived_from", "documents", "mentions", "related_to", "summarizes", "supersedes", "supports"}
+)
+
+
+def legacy_memory_v5_objects_compatible(project: Path) -> bool:
+    """Recognize the historical v5 corpus without rewriting persistent data."""
+    try:
+        config = json.loads((project / ".memory/config.json").read_bytes())
+        if not isinstance(config, dict) or config.get("version") != 5:
+            return False
+        validate_memory_config((project / ".memory/config.json").read_bytes())
+        validate_memory_storage(project)
+        root = project / ".memory/memory"
+        objects = sorted(root.rglob("*.json"))
+        relations = sorted((project / ".memory/relations").rglob("*.json"))
+        if (
+            is_link_or_reparse(root)
+            or not objects
+            or any(is_link_or_reparse(path) for path in root.rglob("*"))
+        ):
+            return False
+        for path in objects:
+            value = json.loads(path.read_bytes())
+            if not isinstance(value, dict) or not LEGACY_MEMORY_V5_REQUIRED_FIELDS <= set(value):
+                return False
+            if not set(value) <= LEGACY_MEMORY_V5_OBJECT_FIELDS:
+                return False
+            if value.get("type") not in LEGACY_MEMORY_V5_TYPES:
+                return False
+            if not all(isinstance(value.get(key), str) and value[key] for key in (
+                "id", "title", "body_path", "content_hash", "created_at", "updated_at", "status",
+            )):
+                return False
+            if not isinstance(value.get("source"), dict) or not isinstance(value.get("scope"), dict):
+                return False
+            if not isinstance(value.get("tags"), list) or not isinstance(value.get("evidence"), list):
+                return False
+            if "facets" in value and not isinstance(value["facets"], dict):
+                return False
+            if "origin" in value and not isinstance(value["origin"], dict):
+                return False
+            if "superseded_by" in value and not isinstance(value["superseded_by"], str):
+                return False
+            body_relative = Path(value["body_path"])
+            body = project / ".memory" / body_relative
+            if (
+                body_relative.is_absolute()
+                or project / ".memory" not in body.resolve().parents
+                or is_link_or_reparse(body)
+                or not body.is_file()
+            ):
+                return False
+        relation_root = project / ".memory/relations"
+        if is_link_or_reparse(relation_root) or any(
+            is_link_or_reparse(path) for path in relation_root.rglob("*")
+        ):
+            return False
+        for path in relations:
+            value = json.loads(path.read_bytes())
+            if not isinstance(value, dict) or not LEGACY_MEMORY_V5_RELATION_REQUIRED_FIELDS <= set(value):
+                return False
+            if not set(value) <= LEGACY_MEMORY_V5_RELATION_FIELDS:
+                return False
+            if value.get("predicate") not in LEGACY_MEMORY_V5_PREDICATES:
+                return False
+            if not all(isinstance(value.get(key), str) and value[key] for key in (
+                "id", "from", "to", "content_hash", "created_at", "updated_at", "status",
+            )):
+                return False
+            if "confidence" in value and not isinstance(value["confidence"], str):
+                return False
+            if "evidence" in value and not isinstance(value["evidence"], list):
+                return False
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        return False
+    return True
+
+
+def memory_schema_validation_failure(output: str) -> bool:
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError:
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    return isinstance(error, dict) and error.get("code") == "MemorySchemaValidationFailed"
+
+
+def account_command_environment(account_commands: dict[str, str] | None = None) -> dict[str, str]:
+    """Build a probe environment from the receipt-managed Node executable."""
+    environment = os.environ.copy()
+    node = account_commands.get("node") if account_commands is not None else None
+    if isinstance(node, str):
+        try:
+            managed_node = Path(node).resolve(strict=True)
+        except (OSError, RuntimeError):
+            managed_node = None
+        if managed_node is not None and managed_node.is_file():
+            environment["PATH"] = os.pathsep.join((
+                str(managed_node.parent), environment.get("PATH", ""),
+            ))
+    return environment
+
+
+def retrieval_runtime_status(
+    project: Path, account_commands: dict[str, str] | None = None
+) -> dict[str, str]:
     tool = project / ".chaos-engine/tool.py"
+    environment = account_command_environment(account_commands)
     for arguments in (("status", "--json"), ("check", "--json")):
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
             [sys.executable, str(tool), "memory", *arguments],
@@ -285,12 +431,20 @@ def retrieval_runtime_status(project: Path) -> dict[str, str]:
             text=True,
             check=False,
             timeout=30,
+            env=environment,
         )
         if result.returncode != 0:
+            if memory_schema_validation_failure(result.stdout) and legacy_memory_v5_objects_compatible(project):
+                return {
+                    "status": "compatible-legacy",
+                    "compatibility": "legacy-v5-read-only",
+                    "reason": "installed Memory runtime rejects known legacy v5 storage",
+                }
             detail = (result.stderr or result.stdout or "memory tool exited non-zero").strip()
             return {
                 "status": "recovery-required",
                 "reason": f"memory {' '.join(arguments)} failed: {detail[:240]}",
+                "code": f"memory-{arguments[0]}-exit",
             }
         try:
             payload = json.loads(result.stdout)
@@ -298,16 +452,19 @@ def retrieval_runtime_status(project: Path) -> dict[str, str]:
             return {
                 "status": "recovery-required",
                 "reason": f"memory {' '.join(arguments)} did not return JSON",
+                "code": f"memory-{arguments[0]}-invalid-json",
             }
         if not isinstance(payload, dict) or payload.get("ok") is not True:
             return {
                 "status": "recovery-required",
                 "reason": f"memory {' '.join(arguments)} reported not ok",
+                "code": f"memory-{arguments[0]}-not-ok",
             }
         if arguments[0] == "check" and payload.get("data", {}).get("valid") is not True:
             return {
                 "status": "recovery-required",
                 "reason": "memory check reported invalid store",
+                "code": "memory-check-invalid-store",
             }
     return {"status": "healthy"}
 
@@ -484,7 +641,21 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
     shared_memory = Path(f"{exact}-shm")
     sidecar = palace / ".mempalace"
     mined = palace / ".mined"
-    allowed_names = {path.name for path in (exact, wal, shared_memory, sidecar, mined)}
+    logstream = palace / "logstream.sqlite3"
+    allowed_names = {
+        path.name
+        for path in (
+            exact,
+            wal,
+            shared_memory,
+            sidecar,
+            mined,
+            logstream,
+            Path(f"{logstream}-wal"),
+            Path(f"{logstream}-shm"),
+            palace / "replica.json",
+        )
+    }
     if any(child.name not in allowed_names for child in children):
         return {
             "status": "recovery-required",
@@ -698,30 +869,74 @@ def initialize_mempalace_runtime(project: Path) -> None:
         raise
 
 
-def mcp_runtime_healthy(
+def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
+    """Parse every non-empty stdio frame as one valid JSON-RPC 2.0 message."""
+    frames: list[dict[str, object]] = []
+    for line in stdout.splitlines():
+        if not line.strip():
+            continue
+        value = json.loads(line)
+        if not isinstance(value, dict) or value.get("jsonrpc") != "2.0":
+            raise ValueError("invalid MCP stdout frame")
+        if "id" in value and (
+            isinstance(value["id"], bool)
+            or not isinstance(value["id"], (str, int, type(None)))
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        if "params" in value and not isinstance(value["params"], (dict, list)):
+            raise ValueError("invalid MCP stdout frame")
+        if "error" in value:
+            error = value["error"]
+            if (
+                not isinstance(error, dict)
+                or isinstance(error.get("code"), bool)
+                or not isinstance(error.get("code"), int)
+                or not isinstance(error.get("message"), str)
+            ):
+                raise ValueError("invalid MCP stdout frame")
+        if "method" in value:
+            if (
+                not isinstance(value["method"], str)
+                or not value["method"]
+                or "result" in value
+                or "error" in value
+            ):
+                raise ValueError("invalid MCP stdout frame")
+        elif (
+            "id" not in value
+            or ("result" in value) == ("error" in value)
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        frames.append(value)
+    return frames
+
+
+def mcp_runtime_status(
     project: Path,
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
-) -> bool:
-    if account_commands is None and mempalace_runtime_status(project)["status"] != "healthy":
-        return False
+) -> dict[str, str]:
+    """Return one bounded MCP runtime result without retaining child output."""
+    palace = (
+        resolved_central_palace(project)
+        if repository_map_resolver_present(project)
+        else project / ".chaos-engine-state/mempalace"
+    )
+    if palace is None or mempalace_directory_status(palace).get("status") != "healthy":
+        return {"status": "recovery-required", "detail": "mempalace-state"}
     if account_commands is not None and not (project / "mempalace.yaml").is_file():
-        return False
+        return {"status": "recovery-required", "detail": "account-config"}
     if account_commands is not None and not {
         "memory-mcp", "mempalace-mcp"
     } <= set(account_commands):
-        return False
-    skip_checkout_mempalace = (
-        repository_map_resolver_present(project)
-        and not (project / ".chaos-engine-state/mempalace/sqlite_exact.sqlite3").is_file()
-    )
+        return {"status": "recovery-required", "detail": "account-commands"}
     initialize = json.dumps(
         {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "initialize",
             "params": {
-                "protocolVersion": "2025-06-18",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {},
                 "clientInfo": {"name": "chaos-engine-doctor", "version": "1"},
             },
@@ -744,51 +959,43 @@ def mcp_runtime_healthy(
         + "\n"
     )
     tool = project / ".chaos-engine/tool.py"
-    environment = os.environ.copy()
+    environment = account_command_environment(account_commands)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment.update(MEMPALACE_MCP_ENV)
     python = str(managed_python) if managed_python is not None else sys.executable
     commands = (
-        [account_commands["memory-mcp"]]
-        if account_commands is not None else [python, str(tool), "memory-mcp"],
-        ([
-            account_commands["mempalace-mcp"], "--palace",
-            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
-        ] if account_commands is not None else [
-            python, str(tool), "mempalace-mcp", "--palace",
-            ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
-        ]),
+        [python, str(tool), "memory-mcp"],
+        [python, str(tool), "mempalace-mcp"],
     )
-    for index, command in enumerate(commands):
-        if index == 1 and skip_checkout_mempalace:
-            continue
-        result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
-            command,
-            cwd=project,
-            input=protocol_probe,
-            capture_output=True,
-            text=True,
-            check=False,
-            env=environment,
-            timeout=30,
-        )
-        if result.returncode != 0:
-            return False
+    for name, command in zip(("memory-mcp", "mempalace-mcp"), commands):
         try:
-            responses = [
-                json.loads(line)
-                for line in result.stdout.splitlines()
-                if line.strip().startswith("{")
-            ]
-        except json.JSONDecodeError:
-            return False
+            result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
+                command,
+                cwd=project,
+                input=protocol_probe,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=environment,
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            return {"status": "recovery-required", "detail": f"{name}-timeout"}
+        except OSError:
+            return {"status": "recovery-required", "detail": f"{name}-unavailable"}
+        if result.returncode != 0:
+            return {"status": "recovery-required", "detail": f"{name}-exit"}
+        try:
+            responses = parse_mcp_stdout_frames(result.stdout)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {"status": "recovery-required", "detail": f"{name}-invalid-json"}
         if not any(
             isinstance(response, dict)
             and response.get("id") == 1
             and isinstance(response.get("result"), dict)
             for response in responses
         ):
-            return False
+            return {"status": "recovery-required", "detail": f"{name}-initialize"}
         listed = next(
             (response for response in responses if isinstance(response, dict)
              and response.get("id") == 2),
@@ -798,8 +1005,17 @@ def mcp_runtime_healthy(
         if not isinstance(listed_result, dict) or not isinstance(
             listed_result.get("tools"), list
         ):
-            return False
-    return True
+            return {"status": "recovery-required", "detail": f"{name}-tools-list"}
+    return {"status": "healthy"}
+
+
+def mcp_runtime_healthy(
+    project: Path,
+    managed_python: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+) -> bool:
+    """Retain the historical MCP health predicate for existing callers."""
+    return mcp_runtime_status(project, managed_python, account_commands)["status"] == "healthy"
 
 
 def hook_runtime_healthy(project: Path, managed_python: Path) -> bool:
@@ -2067,7 +2283,7 @@ def probe_maven_tools_runtime(
 
         initialized = exchange([{
             "jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {},
                        "clientInfo": {"name": "chaosengine-installer", "version": "1"}},
         }])
         if initialized.get("id") != 1 or not isinstance(initialized.get("result"), dict):
@@ -2121,14 +2337,7 @@ def owned_servers(
             [".chaos-engine/tool.py", "memory-mcp"], managed_python=managed_python
         ),
         "chaosengine-mempalace": portable_python_server(
-            [
-                ".chaos-engine/tool.py",
-                "mempalace-mcp",
-                "--palace",
-                ".chaos-engine-state/mempalace",
-                "--backend",
-                "sqlite_exact",
-            ],
+            [".chaos-engine/tool.py", "mempalace-mcp"],
             extra={"env": dict(MEMPALACE_MCP_ENV)},
             managed_python=managed_python,
         ),
@@ -2139,18 +2348,13 @@ def owned_servers(
         mempalace = account_commands.get("mempalace-mcp")
         if not memory or not mempalace:
             raise ValueError("account MCP executable receipt is incomplete")
-        servers["chaosengine-memory"] = {
-            "command": memory, "args": [], "cwd": "."
-        }
-        servers["chaosengine-mempalace"] = {
-            "command": mempalace,
-            "args": [
-                "--palace", ".chaos-engine-state/mempalace",
-                "--backend", "sqlite_exact",
-            ],
-            "cwd": ".",
-            "env": dict(MEMPALACE_MCP_ENV),
-        }
+        servers["chaosengine-memory"] = portable_python_server(
+            [".chaos-engine/tool.py", "memory-mcp"]
+        )
+        servers["chaosengine-mempalace"] = portable_python_server(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            extra={"env": dict(MEMPALACE_MCP_ENV)},
+        )
     if maven_runtime is not None:
         java, jar = maven_runtime
         servers["maven-tools-mcp"] = {
@@ -2220,6 +2424,29 @@ def managed_paths() -> tuple[str, ...]:
         ".gitignore",
         ".gitattributes",
     )
+
+
+LIVE_PERSISTENT_PATHS = frozenset({".memory/events.jsonl", "mempalace.yaml"})
+
+
+def receipt_owned_paths() -> tuple[str, ...]:
+    """Return files ChaosEngine may replace or remove from a receipt."""
+    return tuple(path for path in managed_paths() if path not in LIVE_PERSISTENT_PATHS)
+
+
+def validate_live_persistent_images(images: dict[str, bytes | None]) -> None:
+    """Validate project data without making its bytes receipt-owned."""
+    events = images[".memory/events.jsonl"]
+    if events is not None:
+        try:
+            for line in events.decode("utf-8").splitlines():
+                if line.strip() and not isinstance(json.loads(line), dict):
+                    raise ValueError("invalid Memory storage")
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Memory storage") from error
+    config = images["mempalace.yaml"]
+    if config is not None:
+        validate_mempalace_config(config)
 
 
 def host_routes() -> dict[str, str]:
@@ -2474,6 +2701,36 @@ def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, objec
     return server
 
 
+def exact_legacy_native_maven_server(server: object) -> bool:
+    if not isinstance(server, dict) or set(server) != {"command", "args"}:
+        return False
+    command = server.get("command")
+    args = server.get("args")
+    if not isinstance(command, str) or not isinstance(args, list):
+        return False
+    normalized_command = command.replace("\\", "/")
+    absolute_command = normalized_command.startswith("/") or re.match(
+        r"^[A-Za-z]:/", normalized_command
+    )
+    if not absolute_command or normalized_command.rsplit("/", 1)[-1].casefold() not in {
+        "java", "java.exe",
+    }:
+        return False
+    if len(args) != 3 or args[0] != "-jar" or args[2] != (
+        "--spring.profiles.active=docker,no-context7"
+    ):
+        return False
+    jar = args[1]
+    if not isinstance(jar, str):
+        return False
+    normalized_jar = jar.replace("\\", "/")
+    return (
+        normalized_jar.startswith("/") or re.match(r"^[A-Za-z]:/", normalized_jar)
+    ) and normalized_jar.endswith(
+        "/ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar"
+    )
+
+
 def replaceable_owned_server(name: str, existing: object, desired: dict[str, object]) -> bool:
     if existing == desired:
         return True
@@ -2482,25 +2739,84 @@ def replaceable_owned_server(name: str, existing: object, desired: dict[str, obj
             {"command": "npx", "args": ["-y", "@upstash/context7-mcp"]},
             {"command": "npx", "args": ["-y", "@upstash/context7-mcp@latest"]},
         )
+    if name == "maven-tools-mcp":
+        return exact_legacy_native_maven_server(existing)
     if name not in {"chaosengine-memory", "chaosengine-mempalace"}:
         return False
+    arguments = [".chaos-engine/tool.py", "memory-mcp"] if name == "chaosengine-memory" else [
+        ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+        ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+    ]
+    portable = {
+        "command": "python3", "args": arguments,
+        "commandWindows": "py", "argsWindows": ["-3", *arguments], "cwd": ".",
+    }
+    if name == "chaosengine-mempalace":
+        portable["env"] = dict(MEMPALACE_MCP_ENV)
     return existing in (
+        portable,
         legacy_owned_python_server(name, "nt"),
         legacy_owned_python_server(name, "posix"),
     )
 
 
 def exact_legacy_alias(name: str, server: object) -> bool:
-    if not isinstance(server, dict) or not isinstance(server.get("command"), str):
-        return False
-    executable = server["command"].replace("\\", "/").rsplit("/", 1)[-1].casefold()
-    args = server.get("args", [])
+    """Recognize only complete historical alias dictionaries.
+
+    The aliases are reserved names but can also be user-owned.  Match the exact
+    serialized historical shapes, rather than executable basenames, so an
+    absolute custom command or any host-specific setting remains untouched.
+    """
     if name == "sha" + "ft-memory":
-        return executable in {"memory-mcp", "memory-mcp.exe"} and args == []
+        direct = tuple(
+            {"command": command, "args": []}
+            for command in ("memory-mcp", "memory-mcp.exe")
+        )
+        npx = tuple(
+            {
+                "command": command,
+                "args": ["--yes", "--package", f"@aictx/memory@{version}", "--", "memory-mcp"],
+                "cwd": ".",
+            }
+            for command in ("npx", "npx.cmd", "npx.exe")
+            for version in ("0.1.55", "0.2.1")
+        )
+        return server in (*direct, *npx)
     if name == "mempalace":
-        return executable in {"mempalace-mcp", "mempalace-mcp.exe"} and args == [
-            "--palace", ".chaos-engine-state/mempalace"
-        ]
+        direct_arguments = (
+            [],
+            ["--palace", ".chaos-engine-state/mempalace"],
+            ["--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"],
+        )
+        direct = tuple(
+            {"command": command, "args": arguments, "cwd": "."}
+            for command in ("mempalace-mcp", "mempalace-mcp.exe")
+            for arguments in direct_arguments
+        )
+        wrapped = tuple(
+            {
+                "command": command,
+                "args": [".chaos-engine/tool.py", "mempalace-mcp", *arguments],
+                "cwd": ".",
+            }
+            for command in ("python", "python3", "python.exe", "py", "py.exe")
+            for arguments in direct_arguments
+        )
+        frozen_portable = {
+            "command": "python3",
+            "args": [
+                ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+                ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+            ],
+            "commandWindows": "py",
+            "argsWindows": [
+                "-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+                ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+            ],
+            "cwd": ".",
+            "env": dict(MEMPALACE_MCP_ENV),
+        }
+        return server in (*direct, *wrapped, frozen_portable)
     return False
 
 
@@ -2516,6 +2832,126 @@ def legacy_codex_python_block(platform_name: str) -> str:
         '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]\ncwd = ".."\n'
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
+
+
+def legacy_portable_codex_block() -> str:
+    """Return the exact historical cross-platform owned wrapper block."""
+    memory_args = '".chaos-engine/tool.py", "memory-mcp"'
+    mempalace_args = (
+        '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"'
+    )
+    return (
+        "# CHAOSENGINE:START\n"
+        '[mcp_servers."chaosengine-memory"]\ncommand = "python3"\n'
+        f"args = [{memory_args}]\ncommandWindows = \"py\"\n"
+        f'argsWindows = ["-3", {memory_args}]\ncwd = "."\n\n'
+        '[mcp_servers."chaosengine-mempalace"]\ncommand = "python3"\n'
+        f"args = [{mempalace_args}]\ncommandWindows = \"py\"\n"
+        f'argsWindows = ["-3", {mempalace_args}]\ncwd = "."\n'
+        f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
+    )
+
+
+def remove_exact_legacy_codex_mempalace(existing: str) -> str:
+    """Remove only the prior owned wrapper alias, preserving foreign TOML."""
+    arguments = (
+        '[".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]'
+    )
+    windows_arguments = (
+        '["-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]'
+    )
+    for header in ('[mcp_servers.mempalace]', '[mcp_servers."mempalace"]'):
+        for environment in (
+            'env = { MEMPALACE_EMBEDDING_MODEL = "minilm", MEMPALACE_BACKEND = "sqlite_exact" }\n',
+            'env = { MEMPALACE_BACKEND = "sqlite_exact", MEMPALACE_EMBEDDING_MODEL = "minilm" }\n',
+        ):
+            block = (
+                f'{header}\ncommand = "python3"\nargs = {arguments}\n'
+                f'commandWindows = "py"\nargsWindows = {windows_arguments}\n'
+                f'cwd = "."\n{environment}required = false\n'
+            )
+            for candidate in (block, block.replace("\n", "\r\n")):
+                existing = existing.replace(candidate, "")
+    return existing
+
+
+def remove_exact_legacy_codex_store_aliases(existing: str) -> str:
+    """Remove only historical project aliases; preserve every other TOML byte."""
+    legacy_memory = "sha" + "ft-memory"
+    for header in (f"[mcp_servers.{legacy_memory}]", f'[mcp_servers."{legacy_memory}"]'):
+        for version in ("0.1.55", "0.2.1"):
+            memory_args = f'["--yes", "--package", "@aictx/memory@{version}", "--", "memory-mcp"]'
+            block = f'{header}\ncommand = "npx"\nargs = {memory_args}\ncwd = "."\n'
+            for candidate in (block, block.replace("\n", "\r\n")):
+                existing = existing.replace(candidate, "")
+        for cwd in (".", ".."):
+            configured_block = (
+                f'{header}\ncommand = "npx"\n'
+                'args = ["--yes", "--package", "@aictx/memory@0.2.1", "--", "memory-mcp"]\n'
+                f'cwd = "{cwd}"\nenabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]\n'
+                'default_tools_approval_mode = "auto"\nstartup_timeout_sec = 30\ntool_timeout_sec = 60\n'
+                'required = false\n\n'
+                f'[{header[1:-1]}.tools.remember_memory]\napproval_mode = "prompt"\n'
+            )
+            for candidate in (configured_block, configured_block.replace("\n", "\r\n")):
+                existing = existing.replace(candidate, "")
+    for header in ('[mcp_servers.mempalace]', '[mcp_servers."mempalace"]'):
+        block = f'{header}\ncommand = "mempalace-mcp"\nargs = []\ncwd = "."\n'
+        for candidate in (block, block.replace("\n", "\r\n")):
+            existing = existing.replace(candidate, "")
+    return remove_exact_legacy_codex_mempalace(existing)
+
+
+def managed_codex_block(content: str) -> str | None:
+    start = content.find("# CHAOSENGINE:START")
+    end = content.find("# CHAOSENGINE:END")
+    if start < 0 and end < 0:
+        return None
+    if start < 0 or end < start or content.find("# CHAOSENGINE:START", start + 1) >= 0 or content.find("# CHAOSENGINE:END", end + 1) >= 0:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    finish = end + len("# CHAOSENGINE:END")
+    if content[finish:finish + 2] == "\r\n":
+        finish += 2
+    elif content[finish:finish + 1] == "\n":
+        finish += 1
+    return content[start:finish]
+
+
+def strip_known_codex_ownership(
+    current: bytes, before: bytes | None, after: bytes | None
+) -> bytes:
+    """Invert an exact managed block while retaining foreign TOML content."""
+    try:
+        existing = current.decode("utf-8")
+        recorded = after.decode("utf-8") if after is not None else ""
+    except UnicodeDecodeError as error:
+        raise ValueError("invalid Codex configuration") from error
+    existing = remove_known_codex_orphans(
+        remove_exact_legacy_codex_store_aliases(existing)
+    )
+    block = managed_codex_block(existing)
+    if block is None:
+        return existing.encode()
+    before_block = managed_codex_block(
+        before.decode("utf-8") if before is not None else ""
+    )
+    recorded_block = managed_codex_block(recorded)
+    legacy = (
+        *(legacy_codex_python_block(platform) for platform in ("nt", "posix")),
+        legacy_portable_codex_block(),
+    )
+    normalized = block.replace("\r\n", "\n")
+    accepted = {
+        item.replace("\r\n", "\n")
+        for item in (*legacy, before_block, recorded_block)
+        if item is not None
+    }
+    if normalized not in accepted:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    return existing.replace(block, "", 1).encode()
 
 
 def json_content(
@@ -2551,6 +2987,47 @@ def json_content(
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
+def remove_known_codex_orphans(existing: str) -> str:
+    """Remove exact residue emitted by the historical context7 migration."""
+    for orphan in (
+        "\n\nrequired = false\n# CHAOSENGINE:START",
+        "\r\n\r\nrequired = false\r\n# CHAOSENGINE:START",
+    ):
+        existing = existing.replace(
+            orphan,
+            orphan.rsplit("required = false", 1)[0] + "# CHAOSENGINE:START",
+        )
+    return existing
+
+
+_LEGACY_NATIVE_MAVEN_CODEX_BLOCK = re.compile(
+    r'\r?\n\[mcp_servers\."maven-tools-mcp"\]\r?\n'
+    r'command = (?P<command>"(?:[^"\\]|\\.)*")\r?\n'
+    r'args = \["-jar", (?P<jar>"(?:[^"\\]|\\.)*"), '
+    r'"--spring\.profiles\.active=docker,no-context7"\]\r?\n'
+)
+
+
+def remove_exact_legacy_native_maven_codex_block(existing: str) -> str:
+    match = _LEGACY_NATIVE_MAVEN_CODEX_BLOCK.search(existing)
+    if match is None:
+        return existing
+    try:
+        command = json.loads(match.group("command"))
+        jar = json.loads(match.group("jar"))
+    except json.JSONDecodeError:
+        return existing
+    server = {
+        "command": command,
+        "args": [
+            "-jar", jar, "--spring.profiles.active=docker,no-context7",
+        ],
+    }
+    if not exact_legacy_native_maven_server(server):
+        return existing
+    return existing[:match.start()] + existing[match.end():]
+
+
 def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
@@ -2563,6 +3040,7 @@ def codex_content(
         existing = before.decode("utf-8") if before is not None else ""
     except UnicodeDecodeError as error:
         raise ValueError("invalid Codex configuration") from error
+    existing = remove_known_codex_orphans(existing)
     legacy_blocks = (
         '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
         'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
@@ -2571,13 +3049,19 @@ def codex_content(
         'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
         "required = false\n",
         '[mcp_servers.context7]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
+        '[mcp_servers.context7]\ncommand = "npx"\n'
         'args = ["-y", "@upstash/context7-mcp"]\n',
+        '[mcp_servers."context7"]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
         '[mcp_servers."context7"]\ncommand = "npx"\n'
         'args = ["-y", "@upstash/context7-mcp"]\n',
     )
     for legacy in legacy_blocks:
         for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
             existing = existing.replace(newline_variant, "")
+    existing = remove_exact_legacy_native_maven_codex_block(existing)
+    existing = remove_exact_legacy_codex_store_aliases(existing)
     del platform_name
     posix_command, _posix_prefix = interpreter("posix")
     windows_command, _windows_prefix = interpreter("nt")
@@ -2585,18 +3069,12 @@ def codex_content(
         posix_command = windows_command = str(managed_python).replace("\\", "\\\\")
     windows_prefix = "" if managed_python is not None else '"-3", '
     memory_args = '".chaos-engine/tool.py", "memory-mcp"'
-    mempalace_args = (
-        '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
-        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"'
-    )
+    mempalace_args = '".chaos-engine/tool.py", "mempalace-mcp"'
     if account_commands is not None:
         memory = account_commands.get("memory-mcp")
         mempalace = account_commands.get("mempalace-mcp")
         if not memory or not mempalace:
             raise ValueError("account MCP executable receipt is incomplete")
-        posix_command = windows_command = memory.replace("\\", "\\\\")
-        windows_prefix = ""
-        memory_args = ""
     block = (
         "# CHAOSENGINE:START\n"
         f'[mcp_servers."chaosengine-memory"]\ncommand = "{posix_command}"\n'
@@ -2612,10 +3090,14 @@ def codex_content(
         f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
     if account_commands is not None:
-        mempalace_command = account_commands["mempalace-mcp"].replace("\\", "\\\\")
         block = block.replace(
             f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"',
-            f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{mempalace_command}"',
+            '[mcp_servers."chaosengine-mempalace"]\ncommand = "python3"',
+        ).replace(
+            f'commandWindows = "{windows_command}"\n'
+            f'argsWindows = [{windows_prefix}{mempalace_args}]',
+            'commandWindows = "py"\nargsWindows = ["-3", '
+            f'{mempalace_args}]',
         )
     block = block.replace(
         "# CHAOSENGINE:END\n",
@@ -2642,13 +3124,18 @@ def codex_content(
             "# CHAOSENGINE:END\n",
         )
     if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:
-        if block in existing:
-            return existing.encode()
+        for candidate in (block, block.replace("\n", "\r\n")):
+            if candidate in existing:
+                return existing.replace(candidate, block).encode()
         for platform in ("nt", "posix"):
             legacy = legacy_codex_python_block(platform)
             for candidate in (legacy, legacy.replace("\n", "\r\n")):
                 if candidate in existing:
                     return existing.replace(candidate, block).encode()
+        legacy = legacy_portable_codex_block()
+        for candidate in (legacy, legacy.replace("\n", "\r\n")):
+            if candidate in existing:
+                return existing.replace(candidate, block).encode()
         raise ValueError("ChaosEngine Codex configuration collision")
     for name in owned_servers(
         maven_runtime=maven_runtime, managed_python=managed_python,
@@ -3146,6 +3633,15 @@ def desired_content(
     if existing_claude_plugin is not None and existing_claude_plugin != claude_plugin_entry:
         if existing_claude_plugin.get("skills") in (None, []):
             existing_claude_plugin["skills"] = claude_plugin_entry["skills"]
+        versionless = dict(existing_claude_plugin)
+        versionless.pop("version", None)
+        expected_versionless = dict(claude_plugin_entry)
+        expected_versionless.pop("version")
+        if (
+            versionless == expected_versionless
+            and isinstance(existing_claude_plugin.get("version"), str)
+        ):
+            existing_claude_plugin["version"] = plugin_version
         if existing_claude_plugin != claude_plugin_entry:
             raise ValueError("ChaosEngine Claude marketplace collision")
     if existing_claude_plugin is None:
@@ -3703,6 +4199,124 @@ def receipt_bytes(receipt: dict[str, object], project: Path | None = None) -> by
     return (json.dumps(body, indent=2, sort_keys=True) + "\n").encode()
 
 
+def rollback_base_receipt(project: Path, raw: bytes) -> bytes:
+    """Return one-hop rollback receipt without recursively nesting older state."""
+    try:
+        previous = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine host preflight snapshot is invalid") from error
+    if not isinstance(previous, dict):
+        raise ValueError("ChaosEngine host preflight snapshot is invalid")
+    previous.pop(ROLLBACK_PREVIOUS_RECEIPT, None)
+    previous.pop(ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT, None)
+    previous.pop(ROLLBACK_PREVIOUS_MEMPALACE_STATE, None)
+    previous["rollbackIntent"] = None
+    return receipt_bytes(previous, project)
+
+
+def rollback_previous_receipt(project: Path, expected_core_commit: str) -> bytes | None:
+    """Return authenticated one-hop host receipt saved by an upgraded core."""
+    receipt, _ = read_receipt(project)
+    encoded = receipt.get(ROLLBACK_PREVIOUS_RECEIPT)
+    if encoded is None:
+        return None
+    if not isinstance(encoded, str):
+        raise ValueError("ChaosEngine host rollback receipt is invalid")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+        previous = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, TypeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine host rollback receipt is invalid") from error
+    if (
+        base64.b64encode(raw).decode("ascii") != encoded
+        or not isinstance(previous, dict)
+        or previous.get("schemaVersion") != SCHEMA_VERSION
+        or previous.get("phase") != "installed"
+        or previous.get("coreCommit") != expected_core_commit
+        or previous.get("hosts") != host_routes()
+        or previous.get("rollbackIntent") is not None
+        or receipt_bytes(previous, project) != raw
+    ):
+        raise ValueError("ChaosEngine host rollback receipt is invalid")
+    decode_images(previous.get("before"), nullable=True)
+    decode_images(previous.get("after"), nullable=True)
+    return raw
+
+
+def rollback_previous_account_receipt(
+    project: Path, expected_core_commit: str
+) -> bytes | None:
+    """Return the authenticated exact account receipt saved with the prior hosts."""
+    if rollback_previous_receipt(project, expected_core_commit) is None:
+        return None
+    receipt, _ = read_receipt(project)
+    encoded = receipt.get(ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT)
+    if encoded is None:
+        return None
+    if not isinstance(encoded, str):
+        raise ValueError("ChaosEngine account rollback receipt is invalid")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+        previous = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, TypeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine account rollback receipt is invalid") from error
+    if (
+        base64.b64encode(raw).decode("ascii") != encoded
+        or not isinstance(previous, dict)
+        or previous.get("schemaVersion") != 2
+        or not isinstance(previous.get("components"), dict)
+        or not isinstance(previous.get("commands"), dict)
+    ):
+        raise ValueError("ChaosEngine account rollback receipt is invalid")
+    return raw
+
+
+def validate_rollback_mempalace_state(value: object) -> dict[str, object]:
+    """Validate authenticated per-file base and candidate MemPalace state images."""
+    if not isinstance(value, dict) or set(value) != {"before", "after"}:
+        raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+    before = value.get("before")
+    after = value.get("after")
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+    normalized: list[dict[str, object]] = []
+    for image in (before, after):
+        if set(image) != {"exists", "files"}:
+            raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+        exists = image.get("exists")
+        files = image.get("files")
+        if not isinstance(exists, bool) or not isinstance(files, dict):
+            raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+        file_images: dict[str, str] = {}
+        for relative, digest in files.items():
+            path = PurePosixPath(relative) if isinstance(relative, str) else None
+            if (
+                path is None
+                or path.is_absolute()
+                or not path.parts
+                or any(part in {"", ".", ".."} for part in path.parts)
+                or not isinstance(digest, str)
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+            file_images[relative] = digest
+        normalized.append({"exists": exists, "files": file_images})
+    return {"before": normalized[0], "after": normalized[1]}
+
+
+def rollback_previous_mempalace_state(
+    project: Path, expected_core_commit: str
+) -> dict[str, object] | None:
+    """Return authenticated candidate state metadata for one account rollback."""
+    if rollback_previous_receipt(project, expected_core_commit) is None:
+        return None
+    receipt, _ = read_receipt(project)
+    value = receipt.get(ROLLBACK_PREVIOUS_MEMPALACE_STATE)
+    if value is None:
+        return None
+    return validate_rollback_mempalace_state(value)
+
+
 def atomic_write(  # noqa: MC0001 - one descriptor-bound transaction protects user files.
     project: Path, path: Path, content: bytes, expected: bytes | None
 ) -> None:
@@ -3882,7 +4496,7 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
     if value.get("hosts") != host_routes():
         raise ValueError("ChaosEngine host receipt routes are invalid")
     decode_images(value.get("before"), nullable=True)
-    decode_images(value.get("after"), nullable=False)
+    decode_images(value.get("after"), nullable=True)
     before_value = value.get("before")
     after_value = value.get("after")
     if isinstance(before_value, dict) and isinstance(after_value, dict):
@@ -3907,13 +4521,146 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
     return value, raw
 
 
+def strip_known_json_ownership(
+    current: bytes, before: bytes | None, after: bytes | None, *, label: str
+) -> bytes:
+    """Invert exact owned MCP entries and leave unrelated servers untouched."""
+    try:
+        value = json.loads(current)
+        original = json.loads(before) if before is not None else {}
+        recorded = json.loads(after) if after is not None else {}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid {label} configuration") from error
+    if not isinstance(value, dict) or not isinstance(original, dict) or not isinstance(recorded, dict):
+        raise ValueError(f"invalid {label} configuration")
+    servers = value.get("mcpServers", {})
+    original_servers = original.get("mcpServers", {})
+    recorded_servers = recorded.get("mcpServers", {})
+    if not isinstance(servers, dict) or not isinstance(original_servers, dict) or not isinstance(recorded_servers, dict):
+        raise ValueError("invalid MCP server configuration")
+    for name in ("chaosengine-memory", "chaosengine-mempalace", "context7", "maven-tools-mcp"):
+        if name not in servers:
+            continue
+        expected = [
+            collection[name]
+            for collection in (original_servers, recorded_servers)
+            if name in collection
+        ]
+        legacy_server = name in {"chaosengine-memory", "chaosengine-mempalace"} and servers[name] in (
+            legacy_owned_python_server(name, "nt"),
+            legacy_owned_python_server(name, "posix"),
+        )
+        if servers[name] in expected or legacy_server or (
+            name == "maven-tools-mcp" and servers[name] == LEGACY_MAVEN_TOOLS_SERVER
+        ):
+            del servers[name]
+            continue
+        raise ValueError(f"ChaosEngine MCP server collision: {name}")
+    for name in ("sha" + "ft-memory", "mempalace"):
+        if name not in servers:
+            continue
+        if not exact_legacy_alias(name, servers[name]):
+            raise ValueError(f"ChaosEngine MCP server collision: {name}")
+        del servers[name]
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+
+
+def known_legacy_guard(project: Path, current: bytes) -> bool:
+    """Accept only an exact installed-core guard while replacing its plugin copy."""
+    for relative in (
+        ".chaos-engine/hooks/guard.py",
+        ".chaos-engine.backup/hooks/guard.py",
+    ):
+        try:
+            if read_file(project, project / relative) == current:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def upgrade_before_images(
+    project: Path,
+    before: dict[str, bytes | None],
+    after: dict[str, bytes | None],
+    current: dict[str, bytes | None],
+) -> dict[str, bytes | None]:
+    """Classify authenticated legacy images and retain only their foreign residue."""
+    validate_live_persistent_images(current)
+    restored = dict(before)
+    for relative in managed_paths():
+        observed = current[relative]
+        if relative in LIVE_PERSISTENT_PATHS:
+            restored[relative] = observed
+            continue
+        if relative == ".mcp.json" and observed is not None:
+            restored[relative] = strip_known_json_ownership(
+                observed, before[relative], after[relative], label="MCP"
+            )
+            continue
+        if relative == ".gemini/settings.json" and observed is not None:
+            stripped = strip_known_json_ownership(
+                observed, before[relative], after[relative], label="Gemini"
+            )
+            restored[relative] = without_chaos_hooks(stripped, "Gemini")
+            continue
+        if relative == ".codex/config.toml" and observed is not None:
+            restored[relative] = strip_known_codex_ownership(
+                observed, before[relative], after[relative]
+            )
+            continue
+        if observed in (before[relative], after[relative]):
+            continue
+        if relative == ".agents/skills/README.md":
+            restored[relative] = observed
+            continue
+        if relative == "plugins/chaos-engine/hooks/guard.py":
+            if not isinstance(observed, bytes) or not known_legacy_guard(project, observed):
+                raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            continue
+        if relative in {
+            ".codex/hooks.json",
+            ".grok/hooks/lifecycle.json",
+            ".claude/settings.json",
+        }:
+            label = {
+                ".codex/hooks.json": "Codex",
+                ".grok/hooks/lifecycle.json": "Grok",
+                ".claude/settings.json": "Claude",
+            }[relative]
+            restored[relative] = without_chaos_hooks(observed, label)
+            continue
+        raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+    return restored
+
+
+def preflight(project: Path) -> dict[str, object]:
+    """Authenticate and snapshot an installed host before an installer swaps cores."""
+    project = project.resolve()
+    receipt, raw = read_receipt(project)
+    if receipt["phase"] != "installed":
+        raise ValueError("ChaosEngine host installation recovery is required")
+    before = decode_images(receipt["before"], nullable=True)
+    after = decode_images(receipt["after"], nullable=True)
+    current = current_images(project)
+    return {
+        "receipt": receipt,
+        "raw": raw,
+        "images": current,
+        "before": upgrade_before_images(project, before, after, current),
+    }
+
+
 def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for every host.
     project: Path,
     desired: dict[str, bytes | None],
     allowed: tuple[dict[str, bytes | None], ...],
 ) -> None:
     snapshots = current_images(project)
+    validate_live_persistent_images(snapshots)
     for relative, current in snapshots.items():
+        if relative in LIVE_PERSISTENT_PATHS:
+            continue
         if not any(current == candidate[relative] for candidate in allowed):
             raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
     changed: list[tuple[str, bytes | None, bytes | None]] = []
@@ -3921,6 +4668,12 @@ def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for ev
         for relative in managed_paths():
             current = read_file(project, project / relative)
             wanted = desired[relative]
+            if (
+                relative in LIVE_PERSISTENT_PATHS
+                and current is not None
+                and not (current == b"" and wanted is None)
+            ):
+                continue
             if current == wanted:
                 continue
             if wanted is None:
@@ -3959,7 +4712,10 @@ def install(
     capability_policy_digest: str | None = None,
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
+    rollback_account_receipt: bytes | None = None,
+    rollback_mempalace_state: dict[str, object] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    upgrade_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
@@ -3976,39 +4732,87 @@ def install(
         host_anchor(project)
         receipt, raw = read_receipt(project)
         before = decode_images(receipt["before"], nullable=True)
-        after = decode_images(receipt["after"], nullable=False)
+        after = decode_images(receipt["after"], nullable=True)
         if receipt["phase"] == "installed":
+            if upgrade_snapshot is None:
+                try:
+                    snapshot = preflight(project)
+                except ValueError as error:
+                    raise ValueError(
+                        f"ChaosEngine host adapter drift detected: {project}"
+                    ) from error
+            else:
+                snapshot = upgrade_snapshot
+            snapshot_raw = snapshot.get("raw")
+            snapshot_images = snapshot.get("images")
+            snapshot_before = snapshot.get("before")
+            if (
+                snapshot_raw != raw
+                or not isinstance(snapshot_images, dict)
+                or not isinstance(snapshot_before, dict)
+                or set(snapshot_images) != set(managed_paths())
+                or set(snapshot_before) != set(managed_paths())
+            ):
+                raise ValueError("ChaosEngine host preflight snapshot is invalid")
+            current = {relative: snapshot_images[relative] for relative in managed_paths()}
+            migration_before = {relative: snapshot_before[relative] for relative in managed_paths()}
+            if any(content is not None and not isinstance(content, bytes) for content in (*current.values(), *migration_before.values())):
+                raise ValueError("ChaosEngine host preflight snapshot is invalid")
             desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
             version = plugin_cache_version(core_commit)
             wanted = desired_content(
-                before,
+                migration_before,
                 project_name=project_identity_name(project),
                 plugin_version=version,
                 dependency_runtime=dependency_runtime,
                 account_commands=account_commands,
                 maven_docker=maven_docker,
             )
-            current = current_images(project)
-            for relative in managed_paths():
-                if current[relative] not in (after[relative], wanted[relative]):
-                    raise ValueError(
-                        f"ChaosEngine host adapter drift detected: {project / relative}"
-                    )
+            for relative in LIVE_PERSISTENT_PATHS:
+                wanted[relative] = current[relative]
+            receipt_before = dict(migration_before)
+            receipt_after = dict(wanted)
+            for relative in LIVE_PERSISTENT_PATHS:
+                receipt_before[relative] = before[relative]
+                receipt_after[relative] = after[relative]
             if (
-                after == wanted
+                after == receipt_after
                 and receipt.get("coreCommit") == core_commit
                 and receipt.get("capabilityPolicySha256") == desired_capability_digest
             ):
-                apply_hook_receipt(receipt, after, wanted)
+                apply_hook_receipt(receipt, after, receipt_after)
                 write_receipt(project, receipt, raw)
                 return receipt
             next_receipt = dict(receipt)
+            next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
+                rollback_base_receipt(project, snapshot_raw)
+            ).decode("ascii")
+            if rollback_account_receipt is not None:
+                try:
+                    account_receipt = json.loads(rollback_account_receipt.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                    raise ValueError("ChaosEngine account rollback receipt is invalid") from error
+                if (
+                    not isinstance(account_receipt, dict)
+                    or account_receipt.get("schemaVersion") != 2
+                    or not isinstance(account_receipt.get("components"), dict)
+                    or not isinstance(account_receipt.get("commands"), dict)
+                ):
+                    raise ValueError("ChaosEngine account rollback receipt is invalid")
+                next_receipt[ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT] = base64.b64encode(
+                    rollback_account_receipt
+                ).decode("ascii")
+            if rollback_mempalace_state is not None:
+                next_receipt[ROLLBACK_PREVIOUS_MEMPALACE_STATE] = (
+                    validate_rollback_mempalace_state(rollback_mempalace_state)
+                )
             next_receipt["phase"] = "installing"
             next_receipt["coreCommit"] = core_commit
             if desired_capability_digest is not None:
                 next_receipt["capabilityPolicySha256"] = desired_capability_digest
-            next_receipt["after"] = encode_images(wanted)
-            apply_hook_receipt(next_receipt, after, wanted)
+            next_receipt["before"] = encode_images(receipt_before)
+            next_receipt["after"] = encode_images(receipt_after)
+            apply_hook_receipt(next_receipt, after, receipt_after)
             new_directories = created_directories(project)
             next_receipt["createdDirectories"] = sorted(
                 set(receipt_directories(receipt)) | set(new_directories),
@@ -4017,12 +4821,12 @@ def install(
             next_raw = write_receipt(project, next_receipt, raw)
             try:
                 prepare_created_directories(project, next_receipt)
-                reconcile(project, wanted, (after, wanted))
+                reconcile(project, wanted, (current, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
                 return next_receipt
             except BaseException:
-                reconcile(project, after, (after, wanted))
+                reconcile(project, current, (current, wanted))
                 if new_directories:
                     cleanup_receipt = dict(next_receipt)
                     cleanup_receipt["createdDirectories"] = new_directories
@@ -4091,9 +4895,10 @@ def verify(
     verify_created_directories(project, receipt)
     if core_commit is not None and receipt.get("coreCommit") != core_commit:
         raise ValueError("ChaosEngine host receipt does not match the installed core")
-    after = decode_images(receipt.get("after"), nullable=False)
+    after = decode_images(receipt.get("after"), nullable=True)
     current = current_images(project)
-    for relative in managed_paths():
+    validate_live_persistent_images(current)
+    for relative in receipt_owned_paths():
         if current[relative] != after[relative]:
             raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
     return {
@@ -4183,10 +4988,17 @@ def restore_snapshot(project: Path, saved: dict[str, object]) -> None:
     if not isinstance(previous, dict) or not isinstance(raw, bytes):
         raise ValueError("ChaosEngine host snapshot is invalid")
     current, current_raw = read_receipt(project)
-    verify(project, current)
-    previous_after = decode_images(previous.get("after"), nullable=False)
-    current_after = decode_images(current.get("after"), nullable=False)
-    reconcile(project, previous_after, (current_after, previous_after))
+    previous_after = decode_images(previous.get("after"), nullable=True)
+    current_after = decode_images(current.get("after"), nullable=True)
+    actual = saved.get("images")
+    if actual is None:
+        actual = previous_after
+    if not isinstance(actual, dict) or set(actual) != set(managed_paths()):
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    preflight = {relative: actual[relative] for relative in managed_paths()}
+    if any(content is not None and not isinstance(content, bytes) for content in preflight.values()):
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    reconcile(project, preflight, (current_after, preflight))
     atomic_write(project, project / RECEIPT_NAME, raw, current_raw)
 
 
@@ -4199,7 +5011,7 @@ def prepare_uninstall(
     project = project.resolve()
     receipt, raw = read_receipt(project)
     before = decode_images(receipt["before"], nullable=True)
-    after = decode_images(receipt["after"], nullable=False)
+    after = decode_images(receipt["after"], nullable=True)
     if receipt["phase"] == "installed":
         verify(project, receipt)
         activation = receipt.get("clientActivation")
@@ -4255,6 +5067,9 @@ def remove_created_directories(project: Path, receipt: dict[str, object]) -> Non
                 path.rmdir()
             except OSError as error:
                 if any(path.iterdir()):
+                    if relative == ".memory":
+                        claim.unlink()
+                        continue
                     atomic_write(project, marker, directory_marker(project, receipt, relative), None)
                     if claim.exists():
                         claim.unlink()
@@ -4276,7 +5091,7 @@ def cancel_uninstall(
     if receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host removal is not prepared")
     before = decode_images(receipt["before"], nullable=True)
-    after = decode_images(receipt["after"], nullable=False)
+    after = decode_images(receipt["after"], nullable=True)
     prepare_created_directories(project, receipt)
     reconcile(project, after, (before, after))
     activation = receipt.get("clientActivation")
@@ -4304,8 +5119,16 @@ def finalize_uninstall(project: Path) -> None:
     if receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host removal is not prepared")
     before = decode_images(receipt["before"], nullable=True)
-    observed = {relative: read_file(project, project / relative) for relative in before}
-    if observed != before:
+    observed = {
+        relative: read_file(project, project / relative)
+        for relative in before
+        if relative not in LIVE_PERSISTENT_PATHS
+    }
+    expected = {
+        relative: content for relative, content in before.items()
+        if relative not in LIVE_PERSISTENT_PATHS
+    }
+    if observed != expected:
         raise ValueError("ChaosEngine host removal state drift detected")
     remove_created_directories(project, receipt)
     anchor = host_anchor_path(project)

@@ -497,6 +497,71 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             installer.rollback.assert_called_once_with(project.resolve())
             installer.uninstall_with_dependencies.assert_not_called()
 
+    def test_failed_upgrade_doctor_retains_only_the_observed_candidate_commit(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            (project / ".chaos-engine").mkdir()
+            (project / ".chaos-engine.backup").mkdir()
+            opener, _ = self.opener([(COMMIT_TWO, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.doctor_with_dependencies.return_value = {
+                "commit": COMMIT_TWO,
+                "components": {
+                    "hooks": {
+                        "status": "recovery-required", "taskImpact": "required"
+                    }
+                },
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                with self.assertRaises(module.InstallHealthError) as raised:
+                    module.install_latest(
+                        project,
+                        repository="Example/Project",
+                        branch="main",
+                        opener=opener,
+                    )
+
+            self.assertEqual(COMMIT_TWO, raised.exception.observed_upgrade_commit)
+            self.assertEqual(
+                (("hooks", "recovery-required"),),
+                raised.exception.observed_upgrade_components,
+            )
+            installer.rollback.assert_called_once_with(project.resolve())
+
+    def test_upgrade_health_failure_issue_query_includes_sha_and_safe_components(self):
+        module = load()
+        error = module.InstallHealthError(
+            "Verify installation",
+            {
+                "commit": COMMIT_TWO,
+                "components": {
+                    "hooks": {
+                        "status": "recovery-required", "taskImpact": "required",
+                        "detail": "hook-runtime-exit",
+                    }
+                },
+            },
+        )
+        error.observed_upgrade_commit = COMMIT_TWO
+        error.observed_upgrade_components = (("hooks", "recovery-required"),)
+        error.observed_upgrade_component_details = (("hooks", "hook-runtime-exit"),)
+        stderr = io.StringIO()
+        with mock.patch.object(module.sys, "stderr", stderr):
+            module.emit_install_failure("CE-INSTALL-FAILED", error, "Example/Project")
+
+        self.assertIn(f"observed_commit={COMMIT_TWO}", stderr.getvalue())
+        self.assertIn("candidate_components=hooks%3Arecovery-required", stderr.getvalue())
+        self.assertIn(
+            "candidate_component_details=hooks%3Ahook-runtime-exit", stderr.getvalue()
+        )
+
     def test_cancel_after_successful_core_install_keeps_last_verified_generation(self):
         module = load()
         cases = (

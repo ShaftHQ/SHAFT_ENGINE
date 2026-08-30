@@ -88,65 +88,87 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                             self.fail("lock unexpectedly acquired")
             close.assert_called_once()
 
-    def test_tool_launcher_blocks_unhealthy_mempalace_state_before_native_launch(self):
+    def test_tool_launcher_resolves_one_shared_mempalace_before_native_launch(self):
         module = load_tool()
-        self.assertTrue(hasattr(module, "guard_mempalace_mcp"))
-        controller = """from pathlib import Path
-def mempalace_runtime_status(project: Path):
-    status = (project / '.chaos-engine-state/mempalace/status.txt').read_text().strip()
-    return {'status': status, 'detail': 'fixture state'}
-"""
-        arguments = [
-            "tool.py",
-            "mempalace-mcp",
-            "--palace",
-            ".chaos-engine-state/mempalace",
-            "--backend",
-            "sqlite_exact",
-        ]
+        self.assertTrue(hasattr(module, "mempalace_mcp_arguments"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             core = project / ".chaos-engine"
-            palace = project / ".chaos-engine-state/mempalace"
             core.mkdir()
+            palace = project / "shared/palace"
             palace.mkdir(parents=True)
-            core.joinpath("hosts.py").write_text(controller, encoding="utf-8")
-            command = project / ".chaos-engine-runtime/bin/mempalace-mcp"
+            resolver = project / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text(
+                "from pathlib import Path\n"
+                f"def find_shared_mempalace(_cwd): return Path({str(palace)!r})\n",
+                encoding="utf-8",
+            )
+            controller = {
+                "mempalace_directory_status": lambda _palace: {
+                    "status": "healthy", "detail": "fixture state"
+                }
+            }
+            with mock.patch.object(module, "load_host_controller", return_value=controller):
+                self.assertEqual(
+                    ["--palace", str(palace.resolve()), "--backend", "sqlite_exact"],
+                    module.mempalace_mcp_arguments(core, []),
+                )
+                with self.assertRaisesRegex(ValueError, "does not accept host-supplied"):
+                    module.mempalace_mcp_arguments(core, ["--read-only"])
+                controller["mempalace_directory_status"] = lambda _palace: {
+                    "status": "recovery-required", "detail": "fixture state"
+                }
+                with self.assertRaisesRegex(ValueError, "recovery-required"):
+                    module.mempalace_mcp_arguments(core, [])
 
-            for status in ("migration-required", "recovery-required"):
-                palace.joinpath("status.txt").write_text(status, encoding="utf-8")
-                with self.subTest(status=status):
-                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
-                        with mock.patch.object(module.sys, "argv", arguments):
-                            with mock.patch.object(module, "resolve_command", return_value=command):
-                                with mock.patch.object(module.sys, "dont_write_bytecode", False):
-                                    with mock.patch.object(module.subprocess, "call") as call:
-                                        self.assertEqual(1, module.main())
-                    call.assert_not_called()
-                    self.assertFalse(core.joinpath("__pycache__").exists())
-
-            palace.joinpath("status.txt").write_text("healthy", encoding="utf-8")
-            with mock.patch.object(module, "__file__", str(core / "tool.py")):
-                with mock.patch.object(module.sys, "argv", arguments):
-                    with mock.patch.object(module, "resolve_command", return_value=command):
-                        with mock.patch.object(module.sys, "dont_write_bytecode", False):
-                            with mock.patch.object(module.subprocess, "call", return_value=0) as call:
-                                self.assertEqual(0, module.main())
-            call.assert_called_once()
-            self.assertFalse(core.joinpath("__pycache__").exists())
-
-            for invalid in (
-                [*arguments, "--backend=chroma"],
-                [*arguments, "--palace=external"],
-                [*arguments, "--read-only"],
-                [*arguments[:-1], "chroma"],
+    def test_tool_launcher_uses_primary_checkout_only_at_origin_main(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            worktree = Path(temporary)
+            resolver = worktree / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture\n", encoding="utf-8")
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=(
+                    SimpleNamespace(stdout="/repo/.git\n"),
+                    SimpleNamespace(stdout="a" * 40 + "\n" + "a" * 40 + "\n"),
+                ),
             ):
-                with self.subTest(arguments=invalid):
-                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
-                        with mock.patch.object(module.sys, "argv", invalid):
-                            with mock.patch.object(module.subprocess, "call") as call:
-                                self.assertEqual(1, module.main())
-                    call.assert_not_called()
+                self.assertEqual(Path("/repo"), module.shared_project_root(worktree))
+
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=(
+                    SimpleNamespace(stdout="/repo/.git\n"),
+                    SimpleNamespace(stdout="a" * 40 + "\n" + "b" * 40 + "\n"),
+                ),
+            ):
+                with self.assertRaisesRegex(ValueError, "not synchronized with origin/main"):
+                    module.shared_project_root(worktree)
+
+            resolver.unlink()
+            self.assertEqual(worktree.resolve(), module.shared_project_root(worktree))
+
+    def test_tool_launcher_rejects_relative_resolver_output_before_resolve(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine"
+            core.mkdir()
+            resolver = project / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text(
+                "from pathlib import Path\n"
+                "def find_shared_mempalace(_cwd): return Path('relative-palace')\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "returned a relative path"):
+                module.mempalace_mcp_arguments(core, [])
 
     @staticmethod
     def fake_runner(root: Path):
@@ -266,6 +288,23 @@ def mempalace_runtime_status(project: Path):
         self.assertNotIn("authorization", receipt["probe"])
         self.assertEqual("<home>/.local/bin/node", receipt["executable"])
 
+    def test_receipt_sanitization_redacts_lexical_and_canonical_home_aliases(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            canonical_home = root / "private" / "person"
+            canonical_home.mkdir(parents=True)
+            lexical_parent = root / "var"
+            self.symlink_or_skip(root / "private", lexical_parent)
+            lexical_home = lexical_parent / "person"
+
+            receipt = module.sanitize_receipt(
+                {"executable": str(lexical_home / ".local/bin/node")},
+                home=lexical_home,
+            )
+
+        self.assertEqual("<home>/.local/bin/node", receipt["executable"])
+
     def test_account_discovery_rejects_project_local_generation_executables(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
@@ -352,7 +391,31 @@ def mempalace_runtime_status(project: Path):
 
             search = module._account_search_path().split(os.pathsep)
 
-            self.assertTrue(search[0].endswith("24.19.0/bin"))
+            expected = "24.19.0" if os.name == "nt" else "24.19.0/bin"
+            self.assertTrue(search[0].endswith(expected))
+
+    def test_account_search_path_includes_configured_uv_and_npm_executable_bins(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            module.Path, "home", return_value=Path(temporary)
+        ), mock.patch.dict(
+            module.os.environ,
+            {
+                "UV_TOOL_BIN_DIR": str(Path(temporary) / "uv-tool-bin"),
+                "NPM_CONFIG_PREFIX": str(Path(temporary) / "npm-prefix"),
+                "PATH": "/system/bin",
+            },
+            clear=True,
+        ):
+            search = module._account_search_path().split(os.pathsep)
+
+        self.assertIn(str(Path(temporary) / "uv-tool-bin"), search)
+        self.assertIn(
+            str(Path(temporary) / "npm-prefix" / ("Scripts" if os.name == "nt" else "bin")),
+            search,
+        )
+        if os.name == "nt":
+            self.assertIn(str(Path(temporary) / "npm-prefix"), search)
 
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
         module = load_controller()
@@ -455,7 +518,7 @@ def mempalace_runtime_status(project: Path):
             self.assertEqual("migrated-v1", migrated["migration"])
             self.assertEqual(1, json.loads(path.read_text())["schemaVersion"])
 
-    def test_project_setup_plan_initializes_only_absent_or_stale_state(self):
+    def test_project_setup_plan_initializes_one_exact_noninteractive_palace(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -465,8 +528,45 @@ def mempalace_runtime_status(project: Path):
                 "memory": "/tools/memory",
             }
             fresh = module.project_setup_plan(project, commands)
-            self.assertEqual(["/tools/mempalace", "init", "."], fresh[0])
-            self.assertIn(["/tools/mempalace", "mine", "."], fresh)
+            self.assertEqual(
+                [
+                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
+                    "--auto-mine",
+                ],
+                fresh[0],
+            )
+            self.assertNotIn(["/tools/mempalace", "mine", "."], fresh)
+            self.assertEqual(
+                {
+                    "MEMPALACE_PALACE_PATH": str(
+                        project.resolve() / ".chaos-engine-state/mempalace"
+                    ),
+                    "MEMPALACE_BACKEND": "sqlite_exact",
+                },
+                module.mempalace_project_setup_environment(project, fresh[0]),
+            )
+            project.joinpath("mempalace.yaml").write_text("wing: test\n", encoding="utf-8")
+            configured = module.project_setup_plan(project, commands)
+            self.assertNotIn(
+                [
+                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
+                    "--auto-mine",
+                ],
+                configured,
+            )
+            self.assertIn(
+                ["/tools/mempalace", "mine", "."],
+                configured,
+            )
+            self.assertEqual(
+                {
+                    "MEMPALACE_PALACE_PATH": str(
+                        project / ".chaos-engine-state/mempalace"
+                    ),
+                    "MEMPALACE_BACKEND": "sqlite_exact",
+                },
+                module.mempalace_project_setup_environment(project, configured[0]),
+            )
             self.assertIn(
                 ["/tools/graphify", "install", "--platform", "agents", "--project"],
                 fresh,
@@ -476,9 +576,33 @@ def mempalace_runtime_status(project: Path):
             )
             self.assertIn(["/tools/memory", "init", "--no-view"], fresh)
 
-            project.joinpath("mempalace.yaml").write_text("wing: test\n", encoding="utf-8")
             state = project / ".chaos-engine-state/mempalace"
             state.mkdir(parents=True)
+            state.joinpath(".mined").write_text("current\n", encoding="utf-8")
+            self.assertNotIn(
+                [
+                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
+                    "--auto-mine",
+                ],
+                module.project_setup_plan(project, commands),
+            )
+            self.assertIn(
+                ["/tools/mempalace", "mine", "."],
+                module.project_setup_plan(project, commands),
+            )
+            state.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\\x00")
+            state.joinpath(".mined").unlink()
+            self.assertNotIn(
+                [
+                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
+                    "--auto-mine",
+                ],
+                module.project_setup_plan(project, commands),
+            )
+            self.assertNotIn(
+                ["/tools/mempalace", "mine", "."],
+                module.project_setup_plan(project, commands),
+            )
             state.joinpath(".mined").write_text("current\n", encoding="utf-8")
             graph = project / "graphify-out/graph.json"
             graph.parent.mkdir()
@@ -490,6 +614,42 @@ def mempalace_runtime_status(project: Path):
             memory.parent.mkdir()
             memory.write_text("{}\n", encoding="utf-8")
             self.assertEqual([], module.project_setup_plan(project, commands))
+
+    def test_project_setup_rejects_nonregular_mempalace_configuration(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath("mempalace.yaml").mkdir()
+
+            with self.assertRaisesRegex(ValueError, "configuration"):
+                module.project_setup_plan(project, {"mempalace": "/tools/mempalace"})
+
+    def test_mempalace_setup_marks_only_a_successful_exact_target(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            marker = project / ".chaos-engine-state/mempalace/.mined"
+
+            with self.assertRaisesRegex(RuntimeError, "exact target"):
+                module.mark_mempalace_project_setup(project)
+            self.assertFalse(marker.exists())
+
+            marker.parent.mkdir(parents=True)
+            marker.parent.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\\x00")
+            module.mark_mempalace_project_setup(project)
+            self.assertEqual(b"current\n", marker.read_bytes())
+
+    def test_project_setup_skips_a_repository_resolver(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            resolver = project / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# repository resolver\n", encoding="utf-8")
+
+            planned = module.project_setup_plan(project, {"mempalace": "/tools/mempalace"})
+
+            self.assertEqual([], planned)
 
     def test_account_discovery_prefers_receipt_command_over_path(self):
         module = load_controller()

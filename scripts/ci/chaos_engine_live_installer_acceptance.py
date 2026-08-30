@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import io
 import importlib.util
 import json
 import os
@@ -12,6 +15,7 @@ import re
 import shutil
 import subprocess  # nosec B404 - fixed repository-owned commands only.
 import sys
+import tarfile
 import tempfile
 import time
 import urllib.parse
@@ -45,6 +49,46 @@ PATH_DELIMITERS = frozenset(";,:\r\n\t\"'<>{}[]()")
 SANITIZER_INPUT_LIMIT = 8192
 SANITIZER_OUTPUT_LIMIT = 500
 SANITIZER_TRUNCATION_MARKER = "\n...<truncated>...\n"
+STATUS_SUMMARY_FIELDS = ("status", "commit", "kernel", "hosts", "dependencies")
+HOST_COMPONENT_FIELDS = ("status", "detail", "code")
+DEPENDENCY_COMPONENT_FIELDS = ("status", "action", "probe", "detail", "code")
+KNOWN_BASE_SHA = "1dec809c7c43709a8fcceef5e53690d124012eb3"
+POSIX_BASE_FAILURE_DETAIL = (
+    "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
+    "failed phase: Verify installation; unhealthy: hooks, mcps"
+)
+WINDOWS_BASE_FAILURE_DETAIL = (
+    "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
+    "failed phase: Verify installation; unhealthy: mcps"
+)
+ACCOUNT_COMMAND_NAMES = frozenset((
+    "uv", "uvx", "python3", "node", "npm", "npx", "java", "mempalace",
+    "mempalace-mcp", "graphify", "memory", "memory-mcp", "ctx7",
+))
+PLATFORM_PREREQUISITE_COMMAND_NAMES = frozenset((
+    "uv", "uvx", "python3", "node", "npm", "npx", "java",
+))
+OPTIONAL_ACCOUNT_COMMAND_NAMES = frozenset((
+    "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp", "ctx7",
+))
+
+
+class AcceptancePhaseFailure(RuntimeError):
+    """Carry a bounded phase name without losing the original failure evidence."""
+
+    def __init__(self, phase: str, cause: Exception):
+        self.phase = phase
+        self.cause = cause
+        super().__init__(f"{phase}: {cause}")
+
+
+class AcceptanceCommandFailure(RuntimeError):
+    """Capture the failing fixed command separately from its sanitized output."""
+
+    def __init__(self, command: list[str], returncode: int, detail: str):
+        self.command = tuple(command)
+        self.returncode = returncode
+        super().__init__(f"command failed ({returncode}): {sanitize(detail)}")
 
 
 def clean_environment(base: dict[str, str] | None = None) -> dict[str, str]:
@@ -62,6 +106,254 @@ def download_environment(base: dict[str, str] | None = None) -> dict[str, str]:
     if source.get("GITHUB_TOKEN"):
         environment["GITHUB_TOKEN"] = source["GITHUB_TOKEN"]
     return environment
+
+
+def resolved_executable_parent(executable: str | None) -> str | None:
+    """Return one existing external executable parent without retaining its PATH."""
+    if not executable:
+        return None
+    try:
+        resolved = Path(executable).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    return str(resolved.parent) if resolved.is_file() else None
+
+
+def wrapper_environment(
+    base: dict[str, str] | None = None,
+    *,
+    platform_name: str | None = None,
+    git_executable: str | None = None,
+) -> dict[str, str]:
+    """Keep public-wrapper acceptance independent of ambient optional hosts."""
+    source = base or os.environ
+    environment = download_environment(source)
+    if (platform_name or os.name) == "nt":
+        system_root = environment.get("SystemRoot", r"C:\\Windows")
+        git_parent = resolved_executable_parent(
+            git_executable if git_executable is not None else shutil.which(
+                "git", path=source.get("PATH")
+            )
+        )
+        environment["PATH"] = os.pathsep.join(
+            tuple(
+                item for item in (
+                    git_parent, str(Path(system_root) / "System32"), system_root
+                ) if item
+            )
+        )
+    else:
+        environment["PATH"] = os.defpath
+    return environment
+
+
+def isolated_account_environment(root: Path) -> dict[str, str]:
+    """Create one disposable account without inheriting any user cache root."""
+    root = root.resolve()
+    roots = {
+        "home": root / "home",
+        "appdata": root / "appdata",
+        "localappdata": root / "localappdata",
+        "xdg-cache": root / "xdg-cache",
+        "xdg-config": root / "xdg-config",
+        "xdg-data": root / "xdg-data",
+        "xdg-state": root / "xdg-state",
+        "xdg-runtime": root / "xdg-runtime",
+        "xdg-bin": root / "xdg-bin",
+        "temp": root / "tmp",
+        "npm-cache": root / "npm-cache",
+        "npm-prefix": root / "npm-prefix",
+        "npm-config": root / "npm-config",
+        "uv-cache": root / "uv-cache",
+        "uv-tools": root / "uv-tools",
+        "uv-tool-bin": root / "uv-tool-bin",
+        "uv-python": root / "uv-python",
+        "uv-python-bin": root / "uv-python-bin",
+        "python-user": root / "python-user",
+        "pip-cache": root / "pip-cache",
+        "pip-config": root / "pip-config",
+    }
+    for path in roots.values():
+        path.mkdir(parents=True, exist_ok=True)
+    home = roots["home"]
+    environment = wrapper_environment()
+    for name in (
+        "CONDA_PREFIX", "PIP_CONFIG_FILE", "PIP_REQUIRE_VIRTUALENV", "PIP_USER",
+        "PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "UV_CONFIG_FILE",
+        "UV_PROJECT_ENVIRONMENT", "XDG_BIN_HOME",
+    ):
+        environment.pop(name, None)
+    environment.update({
+        "HOME": str(home),
+        "USERPROFILE": str(home),
+        "APPDATA": str(roots["appdata"]),
+        "LOCALAPPDATA": str(roots["localappdata"]),
+        "XDG_CACHE_HOME": str(roots["xdg-cache"]),
+        "XDG_CONFIG_HOME": str(roots["xdg-config"]),
+        "XDG_DATA_HOME": str(roots["xdg-data"]),
+        "XDG_STATE_HOME": str(roots["xdg-state"]),
+        "XDG_RUNTIME_DIR": str(roots["xdg-runtime"]),
+        "XDG_BIN_HOME": str(roots["xdg-bin"]),
+        "TMPDIR": str(roots["temp"]),
+        "TEMP": str(roots["temp"]),
+        "TMP": str(roots["temp"]),
+        "NPM_CONFIG_CACHE": str(roots["npm-cache"]),
+        "NPM_CONFIG_PREFIX": str(roots["npm-prefix"]),
+        "NPM_CONFIG_USERCONFIG": str(roots["npm-config"] / "npmrc"),
+        "NPM_CONFIG_GLOBALCONFIG": str(roots["npm-config"] / "global-npmrc"),
+        "UV_CACHE_DIR": str(roots["uv-cache"]),
+        "UV_TOOL_DIR": str(roots["uv-tools"]),
+        "UV_TOOL_BIN_DIR": str(roots["uv-tool-bin"]),
+        "UV_PYTHON_INSTALL_DIR": str(roots["uv-python"]),
+        "UV_PYTHON_BIN_DIR": str(roots["uv-python-bin"]),
+        "UV_PYTHON_DIR": str(roots["uv-python"]),
+        "PYTHONUSERBASE": str(roots["python-user"]),
+        "PIP_CACHE_DIR": str(roots["pip-cache"]),
+        "PIP_CONFIG_FILE": str(roots["pip-config"] / "pip.conf"),
+        "PYTHONNOUSERSITE": "1",
+    })
+    npm_prefix = roots["npm-prefix"]
+    npm_executable_bin = npm_prefix / ("Scripts" if os.name == "nt" else "bin")
+    npm_executable_bin.mkdir(parents=True, exist_ok=True)
+    npm_search_paths = (npm_prefix, npm_executable_bin) if os.name == "nt" else (npm_executable_bin,)
+    environment["PATH"] = os.pathsep.join((
+        environment["UV_TOOL_BIN_DIR"], *(str(path) for path in npm_search_paths), environment["PATH"],
+    ))
+    if os.name == "nt":
+        drive = home.drive
+        if not drive:
+            raise RuntimeError("isolated Windows account has no drive")
+        environment["HOMEDRIVE"] = drive
+        environment["HOMEPATH"] = str(home)[len(drive):]
+    else:
+        environment["HOMEDRIVE"] = str(root / "home-drive")
+        environment["HOMEPATH"] = str(root / "home-path")
+        Path(environment["HOMEDRIVE"]).mkdir(parents=True, exist_ok=True)
+        Path(environment["HOMEPATH"]).mkdir(parents=True, exist_ok=True)
+    return environment
+
+
+def assert_account_command_roots(commands: object, account_root: Path) -> None:
+    """Reject any optional account dispatcher escaping its disposable account."""
+    if not isinstance(commands, dict):
+        raise RuntimeError("account command receipt is invalid")
+    account_root = account_root.resolve(strict=True)
+    expected = set(ACCOUNT_COMMAND_NAMES)
+    platform_prerequisites = set(PLATFORM_PREREQUISITE_COMMAND_NAMES)
+    if os.name == "nt" and "python" in commands:
+        expected.remove("python3")
+        expected.add("python")
+        platform_prerequisites.remove("python3")
+        platform_prerequisites.add("python")
+    if set(commands) != expected:
+        raise RuntimeError("account command receipt executables are incomplete")
+    for name, value in commands.items():
+        if name not in expected or not isinstance(value, str):
+            raise RuntimeError("unknown account command")
+        command = Path(value)
+        if not command.is_absolute():
+            raise RuntimeError("account command is not absolute")
+        try:
+            resolved = command.resolve(strict=True)
+        except OSError as error:
+            raise RuntimeError("account command is not a file") from error
+        if not resolved.is_file():
+            raise RuntimeError("account command is not a file")
+        if name in OPTIONAL_ACCOUNT_COMMAND_NAMES:
+            if not resolved.is_relative_to(account_root):
+                raise RuntimeError(f"account command outside isolated account: {name}")
+        elif name not in platform_prerequisites:
+            raise RuntimeError("unknown account command")
+
+
+def known_base_component_statuses(base_sha: str) -> dict[str, dict[str, object]]:
+    """Return the entire observed POSIX legacy-wrapper incompatibility shape."""
+    components = {
+        name: {"status": "healthy"}
+        for name in (
+            "core", "graphify", "hooks", "mempalace", "playbooks", "plugins",
+            "projection-policy", "retrieval-config", "roles", "skills", "tools",
+        )
+    }
+    components.update({
+        "maven-tools-mcp": {"status": "absent"},
+        "memory": {"status": "healthy"},
+        "mcps": {"status": "healthy"},
+    })
+    dependency_components = {
+        name: {
+            "status": "healthy", "action": action, "probe": "passed", "detail": "passed",
+        }
+        for name, action in {
+            "uv": "installed", "python": "upgraded", "node": "installed", "java": "upgraded",
+            "mempalace": "installed", "graphify": "installed", "memory": "installed",
+            "context7": "installed",
+        }.items()
+    }
+    status = {
+        "status": "healthy", "commit": base_sha, "kernel": "healthy", "hosts": "healthy",
+        "dependencies": "healthy", "components": components,
+        "dependencyComponents": dependency_components,
+    }
+    doctor_components = json.loads(json.dumps(components))
+    doctor_components["memory"] = {"status": "recovery-required"}
+    doctor_components["mcps"] = {"status": "recovery-required"}
+    return {
+        "status": status,
+        "doctor": {
+            **status,
+            "status": "recovery-required",
+            "components": doctor_components,
+        },
+    }
+
+
+def known_windows_base_component_statuses(base_sha: str) -> dict[str, dict[str, object]]:
+    """Return the sole Windows legacy doctor state reached after Git PATH repair."""
+    statuses = known_base_component_statuses(base_sha)
+    for report in statuses.values():
+        dependencies = report.get("dependencyComponents") if isinstance(report, dict) else None
+        if isinstance(dependencies, dict):
+            for name in ("python", "java"):
+                component = dependencies.get(name)
+                if isinstance(component, dict):
+                    component["action"] = "installed"
+    return statuses
+
+
+def known_repaired_base_component_statuses(
+    base_sha: str, *, windows: bool
+) -> dict[str, dict[str, object]]:
+    """Return exact legacy wrapper state after the receipt Node path repair."""
+    statuses = (
+        known_windows_base_component_statuses(base_sha)
+        if windows else known_base_component_statuses(base_sha)
+    )
+    statuses["doctor"] = json.loads(json.dumps(statuses["status"]))
+    return statuses
+
+
+def exact_base_compatibility_transition(
+    error: Exception, base_sha: str, *, windows: bool
+) -> str:
+    """Allow only exact legacy wrapper failure after authenticated repair proves healthy."""
+    if (
+        not isinstance(error, AcceptanceCommandFailure)
+        or base_sha != KNOWN_BASE_SHA
+        or error.returncode != 1
+        or tuple(error.command) != tuple(public_wrapper_command(base_sha, windows=windows))
+    ):
+        raise error
+    expected_detail = WINDOWS_BASE_FAILURE_DETAIL if windows else POSIX_BASE_FAILURE_DETAIL
+    if str(error) != f"command failed (1): {expected_detail}":
+        raise error
+    statuses = getattr(error, "component_statuses", None)
+    expected_statuses = known_repaired_base_component_statuses(
+        base_sha, windows=windows
+    )
+    if statuses != expected_statuses:
+        raise error
+    return "post-provision-doctor"
 
 
 def offline_environment(
@@ -153,6 +445,79 @@ def sanitize(value: object) -> str:
     return text[:head_size] + SANITIZER_TRUNCATION_MARKER + text[-tail_size:]
 
 
+def sanitized_command(value: object) -> list[str] | None:
+    if not isinstance(value, (list, tuple)) or any(not isinstance(part, str) for part in value):
+        return None
+    return [sanitize(part) for part in value]
+
+
+def sanitized_component_statuses(value: object) -> dict[str, dict[str, object]] | None:
+    """Keep only health labels; diagnostic details can contain private user content."""
+    if not isinstance(value, dict):
+        return None
+    result: dict[str, dict[str, object]] = {}
+    for command, report in value.items():
+        if not isinstance(command, str) or not isinstance(report, dict):
+            return None
+        summary: dict[str, object] = {}
+        for name in STATUS_SUMMARY_FIELDS:
+            status = report.get(name)
+            if isinstance(status, str):
+                summary[name] = sanitize(status)
+        for name in ("components", "dependencyComponents"):
+            components = report.get(name)
+            if components is None:
+                continue
+            if not isinstance(components, dict):
+                return None
+            statuses: dict[str, object] = {}
+            fields = (
+                HOST_COMPONENT_FIELDS
+                if name == "components"
+                else DEPENDENCY_COMPONENT_FIELDS
+            )
+            for component, status in components.items():
+                if not isinstance(component, str):
+                    return None
+                if isinstance(status, str):
+                    statuses[sanitize(component)] = sanitize(status)
+                    continue
+                if not isinstance(status, dict):
+                    return None
+                detail = {
+                    field: sanitize(status[field])
+                    for field in fields
+                    if isinstance(status.get(field), str)
+                }
+                if not detail:
+                    return None
+                statuses[sanitize(component)] = detail
+            summary[name] = statuses
+        result[sanitize(command)] = summary
+    return result
+
+
+def failure_evidence(error: Exception) -> dict[str, object]:
+    phase: str | None = None
+    cause = error
+    if isinstance(error, AcceptancePhaseFailure):
+        phase = error.phase
+        cause = error.cause
+    result: dict[str, object] = {
+        "type": type(cause).__name__,
+        "detail": sanitize(cause),
+    }
+    if phase is not None:
+        result["phase"] = phase
+    if command := sanitized_command(getattr(cause, "command", None)):
+        result["command"] = command
+    if statuses := sanitized_component_statuses(
+        getattr(cause, "component_statuses", None)
+    ):
+        result["componentStatuses"] = statuses
+    return result
+
+
 def installer_failure_detail(value: str) -> str:
     headline = next(
         (line.strip() for line in value.splitlines() if "CE-INSTALL-" in line),
@@ -165,9 +530,29 @@ def installer_failure_detail(value: str) -> str:
         if "/issues/new?" not in token:
             continue
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(token).query)
-        for key, label in (("failed_phase", "failed phase"), ("unhealthy", "unhealthy")):
-            if query.get(key):
-                fields.append(f"{label}: {query[key][0]}")
+        for key, label in (
+            ("observed_commit", "observed commit"),
+            ("candidate_components", "candidate components"),
+            ("candidate_component_details", "candidate component details"),
+            ("failed_phase", "failed phase"),
+            ("unhealthy", "unhealthy"),
+        ):
+            values = query.get(key)
+            if not values:
+                continue
+            value = values[0]
+            if key == "observed_commit" and re.fullmatch(r"[0-9a-f]{40}", value) is None:
+                continue
+            if key in {"candidate_components", "candidate_component_details"}:
+                components = value.split(",")
+                if len(components) > 32 or not components or any(
+                    re.fullmatch(r"[a-z][a-z0-9-]{0,63}:[a-z][a-z0-9-]{0,63}", item)
+                    is None
+                    for item in components
+                ):
+                    continue
+                value = ", ".join(item.replace(":", "=", 1) for item in components)
+            fields.append(f"{label}: {value}")
         break
     return "; ".join((headline, *fields))
 
@@ -192,7 +577,7 @@ def run_checked(
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or "no process output"
         detail = installer_failure_detail(detail)
-        raise RuntimeError(f"command failed ({result.returncode}): {sanitize(detail)}")
+        raise AcceptanceCommandFailure(command, result.returncode, detail)
     return result
 
 
@@ -222,16 +607,270 @@ def stage_source(source: Path, destination: Path) -> Path:
     return destination
 
 
-def download_commit_source(source: Path, commit: str, destination: Path) -> Path:
+def assert_exact_base_source(source: Path, expected_files: object, *, source_files) -> None:
+    """Require the offline base source to match every authenticated payload hash."""
+    if (
+        not source.is_dir()
+        or source.is_symlink()
+        or (source / "manifest.json").exists()
+        or not isinstance(expected_files, dict)
+        or any(
+            not isinstance(relative, str)
+            or not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            for relative, digest in expected_files.items()
+        )
+    ):
+        raise RuntimeError("exact base manifest is invalid")
+    source = source.resolve(strict=True)
+    actual: dict[str, str] = {}
+    for path in source_files(source):
+        path = Path(path)
+        try:
+            relative = path.relative_to(source).as_posix()
+        except ValueError as error:
+            raise RuntimeError("exact base source escapes its root") from error
+        if path.is_symlink() or not path.is_file():
+            raise RuntimeError("exact base source contains an invalid payload entry")
+        actual[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != expected_files:
+        raise RuntimeError("exact base manifest does not match its source payload")
+
+
+def _extract_git_archive(payload: bytes, destination: Path) -> None:
+    """Extract only regular Git-tree entries into a fresh disposable directory."""
+    destination.mkdir()
+    root = destination.resolve(strict=True)
+    with tarfile.open(fileobj=io.BytesIO(payload), mode="r:") as archive:
+        for member in archive.getmembers():
+            relative = Path(member.name)
+            target = destination / relative
+            if (
+                relative.is_absolute()
+                or ".." in relative.parts
+                or not target.resolve().is_relative_to(root)
+                or member.issym()
+                or member.islnk()
+            ):
+                raise RuntimeError("exact base Git archive is unsafe")
+            if member.isdir():
+                target.mkdir(exist_ok=True)
+                continue
+            if not member.isfile():
+                raise RuntimeError("exact base Git archive is unsafe")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            stream = archive.extractfile(member)
+            if stream is None:
+                raise RuntimeError("exact base Git archive is unreadable")
+            with target.open("xb") as output:
+                shutil.copyfileobj(stream, output)
+
+
+def fetch_exact_base_source(
+    root: Path,
+    base_sha: str,
+    expected_manifest: object,
+    installed_base: Path,
+) -> Path:
+    """Fetch one immutable base Git tree and authenticate its selected payload."""
+    if COMMIT.fullmatch(base_sha) is None or not isinstance(expected_manifest, dict):
+        raise RuntimeError("exact base source request is invalid")
+    expected_files = expected_manifest.get("files")
+    distribution = expected_manifest.get("distribution")
+    distribution_id = distribution.get("id") if isinstance(distribution, dict) else None
+    if not isinstance(distribution_id, str):
+        raise RuntimeError("exact base manifest is invalid")
+    git = shutil.which("git")
+    if git is None:
+        raise RuntimeError("git is required to fetch the exact base source")
+    repository = root / "immutable-base-git"
+    environment = download_environment()
+    run_checked([git, "init", str(repository)], cwd=root, environment=environment)
+    run_checked(
+        [git, "-C", str(repository), "remote", "add", "origin", "https://github.com/ShaftHQ/SHAFT_ENGINE.git"],
+        cwd=root,
+        environment=environment,
+    )
+    run_checked(
+        [git, "-C", str(repository), "fetch", "--no-tags", "--depth=1", "origin", base_sha],
+        cwd=root,
+        environment=environment,
+    )
+    actual_sha = run_checked(
+        [git, "-C", str(repository), "rev-parse", "FETCH_HEAD^{commit}"],
+        cwd=root,
+        environment=environment,
+    ).stdout.strip()
+    if actual_sha != base_sha:
+        raise RuntimeError("exact base Git commit authentication failed")
+    archive = subprocess.run(  # nosec B603 - fixed Git archive for a validated SHA.
+        [git, "-C", str(repository), "archive", "--format=tar", base_sha, "chaos-engine"],
+        cwd=root,
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=PHASE_TIMEOUT_SECONDS,
+        check=False,
+    )
+    if archive.returncode:
+        raise RuntimeError("exact base Git archive could not be created")
+    archive_root = root / "immutable-base-source"
+    _extract_git_archive(archive.stdout, archive_root)
+    source = archive_root / "chaos-engine"
+    base_installer = load_source_controller(installed_base, "install")
+    assert_exact_base_source(
+        source,
+        expected_files,
+        source_files=lambda path: base_installer.source_files(path, distribution_id),
+    )
+    return source
+
+
+def load_source_controller(source: Path, name: str):
     specification = importlib.util.spec_from_file_location(
-        "chaos_engine_acceptance_bootstrap", source / "bootstrap.py"
+        f"chaos_engine_acceptance_{name}", source / f"{name}.py"
     )
     if specification is None or specification.loader is None:
-        raise RuntimeError("candidate bootstrap could not be loaded")
+        raise RuntimeError(f"base {name} controller could not be loaded")
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
-    destination.mkdir()
-    return module.download_source("ShaftHQ/SHAFT_ENGINE", commit, destination)
+    return module
+
+
+def account_receipt_commands(project: Path, account_root: Path) -> dict[str, str]:
+    receipt = read_json(project / ".chaos-engine-dependencies.json")
+    commands = receipt.get("commands")
+    assert_account_command_roots(commands, account_root)
+    return dict(commands)
+
+
+def account_command_environment(project: Path, environment: dict[str, str]) -> dict[str, str]:
+    """Prepend receipt-validated Node for account command and MCP probes."""
+    home = environment.get("HOME")
+    if not isinstance(home, str):
+        raise RuntimeError("isolated account home is unavailable")
+    try:
+        account_root = Path(home).resolve(strict=True).parent
+        commands = account_receipt_commands(project, account_root)
+        node = Path(commands["node"]).resolve(strict=True)
+    except (KeyError, OSError, RuntimeError, UnicodeError, ValueError) as error:
+        raise RuntimeError("isolated account receipt is invalid") from error
+    result = dict(environment)
+    result["PATH"] = os.pathsep.join(
+        part for part in (str(node.parent), result.get("PATH", "")) if part
+    )
+    return result
+
+
+def assert_account_search_paths(
+    base_project: Path, candidate_source: Path, environment: dict[str, str]
+) -> None:
+    """Prove both public base and candidate discovery see isolated executable bins."""
+    expected = {
+        environment["UV_TOOL_BIN_DIR"],
+        str(Path(environment["NPM_CONFIG_PREFIX"]) / (
+            "Scripts" if os.name == "nt" else "bin"
+        )),
+    }
+    previous = os.environ.copy()
+    try:
+        os.environ.clear()
+        os.environ.update(environment)
+        for source in (base_project / ".chaos-engine", candidate_source):
+            controller = load_source_controller(source, "dependencies")
+            search = set(controller._account_search_path().split(os.pathsep))
+            if not expected <= search:
+                raise RuntimeError("account dependency search path omits configured executable bins")
+    finally:
+        os.environ.clear()
+        os.environ.update(previous)
+
+
+def capture_files(root: Path, relative: str) -> dict[str, bytes]:
+    path = root / relative
+    if not path.exists():
+        return {}
+    if path.is_file():
+        return {relative: path.read_bytes()}
+    return {
+        child.relative_to(root).as_posix(): child.read_bytes()
+        for child in sorted(path.rglob("*")) if child.is_file()
+    }
+
+
+def snapshot_base_state(project: Path) -> dict[str, object]:
+    """Capture only immutable-base artifacts that the candidate must restore exactly."""
+    installed = project / ".chaos-engine"
+    manifest = (installed / "manifest.json").read_bytes()
+    host_receipt = (project / ".chaos-engine-hosts.json").read_bytes()
+    account_receipt = project / ".chaos-engine-dependencies.json"
+    if not account_receipt.is_file() or account_receipt.is_symlink():
+        raise RuntimeError("base account dependency receipt is invalid")
+    try:
+        receipt = json.loads(host_receipt.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise RuntimeError("base host receipt is invalid") from error
+    after = receipt.get("after") if isinstance(receipt, dict) else None
+    if not isinstance(after, dict):
+        raise RuntimeError("base host receipt has no managed images")
+    managed: dict[str, bytes | None] = {}
+    for relative, encoded in after.items():
+        if not isinstance(relative, str) or encoded is not None and not isinstance(encoded, str):
+            raise RuntimeError("base host receipt has invalid managed image")
+        expected = None if encoded is None else base64.b64decode(encoded, validate=True)
+        current = project / relative
+        actual = current.read_bytes() if current.is_file() else None
+        if actual != expected:
+            raise RuntimeError("base managed adapter does not match its receipt")
+        managed[relative] = expected
+    sentinels = {
+        path.relative_to(project).as_posix(): path.read_bytes()
+        for path in sorted(project.rglob("*sentinel*")) if path.is_file()
+    }
+    return {
+        "manifest": manifest,
+        "hostReceipt": host_receipt,
+        "accountReceipt": account_receipt.read_bytes(),
+        "managed": managed,
+        "configuration": {
+            **capture_files(project, "mempalace.yaml"),
+            **capture_files(project, ".chaos-engine-state/mempalace"),
+        },
+        "sentinels": sentinels,
+    }
+
+
+def assert_base_state_restored(project: Path, snapshot: dict[str, object]) -> None:
+    installed = project / ".chaos-engine"
+    if (installed / "manifest.json").read_bytes() != snapshot["manifest"]:
+        raise RuntimeError("rollback did not restore the exact base manifest")
+    if (project / ".chaos-engine-hosts.json").read_bytes() != snapshot["hostReceipt"]:
+        raise RuntimeError("rollback did not restore the exact base host receipt")
+    if (project / ".chaos-engine-dependencies.json").read_bytes() != snapshot["accountReceipt"]:
+        raise RuntimeError("rollback did not restore the exact base dependency receipt")
+    managed = snapshot.get("managed")
+    if not isinstance(managed, dict):
+        raise RuntimeError("base snapshot is invalid")
+    for relative, expected in managed.items():
+        path = project / str(relative)
+        actual = path.read_bytes() if path.is_file() else None
+        if actual != expected:
+            raise RuntimeError(f"rollback did not restore managed adapter: {relative}")
+    configuration = snapshot.get("configuration")
+    sentinels = snapshot.get("sentinels")
+    if (
+        not isinstance(configuration, dict)
+        or not isinstance(sentinels, dict)
+        or {
+            **capture_files(project, "mempalace.yaml"),
+            **capture_files(project, ".chaos-engine-state/mempalace"),
+        } != configuration
+        or {
+            path.relative_to(project).as_posix(): path.read_bytes()
+            for path in sorted(project.rglob("*sentinel*")) if path.is_file()
+        } != sentinels
+    ):
+        raise RuntimeError("rollback rewrote base configuration or sentinel data")
 
 
 def raw_wrapper_url(commit: str, *, windows: bool) -> str:
@@ -269,22 +908,30 @@ module.install(
 """
 
 
-def run_offline_rerun(project: Path, source: Path) -> None:
+def run_offline_rerun(
+    project: Path, source: Path, *, environment: dict[str, str] | None = None
+) -> None:
+    child_environment = (
+        offline_environment(block_path=True)
+        if environment is None
+        else offline_environment(environment, block_path=True)
+    )
     run_checked(
         [sys.executable, "-c", OFFLINE_RERUN, str(project), str(source)],
         cwd=project,
-        environment=offline_environment(block_path=True),
+        environment=child_environment,
         timeout=180,
     )
 
 
 def run_public_wrapper(
-    commit: str, project: Path, *, require_current_action: bool = True
+    commit: str, project: Path, *, require_current_action: bool = True,
+    environment: dict[str, str] | None = None,
 ) -> None:
     result = run_checked(
         public_wrapper_command(commit, windows=os.name == "nt"),
         cwd=project,
-        environment=download_environment(),
+        environment=environment or wrapper_environment(),
     )
     if not (project / ".chaos-engine/install.py").is_file():
         raise RuntimeError("public wrapper did not create the installation tree")
@@ -299,8 +946,57 @@ def run_public_wrapper(
         raise RuntimeError("public wrapper did not report detected client activation")
 
 
-def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> None:
-    request = json.dumps(
+def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
+    """Parse every non-empty stdio frame as one valid JSON-RPC 2.0 message."""
+    frames: list[dict[str, object]] = []
+    for line in stdout.splitlines():
+        if not line.strip():
+            continue
+        value = json.loads(line)
+        if not isinstance(value, dict) or value.get("jsonrpc") != "2.0":
+            raise ValueError("invalid MCP stdout frame")
+        if "id" in value and (
+            isinstance(value["id"], bool)
+            or not isinstance(value["id"], (str, int, type(None)))
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        if "params" in value and not isinstance(value["params"], (dict, list)):
+            raise ValueError("invalid MCP stdout frame")
+        if "error" in value:
+            error = value["error"]
+            if (
+                not isinstance(error, dict)
+                or isinstance(error.get("code"), bool)
+                or not isinstance(error.get("code"), int)
+                or not isinstance(error.get("message"), str)
+            ):
+                raise ValueError("invalid MCP stdout frame")
+        if "method" in value:
+            if (
+                not isinstance(value["method"], str)
+                or not value["method"]
+                or "result" in value
+                or "error" in value
+            ):
+                raise ValueError("invalid MCP stdout frame")
+        elif (
+            "id" not in value
+            or ("result" in value) == ("error" in value)
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        frames.append(value)
+    return frames
+
+
+def probe_mcp(
+    command: list[str],
+    project: Path,
+    *,
+    environment: dict[str, str] | None = None,
+    base_environment: dict[str, str] | None = None,
+    popen=subprocess.Popen,
+) -> None:
+    requests = (
         {
             "jsonrpc": "2.0",
             "id": 1,
@@ -310,12 +1006,19 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
                 "capabilities": {},
                 "clientInfo": {"name": "chaos-engine-acceptance", "version": "1"},
             },
-        }
-    ) + "\n"
+        },
+        {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+    )
+    request = "".join(json.dumps(item) + "\n" for item in requests)
     process = popen(  # nosec B603
         command,
         cwd=project,
-        env={**clean_environment(), "PYTHONDONTWRITEBYTECODE": "1"},
+        env={
+            **(base_environment or clean_environment()),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            **(environment or {}),
+        },
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -334,11 +1037,19 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
             process.communicate(timeout=5)
         raise RuntimeError("MCP initialize timed out")
     try:
-        response = json.loads(stdout.splitlines()[0])
-    except (IndexError, json.JSONDecodeError) as error:
+        responses = parse_mcp_stdout_frames(stdout)
+    except (IndexError, TypeError, ValueError, json.JSONDecodeError) as error:
         raise RuntimeError(
             f"MCP connection closed during initialize: {sanitize(stderr or stdout)}"
         ) from error
+    response = next(
+        (item for item in responses if item.get("id") == 1),
+        None,
+    )
+    if not isinstance(response, dict):
+        raise RuntimeError(
+            f"MCP connection closed during initialize: {sanitize(stderr or stdout)}"
+        )
     result = response.get("result")
     server = result.get("serverInfo") if isinstance(result, dict) else None
     if (
@@ -357,22 +1068,73 @@ def probe_mcp(command: list[str], project: Path, *, popen=subprocess.Popen) -> N
             f"MCP initialize failed: {sanitize(stderr or stdout)}"
         )
 
+    listed = next((item for item in responses if item.get("id") == 2), None)
+    tools = listed.get("result", {}).get("tools") if isinstance(listed, dict) else None
+    if not isinstance(tools, list):
+        raise RuntimeError(f"MCP tools/list failed: {sanitize(stderr or stdout)}")
 
-def probe_project_mcps(tool: Path, project: Path) -> None:
+
+def probe_project_mcps(
+    tool: Path, project: Path, *, base_environment: dict[str, str] | None = None
+) -> None:
     commands = (
         [sys.executable, str(tool), "memory-mcp"],
-        [
-            sys.executable,
-            str(tool),
-            "mempalace-mcp",
-            "--palace",
-            ".chaos-engine-state/mempalace",
-            "--backend",
-            "sqlite_exact",
-        ],
+        [sys.executable, str(tool), "mempalace-mcp"],
     )
     for command in commands:
-        probe_mcp(command, project)
+        probe_mcp(
+            command,
+            project,
+            environment={"MEMPALACE_BACKEND": "sqlite_exact"},
+            base_environment=base_environment,
+        )
+
+
+def generated_mcp_commands(
+    project: Path, *, windows: bool
+) -> list[tuple[str, list[str], Path, dict[str, str]]]:
+    """Read generated project commands, including platform-specific launch fields."""
+    servers = read_json(project / ".mcp.json").get("mcpServers")
+    if not isinstance(servers, dict):
+        raise RuntimeError("generated MCP configuration is missing servers")
+    command_key = "commandWindows" if windows else "command"
+    arguments_key = "argsWindows" if windows else "args"
+    commands: list[tuple[str, list[str], Path, dict[str, str]]] = []
+    for name in ("chaosengine-memory", "chaosengine-mempalace"):
+        server = servers.get(name)
+        if not isinstance(server, dict):
+            raise RuntimeError(f"generated MCP configuration is missing {name}")
+        executable = server.get(command_key, server.get("command"))
+        arguments = server.get(arguments_key, server.get("args"))
+        cwd = server.get("cwd", ".")
+        environment = server.get("env", {})
+        if (
+            not isinstance(executable, str)
+            or not isinstance(arguments, list)
+            or any(not isinstance(argument, str) for argument in arguments)
+            or not isinstance(cwd, str)
+            or not isinstance(environment, dict)
+            or any(not isinstance(key, str) or not isinstance(value, str)
+                   for key, value in environment.items())
+        ):
+            raise RuntimeError(f"generated MCP command is invalid: {name}")
+        working_directory = (project / cwd).resolve()
+        if not working_directory.is_relative_to(project.resolve()):
+            raise RuntimeError(f"generated MCP working directory escapes project: {name}")
+        commands.append((name, [executable, *arguments], working_directory, environment))
+    return commands
+
+
+def probe_generated_mcps(
+    project: Path, *, base_environment: dict[str, str] | None = None
+) -> None:
+    # Parse both platform forms before executing current host's generated command.
+    generated_mcp_commands(project, windows=False)
+    commands = generated_mcp_commands(project, windows=os.name == "nt")
+    for _name, command, cwd, environment in commands:
+        probe_mcp(
+            command, cwd, environment=environment, base_environment=base_environment
+        )
 
 
 def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
@@ -465,46 +1227,140 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     }
 
 
-def verify_account_phase(project: Path, expected_commit: str) -> dict[str, object]:
+def component_status_summary(result: object) -> dict[str, object]:
+    """Extract schema-stable health labels without retaining host diagnostics."""
+    if not isinstance(result, dict):
+        return {}
+    summary: dict[str, object] = {
+        name: result[name] for name in ("status", "commit")
+        if isinstance(result.get(name), str)
+    }
+    for name in ("kernel", "hosts", "dependencies"):
+        value = result.get(name)
+        if isinstance(value, dict) and isinstance(value.get("status"), str):
+            summary[name] = value["status"]
+    components = result.get("components")
+    if isinstance(components, dict):
+        summary["components"] = {
+            name: {
+                field: record[field]
+                for field in HOST_COMPONENT_FIELDS
+                if isinstance(record.get(field), str)
+            }
+            for name, record in components.items()
+            if isinstance(name, str)
+            and isinstance(record, dict)
+            and isinstance(record.get("status"), str)
+        }
+    dependencies = result.get("dependencies")
+    dependency_components = dependencies.get("components") if isinstance(dependencies, dict) else None
+    if isinstance(dependency_components, dict):
+        summary["dependencyComponents"] = {
+            name: {
+                field: record[field]
+                for field in DEPENDENCY_COMPONENT_FIELDS
+                if isinstance(record.get(field), str)
+            }
+            for name, record in dependency_components.items()
+            if isinstance(name, str)
+            and isinstance(record, dict)
+            and isinstance(record.get("status"), str)
+        }
+    return summary
+
+
+def read_only_account_statuses(
+    project: Path, *, environment: dict[str, str] | None = None
+) -> dict[str, dict[str, object]]:
+    """Collect status labels after a wrapper failure without replacing that failure."""
     installed = project / ".chaos-engine"
+    install = installed / "install.py"
+    if not install.is_file():
+        return {}
+    try:
+        environment = account_command_environment(
+            project, environment or wrapper_environment()
+        )
+    except RuntimeError:
+        return {}
+    reports: dict[str, dict[str, object]] = {}
     for command in ("status", "doctor"):
-        result = json.loads(
-            run_checked(
+        try:
+            completed = run_checked(
                 [
-                    sys.executable,
-                    str(installed / "install.py"),
-                    command,
-                    "--project",
-                    str(project),
+                    sys.executable, str(install), command, "--project", str(project),
                     "--json",
                 ],
                 cwd=project,
+                environment=environment,
+            )
+            payload = json.loads(completed.stdout)
+        except (AcceptanceCommandFailure, json.JSONDecodeError):
+            continue
+        summary = component_status_summary(payload)
+        if summary:
+            reports[command] = summary
+    return reports
+
+
+def run_public_wrapper_with_diagnostics(
+    commit: str,
+    project: Path,
+    *,
+    require_current_action: bool = True,
+    environment: dict[str, str] | None = None,
+) -> None:
+    """Preserve the wrapper failure while recording its installed read-only state."""
+    child_environment = environment or wrapper_environment()
+    try:
+        run_public_wrapper(
+            commit,
+            project,
+            require_current_action=require_current_action,
+            environment=child_environment,
+        )
+    except Exception as error:
+        statuses = read_only_account_statuses(project, environment=child_environment)
+        if statuses:
+            error.component_statuses = statuses
+        raise
+
+
+def verify_account_phase(
+    project: Path, expected_commit: str, *, probe_generated: bool = True,
+    environment: dict[str, str] | None = None,
+) -> dict[str, object]:
+    installed = project / ".chaos-engine"
+    environment = account_command_environment(
+        project, environment or wrapper_environment()
+    )
+    status_reports: dict[str, dict[str, object]] = {}
+    for command in ("status", "doctor"):
+        command_line = [
+            sys.executable,
+            str(installed / "install.py"),
+            command,
+            "--project",
+            str(project),
+            "--json",
+        ]
+        result = json.loads(
+            run_checked(
+                command_line,
+                cwd=project,
+                environment=environment,
             ).stdout
         )
+        summary = component_status_summary(result)
+        status_reports[command] = summary
         if result.get("status") != "healthy" or result.get("commit") != expected_commit:
-            components = result.get("components", {})
-            dependencies = result.get("dependencies", {}).get("components", {})
-            summary = {
-                "status": result.get("status"),
-                "commit": result.get("commit"),
-                "kernel": result.get("kernel", {}).get("status"),
-                "hosts": result.get("hosts", {}).get("status"),
-                "dependencies": result.get("dependencies", {}).get("status"),
-                "unhealthyComponents": {
-                    name: record
-                    for name, record in components.items()
-                    if record.get("status") != "healthy"
-                },
-                "unhealthyDependencies": {
-                    name: record.get("status")
-                    for name, record in dependencies.items()
-                    if record.get("status") != "healthy"
-                },
-            }
-            raise RuntimeError(
+            error = RuntimeError(
                 f"{command} did not report expected healthy account setup: "
                 f"{sanitize(json.dumps(summary, sort_keys=True))}"
             )
+            error.command = command_line
+            error.component_statuses = {command: summary}
+            raise error
     receipt = read_json(project / ".chaos-engine-dependencies.json")
     components = receipt.get("components")
     commands = receipt.get("commands")
@@ -519,10 +1375,20 @@ def verify_account_phase(project: Path, expected_commit: str) -> dict[str, objec
     tool = installed / "tool.py"
     dispatches: dict[str, str] = {}
     for name, arguments in PROBES.items():
-        run_checked([sys.executable, str(tool), name, *arguments], cwd=project, timeout=120)
+        run_checked(
+            [sys.executable, str(tool), name, *arguments],
+            cwd=project,
+            environment=environment,
+            timeout=120,
+        )
         dispatches[name] = "pass"
-    probe_project_mcps(tool, project)
-    dispatches.update({"memory-mcp": "pass", "mempalace-mcp": "pass"})
+    if probe_generated:
+        probe_project_mcps(tool, project, base_environment=environment)
+        probe_generated_mcps(project, base_environment=environment)
+        dispatches.update({
+            "project-memory-mcp": "pass", "project-mempalace-mcp": "pass",
+            "generated-memory-mcp": "pass", "generated-mempalace-mcp": "pass",
+        })
     return {
         "status": "healthy",
         "dispatches": dispatches,
@@ -537,6 +1403,7 @@ def verify_account_phase(project: Path, expected_commit: str) -> dict[str, objec
             }
             for name, record in components.items()
         },
+        "verification": status_reports,
     }
 
 
@@ -544,15 +1411,57 @@ def record_phase(
     evidence: dict[str, object], name: str, operation
 ) -> dict[str, object]:
     started = time.monotonic()
-    checks = operation()
-    phase = {
+    try:
+        checks = operation()
+    except Exception as error:
+        phase_error = AcceptancePhaseFailure(name, error)
+        evidence["phases"].append({
+            "name": name,
+            "status": "fail",
+            "durationSeconds": round(time.monotonic() - started, 3),
+            "failure": failure_evidence(phase_error),
+        })
+        raise phase_error from error
+    evidence["phases"].append({
         "name": name,
         "status": "pass",
         "durationSeconds": round(time.monotonic() - started, 3),
         "checks": checks,
-    }
-    evidence["phases"].append(phase)
+    })
     return checks
+
+
+def project_snapshot(project: Path) -> dict[str, bytes]:
+    """Read disposable-project state for an exact offline no-mutation proof."""
+    return {
+        path.relative_to(project).as_posix(): path.read_bytes()
+        for path in sorted(project.rglob("*"))
+        if path.is_file()
+    }
+
+
+def assert_local_mempalace(project: Path) -> None:
+    palace = project / ".chaos-engine-state/mempalace"
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        raise RuntimeError("candidate did not initialize the exact local MemPalace")
+    if (palace / ".mined").read_bytes() not in {b"current\n", b"current\r\n"}:
+        raise RuntimeError("candidate MemPalace mine marker is invalid")
+
+
+def assert_single_generated_mempalace(project: Path) -> None:
+    servers = read_json(project / ".mcp.json").get("mcpServers")
+    if not isinstance(servers, dict):
+        raise RuntimeError("generated MCP configuration is missing servers")
+    registrations = [
+        name for name in servers if "mempalace" in name.casefold()
+    ]
+    if registrations != ["chaosengine-mempalace"]:
+        raise RuntimeError("generated MCP configuration has duplicate MemPalace servers")
+    for _name, command, _cwd, _environment in generated_mcp_commands(
+        project, windows=os.name == "nt"
+    ):
+        if "--palace" in command:
+            raise RuntimeError("generated MCP configuration supplied MemPalace storage")
 
 
 def run_acceptance(
@@ -565,61 +1474,188 @@ def run_acceptance(
     source = source.resolve()
     with tempfile.TemporaryDirectory(prefix="chaos-engine-live-") as temporary:
         root = Path(temporary)
-        project = root / "consumer with spaces Ω"
-        project.mkdir()
+        account_root = root / "base isolated account"
+        account_environment = isolated_account_environment(account_root)
+        fresh_account_root = root / "fresh isolated account"
+        fresh_environment = isolated_account_environment(fresh_account_root)
+        base_project = root / "base consumer with spaces Ω"
+        fresh_project = root / "fresh consumer with spaces Ω"
+        base_project.mkdir()
+        fresh_project.mkdir()
+        user_config = (
+            "wing: acceptance\n"
+            "rooms:\n  - name: general\n    description: Acceptance project\n"
+            "exclude_patterns:\n  - .chaos-engine-state/**\n"
+        ).encode()
+        base_project.joinpath("mempalace.yaml").write_bytes(user_config)
+        base_sentinel = base_project / "user-sentinel.txt"
+        base_sentinel.write_bytes(b"preserve base user data\n")
+        fresh_sentinel = fresh_project / "user-sentinel.txt"
+        fresh_sentinel.write_bytes(b"preserve fresh user data\n")
 
         def install_and_verify(
-            commit: str, *, require_current_action: bool = True, account: bool = False
+            project: Path,
+            commit: str,
+            *,
+            require_current_action: bool = True,
+            probe_generated: bool = True,
+            environment: dict[str, str] | None = None,
         ) -> dict[str, object]:
-            run_public_wrapper(
-                commit, project, require_current_action=require_current_action
+            run_public_wrapper_with_diagnostics(
+                commit, project, require_current_action=require_current_action,
+                environment=environment,
             )
-            return (
-                verify_account_phase(project, commit)
-                if account else verify_phase(project, commit)
+            return verify_account_phase(
+                project, commit, probe_generated=probe_generated, environment=environment
             )
 
-        fresh = record_phase(
+        def install_candidate_and_verify(
+            project: Path, account: Path, *, environment: dict[str, str]
+        ) -> dict[str, object]:
+            result = install_and_verify(project, candidate_sha, environment=environment)
+            commands = account_receipt_commands(project, account)
+            result["accountCommandNames"] = sorted(commands)
+            return result
+
+        def establish_base() -> dict[str, object]:
+            try:
+                run_public_wrapper_with_diagnostics(
+                    base_sha,
+                    base_project,
+                    require_current_action=False,
+                    environment=account_environment,
+                )
+            except Exception as error:
+                transition = exact_base_compatibility_transition(
+                    error, base_sha, windows=os.name == "nt"
+                )
+            else:
+                transition = None
+            commands = account_receipt_commands(base_project, account_root)
+            assert_account_search_paths(base_project, source, account_environment)
+            return {
+                "status": "base-public-wrapper",
+                "transition": transition or "none",
+                "accountCommandNames": sorted(commands),
+            }
+
+        record_phase(
             evidence,
-            "fresh-base-wrapper",
-            lambda: install_and_verify(base_sha, require_current_action=False),
+            "base-public-wrapper",
+            establish_base,
         )
-        first_pointer = (project / ".chaos-engine-runtime-current.json").read_bytes()
-        first_generations = sorted(
-            path.name for path in (project / ".chaos-engine-runtime-generations").iterdir()
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("base public install rewrote valid user configuration")
+        if base_sentinel.read_bytes() != b"preserve base user data\n":
+            raise RuntimeError("base public install rewrote user sentinel")
+        if (base_project / ".chaos-engine-runtime-current.json").exists():
+            raise RuntimeError("base account install unexpectedly created a generation")
+        base_snapshot = snapshot_base_state(base_project)
+        offline_source = fetch_exact_base_source(
+            root,
+            base_sha,
+            read_json(base_project / ".chaos-engine/manifest.json"),
+            base_project / ".chaos-engine",
         )
-        offline_source = download_commit_source(
-            source, base_sha, root / "offline-base-source"
-        )
+        base_before_offline = project_snapshot(base_project)
 
-        def healthy_rerun() -> dict[str, object]:
-            run_offline_rerun(project, offline_source)
-            if first_pointer != (project / ".chaos-engine-runtime-current.json").read_bytes():
-                raise RuntimeError("healthy rerun rewrote active pointer")
-            if first_generations != sorted(
-                path.name
-                for path in (project / ".chaos-engine-runtime-generations").iterdir()
-            ):
-                raise RuntimeError("healthy rerun built a dependency generation")
-            return verify_phase(project, base_sha)
+        def base_offline_no_mutation() -> dict[str, object]:
+            run_offline_rerun(
+                base_project, offline_source, environment=account_environment
+            )
+            if project_snapshot(base_project) != base_before_offline:
+                raise RuntimeError("offline base rerun mutated the account project")
+            commands = account_receipt_commands(base_project, account_root)
+            return {"status": "unchanged", "accountCommandNames": sorted(commands)}
 
-        record_phase(evidence, "healthy-offline-rerun-base", healthy_rerun)
-        upgrade = record_phase(
+        record_phase(evidence, "base-offline-no-mutation", base_offline_no_mutation)
+        record_phase(
             evidence,
             "upgrade-candidate-wrapper",
-            lambda: install_and_verify(candidate_sha, account=True),
+            lambda: install_candidate_and_verify(
+                base_project, account_root, environment=account_environment
+            ),
         )
-        account_receipt = project / ".chaos-engine-dependencies.json"
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("candidate upgrade rewrote valid user configuration")
+        assert_local_mempalace(base_project)
+        assert_single_generated_mempalace(base_project)
+
+        def rollback_base() -> dict[str, object]:
+            installed = base_project / ".chaos-engine/install.py"
+            result = json.loads(
+                run_checked(
+                    [
+                        sys.executable, str(installed), "rollback", "--project",
+                        str(base_project),
+                    ],
+                    cwd=base_project,
+                    environment=account_environment,
+                ).stdout
+            )
+            if result.get("status") != "rolled-back":
+                raise RuntimeError("candidate rollback did not report rolled-back")
+            assert_base_state_restored(base_project, base_snapshot)
+            commands = account_receipt_commands(base_project, account_root)
+            return {
+                "status": "rolled-back",
+                "legacyDoctor": "recovery-required",
+                "accountCommandNames": sorted(commands),
+            }
+
+        record_phase(evidence, "rollback-base-account-and-hosts", rollback_base)
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("rollback rewrote valid user configuration")
+        if base_sentinel.read_bytes() != b"preserve base user data\n":
+            raise RuntimeError("rollback rewrote user sentinel")
+
+        record_phase(
+            evidence,
+            "reupgrade-candidate-wrapper",
+            lambda: install_candidate_and_verify(
+                base_project, account_root, environment=account_environment
+            ),
+        )
+        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+            raise RuntimeError("candidate reupgrade rewrote valid user configuration")
+        assert_local_mempalace(base_project)
+        assert_single_generated_mempalace(base_project)
+
+        first_fresh = record_phase(
+            evidence,
+            "fresh-account-candidate-wrapper",
+            lambda: install_candidate_and_verify(
+                fresh_project, fresh_account_root, environment=fresh_environment
+            ),
+        )
+        if all(action == "reused" for action in first_fresh["actions"].values()):
+            raise RuntimeError("fresh account candidate install did not install isolated tools")
+        if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":
+            raise RuntimeError("candidate install rewrote fresh user sentinel")
+        assert_local_mempalace(fresh_project)
+        assert_single_generated_mempalace(fresh_project)
+        account_receipt = fresh_project / ".chaos-engine-dependencies.json"
         commands_before = read_json(account_receipt)["commands"]
+        marker_before = (
+            fresh_project / ".chaos-engine-state/mempalace/.mined"
+        ).read_bytes()
         repeated = record_phase(
             evidence,
-            "healthy-rerun-candidate-wrapper",
-            lambda: install_and_verify(candidate_sha, account=True),
+            "fresh-account-rerun",
+            lambda: install_candidate_and_verify(
+                fresh_project, fresh_account_root, environment=fresh_environment
+            ),
         )
         if read_json(account_receipt)["commands"] != commands_before:
             raise RuntimeError("healthy account rerun changed resolved executable dispatch")
         if any(action != "reused" for action in repeated["actions"].values()):
             raise RuntimeError("healthy account rerun did not reuse latest stable tools")
+        if (fresh_project / ".chaos-engine-state/mempalace/.mined").read_bytes() != marker_before:
+            raise RuntimeError("healthy account rerun repeated MemPalace mining")
+        if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":
+            raise RuntimeError("candidate rerun rewrote fresh user sentinel")
+        assert_local_mempalace(fresh_project)
+        assert_single_generated_mempalace(fresh_project)
 
 
 def write_evidence(path: Path, evidence: dict[str, object]) -> None:
@@ -657,13 +1693,15 @@ def main(argv: list[str] | None = None) -> int:
     if COMMIT.fullmatch(candidate_sha) is None or COMMIT.fullmatch(base_sha) is None:
         raise RuntimeError("candidate and base commits must be exact lowercase SHA-1 values")
     evidence: dict[str, object] = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "accepted": False,
         "platform": platform.system(),
         "python": platform.python_version(),
         "phases": [],
     }
     try:
+        if base_sha != KNOWN_BASE_SHA:
+            raise RuntimeError("live acceptance requires the immutable known base commit")
         run_acceptance(
             args.source,
             evidence,
@@ -671,7 +1709,7 @@ def main(argv: list[str] | None = None) -> int:
             base_sha=base_sha,
         )
     except Exception as error:
-        evidence["failure"] = {"type": type(error).__name__, "detail": sanitize(error)}
+        evidence["failure"] = failure_evidence(error)
         write_evidence(args.output, evidence)
         return 1
     evidence["accepted"] = True

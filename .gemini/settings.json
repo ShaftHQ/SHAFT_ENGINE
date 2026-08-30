@@ -105,20 +105,12 @@
     "chaosengine-mempalace": {
       "args": [
         ".chaos-engine/tool.py",
-        "mempalace-mcp",
-        "--palace",
-        ".chaos-engine-state/mempalace",
-        "--backend",
-        "sqlite_exact"
+        "mempalace-mcp"
       ],
       "argsWindows": [
         "-3",
         ".chaos-engine/tool.py",
-        "mempalace-mcp",
-        "--palace",
-        ".chaos-engine-state/mempalace",
-        "--backend",
-        "sqlite_exact"
+        "mempalace-mcp"
       ],
       "command": "python3",
       "commandWindows": "py",
@@ -128,13 +120,8 @@
         "MEMPALACE_EMBEDDING_MODEL": "minilm"
       }
     },
-    "maven-tools-mcp": {
-      "args": [
-        "-jar",
-        "/home/mohab/.local/share/ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar",
-        "--spring.profiles.active=docker,no-context7"
-      ],
-      "command": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java"
+    "context7": {
+      "url": "https://mcp.context7.com/mcp"
     }
   }
 }

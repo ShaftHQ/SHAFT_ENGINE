@@ -66,6 +66,34 @@ class LegacyDependencyController:
         return getattr(self._controller, name)
 
 
+class AccountDependencyController:
+    """Retain generation helpers while replacing only account provisioning."""
+
+    def __init__(self, controller):
+        self._controller = controller
+
+    def __getattr__(self, name):
+        return getattr(self._controller, name)
+
+    def install_account_dependencies(self, project, _specification):
+        receipt = {
+            "schemaVersion": 2,
+            "scope": "user",
+            "components": {
+                name: {"status": "healthy", "action": "reused"}
+                for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+            },
+            "commands": {
+                name: str(Path(sys.executable).resolve())
+                for name in ("python3", "node", "memory-mcp", "mempalace-mcp")
+            },
+        }
+        project.joinpath(".chaos-engine-dependencies.json").write_text(
+            json.dumps(receipt), encoding="utf-8"
+        )
+        return receipt
+
+
 def legacy_dependency_controller_fixture():
     load_controller = MODULE.load_dependency_controller
 
@@ -182,14 +210,566 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     project, SOURCE, TEST_COMMIT, with_maven_tools=False
                 )
 
-            self.assertEqual(project / ".chaos-engine", installed)
-            controller.install_account_dependencies.assert_called_once_with(project, specification)
+            self.assertEqual((project / ".chaos-engine").resolve(), installed)
+            controller.install_account_dependencies.assert_called_once_with(
+                project.resolve(), specification
+            )
             self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
             mcp = json.loads(project.joinpath(".mcp.json").read_text(encoding="utf-8"))
             self.assertEqual(
                 "https://mcp.context7.com/mcp",
                 mcp["mcpServers"]["context7"]["url"],
             )
+
+    def test_successful_install_reconciles_only_stale_detected_client_plugins(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            activations = []
+            load_controller = MODULE.load_installed_controller
+
+            def load_with_activation_probe(root, name):
+                controller = load_controller(root, name)
+                if name == "hosts":
+                    controller.activate_detected_plugins = mock.Mock(return_value={"clients": {}})
+                    controller.detected_plugin_status = mock.Mock(
+                        return_value={"codex": {"plugin": "stale"}}
+                    )
+                    activations.append(controller.activate_detected_plugins)
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_installed_controller", side_effect=load_with_activation_probe
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+
+            self.assertEqual(1, sum(item.call_count for item in activations))
+
+    def test_successful_install_does_not_activate_absent_client_plugins(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            activations = []
+            load_controller = MODULE.load_installed_controller
+
+            def load_with_absent_client(root, name):
+                controller = load_controller(root, name)
+                if name == "hosts":
+                    controller.activate_detected_plugins = mock.Mock(return_value={"clients": {}})
+                    controller.detected_plugin_status = mock.Mock(
+                        return_value={"codex": {"plugin": "absent"}}
+                    )
+                    activations.append(controller.activate_detected_plugins)
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_installed_controller", side_effect=load_with_absent_client
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                    with_maven_tools=False,
+                )
+
+            self.assertEqual(0, sum(item.call_count for item in activations))
+
+    def test_account_update_rollback_does_not_require_a_generation_pointer(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                MODULE.rollback(project)
+
+            self.assertEqual("1" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
+
+    def test_account_rollback_restores_exact_host_receipt_without_cross_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                base_hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+                _base_receipt, base_raw = base_hosts.read_receipt(project)
+                base_images = base_hosts.decode_images(_base_receipt["after"], nullable=True)
+                base_account_receipt = project / ".chaos-engine-dependencies.json"
+                base_account_raw = base_account_receipt.read_bytes() + b"\n"
+                base_account_receipt.write_bytes(base_account_raw)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                self.assertNotEqual(base_account_raw, base_account_receipt.read_bytes())
+                with mock.patch.object(MODULE, "write_cross_rollback_journal") as journal:
+                    MODULE.rollback(project)
+
+            journal.assert_not_called()
+            restored_hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            _restored_receipt, restored_raw = restored_hosts.read_receipt(project)
+            self.assertEqual(base_raw, restored_raw)
+            self.assertEqual(base_images, restored_hosts.current_images(project))
+            self.assertEqual(base_account_raw, base_account_receipt.read_bytes())
+
+    def test_account_upgrade_failure_restores_core_after_account_journal_recovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+            base_receipt = project.joinpath(".chaos-engine-dependencies.json").read_bytes()
+            changed_source = copy_source(Path(temporary) / "changed")
+            changed_hosts = changed_source / "hosts.py"
+            changed_hosts.write_text(
+                changed_hosts.read_text(encoding="utf-8") + "\n# changed fixture\n",
+                encoding="utf-8",
+            )
+
+            class FailingController:
+                def __init__(self, delegate):
+                    self.delegate = delegate
+
+                def __getattr__(self, name):
+                    return getattr(self.delegate, name)
+
+                def install_account_dependencies(self, target, _specification):
+                    target.joinpath(".chaos-engine-dependencies.json").write_text(
+                        "candidate\n", encoding="utf-8"
+                    )
+                    raise RuntimeError("dependency setup blocked: python")
+
+            def failing_controller(installed_root):
+                return FailingController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=failing_controller
+            ):
+                with self.assertRaisesRegex(RuntimeError, "dependency setup blocked: python"):
+                    MODULE.install_with_dependencies(project, changed_source, "2" * 40)
+
+            self.assertEqual(
+                base_receipt,
+                project.joinpath(".chaos-engine-dependencies.json").read_bytes(),
+            )
+            self.assertFalse(project.joinpath(MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
+            self.assertFalse(project.joinpath(MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME).exists())
+
+    def test_repeated_account_upgrades_finalize_each_rollback_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=account_controller
+            ):
+                for commit in ("1" * 40, "2" * 40, "3" * 40):
+                    MODULE.install_with_dependencies(project, SOURCE, commit)
+
+            self.assertEqual("3" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME).exists())
+
+    def test_incomplete_durable_host_receipt_falls_back_to_journal_recovery(self):
+        controller = SimpleNamespace(
+            ROLLBACK_PREVIOUS_RECEIPT="rollbackPreviousReceipt",
+            ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT="rollbackPreviousAccountReceipt",
+            ROLLBACK_PREVIOUS_MEMPALACE_STATE="rollbackPreviousMempalaceState",
+            read_receipt=lambda _project: (
+                {"phase": "installed", "coreCommit": "1" * 40}, b"receipt"
+            ),
+            validate_rollback_mempalace_state=lambda _value: (_ for _ in ()).throw(
+                ValueError("ChaosEngine MemPalace rollback state is invalid")
+            ),
+        )
+        pending = {
+            "priorCommit": "1" * 40,
+            "priorHostReceipt": None,
+            "priorAccountReceipt": None,
+            "priorMempalaceState": {"before": {"exists": True, "files": {}}},
+        }
+
+        self.assertFalse(
+            MODULE._account_upgrade_host_receipt_is_durable(
+                Path("."), controller, pending
+            )
+        )
+
+    def test_account_upgrade_crash_recovers_durable_pre_mutation_journal(self):
+        """A process death after account mutation must restart from exact base data."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+            receipt_path = project / ".chaos-engine-dependencies.json"
+            base_receipt = receipt_path.read_bytes()
+
+            crash_script = """
+import importlib.util
+import json
+import os
+import sys
+from pathlib import Path
+
+installer_path = Path(sys.argv[1])
+source = Path(sys.argv[2])
+project = Path(sys.argv[3])
+spec = importlib.util.spec_from_file_location("crash_installer", installer_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+original = module.load_dependency_controller
+
+class Controller:
+    def __init__(self, delegate):
+        self.delegate = delegate
+    def __getattr__(self, name):
+        return getattr(self.delegate, name)
+    def install_account_dependencies(self, target, _specification):
+        journal = target / ".chaos-engine-account-rollback" / "journal.json"
+        if not journal.is_file():
+            os._exit(87)
+        target.joinpath(".chaos-engine-dependencies.json").write_text(json.dumps({
+            "schemaVersion": 2, "scope": "user", "components": {}, "commands": {}
+        }), encoding="utf-8")
+        palace = target / ".chaos-engine-state" / "mempalace"
+        palace.mkdir(parents=True, exist_ok=True)
+        palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"candidate")
+        os._exit(86)
+
+module.load_dependency_controller = lambda root: Controller(original(root))
+module.install_with_dependencies(project, source, "2" * 40)
+"""
+            crashed = subprocess.run(
+                [sys.executable, "-c", crash_script, str(INSTALLER), str(SOURCE), str(project)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(86, crashed.returncode)
+            self.assertTrue(
+                project.joinpath(".chaos-engine-account-rollback/journal.json").is_file()
+            )
+
+            seen_receipts = []
+
+            def load_resuming_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def record_base_then_install(target, specification):
+                    seen_receipts.append(target.joinpath(
+                        ".chaos-engine-dependencies.json"
+                    ).read_bytes())
+                    return install_account(target, specification)
+
+                controller.install_account_dependencies = record_base_then_install
+                return controller
+
+            with mock.patch.object(
+                MODULE,
+                "load_dependency_controller",
+                side_effect=load_resuming_account_controller,
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            self.assertEqual([base_receipt], seen_receipts)
+            self.assertFalse(project.joinpath(".chaos-engine-state/mempalace").exists())
+            self.assertFalse(project.joinpath(".chaos-engine-account-rollback").exists())
+            self.assertEqual("2" * 40, MODULE.status(project)["commit"])
+
+    def test_account_rollback_journal_syncs_directory_entries(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            state = {"before": {"exists": False, "files": {}}, "after": {"exists": False, "files": {}}}
+            with mock.patch.object(MODULE, "fsync_directory") as sync:
+                MODULE.write_account_rollback_journal(
+                    project, "1" * 40, "2" * 40,
+                    prior_host_receipt=None,
+                    prior_account_receipt=None,
+                    prior_mempalace_state=state,
+                )
+                self.assertEqual([mock.call(project), mock.call(project / MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME)], sync.call_args_list)
+                sync.reset_mock()
+                MODULE.remove_account_rollback_journal(project)
+                self.assertEqual([mock.call(project), mock.call(project / MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME), mock.call(project)], sync.call_args_list)
+
+    def test_account_rollback_removes_unchanged_candidate_mempalace_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            configuration = project / "mempalace.yaml"
+            sentinel = project / "user-sentinel.txt"
+            configuration.write_bytes(
+                b"wing: preserve\nrooms:\n  - name: general\n    description: preserve\n"
+            )
+            sentinel.write_bytes(b"preserve\n")
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_candidate_state(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    if len(calls) == 2:
+                        palace = args[0] / ".chaos-engine-state/mempalace"
+                        palace.mkdir(parents=True)
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"candidate sqlite")
+                        palace.joinpath(".mined").write_bytes(b"current\n")
+                    return receipt
+
+                controller.install_account_dependencies = install_with_candidate_state
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                MODULE.rollback(project)
+
+            self.assertFalse(project.joinpath(".chaos-engine-state/mempalace").exists())
+            self.assertEqual(
+                b"wing: preserve\nrooms:\n  - name: general\n    description: preserve\n",
+                configuration.read_bytes(),
+            )
+            self.assertEqual(b"preserve\n", sentinel.read_bytes())
+
+    def test_account_rollback_refuses_changed_candidate_mempalace_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_candidate_state(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    if len(calls) == 2:
+                        palace = args[0] / ".chaos-engine-state/mempalace"
+                        palace.mkdir(parents=True)
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"candidate sqlite")
+                        palace.joinpath(".mined").write_bytes(b"current\n")
+                    return receipt
+
+                controller.install_account_dependencies = install_with_candidate_state
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                state = project / ".chaos-engine-state/mempalace/sqlite_exact.sqlite3"
+                state.write_bytes(b"user changed")
+                with self.assertRaisesRegex(ValueError, "candidate MemPalace state changed"):
+                    MODULE.rollback(project)
+
+            self.assertEqual(b"user changed", state.read_bytes())
+
+    def test_account_rollback_restores_legacy_marker_without_candidate_sqlite(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_legacy_marker(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    palace = args[0] / ".chaos-engine-state/mempalace"
+                    palace.mkdir(parents=True, exist_ok=True)
+                    if len(calls) == 1:
+                        palace.joinpath(".mined").write_bytes(b"legacy base\n")
+                    else:
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(
+                            b"candidate sqlite"
+                        )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_legacy_marker
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                MODULE.rollback(project)
+
+            palace = project / ".chaos-engine-state/mempalace"
+            self.assertEqual(b"legacy base\n", palace.joinpath(".mined").read_bytes())
+            self.assertFalse(palace.joinpath("sqlite_exact.sqlite3").exists())
+
+    def test_account_rollback_rejects_extra_candidate_state_after_legacy_marker(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_legacy_marker(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    palace = args[0] / ".chaos-engine-state/mempalace"
+                    palace.mkdir(parents=True, exist_ok=True)
+                    if len(calls) == 1:
+                        palace.joinpath(".mined").write_bytes(b"legacy base\n")
+                    else:
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(
+                            b"candidate sqlite"
+                        )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_legacy_marker
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                project.joinpath(
+                    ".chaos-engine-state/mempalace/unexpected.sqlite3"
+                ).write_bytes(b"foreign")
+                with self.assertRaisesRegex(ValueError, "candidate MemPalace state changed"):
+                    MODULE.rollback(project)
+
+            self.assertEqual(
+                b"foreign",
+                project.joinpath(
+                    ".chaos-engine-state/mempalace/unexpected.sqlite3"
+                ).read_bytes(),
+            )
+
+    def test_account_rollback_without_saved_raw_receipt_fails_without_a_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                original_load_hosts = MODULE.load_installed_controller
+
+                def load_hosts_without_receipt(installed_root, name):
+                    controller = original_load_hosts(installed_root, name)
+                    if name == "hosts" and installed_root.name == ".chaos-engine":
+                        controller.rollback_previous_receipt = lambda *_args: None
+                    return controller
+
+                with mock.patch.object(
+                    MODULE,
+                    "load_installed_controller",
+                    side_effect=load_hosts_without_receipt,
+                ), mock.patch.object(MODULE, "write_cross_rollback_journal") as journal:
+                    with self.assertRaisesRegex(ValueError, "no exact prior host receipt"):
+                        MODULE.rollback(project)
+
+            journal.assert_not_called()
+
+    def test_account_rollback_without_saved_raw_dependency_receipt_fails_without_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                original_load_hosts = MODULE.load_installed_controller
+
+                def load_hosts_without_dependency_receipt(installed_root, name):
+                    controller = original_load_hosts(installed_root, name)
+                    if name == "hosts" and installed_root.name == ".chaos-engine":
+                        controller.rollback_previous_account_receipt = lambda *_args: None
+                    return controller
+
+                with mock.patch.object(
+                    MODULE,
+                    "load_installed_controller",
+                    side_effect=load_hosts_without_dependency_receipt,
+                ), mock.patch.object(MODULE, "write_cross_rollback_journal") as journal:
+                    with self.assertRaisesRegex(ValueError, "no exact prior dependency receipt"):
+                        MODULE.rollback(project)
+
+            journal.assert_not_called()
 
     def test_status_reads_account_dependency_receipt_without_network_or_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -265,7 +845,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 if "clone" in command:
                     source = Path(command[-1])
                     source.mkdir(parents=True)
-                    wrapper = source / "mvnw"
+                    wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
                     wrapper.write_text("wrapper\n", encoding="utf-8")
                 if "package" in command:
                     source = Path(kwargs["cwd"])
@@ -579,7 +1159,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
             controller.retrieval_runtime_healthy = mock.Mock(return_value=True)
             controller.retrieval_runtime_status = mock.Mock(return_value={"status": "healthy"})
-            controller.mcp_runtime_healthy = mock.Mock(return_value=True)
+            controller.mcp_runtime_status = mock.Mock(return_value={"status": "healthy"})
             original_load = MODULE.load_installed_controller
 
             def load_for_doctor(root, name):
@@ -731,7 +1311,11 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with mock.patch.object(
                 controller,
                 "retrieval_runtime_status",
-                return_value={"status": "recovery-required", "reason": "memory check reported invalid store"},
+                return_value={
+                    "status": "recovery-required",
+                    "reason": "memory check reported invalid store",
+                    "code": "memory-check-invalid-store",
+                },
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
@@ -751,9 +1335,50 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 result["components"]["memory"]["reason"],
             )
             self.assertEqual(
+                "memory-check-invalid-store",
+                result["components"]["memory"]["code"],
+            )
+            self.assertEqual(
                 "healthy",
                 result["components"]["retrieval-config"]["status"],
             )
+
+    def test_doctor_reports_known_legacy_memory_as_compatible_but_not_healthy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            legacy_reason = "installed Memory runtime rejects known legacy v5 storage"
+            with mock.patch.object(
+                controller,
+                "retrieval_runtime_status",
+                return_value={
+                    "status": "compatible-legacy",
+                    "compatibility": "legacy-v5-read-only",
+                    "reason": legacy_reason,
+                },
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    controller if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual(
+                "compatible-legacy",
+                result["components"]["memory"]["status"],
+            )
+            self.assertEqual(legacy_reason, result["components"]["memory"]["reason"])
 
     def test_doctor_rejects_an_mcp_runtime_that_cannot_initialize(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -773,8 +1398,11 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 return_value={"status": "healthy"},
             ), mock.patch.object(
                 controller,
-                "mcp_runtime_healthy",
-                return_value=False,
+                "mcp_runtime_status",
+                return_value={
+                    "status": "recovery-required",
+                    "detail": "mempalace-mcp-initialize",
+                },
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
@@ -786,6 +1414,75 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual("recovery-required", result["components"]["mcps"]["status"])
+
+    def test_doctor_uses_receipt_python_for_account_mcps_and_hooks(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            account_python = root / "account/bin/python3"
+            account_python.parent.mkdir(parents=True)
+            account_python.write_text("fixture", encoding="utf-8")
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_account_python(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    receipt["commands"]["python3"] = str(account_python.resolve())
+                    args[0].joinpath(".chaos-engine-dependencies.json").write_text(
+                        json.dumps(receipt), encoding="utf-8"
+                    )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_account_python
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT)
+
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            with mock.patch.object(
+                hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
+            ) as retrieval_probe, mock.patch.object(
+                hosts,
+                "mcp_runtime_status",
+                return_value={
+                    "status": "recovery-required",
+                    "detail": "mempalace-mcp-initialize",
+                },
+            ) as mcp_probe, mock.patch.object(
+                hosts, "hook_runtime_healthy", return_value=True
+            ) as hook_probe, mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    hosts if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual(
+                "mempalace-mcp-initialize", result["components"]["mcps"]["detail"]
+            )
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(mcp_probe.call_args.args[1]),
+            )
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(hook_probe.call_args.args[1]),
+            )
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(retrieval_probe.call_args.args[1]["python3"]),
+            )
 
     def test_status_maps_legacy_mempalace_classifier_without_launching(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -1573,6 +2270,200 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "offline"):
                 MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=fail)
             self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_nullable_legacy_receipt_preflight_blocks_before_core_or_account_setup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            receipt, _ = hosts.read_receipt(project)
+            legacy_path = ".grok/hooks/lifecycle.json"
+            receipt["before"][legacy_path] = None
+            receipt["after"][legacy_path] = None
+            project.joinpath(legacy_path).unlink()
+            project.joinpath(legacy_path).write_text("unexpected\n", encoding="utf-8")
+            project.joinpath(".chaos-engine-hosts.json").write_bytes(
+                hosts.receipt_bytes(receipt, project)
+            )
+
+            account_setup = mock.Mock()
+            controller = SimpleNamespace(
+                install_account_dependencies=account_setup,
+            )
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(MODULE, "install") as core_install:
+                    with self.assertRaisesRegex(ValueError, "host adapter drift"):
+                        MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            core_install.assert_not_called()
+            account_setup.assert_not_called()
+            self.assertFalse(project.joinpath("graphify-out").exists())
+            self.assertFalse(project.joinpath(".agents/skills/graphify").exists())
+
+    def test_receipt_preflight_allows_a_legacy_core_binding_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            receipt, _ = hosts.read_receipt(project)
+            receipt["coreCommit"] = "7" * 40
+            project.joinpath(".chaos-engine-hosts.json").write_bytes(
+                hosts.receipt_bytes(receipt, project)
+            )
+            specification = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
+            account_setup = mock.Mock(return_value={
+                "commands": {
+                    name: str(Path(sys.executable).resolve())
+                    for name in ("python3", "node", "memory-mcp", "mempalace-mcp")
+                }
+            })
+            controller = SimpleNamespace(
+                load_specification=lambda _path: specification,
+                install_account_dependencies=account_setup,
+            )
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(
+                    MODULE, "install", wraps=MODULE.install
+                ) as core_install:
+                    MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            core_install.assert_called_once()
+            account_setup.assert_called_once_with(project.resolve(), specification)
+            repaired, _ = hosts.read_receipt(project)
+            self.assertEqual("2" * 40, repaired["coreCommit"])
+
+    def test_receipt_preflight_rejects_tampering_before_core_or_account_setup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            receipt_path = project / ".chaos-engine-hosts.json"
+            receipt_path.write_bytes(receipt_path.read_bytes().replace(b"installed", b"tampered", 1))
+
+            account_setup = mock.Mock()
+            controller = SimpleNamespace(
+                install_account_dependencies=account_setup,
+            )
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(MODULE, "install") as core_install:
+                    with self.assertRaisesRegex(ValueError, "integrity drift"):
+                        MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            core_install.assert_not_called()
+            account_setup.assert_not_called()
+
+    def test_post_setup_host_failure_restores_exact_project_setup_outputs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            specification = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
+            project.joinpath(".agents/skills/graphify/user.txt").parent.mkdir(parents=True)
+            project.joinpath(".agents/skills/graphify/user.txt").write_text(
+                "keep graphify\n", encoding="utf-8"
+            )
+            project.joinpath("graphify-out/user.txt").parent.mkdir(parents=True)
+            project.joinpath("graphify-out/user.txt").write_text("keep graph\n", encoding="utf-8")
+            project.joinpath(".memory/config.json").parent.mkdir(parents=True)
+            project.joinpath(".memory/config.json").write_text("keep memory\n", encoding="utf-8")
+            project.joinpath(".chaos-engine-state/mempalace/user.txt").parent.mkdir(parents=True)
+            project.joinpath(".chaos-engine-state/mempalace/user.txt").write_text(
+                "keep palace\n", encoding="utf-8"
+            )
+            project.joinpath("mempalace.yaml").write_text("wing: keep\n", encoding="utf-8")
+
+            def install_account_dependencies(target, _specification):
+                target.joinpath(".chaos-engine-dependencies.json").write_text(
+                    "new receipt\n", encoding="utf-8"
+                )
+                target.joinpath(".agents/skills/graphify/SKILL.md").parent.mkdir(
+                    parents=True, exist_ok=True
+                )
+                target.joinpath(".agents/skills/graphify/SKILL.md").write_text(
+                    "generated\n", encoding="utf-8"
+                )
+                target.joinpath("graphify-out/graph.json").parent.mkdir(parents=True, exist_ok=True)
+                target.joinpath("graphify-out/graph.json").write_text("{}\n", encoding="utf-8")
+                target.joinpath(".memory/config.json").parent.mkdir(parents=True, exist_ok=True)
+                target.joinpath(".memory/config.json").write_text("{}\n", encoding="utf-8")
+                target.joinpath(".chaos-engine-state/mempalace").mkdir(parents=True, exist_ok=True)
+                target.joinpath(".chaos-engine-state/mempalace/sqlite_exact.sqlite3").write_bytes(
+                    b"SQLite format 3\\x00"
+                )
+                target.joinpath("mempalace.yaml").write_text("wing: generated\n", encoding="utf-8")
+                return {"commands": {}}
+
+            controller = SimpleNamespace(
+                load_specification=lambda _path: specification,
+                install_account_dependencies=install_account_dependencies,
+            )
+            original_load = MODULE.load_installed_controller
+            fail_once = True
+
+            def load_with_post_setup_failure(installed_root, name):
+                nonlocal fail_once
+                loaded = original_load(installed_root, name)
+                if name == "hosts" and fail_once:
+                    fail_once = False
+                    def fail_after_foreign_graphify_update(*_args, **_kwargs):
+                        project.joinpath("graphify-out/concurrent.json").write_text(
+                            '{"user":true}\n', encoding="utf-8"
+                        )
+                        raise RuntimeError("host install failed")
+
+                    loaded.install = mock.Mock(side_effect=fail_after_foreign_graphify_update)
+                return loaded
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=controller
+            ):
+                with mock.patch.object(
+                    MODULE, "load_installed_controller", side_effect=load_with_post_setup_failure
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "host install failed"):
+                        MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT)
+
+            for relative in (
+                ".chaos-engine-dependencies.json",
+                ".agents/skills/graphify/SKILL.md",
+                "graphify-out/graph.json",
+            ):
+                self.assertFalse(project.joinpath(relative).exists(), relative)
+            self.assertEqual(
+                "keep graphify\n",
+                project.joinpath(".agents/skills/graphify/user.txt").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                "keep graph\n", project.joinpath("graphify-out/user.txt").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                '{"user":true}\n',
+                project.joinpath("graphify-out/concurrent.json").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                "{}\n", project.joinpath(".memory/config.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                b"SQLite format 3\\x00",
+                project.joinpath(".chaos-engine-state/mempalace/sqlite_exact.sqlite3").read_bytes(),
+            )
+            self.assertEqual(
+                "wing: generated\n", project.joinpath("mempalace.yaml").read_text(encoding="utf-8")
+            )
+            self.assertFalse(project.joinpath(".chaos-engine").exists())
 
     def test_keyboard_interrupt_skips_install_compensation(self):
         with tempfile.TemporaryDirectory() as temporary:

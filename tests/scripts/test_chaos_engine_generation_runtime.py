@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 import os
@@ -1074,6 +1075,7 @@ class GenerationRuntimeTests(unittest.TestCase):
                     "schemaVersion": 1,
                     "desiredCommit": "1" * 40,
                     "priorCommit": "2" * 40,
+                    "priorHostReceipt": base64.b64encode(desired_host_receipt).decode("ascii"),
                 }
                 journal_body["integritySha256"] = installer.hashlib.sha256(
                     json.dumps(

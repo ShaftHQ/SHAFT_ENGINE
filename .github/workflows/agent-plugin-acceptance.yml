@@ -151,7 +151,7 @@ jobs:
         run: >-
           python scripts/ci/chaos_engine_live_installer_acceptance.py
           --candidate-sha ${{ github.sha }}
-          --base-sha "$(git rev-parse HEAD^)"
+          --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
           --output chaos-engine-live-installer-evidence.json
       - name: Upload live installer evidence
         if: always()
