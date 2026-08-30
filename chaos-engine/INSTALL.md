@@ -51,6 +51,13 @@ into the adopter payload. The installer also merges receipt-bound LF attributes 
 so Windows Git checkouts retain the exact owned bytes while unrelated
 `.gitattributes` rules remain untouched.
 
+The payload includes the optional
+[`omniroot` skill](skills/omniroot/SKILL.md) and its standard-library runner.
+This copies integration capability only: installation never installs, starts,
+configures, authenticates, or requires OmniRoute. Without a qualified local
+service, canonical [execution workflows](references/execution-workflows.md)
+continue through native implementers or `SOLO`.
+
 The Windows example below uses an `owner/repository` placeholder; replace it
 with the upstream that hosts the wrapper. The macOS/Linux example constructs
 the official upstream URL without embedding source identity in the portable
