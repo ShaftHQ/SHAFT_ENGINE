@@ -2472,14 +2472,19 @@ def doctor_with_dependencies(
                 candidate_python = None
             if candidate_python is not None and candidate_python.is_file():
                 managed_python = candidate_python
-    mcp_healthy = managed_python is not None and host_controller.mcp_runtime_healthy(
-        project.resolve(), managed_python, account_commands
+    mcp_status = (
+        host_controller.mcp_runtime_status(project.resolve(), managed_python, account_commands)
+        if managed_python is not None else {"status": "recovery-required"}
     )
+    mcp_healthy = mcp_status.get("status") == "healthy"
     if not mcp_healthy:
         result["status"] = "recovery-required"
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
             components["mcps"]["status"] = "recovery-required"
+            detail = mcp_status.get("detail")
+            if isinstance(detail, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail):
+                components["mcps"]["detail"] = detail
     if managed_python is None or not host_controller.hook_runtime_healthy(
         project.resolve(), managed_python
     ):

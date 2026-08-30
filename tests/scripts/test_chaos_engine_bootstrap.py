@@ -543,19 +543,24 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 "commit": COMMIT_TWO,
                 "components": {
                     "hooks": {
-                        "status": "recovery-required", "taskImpact": "required"
+                        "status": "recovery-required", "taskImpact": "required",
+                        "detail": "hook-runtime-exit",
                     }
                 },
             },
         )
         error.observed_upgrade_commit = COMMIT_TWO
         error.observed_upgrade_components = (("hooks", "recovery-required"),)
+        error.observed_upgrade_component_details = (("hooks", "hook-runtime-exit"),)
         stderr = io.StringIO()
         with mock.patch.object(module.sys, "stderr", stderr):
             module.emit_install_failure("CE-INSTALL-FAILED", error, "Example/Project")
 
         self.assertIn(f"observed_commit={COMMIT_TWO}", stderr.getvalue())
         self.assertIn("candidate_components=hooks%3Arecovery-required", stderr.getvalue())
+        self.assertIn(
+            "candidate_component_details=hooks%3Ahook-runtime-exit", stderr.getvalue()
+        )
 
     def test_cancel_after_successful_core_install_keeps_last_verified_generation(self):
         module = load()

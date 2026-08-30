@@ -134,6 +134,27 @@ def observed_blocking_components(components: object) -> tuple[tuple[str, str], .
     return tuple(sorted(result))
 
 
+def observed_blocking_component_details(components: object) -> tuple[tuple[str, str], ...]:
+    """Keep only fixed outcome codes for required failed upgrade components."""
+    if not isinstance(components, dict):
+        return ()
+    result: list[tuple[str, str]] = []
+    for name, value in components.items():
+        detail = value.get("detail") if isinstance(value, dict) else None
+        if (
+            not isinstance(name, str)
+            or not isinstance(detail, str)
+            or re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name) is None
+            or re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail) is None
+            or not _component_blocks_health(value)
+        ):
+            continue
+        result.append((name, detail))
+        if len(result) == 32:
+            break
+    return tuple(sorted(result))
+
+
 def _required_install_unhealthy(doctor: dict[str, object]) -> bool:
     components = doctor.get("components")
     if isinstance(components, dict) and any(
@@ -173,6 +194,7 @@ class InstallHealthError(RuntimeError):
         commit = doctor.get("commit")
         self.observed_commit = commit if isinstance(commit, str) and COMMIT.fullmatch(commit) else None
         self.observed_components = observed_blocking_components(components)
+        self.observed_component_details = observed_blocking_component_details(components)
 
 
 class InstallReporter:
@@ -964,6 +986,7 @@ def install_latest(
         if isinstance(error, InstallHealthError) and prior_install:
             error.observed_upgrade_commit = error.observed_commit
             error.observed_upgrade_components = error.observed_components
+            error.observed_upgrade_component_details = error.observed_component_details
         if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
             if prior_install and (project / ".chaos-engine.backup").exists():
                 installer.rollback(project)
@@ -1099,6 +1122,24 @@ def emit_install_failure(
             ):
                 candidate_component_labels.append(f"{name}:{status}")
         candidate_components = ",".join(candidate_component_labels)
+        observed_upgrade_component_details = getattr(
+            error, "observed_upgrade_component_details", ()
+        )
+        if not isinstance(observed_upgrade_component_details, tuple):
+            observed_upgrade_component_details = ()
+        candidate_detail_labels: list[str] = []
+        for component in observed_upgrade_component_details[:32]:
+            if not isinstance(component, tuple) or len(component) != 2:
+                continue
+            name, detail = component
+            if (
+                isinstance(name, str)
+                and isinstance(detail, str)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail)
+            ):
+                candidate_detail_labels.append(f"{name}:{detail}")
+        candidate_component_details = ",".join(candidate_detail_labels)
         body = "\n".join(
             (
                 f"Error code: {code}",
@@ -1108,6 +1149,8 @@ def emit_install_failure(
                 + (", ".join(getattr(error, "unhealthy", ())) or "not reported"),
                 "Observed candidate commit: " + (observed_upgrade_commit or "not available"),
                 "Observed candidate components: " + (candidate_components or "not available"),
+                "Observed candidate component details: "
+                + (candidate_component_details or "not available"),
                 "Current action: "
                 + ((reporter.current_operation if reporter else None) or "none"),
                 "History: "
@@ -1135,6 +1178,7 @@ def emit_install_failure(
                 "unhealthy": ", ".join(getattr(error, "unhealthy", ())) or "not reported",
                 "observed_commit": observed_upgrade_commit or "",
                 "candidate_components": candidate_components,
+                "candidate_component_details": candidate_component_details,
                 "platform": sys.platform,
                 "status_command": status_command or "",
                 "doctor_command": doctor_command or "",

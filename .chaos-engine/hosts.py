@@ -831,24 +831,25 @@ def initialize_mempalace_runtime(project: Path) -> None:
         raise
 
 
-def mcp_runtime_healthy(
+def mcp_runtime_status(
     project: Path,
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
-) -> bool:
+) -> dict[str, str]:
+    """Return one bounded MCP runtime result without retaining child output."""
     palace = (
         resolved_central_palace(project)
         if repository_map_resolver_present(project)
         else project / ".chaos-engine-state/mempalace"
     )
     if palace is None or mempalace_directory_status(palace).get("status") != "healthy":
-        return False
+        return {"status": "recovery-required", "detail": "mempalace-state"}
     if account_commands is not None and not (project / "mempalace.yaml").is_file():
-        return False
+        return {"status": "recovery-required", "detail": "account-config"}
     if account_commands is not None and not {
         "memory-mcp", "mempalace-mcp"
     } <= set(account_commands):
-        return False
+        return {"status": "recovery-required", "detail": "account-commands"}
     initialize = json.dumps(
         {
             "jsonrpc": "2.0",
@@ -887,19 +888,24 @@ def mcp_runtime_healthy(
         if account_commands is not None else [python, str(tool), "memory-mcp"],
         [python, str(tool), "mempalace-mcp"],
     )
-    for index, command in enumerate(commands):
-        result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
-            command,
-            cwd=project,
-            input=protocol_probe,
-            capture_output=True,
-            text=True,
-            check=False,
-            env=environment,
-            timeout=30,
-        )
+    for name, command in zip(("memory-mcp", "mempalace-mcp"), commands):
+        try:
+            result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
+                command,
+                cwd=project,
+                input=protocol_probe,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=environment,
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            return {"status": "recovery-required", "detail": f"{name}-timeout"}
+        except OSError:
+            return {"status": "recovery-required", "detail": f"{name}-unavailable"}
         if result.returncode != 0:
-            return False
+            return {"status": "recovery-required", "detail": f"{name}-exit"}
         try:
             responses = [
                 json.loads(line)
@@ -907,14 +913,14 @@ def mcp_runtime_healthy(
                 if line.strip().startswith("{")
             ]
         except json.JSONDecodeError:
-            return False
+            return {"status": "recovery-required", "detail": f"{name}-invalid-json"}
         if not any(
             isinstance(response, dict)
             and response.get("id") == 1
             and isinstance(response.get("result"), dict)
             for response in responses
         ):
-            return False
+            return {"status": "recovery-required", "detail": f"{name}-initialize"}
         listed = next(
             (response for response in responses if isinstance(response, dict)
              and response.get("id") == 2),
@@ -924,8 +930,17 @@ def mcp_runtime_healthy(
         if not isinstance(listed_result, dict) or not isinstance(
             listed_result.get("tools"), list
         ):
-            return False
-    return True
+            return {"status": "recovery-required", "detail": f"{name}-tools-list"}
+    return {"status": "healthy"}
+
+
+def mcp_runtime_healthy(
+    project: Path,
+    managed_python: Path | None = None,
+    account_commands: dict[str, str] | None = None,
+) -> bool:
+    """Retain the historical MCP health predicate for existing callers."""
+    return mcp_runtime_status(project, managed_python, account_commands)["status"] == "healthy"
 
 
 def hook_runtime_healthy(project: Path, managed_python: Path) -> bool:

@@ -47,6 +47,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?"
             "observed_commit=" + ("a" * 40)
             + "&candidate_components=hooks%3Arecovery-required%2Cmcps%3Arecovery-required"
+            + "&candidate_component_details=mcps%3Amempalace-mcp-initialize"
             + "&failed_phase=Verify+installation&unhealthy=hooks&cause=doctor+failed",
             "PowerShell invocation error",
         ))
@@ -55,6 +56,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
             "observed commit: " + ("a" * 40)
             + "; candidate components: hooks=recovery-required, mcps=recovery-required"
+            + "; candidate component details: mcps=mempalace-mcp-initialize"
             + "; failed phase: Verify installation; unhealthy: hooks",
             module.installer_failure_detail(diagnostic),
         )
@@ -788,6 +790,18 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertEqual(
             "post-provision-doctor",
             module.exact_base_compatibility_transition(posix, base, windows=False),
+        )
+        windows_post = module.AcceptanceCommandFailure(
+            module.public_wrapper_command(base, windows=True),
+            1,
+            "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
+            "failed phase: Verify installation; unhealthy: mcps",
+        )
+        windows_post.component_statuses = module.known_windows_base_component_statuses(base)
+
+        self.assertEqual(
+            "post-provision-doctor",
+            module.exact_base_compatibility_transition(windows_post, base, windows=True),
         )
         for mutation in (
             ("sha", "f" * 40),

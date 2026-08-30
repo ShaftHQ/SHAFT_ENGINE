@@ -1783,6 +1783,15 @@ class ChaosEngineHostsTest(unittest.TestCase):
             with mock.patch.object(module.subprocess, "run", return_value=invalid):
                 self.assertFalse(module.mcp_runtime_healthy(project))
 
+            failed = mock.Mock(returncode=17, stdout="secret /tmp/account output")
+            with mock.patch.object(module.subprocess, "run", return_value=failed):
+                status = module.mcp_runtime_status(project)
+
+            self.assertEqual("recovery-required", status["status"])
+            self.assertEqual("memory-mcp-exit", status["detail"])
+            self.assertNotIn("secret", status["detail"])
+            self.assertNotIn("/tmp", status["detail"])
+
     def test_doctor_mcp_probe_uses_configured_cwd_and_managed_python(self):
         module = load(HOSTS, "chaos_engine_doctor_configured_mcp")
         response = mock.Mock(

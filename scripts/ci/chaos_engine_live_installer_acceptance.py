@@ -57,6 +57,10 @@ POSIX_BASE_FAILURE_DETAIL = (
     "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
     "failed phase: Verify installation; unhealthy: hooks, mcps"
 )
+WINDOWS_BASE_FAILURE_DETAIL = (
+    "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
+    "failed phase: Verify installation; unhealthy: mcps"
+)
 ACCOUNT_COMMAND_NAMES = frozenset((
     "uv", "uvx", "python3", "node", "npm", "npx", "java", "mempalace",
     "mempalace-mcp", "graphify", "memory", "memory-mcp", "ctx7",
@@ -304,6 +308,17 @@ def known_base_component_statuses(base_sha: str) -> dict[str, dict[str, object]]
     }
 
 
+def known_windows_base_component_statuses(base_sha: str) -> dict[str, dict[str, object]]:
+    """Return the sole Windows legacy doctor state reached after Git PATH repair."""
+    statuses = known_base_component_statuses(base_sha)
+    for report in statuses.values():
+        dependencies = report.get("dependencyComponents") if isinstance(report, dict) else None
+        python = dependencies.get("python") if isinstance(dependencies, dict) else None
+        if isinstance(python, dict):
+            python["action"] = "installed"
+    return statuses
+
+
 def exact_base_compatibility_transition(
     error: Exception, base_sha: str, *, windows: bool
 ) -> str:
@@ -311,15 +326,19 @@ def exact_base_compatibility_transition(
     if (
         not isinstance(error, AcceptanceCommandFailure)
         or base_sha != KNOWN_BASE_SHA
-        or windows
         or error.returncode != 1
         or tuple(error.command) != tuple(public_wrapper_command(base_sha, windows=windows))
     ):
         raise error
-    if str(error) != f"command failed (1): {POSIX_BASE_FAILURE_DETAIL}":
+    expected_detail = WINDOWS_BASE_FAILURE_DETAIL if windows else POSIX_BASE_FAILURE_DETAIL
+    if str(error) != f"command failed (1): {expected_detail}":
         raise error
     statuses = getattr(error, "component_statuses", None)
-    if statuses != known_base_component_statuses(base_sha):
+    expected_statuses = (
+        known_windows_base_component_statuses(base_sha)
+        if windows else known_base_component_statuses(base_sha)
+    )
+    if statuses != expected_statuses:
         raise error
     return "post-provision-doctor"
 
@@ -501,6 +520,7 @@ def installer_failure_detail(value: str) -> str:
         for key, label in (
             ("observed_commit", "observed commit"),
             ("candidate_components", "candidate components"),
+            ("candidate_component_details", "candidate component details"),
             ("failed_phase", "failed phase"),
             ("unhealthy", "unhealthy"),
         ):
@@ -510,7 +530,7 @@ def installer_failure_detail(value: str) -> str:
             value = values[0]
             if key == "observed_commit" and re.fullmatch(r"[0-9a-f]{40}", value) is None:
                 continue
-            if key == "candidate_components":
+            if key in {"candidate_components", "candidate_component_details"}:
                 components = value.split(",")
                 if len(components) > 32 or not components or any(
                     re.fullmatch(r"[a-z][a-z0-9-]{0,63}:[a-z][a-z0-9-]{0,63}", item)

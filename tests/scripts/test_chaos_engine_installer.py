@@ -960,7 +960,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
             controller.retrieval_runtime_healthy = mock.Mock(return_value=True)
             controller.retrieval_runtime_status = mock.Mock(return_value={"status": "healthy"})
-            controller.mcp_runtime_healthy = mock.Mock(return_value=True)
+            controller.mcp_runtime_status = mock.Mock(return_value={"status": "healthy"})
             original_load = MODULE.load_installed_controller
 
             def load_for_doctor(root, name):
@@ -1191,8 +1191,11 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 return_value={"status": "healthy"},
             ), mock.patch.object(
                 controller,
-                "mcp_runtime_healthy",
-                return_value=False,
+                "mcp_runtime_status",
+                return_value={
+                    "status": "recovery-required",
+                    "detail": "mempalace-mcp-initialize",
+                },
             ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
@@ -1240,7 +1243,12 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with mock.patch.object(
                 hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
             ), mock.patch.object(
-                hosts, "mcp_runtime_healthy", return_value=True
+                hosts,
+                "mcp_runtime_status",
+                return_value={
+                    "status": "recovery-required",
+                    "detail": "mempalace-mcp-initialize",
+                },
             ) as mcp_probe, mock.patch.object(
                 hosts, "hook_runtime_healthy", return_value=True
             ) as hook_probe, mock.patch.object(
@@ -1250,8 +1258,12 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     hosts if name == "hosts" else original_load(root, name)
                 ),
             ):
-                MODULE.doctor_with_dependencies(project, verify_clients=False)
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
 
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual(
+                "mempalace-mcp-initialize", result["components"]["mcps"]["detail"]
+            )
             self.assertEqual(
                 str(account_python.resolve()),
                 str(mcp_probe.call_args.args[1]),
