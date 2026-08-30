@@ -4075,6 +4075,21 @@ def receipt_bytes(receipt: dict[str, object], project: Path | None = None) -> by
     return (json.dumps(body, indent=2, sort_keys=True) + "\n").encode()
 
 
+def rollback_base_receipt(project: Path, raw: bytes) -> bytes:
+    """Return one-hop rollback receipt without recursively nesting older state."""
+    try:
+        previous = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine host preflight snapshot is invalid") from error
+    if not isinstance(previous, dict):
+        raise ValueError("ChaosEngine host preflight snapshot is invalid")
+    previous.pop(ROLLBACK_PREVIOUS_RECEIPT, None)
+    previous.pop(ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT, None)
+    previous.pop(ROLLBACK_PREVIOUS_MEMPALACE_STATE, None)
+    previous["rollbackIntent"] = None
+    return receipt_bytes(previous, project)
+
+
 def rollback_previous_receipt(project: Path, expected_core_commit: str) -> bytes | None:
     """Return authenticated one-hop host receipt saved by an upgraded core."""
     receipt, _ = read_receipt(project)
@@ -4645,15 +4660,8 @@ def install(
                 write_receipt(project, receipt, raw)
                 return receipt
             next_receipt = dict(receipt)
-            previous_receipt = json.loads(snapshot_raw.decode("utf-8"))
-            if not isinstance(previous_receipt, dict):
-                raise ValueError("ChaosEngine host preflight snapshot is invalid")
-            previous_receipt.pop(ROLLBACK_PREVIOUS_RECEIPT, None)
-            previous_receipt.pop(ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT, None)
-            previous_receipt.pop(ROLLBACK_PREVIOUS_MEMPALACE_STATE, None)
-            previous_receipt["rollbackIntent"] = None
             next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
-                receipt_bytes(previous_receipt, project)
+                rollback_base_receipt(project, snapshot_raw)
             ).decode("ascii")
             if rollback_account_receipt is not None:
                 try:

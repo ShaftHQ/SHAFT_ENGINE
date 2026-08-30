@@ -2348,6 +2348,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     prior_host_receipt = (
                         host_snapshot.get("raw") if isinstance(host_snapshot, dict) else None
                     )
+                    if isinstance(prior_host_receipt, bytes):
+                        prior_host_receipt = host_controller.rollback_base_receipt(
+                            project, prior_host_receipt
+                        )
                     account_rollback_journal = write_account_rollback_journal(
                         project,
                         old_commit,

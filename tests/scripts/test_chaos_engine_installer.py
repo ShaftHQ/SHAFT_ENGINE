@@ -395,6 +395,24 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertFalse(project.joinpath(MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
             self.assertFalse(project.joinpath(MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME).exists())
 
+    def test_repeated_account_upgrades_finalize_each_rollback_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=account_controller
+            ):
+                for commit in ("1" * 40, "2" * 40, "3" * 40):
+                    MODULE.install_with_dependencies(project, SOURCE, commit)
+
+            self.assertEqual("3" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME).exists())
+
     def test_account_upgrade_crash_recovers_durable_pre_mutation_journal(self):
         """A process death after account mutation must restart from exact base data."""
         with tempfile.TemporaryDirectory() as temporary:
