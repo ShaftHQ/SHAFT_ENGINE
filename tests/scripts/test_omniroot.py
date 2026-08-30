@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -216,6 +217,8 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual("running", manifest["status"])
         self.assertEqual([str(self.launcher), "opaque-profile", "host-cli"], launched[0][0][:3])
         self.assertFalse(launched[0][1].get("shell", True))
+        self.assertEqual(subprocess.PIPE, launched[0][1]["stdout"])
+        self.assertEqual(subprocess.PIPE, launched[0][1]["stderr"])
         self.assertEqual(str(self.worktree), launched[0][1]["cwd"])
         self.assertNotIn("secret", json.dumps(manifest))
         self.assertEqual("ORCHESTRATOR + SINGLE IMPLEMENTER", manifest["workflow"])
@@ -226,6 +229,48 @@ class OmniRootRunnerTest(unittest.TestCase):
         )["outcome"])
         path = self.state / "runs/run-1.json"
         self.assertEqual(0o600, path.stat().st_mode & 0o777)
+
+    def test_diagnostics_are_bounded_redacted_and_private(self):
+        secret = "route-token-value"
+        noisy = (("OMNIROUTE_API_KEY=" + secret + "\n") + ("x" * 70000)).encode()
+
+        class Finished:
+            returncode = 7
+            stdout = io.BytesIO(noisy)
+            stderr = io.BytesIO(b"Authorization: Bearer private-token\nfailed\n")
+
+            def wait(self, timeout=None):
+                self.timeout = timeout
+                return self.returncode
+
+            def poll(self):
+                return self.returncode
+
+        path = self.state / "diagnostics/run-1.json"
+        RUNNER._collect_diagnostics(Finished(), path, timeout_seconds=30)
+        diagnostic = json.loads(path.read_text(encoding="utf-8"))
+        serialized = json.dumps(diagnostic)
+        self.assertNotIn(secret, serialized)
+        self.assertNotIn("private-token", serialized)
+        self.assertLessEqual(len(diagnostic["stdout"].encode()), RUNNER.MAX_DIAGNOSTIC_BYTES)
+        self.assertTrue(diagnostic["stdoutTruncated"])
+        self.assertEqual(7, diagnostic["exitCode"])
+        self.assertEqual(0o600, path.stat().st_mode & 0o777)
+
+    def test_missing_config_is_normal_fallback_and_never_launches(self):
+        launched = []
+        result = RUNNER.probe(
+            config_path=self.root / "missing.json", opener=lambda *_, **__: _Response(), environ={}
+        )
+        self.assertEqual("ROUTE_UNQUALIFIED", result["state"])
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER.dispatch(
+                run_id="missing", worktree=self.worktree, state_dir=self.state,
+                config_path=self.root / "missing.json", target="host-cli", delegate_args=[],
+                opener=lambda *_, **__: _Response(), environ={},
+                popen=lambda *args, **kwargs: launched.append((args, kwargs)),
+            )
+        self.assertEqual([], launched)
 
     def test_direct_launcher_receives_only_configured_argv_and_delegate_args(self):
         config = json.loads(self.config.read_text(encoding="utf-8"))
@@ -330,7 +375,28 @@ class OmniRootRunnerTest(unittest.TestCase):
         status = RUNNER.cancel("run-1", self.state, process_identity=lambda _: "new")
         self.assertEqual("quarantined", status["status"])
 
+    def test_status_moves_finished_process_to_review_using_captured_evidence(self):
+        RUNNER._write_json(self.state / "runs/run-4.json", {
+            "schemaVersion": 1, "runId": "run-4", "status": "running",
+            "pid": 4242, "processIdentity": "old", "timestamps": {},
+        })
+        diagnostic = {
+            "schemaVersion": 1, "exitCode": 0, "timedOut": False,
+            "stdout": "done", "stderr": "", "stdoutTruncated": False, "stderrTruncated": False,
+        }
+        RUNNER._write_json(self.state / "diagnostics/run-4.json", diagnostic)
+        result = RUNNER.status("run-4", self.state, process_identity=lambda _: None)
+        self.assertEqual("review", result["status"])
+        self.assertEqual(0, result["diagnostics"]["exitCode"])
+        self.assertEqual(RUNNER._sha256(diagnostic), result["diagnostics"]["sha256"])
+        self.assertNotIn("stdout", result["diagnostics"])
+
     def test_completion_receipt_is_terminal_and_redacted(self):
+        diagnostic_path = self.state / "diagnostics/run-1.json"
+        RUNNER._write_json(diagnostic_path, {
+            "schemaVersion": 1, "exitCode": 0, "timedOut": False,
+            "stdout": "ok", "stderr": "", "stdoutTruncated": False, "stderrTruncated": False,
+        })
         receipt = RUNNER.complete(
             run_id="run-1", state_dir=self.state, exit_code=0,
             changed_paths=["chaos-engine/skills/omniroot/SKILL.md"],
@@ -342,7 +408,20 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual("success", receipt["outcome"])
         self.assertEqual("a" * 40, receipt["head"])
         self.assertEqual(["python3 -m unittest"], receipt["checks"])
+        self.assertEqual(RUNNER._sha256(RUNNER._load_json(diagnostic_path)), receipt["diagnostics"]["sha256"])
+        self.assertFalse(receipt["diagnostics"]["timedOut"])
         self.assertEqual(0o600, (self.state / "receipts/run-1.json").stat().st_mode & 0o777)
+
+    def test_completion_rejects_exit_code_that_conflicts_with_captured_process(self):
+        RUNNER._write_json(self.state / "diagnostics/run-3.json", {
+            "schemaVersion": 1, "exitCode": 9, "timedOut": False,
+            "stdout": "", "stderr": "failed", "stdoutTruncated": False, "stderrTruncated": False,
+        })
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER.complete(
+                run_id="run-3", state_dir=self.state, exit_code=0, changed_paths=[],
+                learning_disposition="nothing-durable",
+            )
 
 
 if __name__ == "__main__":

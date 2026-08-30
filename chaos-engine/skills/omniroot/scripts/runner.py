@@ -14,6 +14,7 @@ import stat
 import subprocess  # nosec B404 - dispatches a fixed local launcher with argv.
 import sys
 import tempfile
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -24,6 +25,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 DEFAULT_ENDPOINT = "http://127.0.0.1:20128/"
 HEALTH_PATH = "api/health"
 MAX_RESPONSE_BYTES = 64 * 1024
+MAX_DIAGNOSTIC_BYTES = 16 * 1024
 HTTP_TIMEOUT_SECONDS = 2
 SCHEMA_VERSION = 1
 READINESS = frozenset({
@@ -304,6 +306,107 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+_SECRET_TEXT = re.compile(
+    r"(?i)(authorization\s*:\s*bearer\s+|(?:api[_-]?key|token|secret|password)\s*[=:]\s*)([^\s]+)"
+)
+
+
+def _redact_diagnostic(value: bytes) -> tuple[str, bool]:
+    """Decode, redact, and cap one diagnostic stream."""
+    text = value.decode("utf-8", errors="replace")
+    text = _SECRET_TEXT.sub(lambda match: match.group(1) + "[REDACTED]", text)
+    encoded = text.encode("utf-8")
+    truncated = len(encoded) > MAX_DIAGNOSTIC_BYTES
+    if truncated:
+        text = encoded[:MAX_DIAGNOSTIC_BYTES].decode("utf-8", errors="ignore")
+    return text, truncated
+
+
+def _read_bounded(stream: Any) -> tuple[bytes, bool]:
+    kept = bytearray()
+    truncated = False
+    while True:
+        chunk = stream.read(4096)
+        if not chunk:
+            break
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8", errors="replace")
+        remaining = MAX_DIAGNOSTIC_BYTES * 4 - len(kept)
+        if remaining > 0:
+            kept.extend(chunk[:remaining])
+        if len(chunk) > remaining:
+            truncated = True
+    return bytes(kept), truncated
+
+
+def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int) -> None:
+    """Drain both pipes, enforce runtime bound, then persist only redacted caps."""
+    streams: dict[str, tuple[bytes, bool]] = {}
+
+    def drain(name: str) -> None:
+        streams[name] = _read_bounded(getattr(process, name))
+
+    readers = [threading.Thread(target=drain, args=(name,), daemon=True) for name in ("stdout", "stderr")]
+    for reader in readers:
+        reader.start()
+    timed_out = False
+    try:
+        exit_code = process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+            exit_code = process.wait(timeout=5)
+        except (AttributeError, OSError, subprocess.TimeoutExpired):
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except (AttributeError, OSError):
+                pass
+            exit_code = -signal.SIGKILL
+    for reader in readers:
+        reader.join(timeout=5)
+    output: dict[str, Any] = {"schemaVersion": SCHEMA_VERSION, "exitCode": exit_code, "timedOut": timed_out}
+    for name in ("stdout", "stderr"):
+        value, read_truncated = streams.get(name, (b"", True))
+        redacted, redact_truncated = _redact_diagnostic(value)
+        output[name] = redacted
+        output[f"{name}Truncated"] = read_truncated or redact_truncated
+    _write_json(path, output)
+
+
+def _capture_command(arguments: list[str]) -> int:
+    """Run one qualified launcher in a durable monitor subprocess."""
+    if len(arguments) < 4 or arguments[2] != "--":
+        raise OmniRootError("capture arguments are invalid")
+    try:
+        timeout_seconds = int(arguments[1])
+    except ValueError as error:
+        raise OmniRootError("capture timeout is invalid") from error
+    if not 1 <= timeout_seconds <= 86400:
+        raise OmniRootError("capture timeout is invalid")
+    command = arguments[3:]
+    if not command or not all(value and "\x00" not in value for value in command):
+        raise OmniRootError("capture command is invalid")
+    try:
+        process = subprocess.Popen(  # nosec B603 - argv was qualified before monitor launch.
+            command, shell=False, close_fds=True, start_new_session=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+    except OSError as error:
+        raise OmniRootError("qualified launcher could not start") from error
+    def forward(signum: int, _frame: Any) -> None:
+        try:
+            os.killpg(process.pid, signum)
+        except OSError:
+            pass
+
+    if os.name == "posix":
+        signal.signal(signal.SIGTERM, forward)
+        signal.signal(signal.SIGINT, forward)
+    _collect_diagnostics(process, Path(arguments[0]), timeout_seconds=timeout_seconds)
+    return int(process.returncode or 0)
+
+
 def _git(worktree: Path, *args: str) -> str:
     try:
         completed = subprocess.run(
@@ -387,6 +490,7 @@ def dispatch(
     delegate: dict[str, Any] | None = None,
     cadence_seconds: int = 600,
     deadline: str | None = None,
+    timeout_seconds: int = 3600,
 ) -> dict[str, Any]:
     """Launch one bounded implementer only after a fresh strict readiness check."""
     if not _TARGET.fullmatch(target) or not all(isinstance(value, str) and "\x00" not in value for value in delegate_args):
@@ -397,6 +501,8 @@ def dispatch(
         raise OmniRootError("runtime identity is invalid")
     if not isinstance(cadence_seconds, int) or cadence_seconds not in {300, 600, 900}:
         raise OmniRootError("cadence must be 300, 600, or 900 seconds")
+    if not isinstance(timeout_seconds, int) or not 1 <= timeout_seconds <= 86400:
+        raise OmniRootError("timeout must be between 1 and 86400 seconds")
     worktree, actual_head = _validate_worktree(Path(worktree))
     integration = worktree if integration_worktree is None else Path(integration_worktree).resolve(strict=True)
     _validate_worktree(integration)
@@ -426,10 +532,19 @@ def dispatch(
     delegate_manifest = _delegate_contract(delegate, worktree, target, argv, dispatch_environment)
     if _overlaps_owned_paths(Path(state_dir), delegate_manifest["pathOwnership"]):
         raise OmniRootError("delegate ownership overlaps a live run")
+    diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
+    durable_monitor = popen is subprocess.Popen
+    launched_argv = (
+        [sys.executable, str(Path(__file__).resolve()), "_capture", str(diagnostic_path),
+         str(timeout_seconds), "--", *argv]
+        if durable_monitor else argv
+    )
     try:
         process = popen(
-            argv, cwd=str(worktree), env=dispatch_environment, shell=False,
-            close_fds=True, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            launched_argv, cwd=str(worktree), env=dispatch_environment, shell=False,
+            close_fds=True, start_new_session=True,
+            stdout=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
+            stderr=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
         )
     except OSError as error:
         raise OmniRootError("OmniRoute launcher could not start") from error
@@ -445,7 +560,9 @@ def dispatch(
                             "serverBuild": readiness["serverBuild"]},
         "delegate": delegate_manifest, "pid": pid, "processIdentity": process_identity(pid), "status": "running",
         "cadenceSeconds": cadence_seconds, "deadline": deadline,
+        "timeoutSeconds": timeout_seconds,
         "timestamps": {"startedAt": timestamp, "updatedAt": timestamp}, "head": actual_head,
+        "diagnostics": {"path": str(diagnostic_path)},
         "receipt": {"path": str(_receipt_path(Path(state_dir), run_id)), "sha256": None},
     }
     try:
@@ -457,6 +574,13 @@ def dispatch(
             except OSError:
                 pass
         raise
+    if not durable_monitor and callable(getattr(process, "wait", None)) and getattr(process, "stdout", None) is not None:
+        threading.Thread(
+            target=_collect_diagnostics,
+            args=(process, diagnostic_path),
+            kwargs={"timeout_seconds": timeout_seconds},
+            daemon=True,
+        ).start()
     return manifest
 
 
@@ -467,6 +591,19 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
     if manifest.get("status") not in RUN_STATUSES:
         raise OmniRootError("run status is invalid")
     if manifest.get("status") == "running":
+        diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
+        diagnostic = _load_json(diagnostic_path) if diagnostic_path.is_file() else None
+        if diagnostic is not None and isinstance(diagnostic.get("exitCode"), int):
+            manifest["status"] = "review" if diagnostic["exitCode"] == 0 else "blocked"
+            manifest["diagnostics"] = {
+                "sha256": _sha256(diagnostic), "exitCode": diagnostic["exitCode"],
+                "timedOut": diagnostic.get("timedOut") is True,
+                "stdoutTruncated": diagnostic.get("stdoutTruncated") is True,
+                "stderrTruncated": diagnostic.get("stderrTruncated") is True,
+            }
+            manifest.setdefault("timestamps", {})["updatedAt"] = _utc_now().isoformat()
+            _write_json(path, manifest)
+            return manifest
         pid, identity = manifest.get("pid"), manifest.get("processIdentity")
         if not isinstance(pid, int) or not isinstance(identity, str) or process_identity(pid) != identity:
             manifest["status"] = "quarantined"
@@ -516,6 +653,10 @@ def complete(
     outcome = "success" if exit_code == 0 else "failed"
     manifest_path = _run_path(Path(state_dir), run_id)
     manifest = _load_json(manifest_path) if manifest_path.is_file() else None
+    diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
+    diagnostic = _load_json(diagnostic_path) if diagnostic_path.is_file() else None
+    if diagnostic is not None and diagnostic.get("exitCode") != exit_code:
+        raise OmniRootError("receipt exit code conflicts with captured process evidence")
     if manifest is not None and manifest.get("status") == "cancelled":
         outcome = "cancelled"
     timestamp = _utc_now().isoformat()
@@ -525,6 +666,11 @@ def complete(
         "exitCode": exit_code, "head": head, "clean": clean, "changedPaths": _relative_paths(changed_paths),
         "checks": checks or [], "blockers": blockers or [], "adjacentFindings": adjacent_findings or [],
         "learningDisposition": learning_disposition, "completedAt": timestamp,
+        "diagnostics": None if diagnostic is None else {
+            "sha256": _sha256(diagnostic), "timedOut": diagnostic.get("timedOut") is True,
+            "stdoutTruncated": diagnostic.get("stdoutTruncated") is True,
+            "stderrTruncated": diagnostic.get("stderrTruncated") is True,
+        },
     }
     receipt_path = _receipt_path(Path(state_dir), run_id)
     _write_json(receipt_path, receipt)
@@ -543,6 +689,13 @@ def _print(value: dict[str, Any]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw_arguments = sys.argv[1:] if argv is None else argv
+    if raw_arguments and raw_arguments[0] == "_capture":
+        try:
+            return _capture_command(raw_arguments[1:])
+        except OmniRootError as error:
+            print(str(error), file=sys.stderr)
+            return 1
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=default_config_path())
     parser.add_argument("--state-dir", type=Path, default=Path(".omniroot-state"))
@@ -557,7 +710,7 @@ def main(argv: list[str] | None = None) -> int:
     status_parser.add_argument("--run-id", required=True)
     cancel_parser = commands.add_parser("cancel")
     cancel_parser.add_argument("--run-id", required=True)
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw_arguments)
     try:
         if args.command == "probe":
             return _print(probe(config_path=args.config))

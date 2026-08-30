@@ -54,11 +54,17 @@ qualification hash; manifests never record route or model names.
 Qualification is cached only for the root session and invalidated when route,
 server build, launcher, or attestation changes. Dispatch requires a clean real
 Git worktree, non-overlapping non-private path ownership, argument-list process
-invocation, a minimal environment, and atomic mode-`0600` state. Its manifest
+invocation, a minimal environment, a bounded runtime, and atomic mode-`0600`
+state. Standard output and error are drained without an unbounded buffer,
+secret-shaped values are redacted, and each retained stream is capped at 16
+KiB in a private diagnostic artifact. A timeout terminates the isolated process
+group; unsupported or unprovable termination fails closed. Its manifest
 freezes task/workflow/root/base/integration/qualification/delegate/process/
-cadence/deadline/HEAD/receipt facts; its terminal receipt freezes outcome,
+cadence/deadline/timeout/HEAD/diagnostic/receipt facts; its terminal receipt freezes outcome,
 exit, clean state, changed paths, checks, blockers, adjacent findings, and
-learning disposition. Unsupported cancellation or stale process identity
+learning disposition plus the diagnostic hash and truncation/timeout flags.
+Receipt creation rejects an exit code that conflicts with captured process
+evidence. Unsupported cancellation or stale process identity
 quarantines state. Root verifies all returned claims and imports each delegate
 learning disposition before the sole Learning Session.
 
