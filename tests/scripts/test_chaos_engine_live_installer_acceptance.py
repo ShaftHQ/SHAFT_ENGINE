@@ -383,6 +383,17 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertIn("source_record=manifest['source']", source)
         self.assertIn("offline_environment(block_path=True)", source)
 
+    def test_pull_request_acceptance_pins_the_immutable_base(self):
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        block = workflow[
+            workflow.index("  chaos-installer-acceptance:"):
+            workflow.index("  summary:")
+        ]
+        self.assertIn(
+            "--base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3", block
+        )
+        self.assertNotIn("github.event.pull_request.base.sha", block)
+
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         self.assertIn("schedule", workflow[True])
