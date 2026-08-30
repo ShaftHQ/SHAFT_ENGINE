@@ -245,6 +245,13 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         )
         self.assertIn(f"--base-sha {module.KNOWN_BASE_SHA}", block)
         self.assertNotIn("git rev-parse HEAD^", block)
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        pr_block = pr_gate[
+            pr_gate.index("  chaos-installer-acceptance:"):
+            pr_gate.index("  summary:")
+        ]
+        self.assertIn(f"--base-sha {module.KNOWN_BASE_SHA}", pr_block)
+        self.assertNotIn("github.event.pull_request.base.sha", pr_block)
 
     def test_project_mcp_probe_never_supplies_mempalace_storage_arguments(self):
         module = load_acceptance()
