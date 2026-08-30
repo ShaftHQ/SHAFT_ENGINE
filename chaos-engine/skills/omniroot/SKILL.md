@@ -19,7 +19,7 @@ code outside the approved bounded task.
 
 ## Runner
 
-Use only the standard-library runner:
+Use only the standard-library [runner](scripts/runner.py):
 
 ```text
 python3 chaos-engine/skills/omniroot/scripts/runner.py probe

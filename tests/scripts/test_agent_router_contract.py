@@ -1534,7 +1534,7 @@ class HostParityTest(unittest.TestCase):
     def test_both_hosts_expose_the_same_skill_set(self):
         canonical = {path.parent.name for path in CANONICAL_SKILLS.glob("*/SKILL.md")}
         claude = {path.parent.name for path in CLAUDE_SKILLS.glob("*/SKILL.md")}
-        self.assertEqual(canonical, {"chaos-engine", "local-coding-delegate", "work-item"})
+        self.assertEqual(canonical, {"chaos-engine", "local-coding-delegate", "omniroot", "work-item"})
         self.assertEqual(claude, {"chaos-engine"})
 
     def test_claude_skills_are_redirects_to_the_canonical_body(self):

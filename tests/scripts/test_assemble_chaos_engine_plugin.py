@@ -100,7 +100,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         }
         self.assertEqual(
             packaged_skills,
-            {"chaos-engine", "local-coding-delegate", "work-item"},
+            {"chaos-engine", "local-coding-delegate", "omniroot", "work-item"},
         )
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))

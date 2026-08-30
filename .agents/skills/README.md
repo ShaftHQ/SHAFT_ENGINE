@@ -135,6 +135,7 @@ sends you there; the rest by
 - [roles](../../chaos-engine/references/roles.md)
 - [heuristics](../../chaos-engine/references/heuristics.md)
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
+- [orchestrator follow-through](../../chaos-engine/references/orchestrator-follow-through.md)
 - [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
