@@ -74,7 +74,7 @@
         <slf4j.version>2.0.18</slf4j.version>
         <grpc.version>1.83.1</grpc.version>
         <protobuf.version>4.36.0</protobuf.version>
-        <google.auth.library.version>1.50.0</google.auth.library.version>
+        <google.auth.library.version>1.51.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>
         <netty.version>4.2.17.Final</netty.version>
         <!-- Dependency Versions -->
