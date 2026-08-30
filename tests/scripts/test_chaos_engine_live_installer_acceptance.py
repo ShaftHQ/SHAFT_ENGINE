@@ -679,10 +679,9 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 module.assert_account_command_roots(
                     {**commands, "mempalace": sys.executable}, account
                 )
-            with self.assertRaisesRegex(RuntimeError, "outside isolated account"):
-                module.assert_account_command_roots(
-                    {**commands, "uv": sys.executable}, account
-                )
+            module.assert_account_command_roots(
+                {**commands, "java": sys.executable}, account
+            )
             with self.assertRaisesRegex(RuntimeError, "executables are incomplete"):
                 module.assert_account_command_roots(
                     {**commands, "context7": str(owned)}, account

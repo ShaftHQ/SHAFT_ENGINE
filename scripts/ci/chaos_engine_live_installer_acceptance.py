@@ -58,7 +58,12 @@ ACCOUNT_COMMAND_NAMES = frozenset((
     "uv", "uvx", "python3", "node", "npm", "npx", "java", "mempalace",
     "mempalace-mcp", "graphify", "memory", "memory-mcp", "ctx7",
 ))
-OPTIONAL_ACCOUNT_COMMAND_NAMES = ACCOUNT_COMMAND_NAMES - {"python3"}
+PLATFORM_PREREQUISITE_COMMAND_NAMES = frozenset((
+    "uv", "uvx", "python3", "node", "npm", "npx", "java",
+))
+OPTIONAL_ACCOUNT_COMMAND_NAMES = frozenset((
+    "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp", "ctx7",
+))
 
 
 class AcceptancePhaseFailure(RuntimeError):
@@ -197,9 +202,12 @@ def assert_account_command_roots(commands: object, account_root: Path) -> None:
         raise RuntimeError("account command receipt is invalid")
     account_root = account_root.resolve(strict=True)
     expected = set(ACCOUNT_COMMAND_NAMES)
+    platform_prerequisites = set(PLATFORM_PREREQUISITE_COMMAND_NAMES)
     if os.name == "nt" and "python" in commands:
         expected.remove("python3")
         expected.add("python")
+        platform_prerequisites.remove("python3")
+        platform_prerequisites.add("python")
     if set(commands) != expected:
         raise RuntimeError("account command receipt executables are incomplete")
     for name, value in commands.items():
@@ -214,8 +222,11 @@ def assert_account_command_roots(commands: object, account_root: Path) -> None:
             raise RuntimeError("account command is not a file") from error
         if not resolved.is_file():
             raise RuntimeError("account command is not a file")
-        if name in OPTIONAL_ACCOUNT_COMMAND_NAMES and not resolved.is_relative_to(account_root):
-            raise RuntimeError(f"account command outside isolated account: {name}")
+        if name in OPTIONAL_ACCOUNT_COMMAND_NAMES:
+            if not resolved.is_relative_to(account_root):
+                raise RuntimeError(f"account command outside isolated account: {name}")
+        elif name not in platform_prerequisites:
+            raise RuntimeError("unknown account command")
 
 
 def known_base_component_statuses(base_sha: str) -> dict[str, dict[str, object]]:
