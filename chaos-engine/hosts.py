@@ -653,6 +653,7 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             logstream,
             Path(f"{logstream}-wal"),
             Path(f"{logstream}-shm"),
+            palace / "replica.json",
         )
     }
     if any(child.name not in allowed_names for child in children):
@@ -2867,7 +2868,9 @@ def strip_known_codex_ownership(
         recorded = after.decode("utf-8") if after is not None else ""
     except UnicodeDecodeError as error:
         raise ValueError("invalid Codex configuration") from error
-    existing = remove_exact_legacy_codex_store_aliases(existing)
+    existing = remove_known_codex_orphans(
+        remove_exact_legacy_codex_store_aliases(existing)
+    )
     block = managed_codex_block(existing)
     if block is None:
         return existing.encode()
@@ -2920,6 +2923,19 @@ def json_content(
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
+def remove_known_codex_orphans(existing: str) -> str:
+    """Remove exact residue emitted by the historical context7 migration."""
+    for orphan in (
+        "\n\nrequired = false\n# CHAOSENGINE:START",
+        "\r\n\r\nrequired = false\r\n# CHAOSENGINE:START",
+    ):
+        existing = existing.replace(
+            orphan,
+            orphan.rsplit("required = false", 1)[0] + "# CHAOSENGINE:START",
+        )
+    return existing
+
+
 def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
@@ -2932,11 +2948,7 @@ def codex_content(
         existing = before.decode("utf-8") if before is not None else ""
     except UnicodeDecodeError as error:
         raise ValueError("invalid Codex configuration") from error
-    for orphan in (
-        "\n\nrequired = false\n# CHAOSENGINE:START",
-        "\r\n\r\nrequired = false\r\n# CHAOSENGINE:START",
-    ):
-        existing = existing.replace(orphan, orphan.rsplit("required = false", 1)[0] + "# CHAOSENGINE:START")
+    existing = remove_known_codex_orphans(existing)
     legacy_blocks = (
         '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
         'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'

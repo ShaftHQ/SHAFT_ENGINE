@@ -2025,12 +2025,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             for suffix in ("", "-wal", "-shm"):
                 palace.joinpath(f"logstream.sqlite3{suffix}").write_bytes(b"preserved")
+            palace.joinpath("replica.json").write_text("{}\n", encoding="utf-8")
             self.assertEqual(
                 "healthy",
                 module.mempalace_runtime_status(project)["status"],
             )
             for suffix in ("", "-wal", "-shm"):
                 palace.joinpath(f"logstream.sqlite3{suffix}").unlink()
+            palace.joinpath("replica.json").unlink()
 
             mined = palace / ".mined"
             mined.write_text("current\n", encoding="utf-8")

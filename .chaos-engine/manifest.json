@@ -108,7 +108,7 @@
     "hooks/lifecycle.py": "63ef917649abd0a831d933c4716c761f1c3ac8a94584da95ed501b52614aebb6",
     "hooks/matchers.json": "f89852f0b0cf85b600bfc15bca39a7c69b1c23fa49bfb8820c7d52e6d7b63005",
     "hooks/reflection.py": "7a38795483ea5d96e626423abbab7e3d7f41dd4c9e0dee4984c0941947542257",
-    "hosts.py": "99ba6ebaae65b8762e1303826d9289b517ad7feef2a9ac20f29ab6ca242f0650",
+    "hosts.py": "93bb3ced84ee71cb5197af772a6af80a29269352855376dae67458731c0a7e11",
     "install.ps1": "f79c85d3e9a70217402e018ac65153f9ceb2fccb07df06e47fceee01fb0b80d5",
     "install.py": "ce76dd184e0ead723931cc053a6d20157031408609258e9ebd1b512b9d82925d",
     "install.sh": "d3c650672b45b8a1609fd3acaf03ba5798f229aa1d4a94cbe93e730b09102578",
