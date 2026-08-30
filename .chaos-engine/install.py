@@ -2437,7 +2437,6 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 try:
                     recover_account_rollback_journal(project)
                     account_rollback_recovered = True
-                    account_rollback_journal = None
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             restore_generation = None
