@@ -31,16 +31,10 @@ mechanical-helper role from [roles](roles.md) to both subagent hosts.
 
 Orchestrator retains decomposition, architecture, consultation, assignment,
 synthesis, integration, and final verification. Stay available to the owner
-for realignment and delegate questions. The entrypoint's solo-or-orchestrate rule
-decides whether it also implements; this file governs the orchestrated mode.
-
-Default is one writer at a time, ordered by dependency then priority. On owner
-request, parallelize only independent file scopes. Each writer owns an isolated
-worktree. Hard cap four concurrent writing agents; the owner may set a cap of
-1–4. Refuse a requested cap above 4. File-overlapping writers never run in
-parallel even when parallel is requested. A read-only reviewer does not
-consume a slot. While a writer, subagent, or required check is live,
-automatically follow the floor-and-ceiling inspection cadence in
+for realignment and delegate questions. Select and switch modes only through
+[execution workflows](execution-workflows.md); this file does not redefine
+their criteria or writer limits. Each writer owns an isolated worktree. While
+a writer, subagent, or required check is live, automatically follow
 [orchestrator follow-through](orchestrator-follow-through.md); never a
 heartbeat.
 
@@ -52,7 +46,7 @@ or finished assignment; a new review round gets a new reviewer instance.
 Preserve the closed relationship as history instead of deleting it. A final
 answer with an unneeded live agent is incomplete.
 
-## Orchestrator mode
+## Orchestrator duties
 
 Same class of standing duties: stay available, keep the live status table
 current after every dispatch and every finished agent, group related work into

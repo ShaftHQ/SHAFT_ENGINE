@@ -207,44 +207,25 @@ that page reach.
 
 ## Roles and capability levels
 
-### Solo or orchestrate
+### Execution workflow
 
-One rule decides whether main thread does the work. Count the **unrelated tasks
-the owner has in flight** — that count is the number of work streams.
+Select exactly one mode from [execution workflows](../../references/execution-workflows.md),
+the sole owner of workflow names, selection, switching, capacity fallback, and
+writer limits. Use optional local transport only through the
+[OmniRoot skill](../omniroot/SKILL.md); missing OmniRoute never weakens or
+disables the canonical workflows.
 
-Subtasks of a single task are **one** stream, however many there are: work them
-in sequence. Two streams means two things the owner asked for that do not depend
-on each other.
+When orchestrating, [delegation](../../references/delegation.md) owns dispatch,
+status, integration, and review. Apply
+[orchestrator follow-through](../../references/orchestrator-follow-through.md)
+automatically while work is live. [Roles](../../references/roles.md) owns role
+boundaries. The main orchestrator stays available, performs its implicit Scrum
+master duties, and owns the sole terminal Learning Session.
 
-| Work streams | Mode |
-| --- | --- |
-| One | **Solo.** Do the work yourself, in sequence. Do not delegate it. |
-| Two or more | **Orchestrate.** Do not wait for the owner to say "orchestrate". Default one writer at a time, each in its own worktree. Do no task work yourself. |
-
-Orchestrating keeps you reachable for owner or delegate decisions. In this mode
-you make no edits, run no long job, and install nothing;
-[delegation](../../references/delegation.md) lists what stays yours, including the
-live status table, fewest-PR grouping, keep-working-until-delivered loop, and
-delegate finding handoff before kill. Follow [orchestrator follow-through](../../references/orchestrator-follow-through.md)
-automatically while work is live. The root owns the sole terminal Learning Session.
-
-**Default serial, optional parallel.** One writer at a time, ordered by
-dependency then priority. On owner request, parallelize independent writers up to
-a hard cap of four; the owner may set a cap of 1–4. Refuse a requested cap above
-4. File-overlapping writers never run in parallel.
-
-**Switching mode.** Finish or hand over what you hold before you switch. While
-any delegate still owns a stream you remain orchestrating, even if the count
-alone would say otherwise. Never start an edit in the same breath as adopting
-solo mode or orchestrator mode; land the transition first.
-
-**A host with no subagent primitive cannot orchestrate.** It works solo at any
-count, sequentially, still shows the live status table, and still owes the review
-gate a separate instance.
-
-**A reviewer is never a work stream.** Review does not turn a solo session into
-an orchestrated one, and a read-only reviewer does not consume one of the four
-writer slots.
+Implementation follows [TDD](../../references/tdd.md). The selected project
+profile may add a delivery loop such as SHAFT's
+[PDCA playbook](../../profiles/shaft/references/playbooks/agentic-pdca-loop.md)
+without redefining the workflow or roles.
 
 Capability comes in three levels on every host: most intelligent, default, and
 mechanical. Name them that way, never by provider or product.

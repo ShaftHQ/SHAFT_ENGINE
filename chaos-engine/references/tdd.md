@@ -25,4 +25,7 @@ Caveman, Ponytail, and TDD adaptations retain their MIT notices under
 `references/*.LICENSE`.
 
 ## Workflow
-See [execution-workflows.md](execution-workflows.md). Focused RED/GREEN/REFACTOR runs occur in PDCA Do while consolidated Check follows complete impl/final scope commit.
+
+See [execution workflows](execution-workflows.md). Focused RED-GREEN-REFACTOR
+runs occur during PDCA Do; consolidated Check begins only after the
+implementation batch and final scope commit.

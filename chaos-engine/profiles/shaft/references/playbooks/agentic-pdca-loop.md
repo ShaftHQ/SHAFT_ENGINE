@@ -1,10 +1,9 @@
 # PDCA
 
 Personas are phases, not agent identities. They run sequentially in the main
-session. PDCA is a single task, so the entrypoint's solo-or-orchestrate rule
-normally puts it in solo mode: the same thread runs every phase and does the
-work. Only when the session also owns other unrelated streams does Bob dispatch
-instead of implementing.
+session. PDCA does not select an execution mode. Select one through
+[execution workflows](../../../../references/execution-workflows.md), then keep
+these phases sequential inside it.
 
 - Kevin phase plans spec, value, acceptance, risks, and any useful Mermaid or wireframe.
 - Bob phase makes the smallest cross-platform change through observed TDD, or
@@ -24,5 +23,5 @@ rounds. Bruce judges the actual diff plus real checks, never a self-report;
 hunt stubs and weakened assertions. Gaps are closed by whoever the mode says
 implements. Record which phase produced each commit.
 
-## Workflow
-See [execution-workflows.md](../../../execution-workflows.md). Focused RED/GREEN/REFACTOR runs occur in PDCA Do while consolidated Check follows complete impl/final scope commit.
+Focused RED-GREEN-REFACTOR runs occur during PDCA Do; consolidated Check begins
+only after the implementation batch and final scope commit.
