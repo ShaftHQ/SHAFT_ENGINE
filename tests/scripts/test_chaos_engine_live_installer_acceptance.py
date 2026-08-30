@@ -813,6 +813,13 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         if module is None:
             return
         base = "1dec809c7c43709a8fcceef5e53690d124012eb3"
+
+        def transition_result(error, *, windows):
+            try:
+                return module.exact_base_compatibility_transition(error, base, windows=windows)
+            except module.AcceptanceCommandFailure:
+                return None
+
         posix = module.AcceptanceCommandFailure(
             module.public_wrapper_command(base, windows=False),
             1,
@@ -820,10 +827,13 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             "failed phase: Verify installation; unhealthy: hooks, mcps",
         )
         posix.component_statuses = module.known_base_component_statuses(base)
+        posix.component_statuses["doctor"] = json.loads(
+            json.dumps(posix.component_statuses["status"])
+        )
 
         self.assertEqual(
             "post-provision-doctor",
-            module.exact_base_compatibility_transition(posix, base, windows=False),
+            transition_result(posix, windows=False),
         )
         windows_post = module.AcceptanceCommandFailure(
             module.public_wrapper_command(base, windows=True),
@@ -832,6 +842,9 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             "failed phase: Verify installation; unhealthy: mcps",
         )
         windows_post.component_statuses = module.known_windows_base_component_statuses(base)
+        windows_post.component_statuses["doctor"] = json.loads(
+            json.dumps(windows_post.component_statuses["status"])
+        )
 
         self.assertEqual(
             "installed",
@@ -839,8 +852,14 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         )
         self.assertEqual(
             "post-provision-doctor",
-            module.exact_base_compatibility_transition(windows_post, base, windows=True),
+            transition_result(windows_post, windows=True),
         )
+        legacy = module.AcceptanceCommandFailure(
+            list(posix.command), posix.returncode, posix.args[0].split(": ", 1)[1]
+        )
+        legacy.component_statuses = module.known_base_component_statuses(base)
+        with self.assertRaises(module.AcceptanceCommandFailure):
+            module.exact_base_compatibility_transition(legacy, base, windows=False)
         for mutation in (
             ("sha", "f" * 40),
             ("command", ["wrong-wrapper"]),

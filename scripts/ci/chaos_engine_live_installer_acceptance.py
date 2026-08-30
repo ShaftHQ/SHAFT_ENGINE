@@ -321,10 +321,22 @@ def known_windows_base_component_statuses(base_sha: str) -> dict[str, dict[str, 
     return statuses
 
 
+def known_repaired_base_component_statuses(
+    base_sha: str, *, windows: bool
+) -> dict[str, dict[str, object]]:
+    """Return exact legacy wrapper state after the receipt Node path repair."""
+    statuses = (
+        known_windows_base_component_statuses(base_sha)
+        if windows else known_base_component_statuses(base_sha)
+    )
+    statuses["doctor"] = json.loads(json.dumps(statuses["status"]))
+    return statuses
+
+
 def exact_base_compatibility_transition(
     error: Exception, base_sha: str, *, windows: bool
 ) -> str:
-    """Allow only the observed post-provision doctor incompatibility."""
+    """Allow only exact legacy wrapper failure after authenticated repair proves healthy."""
     if (
         not isinstance(error, AcceptanceCommandFailure)
         or base_sha != KNOWN_BASE_SHA
@@ -336,9 +348,8 @@ def exact_base_compatibility_transition(
     if str(error) != f"command failed (1): {expected_detail}":
         raise error
     statuses = getattr(error, "component_statuses", None)
-    expected_statuses = (
-        known_windows_base_component_statuses(base_sha)
-        if windows else known_base_component_statuses(base_sha)
+    expected_statuses = known_repaired_base_component_statuses(
+        base_sha, windows=windows
     )
     if statuses != expected_statuses:
         raise error
