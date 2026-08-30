@@ -14,7 +14,7 @@ timer or scheduler when it has one; otherwise the next main-thread wake still
 owes the inspection.
 No live writers or required checks: no scheduler.
 
-Each inspection is a scrum: establish blocked or unblocked state and evidence
+Each inspection is a Scrum-master duty: establish blocked or unblocked state and evidence
 of progress, then keep / re-spec / upgrade / kill. Never a heartbeat. Validate
 errors and progress before the next handoff; bound retries and escalate instead
 of waiting indefinitely.
