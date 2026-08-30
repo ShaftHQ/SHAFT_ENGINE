@@ -346,12 +346,16 @@ def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, d
 
 
 def is_origin_only(relative: Path) -> bool:
-    return relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
-        "README.md",
-        "INSTALL.md",
-        "RESEARCH.md",
-        "STANDALONE.md",
-    }
+    return (
+        relative.parts[:1] == ("guides",)
+        or relative.parts[:2] == ("assets", "brand")
+        or relative.as_posix() in {
+            "README.md",
+            "INSTALL.md",
+            "RESEARCH.md",
+            "STANDALONE.md",
+        }
+    )
 
 
 def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tuple[Path, ...]:
