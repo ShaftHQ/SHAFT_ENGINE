@@ -2927,7 +2927,11 @@ def codex_content(
         'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
         "required = false\n",
         '[mcp_servers.context7]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
+        '[mcp_servers.context7]\ncommand = "npx"\n'
         'args = ["-y", "@upstash/context7-mcp"]\n',
+        '[mcp_servers."context7"]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
         '[mcp_servers."context7"]\ncommand = "npx"\n'
         'args = ["-y", "@upstash/context7-mcp"]\n',
     )

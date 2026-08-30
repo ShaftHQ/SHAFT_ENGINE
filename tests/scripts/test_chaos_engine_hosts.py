@@ -3140,6 +3140,18 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn("# CHAOSENGINE:START", rerendered)
             self.assertNotIn("docker", rerendered.casefold())
 
+    def test_legacy_context7_server_removal_does_not_leave_orphaned_fields(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_context7")
+        legacy = (
+            '[mcp_servers.context7]\ncommand = "npx"\n'
+            'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n'
+        ).encode()
+
+        rendered = module.codex_content(legacy).decode()
+
+        self.assertNotIn('command = "npx"', rendered)
+        self.assertNotIn("required = false", rendered)
+
     def test_existing_unrelated_config_is_preserved_and_owned_collision_fails_closed(self):
         module = load(HOSTS, "chaos_engine_hosts")
         with tempfile.TemporaryDirectory() as temporary:
