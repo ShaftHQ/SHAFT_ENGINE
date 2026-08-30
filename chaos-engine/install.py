@@ -1026,23 +1026,28 @@ def _account_upgrade_host_receipt_is_durable(
     if receipt.get("phase") != "installed" or receipt.get("coreCommit") != pending["priorCommit"]:
         return False
     expected_host = pending["priorHostReceipt"]
-    if expected_host is not None and controller.rollback_previous_receipt(
-        project, pending["desiredCommit"]
-    ) != expected_host:
+    encoded_host = receipt.get(controller.ROLLBACK_PREVIOUS_RECEIPT)
+    actual_host = (
+        base64.b64decode(encoded_host, validate=True)
+        if isinstance(encoded_host, str)
+        else None
+    )
+    if actual_host != expected_host:
         return False
     expected_account = pending["priorAccountReceipt"]
-    if expected_account is not None and controller.rollback_previous_account_receipt(
-        project, pending["desiredCommit"]
-    ) != expected_account:
+    encoded_account = receipt.get(controller.ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT)
+    actual_account = (
+        base64.b64decode(encoded_account, validate=True)
+        if isinstance(encoded_account, str)
+        else None
+    )
+    if actual_account != expected_account:
         return False
     expected_state = pending["priorMempalaceState"]
-    actual_state = controller.rollback_previous_mempalace_state(
-        project, pending["desiredCommit"]
+    actual_state = controller.validate_rollback_mempalace_state(
+        receipt.get(controller.ROLLBACK_PREVIOUS_MEMPALACE_STATE)
     )
-    return (
-        isinstance(actual_state, dict)
-        and actual_state.get("before") == expected_state["before"]  # type: ignore[index]
-    )
+    return actual_state.get("before") == expected_state["before"]  # type: ignore[index]
 
 
 def recover_account_rollback_journal(project: Path) -> None:
@@ -1053,19 +1058,21 @@ def recover_account_rollback_journal(project: Path) -> None:
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
     target_manifest = verify_install(target)
-    backup_manifest = verify_install(backup)
     target_commit = str(target_manifest["source"]["commit"])
-    backup_commit = str(backup_manifest["source"]["commit"])
     desired_commit = pending["desiredCommit"]
     prior_commit = pending["priorCommit"]
-    if {target_commit, backup_commit} != {desired_commit, prior_commit}:
-        raise ValueError("account rollback trees do not match the recorded generations")
+    if target_commit not in (desired_commit, prior_commit):
+        raise ValueError("account rollback target does not match a recorded generation")
     controller = load_installed_controller(target, "hosts")
     if target_commit == prior_commit and _account_upgrade_host_receipt_is_durable(
         project, controller, pending
     ):
         remove_account_rollback_journal(project)
         return
+    backup_manifest = verify_install(backup)
+    backup_commit = str(backup_manifest["source"]["commit"])
+    if {target_commit, backup_commit} != {desired_commit, prior_commit}:
+        raise ValueError("account rollback trees do not match the recorded generations")
     if target_commit == prior_commit:
         expected_host = pending["priorHostReceipt"]
         if expected_host is not None:

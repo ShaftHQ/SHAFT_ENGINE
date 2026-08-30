@@ -2224,7 +2224,7 @@ module.install_with_dependencies(project, source, "2" * 40)
                 MODULE, "load_dependency_controller", return_value=controller
             ):
                 with mock.patch.object(
-                    MODULE, "install", return_value=project / ".chaos-engine"
+                    MODULE, "install", wraps=MODULE.install
                 ) as core_install:
                     MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
 
