@@ -58,6 +58,7 @@ PROJECT_SETUP_OUTPUTS = (
     ".agents/skills/graphify",
     "graphify-out",
 )
+MEMPALACE_STATE_OUTPUT = ".chaos-engine-state/mempalace"
 
 
 def legacy_capability_policy() -> dict[str, dict[str, str]]:
@@ -562,6 +563,46 @@ def project_setup_after_images(project: Path) -> dict[str, dict[str, str]]:
         relative: project_setup_output_files(project, relative)[1]
         for relative in PROJECT_SETUP_OUTPUTS
     }
+
+
+def mempalace_rollback_image(
+    before: tuple[bool, dict[str, str]], after: tuple[bool, dict[str, str]]
+) -> dict[str, object]:
+    """Record candidate state only when the immutable base had no local palace."""
+    return {
+        "beforeAbsent": not before[0],
+        "after": dict(after[1]) if not before[0] else {},
+    }
+
+
+def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -> None:
+    """Remove only byte-identical candidate state that was absent in the base."""
+    before_absent = image.get("beforeAbsent")
+    after = image.get("after")
+    if not isinstance(before_absent, bool) or not isinstance(after, dict) or any(
+        not isinstance(relative, str)
+        or not isinstance(digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+        for relative, digest in after.items()
+    ):
+        raise ValueError("account rollback has invalid MemPalace state image")
+    if not before_absent:
+        return
+    palace = project / MEMPALACE_STATE_OUTPUT
+    exists, current = project_setup_output_files(project, MEMPALACE_STATE_OUTPUT)
+    expected = dict(after)
+    if not exists:
+        if expected:
+            raise ValueError("candidate MemPalace state changed before rollback")
+        return
+    if current != expected or any(child.is_dir() for child in palace.iterdir()):
+        raise ValueError("candidate MemPalace state changed before rollback")
+    for relative in expected:
+        (palace / relative).unlink()
+    palace.rmdir()
+    state_root = palace.parent
+    if state_root.exists() and not any(state_root.iterdir()):
+        state_root.rmdir()
 
 
 def restore_project_setup_outputs(
@@ -1288,11 +1329,20 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                         raise ValueError(
                             "account rollback has no exact prior dependency receipt"
                         )
+                    previous_mempalace_state = getattr(
+                        receipt_controller, "rollback_previous_mempalace_state", None
+                    )
+                    if not callable(previous_mempalace_state):
+                        raise ValueError("account rollback has no prior MemPalace state image")
+                    mempalace_state = previous_mempalace_state(project, previous_commit)
+                    if not isinstance(mempalace_state, dict):
+                        raise ValueError("account rollback has no prior MemPalace state image")
                     pending = {
                         "desiredCommit": previous_commit,
                         "priorCommit": current_commit,
                         "priorHostReceipt": raw,
                         "priorAccountReceipt": account_raw,
+                        "priorMempalaceState": mempalace_state,
                     }
                 else:
                     write_cross_rollback_journal(project, previous_commit, current_commit)
@@ -1388,10 +1438,14 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 )
                 if previous_account_mode and prior_account_receipt_value is None:
                     raise ValueError("account rollback has no exact prior dependency receipt")
+                prior_mempalace_state = pending.get("priorMempalaceState")
+                if previous_account_mode and not isinstance(prior_mempalace_state, dict):
+                    raise ValueError("account rollback has no prior MemPalace state image")
                 restored_prior_host_receipt = (
                     previous_account_mode and prior_host_receipt_value is not None
                 )
                 if restored_prior_host_receipt:
+                    restore_candidate_mempalace_state(project, prior_mempalace_state)
                     _current_receipt, current_raw = previous_hosts.read_receipt(project)
                     current_images = previous_hosts.current_images(project)
                     prior_after = previous_hosts.decode_images(
@@ -1836,6 +1890,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         project_setup_snapshot = None
         project_setup_before: dict[str, tuple[bool, dict[str, str]]] = {}
         project_setup_after: dict[str, dict[str, str]] | None = None
+        mempalace_state_before = (False, {})
+        rollback_mempalace_state = None
         if current.exists():
             old_manifest = inspect_current_install(current)
             if old_manifest is not None:
@@ -1872,6 +1928,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         if account_mode:
             project_setup_snapshot, project_setup_before = snapshot_project_setup_outputs(
                 project
+            )
+            mempalace_state_before = project_setup_output_files(
+                project, MEMPALACE_STATE_OUTPUT
             )
         try:
             target = install(
@@ -1963,6 +2022,13 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 )
                 account_commands = account_receipt.get("commands")
                 project_setup_after = project_setup_after_images(project)
+                mempalace_state_after = project_setup_output_files(
+                    project, MEMPALACE_STATE_OUTPUT
+                )
+                if old_manifest is not None:
+                    rollback_mempalace_state = mempalace_rollback_image(
+                        mempalace_state_before, mempalace_state_after
+                    )
             host_controller.install(
                 project,
                 core_commit=commit,
@@ -1974,6 +2040,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     {"rollback_account_receipt": account_receipt_before}
                     if account_mode and account_receipt_before is not None
                     else {}
+                ),
+                **(
+                    {"rollback_mempalace_state": rollback_mempalace_state}
+                    if rollback_mempalace_state is not None else {}
                 ),
                 **({"upgrade_snapshot": host_snapshot} if host_snapshot is not None else {}),
             )

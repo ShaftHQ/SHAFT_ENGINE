@@ -343,6 +343,86 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(base_images, restored_hosts.current_images(project))
             self.assertEqual(base_account_raw, base_account_receipt.read_bytes())
 
+    def test_account_rollback_removes_unchanged_candidate_mempalace_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            configuration = project / "mempalace.yaml"
+            sentinel = project / "user-sentinel.txt"
+            configuration.write_bytes(
+                b"wing: preserve\nrooms:\n  - name: general\n    description: preserve\n"
+            )
+            sentinel.write_bytes(b"preserve\n")
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_candidate_state(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    if len(calls) == 2:
+                        palace = args[0] / ".chaos-engine-state/mempalace"
+                        palace.mkdir(parents=True)
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"candidate sqlite")
+                        palace.joinpath(".mined").write_bytes(b"current\n")
+                    return receipt
+
+                controller.install_account_dependencies = install_with_candidate_state
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                MODULE.rollback(project)
+
+            self.assertFalse(project.joinpath(".chaos-engine-state/mempalace").exists())
+            self.assertEqual(
+                b"wing: preserve\nrooms:\n  - name: general\n    description: preserve\n",
+                configuration.read_bytes(),
+            )
+            self.assertEqual(b"preserve\n", sentinel.read_bytes())
+
+    def test_account_rollback_refuses_changed_candidate_mempalace_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_candidate_state(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    if len(calls) == 2:
+                        palace = args[0] / ".chaos-engine-state/mempalace"
+                        palace.mkdir(parents=True)
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"candidate sqlite")
+                        palace.joinpath(".mined").write_bytes(b"current\n")
+                    return receipt
+
+                controller.install_account_dependencies = install_with_candidate_state
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                state = project / ".chaos-engine-state/mempalace/sqlite_exact.sqlite3"
+                state.write_bytes(b"user changed")
+                with self.assertRaisesRegex(ValueError, "candidate MemPalace state changed"):
+                    MODULE.rollback(project)
+
+            self.assertEqual(b"user changed", state.read_bytes())
+
     def test_account_rollback_without_saved_raw_receipt_fails_without_a_journal(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

@@ -27,6 +27,7 @@ from pathlib import Path, PurePosixPath
 RECEIPT_NAME = ".chaos-engine-hosts.json"
 ROLLBACK_PREVIOUS_RECEIPT = "rollbackPreviousReceipt"
 ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT = "rollbackPreviousAccountReceipt"
+ROLLBACK_PREVIOUS_MEMPALACE_STATE = "rollbackPreviousMempalaceState"
 ANCHOR_NAME = ".chaos-engine-hosts.anchor"
 ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
@@ -4024,6 +4025,43 @@ def rollback_previous_account_receipt(
     return raw
 
 
+def validate_rollback_mempalace_state(value: object) -> dict[str, object]:
+    """Validate the candidate after-image used to remove only generated state."""
+    if not isinstance(value, dict) or set(value) != {"beforeAbsent", "after"}:
+        raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+    before_absent = value.get("beforeAbsent")
+    after = value.get("after")
+    if not isinstance(before_absent, bool) or not isinstance(after, dict):
+        raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+    normalized: dict[str, str] = {}
+    for relative, digest in after.items():
+        path = PurePosixPath(relative) if isinstance(relative, str) else None
+        if (
+            path is None
+            or path.is_absolute()
+            or not path.parts
+            or any(part in {"", ".", ".."} for part in path.parts)
+            or not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+        ):
+            raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+        normalized[relative] = digest
+    return {"beforeAbsent": before_absent, "after": normalized}
+
+
+def rollback_previous_mempalace_state(
+    project: Path, expected_core_commit: str
+) -> dict[str, object] | None:
+    """Return authenticated candidate state metadata for one account rollback."""
+    if rollback_previous_receipt(project, expected_core_commit) is None:
+        return None
+    receipt, _ = read_receipt(project)
+    value = receipt.get(ROLLBACK_PREVIOUS_MEMPALACE_STATE)
+    if value is None:
+        return None
+    return validate_rollback_mempalace_state(value)
+
+
 def atomic_write(  # noqa: MC0001 - one descriptor-bound transaction protects user files.
     project: Path, path: Path, content: bytes, expected: bytes | None
 ) -> None:
@@ -4420,6 +4458,7 @@ def install(
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
     rollback_account_receipt: bytes | None = None,
+    rollback_mempalace_state: dict[str, object] | None = None,
     maven_docker: tuple[str, str] | None = None,
     upgrade_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -4495,6 +4534,7 @@ def install(
                 raise ValueError("ChaosEngine host preflight snapshot is invalid")
             previous_receipt.pop(ROLLBACK_PREVIOUS_RECEIPT, None)
             previous_receipt.pop(ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT, None)
+            previous_receipt.pop(ROLLBACK_PREVIOUS_MEMPALACE_STATE, None)
             previous_receipt["rollbackIntent"] = None
             next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
                 receipt_bytes(previous_receipt, project)
@@ -4514,6 +4554,10 @@ def install(
                 next_receipt[ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT] = base64.b64encode(
                     rollback_account_receipt
                 ).decode("ascii")
+            if rollback_mempalace_state is not None:
+                next_receipt[ROLLBACK_PREVIOUS_MEMPALACE_STATE] = (
+                    validate_rollback_mempalace_state(rollback_mempalace_state)
+                )
             next_receipt["phase"] = "installing"
             next_receipt["coreCommit"] = core_commit
             if desired_capability_digest is not None:
