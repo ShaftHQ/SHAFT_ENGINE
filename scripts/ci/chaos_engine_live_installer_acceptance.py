@@ -946,6 +946,33 @@ def run_public_wrapper(
         raise RuntimeError("public wrapper did not report detected client activation")
 
 
+def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
+    """Parse every non-empty stdio frame as one valid JSON-RPC 2.0 message."""
+    frames: list[dict[str, object]] = []
+    for line in stdout.splitlines():
+        if not line.strip():
+            continue
+        value = json.loads(line)
+        if not isinstance(value, dict) or value.get("jsonrpc") != "2.0":
+            raise ValueError("invalid MCP stdout frame")
+        if "method" in value:
+            if (
+                not isinstance(value["method"], str)
+                or not value["method"]
+                or "result" in value
+                or "error" in value
+            ):
+                raise ValueError("invalid MCP stdout frame")
+        elif (
+            "id" not in value
+            or ("result" in value) == ("error" in value)
+            or isinstance(value["id"], bool)
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        frames.append(value)
+    return frames
+
+
 def probe_mcp(
     command: list[str],
     project: Path,
@@ -995,10 +1022,8 @@ def probe_mcp(
             process.communicate(timeout=5)
         raise RuntimeError("MCP initialize timed out")
     try:
-        responses = [
-            json.loads(line) for line in stdout.splitlines() if line.strip().startswith("{")
-        ]
-    except (IndexError, json.JSONDecodeError) as error:
+        responses = parse_mcp_stdout_frames(stdout)
+    except (IndexError, TypeError, ValueError, json.JSONDecodeError) as error:
         raise RuntimeError(
             f"MCP connection closed during initialize: {sanitize(stderr or stdout)}"
         ) from error

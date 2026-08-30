@@ -1825,6 +1825,17 @@ class ChaosEngineHostsTest(unittest.TestCase):
             with mock.patch.object(module.subprocess, "run", return_value=invalid):
                 self.assertFalse(module.mcp_runtime_healthy(project))
 
+            noisy = mock.Mock(
+                returncode=0,
+                stdout="debug startup output\n" + memory_response.stdout,
+            )
+            with mock.patch.object(module.subprocess, "run", return_value=noisy):
+                status = module.mcp_runtime_status(project)
+            self.assertEqual(
+                {"status": "recovery-required", "detail": "memory-mcp-invalid-json"},
+                status,
+            )
+
             failed = mock.Mock(returncode=17, stdout="secret /tmp/account output")
             with mock.patch.object(module.subprocess, "run", return_value=failed):
                 status = module.mcp_runtime_status(project)
@@ -2471,8 +2482,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     "cwd": ".",
                 },
                 "mempalace": {
-                    "command": "/usr/bin/mempalace-mcp",
+                    "command": "mempalace-mcp",
                     "args": [],
+                    "cwd": ".",
                 },
                 "context7": {"command": "npx", "args": ["-y", "@upstash/context7-mcp"]},
                 "user-owned": {"command": "keep-me", "args": ["--exact"]},
@@ -2495,6 +2507,29 @@ class ChaosEngineHostsTest(unittest.TestCase):
         legacy["mcpServers"]["shaft-memory"]["args"][2] = "@aictx/memory@0.2.1"
         rendered = json.loads(module.json_content(json.dumps(legacy).encode()))
         self.assertNotIn("shaft-memory", rendered["mcpServers"])
+
+    def test_legacy_mcp_aliases_preserve_foreign_lookalikes_exactly(self):
+        module = load(HOSTS, "chaos_engine_hosts_foreign_legacy_aliases")
+        canonical = {
+            "command": "mempalace-mcp",
+            "args": [],
+            "cwd": ".",
+        }
+        variants = (
+            {**canonical, "env": {"CUSTOM": "1"}},
+            {**canonical, "cwd": "/opt/custom"},
+            {**canonical, "required": False},
+            {**canonical, "approval": "always"},
+            {"command": "mempalace-mcp", "args": []},
+            {"command": "/opt/custom/mempalace-mcp", "args": [], "cwd": "."},
+        )
+
+        for server in variants:
+            with self.subTest(server=server):
+                rendered = json.loads(module.json_content(json.dumps({
+                    "mcpServers": {"mempalace": server}
+                }).encode()))
+                self.assertEqual(server, rendered["mcpServers"]["mempalace"])
 
     def test_exact_legacy_wrapped_mempalace_alias_migrates(self):
         module = load(HOSTS, "chaos_engine_hosts_wrapped_mempalace_alias")

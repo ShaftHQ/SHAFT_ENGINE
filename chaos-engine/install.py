@@ -42,6 +42,7 @@ UNINSTALL_CURRENT_NAME = ".chaos-engine-uninstall-current"
 UNINSTALL_OLD_BACKUP_NAME = ".chaos-engine-uninstall-old-backup"
 DEPENDENCY_LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
 CROSS_ROLLBACK_JOURNAL_NAME = ".chaos-engine-cross-rollback"
+ACCOUNT_ROLLBACK_JOURNAL_NAME = ".chaos-engine-account-rollback"
 CAPABILITY_FIELDS = {"owner", "scope", "lifecycle", "taskImpact"}
 CAPABILITY_ENUMS = {
     "owner": {"installer", "project", "user"},
@@ -807,6 +808,286 @@ def write_journal(project: Path, operation: str, commit: str) -> Path:
             raise ValueError(f"transaction journal scratch path collision: {temporary}")
     temporary.replace(journal)
     return journal
+
+
+def validate_account_rollback_mempalace_state(value: object) -> dict[str, object]:
+    """Validate the pre-mutation MemPalace image kept outside host receipts."""
+    if not isinstance(value, dict) or set(value) != {"before", "after"}:
+        raise ValueError("account rollback journal is invalid")
+    normalized: list[dict[str, object]] = []
+    for image in (value["before"], value["after"]):
+        if not isinstance(image, dict) or set(image) != {"exists", "files"}:
+            raise ValueError("account rollback journal is invalid")
+        exists = image.get("exists")
+        files = image.get("files")
+        if type(exists) is not bool or not isinstance(files, dict):
+            raise ValueError("account rollback journal is invalid")
+        validated_files: dict[str, str] = {}
+        for relative, digest in files.items():
+            path = PurePosixPath(relative) if isinstance(relative, str) else None
+            if (
+                path is None
+                or path.is_absolute()
+                or any(part in {"", ".", ".."} for part in path.parts)
+                or path.as_posix() != relative
+                or not isinstance(digest, str)
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise ValueError("account rollback journal is invalid")
+            validated_files[relative] = digest
+        normalized.append({"exists": exists, "files": validated_files})
+    if normalized[0] != normalized[1]:
+        raise ValueError("account rollback journal is invalid")
+    return {"before": normalized[0], "after": normalized[1]}
+
+
+def _account_rollback_journal_body(
+    desired_commit: str,
+    prior_commit: str,
+    prior_host_receipt: bytes | None,
+    prior_account_receipt: bytes | None,
+    prior_mempalace_state: dict[str, object],
+) -> dict[str, object]:
+    if (
+        COMMIT_PATTERN.fullmatch(desired_commit) is None
+        or COMMIT_PATTERN.fullmatch(prior_commit) is None
+    ):
+        raise ValueError("account rollback journal commits are invalid")
+    body: dict[str, object] = {
+        "schemaVersion": 1,
+        "desiredCommit": desired_commit,
+        "priorCommit": prior_commit,
+        "priorHostReceipt": (
+            base64.b64encode(prior_host_receipt).decode("ascii")
+            if prior_host_receipt is not None else None
+        ),
+        "priorAccountReceipt": (
+            base64.b64encode(prior_account_receipt).decode("ascii")
+            if prior_account_receipt is not None else None
+        ),
+        "priorMempalaceState": validate_account_rollback_mempalace_state(
+            prior_mempalace_state
+        ),
+    }
+    body["integritySha256"] = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return body
+
+
+def write_account_rollback_journal(
+    project: Path,
+    desired_commit: str,
+    prior_commit: str,
+    *,
+    prior_host_receipt: bytes | None,
+    prior_account_receipt: bytes | None,
+    prior_mempalace_state: dict[str, object],
+) -> Path:
+    """Durably retain base account data before an account installer can mutate it."""
+    transaction = project / ACCOUNT_ROLLBACK_JOURNAL_NAME
+    journal = transaction / "journal.json"
+    reject_link_or_reparse(transaction)
+    if transaction.exists():
+        raise ValueError(f"account rollback transaction collision: {transaction}")
+    body = _account_rollback_journal_body(
+        desired_commit,
+        prior_commit,
+        prior_host_receipt,
+        prior_account_receipt,
+        prior_mempalace_state,
+    )
+    transaction.mkdir(mode=0o700)
+    descriptor = os.open(
+        journal,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o600,
+    )
+    with os.fdopen(descriptor, "wb") as stream:
+        stream.write((json.dumps(body, sort_keys=True) + "\n").encode())
+        stream.flush()
+        os.fsync(stream.fileno())
+    return journal
+
+
+def _decode_account_rollback_journal_bytes(value: object) -> bytes | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("account rollback journal is invalid")
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except (ValueError, TypeError) as error:
+        raise ValueError("account rollback journal is invalid") from error
+    if base64.b64encode(decoded).decode("ascii") != value:
+        raise ValueError("account rollback journal is invalid")
+    return decoded
+
+
+def read_account_rollback_journal(project: Path) -> dict[str, object] | None:
+    transaction = project / ACCOUNT_ROLLBACK_JOURNAL_NAME
+    journal = transaction / "journal.json"
+    reject_link_or_reparse(transaction)
+    if not transaction.exists():
+        return None
+    if not transaction.is_dir():
+        raise ValueError("account rollback transaction is invalid")
+    for child in transaction.iterdir():
+        reject_link_or_reparse(child)
+        if child.name != "journal.json":
+            raise ValueError("account rollback transaction contains unknown state")
+    try:
+        value = json.loads(journal.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("account rollback journal is invalid") from error
+    if not isinstance(value, dict):
+        raise ValueError("account rollback journal is invalid")
+    integrity = value.get("integritySha256")
+    body = {key: item for key, item in value.items() if key != "integritySha256"}
+    if (
+        set(value) != {
+            "schemaVersion", "desiredCommit", "priorCommit", "priorHostReceipt",
+            "priorAccountReceipt", "priorMempalaceState", "integritySha256",
+        }
+        or integrity != hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+    ):
+        raise ValueError("account rollback journal is invalid")
+    expected = _account_rollback_journal_body(
+        str(value.get("desiredCommit", "")),
+        str(value.get("priorCommit", "")),
+        _decode_account_rollback_journal_bytes(value.get("priorHostReceipt")),
+        _decode_account_rollback_journal_bytes(value.get("priorAccountReceipt")),
+        value.get("priorMempalaceState"),
+    )
+    if value != expected:
+        raise ValueError("account rollback journal is invalid")
+    return {
+        "desiredCommit": value["desiredCommit"],
+        "priorCommit": value["priorCommit"],
+        "priorHostReceipt": _decode_account_rollback_journal_bytes(
+            value["priorHostReceipt"]
+        ),
+        "priorAccountReceipt": _decode_account_rollback_journal_bytes(
+            value["priorAccountReceipt"]
+        ),
+        "priorMempalaceState": value["priorMempalaceState"],
+    }
+
+
+def remove_account_rollback_journal(project: Path) -> None:
+    transaction = project / ACCOUNT_ROLLBACK_JOURNAL_NAME
+    journal = transaction / "journal.json"
+    reject_link_or_reparse(transaction)
+    if not transaction.exists():
+        return
+    if not journal.is_file() or len(tuple(transaction.iterdir())) != 1:
+        raise ValueError("account rollback transaction is invalid")
+    journal.unlink()
+    transaction.rmdir()
+
+
+def _restore_account_receipt_from_journal(project: Path, controller, before: bytes | None) -> None:
+    path = project / ".chaos-engine-dependencies.json"
+    if is_link_or_reparse(path):
+        raise ValueError("account rollback receipt is a link or reparse point")
+    if path.exists() and not path.is_file():
+        raise ValueError("account rollback receipt is not a regular file")
+    current = path.read_bytes() if path.exists() else None
+    if current == before:
+        return
+    if before is None:
+        if current is not None:
+            controller.atomic_remove(project, path, current)
+    else:
+        controller.atomic_write(project, path, before, current)
+    current = path.read_bytes() if path.exists() else None
+    if current != before:
+        raise ValueError("account rollback receipt changed during recovery")
+
+
+def _restore_account_mempalace_from_journal(project: Path, pending: dict[str, object]) -> None:
+    before = pending["priorMempalaceState"]
+    current = project_setup_output_files(project, MEMPALACE_STATE_OUTPUT)
+    restore_candidate_mempalace_state(
+        project,
+        {
+            "before": before["before"],  # type: ignore[index]
+            "after": {"exists": current[0], "files": current[1]},
+        },
+    )
+
+
+def _account_upgrade_host_receipt_is_durable(
+    project: Path, controller, pending: dict[str, object]
+) -> bool:
+    receipt, _raw = controller.read_receipt(project)
+    if receipt.get("phase") != "installed" or receipt.get("coreCommit") != pending["priorCommit"]:
+        return False
+    expected_host = pending["priorHostReceipt"]
+    if expected_host is not None and controller.rollback_previous_receipt(
+        project, pending["desiredCommit"]
+    ) != expected_host:
+        return False
+    expected_account = pending["priorAccountReceipt"]
+    if expected_account is not None and controller.rollback_previous_account_receipt(
+        project, pending["desiredCommit"]
+    ) != expected_account:
+        return False
+    expected_state = pending["priorMempalaceState"]
+    actual_state = controller.rollback_previous_mempalace_state(
+        project, pending["desiredCommit"]
+    )
+    return (
+        isinstance(actual_state, dict)
+        and actual_state.get("before") == expected_state["before"]  # type: ignore[index]
+    )
+
+
+def recover_account_rollback_journal(project: Path) -> None:
+    """Idempotently finish or reverse a crash between account and host publication."""
+    pending = read_account_rollback_journal(project)
+    if pending is None:
+        return
+    target = project / INSTALL_DIRECTORY
+    backup = project / BACKUP_NAME
+    target_manifest = verify_install(target)
+    backup_manifest = verify_install(backup)
+    target_commit = str(target_manifest["source"]["commit"])
+    backup_commit = str(backup_manifest["source"]["commit"])
+    desired_commit = pending["desiredCommit"]
+    prior_commit = pending["priorCommit"]
+    if {target_commit, backup_commit} != {desired_commit, prior_commit}:
+        raise ValueError("account rollback trees do not match the recorded generations")
+    controller = load_installed_controller(target, "hosts")
+    if target_commit == prior_commit and _account_upgrade_host_receipt_is_durable(
+        project, controller, pending
+    ):
+        remove_account_rollback_journal(project)
+        return
+    if target_commit == prior_commit:
+        expected_host = pending["priorHostReceipt"]
+        if expected_host is not None:
+            _receipt, current_host = controller.read_receipt(project)
+            if current_host != expected_host:
+                raise ValueError("account rollback host receipt changed during recovery")
+            validate_prior_host_receipt(project, controller, expected_host, desired_commit)
+        _restore_account_receipt_from_journal(
+            project, controller, pending["priorAccountReceipt"]
+        )
+        _restore_account_mempalace_from_journal(project, pending)
+        rollback(project, _locked=True)
+        target = project / INSTALL_DIRECTORY
+        controller = load_installed_controller(target, "hosts")
+    if str(verify_install(target)["source"]["commit"]) != desired_commit:
+        raise ValueError("account rollback did not restore the recorded base")
+    expected_host = pending["priorHostReceipt"]
+    if expected_host is not None and controller.read_receipt(project)[1] != expected_host:
+        raise ValueError("account rollback host receipt changed during recovery")
+    _restore_account_receipt_from_journal(project, controller, pending["priorAccountReceipt"])
+    _restore_account_mempalace_from_journal(project, pending)
+    remove_account_rollback_journal(project)
 
 
 def write_cross_rollback_journal(
@@ -1894,6 +2175,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     )
     generation_mode = provisioner is None and not account_mode
     with project_lock(project):
+        recover_account_rollback_journal(project)
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
         current = project / INSTALL_DIRECTORY
@@ -1988,6 +2270,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         retired_generation = None
         candidate_published = False
         account_receipt_after = None
+        account_rollback_journal = None
         try:
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")
@@ -2034,6 +2317,23 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                         expected_core_sha256=core_sha256,
                     )[0]
             elif account_mode:
+                if old_manifest is not None:
+                    prior_host_receipt = (
+                        host_snapshot.get("raw") if isinstance(host_snapshot, dict) else None
+                    )
+                    account_rollback_journal = write_account_rollback_journal(
+                        project,
+                        old_commit,
+                        commit,
+                        prior_host_receipt=(
+                            prior_host_receipt
+                            if isinstance(prior_host_receipt, bytes) else None
+                        ),
+                        prior_account_receipt=account_receipt_before,
+                        prior_mempalace_state=mempalace_rollback_image(
+                            mempalace_state_before, mempalace_state_before
+                        ),
+                    )
                 account_receipt = controller.install_account_dependencies(
                     project, specification
                 )
@@ -2068,6 +2368,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 ),
                 **({"upgrade_snapshot": host_snapshot} if host_snapshot is not None else {}),
             )
+            if account_rollback_journal is not None:
+                recover_account_rollback_journal(project)
+                if account_rollback_journal.exists():
+                    raise ValueError("account rollback journal was not finalized")
+                account_rollback_journal = None
             host_created = not host_existed
             if not account_mode and not generation_mode:
                 provisioner(runtime, specification)
@@ -2100,6 +2405,14 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if isinstance(error, (KeyboardInterrupt, SystemExit)):
                 raise
             compensation_errors: list[BaseException] = []
+            account_rollback_recovered = False
+            if account_rollback_journal is not None:
+                try:
+                    recover_account_rollback_journal(project)
+                    account_rollback_recovered = True
+                    account_rollback_journal = None
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
             restore_generation = None
             if candidate is not None and not candidate_published:
                 try:
@@ -2117,7 +2430,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     )
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            can_compensate = not candidate_published or restore_generation is not None
+            can_compensate = (
+                not account_rollback_recovered
+                and (not candidate_published or restore_generation is not None)
+            )
             if candidate is not None and not candidate_published:
                 try:
                     controller.remove_generation(project, candidate)
@@ -2312,6 +2628,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 "recovery-required"
                 if (project / JOURNAL_NAME).exists()
                 or (project / CROSS_ROLLBACK_JOURNAL_NAME).exists()
+                or (project / ACCOUNT_ROLLBACK_JOURNAL_NAME).exists()
                 else "healthy"
             )
             result: dict[str, object] = {
@@ -2633,6 +2950,8 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
     project = project.resolve()
     with project_lock(project):
         _recover_transaction(project)
+        if read_account_rollback_journal(project) is not None:
+            raise ValueError("account rollback recovery is required before uninstall")
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before uninstall")
         target = project / INSTALL_DIRECTORY

@@ -855,6 +855,33 @@ def initialize_mempalace_runtime(project: Path) -> None:
         raise
 
 
+def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
+    """Parse every non-empty stdio frame as one valid JSON-RPC 2.0 message."""
+    frames: list[dict[str, object]] = []
+    for line in stdout.splitlines():
+        if not line.strip():
+            continue
+        value = json.loads(line)
+        if not isinstance(value, dict) or value.get("jsonrpc") != "2.0":
+            raise ValueError("invalid MCP stdout frame")
+        if "method" in value:
+            if (
+                not isinstance(value["method"], str)
+                or not value["method"]
+                or "result" in value
+                or "error" in value
+            ):
+                raise ValueError("invalid MCP stdout frame")
+        elif (
+            "id" not in value
+            or ("result" in value) == ("error" in value)
+            or isinstance(value["id"], bool)
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        frames.append(value)
+    return frames
+
+
 def mcp_runtime_status(
     project: Path,
     managed_python: Path | None = None,
@@ -931,12 +958,8 @@ def mcp_runtime_status(
         if result.returncode != 0:
             return {"status": "recovery-required", "detail": f"{name}-exit"}
         try:
-            responses = [
-                json.loads(line)
-                for line in result.stdout.splitlines()
-                if line.strip().startswith("{")
-            ]
-        except json.JSONDecodeError:
+            responses = parse_mcp_stdout_frames(result.stdout)
+        except (TypeError, ValueError, json.JSONDecodeError):
             return {"status": "recovery-required", "detail": f"{name}-invalid-json"}
         if not any(
             isinstance(response, dict)
@@ -2667,37 +2690,48 @@ def replaceable_owned_server(name: str, existing: object, desired: dict[str, obj
 
 
 def exact_legacy_alias(name: str, server: object) -> bool:
-    if not isinstance(server, dict) or not isinstance(server.get("command"), str):
-        return False
-    executable = server["command"].replace("\\", "/").rsplit("/", 1)[-1].casefold()
-    args = server.get("args", [])
+    """Recognize only complete historical alias dictionaries.
+
+    The aliases are reserved names but can also be user-owned.  Match the exact
+    serialized historical shapes, rather than executable basenames, so an
+    absolute custom command or any host-specific setting remains untouched.
+    """
     if name == "sha" + "ft-memory":
-        return (
-            executable in {"memory-mcp", "memory-mcp.exe"} and args == []
-        ) or (
-            executable in {"npx", "npx.cmd", "npx.exe"}
-            and args in tuple(
-                ["--yes", "--package", f"@aictx/memory@{version}", "--", "memory-mcp"]
-                for version in ("0.1.55", "0.2.1")
-            )
-            and server.get("cwd") == "."
+        direct = tuple(
+            {"command": command, "args": []}
+            for command in ("memory-mcp", "memory-mcp.exe")
         )
+        npx = tuple(
+            {
+                "command": command,
+                "args": ["--yes", "--package", f"@aictx/memory@{version}", "--", "memory-mcp"],
+                "cwd": ".",
+            }
+            for command in ("npx", "npx.cmd", "npx.exe")
+            for version in ("0.1.55", "0.2.1")
+        )
+        return server in (*direct, *npx)
     if name == "mempalace":
         direct_arguments = (
+            [],
             ["--palace", ".chaos-engine-state/mempalace"],
             ["--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"],
         )
-        wrapped_arguments = tuple(
-            [".chaos-engine/tool.py", "mempalace-mcp", *arguments]
+        direct = tuple(
+            {"command": command, "args": arguments, "cwd": "."}
+            for command in ("mempalace-mcp", "mempalace-mcp.exe")
             for arguments in direct_arguments
         )
-        return (
-            executable in {"mempalace-mcp", "mempalace-mcp.exe"}
-            and args in (*direct_arguments, [])
-        ) or (
-            executable in {"python", "python3", "python.exe", "py", "py.exe"}
-            and args in wrapped_arguments
+        wrapped = tuple(
+            {
+                "command": command,
+                "args": [".chaos-engine/tool.py", "mempalace-mcp", *arguments],
+                "cwd": ".",
+            }
+            for command in ("python", "python3", "python.exe", "py", "py.exe")
+            for arguments in direct_arguments
         )
+        return server in (*direct, *wrapped)
     return False
 
 

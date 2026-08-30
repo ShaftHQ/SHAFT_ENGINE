@@ -171,6 +171,26 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 ["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process
             )
 
+    def test_mcp_probe_rejects_non_protocol_stdout_before_valid_responses(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        process = mock.Mock()
+        process.communicate.return_value = (
+            "debug startup output\n"
+            '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18",'
+            '"capabilities":{},"serverInfo":{"name":"fixture","version":"1"}}}\n'
+            '{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}\n',
+            "",
+        )
+        process.returncode = 0
+
+        with self.assertRaisesRegex(RuntimeError, "closed during initialize"):
+            module.probe_mcp(
+                ["fixture-mcp"], ROOT, popen=lambda *_args, **_kwargs: process
+            )
+
     def test_mcp_probe_rejects_wrong_protocol_and_boolean_id(self):
         module = load_acceptance()
         self.assertIsNotNone(module)
@@ -187,7 +207,7 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 process = mock.Mock()
                 process.communicate.return_value = (response, "")
                 process.returncode = 0
-                with self.assertRaisesRegex(RuntimeError, "initialize failed"):
+                with self.assertRaisesRegex(RuntimeError, "initialize"):
                     module.probe_mcp(
                         ["fixture-mcp"],
                         ROOT,
