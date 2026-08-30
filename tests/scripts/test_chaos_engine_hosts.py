@@ -3199,6 +3199,31 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn("# CHAOSENGINE:START", rerendered)
             self.assertNotIn("docker", rerendered.casefold())
 
+    def test_exact_legacy_native_maven_codex_block_is_replaced(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_native_maven_codex")
+        java = Path("/usr/lib/jvm/java-25/bin/java")
+        old_jar = Path(
+            "/home/user/.local/share/ChaosEngine/tools/maven-tools-mcp/3.2.0/"
+            "maven-tools-mcp-3.2.0.jar"
+        )
+        new_jar = Path("/cache/maven-tools-mcp-3.2.1.jar")
+        old = module.legacy_portable_codex_block().replace(
+            "# CHAOSENGINE:END\n",
+            '\n[mcp_servers."maven-tools-mcp"]\n'
+            f"command = {json.dumps(str(java))}\n"
+            f'args = ["-jar", {json.dumps(str(old_jar))}, '
+            '"--spring.profiles.active=docker,no-context7"]\n'
+            "# CHAOSENGINE:END\n",
+        ).encode()
+
+        rendered = module.codex_content(old, maven_runtime=(java, new_jar)).decode()
+
+        self.assertIn(str(new_jar), rendered)
+        self.assertNotIn(str(old_jar), rendered)
+        mutated = old.replace(b"docker,no-context7", b"docker,no-context7,custom")
+        with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
+            module.codex_content(mutated, maven_runtime=(java, new_jar))
+
     def test_legacy_context7_server_removal_does_not_leave_orphaned_fields(self):
         module = load(HOSTS, "chaos_engine_hosts_legacy_context7")
         legacy = (

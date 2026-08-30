@@ -413,6 +413,31 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("3" * 40, MODULE.status(project)["commit"])
             self.assertFalse(project.joinpath(MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME).exists())
 
+    def test_incomplete_durable_host_receipt_falls_back_to_journal_recovery(self):
+        controller = SimpleNamespace(
+            ROLLBACK_PREVIOUS_RECEIPT="rollbackPreviousReceipt",
+            ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT="rollbackPreviousAccountReceipt",
+            ROLLBACK_PREVIOUS_MEMPALACE_STATE="rollbackPreviousMempalaceState",
+            read_receipt=lambda _project: (
+                {"phase": "installed", "coreCommit": "1" * 40}, b"receipt"
+            ),
+            validate_rollback_mempalace_state=lambda _value: (_ for _ in ()).throw(
+                ValueError("ChaosEngine MemPalace rollback state is invalid")
+            ),
+        )
+        pending = {
+            "priorCommit": "1" * 40,
+            "priorHostReceipt": None,
+            "priorAccountReceipt": None,
+            "priorMempalaceState": {"before": {"exists": True, "files": {}}},
+        }
+
+        self.assertFalse(
+            MODULE._account_upgrade_host_receipt_is_durable(
+                Path("."), controller, pending
+            )
+        )
+
     def test_account_upgrade_crash_recovers_durable_pre_mutation_journal(self):
         """A process death after account mutation must restart from exact base data."""
         with tempfile.TemporaryDirectory() as temporary:

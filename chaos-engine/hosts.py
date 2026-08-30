@@ -2834,6 +2834,25 @@ def legacy_codex_python_block(platform_name: str) -> str:
     )
 
 
+def legacy_portable_codex_block() -> str:
+    """Return the exact historical cross-platform owned wrapper block."""
+    memory_args = '".chaos-engine/tool.py", "memory-mcp"'
+    mempalace_args = (
+        '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"'
+    )
+    return (
+        "# CHAOSENGINE:START\n"
+        '[mcp_servers."chaosengine-memory"]\ncommand = "python3"\n'
+        f"args = [{memory_args}]\ncommandWindows = \"py\"\n"
+        f'argsWindows = ["-3", {memory_args}]\ncwd = "."\n\n'
+        '[mcp_servers."chaosengine-mempalace"]\ncommand = "python3"\n'
+        f"args = [{mempalace_args}]\ncommandWindows = \"py\"\n"
+        f'argsWindows = ["-3", {mempalace_args}]\ncwd = "."\n'
+        f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
+    )
+
+
 def remove_exact_legacy_codex_mempalace(existing: str) -> str:
     """Remove only the prior owned wrapper alias, preserving foreign TOML."""
     arguments = (
@@ -2920,7 +2939,10 @@ def strip_known_codex_ownership(
         before.decode("utf-8") if before is not None else ""
     )
     recorded_block = managed_codex_block(recorded)
-    legacy = tuple(legacy_codex_python_block(platform) for platform in ("nt", "posix"))
+    legacy = (
+        *(legacy_codex_python_block(platform) for platform in ("nt", "posix")),
+        legacy_portable_codex_block(),
+    )
     normalized = block.replace("\r\n", "\n")
     accepted = {
         item.replace("\r\n", "\n")
@@ -2978,6 +3000,34 @@ def remove_known_codex_orphans(existing: str) -> str:
     return existing
 
 
+_LEGACY_NATIVE_MAVEN_CODEX_BLOCK = re.compile(
+    r'\r?\n\[mcp_servers\."maven-tools-mcp"\]\r?\n'
+    r'command = (?P<command>"(?:[^"\\]|\\.)*")\r?\n'
+    r'args = \["-jar", (?P<jar>"(?:[^"\\]|\\.)*"), '
+    r'"--spring\.profiles\.active=docker,no-context7"\]\r?\n'
+)
+
+
+def remove_exact_legacy_native_maven_codex_block(existing: str) -> str:
+    match = _LEGACY_NATIVE_MAVEN_CODEX_BLOCK.search(existing)
+    if match is None:
+        return existing
+    try:
+        command = json.loads(match.group("command"))
+        jar = json.loads(match.group("jar"))
+    except json.JSONDecodeError:
+        return existing
+    server = {
+        "command": command,
+        "args": [
+            "-jar", jar, "--spring.profiles.active=docker,no-context7",
+        ],
+    }
+    if not exact_legacy_native_maven_server(server):
+        return existing
+    return existing[:match.start()] + existing[match.end():]
+
+
 def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
@@ -3010,6 +3060,7 @@ def codex_content(
     for legacy in legacy_blocks:
         for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
             existing = existing.replace(newline_variant, "")
+    existing = remove_exact_legacy_native_maven_codex_block(existing)
     existing = remove_exact_legacy_codex_store_aliases(existing)
     del platform_name
     posix_command, _posix_prefix = interpreter("posix")
@@ -3081,6 +3132,10 @@ def codex_content(
             for candidate in (legacy, legacy.replace("\n", "\r\n")):
                 if candidate in existing:
                     return existing.replace(candidate, block).encode()
+        legacy = legacy_portable_codex_block()
+        for candidate in (legacy, legacy.replace("\n", "\r\n")):
+            if candidate in existing:
+                return existing.replace(candidate, block).encode()
         raise ValueError("ChaosEngine Codex configuration collision")
     for name in owned_servers(
         maven_runtime=maven_runtime, managed_python=managed_python,

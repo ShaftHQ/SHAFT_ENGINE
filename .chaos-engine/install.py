@@ -1064,9 +1064,12 @@ def _account_upgrade_host_receipt_is_durable(
     if actual_account != expected_account:
         return False
     expected_state = pending["priorMempalaceState"]
-    actual_state = controller.validate_rollback_mempalace_state(
-        receipt.get(controller.ROLLBACK_PREVIOUS_MEMPALACE_STATE)
-    )
+    try:
+        actual_state = controller.validate_rollback_mempalace_state(
+            receipt.get(controller.ROLLBACK_PREVIOUS_MEMPALACE_STATE)
+        )
+    except ValueError:
+        return False
     return actual_state.get("before") == expected_state["before"]  # type: ignore[index]
 
 
