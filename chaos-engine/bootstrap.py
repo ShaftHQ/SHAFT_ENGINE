@@ -113,6 +113,27 @@ def _component_blocks_health(value: object) -> bool:
     return value.get("taskImpact") == "required"
 
 
+def observed_blocking_components(components: object) -> tuple[tuple[str, str], ...]:
+    """Keep only bounded, path-free status labels for a failed upgrade report."""
+    if not isinstance(components, dict):
+        return ()
+    result: list[tuple[str, str]] = []
+    for name, value in components.items():
+        status = value.get("status") if isinstance(value, dict) else None
+        if (
+            not isinstance(name, str)
+            or not isinstance(status, str)
+            or re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name) is None
+            or re.fullmatch(r"[a-z][a-z0-9-]{0,63}", status) is None
+            or not _component_blocks_health(value)
+        ):
+            continue
+        result.append((name, status))
+        if len(result) == 32:
+            break
+    return tuple(sorted(result))
+
+
 def _required_install_unhealthy(doctor: dict[str, object]) -> bool:
     components = doctor.get("components")
     if isinstance(components, dict) and any(
@@ -149,6 +170,9 @@ class InstallHealthError(RuntimeError):
             for name, value in components.items()
             if _component_blocks_health(value)
         ) if isinstance(components, dict) else ()
+        commit = doctor.get("commit")
+        self.observed_commit = commit if isinstance(commit, str) and COMMIT.fullmatch(commit) else None
+        self.observed_components = observed_blocking_components(components)
 
 
 class InstallReporter:
@@ -937,6 +961,9 @@ def install_latest(
         doctor["clients"] = clients.get("clients", {})
     except BaseException as error:
         reporter.close()
+        if isinstance(error, InstallHealthError) and prior_install:
+            error.observed_upgrade_commit = error.observed_commit
+            error.observed_upgrade_components = error.observed_components
         if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
             if prior_install and (project / ".chaos-engine.backup").exists():
                 installer.rollback(project)
@@ -1050,6 +1077,28 @@ def emit_install_failure(
         status_command = "not available; .chaos-engine/install.py is not on disk"
         doctor_command = status_command
     if code != "CE-INSTALL-CANCELLED":
+        observed_upgrade_commit = getattr(error, "observed_upgrade_commit", None)
+        if (
+            not isinstance(observed_upgrade_commit, str)
+            or COMMIT.fullmatch(observed_upgrade_commit) is None
+        ):
+            observed_upgrade_commit = None
+        observed_upgrade_components = getattr(error, "observed_upgrade_components", ())
+        if not isinstance(observed_upgrade_components, tuple):
+            observed_upgrade_components = ()
+        candidate_component_labels: list[str] = []
+        for component in observed_upgrade_components[:32]:
+            if not isinstance(component, tuple) or len(component) != 2:
+                continue
+            name, status = component
+            if (
+                isinstance(name, str)
+                and isinstance(status, str)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", status)
+            ):
+                candidate_component_labels.append(f"{name}:{status}")
+        candidate_components = ",".join(candidate_component_labels)
         body = "\n".join(
             (
                 f"Error code: {code}",
@@ -1057,6 +1106,8 @@ def emit_install_failure(
                 f"Failed phase: {getattr(error, 'phase', None) or (reporter.current_operation if reporter else 'unknown')}",
                 "Unhealthy components: "
                 + (", ".join(getattr(error, "unhealthy", ())) or "not reported"),
+                "Observed candidate commit: " + (observed_upgrade_commit or "not available"),
+                "Observed candidate components: " + (candidate_components or "not available"),
                 "Current action: "
                 + ((reporter.current_operation if reporter else None) or "none"),
                 "History: "
@@ -1082,6 +1133,8 @@ def emit_install_failure(
                 "failed_phase": getattr(error, "phase", None)
                 or (reporter.current_operation if reporter else "unknown"),
                 "unhealthy": ", ".join(getattr(error, "unhealthy", ())) or "not reported",
+                "observed_commit": observed_upgrade_commit or "",
+                "candidate_components": candidate_components,
                 "platform": sys.platform,
                 "status_command": status_command or "",
                 "doctor_command": doctor_command or "",

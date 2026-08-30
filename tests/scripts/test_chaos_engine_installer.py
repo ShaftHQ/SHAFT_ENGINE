@@ -210,8 +210,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     project, SOURCE, TEST_COMMIT, with_maven_tools=False
                 )
 
-            self.assertEqual(project / ".chaos-engine", installed)
-            controller.install_account_dependencies.assert_called_once_with(project, specification)
+            self.assertEqual((project / ".chaos-engine").resolve(), installed)
+            controller.install_account_dependencies.assert_called_once_with(
+                project.resolve(), specification
+            )
             self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
             mcp = json.loads(project.joinpath(".mcp.json").read_text(encoding="utf-8"))
             self.assertEqual(
@@ -644,7 +646,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 if "clone" in command:
                     source = Path(command[-1])
                     source.mkdir(parents=True)
-                    wrapper = source / "mvnw"
+                    wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
                     wrapper.write_text("wrapper\n", encoding="utf-8")
                 if "package" in command:
                     source = Path(kwargs["cwd"])
@@ -2057,7 +2059,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
 
             core_install.assert_called_once()
-            account_setup.assert_called_once_with(project, specification)
+            account_setup.assert_called_once_with(project.resolve(), specification)
             repaired, _ = hosts.read_receipt(project)
             self.assertEqual("2" * 40, repaired["coreCommit"])
 

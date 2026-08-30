@@ -170,20 +170,27 @@ def discover_executables(names: list[str], *, which=shutil.which) -> dict[str, d
 
 def sanitize_receipt(value: object, *, home: Path | None = None) -> object:
     """Remove credential-shaped fields and replace the account home prefix."""
-    account_home = (home or Path.home()).resolve()
+    lexical_home = home or Path.home()
+    account_homes = tuple(dict.fromkeys((
+        str(lexical_home),
+        str(lexical_home.resolve()),
+    )))
     if isinstance(value, dict):
         return {
-            str(key): sanitize_receipt(item, home=account_home)
+            str(key): sanitize_receipt(item, home=lexical_home)
             for key, item in value.items()
             if not _SECRET_KEY.search(str(key))
         }
     if isinstance(value, list):
-        return [sanitize_receipt(item, home=account_home) for item in value]
+        return [sanitize_receipt(item, home=lexical_home) for item in value]
     if isinstance(value, tuple):
-        return [sanitize_receipt(item, home=account_home) for item in value]
+        return [sanitize_receipt(item, home=lexical_home) for item in value]
     if isinstance(value, str):
-        rendered = value.replace(str(account_home), "<home>")
-        return rendered.replace(str(account_home).replace("\\", "/"), "<home>")
+        rendered = value
+        for account_home in account_homes:
+            rendered = rendered.replace(account_home, "<home>")
+            rendered = rendered.replace(account_home.replace("\\", "/"), "<home>")
+        return rendered
     if value is None or type(value) in {bool, int, float}:
         return value
     return type(value).__name__
@@ -400,6 +407,7 @@ def _account_search_path() -> str:
     candidates = [
         *node_bins,
         uv_tool_bin,
+        *((npm_prefix,) if os.name == "nt" else ()),
         npm_bin,
         home / ".local/bin",
         home / ".cargo/bin",

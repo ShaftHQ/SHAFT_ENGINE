@@ -45,13 +45,17 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             "long progress output",
             "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation",
             "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?"
-            "failed_phase=Verify+installation&unhealthy=hooks&cause=doctor+failed",
+            "observed_commit=" + ("a" * 40)
+            + "&candidate_components=hooks%3Arecovery-required%2Cmcps%3Arecovery-required"
+            + "&failed_phase=Verify+installation&unhealthy=hooks&cause=doctor+failed",
             "PowerShell invocation error",
         ))
 
         self.assertEqual(
             "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
-            "failed phase: Verify installation; unhealthy: hooks",
+            "observed commit: " + ("a" * 40)
+            + "; candidate components: hooks=recovery-required, mcps=recovery-required"
+            + "; failed phase: Verify installation; unhealthy: hooks",
             module.installer_failure_detail(diagnostic),
         )
 
@@ -692,6 +696,8 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             str(Path(environment["NPM_CONFIG_PREFIX"]) / ("Scripts" if os.name == "nt" else "bin")),
             search,
         )
+        if os.name == "nt":
+            self.assertIn(environment["NPM_CONFIG_PREFIX"], search)
 
     def test_isolated_account_command_check_uses_exact_executables_and_rejects_escape(self):
         module = load_acceptance()

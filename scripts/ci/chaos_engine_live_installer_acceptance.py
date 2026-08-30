@@ -180,10 +180,12 @@ def isolated_account_environment(root: Path) -> dict[str, str]:
         "PIP_CONFIG_FILE": str(roots["pip-config"] / "pip.conf"),
         "PYTHONNOUSERSITE": "1",
     })
-    npm_executable_bin = roots["npm-prefix"] / ("Scripts" if os.name == "nt" else "bin")
+    npm_prefix = roots["npm-prefix"]
+    npm_executable_bin = npm_prefix / ("Scripts" if os.name == "nt" else "bin")
     npm_executable_bin.mkdir(parents=True, exist_ok=True)
+    npm_search_paths = (npm_prefix, npm_executable_bin) if os.name == "nt" else (npm_executable_bin,)
     environment["PATH"] = os.pathsep.join((
-        environment["UV_TOOL_BIN_DIR"], str(npm_executable_bin), environment["PATH"],
+        environment["UV_TOOL_BIN_DIR"], *(str(path) for path in npm_search_paths), environment["PATH"],
     ))
     if os.name == "nt":
         drive = home.drive
@@ -468,9 +470,28 @@ def installer_failure_detail(value: str) -> str:
         if "/issues/new?" not in token:
             continue
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(token).query)
-        for key, label in (("failed_phase", "failed phase"), ("unhealthy", "unhealthy")):
-            if query.get(key):
-                fields.append(f"{label}: {query[key][0]}")
+        for key, label in (
+            ("observed_commit", "observed commit"),
+            ("candidate_components", "candidate components"),
+            ("failed_phase", "failed phase"),
+            ("unhealthy", "unhealthy"),
+        ):
+            values = query.get(key)
+            if not values:
+                continue
+            value = values[0]
+            if key == "observed_commit" and re.fullmatch(r"[0-9a-f]{40}", value) is None:
+                continue
+            if key == "candidate_components":
+                components = value.split(",")
+                if len(components) > 32 or not components or any(
+                    re.fullmatch(r"[a-z][a-z0-9-]{0,63}:[a-z][a-z0-9-]{0,63}", item)
+                    is None
+                    for item in components
+                ):
+                    continue
+                value = ", ".join(item.replace(":", "=", 1) for item in components)
+            fields.append(f"{label}: {value}")
         break
     return "; ".join((headline, *fields))
 

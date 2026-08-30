@@ -257,6 +257,23 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertNotIn("authorization", receipt["probe"])
         self.assertEqual("<home>/.local/bin/node", receipt["executable"])
 
+    def test_receipt_sanitization_redacts_lexical_and_canonical_home_aliases(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            canonical_home = root / "private" / "person"
+            canonical_home.mkdir(parents=True)
+            lexical_parent = root / "var"
+            self.symlink_or_skip(root / "private", lexical_parent)
+            lexical_home = lexical_parent / "person"
+
+            receipt = module.sanitize_receipt(
+                {"executable": str(lexical_home / ".local/bin/node")},
+                home=lexical_home,
+            )
+
+        self.assertEqual("<home>/.local/bin/node", receipt["executable"])
+
     def test_account_discovery_rejects_project_local_generation_executables(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
@@ -343,7 +360,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
             search = module._account_search_path().split(os.pathsep)
 
-            self.assertTrue(search[0].endswith("24.19.0/bin"))
+            expected = "24.19.0" if os.name == "nt" else "24.19.0/bin"
+            self.assertTrue(search[0].endswith(expected))
 
     def test_account_search_path_includes_configured_uv_and_npm_executable_bins(self):
         module = load_controller()
@@ -365,6 +383,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             str(Path(temporary) / "npm-prefix" / ("Scripts" if os.name == "nt" else "bin")),
             search,
         )
+        if os.name == "nt":
+            self.assertIn(str(Path(temporary) / "npm-prefix"), search)
 
     def test_npm_uses_standard_account_prefix_when_system_prefix_is_not_writable(self):
         module = load_controller()
@@ -488,7 +508,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.assertEqual(
                 {
                     "MEMPALACE_PALACE_PATH": str(
-                        project / ".chaos-engine-state/mempalace"
+                        project.resolve() / ".chaos-engine-state/mempalace"
                     ),
                     "MEMPALACE_BACKEND": "sqlite_exact",
                 },
