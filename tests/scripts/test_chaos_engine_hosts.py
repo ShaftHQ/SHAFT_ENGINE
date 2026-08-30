@@ -1918,7 +1918,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     module.mcp_runtime_healthy(project, managed_python, commands)
                 )
 
-            self.assertEqual([commands["memory-mcp"]], run.call_args_list[0].args[0])
+            self.assertEqual(
+                [str(managed_python), str(tool), "memory-mcp"],
+                run.call_args_list[0].args[0],
+            )
             for call in run.call_args_list:
                 self.assertEqual(
                     str(node.parent.resolve()),
