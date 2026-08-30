@@ -2023,6 +2023,15 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertFalse(wal.exists())
             self.assertFalse(shared_memory.exists())
 
+            for suffix in ("", "-wal", "-shm"):
+                palace.joinpath(f"logstream.sqlite3{suffix}").write_bytes(b"preserved")
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            for suffix in ("", "-wal", "-shm"):
+                palace.joinpath(f"logstream.sqlite3{suffix}").unlink()
+
             mined = palace / ".mined"
             mined.write_text("current\n", encoding="utf-8")
             self.assertEqual(
@@ -3151,6 +3160,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertNotIn('command = "npx"', rendered)
         self.assertNotIn("required = false", rendered)
+
+        rerendered = module.codex_content(
+            ("\n\nrequired = false\n" + rendered).encode()
+        ).decode()
+        self.assertNotIn("required = false", rerendered)
 
     def test_existing_unrelated_config_is_preserved_and_owned_collision_fails_closed(self):
         module = load(HOSTS, "chaos_engine_hosts")

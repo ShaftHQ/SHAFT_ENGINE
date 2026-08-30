@@ -641,7 +641,20 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
     shared_memory = Path(f"{exact}-shm")
     sidecar = palace / ".mempalace"
     mined = palace / ".mined"
-    allowed_names = {path.name for path in (exact, wal, shared_memory, sidecar, mined)}
+    logstream = palace / "logstream.sqlite3"
+    allowed_names = {
+        path.name
+        for path in (
+            exact,
+            wal,
+            shared_memory,
+            sidecar,
+            mined,
+            logstream,
+            Path(f"{logstream}-wal"),
+            Path(f"{logstream}-shm"),
+        )
+    }
     if any(child.name not in allowed_names for child in children):
         return {
             "status": "recovery-required",
@@ -2919,6 +2932,11 @@ def codex_content(
         existing = before.decode("utf-8") if before is not None else ""
     except UnicodeDecodeError as error:
         raise ValueError("invalid Codex configuration") from error
+    for orphan in (
+        "\n\nrequired = false\n# CHAOSENGINE:START",
+        "\r\n\r\nrequired = false\r\n# CHAOSENGINE:START",
+    ):
+        existing = existing.replace(orphan, orphan.rsplit("required = false", 1)[0] + "# CHAOSENGINE:START")
     legacy_blocks = (
         '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
         'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
