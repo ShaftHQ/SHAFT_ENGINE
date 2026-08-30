@@ -44,14 +44,23 @@ session over one hour records its terminal reflection receipt before the Learnin
 
 ### Learned-lessons workflow
 
-1. Collect durable costs, decisions, structural changes, procedure gaps, and
-   deliberately deferred work.
+1. Collect receipts from the root session and every delegate created during the
+   runtime. Examine durable costs, decisions, structural changes, procedure gaps,
+   and deliberately deferred work. Explicitly look for ways to improve
+   effectiveness, efficiency, token use, commands that failed, paths that became
+   dead ends, retrieval or memory use, skill gaps, and research gaps. A clean run
+   still receives this search; `no-durable` is the honest result when it finds none.
 2. Classify each knowledge result with the entrypoint's Learning Session table and
    use exactly one knowledge destination.
-3. Separately classify actionability. For every problem, follow-up action, or
-   potential improvement needing work, search for duplicates and then open one
-   new standalone GitHub issue for that action. A duplicate hit informs the new
-   issue; it does not replace it.
+3. Separately classify actionability as `fixed-now`, `existing`, `new`,
+   `blocked`, or `no-durable`. Deduplicate repeated incidents across root and
+   delegate receipts. For every unfixed problem, follow-up action, or potential
+   improvement needing work, search the configured main ChaosEngine upstream
+   repository for duplicates. Reuse the existing issue when it is the same
+   action; otherwise open one standalone enhancement issue using existing GitHub
+   authentication. When authentication or the CLI is unavailable, preserve the
+   queued candidate and report its prefilled clickable enhancement URL so the
+   user can open the same privacy-gated issue without reconstructing it.
 4. Link the receipt ID and incident evidence in the issue, then bind that issue's
    canonical URL during `assess`. A receipt, Memory entry, Graphify flag, or old
    issue comment is evidence only and never replaces the action ticket.
@@ -76,6 +85,12 @@ independent runs on the same commit and corpus. If a promoted change regresses,
 use `repair-or-revert` to record one repair requirement; recurrence freezes the
 candidate and records a revert requirement. The normal git/GitHub workflow
 performs and verifies the repair or revert.
+
+For an orchestrated runtime, finish with `finalize-runtime`. Pass the root session
+and every participant session exactly once, plus one disposition for every
+deduplicated incident hash. This writes one immutable root-owned completion that
+proves delegate evidence was considered without copying transcripts, private
+routes, model identities, credentials, or local paths.
 
 ## 7. Push, PR, green, merge, compact
 

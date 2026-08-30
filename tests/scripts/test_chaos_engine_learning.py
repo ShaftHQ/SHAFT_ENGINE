@@ -10,6 +10,7 @@ import tempfile
 import threading
 import unittest
 import unittest.mock as mock
+from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 
 
@@ -160,6 +161,16 @@ class ChaosEngineLearningTest(unittest.TestCase):
             stored = json.loads((state / "queue.json").read_text(encoding="utf-8"))
             self.assertEqual("queued", stored["items"][0]["status"])
             self.assertEqual("submission unavailable", stored["items"][0]["lastError"])
+            fallback = urlparse(stored["items"][0]["fallbackUrl"])
+            self.assertEqual("github.com", fallback.netloc)
+            self.assertEqual("/example/chaos-engine/issues/new", fallback.path)
+            query = parse_qs(fallback.query)
+            self.assertEqual(
+                [f"ChaosEngine learning: {self.candidate()['title']}"], query["title"]
+            )
+            self.assertIn(
+                f"chaos-engine-learning:{queued['id']}", query["body"][0]
+            )
 
     def test_runner_launch_failure_and_invalid_search_output_stay_queued(self):
         module = load()

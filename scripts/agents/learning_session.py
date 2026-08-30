@@ -40,6 +40,7 @@ NO_LEARNING_REASONS = frozenset(
         "store_degraded",
     }
 )
+RUNTIME_DISPOSITIONS = frozenset({"fixed-now", "existing", "new", "blocked"})
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_REF_RE = re.compile(r"^[0-9a-f]{40}$")
 OPERATION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -857,6 +858,71 @@ def finalize_session(state: Path, session_id: str) -> dict:
         return value
 
 
+def _runtime_completion_path(state: Path, root_session_id: str) -> Path:
+    name = f"{_session_hash(root_session_id)}.json"
+    return _contained_directory(Path(state), "runtime-completions") / name
+
+
+def finalize_runtime_session(
+    state: Path,
+    *,
+    root_session_id: str,
+    participant_session_ids: list[str],
+    dispositions: dict[str, str],
+) -> dict:
+    """Close one root-owned runtime after considering root and delegate receipts."""
+    participants = sorted(participant_session_ids)
+    if len(set(participants)) != len(participants):
+        raise ValueError("runtime participants must appear exactly once")
+    if root_session_id not in participants:
+        raise ValueError("runtime participants must include the root session")
+    if not participants or any(
+        not isinstance(item, str) or not item.strip() for item in participants
+    ):
+        raise ValueError("runtime participants must be nonempty session identifiers")
+    receipts = {
+        receipt["incident_hash"]: receipt
+        for session_id in participants
+        for receipt in load_receipts(Path(state), session_id)
+    }
+    incident_hashes = set(receipts)
+    if set(dispositions) != incident_hashes:
+        raise ValueError("every runtime incident requires exactly one disposition")
+    if any(
+        not SHA256_RE.fullmatch(key) or value not in RUNTIME_DISPOSITIONS
+        for key, value in dispositions.items()
+    ):
+        raise ValueError("runtime disposition is invalid")
+    identity = {
+        "kind": "learning-runtime-complete",
+        "root_session_hash": _session_hash(root_session_id),
+        "disposition": "assessed" if incident_hashes else "no-durable",
+        "participant_hashes": sorted(_session_hash(item) for item in participants),
+        "incidents": [
+            {"incident_hash": key, "disposition": dispositions[key]}
+            for key in sorted(dispositions)
+        ],
+    }
+    value = {
+        "schema_version": 1,
+        "completion_id": _hash_text(_canonical(identity)),
+        **identity,
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _state_lock(Path(state), f"runtime-{identity['root_session_hash']}"):
+        path = _runtime_completion_path(Path(state), root_session_id)
+        if path.is_file():
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, UnicodeError) as error:
+                raise ValueError("runtime completion is invalid") from error
+            if {key: existing.get(key) for key in identity} != identity:
+                raise ValueError("runtime learning session is already complete")
+            return existing
+        _atomic_json(path, value)
+    return value
+
+
 def _completion_identity(value: dict) -> dict:
     return {
         key: value[key]
@@ -1339,6 +1405,19 @@ def _parse_evidence(value: str) -> dict[str, str]:
     return {"kind": parts[0], "id": parts[1], "sha256": parts[2]}
 
 
+def _parse_disposition(value: str) -> tuple[str, str]:
+    incident, separator, disposition = value.partition("=")
+    if (
+        not separator
+        or not SHA256_RE.fullmatch(incident)
+        or disposition not in RUNTIME_DISPOSITIONS
+    ):
+        raise argparse.ArgumentTypeError(
+            "disposition must be SHA256=fixed-now|existing|new|blocked"
+        )
+    return incident, disposition
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1368,6 +1447,10 @@ def build_parser() -> argparse.ArgumentParser:
     none.add_argument("--reason-code", choices=sorted(NO_LEARNING_REASONS), required=True)
     final = commands.add_parser("finalize")
     final.add_argument("--session-id", required=True)
+    runtime = commands.add_parser("finalize-runtime")
+    runtime.add_argument("--session-id", required=True)
+    runtime.add_argument("--participant-session-id", action="append", required=True)
+    runtime.add_argument("--disposition", action="append", type=_parse_disposition, default=[])
     evaluate = commands.add_parser("evaluate")
     evaluate.add_argument("--candidate-id", required=True)
     evaluate.add_argument("--manifest", type=Path, required=True)
@@ -1431,6 +1514,13 @@ def main(arguments: list[str] | None = None) -> int:
             )
         elif options.command == "finalize":
             result = finalize_session(state, options.session_id)
+        elif options.command == "finalize-runtime":
+            result = finalize_runtime_session(
+                state,
+                root_session_id=options.session_id,
+                participant_session_ids=options.participant_session_id,
+                dispositions=dict(options.disposition),
+            )
         elif options.command == "evaluate":
             manifest = _load_json_object(options.manifest)
             if manifest is None:

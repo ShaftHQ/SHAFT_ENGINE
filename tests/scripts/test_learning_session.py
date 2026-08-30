@@ -1300,6 +1300,118 @@ class TerminalLearningSessionTest(unittest.TestCase):
             self.assertEqual("assessed", completed["disposition"])
             self.assertEqual(1, len(completed["incident_hashes"]))
 
+    def test_root_runtime_aggregates_delegate_receipts_and_dispositions(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            for session_id, incident_id in (
+                ("root-runtime", "broken-command"),
+                ("delegate-runtime", "token-waste"),
+            ):
+                controller.record_signal(
+                    state,
+                    session_id=session_id,
+                    kind="tool_failure",
+                    incident_id=incident_id,
+                    origin="agent",
+                    evidence=self.evidence(state),
+                    evidence_root=state,
+                )
+
+            dispositions = {
+                controller.incident_hash("broken-command"): "fixed-now",
+                controller.incident_hash("token-waste"): "blocked",
+            }
+            completed = controller.finalize_runtime_session(
+                state,
+                root_session_id="root-runtime",
+                participant_session_ids=["root-runtime", "delegate-runtime"],
+                dispositions=dispositions,
+            )
+
+            self.assertEqual("learning-runtime-complete", completed["kind"])
+            self.assertEqual(2, len(completed["participant_hashes"]))
+            self.assertEqual(
+                sorted(dispositions.items()),
+                sorted(
+                    (item["incident_hash"], item["disposition"])
+                    for item in completed["incidents"]
+                ),
+            )
+            self.assertEqual(
+                completed,
+                controller.finalize_runtime_session(
+                    state,
+                    root_session_id="root-runtime",
+                    participant_session_ids=["delegate-runtime", "root-runtime"],
+                    dispositions=dispositions,
+                ),
+            )
+
+    def test_root_runtime_rejects_missing_delegate_disposition(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.record_signal(
+                state,
+                session_id="delegate-only",
+                kind="invalidated_assumption",
+                incident_id="dead-end",
+                origin="agent",
+                evidence=self.evidence(state),
+                evidence_root=state,
+            )
+            with self.assertRaisesRegex(ValueError, "every runtime incident"):
+                controller.finalize_runtime_session(
+                    state,
+                    root_session_id="root",
+                    participant_session_ids=["root", "delegate-only"],
+                    dispositions={},
+                )
+
+    def test_root_runtime_rejects_duplicate_participant(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "exactly once"):
+                controller.finalize_runtime_session(
+                    Path(directory),
+                    root_session_id="root",
+                    participant_session_ids=["root", "root"],
+                    dispositions={},
+                )
+
+    def test_cli_can_finalize_root_and_delegate_runtime(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.record_signal(
+                state,
+                session_id="delegate-cli",
+                kind="tool_failure",
+                incident_id="broken-cli",
+                origin="agent",
+                evidence=self.evidence(state),
+                evidence_root=state,
+            )
+            digest = controller.incident_hash("broken-cli")
+            with patch.object(controller, "default_state_dir", return_value=state), redirect_stdout(
+                io.StringIO()
+            ):
+                result = controller.main(
+                    [
+                        "finalize-runtime",
+                        "--session-id",
+                        "root-cli",
+                        "--participant-session-id",
+                        "root-cli",
+                        "--participant-session-id",
+                        "delegate-cli",
+                        "--disposition",
+                        f"{digest}=fixed-now",
+                    ]
+                )
+            self.assertEqual(0, result)
+
     def test_cli_finalize_emits_the_existing_single_completion(self):
         controller = self.controller()
         with tempfile.TemporaryDirectory() as directory:

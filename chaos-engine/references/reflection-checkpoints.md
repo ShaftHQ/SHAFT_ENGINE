@@ -61,3 +61,9 @@ For a terminal receipt, the final user-facing summary must label the elapsed
 estimate, main time consumer, repeated failures or corrections, changed
 assumption or approach, successful proof, remaining risk or follow-up, and
 Learning Session disposition.
+The terminal root reflection consumes the root session receipt and receipts from
+every delegate created during the runtime. Delegate termination does not discard
+its failures, recoveries, blockers, token costs, dead ends, or improvement ideas;
+the root deduplicates them before the one Learning Session. Persist only the
+minimal privacy-safe evidence and never persist provider, model, private route,
+credential, transcript, or machine-local path data.
