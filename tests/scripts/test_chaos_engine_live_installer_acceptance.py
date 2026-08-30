@@ -506,7 +506,11 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 module.record_phase(evidence, "preseeded-base-wrapper", fail)
 
             with mock.patch.object(module, "run_acceptance", side_effect=failing_acceptance):
-                exit_code = module.main(["--output", str(output)])
+                exit_code = module.main([
+                    "--candidate-sha", "a" * 40,
+                    "--base-sha", module.KNOWN_BASE_SHA,
+                    "--output", str(output),
+                ])
             evidence = json.loads(output.read_text(encoding="utf-8"))
 
         self.assertEqual(1, exit_code)
@@ -626,6 +630,258 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertIn("install.ps1", " ".join(windows))
         self.assertIn("irm", " ".join(windows))
         self.assertNotIn("install.py", " ".join(posix + windows))
+
+    def test_isolated_account_environment_redirects_every_account_root(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve() / "isolated account"
+            environment = module.isolated_account_environment(root)
+
+        required = {
+            "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA",
+            "LOCALAPPDATA", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME",
+            "XDG_STATE_HOME", "NPM_CONFIG_CACHE", "NPM_CONFIG_PREFIX",
+            "NPM_CONFIG_USERCONFIG", "UV_CACHE_DIR", "UV_TOOL_DIR",
+            "UV_TOOL_BIN_DIR", "UV_PYTHON_INSTALL_DIR", "UV_PYTHON_DIR",
+        }
+        self.assertTrue(required <= set(environment))
+        for name in required:
+            with self.subTest(name=name):
+                if name in {"HOMEDRIVE", "HOMEPATH"} and os.name == "nt":
+                    continue
+                self.assertTrue(Path(environment[name]).is_relative_to(root), environment[name])
+        if os.name == "nt":
+            self.assertTrue(
+                Path(environment["HOMEDRIVE"] + environment["HOMEPATH"]).is_relative_to(root)
+            )
+
+    def test_isolated_account_command_check_rejects_optional_outside_root(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            owned = root / "bin/mempalace"
+            owned.parent.mkdir()
+            owned.write_text("fixture", encoding="utf-8")
+            module.assert_account_command_roots(
+                {"mempalace": str(owned), "python3": sys.executable}, root
+            )
+            with self.assertRaisesRegex(RuntimeError, "outside isolated account"):
+                module.assert_account_command_roots(
+                    {"mempalace": sys.executable}, root
+                )
+            with self.assertRaisesRegex(RuntimeError, "unknown account command"):
+                module.assert_account_command_roots(
+                    {"unexpected": str(owned)}, root
+                )
+
+    def test_only_exact_platform_base_failure_enters_compatibility_transition(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        base = "1dec809c7c43709a8fcceef5e53690d124012eb3"
+        posix = module.AcceptanceCommandFailure(
+            module.public_wrapper_command(base, windows=False),
+            1,
+            "CE-INSTALL-FAILED: ChaosEngine doctor did not report a healthy installation; "
+            "failed phase: Verify installation; unhealthy: hooks, mcps",
+        )
+        posix.component_statuses = module.known_base_component_statuses(base)
+
+        self.assertEqual(
+            "posix", module.exact_base_compatibility_transition(posix, base, windows=False)
+        )
+        for mutation in (
+            ("sha", "f" * 40),
+            ("command", ["wrong-wrapper"]),
+            ("detail", "different failure"),
+            ("extra-component", None),
+            ("missing-component", None),
+        ):
+            with self.subTest(mutation=mutation[0]):
+                candidate = module.AcceptanceCommandFailure(
+                    list(posix.command), posix.returncode, posix.args[0].split(": ", 1)[1]
+                )
+                candidate.component_statuses = json.loads(json.dumps(posix.component_statuses))
+                base_sha = base
+                if mutation[0] == "sha":
+                    base_sha = mutation[1]
+                elif mutation[0] == "command":
+                    candidate.command = tuple(mutation[1])
+                elif mutation[0] == "detail":
+                    candidate = module.AcceptanceCommandFailure(
+                        list(posix.command), 1, mutation[1]
+                    )
+                    candidate.component_statuses = json.loads(json.dumps(posix.component_statuses))
+                elif mutation[0] == "extra-component":
+                    candidate.component_statuses["doctor"]["components"]["extra"] = {
+                        "status": "healthy"
+                    }
+                else:
+                    del candidate.component_statuses["doctor"]["components"]["memory"]
+                with self.assertRaises(module.AcceptanceCommandFailure) as raised:
+                    module.exact_base_compatibility_transition(
+                        candidate, base_sha, windows=False
+                    )
+                self.assertIs(candidate, raised.exception)
+
+        windows = module.AcceptanceCommandFailure(
+            module.public_wrapper_command(base, windows=True),
+            1,
+            "CE-INSTALL-FAILED: dependency verification failed: memory, context7; "
+            "failed phase: Provision dependencies; unhealthy: not reported",
+        )
+        self.assertEqual(
+            "windows", module.exact_base_compatibility_transition(windows, base, windows=True)
+        )
+        windows.component_statuses = {"status": {}}
+        with self.assertRaises(module.AcceptanceCommandFailure):
+            module.exact_base_compatibility_transition(windows, base, windows=True)
+
+        alternate_url = module.AcceptanceCommandFailure(
+            list(posix.command), 1, module.POSIX_BASE_FAILURE_DETAIL
+        )
+        alternate_url.command = tuple(
+            part.replace(module.raw_wrapper_url(base, windows=False), "https://example.invalid/install.sh")
+            for part in alternate_url.command
+        )
+        alternate_url.component_statuses = module.known_base_component_statuses(base)
+        with self.assertRaises(module.AcceptanceCommandFailure):
+            module.exact_base_compatibility_transition(alternate_url, base, windows=False)
+
+        for mutation in (
+            lambda shape: shape["status"].update({"unexpected": "field"}),
+            lambda shape: shape["status"].pop("commit"),
+            lambda shape: shape["status"]["dependencyComponents"]["uv"].update({"action": "reused"}),
+        ):
+            candidate = module.AcceptanceCommandFailure(
+                list(posix.command), 1, module.POSIX_BASE_FAILURE_DETAIL
+            )
+            candidate.component_statuses = module.known_base_component_statuses(base)
+            mutation(candidate.component_statuses)
+            with self.assertRaises(module.AcceptanceCommandFailure):
+                module.exact_base_compatibility_transition(candidate, base, windows=False)
+
+        with self.assertRaises(module.AcceptanceCommandFailure):
+            module.exact_base_compatibility_transition(posix, base, windows=True)
+
+    def test_account_phase_requires_project_and_generated_mcp_handshakes(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".chaos-engine").mkdir()
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"schemaVersion": 2, "components": {}, "commands": {}}),
+                encoding="utf-8",
+            )
+            healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
+            with mock.patch.object(
+                module, "run_checked", return_value=CompletedProcess([], 0, healthy, "")
+            ), mock.patch.object(module, "probe_project_mcps") as project_probe, mock.patch.object(
+                module, "probe_generated_mcps"
+            ) as generated_probe:
+                module.verify_account_phase(project, "a" * 40)
+
+        project_probe.assert_called_once_with(
+            project / ".chaos-engine/tool.py", project, base_environment=mock.ANY
+        )
+        generated_probe.assert_called_once()
+
+    def test_account_phase_can_explicitly_omit_both_mcp_probe_families(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".chaos-engine").mkdir()
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"schemaVersion": 2, "components": {}, "commands": {}}),
+                encoding="utf-8",
+            )
+            healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
+            with mock.patch.object(
+                module, "run_checked", return_value=CompletedProcess([], 0, healthy, "")
+            ), mock.patch.object(module, "probe_project_mcps") as project_probe, mock.patch.object(
+                module, "probe_generated_mcps"
+            ) as generated_probe:
+                module.verify_account_phase(project, "a" * 40, probe_generated=False)
+
+        project_probe.assert_not_called()
+        generated_probe.assert_not_called()
+
+    def test_windows_base_reconstruction_uses_discovered_account_commands(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            project.mkdir()
+            account = root / "account"
+            owned = account / "bin/mempalace"
+            owned.parent.mkdir(parents=True)
+            owned.write_text("fixture", encoding="utf-8")
+            base_source = root / "base-source"
+            base_source.mkdir()
+            installer = mock.Mock()
+            installer.detect_distribution.return_value = "repository"
+            installer.install.return_value = project / ".chaos-engine"
+            installer.verify_install.return_value = {"capabilityPolicySha256": "digest"}
+            dependencies = mock.Mock()
+            dependencies.load_specification.return_value = {"fixture": True}
+            discovered = {"python3": sys.executable, "mempalace": str(owned)}
+            dependencies.discover_account_commands.return_value = ({}, discovered)
+            hosts = mock.Mock()
+            with mock.patch.object(
+                module, "download_commit_source", return_value=base_source
+            ), mock.patch.object(
+                module, "load_source_controller", side_effect=(installer, dependencies, hosts)
+            ):
+                module.reconstruct_windows_base(
+                    project, root / "candidate", module.KNOWN_BASE_SHA, account
+                )
+
+        installer.install.assert_called_once_with(
+            project,
+            base_source,
+            module.KNOWN_BASE_SHA,
+            source_record={
+                "kind": "git", "repository": "shafthq/shaft_engine",
+                "branch": module.KNOWN_BASE_SHA, "commit": module.KNOWN_BASE_SHA,
+            },
+            distribution="repository",
+        )
+        self.assertEqual(discovered, hosts.install.call_args.kwargs["account_commands"])
+        hosts.verify.assert_called_once_with(project, core_commit=module.KNOWN_BASE_SHA)
+
+    def test_main_rejects_an_unrecognized_base_commit_before_running_acceptance(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "evidence.json"
+            with mock.patch.object(module, "run_acceptance") as acceptance:
+                result = module.main([
+                    "--candidate-sha", "a" * 40, "--base-sha", "b" * 40,
+                    "--output", str(output),
+                ])
+            evidence = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(1, result)
+        acceptance.assert_not_called()
+        self.assertEqual("RuntimeError", evidence["failure"]["type"])
 
     def test_acceptance_source_has_no_ambient_node_or_direct_installer_shortcut(self):
         source = SCRIPT.read_text(encoding="utf-8")

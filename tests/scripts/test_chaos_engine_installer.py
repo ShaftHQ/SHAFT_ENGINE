@@ -312,6 +312,64 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("1" * 40, MODULE.status(project)["commit"])
             self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
 
+    def test_account_rollback_restores_exact_host_receipt_without_cross_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                base_hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+                _base_receipt, base_raw = base_hosts.read_receipt(project)
+                base_images = base_hosts.decode_images(_base_receipt["after"], nullable=True)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                with mock.patch.object(MODULE, "write_cross_rollback_journal") as journal:
+                    MODULE.rollback(project)
+
+            journal.assert_not_called()
+            restored_hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            _restored_receipt, restored_raw = restored_hosts.read_receipt(project)
+            self.assertEqual(base_raw, restored_raw)
+            self.assertEqual(base_images, restored_hosts.current_images(project))
+
+    def test_account_rollback_without_saved_raw_receipt_fails_without_a_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                original_load_hosts = MODULE.load_installed_controller
+
+                def load_hosts_without_receipt(installed_root, name):
+                    controller = original_load_hosts(installed_root, name)
+                    if name == "hosts" and installed_root.name == ".chaos-engine":
+                        controller.rollback_previous_receipt = lambda *_args: None
+                    return controller
+
+                with mock.patch.object(
+                    MODULE,
+                    "load_installed_controller",
+                    side_effect=load_hosts_without_receipt,
+                ), mock.patch.object(MODULE, "write_cross_rollback_journal") as journal:
+                    with self.assertRaisesRegex(ValueError, "no exact prior host receipt"):
+                        MODULE.rollback(project)
+
+            journal.assert_not_called()
+
     def test_status_reads_account_dependency_receipt_without_network_or_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

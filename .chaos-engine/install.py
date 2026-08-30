@@ -1257,8 +1257,28 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             if pending is None:
                 current_commit = str(verify_install(target)["source"]["commit"])
                 previous_commit = str(verify_install(backup)["source"]["commit"])
-                write_cross_rollback_journal(project, previous_commit, current_commit)
-                pending = {"desiredCommit": previous_commit, "priorCommit": current_commit}
+                previous_dependencies = load_dependency_controller(backup)
+                account_rollback = (
+                    hasattr(previous_dependencies, "install_account_dependencies")
+                    and (project / ".chaos-engine-dependencies.json").is_file()
+                )
+                previous_receipt = getattr(
+                    receipt_controller, "rollback_previous_receipt", None
+                )
+                if account_rollback:
+                    if not callable(previous_receipt):
+                        raise ValueError("account rollback has no exact prior host receipt")
+                    raw = previous_receipt(project, previous_commit)
+                    if not isinstance(raw, bytes):
+                        raise ValueError("account rollback has no exact prior host receipt")
+                    pending = {
+                        "desiredCommit": previous_commit,
+                        "priorCommit": current_commit,
+                        "priorHostReceipt": raw,
+                    }
+                else:
+                    write_cross_rollback_journal(project, previous_commit, current_commit)
+                    pending = {"desiredCommit": previous_commit, "priorCommit": current_commit}
             desired_commit = pending["desiredCommit"]
             prior_commit = pending["priorCommit"]
             target_commit = str(verify_install(target)["source"]["commit"])
@@ -1339,35 +1359,51 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                     if isinstance(prior_host_receipt, bytes)
                     else None
                 )
-                desired_manifest = verify_install(target)
-                previous_hosts.install(
-                    project,
-                    core_commit=desired_commit,
-                    capability_policy_digest=desired_manifest.get("capabilityPolicySha256"),
-                    dependency_runtime=(
-                        project / getattr(previous_dependencies, "GENERATIONS_NAME", ".chaos-engine-runtime-generations") / generation_previous["generationId"]
-                        if generation_previous is not None else None
-                    ),
+                restored_prior_host_receipt = (
+                    previous_account_mode and prior_host_receipt_value is not None
                 )
-                restored_host_receipt, _ = previous_hosts.read_receipt(project)
-                if isinstance(restored_host_receipt.get("clientActivation"), dict):
-                    previous_hosts.activate_detected_plugins(project)
-                if generation_previous is not None:
-                    restored_host_receipt, restored_host_raw = previous_hosts.read_receipt(
-                        project
+                if restored_prior_host_receipt:
+                    _current_receipt, current_raw = previous_hosts.read_receipt(project)
+                    current_images = previous_hosts.current_images(project)
+                    prior_after = previous_hosts.decode_images(
+                        prior_host_receipt_value["after"], nullable=True
                     )
-                    previous_hosts.apply_hook_receipt(
-                        restored_host_receipt,
-                        previous_hosts.decode_images(
-                            restored_host_receipt["before"], nullable=True
-                        ),
-                        previous_hosts.decode_images(
-                            restored_host_receipt["after"], nullable=True
-                        ),
+                    previous_hosts.reconcile(
+                        project, prior_after, (current_images, prior_after)
                     )
                     previous_hosts.write_receipt(
-                        project, restored_host_receipt, restored_host_raw
+                        project, prior_host_receipt_value, current_raw
                     )
+                else:
+                    desired_manifest = verify_install(target)
+                    previous_hosts.install(
+                        project,
+                        core_commit=desired_commit,
+                        capability_policy_digest=desired_manifest.get("capabilityPolicySha256"),
+                        dependency_runtime=(
+                            project / getattr(previous_dependencies, "GENERATIONS_NAME", ".chaos-engine-runtime-generations") / generation_previous["generationId"]
+                            if generation_previous is not None else None
+                        ),
+                    )
+                    restored_host_receipt, _ = previous_hosts.read_receipt(project)
+                    if isinstance(restored_host_receipt.get("clientActivation"), dict):
+                        previous_hosts.activate_detected_plugins(project)
+                    if generation_previous is not None:
+                        restored_host_receipt, restored_host_raw = previous_hosts.read_receipt(
+                            project
+                        )
+                        previous_hosts.apply_hook_receipt(
+                            restored_host_receipt,
+                            previous_hosts.decode_images(
+                                restored_host_receipt["before"], nullable=True
+                            ),
+                            previous_hosts.decode_images(
+                                restored_host_receipt["after"], nullable=True
+                            ),
+                        )
+                        previous_hosts.write_receipt(
+                            project, restored_host_receipt, restored_host_raw
+                        )
                 previous_dependencies = load_dependency_controller(target)
                 if (
                     generation_previous is not None
@@ -1417,7 +1453,9 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 journal_path.unlink()
             if transaction_path.exists():
                 transaction_path.rmdir()
-            if prior_host_receipt_value is not None:
+            if restored_prior_host_receipt:
+                pass
+            elif prior_host_receipt_value is not None:
                 prior_after = previous_hosts.decode_images(
                     prior_host_receipt_value["after"], nullable=True
                 )
