@@ -222,10 +222,9 @@ automatically while work is live. [Roles](../../references/roles.md) owns role
 boundaries. The main orchestrator stays available, performs its implicit Scrum
 master duties, and owns the sole terminal Learning Session.
 
-Implementation follows [TDD](../../references/tdd.md). The selected project
-profile may add a delivery loop such as SHAFT's
-[PDCA playbook](../../profiles/shaft/references/playbooks/agentic-pdca-loop.md)
-without redefining the workflow or roles.
+Implementation follows [TDD and its PDCA boundary](../../references/tdd.md#workflow).
+The selected project profile may link its concrete PDCA playbook without
+redefining the workflow or roles.
 
 Capability comes in three levels on every host: most intelligent, default, and
 mechanical. Name them that way, never by provider or product.

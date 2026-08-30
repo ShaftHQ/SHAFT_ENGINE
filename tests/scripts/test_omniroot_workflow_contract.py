@@ -24,8 +24,7 @@ class OmniRootWorkflowContractTest(unittest.TestCase):
         for target in (
             "execution-workflows.md",
             "omniroot/SKILL.md",
-            "tdd.md",
-            "agentic-pdca-loop.md",
+            "tdd.md#workflow",
             "roles.md",
             "delegation.md",
             "orchestrator-follow-through.md",
