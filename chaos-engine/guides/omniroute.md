@@ -10,7 +10,7 @@ This is an integration guide, not part of ChaosEngine's installer or runtime.
 ChaosEngine does not install OmniRoute, create provider accounts, retain
 provider credentials, start a service, or choose a provider on your behalf.
 
-> **Research snapshot — 2026-08-29.** Commands and provider/model identifiers
+> **Research snapshot — 2026-08-30.** Commands and provider/model identifiers
 > below were reviewed against OmniRoute `v3.8.50`. Its own
 > [free-tier catalogue](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/reference/FREE_TIERS.md)
 > labels free allowances as estimates and says they change frequently. Before
@@ -78,11 +78,12 @@ omniroute --version
 omniroute doctor --no-liveness
 ```
 
-Start it only when needed. `HOST=127.0.0.1` keeps the gateway on loopback; do
-not bind it to a LAN address or expose it through a tunnel.
+Start it only when needed. `OMNIROUTE_SERVER_HOST=127.0.0.1` keeps the gateway
+on loopback; do not bind it to a LAN address or expose it through a tunnel.
+`HOST` is not OmniRoute's cross-platform bind setting.
 
 ```bash
-HOST=127.0.0.1 omniroute serve --port 20128 --no-open
+OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open
 ```
 
 In a separate terminal, verify the service and only then open the local
@@ -111,35 +112,35 @@ by this guide.
 
 ### Optional disabled systemd user unit
 
-Use this only after on-demand operation and route tests work. First resolve the
-actual executable and preserve it through Node/NVM updates:
+Use this only after on-demand operation and route tests work. Generate a unit
+from current absolute Node and OmniRoute paths; this makes it work under NVM
+without hard-coding another user's paths. Regenerate it after every Node/NVM
+or OmniRoute update:
 
 ```bash
-command -v omniroute
+mkdir -p "$HOME/.config/systemd/user"
+readonly omniroute_bin="$(command -v omniroute)"
+readonly node_bin="$(command -v node)"
+readonly node_dir="$(dirname "$node_bin")"
+[[ -x "$omniroute_bin" && -x "$node_bin" ]] || {
+  printf '%s\n' 'Resolve supported Node and OmniRoute before creating this unit.' >&2
+  exit 1
+}
+{
+  printf '%s\n' '[Unit]' 'Description=OmniRoute local gateway' 'After=network-online.target'
+  printf '%s\n' '' '[Service]' 'Type=simple'
+  printf '%s\n' 'Environment="OMNIROUTE_SERVER_HOST=127.0.0.1"'
+  printf 'Environment="PATH=%s:/usr/local/bin:/usr/bin:/bin"\n' "$node_dir"
+  printf 'ExecStart="%s" serve --port 20128 --no-open\n' "$omniroute_bin"
+  printf '%s\n' 'Restart=on-failure' 'RestartSec=5' '' '[Install]' 'WantedBy=default.target'
+} > "$HOME/.config/systemd/user/omniroute.service"
+systemd-analyze --user verify "$HOME/.config/systemd/user/omniroute.service"
 ```
 
-Create `~/.config/systemd/user/omniroute.service` with the exact absolute path
-printed above substituted for `<absolute-path-to-omniroute>`:
-
-```ini
-[Unit]
-Description=OmniRoute local gateway
-After=network-online.target
-
-[Service]
-Type=simple
-Environment=HOST=127.0.0.1
-ExecStart=<absolute-path-to-omniroute> serve --port 20128 --no-open
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-```
-
-Keep upstream credentials out of this file. After every Node/NVM update,
-re-resolve `command -v omniroute` and update `ExecStart` before restarting.
-The unit remains disabled until explicitly enabled:
+This writes both a loopback-only `OMNIROUTE_SERVER_HOST` and an absolute
+`ExecStart`; `PATH` contains the active NVM Node directory. Keep upstream
+credentials out of this file. The unit remains disabled until explicitly
+enabled:
 
 ```bash
 systemctl --user daemon-reload
@@ -172,11 +173,11 @@ privacy.
 | --- | --- | --- | --- | --- |
 | 1 — recommended | [Groq Console](https://console.groq.com/) | `openai/gpt-oss-120b` / `groq` | Create account, verify email, create API key, save as `GROQ_API_KEY`. Groq publishes free-plan limits; its current page lists 1,000 requests/day and 200K tokens/day for this model family. | Shared organization limits; low minute limits can bind first. Personal/internal use only; do not expose the gateway to others. |
 | 2 — verified default | [Google AI Studio](https://aistudio.google.com/) | `gemini-2.5-flash` / `gemini` | Create account, verify email, create API key, save as `GEMINI_API_KEY`. Before adding it, manually confirm **AI Studio Plan = Free** and that no Cloud Billing account is attached. Current limits are visible only in AI Studio. | Verified on the reviewed machine with a restricted local endpoint key. Google free-tier handling can include training and human review: public, non-sensitive prompts only. `gemini-3.7-flash` returned high-demand HTTP 503 and is not admitted. |
-| 3 — not admitted by default | [Pollinations](https://enter.pollinations.ai/) | current model ID discovered live / `pollinations` | Do not treat no-key registration as a usable route. On the reviewed machine, no-key registration failed and the documented `qwen-coder` target returned 404. Use a personal key only if the current service terms permit it, then discover and test an exact model. | Anonymous access is unstable/credit-gated. OmniRoute's fingerprint/session pool conflicts with this guide's anti-bot boundary. Keep out of the initial combo. |
-| 4 — not admitted by default | [UncloseAI](https://uncloseai.com/) | current model ID discovered live / `uncloseai` | Do not rely on stale built-in IDs. The live `lorbus` model accepted chat on the reviewed machine, but tool use returned HTTP 500. Add no target until both tests pass. | No durable privacy commitment or reliable tool-use proof. Keep out of the initial combo. |
-| 5 — conditional | [Mistral Console](https://console.mistral.ai/) | `codestral-latest` / `mistral` | Create account, verify email, create an API key, save as `MISTRAL_API_KEY`. OmniRoute's audited catalogue records a 1B-token/month shared pool, but confirm the live console before relying on it. | Signup/eligibility and quota can change; confirm no paid overage or card requirement before enabling. |
-| 6 — conditional | [SambaNova Cloud](https://cloud.sambanova.ai/) | `DeepSeek-V3.2` / `sambanova` | Create account, verify email, create key, save as `SAMBANOVA_API_KEY`. OmniRoute catalog estimates a shared 6M-token/month recurring pool. | Review privacy/terms and regional access; published onboarding details can change. |
-| 7 — trial-only | [Cerebras Cloud](https://cloud.cerebras.ai/) | `gpt-oss-120b` / `cerebras` | Create account, verify email, create key, save as `CEREBRAS_API_KEY`. OmniRoute catalog records a no-card 1M-token/day free trial (about 30M/month). | Treat as finite trial capacity: confirm expiry, account gate, and model access in the current console. |
+| 3 — conditional | [Mistral Console](https://console.mistral.ai/) | `codestral-latest` / `mistral` | Create account, verify email, create an API key, save as `MISTRAL_API_KEY`. OmniRoute's audited catalogue records a 1B-token/month shared pool, but confirm the live console before relying on it. | Signup/eligibility and quota can change; confirm no paid overage or card requirement before enabling. |
+| 4 — conditional | [SambaNova Cloud](https://cloud.sambanova.ai/) | `DeepSeek-V3.2` / `sambanova` | Create account, verify email, create key, save as `SAMBANOVA_API_KEY`. OmniRoute catalog estimates a shared 6M-token/month recurring pool. | Review privacy/terms and regional access; published onboarding details can change. |
+| 5 — conditional, $0 tier | [Cerebras Cloud](https://cloud.cerebras.ai/) | `gpt-oss-120b` / `cerebras` | Create account, verify email, create key, save as `CEREBRAS_API_KEY`. Current $0 Free tier: 64K TPM, 1M TPH, 1M TPD, 30 RPM, 900 RPH, and 14.4K RPD for `gpt-oss-120b`; limits refill continuously. Pricing also advertises $5 initial account credits. | Free limits are organization-wide; daily quota, exact model access, and the account's current $0 tier must be visible in the console before use. No paid fallback. |
+| 6 — conditional, prototype-only | [NVIDIA API Catalog](https://build.nvidia.com/) | `mistralai/devstral-2-123b-instruct-2512` / `nvidia` | Join NVIDIA Developer, accept API Catalog terms, create an API key, save as `NVIDIA_API_KEY`, then confirm live quota and model access. NVIDIA offers hosted NIM endpoints free for prototyping, not production. | NVIDIA does not publish a stable numeric allowance for every model; rate-limit and model availability vary. Test Responses and tools before admission. |
+| 7 — conditional, light free use | [Ollama](https://ollama.com/) | `gpt-oss:120b` / `ollama-cloud` | Create account, create an API key, save as `OLLAMA_API_KEY`. Free includes cloud-model access with light usage; session limits reset every five hours and weekly limits every seven days. | Free capacity is not a fixed token grant. Confirm the model is available to Free before use; no paid usage/overage is enabled by this guide. |
 | 8 — conditional | [OpenRouter Keys](https://openrouter.ai/keys) | an explicit current `:free` model / `openrouter` | Create account, create key, save as `OPENROUTER_API_KEY`, then select one specific free model from the live catalogue. Its free pool is request-limited; never use `auto` as a no-cost guarantee. | Multi-provider routing changes privacy/data handling. A paid top-up changes quota and is outside this guide. |
 | 9 — conditional | [Hugging Face tokens](https://huggingface.co/settings/tokens) | `deepseek-ai/DeepSeek-V3` / `huggingface` | Create account, verify email, accept model terms when prompted, create a fine-grained inference token, save as `HF_TOKEN`. OmniRoute catalog estimates a small shared monthly pool (about 200K tokens). | Third-party inference routing and model licenses apply; not enough capacity for routine coding delegation. |
 | 10 — conditional | [Cloudflare dashboard](https://dash.cloudflare.com/) | `@cf/qwen/qwen2.5-coder-32b-instruct` / `cloudflare-ai` | Create account, create a Workers AI API token with least privilege, save as `CLOUDFLARE_API_TOKEN`, and record account ID only outside the repository. Cloudflare publishes 10,000 Neurons/day; the limit resets at 00:00 UTC. | Practical coding volume depends on model Neuron price. Some frontier models require Workers Paid or prepaid credit. |
@@ -201,6 +202,10 @@ omniroute providers add sambanova --credential-env SAMBANOVA_API_KEY --yes \
   --default-model DeepSeek-V3.2
 omniroute providers add cerebras --credential-env CEREBRAS_API_KEY --yes \
   --default-model gpt-oss-120b
+omniroute providers add nvidia --credential-env NVIDIA_API_KEY --yes \
+  --default-model mistralai/devstral-2-123b-instruct-2512
+omniroute providers add ollama-cloud --credential-env OLLAMA_API_KEY --yes \
+  --default-model gpt-oss:120b
 omniroute providers add openrouter --credential-env OPENROUTER_API_KEY --yes \
   --default-model '<verified-free-model-id>'
 omniroute providers add huggingface --credential-env HF_TOKEN --yes \
@@ -213,12 +218,12 @@ omniroute providers test groq
 omniroute providers validate
 ```
 
-Do not run `providers add ... --no-credential` for Pollinations or UncloseAI
-as an initial route. Their reviewed keyless claims did not survive live
-validation. If you later evaluate either route, use a separate disposable
-connection, select a currently discovered exact model, and remove it after a
-failed Responses or tool-use test; never use fingerprint/session-pool features
-to make it work.
+Do not add Pollinations or UncloseAI as an initial route. Their reviewed
+keyless claims did not survive live validation: Pollinations registration failed
+and its documented `qwen-coder` target returned 404; UncloseAI's `lorbus`
+accepted chat but returned HTTP 500 for tool use. Keep both out of the ranked
+recommendations and never use fingerprint/session-pool features to make either
+route work.
 
 `providers test` can intentionally skip a no-auth connection because no API key
 probe exists. That is not proof of working inference. Test every exact target
@@ -349,7 +354,7 @@ different user's absolute path or credentials. The launcher needs mode 700 and
 the environment file needs mode 600:
 
 ```bash
-mkdir -p "$HOME/.config/omniroute"
+mkdir -p "$HOME/.config/omniroute" "$HOME/.local/bin"
 chmod 700 "$HOME/.config/omniroute"
 ```
 
@@ -376,10 +381,13 @@ exec codex --profile omniroute-free --disable apps "$@"
 chmod 700 "$HOME/.local/bin/chaosengine-omniroute"
 ```
 
-The secret file contains only an `OMNIROUTE_API_KEY` assignment for the
+The secret file contains only a quoted `OMNIROUTE_API_KEY` assignment for the
 dedicated restricted endpoint key, for example
-`OMNIROUTE_API_KEY=<retrieve-from-your-secret-manager>`. Do not place an
-upstream Gemini key there. Start a bounded free session with:
+`OMNIROUTE_API_KEY='retrieve-from-your-secret-manager'`. Prefer retrieving the
+value from an operating-system secret manager when creating that file (for
+example, `secret-tool lookup service omniroute key chaosengine-free-coding` on
+Linux) instead of typing it. Do not place an upstream Gemini key there. Start a
+bounded free session with:
 
 ```bash
 chmod 600 "$HOME/.config/omniroute/chaosengine-free-coding.env"
@@ -487,4 +495,7 @@ used first for the reviewed release.
 - [OmniRoute v3.8.50 quick start](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/getting-started/QUICK-START.md)
 - [Groq free-plan rate limits](https://console.groq.com/docs/rate-limits)
 - [Google AI Studio](https://aistudio.google.com/)
+- [Cerebras pricing](https://www.cerebras.ai/pricing) and [Free-tier rate limits](https://inference-docs.cerebras.ai/support/rate-limits)
+- [NVIDIA NIM hosted-endpoint terms](https://docs.api.nvidia.com/nim/docs/run-anywhere) and [API Catalog](https://build.nvidia.com/)
+- [Ollama pricing](https://ollama.com/pricing) and [Ollama Cloud API](https://docs.ollama.com/cloud)
 - [Cloudflare Workers AI pricing and free allowance](https://developers.cloudflare.com/workers-ai/platform/pricing/)
