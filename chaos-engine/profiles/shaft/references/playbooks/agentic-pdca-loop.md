@@ -23,3 +23,6 @@ agents, workflows, or orchestrators. Bob takes at most three implementation
 rounds. Bruce judges the actual diff plus real checks, never a self-report;
 hunt stubs and weakened assertions. Gaps are closed by whoever the mode says
 implements. Record which phase produced each commit.
+
+## Workflow
+See [execution-workflows.md](../../../execution-workflows.md). Focused RED/GREEN/REFACTOR runs occur in PDCA Do while consolidated Check follows complete impl/final scope commit.

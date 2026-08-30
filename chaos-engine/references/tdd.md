@@ -23,3 +23,6 @@ Mocks, or the urge to skip RED: [TDD failure modes](tdd-failure-modes.md).
 
 Caveman, Ponytail, and TDD adaptations retain their MIT notices under
 `references/*.LICENSE`.
+
+## Workflow
+See [execution-workflows.md](execution-workflows.md). Focused RED/GREEN/REFACTOR runs occur in PDCA Do while consolidated Check follows complete impl/final scope commit.
