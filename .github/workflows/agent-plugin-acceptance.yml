@@ -55,6 +55,7 @@ jobs:
             tests.scripts.test_chaos_engine_live_installer_acceptance
             tests.scripts.test_chaos_engine_promotion
             tests.scripts.test_chaos_engine_portable_core
+            tests.scripts.test_omniroot_portability
             tests.scripts.test_chaos_engine_research
             tests.scripts.test_delivery_status
             tests.scripts.test_extract_allure_failures

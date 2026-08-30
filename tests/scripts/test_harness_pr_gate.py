@@ -592,8 +592,17 @@ class OutputAndWorkflowTest(unittest.TestCase):
             "  chaos-engine-cross-platform:", 1
         )[0]
         self.assertIn("tests.scripts.test_agent_harness_portability", deterministic)
+        self.assertIn("tests.scripts.test_omniroot_portability", deterministic)
         self.assertIn("tests.scripts.test_guard_lifecycle", deterministic)
         self.assertIn("tests.scripts.test_chaos_engine_generation_runtime", deterministic)
+
+    def test_omniroot_portability_is_registered_in_focused_path_gate(self) -> None:
+        plan = classify_paths(["tests/scripts/test_omniroot_portability.py"])
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+
+        self.assertIn("guidance", plan.surfaces)
+        self.assertIn("tests.scripts.test_omniroot_portability", plan.test_modules)
+        self.assertIn("'tests/scripts/test_omniroot_portability.py'", pr_gate)
 
     def test_host_parity_evidence_can_live_in_scheduled_exhaustive_suite(self) -> None:
         errors = validate_host_parity(ROOT)

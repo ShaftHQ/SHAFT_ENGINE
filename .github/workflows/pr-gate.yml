@@ -160,6 +160,7 @@ jobs:
               - 'tests/scripts/test_agent_plugin_release.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_agent_harness_reachability.py'
+              - 'tests/scripts/test_omniroot_portability.py'
               - 'tests/scripts/test_guard_nul_corruption.py'
               - 'tests/scripts/test_guard_memory_worktree.py'
               - 'tests/scripts/test_guard_lifecycle.py'
