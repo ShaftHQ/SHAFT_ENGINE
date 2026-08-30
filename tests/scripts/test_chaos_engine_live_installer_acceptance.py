@@ -181,6 +181,26 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         commands = {call.args[0][2] for call in probe.call_args_list}
         self.assertEqual({"memory-mcp", "mempalace-mcp"}, commands)
 
+    def test_scheduled_live_acceptance_pins_the_immutable_base(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
+        block = workflow[
+            workflow.index("  chaos-engine-live-installer:"):
+            workflow.index("  harness-platform-contracts:")
+        ]
+
+        self.assertIn("--candidate-sha ${{ github.sha }}", block)
+        self.assertEqual(
+            "1dec809c7c43709a8fcceef5e53690d124012eb3", module.KNOWN_BASE_SHA
+        )
+        self.assertIn(f"--base-sha {module.KNOWN_BASE_SHA}", block)
+        self.assertNotIn("git rev-parse HEAD^", block)
+
     def test_project_mcp_probe_never_supplies_mempalace_storage_arguments(self):
         module = load_acceptance()
         self.assertIsNotNone(module)
