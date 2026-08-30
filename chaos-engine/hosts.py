@@ -4026,27 +4026,36 @@ def rollback_previous_account_receipt(
 
 
 def validate_rollback_mempalace_state(value: object) -> dict[str, object]:
-    """Validate the candidate after-image used to remove only generated state."""
-    if not isinstance(value, dict) or set(value) != {"beforeAbsent", "after"}:
+    """Validate authenticated per-file base and candidate MemPalace state images."""
+    if not isinstance(value, dict) or set(value) != {"before", "after"}:
         raise ValueError("ChaosEngine MemPalace rollback state is invalid")
-    before_absent = value.get("beforeAbsent")
+    before = value.get("before")
     after = value.get("after")
-    if not isinstance(before_absent, bool) or not isinstance(after, dict):
+    if not isinstance(before, dict) or not isinstance(after, dict):
         raise ValueError("ChaosEngine MemPalace rollback state is invalid")
-    normalized: dict[str, str] = {}
-    for relative, digest in after.items():
-        path = PurePosixPath(relative) if isinstance(relative, str) else None
-        if (
-            path is None
-            or path.is_absolute()
-            or not path.parts
-            or any(part in {"", ".", ".."} for part in path.parts)
-            or not isinstance(digest, str)
-            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
-        ):
+    normalized: list[dict[str, object]] = []
+    for image in (before, after):
+        if set(image) != {"exists", "files"}:
             raise ValueError("ChaosEngine MemPalace rollback state is invalid")
-        normalized[relative] = digest
-    return {"beforeAbsent": before_absent, "after": normalized}
+        exists = image.get("exists")
+        files = image.get("files")
+        if not isinstance(exists, bool) or not isinstance(files, dict):
+            raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+        file_images: dict[str, str] = {}
+        for relative, digest in files.items():
+            path = PurePosixPath(relative) if isinstance(relative, str) else None
+            if (
+                path is None
+                or path.is_absolute()
+                or not path.parts
+                or any(part in {"", ".", ".."} for part in path.parts)
+                or not isinstance(digest, str)
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise ValueError("ChaosEngine MemPalace rollback state is invalid")
+            file_images[relative] = digest
+        normalized.append({"exists": exists, "files": file_images})
+    return {"before": normalized[0], "after": normalized[1]}
 
 
 def rollback_previous_mempalace_state(

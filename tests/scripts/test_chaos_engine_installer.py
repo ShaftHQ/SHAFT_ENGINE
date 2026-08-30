@@ -423,6 +423,89 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             self.assertEqual(b"user changed", state.read_bytes())
 
+    def test_account_rollback_restores_legacy_marker_without_candidate_sqlite(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_legacy_marker(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    palace = args[0] / ".chaos-engine-state/mempalace"
+                    palace.mkdir(parents=True, exist_ok=True)
+                    if len(calls) == 1:
+                        palace.joinpath(".mined").write_bytes(b"legacy base\n")
+                    else:
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(
+                            b"candidate sqlite"
+                        )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_legacy_marker
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                MODULE.rollback(project)
+
+            palace = project / ".chaos-engine-state/mempalace"
+            self.assertEqual(b"legacy base\n", palace.joinpath(".mined").read_bytes())
+            self.assertFalse(palace.joinpath("sqlite_exact.sqlite3").exists())
+
+    def test_account_rollback_rejects_extra_candidate_state_after_legacy_marker(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_legacy_marker(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    palace = args[0] / ".chaos-engine-state/mempalace"
+                    palace.mkdir(parents=True, exist_ok=True)
+                    if len(calls) == 1:
+                        palace.joinpath(".mined").write_bytes(b"legacy base\n")
+                    else:
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(
+                            b"candidate sqlite"
+                        )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_legacy_marker
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                project.joinpath(
+                    ".chaos-engine-state/mempalace/unexpected.sqlite3"
+                ).write_bytes(b"foreign")
+                with self.assertRaisesRegex(ValueError, "candidate MemPalace state changed"):
+                    MODULE.rollback(project)
+
+            self.assertEqual(
+                b"foreign",
+                project.joinpath(
+                    ".chaos-engine-state/mempalace/unexpected.sqlite3"
+                ).read_bytes(),
+            )
+
     def test_account_rollback_without_saved_raw_receipt_fails_without_a_journal(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

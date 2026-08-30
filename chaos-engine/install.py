@@ -568,41 +568,62 @@ def project_setup_after_images(project: Path) -> dict[str, dict[str, str]]:
 def mempalace_rollback_image(
     before: tuple[bool, dict[str, str]], after: tuple[bool, dict[str, str]]
 ) -> dict[str, object]:
-    """Record candidate state only when the immutable base had no local palace."""
+    """Record exact per-file state so rollback preserves the immutable base."""
     return {
-        "beforeAbsent": not before[0],
-        "after": dict(after[1]) if not before[0] else {},
+        "before": {"exists": before[0], "files": dict(before[1])},
+        "after": {"exists": after[0], "files": dict(after[1])},
     }
 
 
 def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -> None:
-    """Remove only byte-identical candidate state that was absent in the base."""
-    before_absent = image.get("beforeAbsent")
+    """Restore a base palace by deleting only unchanged candidate-created files."""
+    before = image.get("before")
     after = image.get("after")
-    if not isinstance(before_absent, bool) or not isinstance(after, dict) or any(
-        not isinstance(relative, str)
-        or not isinstance(digest, str)
-        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
-        for relative, digest in after.items()
+    if (
+        not isinstance(before, dict)
+        or not isinstance(after, dict)
+        or set(before) != {"exists", "files"}
+        or set(after) != {"exists", "files"}
     ):
         raise ValueError("account rollback has invalid MemPalace state image")
-    if not before_absent:
-        return
+    before_exists = before.get("exists")
+    after_exists = after.get("exists")
+    before_files = before.get("files")
+    after_files = after.get("files")
+    if (
+        not isinstance(before_exists, bool)
+        or not isinstance(after_exists, bool)
+        or not isinstance(before_files, dict)
+        or not isinstance(after_files, dict)
+        or any(
+            not isinstance(relative, str)
+            or not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            for files in (before_files, after_files)
+            for relative, digest in files.items()
+        )
+    ):
+        raise ValueError("account rollback has invalid MemPalace state image")
     palace = project / MEMPALACE_STATE_OUTPUT
     exists, current = project_setup_output_files(project, MEMPALACE_STATE_OUTPUT)
-    expected = dict(after)
-    if not exists:
-        if expected:
-            raise ValueError("candidate MemPalace state changed before rollback")
-        return
-    if current != expected or any(child.is_dir() for child in palace.iterdir()):
+    if exists != after_exists or current != after_files or (
+        exists and any(child.is_dir() for child in palace.iterdir())
+    ):
         raise ValueError("candidate MemPalace state changed before rollback")
-    for relative in expected:
+    if any(after_files.get(relative) != digest for relative, digest in before_files.items()):
+        raise ValueError("candidate MemPalace state changed before rollback")
+    for relative in set(after_files) - set(before_files):
         (palace / relative).unlink()
-    palace.rmdir()
-    state_root = palace.parent
-    if state_root.exists() and not any(state_root.iterdir()):
-        state_root.rmdir()
+    if not before_exists and after_exists:
+        palace.rmdir()
+        state_root = palace.parent
+        if state_root.exists() and not any(state_root.iterdir()):
+            state_root.rmdir()
+    restored_exists, restored_files = project_setup_output_files(
+        project, MEMPALACE_STATE_OUTPUT
+    )
+    if restored_exists != before_exists or restored_files != before_files:
+        raise ValueError("candidate MemPalace state changed before rollback")
 
 
 def restore_project_setup_outputs(
