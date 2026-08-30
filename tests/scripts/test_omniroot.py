@@ -184,6 +184,9 @@ class OmniRootRunnerTest(unittest.TestCase):
     def test_process_identity_has_no_hard_coded_posix_absolute_path(self):
         self.assertNotIn('"/proc/', inspect.getsource(RUNNER.process_identity))
 
+    def test_platform_preflight_has_no_hard_coded_posix_absolute_path(self):
+        self.assertNotIn('"/proc/', inspect.getsource(RUNNER._platform_preflight))
+
     def test_process_identity_parses_names_containing_spaces_and_parentheses(self):
         line = "42 (worker name) tricky) S " + " ".join(str(i) for i in range(1, 30))
         self.assertEqual("19", RUNNER._linux_start_time(line))

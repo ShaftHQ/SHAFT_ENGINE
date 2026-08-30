@@ -64,7 +64,7 @@ def default_state_path() -> Path:
 
 
 def _platform_preflight() -> None:
-    if sys.platform != "linux" or os.name != "posix" or not Path("/proc/self/stat").is_file():
+    if sys.platform != "linux" or os.name != "posix" or not Path(os.sep, "proc", "self", "stat").is_file():
         raise OmniRootError("durable process identity and tree termination are unsupported; use native fallback")
 
 
