@@ -2463,17 +2463,26 @@ def doctor_with_dependencies(
         Path(generation_path) / "uv-tools/mempalace" / scripts / python_name
         if isinstance(generation_path, str) else None
     )
-    if (
-        managed_python is None and account_commands is None
-    ) or not host_controller.mcp_runtime_healthy(
+    if managed_python is None and account_commands is not None:
+        account_python = account_commands.get("python3")
+        if isinstance(account_python, str):
+            try:
+                candidate_python = Path(account_python).resolve(strict=True)
+            except (OSError, RuntimeError):
+                candidate_python = None
+            if candidate_python is not None and candidate_python.is_file():
+                managed_python = candidate_python
+    mcp_healthy = managed_python is not None and host_controller.mcp_runtime_healthy(
         project.resolve(), managed_python, account_commands
-    ):
+    )
+    if not mcp_healthy:
         result["status"] = "recovery-required"
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
             components["mcps"]["status"] = "recovery-required"
-    hook_python = managed_python or Path(sys.executable).resolve()
-    if not host_controller.hook_runtime_healthy(project.resolve(), hook_python):
+    if managed_python is None or not host_controller.hook_runtime_healthy(
+        project.resolve(), managed_python
+    ):
         result["status"] = "recovery-required"
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("hooks"), dict):

@@ -104,12 +104,40 @@ def download_environment(base: dict[str, str] | None = None) -> dict[str, str]:
     return environment
 
 
-def wrapper_environment() -> dict[str, str]:
+def resolved_executable_parent(executable: str | None) -> str | None:
+    """Return one existing external executable parent without retaining its PATH."""
+    if not executable:
+        return None
+    try:
+        resolved = Path(executable).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    return str(resolved.parent) if resolved.is_file() else None
+
+
+def wrapper_environment(
+    base: dict[str, str] | None = None,
+    *,
+    platform_name: str | None = None,
+    git_executable: str | None = None,
+) -> dict[str, str]:
     """Keep public-wrapper acceptance independent of ambient optional hosts."""
-    environment = download_environment()
-    if os.name == "nt":
+    source = base or os.environ
+    environment = download_environment(source)
+    if (platform_name or os.name) == "nt":
         system_root = environment.get("SystemRoot", r"C:\\Windows")
-        environment["PATH"] = os.pathsep.join((str(Path(system_root) / "System32"), system_root))
+        git_parent = resolved_executable_parent(
+            git_executable if git_executable is not None else shutil.which(
+                "git", path=source.get("PATH")
+            )
+        )
+        environment["PATH"] = os.pathsep.join(
+            tuple(
+                item for item in (
+                    git_parent, str(Path(system_root) / "System32"), system_root
+                ) if item
+            )
+        )
     else:
         environment["PATH"] = os.defpath
     return environment

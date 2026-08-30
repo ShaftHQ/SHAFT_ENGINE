@@ -346,6 +346,29 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
 
         self.assertEqual(os.defpath, environment["PATH"])
 
+    def test_windows_public_wrapper_preserves_only_the_resolved_git_parent(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            git = root / "Git/cmd/git.exe"
+            git.parent.mkdir(parents=True)
+            git.write_text("fixture", encoding="utf-8")
+
+            environment = module.wrapper_environment(
+                {"PATH": str(git.parent), "UNRELATED_SECRET": "blocked"},
+                platform_name="nt",
+                git_executable=str(git),
+            )
+
+        self.assertTrue(
+            environment["PATH"].startswith(str(git.resolve().parent) + os.pathsep)
+        )
+        self.assertNotIn("blocked", environment)
+        self.assertNotIn("UNRELATED_SECRET", environment)
+
     def test_account_verification_uses_the_isolated_wrapper_environment(self):
         module = load_acceptance()
         self.assertIsNotNone(module)

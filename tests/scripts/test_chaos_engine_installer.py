@@ -1205,6 +1205,62 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual("recovery-required", result["components"]["mcps"]["status"])
 
+    def test_doctor_uses_receipt_python_for_account_mcps_and_hooks(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            account_python = root / "account/bin/python3"
+            account_python.parent.mkdir(parents=True)
+            account_python.write_text("fixture", encoding="utf-8")
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_account_python(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    receipt["commands"]["python3"] = str(account_python.resolve())
+                    args[0].joinpath(".chaos-engine-dependencies.json").write_text(
+                        json.dumps(receipt), encoding="utf-8"
+                    )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_account_python
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT)
+
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            with mock.patch.object(
+                hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
+            ), mock.patch.object(
+                hosts, "mcp_runtime_healthy", return_value=True
+            ) as mcp_probe, mock.patch.object(
+                hosts, "hook_runtime_healthy", return_value=True
+            ) as hook_probe, mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    hosts if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(mcp_probe.call_args.args[1]),
+            )
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(hook_probe.call_args.args[1]),
+            )
+
     def test_status_maps_legacy_mempalace_classifier_without_launching(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary).resolve() / "consumer"
