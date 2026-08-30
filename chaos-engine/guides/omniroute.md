@@ -172,7 +172,7 @@ privacy.
 | Rank and status | Provider and official signup | First coding model / OmniRoute ID | Free-use snapshot and account steps | Caveats |
 | --- | --- | --- | --- | --- |
 | 1 — recommended | [Groq Console](https://console.groq.com/) | `openai/gpt-oss-120b` / `groq` | Create account, verify email, create API key, save as `GROQ_API_KEY`. Groq publishes free-plan limits; its current page lists 1,000 requests/day and 200K tokens/day for this model family. | Shared organization limits; low minute limits can bind first. Personal/internal use only; do not expose the gateway to others. |
-| 2 — verified default | [Google AI Studio](https://aistudio.google.com/) | `gemini-2.5-flash` / `gemini` | Create account, verify email, create API key, save as `GEMINI_API_KEY`. Before adding it, manually confirm **AI Studio Plan = Free** and that no Cloud Billing account is attached. Current limits are visible only in AI Studio. | Verified on the reviewed machine with a restricted local endpoint key. Google free-tier handling can include training and human review: public, non-sensitive prompts only. `gemini-3.7-flash` returned high-demand HTTP 503 and is not admitted. |
+| 2 — verified default | [Google AI Studio](https://aistudio.google.com/) | `gemini-3.1-flash-lite` / `gemini` | Create account, verify email, create API key, save as `GEMINI_API_KEY`. Before adding it, manually confirm **AI Studio Plan = Free** and that no Cloud Billing account is attached. Current limits are visible only in AI Studio. | Verified on the reviewed machine with a restricted local endpoint key and a real Codex shell tool call. Google free-tier handling can include training and human review: public, non-sensitive prompts only. `gemini-2.5-flash` exhausted its free request quota, `gemini-2.5-flash-lite` returned 404 for a new user, and `gemini-3.7-flash` returned high-demand HTTP 503; none is admitted. |
 | 3 — conditional | [Mistral Console](https://console.mistral.ai/) | `codestral-latest` / `mistral` | Create account, verify email, create an API key, save as `MISTRAL_API_KEY`. OmniRoute's audited catalogue records a 1B-token/month shared pool, but confirm the live console before relying on it. | Signup/eligibility and quota can change; confirm no paid overage or card requirement before enabling. |
 | 4 — conditional | [SambaNova Cloud](https://cloud.sambanova.ai/) | `DeepSeek-V3.2` / `sambanova` | Create account, verify email, create key, save as `SAMBANOVA_API_KEY`. OmniRoute catalog estimates a shared 6M-token/month recurring pool. | Review privacy/terms and regional access; published onboarding details can change. |
 | 5 — conditional, trial-only | [Cohere Dashboard](https://dashboard.cohere.com/api-keys) | `command-a-03-2025` / `cohere` | Create an account, verify email, copy the automatically created trial key or create one, then save it as `COHERE_API_KEY`. Cohere's official docs describe a free trial key with 1,000 API calls/month and 20 Chat requests/minute. | OmniRoute 3.8.50 lists Cohere as an API-key provider with a no-card free trial; live signup requirements can change, so stop if it asks for a card, phone, KYC, or CAPTCHA. Trial capacity is for evaluation, not routine delegation. Test exact Responses and tool use before admission. |
@@ -204,7 +204,7 @@ there; never place it in repository configuration.
 omniroute providers add groq --credential-env GROQ_API_KEY --yes \
   --default-model openai/gpt-oss-120b
 omniroute providers add gemini --credential-env GEMINI_API_KEY --yes \
-  --default-model gemini-2.5-flash
+  --default-model gemini-3.1-flash-lite
 omniroute providers add mistral --credential-env MISTRAL_API_KEY --yes \
   --default-model codestral-latest
 omniroute providers add sambanova --credential-env SAMBANOVA_API_KEY --yes \
@@ -272,19 +272,17 @@ chat-completions success alone is insufficient.
 
 Do not use `auto`, `auto/coding`, “best available,” model aliases, or broad
 fallbacks as a zero-cost promise. They may select paid or unreviewed routes.
-The reviewed setup configures exactly one candidate target:
-`gemini/gemini-2.5-flash`. Current 2026-08-30 verification returned HTTP 429,
-so treat it as a retry-later free-quota failure, not as a successful admission.
-Do not add another model, paid route, or implicit fallback to make it succeed.
-Admit it only after a later direct Responses and tool-use proof. A named combo
-is optional convenience, not the target the dedicated endpoint key is permitted
-to use. If you create one, give it exactly one Gemini 2.5 Flash connection
-tuple:
+The reviewed setup configures exactly one admitted target:
+`gemini/gemini-3.1-flash-lite`. On 2026-08-30 it passed a forced function call
+and a real read-only Codex shell tool call. Do not add another model, paid route,
+or implicit fallback when it rate-limits. A named combo is optional convenience,
+not the target the dedicated endpoint key is permitted to use. If you create
+one, give it exactly one Gemini 3.1 Flash-Lite connection tuple:
 
 ```bash
 omniroute combo create chaosengine-free-coding --strategy priority \
   --models '[
-    {"providerId":"gemini","model":"gemini-2.5-flash","connectionId":"<gemini-connection-uuid>"}
+    {"providerId":"gemini","model":"gemini-3.1-flash-lite","connectionId":"<gemini-connection-uuid>"}
   ]'
 omniroute combo list
 ```
@@ -298,14 +296,14 @@ fallback target is allowed.
 
 Create a dedicated endpoint key in **Dashboard → API Keys** after the target
 exists. In that key's restriction editor, allow only the exact
-`gemini/gemini-2.5-flash` target and its Gemini connection UUID; set **No log**
+`gemini/gemini-3.1-flash-lite` target and its Gemini connection UUID; set **No log**
 enabled and `autoResolve` disabled. The 3.8.50 CLI's `keys policy set` exposes
 only a subset of those controls, so use the dashboard for the full restriction
 set. Save the key in a mode-600 user-owned environment file or an
 operating-system secret store; never in a repository or profile. Then verify a
 request with this endpoint key cannot use any other model or connection.
 
-Run a direct request against `gemini/gemini-2.5-flash`, then deliberately test
+Run a direct request against `gemini/gemini-3.1-flash-lite`, then deliberately test
 an unapproved model, a nonexistent target, and an exhausted/disabled target.
 Each must return an error, not reroute to a paid or broad automatic target. The
 reviewed restricted-token proof returned HTTP 403 for unapproved
@@ -351,7 +349,7 @@ configuration. Create an opt-in free-session profile at
 ```toml
 # OMNIROUTE_API_KEY is loaded by the launcher, not stored here.
 model_provider = "omniroute"
-model = "gemini/gemini-2.5-flash"
+model = "gemini/gemini-3.1-flash-lite"
 model_reasoning_effort = "low"
 web_search = "disabled"
 
@@ -454,7 +452,7 @@ readonly acceptance_task='Before answering, load the applicable AGENTS.md, canon
 chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only "$acceptance_task"
 ```
 
-1. Direct Responses request succeeds through `gemini/gemini-2.5-flash` and
+1. Direct Responses request succeeds through `gemini/gemini-3.1-flash-lite` and
    returns that exact route in sanitized OmniRoute evidence. HTTP 429 means
    retry later after quota recovery; it never authorizes a fallback.
 2. Harmless function-call request succeeds through that same exact target.
@@ -519,7 +517,7 @@ used first for the reviewed release.
 - [OmniRoute v3.8.50 free-tier reference](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/reference/FREE_TIERS.md)
 - [OmniRoute v3.8.50 quick start](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/getting-started/QUICK-START.md)
 - [Groq free-plan rate limits](https://console.groq.com/docs/rate-limits)
-- [Google AI Studio](https://aistudio.google.com/)
+- [Google AI Studio](https://aistudio.google.com/), [Gemini 3.1 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite), and [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing)
 - [Cohere trial-key rate limits](https://docs.cohere.com/v2/docs/rate-limits) and [trial-key onboarding](https://docs.cohere.com/v2/docs/going-live)
 - [Cerebras Free Trial rate limits and billing requirement](https://inference-docs.cerebras.ai/support/rate-limits)
 - [NVIDIA NIM hosted-endpoint terms](https://docs.api.nvidia.com/nim/docs/run-anywhere) and [API Catalog](https://build.nvidia.com/)
