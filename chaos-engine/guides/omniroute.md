@@ -175,12 +175,21 @@ privacy.
 | 2 — verified default | [Google AI Studio](https://aistudio.google.com/) | `gemini-2.5-flash` / `gemini` | Create account, verify email, create API key, save as `GEMINI_API_KEY`. Before adding it, manually confirm **AI Studio Plan = Free** and that no Cloud Billing account is attached. Current limits are visible only in AI Studio. | Verified on the reviewed machine with a restricted local endpoint key. Google free-tier handling can include training and human review: public, non-sensitive prompts only. `gemini-3.7-flash` returned high-demand HTTP 503 and is not admitted. |
 | 3 — conditional | [Mistral Console](https://console.mistral.ai/) | `codestral-latest` / `mistral` | Create account, verify email, create an API key, save as `MISTRAL_API_KEY`. OmniRoute's audited catalogue records a 1B-token/month shared pool, but confirm the live console before relying on it. | Signup/eligibility and quota can change; confirm no paid overage or card requirement before enabling. |
 | 4 — conditional | [SambaNova Cloud](https://cloud.sambanova.ai/) | `DeepSeek-V3.2` / `sambanova` | Create account, verify email, create key, save as `SAMBANOVA_API_KEY`. OmniRoute catalog estimates a shared 6M-token/month recurring pool. | Review privacy/terms and regional access; published onboarding details can change. |
-| 5 — conditional, $0 tier | [Cerebras Cloud](https://cloud.cerebras.ai/) | `gpt-oss-120b` / `cerebras` | Create account, verify email, create key, save as `CEREBRAS_API_KEY`. Current $0 Free tier: 64K TPM, 1M TPH, 1M TPD, 30 RPM, 900 RPH, and 14.4K RPD for `gpt-oss-120b`; limits refill continuously. Pricing also advertises $5 initial account credits. | Free limits are organization-wide; daily quota, exact model access, and the account's current $0 tier must be visible in the console before use. No paid fallback. |
+| 5 — conditional, trial-only | [Cohere Dashboard](https://dashboard.cohere.com/api-keys) | `command-a-03-2025` / `cohere` | Create an account, verify email, copy the automatically created trial key or create one, then save it as `COHERE_API_KEY`. Cohere's official docs describe a free trial key with 1,000 API calls/month and 20 Chat requests/minute. | OmniRoute 3.8.50 lists Cohere as an API-key provider with a no-card free trial; live signup requirements can change, so stop if it asks for a card, phone, KYC, or CAPTCHA. Trial capacity is for evaluation, not routine delegation. Test exact Responses and tool use before admission. |
 | 6 — conditional, prototype-only | [NVIDIA API Catalog](https://build.nvidia.com/) | `mistralai/devstral-2-123b-instruct-2512` / `nvidia` | Join NVIDIA Developer, accept API Catalog terms, create an API key, save as `NVIDIA_API_KEY`, then confirm live quota and model access. NVIDIA offers hosted NIM endpoints free for prototyping, not production. | NVIDIA does not publish a stable numeric allowance for every model; rate-limit and model availability vary. Test Responses and tools before admission. |
 | 7 — conditional, light free use | [Ollama](https://ollama.com/) | `gpt-oss:120b` / `ollama-cloud` | Create account, create an API key, save as `OLLAMA_API_KEY`. Free includes cloud-model access with light usage; session limits reset every five hours and weekly limits every seven days. | Free capacity is not a fixed token grant. Confirm the model is available to Free before use; no paid usage/overage is enabled by this guide. |
 | 8 — conditional | [OpenRouter Keys](https://openrouter.ai/keys) | an explicit current `:free` model / `openrouter` | Create account, create key, save as `OPENROUTER_API_KEY`, then select one specific free model from the live catalogue. Its free pool is request-limited; never use `auto` as a no-cost guarantee. | Multi-provider routing changes privacy/data handling. A paid top-up changes quota and is outside this guide. |
 | 9 — conditional | [Hugging Face tokens](https://huggingface.co/settings/tokens) | `deepseek-ai/DeepSeek-V3` / `huggingface` | Create account, verify email, accept model terms when prompted, create a fine-grained inference token, save as `HF_TOKEN`. OmniRoute catalog estimates a small shared monthly pool (about 200K tokens). | Third-party inference routing and model licenses apply; not enough capacity for routine coding delegation. |
 | 10 — conditional | [Cloudflare dashboard](https://dash.cloudflare.com/) | `@cf/qwen/qwen2.5-coder-32b-instruct` / `cloudflare-ai` | Create account, create a Workers AI API token with least privilege, save as `CLOUDFLARE_API_TOKEN`, and record account ID only outside the repository. Cloudflare publishes 10,000 Neurons/day; the limit resets at 00:00 UTC. | Practical coding volume depends on model Neuron price. Some frontier models require Workers Paid or prepaid credit. |
+
+### Excluded near miss: Cerebras
+
+Cerebras is intentionally not in this shortlist. Its current official rate-limit
+page says the Free Trial gives new accounts $5 in credits **only after adding a
+verified payment method**, expires after 30 days, and has no permanently free
+tier. The same page lists `gpt-oss-120b` at 5 RPM and 30K TPM. That conflicts
+with this guide's no-card and recurring-free requirements, even though
+OmniRoute supports Cerebras. Do not add it as a substitute or workaround.
 
 ### Add and test each provider
 
@@ -200,8 +209,8 @@ omniroute providers add mistral --credential-env MISTRAL_API_KEY --yes \
   --default-model codestral-latest
 omniroute providers add sambanova --credential-env SAMBANOVA_API_KEY --yes \
   --default-model DeepSeek-V3.2
-omniroute providers add cerebras --credential-env CEREBRAS_API_KEY --yes \
-  --default-model gpt-oss-120b
+omniroute providers add cohere --credential-env COHERE_API_KEY --yes \
+  --default-model command-a-03-2025
 omniroute providers add nvidia --credential-env NVIDIA_API_KEY --yes \
   --default-model mistralai/devstral-2-123b-instruct-2512
 omniroute providers add ollama-cloud --credential-env OLLAMA_API_KEY --yes \
@@ -263,11 +272,14 @@ chat-completions success alone is insufficient.
 
 Do not use `auto`, `auto/coding`, “best available,” model aliases, or broad
 fallbacks as a zero-cost promise. They may select paid or unreviewed routes.
-The reviewed setup admits exactly one stable target:
-`gemini/gemini-2.5-flash`. It must fail at quota exhaustion rather than bill or
-fall back. A named combo is optional convenience, not the target the dedicated
-endpoint key is permitted to use. If you create one, give it exactly one
-Gemini 2.5 Flash connection tuple:
+The reviewed setup configures exactly one candidate target:
+`gemini/gemini-2.5-flash`. Current 2026-08-30 verification returned HTTP 429,
+so treat it as a retry-later free-quota failure, not as a successful admission.
+Do not add another model, paid route, or implicit fallback to make it succeed.
+Admit it only after a later direct Responses and tool-use proof. A named combo
+is optional convenience, not the target the dedicated endpoint key is permitted
+to use. If you create one, give it exactly one Gemini 2.5 Flash connection
+tuple:
 
 ```bash
 omniroute combo create chaosengine-free-coding --strategy priority \
@@ -410,9 +422,10 @@ The built-in all-free subagent path returns
 `multi_agent_v1_spawn_agent` unsupported. A ChatGPT-authenticated parent also
 rejects a cross-provider Gemini child. Named personal files such as
 `omniroute_explorer.toml`, `omniroute_worker.toml`, and
-`omniroute_tester.toml` are experimental/future wiring only; do not create or
-recommend them as a working delegation mechanism. Re-evaluate only after both
-host limitations are resolved and the full acceptance sequence below passes.
+`omniroute_tester.toml` are **not installed**. They remain inactive/quarantined
+future wiring; do not create or recommend them as a working delegation
+mechanism. Re-evaluate only after both host limitations are resolved and the
+full acceptance sequence below passes.
 
 Do not move architecture, terminal review, or confidential work to this
 separate free session. Apps must remain disabled in its dedicated profile until
@@ -436,14 +449,24 @@ omniroute combo list
 
 Then prove the exact admitted route before relying on it:
 
+```bash
+readonly acceptance_task='Before answering, load the applicable AGENTS.md, canonical ChaosEngine core, Caveman, Ponytail, selected SHAFT profile, and selected role. Run pwd. Return loaded file paths, role name, exact pwd command, its output, and git status --short before and after. Do not edit files or use network tools.'
+chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only "$acceptance_task"
+```
+
 1. Direct Responses request succeeds through `gemini/gemini-2.5-flash` and
-   returns that exact route in sanitized OmniRoute evidence.
+   returns that exact route in sanitized OmniRoute evidence. HTTP 429 means
+   retry later after quota recovery; it never authorizes a fallback.
 2. Harmless function-call request succeeds through that same exact target.
 3. The unapproved `gemini/gemini-3.7-flash` request with the restricted
    endpoint key returns HTTP 403, as shown above; it must not route elsewhere.
 4. `chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only '<bounded task>'`
-   succeeds as a separate process. The task reports the loaded `AGENTS.md`,
-   canonical ChaosEngine skill, role, exact command, and decisive output.
+   succeeds as a separate process. Its bounded task must first load and report
+   the applicable `AGENTS.md`, canonical ChaosEngine core, Caveman, Ponytail,
+   selected SHAFT profile, and selected role; then run `pwd` and return its
+   exact command and decisive output. Inspect sanitized OmniRoute route
+   evidence for that exact process and prove `git status --short` is empty
+   before and after: no repository change is allowed.
 5. Built-in `spawn_agent` is not an acceptance test until it stops returning
    `multi_agent_v1_spawn_agent` unsupported. Do not treat a parent-model reply
    as proof that the free route ran.
@@ -463,7 +486,9 @@ created” is a valid status; do not fabricate account completion.
   foreground, inspect sanitized output, and check `ss -ltnp | rg ':20128'`.
   Never change the listener to a public interface as a workaround.
 - **A provider returns 401/403/429:** confirm the account, key scope, current
-  quota, and provider terms. Do not create another account or bypass controls.
+  quota, and provider terms. For Gemini HTTP 429, wait for quota recovery and
+  retest the same exact target; never add a fallback. Do not create another
+  account or bypass controls.
 - **A model is missing or tool calls fail:** refresh the provider's current
   catalogue, retest the exact ID, and remove it from the selected route until
   it works.
@@ -495,7 +520,8 @@ used first for the reviewed release.
 - [OmniRoute v3.8.50 quick start](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/getting-started/QUICK-START.md)
 - [Groq free-plan rate limits](https://console.groq.com/docs/rate-limits)
 - [Google AI Studio](https://aistudio.google.com/)
-- [Cerebras pricing](https://www.cerebras.ai/pricing) and [Free-tier rate limits](https://inference-docs.cerebras.ai/support/rate-limits)
+- [Cohere trial-key rate limits](https://docs.cohere.com/v2/docs/rate-limits) and [trial-key onboarding](https://docs.cohere.com/v2/docs/going-live)
+- [Cerebras Free Trial rate limits and billing requirement](https://inference-docs.cerebras.ai/support/rate-limits)
 - [NVIDIA NIM hosted-endpoint terms](https://docs.api.nvidia.com/nim/docs/run-anywhere) and [API Catalog](https://build.nvidia.com/)
 - [Ollama pricing](https://ollama.com/pricing) and [Ollama Cloud API](https://docs.ollama.com/cloud)
 - [Cloudflare Workers AI pricing and free allowance](https://developers.cloudflare.com/workers-ai/platform/pricing/)
