@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -601,6 +602,28 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 staged.joinpath("hooks/kernel.py").read_text(encoding="utf-8"),
             )
 
+    def test_exact_base_source_hashes_reject_missing_and_extra_files(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "chaos-engine"
+            source.mkdir()
+            tool = source / "tool.py"
+            tool.write_text("trusted\n", encoding="utf-8")
+            expected = {"tool.py": hashlib.sha256(tool.read_bytes()).hexdigest()}
+            files = lambda root: tuple(path for path in root.rglob("*") if path.is_file())
+
+            module.assert_exact_base_source(source, expected, source_files=files)
+            source.joinpath("unexpected.py").write_text("extra\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "exact base manifest"):
+                module.assert_exact_base_source(source, expected, source_files=files)
+            source.joinpath("unexpected.py").unlink()
+            tool.unlink()
+            with self.assertRaisesRegex(RuntimeError, "exact base manifest"):
+                module.assert_exact_base_source(source, expected, source_files=files)
+
     def test_candidate_install_uses_public_wrapper_not_install_py(self):
         module = load_acceptance()
         self.assertIsNotNone(module)
@@ -866,12 +889,15 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertIn("--candidate-sha", source)
         self.assertIn("source_record=manifest['source']", source)
         self.assertIn("offline_environment(block_path=True)", source)
+        self.assertIn("fetch_exact_base_source", source)
 
     def test_acceptance_uses_real_base_and_disjoint_fresh_account(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('base_project = root / "base consumer with spaces Ω"', source)
         self.assertIn('fresh_project = root / "fresh consumer with spaces Ω"', source)
         self.assertIn('fresh_account_root = root / "fresh isolated account"', source)
+        self.assertIn("offline_source = fetch_exact_base_source(", source)
+        self.assertNotIn("offline_source = base_project / \".chaos-engine\"", source)
         self.assertNotIn("seed_exact_mempalace", source)
         self.assertNotIn("prepare_account_command_root", source)
         self.assertIn("rollback", source)

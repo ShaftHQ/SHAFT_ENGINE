@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
+import io
 import importlib.util
 import json
 import os
@@ -13,6 +15,7 @@ import re
 import shutil
 import subprocess  # nosec B404 - fixed repository-owned commands only.
 import sys
+import tarfile
 import tempfile
 import time
 import urllib.parse
@@ -520,6 +523,125 @@ def stage_source(source: Path, destination: Path) -> Path:
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
     return destination
+
+
+def assert_exact_base_source(source: Path, expected_files: object, *, source_files) -> None:
+    """Require the offline base source to match every authenticated payload hash."""
+    if (
+        not source.is_dir()
+        or source.is_symlink()
+        or (source / "manifest.json").exists()
+        or not isinstance(expected_files, dict)
+        or any(
+            not isinstance(relative, str)
+            or not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            for relative, digest in expected_files.items()
+        )
+    ):
+        raise RuntimeError("exact base manifest is invalid")
+    source = source.resolve(strict=True)
+    actual: dict[str, str] = {}
+    for path in source_files(source):
+        path = Path(path)
+        try:
+            relative = path.relative_to(source).as_posix()
+        except ValueError as error:
+            raise RuntimeError("exact base source escapes its root") from error
+        if path.is_symlink() or not path.is_file():
+            raise RuntimeError("exact base source contains an invalid payload entry")
+        actual[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != expected_files:
+        raise RuntimeError("exact base manifest does not match its source payload")
+
+
+def _extract_git_archive(payload: bytes, destination: Path) -> None:
+    """Extract only regular Git-tree entries into a fresh disposable directory."""
+    destination.mkdir()
+    root = destination.resolve(strict=True)
+    with tarfile.open(fileobj=io.BytesIO(payload), mode="r:") as archive:
+        for member in archive.getmembers():
+            relative = Path(member.name)
+            target = destination / relative
+            if (
+                relative.is_absolute()
+                or ".." in relative.parts
+                or not target.resolve().is_relative_to(root)
+                or member.issym()
+                or member.islnk()
+            ):
+                raise RuntimeError("exact base Git archive is unsafe")
+            if member.isdir():
+                target.mkdir(exist_ok=True)
+                continue
+            if not member.isfile():
+                raise RuntimeError("exact base Git archive is unsafe")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            stream = archive.extractfile(member)
+            if stream is None:
+                raise RuntimeError("exact base Git archive is unreadable")
+            with target.open("xb") as output:
+                shutil.copyfileobj(stream, output)
+
+
+def fetch_exact_base_source(
+    root: Path,
+    base_sha: str,
+    expected_manifest: object,
+    installed_base: Path,
+) -> Path:
+    """Fetch one immutable base Git tree and authenticate its selected payload."""
+    if COMMIT.fullmatch(base_sha) is None or not isinstance(expected_manifest, dict):
+        raise RuntimeError("exact base source request is invalid")
+    expected_files = expected_manifest.get("files")
+    distribution = expected_manifest.get("distribution")
+    distribution_id = distribution.get("id") if isinstance(distribution, dict) else None
+    if not isinstance(distribution_id, str):
+        raise RuntimeError("exact base manifest is invalid")
+    git = shutil.which("git")
+    if git is None:
+        raise RuntimeError("git is required to fetch the exact base source")
+    repository = root / "immutable-base-git"
+    environment = download_environment()
+    run_checked([git, "init", str(repository)], cwd=root, environment=environment)
+    run_checked(
+        [git, "-C", str(repository), "remote", "add", "origin", "https://github.com/ShaftHQ/SHAFT_ENGINE.git"],
+        cwd=root,
+        environment=environment,
+    )
+    run_checked(
+        [git, "-C", str(repository), "fetch", "--no-tags", "--depth=1", "origin", base_sha],
+        cwd=root,
+        environment=environment,
+    )
+    actual_sha = run_checked(
+        [git, "-C", str(repository), "rev-parse", "FETCH_HEAD^{commit}"],
+        cwd=root,
+        environment=environment,
+    ).stdout.strip()
+    if actual_sha != base_sha:
+        raise RuntimeError("exact base Git commit authentication failed")
+    archive = subprocess.run(  # nosec B603 - fixed Git archive for a validated SHA.
+        [git, "-C", str(repository), "archive", "--format=tar", base_sha, "chaos-engine"],
+        cwd=root,
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=PHASE_TIMEOUT_SECONDS,
+        check=False,
+    )
+    if archive.returncode:
+        raise RuntimeError("exact base Git archive could not be created")
+    archive_root = root / "immutable-base-source"
+    _extract_git_archive(archive.stdout, archive_root)
+    source = archive_root / "chaos-engine"
+    base_installer = load_source_controller(installed_base, "install")
+    assert_exact_base_source(
+        source,
+        expected_files,
+        source_files=lambda path: base_installer.source_files(path, distribution_id),
+    )
+    return source
 
 
 def load_source_controller(source: Path, name: str):
@@ -1281,7 +1403,12 @@ def run_acceptance(
         if (base_project / ".chaos-engine-runtime-current.json").exists():
             raise RuntimeError("base account install unexpectedly created a generation")
         base_snapshot = snapshot_base_state(base_project)
-        offline_source = base_project / ".chaos-engine"
+        offline_source = fetch_exact_base_source(
+            root,
+            base_sha,
+            read_json(base_project / ".chaos-engine/manifest.json"),
+            base_project / ".chaos-engine",
+        )
         base_before_offline = project_snapshot(base_project)
 
         def base_offline_no_mutation() -> dict[str, object]:
