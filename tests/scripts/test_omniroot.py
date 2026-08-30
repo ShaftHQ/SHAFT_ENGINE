@@ -349,7 +349,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         required = {"schemaVersion", "runId", "taskId", "workflow", "rootSessionId", "baseCommit",
                     "integration", "qualification", "delegate", "pid", "processIdentity", "status",
                     "cadenceSeconds", "deadline", "timestamps", "head", "receipt"}
-        self.assertTrue(required <= manifest.keys())
+        self.assertLessEqual(required, manifest.keys())
         self.assertNotIn("opaque task", json.dumps(manifest))
 
     def test_dispatch_rejects_dirty_worktree_and_overlapping_or_secret_ownership(self):

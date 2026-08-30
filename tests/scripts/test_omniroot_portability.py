@@ -25,13 +25,13 @@ class OmniRootPortabilityTest(unittest.TestCase):
             path.relative_to(CORE).as_posix()
             for path in installer.source_files(CORE, "portable")
         }
-        self.assertTrue(
+        self.assertLessEqual(
             {
                 "skills/omniroot/SKILL.md",
                 "skills/omniroot/scripts/runner.py",
                 "references/execution-workflows.md",
-            }
-            <= packaged
+            },
+            packaged,
         )
 
     def test_parity_matrix_covers_every_supported_host_without_forking_policy(self):

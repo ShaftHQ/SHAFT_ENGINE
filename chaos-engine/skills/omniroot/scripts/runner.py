@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -218,10 +219,8 @@ class QualificationCache:
 
 def _private_directory(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
-    try:
+    with contextlib.suppress(OSError):
         path.chmod(0o700)
-    except OSError:
-        pass
     return path
 
 
@@ -358,10 +357,8 @@ def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int) -> N
             os.killpg(process.pid, signal.SIGTERM)
             exit_code = process.wait(timeout=5)
         except (AttributeError, OSError, subprocess.TimeoutExpired):
-            try:
+            with contextlib.suppress(AttributeError, OSError):
                 os.killpg(process.pid, signal.SIGKILL)
-            except (AttributeError, OSError):
-                pass
             exit_code = -signal.SIGKILL
     for reader in readers:
         reader.join(timeout=5)
@@ -395,10 +392,8 @@ def _capture_command(arguments: list[str]) -> int:
     except OSError as error:
         raise OmniRootError("qualified launcher could not start") from error
     def forward(signum: int, _frame: Any) -> None:
-        try:
+        with contextlib.suppress(OSError):
             os.killpg(process.pid, signum)
-        except OSError:
-            pass
 
     if os.name == "posix":
         signal.signal(signal.SIGTERM, forward)
@@ -569,10 +564,8 @@ def dispatch(
         _write_json(path, manifest)
     except Exception:
         if os.name == "posix":
-            try:
+            with contextlib.suppress(OSError):
                 os.killpg(pid, signal.SIGTERM)
-            except OSError:
-                pass
         raise
     if not durable_monitor and callable(getattr(process, "wait", None)) and getattr(process, "stdout", None) is not None:
         threading.Thread(
