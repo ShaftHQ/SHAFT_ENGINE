@@ -1250,7 +1250,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             original_load = MODULE.load_installed_controller
             with mock.patch.object(
                 hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
-            ), mock.patch.object(
+            ) as retrieval_probe, mock.patch.object(
                 hosts,
                 "mcp_runtime_status",
                 return_value={
@@ -1279,6 +1279,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(
                 str(account_python.resolve()),
                 str(hook_probe.call_args.args[1]),
+            )
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(retrieval_probe.call_args.args[1]["python3"]),
             )
 
     def test_status_maps_legacy_mempalace_classifier_without_launching(self):

@@ -1656,6 +1656,35 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertNotIn("secret", status["code"])
             self.assertNotIn("/tmp", status["code"])
 
+    def test_account_retrieval_probe_exposes_receipt_managed_node_parent(self):
+        module = load(HOSTS, "chaos_engine_account_retrieval_node")
+        response = mock.Mock(
+            returncode=0,
+            stdout=json.dumps({"ok": True, "data": {"valid": True}}),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            tool = project / ".chaos-engine/tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("# owned\n", encoding="utf-8")
+            node = root / "node/bin/node"
+            node.parent.mkdir(parents=True)
+            node.write_bytes(b"node")
+            with mock.patch.object(
+                module.subprocess, "run", side_effect=[response, response]
+            ) as run:
+                self.assertEqual(
+                    "healthy",
+                    module.retrieval_runtime_status(project, {"node": str(node)})["status"],
+                )
+
+            for call in run.call_args_list:
+                self.assertEqual(
+                    str(node.parent.resolve()),
+                    call.kwargs["env"]["PATH"].split(os.pathsep)[0],
+                )
+
     def test_retrieval_runtime_accepts_only_known_legacy_memory_objects_read_only(self):
         module = load(HOSTS, "chaos_engine_legacy_memory_compatibility")
         with tempfile.TemporaryDirectory() as temporary:

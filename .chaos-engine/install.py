@@ -2439,17 +2439,6 @@ def doctor_with_dependencies(
     result = status_with_dependencies(project, active_probes=True)
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
-    retrieval = host_controller.retrieval_runtime_status(project.resolve())
-    if retrieval.get("status") != "healthy":
-        result["status"] = "recovery-required"
-        components = result.get("components")
-        if isinstance(components, dict) and isinstance(components.get("memory"), dict):
-            components["memory"]["status"] = retrieval["status"]
-            if retrieval.get("reason"):
-                components["memory"]["reason"] = retrieval["reason"]
-            code = retrieval.get("code")
-            if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", code):
-                components["memory"]["code"] = code
     dependency = result.get("dependencies")
     generation_path = dependency.get("path") if isinstance(dependency, dict) else None
     account_commands = None
@@ -2460,6 +2449,17 @@ def doctor_with_dependencies(
         commands = receipt.get("commands")
         if isinstance(commands, dict):
             account_commands = commands
+    retrieval = host_controller.retrieval_runtime_status(project.resolve(), account_commands)
+    if retrieval.get("status") != "healthy":
+        result["status"] = "recovery-required"
+        components = result.get("components")
+        if isinstance(components, dict) and isinstance(components.get("memory"), dict):
+            components["memory"]["status"] = retrieval["status"]
+            if retrieval.get("reason"):
+                components["memory"]["reason"] = retrieval["reason"]
+            code = retrieval.get("code")
+            if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", code):
+                components["memory"]["code"] = code
     scripts = "Scripts" if os.name == "nt" else "bin"
     python_name = "python.exe" if os.name == "nt" else "python"
     managed_python = (

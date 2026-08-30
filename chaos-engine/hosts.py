@@ -402,8 +402,27 @@ def memory_schema_validation_failure(output: str) -> bool:
     return isinstance(error, dict) and error.get("code") == "MemorySchemaValidationFailed"
 
 
-def retrieval_runtime_status(project: Path) -> dict[str, str]:
+def account_command_environment(account_commands: dict[str, str] | None = None) -> dict[str, str]:
+    """Build a probe environment from the receipt-managed Node executable."""
+    environment = os.environ.copy()
+    node = account_commands.get("node") if account_commands is not None else None
+    if isinstance(node, str):
+        try:
+            managed_node = Path(node).resolve(strict=True)
+        except (OSError, RuntimeError):
+            managed_node = None
+        if managed_node is not None and managed_node.is_file():
+            environment["PATH"] = os.pathsep.join((
+                str(managed_node.parent), environment.get("PATH", ""),
+            ))
+    return environment
+
+
+def retrieval_runtime_status(
+    project: Path, account_commands: dict[str, str] | None = None
+) -> dict[str, str]:
     tool = project / ".chaos-engine/tool.py"
+    environment = account_command_environment(account_commands)
     for arguments in (("status", "--json"), ("check", "--json")):
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
             [sys.executable, str(tool), "memory", *arguments],
@@ -412,6 +431,7 @@ def retrieval_runtime_status(project: Path) -> dict[str, str]:
             text=True,
             check=False,
             timeout=30,
+            env=environment,
         )
         if result.returncode != 0:
             if memory_schema_validation_failure(result.stdout) and legacy_memory_v5_objects_compatible(project):
@@ -883,20 +903,9 @@ def mcp_runtime_status(
         + "\n"
     )
     tool = project / ".chaos-engine/tool.py"
-    environment = os.environ.copy()
+    environment = account_command_environment(account_commands)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment.update(MEMPALACE_MCP_ENV)
-    if account_commands is not None:
-        node = account_commands.get("node")
-        if isinstance(node, str):
-            try:
-                managed_node = Path(node).resolve(strict=True)
-            except (OSError, RuntimeError):
-                managed_node = None
-            if managed_node is not None and managed_node.is_file():
-                environment["PATH"] = os.pathsep.join((
-                    str(managed_node.parent), environment.get("PATH", ""),
-                ))
     python = str(managed_python) if managed_python is not None else sys.executable
     commands = (
         [account_commands["memory-mcp"]]
