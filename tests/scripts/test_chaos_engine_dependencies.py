@@ -495,7 +495,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 module.mempalace_project_setup_environment(project, fresh[0]),
             )
             project.joinpath("mempalace.yaml").write_text("wing: test\n", encoding="utf-8")
-            self.assertIn(
+            self.assertNotIn(
                 [
                     "/tools/mempalace", "init", ".", "--yes", "--no-llm",
                     "--auto-mine",
@@ -514,7 +514,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             state = project / ".chaos-engine-state/mempalace"
             state.mkdir(parents=True)
             state.joinpath(".mined").write_text("current\n", encoding="utf-8")
-            self.assertIn(
+            self.assertNotIn(
                 [
                     "/tools/mempalace", "init", ".", "--yes", "--no-llm",
                     "--auto-mine",

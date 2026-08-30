@@ -577,11 +577,11 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
 
 
 def mempalace_project_setup_complete(project: Path) -> bool:
-    """Keep valid existing project configuration beside its exact SQLite target."""
+    """Do not replace an existing project configuration during account setup."""
     project = project.resolve()
     palace = project / ".chaos-engine-state/mempalace"
-    return (palace / "sqlite_exact.sqlite3").is_file() and (
-        (palace / ".mined").is_file() or (project / "mempalace.yaml").is_file()
+    return (project / "mempalace.yaml").is_file() or (
+        (palace / "sqlite_exact.sqlite3").is_file() and (palace / ".mined").is_file()
     )
 
 
