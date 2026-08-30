@@ -1830,6 +1830,48 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 self.assertEqual(project, call.kwargs["cwd"])
             self.assertEqual(str(tool), run.call_args_list[0].args[0][1])
 
+    def test_account_mcp_probe_exposes_receipt_managed_node_parent(self):
+        module = load(HOSTS, "chaos_engine_doctor_account_mcp_node")
+        response = mock.Mock(
+            returncode=0,
+            stdout="\n".join((
+                json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                json.dumps({"jsonrpc": "2.0", "id": 2, "result": {"tools": []}}),
+            )) + "\n",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            tool = project / ".chaos-engine/tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("# owned\n", encoding="utf-8")
+            project.joinpath("mempalace.yaml").write_text("owned\n", encoding="utf-8")
+            module.initialize_mempalace_runtime(project)
+            managed_python = root / "python/bin/python"
+            managed_python.parent.mkdir(parents=True)
+            managed_python.write_bytes(b"python")
+            node = root / "node/bin/node"
+            node.parent.mkdir(parents=True)
+            node.write_bytes(b"node")
+            commands = {
+                "memory-mcp": str(root / "npm-prefix/bin/memory-mcp"),
+                "mempalace-mcp": str(root / "uv-tool-bin/mempalace-mcp"),
+                "node": str(node),
+            }
+            with mock.patch.object(
+                module.subprocess, "run", side_effect=[response, response]
+            ) as run:
+                self.assertTrue(
+                    module.mcp_runtime_healthy(project, managed_python, commands)
+                )
+
+            self.assertEqual([commands["memory-mcp"]], run.call_args_list[0].args[0])
+            for call in run.call_args_list:
+                self.assertEqual(
+                    str(node.parent.resolve()),
+                    call.kwargs["env"]["PATH"].split(os.pathsep)[0],
+                )
+
     def test_hook_runtime_probe_executes_prompt_pre_and_post_with_managed_python(self):
         module = load(HOSTS, "chaos_engine_doctor_hook_events")
         with tempfile.TemporaryDirectory() as temporary:

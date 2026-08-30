@@ -882,6 +882,17 @@ def mcp_runtime_status(
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment.update(MEMPALACE_MCP_ENV)
+    if account_commands is not None:
+        node = account_commands.get("node")
+        if isinstance(node, str):
+            try:
+                managed_node = Path(node).resolve(strict=True)
+            except (OSError, RuntimeError):
+                managed_node = None
+            if managed_node is not None and managed_node.is_file():
+                environment["PATH"] = os.pathsep.join((
+                    str(managed_node.parent), environment.get("PATH", ""),
+                ))
     python = str(managed_python) if managed_python is not None else sys.executable
     commands = (
         [account_commands["memory-mcp"]]
