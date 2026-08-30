@@ -288,6 +288,8 @@ class OmniRootRunnerTest(unittest.TestCase):
         redacted, _ = RUNNER._redact_diagnostic(raw)
         for secret in ("abc123", "json-token", "json-pass", "json-key", "split-secret", "inline-secret"):
             self.assertNotIn(secret, redacted)
+        json_line = redacted.splitlines()[1]
+        self.assertEqual("[REDACTED]", json.loads(json_line)["token"])
 
     def test_missing_config_is_normal_fallback_and_never_launches(self):
         launched = []
@@ -429,6 +431,14 @@ class OmniRootRunnerTest(unittest.TestCase):
         linked.symlink_to(real, target_is_directory=True)
         with self.assertRaises(RUNNER.OmniRootError):
             RUNNER._write_json(linked / "runs/run.json", {"ok": True})
+
+    def test_state_root_rejects_nested_symlink_ancestor(self):
+        real = self.root / "real"
+        (real / "nested").mkdir(parents=True, mode=0o700)
+        alias = self.root / "alias"
+        alias.symlink_to(real, target_is_directory=True)
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._write_json(alias / "nested/state/runs/run.json", {"ok": True})
 
     def test_state_reader_rejects_non_private_file(self):
         path = self.state / "runs/run.json"

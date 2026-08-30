@@ -229,16 +229,28 @@ class QualificationCache:
         return result
 
 
+def _reject_symlink_components(path: Path) -> None:
+    current = Path(path.anchor) if path.anchor else Path()
+    for part in path.parts[1:] if path.anchor else path.parts:
+        current /= part
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(metadata.st_mode):
+            raise OmniRootError("state path must not contain symlinks")
+
+
 def _private_directory(path: Path) -> Path:
+    _reject_symlink_components(path)
     missing: list[Path] = []
     cursor = path
     while not cursor.exists():
         missing.append(cursor)
         cursor = cursor.parent
-    if cursor.is_symlink():
-        raise OmniRootError("state path must not contain symlinks")
     for component in reversed(missing):
         component.mkdir(mode=0o700)
+    _reject_symlink_components(path)
     for cursor in (path.parent, path):
         metadata = cursor.lstat()
         if stat.S_ISLNK(metadata.st_mode):
@@ -270,10 +282,9 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
+        _reject_symlink_components(path)
         metadata = path.stat()
         parents = (path.parent, path.parent.parent)
-        if any(parent.is_symlink() for parent in parents):
-            raise OmniRootError("run state is missing or unsafe")
         if not path.is_file() or path.is_symlink() or metadata.st_size > MAX_RESPONSE_BYTES:
             raise OmniRootError("run state is missing or unsafe")
         if os.name == "posix" and (
@@ -358,7 +369,7 @@ def _redact_diagnostic(value: bytes) -> tuple[str, bool]:
     """Decode, redact, and cap one diagnostic stream."""
     text = value.decode("utf-8", errors="replace")
     text = _SECRET_TEXT.sub(
-        lambda match: (match.group(1) or match.group(3) or match.group(5)) + "[REDACTED]" + ('"' if match.group(3) else ''),
+        lambda match: (match.group(1) or match.group(3) or match.group(5)) + "[REDACTED]",
         text,
     )
     encoded = text.encode("utf-8")
