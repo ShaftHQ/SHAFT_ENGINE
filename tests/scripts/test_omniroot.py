@@ -232,6 +232,10 @@ class OmniRootRunnerTest(unittest.TestCase):
         config["launcher"]["invocationMode"] = "direct"
         self.config.write_text(json.dumps(config), encoding="utf-8")
         launched = []
+        runtime = {
+            "HOME": "/home/agent", "USERPROFILE": "C:/Users/agent",
+            "SystemRoot": "C:/Windows", "TEMP": "/tmp", "TMP": "/tmp",
+        }
 
         def popen(argv, **kwargs):
             launched.append((argv, kwargs))
@@ -245,7 +249,8 @@ class OmniRootRunnerTest(unittest.TestCase):
             target="host-cli",
             delegate_args=["--task", "bounded"],
             opener=lambda *_, **__: _Response(),
-            environ={"PATH": "/bin", "OMNIROUTE_API_KEY": "secret"},
+            environ={"PATH": "/bin", **runtime, "OMNIROUTE_API_KEY": "secret",
+                     "AWS_SECRET_ACCESS_KEY": "must-not-leak"},
             popen=popen,
             process_identity=lambda _: "identity",
         )
@@ -253,6 +258,33 @@ class OmniRootRunnerTest(unittest.TestCase):
             [str(self.launcher), "opaque-profile", "--task", "bounded"],
             launched[0][0],
         )
+        expected_runtime = ({"HOME": runtime["HOME"], "TEMP": runtime["TEMP"], "TMP": runtime["TMP"]}
+                            if os.name == "posix"
+                            else {name: runtime[name] for name in ("USERPROFILE", "SystemRoot", "TEMP", "TMP")})
+        self.assertEqual({"PATH", "OMNIROUTE_API_KEY", *expected_runtime}, set(launched[0][1]["env"]))
+        self.assertEqual(expected_runtime, {name: launched[0][1]["env"][name] for name in expected_runtime})
+        self.assertEqual("secret", launched[0][1]["env"]["OMNIROUTE_API_KEY"])
+        self.assertNotIn("AWS_SECRET_ACCESS_KEY", launched[0][1]["env"])
+
+    def test_direct_protected_launcher_gets_runtime_locator_without_credentials(self):
+        config = json.loads(self.config.read_text(encoding="utf-8"))
+        config["launcher"].update({"invocationMode": "direct", "credentialMode": "launcher"})
+        self.config.write_text(json.dumps(config), encoding="utf-8")
+        launched = []
+
+        def popen(argv, **kwargs):
+            launched.append((argv, kwargs))
+            return _Process()
+
+        RUNNER.dispatch(
+            run_id="direct-protected-1", worktree=self.worktree, state_dir=self.state,
+            config_path=self.config, target="host-cli", delegate_args=["--task", "bounded"],
+            opener=lambda *_, **__: _Response(),
+            environ={"PATH": "/bin", "HOME": "/home/agent", "OMNIROUTE_API_KEY": "secret"},
+            popen=popen, process_identity=lambda _: "identity",
+        )
+        self.assertEqual("/home/agent", launched[0][1]["env"]["HOME"])
+        self.assertNotIn("OMNIROUTE_API_KEY", launched[0][1]["env"])
 
     def test_manifest_freezes_full_delegate_contract_without_private_assignment_data(self):
         manifest = RUNNER.dispatch(

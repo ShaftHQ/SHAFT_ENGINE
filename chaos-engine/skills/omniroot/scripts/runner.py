@@ -33,6 +33,10 @@ RUN_STATUSES = frozenset({"planned", "running", "stalled", "blocked", "review", 
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 _TARGET = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
+_SAFE_RUNTIME_ENVIRONMENT = (
+    ("HOME", "TEMP", "TMP") if os.name == "posix"
+    else ("USERPROFILE", "SystemRoot", "TEMP", "TMP")
+)
 
 
 class OmniRootError(RuntimeError):
@@ -285,6 +289,9 @@ def process_identity(pid: int) -> str | None:
 
 def _dispatch_environment(environ: dict[str, str], credential_mode: str) -> dict[str, str]:
     result = {"PATH": environ.get("PATH", os.defpath)}
+    for name in _SAFE_RUNTIME_ENVIRONMENT:
+        if name in environ:
+            result[name] = environ[name]
     if credential_mode == "environment":
         key = environ.get("OMNIROUTE_API_KEY")
         if not key:
