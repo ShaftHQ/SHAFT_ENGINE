@@ -227,6 +227,33 @@ class OmniRootRunnerTest(unittest.TestCase):
         path = self.state / "runs/run-1.json"
         self.assertEqual(0o600, path.stat().st_mode & 0o777)
 
+    def test_direct_launcher_receives_only_configured_argv_and_delegate_args(self):
+        config = json.loads(self.config.read_text(encoding="utf-8"))
+        config["launcher"]["invocationMode"] = "direct"
+        self.config.write_text(json.dumps(config), encoding="utf-8")
+        launched = []
+
+        def popen(argv, **kwargs):
+            launched.append((argv, kwargs))
+            return _Process()
+
+        RUNNER.dispatch(
+            run_id="direct-1",
+            worktree=self.worktree,
+            state_dir=self.state,
+            config_path=self.config,
+            target="host-cli",
+            delegate_args=["--task", "bounded"],
+            opener=lambda *_, **__: _Response(),
+            environ={"PATH": "/bin", "OMNIROUTE_API_KEY": "secret"},
+            popen=popen,
+            process_identity=lambda _: "identity",
+        )
+        self.assertEqual(
+            [str(self.launcher), "opaque-profile", "--task", "bounded"],
+            launched[0][0],
+        )
+
     def test_manifest_freezes_full_delegate_contract_without_private_assignment_data(self):
         manifest = RUNNER.dispatch(
             run_id="full-1", worktree=self.worktree, state_dir=self.state, config_path=self.config,

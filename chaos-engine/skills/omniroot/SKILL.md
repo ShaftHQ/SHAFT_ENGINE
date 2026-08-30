@@ -43,6 +43,14 @@ enforcement, terms,
 privacy, no-cost, and no-paid-fallback conditions. It never writes routes,
 targets, credentials, launcher arguments, or assignments to state.
 
+The user-local launcher configuration accepts `invocationMode: "gateway"` or
+`"direct"`; the default is `gateway` for compatibility. Gateway mode invokes
+the launcher with the target, fixed loopback port, credential-environment flag,
+and `--` before delegate arguments. Direct mode passes only the configured
+launcher argv followed by delegate arguments, for protected launchers that own
+their endpoint and profile. The mode is validated and included only in the
+qualification hash; manifests never record route or model names.
+
 Qualification is cached only for the root session and invalidated when route,
 server build, launcher, or attestation changes. Dispatch requires a clean real
 Git worktree, non-overlapping non-private path ownership, argument-list process

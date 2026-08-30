@@ -76,19 +76,20 @@ def _read_config(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def _launcher(config: dict[str, Any]) -> tuple[list[str], str] | None:
+def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
     """Return operator-owned launcher argv and credential mode without exposing it."""
     launcher = config.get("launcher")
     if launcher == "omniroute":
-        return ["omniroute", "run"], "environment"
+        return ["omniroute", "run"], "environment", "gateway"
     if not isinstance(launcher, dict):
         return None
     argv, mode = launcher.get("argv"), launcher.get("credentialMode")
+    invocation_mode = launcher.get("invocationMode", "gateway")
     if not isinstance(argv, list) or not argv or not all(isinstance(item, str) and item and "\x00" not in item for item in argv):
         return None
-    if mode not in {"environment", "launcher"}:
+    if mode not in {"environment", "launcher"} or invocation_mode not in {"gateway", "direct"}:
         return None
-    return list(argv), mode
+    return list(argv), mode, invocation_mode
 
 
 def _protected_executable(argv: list[str]) -> bool:
@@ -406,11 +407,14 @@ def dispatch(
     launcher = _launcher(config or {})
     if launcher is None:
         raise OmniRootError("launcher is unqualified")
-    launcher_argv, credential_mode = launcher
-    argv = [*launcher_argv, target, "--port", "20128"]
-    if credential_mode == "environment":
-        argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
-    argv.extend(["--", *delegate_args])
+    launcher_argv, credential_mode, invocation_mode = launcher
+    if invocation_mode == "direct":
+        argv = [*launcher_argv, *delegate_args]
+    else:
+        argv = [*launcher_argv, target, "--port", "20128"]
+        if credential_mode == "environment":
+            argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+        argv.extend(["--", *delegate_args])
     dispatch_environment = _dispatch_environment(environment, credential_mode)
     delegate_manifest = _delegate_contract(delegate, worktree, target, argv, dispatch_environment)
     if _overlaps_owned_paths(Path(state_dir), delegate_manifest["pathOwnership"]):
