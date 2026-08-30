@@ -15,7 +15,11 @@ class OmniRootWorkflowContractTest(unittest.TestCase):
         delegation = self.read("chaos-engine/references/delegation.md")
         roles = self.read("chaos-engine/references/roles.md")
 
-        for name in ("SOLO", "SINGLE ORCHESTRATOR", "PARALLEL ORCHESTRATOR"):
+        for name in (
+            "SOLO",
+            "ORCHESTRATOR + SINGLE IMPLEMENTER",
+            "ORCHESTRATOR + PARALLEL IMPLEMENTERS",
+        ):
             self.assertIn(name, workflows)
             self.assertNotIn(f"| {name} |", router)
             self.assertNotIn(f"| {name} |", delegation)

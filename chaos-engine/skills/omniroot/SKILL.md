@@ -1,9 +1,8 @@
 ---
 name: omniroot
 description: >-
-  Optional local OmniRoute transport for bounded delegated implementation.
-  Use after selecting an orchestrated execution workflow and before dispatching
-  an external local process.
+  Use when an orchestrated workflow may dispatch bounded implementation through
+  an optional local OmniRoute process.
 license: MIT
 ---
 

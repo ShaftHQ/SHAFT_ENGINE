@@ -8,13 +8,15 @@ delegation, transports, and host adapters link here rather than redefining it.
 | Workflow | Select when | Main orchestrator duties |
 | --- | --- | --- |
 | `SOLO` | Delegation is unsuitable, unavailable, or would cost more than the bounded work. | Plan, implement, verify, review, and complete the Learning Session. |
-| `SINGLE ORCHESTRATOR` (orchestrator + single implementer) | One bounded implementation unit, or dependent units that must remain serial, has a qualified implementer. | Plan, specify, inspect, unblock, verify, integrate, review, and complete the Learning Session; do not implement. |
-| `PARALLEL ORCHESTRATOR` (orchestrator + parallel implementers) | Two to four independent, file-disjoint implementation units have qualified implementers. | Retain the single-implementer duties; assign isolated worktrees and integrate only after independent verification. |
+| `ORCHESTRATOR + SINGLE IMPLEMENTER` | One bounded implementation unit, or dependent units that must remain serial, has a qualified implementer. | Plan, specify, inspect, unblock, verify, integrate, review, and complete the Learning Session; do not implement. |
+| `ORCHESTRATOR + PARALLEL IMPLEMENTERS` | Two to four independent, file-disjoint implementation units have qualified implementers. | Retain the single-implementer duties; assign isolated worktrees and integrate only after independent verification. |
 
 Select from work shape and qualified capacity, never from a provider, model, or
-marketing label. Default to `SINGLE ORCHESTRATOR` when delegation adds value;
-select `PARALLEL ORCHESTRATOR` only for independent file scopes and cap writers
-at four. Reduce parallel work to one implementer when capacity drops. Use
+marketing label. Default to `ORCHESTRATOR + SINGLE IMPLEMENTER` when delegation
+adds value; select `ORCHESTRATOR + PARALLEL IMPLEMENTERS` only for independent
+file scopes and cap writers at four. This is an explicit cap of four parallel
+agents, not a transport-specific default. Reduce parallel work to one
+implementer when capacity drops. Use
 `SOLO` when no qualified implementer remains. Review is not an implementation
 stream. Finish or hand over owned implementation before switching workflows.
 
