@@ -23,10 +23,10 @@ Use only the standard-library [runner](scripts/runner.py):
 
 ```text
 python3 chaos-engine/skills/omniroot/scripts/runner.py probe
-python3 chaos-engine/skills/omniroot/scripts/runner.py dispatch --contract /private/dispatch.json
+python3 chaos-engine/skills/omniroot/scripts/runner.py dispatch --contract <private-state>/dispatch.json
 python3 chaos-engine/skills/omniroot/scripts/runner.py status ...
 python3 chaos-engine/skills/omniroot/scripts/runner.py cancel ...
-python3 chaos-engine/skills/omniroot/scripts/runner.py complete --contract /private/complete.json
+python3 chaos-engine/skills/omniroot/scripts/runner.py complete --contract <private-state>/complete.json
 ```
 
 The only automatic endpoint is `http://127.0.0.1:20128/`. The runner permits

@@ -834,13 +834,13 @@ def cancel(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
         try:
             os.killpg(pid, signal.SIGTERM)
             for _ in range(50):
-                if process_identity(pid) is None:
+                if not _group_alive(pid):
                     break
                 time.sleep(0.1)
             else:
                 os.killpg(pid, signal.SIGKILL)
                 for _ in range(50):
-                    if process_identity(pid) is None:
+                    if not _group_alive(pid):
                         break
                     time.sleep(0.1)
                 else:

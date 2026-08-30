@@ -7,6 +7,7 @@ import io
 import inspect
 import json
 import os
+import signal
 import subprocess
 import tempfile
 import unittest
@@ -604,6 +605,21 @@ class OmniRootRunnerTest(unittest.TestCase):
         with self.assertRaises(RUNNER.OmniRootError):
             RUNNER.dispatch(run_id="incomplete", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[])
+
+    def test_cancel_kills_surviving_process_group_after_leader_exits(self):
+        RUNNER._write_json(self.state / "runs/cancel-child.json", {
+            "schemaVersion": 1, "runId": "cancel-child", "status": "running",
+            "pid": 4242, "processIdentity": "identity", "timestamps": {},
+        })
+        identities = iter(["identity", None])
+        signals = []
+        with mock.patch.object(RUNNER, "_group_alive", side_effect=([True] * 50) + [False]), \
+                mock.patch.object(RUNNER.os, "killpg", side_effect=lambda pid, sig: signals.append((pid, sig))), \
+                mock.patch.object(RUNNER.time, "sleep"):
+            result = RUNNER.cancel("cancel-child", self.state,
+                                   process_identity=lambda _pid: next(identities))
+        self.assertEqual("cancelled", result["status"])
+        self.assertEqual([signal.SIGTERM, signal.SIGKILL], [item[1] for item in signals])
 
     def test_exact_credential_value_is_redacted_even_without_label(self):
         redacted, _ = RUNNER._redact_diagnostic(b"prefix exact-value suffix", secrets=["exact-value"])
