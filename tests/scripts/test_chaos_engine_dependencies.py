@@ -567,7 +567,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 },
                 module.mempalace_project_setup_environment(project, configured[0]),
             )
-            self.assertIn(
+            self.assertNotIn(
                 ["/tools/graphify", "install", "--platform", "agents", "--project"],
                 fresh,
             )

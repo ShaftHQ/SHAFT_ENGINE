@@ -86,6 +86,8 @@ FORBIDDEN_LINK_FRAGMENTS = (
 )
 IGNORED_DIRECTORIES = {
     ".chaos-engine-runtime",
+    ".chaos-engine-runtime-generations",
+    ".chaos-engine-runtime-transactions",
     ".git",
     ".idea",
     "allure-report",

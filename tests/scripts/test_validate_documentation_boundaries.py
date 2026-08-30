@@ -153,6 +153,18 @@ flowchart LR
             validate_repository(self.root),
         )
 
+    def test_ignores_installer_runtime_generation_and_transaction_directories(self):
+        self.write(
+            ".chaos-engine-runtime-generations/current/node/README.md",
+            "# Generated dependency documentation\n",
+        )
+        self.write(
+            ".chaos-engine-runtime-transactions/current/package/README.md",
+            "# Transaction dependency documentation\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_rejects_unapproved_nested_readme(self):
         self.write(".github/other/README.md", "# Other\n")
 
