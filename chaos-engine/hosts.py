@@ -864,6 +864,22 @@ def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
         value = json.loads(line)
         if not isinstance(value, dict) or value.get("jsonrpc") != "2.0":
             raise ValueError("invalid MCP stdout frame")
+        if "id" in value and (
+            isinstance(value["id"], bool)
+            or not isinstance(value["id"], (str, int, type(None)))
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        if "params" in value and not isinstance(value["params"], (dict, list)):
+            raise ValueError("invalid MCP stdout frame")
+        if "error" in value:
+            error = value["error"]
+            if (
+                not isinstance(error, dict)
+                or isinstance(error.get("code"), bool)
+                or not isinstance(error.get("code"), int)
+                or not isinstance(error.get("message"), str)
+            ):
+                raise ValueError("invalid MCP stdout frame")
         if "method" in value:
             if (
                 not isinstance(value["method"], str)
@@ -875,7 +891,6 @@ def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
         elif (
             "id" not in value
             or ("result" in value) == ("error" in value)
-            or isinstance(value["id"], bool)
         ):
             raise ValueError("invalid MCP stdout frame")
         frames.append(value)
@@ -2731,7 +2746,21 @@ def exact_legacy_alias(name: str, server: object) -> bool:
             for command in ("python", "python3", "python.exe", "py", "py.exe")
             for arguments in direct_arguments
         )
-        return server in (*direct, *wrapped)
+        frozen_portable = {
+            "command": "python3",
+            "args": [
+                ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+                ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+            ],
+            "commandWindows": "py",
+            "argsWindows": [
+                "-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
+                ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
+            ],
+            "cwd": ".",
+            "env": dict(MEMPALACE_MCP_ENV),
+        }
+        return server in (*direct, *wrapped, frozen_portable)
     return False
 
 
@@ -2783,16 +2812,17 @@ def remove_exact_legacy_codex_store_aliases(existing: str) -> str:
             block = f'{header}\ncommand = "npx"\nargs = {memory_args}\ncwd = "."\n'
             for candidate in (block, block.replace("\n", "\r\n")):
                 existing = existing.replace(candidate, "")
-        configured_block = (
-            f'{header}\ncommand = "npx"\n'
-            'args = ["--yes", "--package", "@aictx/memory@0.2.1", "--", "memory-mcp"]\n'
-            'cwd = "."\nenabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]\n'
-            'default_tools_approval_mode = "auto"\nstartup_timeout_sec = 30\ntool_timeout_sec = 60\n'
-            'required = false\n\n'
-            f'[{header[1:-1]}.tools.remember_memory]\napproval_mode = "prompt"\n'
-        )
-        for candidate in (configured_block, configured_block.replace("\n", "\r\n")):
-            existing = existing.replace(candidate, "")
+        for cwd in (".", ".."):
+            configured_block = (
+                f'{header}\ncommand = "npx"\n'
+                'args = ["--yes", "--package", "@aictx/memory@0.2.1", "--", "memory-mcp"]\n'
+                f'cwd = "{cwd}"\nenabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]\n'
+                'default_tools_approval_mode = "auto"\nstartup_timeout_sec = 30\ntool_timeout_sec = 60\n'
+                'required = false\n\n'
+                f'[{header[1:-1]}.tools.remember_memory]\napproval_mode = "prompt"\n'
+            )
+            for candidate in (configured_block, configured_block.replace("\n", "\r\n")):
+                existing = existing.replace(candidate, "")
     for header in ('[mcp_servers.mempalace]', '[mcp_servers."mempalace"]'):
         block = f'{header}\ncommand = "mempalace-mcp"\nargs = []\ncwd = "."\n'
         for candidate in (block, block.replace("\n", "\r\n")):

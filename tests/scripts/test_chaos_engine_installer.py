@@ -435,6 +435,22 @@ module.install_with_dependencies(project, source, "2" * 40)
             self.assertFalse(project.joinpath(".chaos-engine-account-rollback").exists())
             self.assertEqual("2" * 40, MODULE.status(project)["commit"])
 
+    def test_account_rollback_journal_syncs_directory_entries(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            state = {"before": {"exists": False, "files": {}}, "after": {"exists": False, "files": {}}}
+            with mock.patch.object(MODULE, "fsync_directory") as sync:
+                MODULE.write_account_rollback_journal(
+                    project, "1" * 40, "2" * 40,
+                    prior_host_receipt=None,
+                    prior_account_receipt=None,
+                    prior_mempalace_state=state,
+                )
+                self.assertEqual([mock.call(project), mock.call(project / MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME)], sync.call_args_list)
+                sync.reset_mock()
+                MODULE.remove_account_rollback_journal(project)
+                self.assertEqual([mock.call(project), mock.call(project / MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME), mock.call(project)], sync.call_args_list)
+
     def test_account_rollback_removes_unchanged_candidate_mempalace_state(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

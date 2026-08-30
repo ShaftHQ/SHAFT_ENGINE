@@ -214,6 +214,18 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                         popen=lambda *_args, **_kwargs: process,
                     )
 
+    def test_mcp_frame_parser_rejects_schema_invalid_messages(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        invalid = (
+            '{"jsonrpc":"2.0","id":true,"method":"x"}',
+            '{"jsonrpc":"2.0","method":"x","params":1}',
+            '{"jsonrpc":"2.0","id":1,"error":"bad"}',
+        )
+        for frame in invalid:
+            with self.subTest(frame=frame), self.assertRaisesRegex(ValueError, "invalid MCP"):
+                module.parse_mcp_stdout_frames(frame + "\n")
+
     def test_project_mcp_probe_covers_memory_and_mempalace(self):
         module = load_acceptance()
         self.assertIsNotNone(module)

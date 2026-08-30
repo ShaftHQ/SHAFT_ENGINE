@@ -955,6 +955,22 @@ def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
         value = json.loads(line)
         if not isinstance(value, dict) or value.get("jsonrpc") != "2.0":
             raise ValueError("invalid MCP stdout frame")
+        if "id" in value and (
+            isinstance(value["id"], bool)
+            or not isinstance(value["id"], (str, int, type(None)))
+        ):
+            raise ValueError("invalid MCP stdout frame")
+        if "params" in value and not isinstance(value["params"], (dict, list)):
+            raise ValueError("invalid MCP stdout frame")
+        if "error" in value:
+            error = value["error"]
+            if (
+                not isinstance(error, dict)
+                or isinstance(error.get("code"), bool)
+                or not isinstance(error.get("code"), int)
+                or not isinstance(error.get("message"), str)
+            ):
+                raise ValueError("invalid MCP stdout frame")
         if "method" in value:
             if (
                 not isinstance(value["method"], str)
@@ -966,7 +982,6 @@ def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
         elif (
             "id" not in value
             or ("result" in value) == ("error" in value)
-            or isinstance(value["id"], bool)
         ):
             raise ValueError("invalid MCP stdout frame")
         frames.append(value)

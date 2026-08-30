@@ -902,6 +902,7 @@ def write_account_rollback_journal(
         prior_mempalace_state,
     )
     transaction.mkdir(mode=0o700)
+    fsync_directory(project)
     descriptor = os.open(
         journal,
         os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
@@ -911,7 +912,19 @@ def write_account_rollback_journal(
         stream.write((json.dumps(body, sort_keys=True) + "\n").encode())
         stream.flush()
         os.fsync(stream.fileno())
+    fsync_directory(transaction)
     return journal
+
+
+def fsync_directory(path: Path) -> None:
+    """Persist directory-entry changes on POSIX filesystems."""
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _decode_account_rollback_journal_bytes(value: object) -> bytes | None:
@@ -988,8 +1001,11 @@ def remove_account_rollback_journal(project: Path) -> None:
         return
     if not journal.is_file() or len(tuple(transaction.iterdir())) != 1:
         raise ValueError("account rollback transaction is invalid")
+    fsync_directory(project)
     journal.unlink()
+    fsync_directory(transaction)
     transaction.rmdir()
+    fsync_directory(project)
 
 
 def _restore_account_receipt_from_journal(project: Path, controller, before: bytes | None) -> None:

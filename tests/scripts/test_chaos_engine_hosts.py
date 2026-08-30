@@ -2554,6 +2554,43 @@ class ChaosEngineHostsTest(unittest.TestCase):
             rendered["mcpServers"]["chaosengine-mempalace"]["args"],
         )
 
+    def test_frozen_base_store_aliases_migrate_but_mutations_survive(self):
+        module = load(HOSTS, "chaos_engine_hosts_frozen_store_aliases")
+        server = {
+            "command": "python3",
+            "args": [".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"],
+            "commandWindows": "py",
+            "argsWindows": ["-3", ".chaos-engine/tool.py", "mempalace-mcp", "--palace", ".chaos-engine-state/mempalace", "--backend", "sqlite_exact"],
+            "cwd": ".",
+            "env": {"MEMPALACE_BACKEND": "sqlite_exact", "MEMPALACE_EMBEDDING_MODEL": "minilm"},
+        }
+        rendered = json.loads(module.json_content(json.dumps({"mcpServers": {"mempalace": server}}).encode()))
+        self.assertNotIn("mempalace", rendered["mcpServers"])
+        mutated = {**server, "required": False}
+        rendered = json.loads(module.json_content(json.dumps({"mcpServers": {"mempalace": mutated}}).encode()))
+        self.assertEqual(mutated, rendered["mcpServers"]["mempalace"])
+
+        block = (
+            '[mcp_servers.shaft-memory]\ncommand = "npx"\n'
+            'args = ["--yes", "--package", "@aictx/memory@0.2.1", "--", "memory-mcp"]\n'
+            'cwd = ".."\nenabled_tools = ["load_memory", "search_memory", "inspect_memory", "remember_memory"]\n'
+            'default_tools_approval_mode = "auto"\nstartup_timeout_sec = 30\ntool_timeout_sec = 60\n'
+            'required = false\n\n[mcp_servers.shaft-memory.tools.remember_memory]\napproval_mode = "prompt"\n'
+        )
+        self.assertNotIn("shaft-memory", module.codex_content(block.encode()).decode())
+        self.assertIn("shaft-memory", module.codex_content(block.replace('cwd = ".."', 'cwd = "/custom"').encode()).decode())
+
+    def test_mcp_frame_parser_rejects_schema_invalid_messages(self):
+        module = load(HOSTS, "chaos_engine_hosts_strict_jsonrpc")
+        invalid = (
+            '{"jsonrpc":"2.0","id":true,"method":"x"}',
+            '{"jsonrpc":"2.0","method":"x","params":1}',
+            '{"jsonrpc":"2.0","id":1,"error":"bad"}',
+        )
+        for frame in invalid:
+            with self.subTest(frame=frame), self.assertRaisesRegex(ValueError, "invalid MCP"):
+                module.parse_mcp_stdout_frames(frame + "\n")
+
     def test_account_mcp_servers_use_resolved_absolute_executables(self):
         module = load(HOSTS, "chaos_engine_hosts_account_mcp")
         commands = {
