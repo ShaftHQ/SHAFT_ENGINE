@@ -548,7 +548,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 ],
                 module.project_setup_plan(project, commands),
             )
-            self.assertIn(
+            self.assertNotIn(
                 ["/tools/mempalace", "mine", "."],
                 module.project_setup_plan(project, commands),
             )

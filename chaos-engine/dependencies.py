@@ -563,7 +563,7 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
         configured = mempalace_project_configuration_exists(project)
         if configured and not mempalace_project_setup_complete(project):
             planned.append([mempalace, "mine", "."])
-        elif not configured and not mempalace_project_setup_complete(project):
+        elif not configured:
             planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
     graphify = commands.get("graphify")
     if graphify:
@@ -580,10 +580,10 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
 
 
 def mempalace_project_setup_complete(project: Path) -> bool:
-    """Return whether the project owns complete exact MemPalace state."""
+    """Return whether a valid configuration already has exact local state."""
     project = project.resolve()
     palace = project / ".chaos-engine-state/mempalace"
-    return (palace / "sqlite_exact.sqlite3").is_file() and (palace / ".mined").is_file()
+    return (palace / "sqlite_exact.sqlite3").is_file()
 
 
 def mempalace_project_configuration_exists(project: Path) -> bool:
