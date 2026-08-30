@@ -495,12 +495,26 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 module.mempalace_project_setup_environment(project, fresh[0]),
             )
             project.joinpath("mempalace.yaml").write_text("wing: test\n", encoding="utf-8")
+            configured = module.project_setup_plan(project, commands)
             self.assertNotIn(
                 [
                     "/tools/mempalace", "init", ".", "--yes", "--no-llm",
                     "--auto-mine",
                 ],
-                module.project_setup_plan(project, commands),
+                configured,
+            )
+            self.assertIn(
+                ["/tools/mempalace", "mine", "."],
+                configured,
+            )
+            self.assertEqual(
+                {
+                    "MEMPALACE_PALACE_PATH": str(
+                        project / ".chaos-engine-state/mempalace"
+                    ),
+                    "MEMPALACE_BACKEND": "sqlite_exact",
+                },
+                module.mempalace_project_setup_environment(project, configured[0]),
             )
             self.assertIn(
                 ["/tools/graphify", "install", "--platform", "agents", "--project"],
@@ -521,6 +535,10 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 ],
                 module.project_setup_plan(project, commands),
             )
+            self.assertIn(
+                ["/tools/mempalace", "mine", "."],
+                module.project_setup_plan(project, commands),
+            )
             state.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\\x00")
             state.joinpath(".mined").unlink()
             self.assertNotIn(
@@ -530,6 +548,11 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 ],
                 module.project_setup_plan(project, commands),
             )
+            self.assertIn(
+                ["/tools/mempalace", "mine", "."],
+                module.project_setup_plan(project, commands),
+            )
+            state.joinpath(".mined").write_text("current\n", encoding="utf-8")
             graph = project / "graphify-out/graph.json"
             graph.parent.mkdir()
             graph.write_text("{}\n", encoding="utf-8")
@@ -540,6 +563,15 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             memory.parent.mkdir()
             memory.write_text("{}\n", encoding="utf-8")
             self.assertEqual([], module.project_setup_plan(project, commands))
+
+    def test_project_setup_rejects_nonregular_mempalace_configuration(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath("mempalace.yaml").mkdir()
+
+            with self.assertRaisesRegex(ValueError, "configuration"):
+                module.project_setup_plan(project, {"mempalace": "/tools/mempalace"})
 
     def test_mempalace_setup_marks_only_a_successful_exact_target(self):
         module = load_controller()

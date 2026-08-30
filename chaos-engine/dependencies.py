@@ -560,7 +560,10 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
     if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
-        if not mempalace_project_setup_complete(project):
+        configured = mempalace_project_configuration_exists(project)
+        if configured and not mempalace_project_setup_complete(project):
+            planned.append([mempalace, "mine", "."])
+        elif not configured and not mempalace_project_setup_complete(project):
             planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
     graphify = commands.get("graphify")
     if graphify:
@@ -577,19 +580,29 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
 
 
 def mempalace_project_setup_complete(project: Path) -> bool:
-    """Do not replace an existing project configuration during account setup."""
+    """Return whether the project owns complete exact MemPalace state."""
     project = project.resolve()
     palace = project / ".chaos-engine-state/mempalace"
-    return (project / "mempalace.yaml").is_file() or (
-        (palace / "sqlite_exact.sqlite3").is_file() and (palace / ".mined").is_file()
-    )
+    return (palace / "sqlite_exact.sqlite3").is_file() and (palace / ".mined").is_file()
+
+
+def mempalace_project_configuration_exists(project: Path) -> bool:
+    """Reject unsafe config entries and report a regular legacy configuration."""
+    configuration = project.resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration):
+        raise ValueError("MemPalace project configuration is a link or reparse point")
+    if not configuration.exists():
+        return False
+    if not configuration.is_file():
+        raise ValueError("MemPalace project configuration is not a regular file")
+    return True
 
 
 def mempalace_project_setup_environment(
     project: Path, command: list[str]
 ) -> dict[str, str]:
     """Bind non-resolver initialization to its one exact project-owned palace."""
-    if command[1:3] != ["init", "."]:
+    if command[1:3] not in (["init", "."], ["mine", "."]):
         return {}
     return {
         "MEMPALACE_PALACE_PATH": str(
@@ -857,7 +870,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             runner=runner,
             extra_environment=mempalace_project_setup_environment(project, command),
         )
-        if command[1:3] == ["init", "."]:
+        if command[1:3] in (["init", "."], ["mine", "."]):
             mark_mempalace_project_setup(project)
 
     final_components: dict[str, dict[str, object]] = {}
