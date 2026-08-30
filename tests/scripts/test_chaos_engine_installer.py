@@ -345,6 +345,56 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(base_images, restored_hosts.current_images(project))
             self.assertEqual(base_account_raw, base_account_receipt.read_bytes())
 
+    def test_account_upgrade_failure_restores_core_after_account_journal_recovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+            base_receipt = project.joinpath(".chaos-engine-dependencies.json").read_bytes()
+            changed_source = copy_source(Path(temporary) / "changed")
+            changed_hosts = changed_source / "hosts.py"
+            changed_hosts.write_text(
+                changed_hosts.read_text(encoding="utf-8") + "\n# changed fixture\n",
+                encoding="utf-8",
+            )
+
+            class FailingController:
+                def __init__(self, delegate):
+                    self.delegate = delegate
+
+                def __getattr__(self, name):
+                    return getattr(self.delegate, name)
+
+                def install_account_dependencies(self, target, _specification):
+                    target.joinpath(".chaos-engine-dependencies.json").write_text(
+                        "candidate\n", encoding="utf-8"
+                    )
+                    raise RuntimeError("dependency setup blocked: python")
+
+            def failing_controller(installed_root):
+                return FailingController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=failing_controller
+            ):
+                with self.assertRaisesRegex(RuntimeError, "dependency setup blocked: python"):
+                    MODULE.install_with_dependencies(project, changed_source, "2" * 40)
+
+            self.assertEqual(
+                base_receipt,
+                project.joinpath(".chaos-engine-dependencies.json").read_bytes(),
+            )
+            self.assertFalse(project.joinpath(MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
+            self.assertFalse(project.joinpath(MODULE.ACCOUNT_ROLLBACK_JOURNAL_NAME).exists())
+
     def test_account_upgrade_crash_recovers_durable_pre_mutation_journal(self):
         """A process death after account mutation must restart from exact base data."""
         with tempfile.TemporaryDirectory() as temporary:

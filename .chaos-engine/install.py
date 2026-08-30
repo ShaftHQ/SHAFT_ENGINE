@@ -2456,10 +2456,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     )
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            can_compensate = (
-                not account_rollback_recovered
-                and (not candidate_published or restore_generation is not None)
-            )
+            can_compensate = not candidate_published or restore_generation is not None
             if candidate is not None and not candidate_published:
                 try:
                     controller.remove_generation(project, candidate)
@@ -2480,7 +2477,12 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     host_controller.restore_snapshot(project, host_snapshot)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
-            if can_compensate and account_mode and account_receipt_after is not None:
+            if (
+                can_compensate
+                and not account_rollback_recovered
+                and account_mode
+                and account_receipt_after is not None
+            ):
                 try:
                     if account_receipt_path.read_bytes() != account_receipt_after:
                         raise ValueError("account dependency receipt changed during compensation")
@@ -2497,6 +2499,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     compensation_errors.append(cleanup_error)
             if (
                 can_compensate
+                and not account_rollback_recovered
                 and project_setup_snapshot is not None
                 and project_setup_after is not None
             ):
