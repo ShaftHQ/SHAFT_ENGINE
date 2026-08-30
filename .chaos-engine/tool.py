@@ -13,6 +13,33 @@ from pathlib import Path
 TOOLS = {"uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}
 
 
+def shared_project_root(project: Path) -> Path:
+    """Resolve the primary checkout pinned to its current origin/main."""
+    if not (project / "tools/repository-map/resolve_mempalace.py").is_file():
+        return project.resolve()
+    completed = subprocess.run(  # nosec B603 - fixed Git query, no shell.
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    common = Path(completed.stdout.strip())
+    if not common.is_absolute():
+        common = (project / common).resolve()
+    root = common.parent.resolve()
+    revisions = subprocess.run(  # nosec B603 - fixed Git query, no shell.
+        ["git", "rev-parse", "HEAD", "refs/remotes/origin/main"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    if len(revisions) != 2 or revisions[0] != revisions[1]:
+        raise ValueError("shared project Memory is not synchronized with origin/main")
+    return root
+
+
 def load_host_controller(installed_root: Path):
     """Load the colocated state classifier without requiring a Python package."""
     path = installed_root / "hosts.py"
@@ -56,7 +83,7 @@ def resolve_command(
 ) -> list[str]:
     if tool not in TOOLS:
         raise ValueError(f"unsupported ChaosEngine tool: {tool}")
-    project = installed_root.resolve().parent
+    project = shared_project_root(installed_root.resolve().parent)
     path = installed_root / "dependencies.py"
     if not path.is_file():
         raise ValueError("ChaosEngine dependency controller could not be loaded")
@@ -85,6 +112,7 @@ def main() -> int:
         return subprocess.call(  # nosec B603
             invocation,
             env=environment,
+            cwd=shared_project_root(installed_root.resolve().parent),
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)

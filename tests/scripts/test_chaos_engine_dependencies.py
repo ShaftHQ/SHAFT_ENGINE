@@ -122,6 +122,37 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "recovery-required"):
                     module.mempalace_mcp_arguments(core, [])
 
+    def test_tool_launcher_uses_primary_checkout_only_at_origin_main(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            worktree = Path(temporary)
+            resolver = worktree / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture\n", encoding="utf-8")
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=(
+                    SimpleNamespace(stdout="/repo/.git\n"),
+                    SimpleNamespace(stdout="a" * 40 + "\n" + "a" * 40 + "\n"),
+                ),
+            ):
+                self.assertEqual(Path("/repo"), module.shared_project_root(worktree))
+
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=(
+                    SimpleNamespace(stdout="/repo/.git\n"),
+                    SimpleNamespace(stdout="a" * 40 + "\n" + "b" * 40 + "\n"),
+                ),
+            ):
+                with self.assertRaisesRegex(ValueError, "not synchronized with origin/main"):
+                    module.shared_project_root(worktree)
+
+            resolver.unlink()
+            self.assertEqual(worktree.resolve(), module.shared_project_root(worktree))
+
     def test_tool_launcher_rejects_relative_resolver_output_before_resolve(self):
         module = load_tool()
         with tempfile.TemporaryDirectory() as temporary:

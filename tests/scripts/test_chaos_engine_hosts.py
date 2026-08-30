@@ -2602,7 +2602,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             with self.subTest(frame=frame), self.assertRaisesRegex(ValueError, "invalid MCP"):
                 module.parse_mcp_stdout_frames(frame + "\n")
 
-    def test_account_mcp_servers_use_resolved_absolute_executables(self):
+    def test_account_mcp_servers_share_the_project_wrappers(self):
         module = load(HOSTS, "chaos_engine_hosts_account_mcp")
         commands = {
             "memory-mcp": "/home/user tools/bin/memory-mcp",
@@ -2611,8 +2611,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         servers = module.owned_servers(account_commands=commands)
 
-        self.assertEqual(commands["memory-mcp"], servers["chaosengine-memory"]["command"])
-        self.assertEqual([], servers["chaosengine-memory"]["args"])
+        self.assertEqual("python3", servers["chaosengine-memory"]["command"])
+        self.assertEqual(
+            [".chaos-engine/tool.py", "memory-mcp"],
+            servers["chaosengine-memory"]["args"],
+        )
         self.assertEqual("python3", servers["chaosengine-mempalace"]["command"])
         self.assertEqual(
             [".chaos-engine/tool.py", "mempalace-mcp"],

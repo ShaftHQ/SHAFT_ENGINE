@@ -964,8 +964,7 @@ def mcp_runtime_status(
     environment.update(MEMPALACE_MCP_ENV)
     python = str(managed_python) if managed_python is not None else sys.executable
     commands = (
-        [account_commands["memory-mcp"]]
-        if account_commands is not None else [python, str(tool), "memory-mcp"],
+        [python, str(tool), "memory-mcp"],
         [python, str(tool), "mempalace-mcp"],
     )
     for name, command in zip(("memory-mcp", "mempalace-mcp"), commands):
@@ -2349,9 +2348,9 @@ def owned_servers(
         mempalace = account_commands.get("mempalace-mcp")
         if not memory or not mempalace:
             raise ValueError("account MCP executable receipt is incomplete")
-        servers["chaosengine-memory"] = {
-            "command": memory, "args": [], "cwd": "."
-        }
+        servers["chaosengine-memory"] = portable_python_server(
+            [".chaos-engine/tool.py", "memory-mcp"]
+        )
         servers["chaosengine-mempalace"] = portable_python_server(
             [".chaos-engine/tool.py", "mempalace-mcp"],
             extra={"env": dict(MEMPALACE_MCP_ENV)},
@@ -2982,9 +2981,6 @@ def codex_content(
         mempalace = account_commands.get("mempalace-mcp")
         if not memory or not mempalace:
             raise ValueError("account MCP executable receipt is incomplete")
-        posix_command = windows_command = memory.replace("\\", "\\\\")
-        windows_prefix = ""
-        memory_args = ""
     block = (
         "# CHAOSENGINE:START\n"
         f'[mcp_servers."chaosengine-memory"]\ncommand = "{posix_command}"\n'
