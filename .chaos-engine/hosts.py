@@ -25,6 +25,7 @@ from pathlib import Path, PurePosixPath
 
 
 RECEIPT_NAME = ".chaos-engine-hosts.json"
+ROLLBACK_PREVIOUS_RECEIPT = "rollbackPreviousReceipt"
 ANCHOR_NAME = ".chaos-engine-hosts.anchor"
 ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
@@ -3965,6 +3966,35 @@ def receipt_bytes(receipt: dict[str, object], project: Path | None = None) -> by
     return (json.dumps(body, indent=2, sort_keys=True) + "\n").encode()
 
 
+def rollback_previous_receipt(project: Path, expected_core_commit: str) -> bytes | None:
+    """Return authenticated one-hop host receipt saved by an upgraded core."""
+    receipt, _ = read_receipt(project)
+    encoded = receipt.get(ROLLBACK_PREVIOUS_RECEIPT)
+    if encoded is None:
+        return None
+    if not isinstance(encoded, str):
+        raise ValueError("ChaosEngine host rollback receipt is invalid")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+        previous = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, TypeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine host rollback receipt is invalid") from error
+    if (
+        base64.b64encode(raw).decode("ascii") != encoded
+        or not isinstance(previous, dict)
+        or previous.get("schemaVersion") != SCHEMA_VERSION
+        or previous.get("phase") != "installed"
+        or previous.get("coreCommit") != expected_core_commit
+        or previous.get("hosts") != host_routes()
+        or previous.get("rollbackIntent") is not None
+        or receipt_bytes(previous, project) != raw
+    ):
+        raise ValueError("ChaosEngine host rollback receipt is invalid")
+    decode_images(previous.get("before"), nullable=True)
+    decode_images(previous.get("after"), nullable=True)
+    return raw
+
+
 def atomic_write(  # noqa: MC0001 - one descriptor-bound transaction protects user files.
     project: Path, path: Path, content: bytes, expected: bytes | None
 ) -> None:
@@ -4430,6 +4460,14 @@ def install(
                 write_receipt(project, receipt, raw)
                 return receipt
             next_receipt = dict(receipt)
+            previous_receipt = json.loads(snapshot_raw.decode("utf-8"))
+            if not isinstance(previous_receipt, dict):
+                raise ValueError("ChaosEngine host preflight snapshot is invalid")
+            previous_receipt.pop(ROLLBACK_PREVIOUS_RECEIPT, None)
+            previous_receipt["rollbackIntent"] = None
+            next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
+                receipt_bytes(previous_receipt, project)
+            ).decode("ascii")
             next_receipt["phase"] = "installing"
             next_receipt["coreCommit"] = core_commit
             if desired_capability_digest is not None:

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 from contextlib import contextmanager, nullcontext
 import hashlib
 import json
@@ -746,7 +747,13 @@ def write_journal(project: Path, operation: str, commit: str) -> Path:
     return journal
 
 
-def write_cross_rollback_journal(project: Path, desired_commit: str, prior_commit: str) -> Path:
+def write_cross_rollback_journal(
+    project: Path,
+    desired_commit: str,
+    prior_commit: str,
+    *,
+    prior_host_receipt: bytes | None = None,
+) -> Path:
     if COMMIT_PATTERN.fullmatch(desired_commit) is None or COMMIT_PATTERN.fullmatch(prior_commit) is None:
         raise ValueError("rollback commits are invalid")
     transaction = project / CROSS_ROLLBACK_JOURNAL_NAME
@@ -755,8 +762,22 @@ def write_cross_rollback_journal(project: Path, desired_commit: str, prior_commi
     if transaction.exists():
         raise ValueError(f"cross-resource rollback transaction collision: {transaction}")
     target = project / INSTALL_DIRECTORY
-    if target.exists():
-        load_installed_controller(target, "hosts").set_rollback_intent(
+    host_controller = load_installed_controller(target, "hosts") if target.exists() else None
+    if prior_host_receipt is None and host_controller is not None:
+        historical_receipt = getattr(host_controller, "rollback_previous_receipt", None)
+        if callable(historical_receipt):
+            prior_host_receipt = historical_receipt(project, desired_commit)
+    if prior_host_receipt is not None:
+        if not target.exists():
+            raise ValueError("cross-resource rollback journal has no installed controller")
+        validate_prior_host_receipt(
+            project,
+            host_controller,
+            prior_host_receipt,
+            desired_commit,
+        )
+    if host_controller is not None:
+        host_controller.set_rollback_intent(
             project, desired_commit, prior_commit
         )
     body: dict[str, object] = {
@@ -764,6 +785,8 @@ def write_cross_rollback_journal(project: Path, desired_commit: str, prior_commi
         "desiredCommit": desired_commit,
         "priorCommit": prior_commit,
     }
+    if prior_host_receipt is not None:
+        body["priorHostReceipt"] = base64.b64encode(prior_host_receipt).decode("ascii")
     body["integritySha256"] = hashlib.sha256(
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -781,7 +804,30 @@ def write_cross_rollback_journal(project: Path, desired_commit: str, prior_commi
     return journal
 
 
-def read_cross_rollback_journal(project: Path) -> dict[str, str] | None:
+def validate_prior_host_receipt(
+    project: Path, controller, raw: bytes, desired_commit: str
+) -> dict[str, object]:
+    """Validate exact pre-upgrade receipt retained for rollback recovery."""
+    try:
+        receipt = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("cross-resource rollback journal is invalid") from error
+    if (
+        not isinstance(receipt, dict)
+        or receipt.get("schemaVersion") != controller.SCHEMA_VERSION
+        or receipt.get("phase") != "installed"
+        or receipt.get("coreCommit") != desired_commit
+        or receipt.get("hosts") != controller.host_routes()
+        or receipt.get("rollbackIntent") is not None
+        or controller.receipt_bytes(receipt, project) != raw
+    ):
+        raise ValueError("cross-resource rollback journal is invalid")
+    controller.decode_images(receipt.get("before"), nullable=True)
+    controller.decode_images(receipt.get("after"), nullable=True)
+    return receipt
+
+
+def read_cross_rollback_journal(project: Path) -> dict[str, str | bytes] | None:
     transaction = project / CROSS_ROLLBACK_JOURNAL_NAME
     journal = transaction / "journal.json"
     reject_link_or_reparse(transaction)
@@ -797,7 +843,8 @@ def read_cross_rollback_journal(project: Path) -> dict[str, str] | None:
     if not target.exists():
         raise ValueError("cross-resource rollback journal has no installed controller")
     verify_install(target)
-    receipt, _ = load_installed_controller(target, "hosts").read_receipt(project)
+    host_controller = load_installed_controller(target, "hosts")
+    receipt, _ = host_controller.read_receipt(project)
     intent = receipt.get("rollbackIntent")
     if not journal.exists():
         if not isinstance(intent, dict):
@@ -834,10 +881,25 @@ def read_cross_rollback_journal(project: Path) -> dict[str, str] | None:
         "priorCommit": str(value["priorCommit"]),
     }:
         raise ValueError("cross-resource rollback journal intent is not authenticated")
-    return {
+    result: dict[str, str | bytes] = {
         "desiredCommit": str(value["desiredCommit"]),
         "priorCommit": str(value["priorCommit"]),
     }
+    prior_host_receipt = value.get("priorHostReceipt")
+    if prior_host_receipt is not None:
+        if not isinstance(prior_host_receipt, str):
+            raise ValueError("cross-resource rollback journal is invalid")
+        try:
+            decoded = base64.b64decode(prior_host_receipt, validate=True)
+        except (ValueError, TypeError) as error:
+            raise ValueError("cross-resource rollback journal is invalid") from error
+        if base64.b64encode(decoded).decode("ascii") != prior_host_receipt:
+            raise ValueError("cross-resource rollback journal is invalid")
+        validate_prior_host_receipt(
+            project, host_controller, decoded, str(value["desiredCommit"])
+        )
+        result["priorHostReceipt"] = decoded
+    return result
 
 
 def publish_staged_tree(stage: Path, target: Path, displaced: Path) -> None:
@@ -1211,7 +1273,7 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 host_controller.set_rollback_intent(project, desired_commit, prior_commit)
                 host_receipt_value, _ = host_controller.read_receipt(project)
                 intent = host_receipt_value.get("rollbackIntent")
-            if intent != pending:
+            if intent != {"desiredCommit": desired_commit, "priorCommit": prior_commit}:
                 raise ValueError("rollback state does not match the recorded phase")
             valid_phase = (
                 target_commit == prior_commit and backup_commit == desired_commit and host_commit == prior_commit
@@ -1269,6 +1331,14 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 rollback(project, _locked=True)
             try:
                 previous_hosts = load_installed_controller(target, "hosts")
+                prior_host_receipt = pending.get("priorHostReceipt")
+                prior_host_receipt_value = (
+                    validate_prior_host_receipt(
+                        project, previous_hosts, prior_host_receipt, desired_commit
+                    )
+                    if isinstance(prior_host_receipt, bytes)
+                    else None
+                )
                 desired_manifest = verify_install(target)
                 previous_hosts.install(
                     project,
@@ -1347,7 +1417,21 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 journal_path.unlink()
             if transaction_path.exists():
                 transaction_path.rmdir()
-            previous_hosts.clear_rollback_intent(project, desired_commit, prior_commit)
+            if prior_host_receipt_value is not None:
+                prior_after = previous_hosts.decode_images(
+                    prior_host_receipt_value["after"], nullable=True
+                )
+                if previous_hosts.current_images(project) == prior_after:
+                    _, current_raw = previous_hosts.read_receipt(project)
+                    previous_hosts.write_receipt(
+                        project, prior_host_receipt_value, current_raw
+                    )
+                else:
+                    previous_hosts.clear_rollback_intent(
+                        project, desired_commit, prior_commit
+                    )
+            else:
+                previous_hosts.clear_rollback_intent(project, desired_commit, prior_commit)
             return target
     with (nullcontext() if _locked else project_lock(project)):
         _recover_transaction(project)
@@ -1444,6 +1528,59 @@ def load_installed_controller(installed_root: Path, name: str):
 
 def load_source_controller(name: str):
     return load_installed_controller(Path(__file__).resolve().parent, name)
+
+
+@contextmanager
+def staged_candidate_host_controller(
+    project: Path,
+    source: Path,
+    commit: str,
+    source_record: dict[str, str] | None,
+    distribution: str,
+):
+    """Load preflight hosts only from an ownership-verified candidate stage."""
+    source = source.resolve()
+    if source == project or source.is_relative_to(project) or project.is_relative_to(source):
+        raise ValueError("ChaosEngine source and project trees must be disjoint")
+    desired_source = normalize_source_record({"commit": commit, "kind": "local"})
+    if source_record is not None:
+        desired_source = normalize_source_record(source_record)
+        if desired_source.get("commit") != commit or desired_source.get("kind") not in {
+            "git",
+            "git-digest",
+        }:
+            raise ValueError("ChaosEngine source record is invalid")
+    if (source / MANIFEST_NAME).exists():
+        raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
+    _, policy_digest = load_distribution(source, distribution)
+    capabilities, capability_digest = load_capability_policy(source, distribution)
+    files = source_files(source, distribution)
+    ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
+    with tempfile.TemporaryDirectory(prefix=f"{INSTALL_DIRECTORY}-candidate-", dir=project) as name:
+        stage = Path(name)
+        for path in files:
+            destination = stage / path.relative_to(source)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, destination)
+        verify_staged_payload(stage, ownership)
+        (stage / MANIFEST_NAME).write_text(
+            json.dumps(
+                {
+                    "schemaVersion": SCHEMA_VERSION,
+                    "distribution": {"id": distribution, "policySha256": policy_digest},
+                    "capabilities": capabilities,
+                    "capabilityPolicySha256": capability_digest,
+                    "source": desired_source,
+                    "files": ownership,
+                    "hostToken": secrets.token_hex(32),
+                },
+                indent=2,
+                sort_keys=True,
+            ) + "\n",
+            encoding="utf-8",
+        )
+        verify_install(stage)
+        yield load_installed_controller(stage, "hosts")
 
 
 def load_dependency_controller(installed_root: Path):
@@ -1626,15 +1763,17 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             old_manifest = inspect_current_install(current)
             if old_manifest is not None:
                 old_commit = str(old_manifest["source"]["commit"])
-                candidate_host_controller = load_installed_controller(source, "hosts")
-                host_receipt_path = project / candidate_host_controller.RECEIPT_NAME
-                if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
-                    try:
-                        host_snapshot = candidate_host_controller.preflight(project)
-                    except ValueError as error:
-                        raise ValueError(
-                            f"ChaosEngine host adapter drift detected (receipt integrity drift): {project}"
-                        ) from error
+                with staged_candidate_host_controller(
+                    project, source, commit, source_record, distribution
+                ) as candidate_host_controller:
+                    host_receipt_path = project / candidate_host_controller.RECEIPT_NAME
+                    if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
+                        try:
+                            host_snapshot = candidate_host_controller.preflight(project)
+                        except ValueError as error:
+                            raise ValueError(
+                                f"ChaosEngine host adapter drift detected (receipt integrity drift): {project}"
+                            ) from error
                 if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
@@ -1875,7 +2014,17 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     compensation_errors.append(cleanup_error)
             elif old_commit is not None:
                 try:
-                    write_cross_rollback_journal(project, old_commit, commit)
+                    prior_host_receipt = (
+                        host_snapshot.get("raw") if isinstance(host_snapshot, dict) else None
+                    )
+                    write_cross_rollback_journal(
+                        project,
+                        old_commit,
+                        commit,
+                        prior_host_receipt=(
+                            prior_host_receipt if isinstance(prior_host_receipt, bytes) else None
+                        ),
+                    )
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             if compensation_errors:
