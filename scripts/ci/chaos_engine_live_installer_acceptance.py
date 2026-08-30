@@ -45,6 +45,25 @@ PATH_DELIMITERS = frozenset(";,:\r\n\t\"'<>{}[]()")
 SANITIZER_INPUT_LIMIT = 8192
 SANITIZER_OUTPUT_LIMIT = 500
 SANITIZER_TRUNCATION_MARKER = "\n...<truncated>...\n"
+STATUS_SUMMARY_FIELDS = ("status", "commit", "kernel", "hosts", "dependencies")
+
+
+class AcceptancePhaseFailure(RuntimeError):
+    """Carry a bounded phase name without losing the original failure evidence."""
+
+    def __init__(self, phase: str, cause: Exception):
+        self.phase = phase
+        self.cause = cause
+        super().__init__(f"{phase}: {cause}")
+
+
+class AcceptanceCommandFailure(RuntimeError):
+    """Capture the failing fixed command separately from its sanitized output."""
+
+    def __init__(self, command: list[str], returncode: int, detail: str):
+        self.command = tuple(command)
+        self.returncode = returncode
+        super().__init__(f"command failed ({returncode}): {sanitize(detail)}")
 
 
 def clean_environment(base: dict[str, str] | None = None) -> dict[str, str]:
@@ -192,6 +211,62 @@ def sanitize(value: object) -> str:
     return text[:head_size] + SANITIZER_TRUNCATION_MARKER + text[-tail_size:]
 
 
+def sanitized_command(value: object) -> list[str] | None:
+    if not isinstance(value, (list, tuple)) or any(not isinstance(part, str) for part in value):
+        return None
+    return [sanitize(part) for part in value]
+
+
+def sanitized_component_statuses(value: object) -> dict[str, dict[str, object]] | None:
+    """Keep only health labels; diagnostic details can contain private user content."""
+    if not isinstance(value, dict):
+        return None
+    result: dict[str, dict[str, object]] = {}
+    for command, report in value.items():
+        if not isinstance(command, str) or not isinstance(report, dict):
+            return None
+        summary: dict[str, object] = {}
+        for name in STATUS_SUMMARY_FIELDS:
+            status = report.get(name)
+            if isinstance(status, str):
+                summary[name] = sanitize(status)
+        for name in ("components", "dependencyComponents"):
+            components = report.get(name)
+            if components is None:
+                continue
+            if not isinstance(components, dict):
+                return None
+            statuses: dict[str, str] = {}
+            for component, status in components.items():
+                if not isinstance(component, str) or not isinstance(status, str):
+                    return None
+                statuses[sanitize(component)] = sanitize(status)
+            summary[name] = statuses
+        result[sanitize(command)] = summary
+    return result
+
+
+def failure_evidence(error: Exception) -> dict[str, object]:
+    phase: str | None = None
+    cause = error
+    if isinstance(error, AcceptancePhaseFailure):
+        phase = error.phase
+        cause = error.cause
+    result: dict[str, object] = {
+        "type": type(cause).__name__,
+        "detail": sanitize(cause),
+    }
+    if phase is not None:
+        result["phase"] = phase
+    if command := sanitized_command(getattr(cause, "command", None)):
+        result["command"] = command
+    if statuses := sanitized_component_statuses(
+        getattr(cause, "component_statuses", None)
+    ):
+        result["componentStatuses"] = statuses
+    return result
+
+
 def installer_failure_detail(value: str) -> str:
     headline = next(
         (line.strip() for line in value.splitlines() if "CE-INSTALL-" in line),
@@ -231,7 +306,7 @@ def run_checked(
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or "no process output"
         detail = installer_failure_detail(detail)
-        raise RuntimeError(f"command failed ({result.returncode}): {sanitize(detail)}")
+        raise AcceptanceCommandFailure(command, result.returncode, detail)
     return result
 
 
@@ -577,51 +652,73 @@ def verify_phase(project: Path, expected_commit: str) -> dict[str, object]:
     }
 
 
+def component_status_summary(result: object) -> dict[str, object]:
+    """Extract schema-stable health labels without retaining host diagnostics."""
+    if not isinstance(result, dict):
+        return {}
+    summary: dict[str, object] = {
+        name: result[name] for name in ("status", "commit")
+        if isinstance(result.get(name), str)
+    }
+    for name in ("kernel", "hosts", "dependencies"):
+        value = result.get(name)
+        if isinstance(value, dict) and isinstance(value.get("status"), str):
+            summary[name] = value["status"]
+    components = result.get("components")
+    if isinstance(components, dict):
+        summary["components"] = {
+            name: record["status"]
+            for name, record in components.items()
+            if isinstance(name, str)
+            and isinstance(record, dict)
+            and isinstance(record.get("status"), str)
+        }
+    dependencies = result.get("dependencies")
+    dependency_components = dependencies.get("components") if isinstance(dependencies, dict) else None
+    if isinstance(dependency_components, dict):
+        summary["dependencyComponents"] = {
+            name: record["status"]
+            for name, record in dependency_components.items()
+            if isinstance(name, str)
+            and isinstance(record, dict)
+            and isinstance(record.get("status"), str)
+        }
+    return summary
+
+
 def verify_account_phase(
     project: Path, expected_commit: str, *, probe_generated: bool = True,
     environment: dict[str, str] | None = None,
 ) -> dict[str, object]:
     installed = project / ".chaos-engine"
     environment = environment or wrapper_environment()
+    status_reports: dict[str, dict[str, object]] = {}
     for command in ("status", "doctor"):
+        command_line = [
+            sys.executable,
+            str(installed / "install.py"),
+            command,
+            "--project",
+            str(project),
+            "--json",
+        ]
         result = json.loads(
             run_checked(
-                [
-                    sys.executable,
-                    str(installed / "install.py"),
-                    command,
-                    "--project",
-                    str(project),
-                    "--json",
-                ],
+                command_line,
                 cwd=project,
                 environment=environment,
             ).stdout
         )
+        summary = component_status_summary(result)
+        status_reports[command] = summary
         if result.get("status") != "healthy" or result.get("commit") != expected_commit:
-            components = result.get("components", {})
-            dependencies = result.get("dependencies", {}).get("components", {})
-            summary = {
-                "status": result.get("status"),
-                "commit": result.get("commit"),
-                "kernel": result.get("kernel", {}).get("status"),
-                "hosts": result.get("hosts", {}).get("status"),
-                "dependencies": result.get("dependencies", {}).get("status"),
-                "unhealthyComponents": {
-                    name: record
-                    for name, record in components.items()
-                    if record.get("status") != "healthy"
-                },
-                "unhealthyDependencies": {
-                    name: record.get("status")
-                    for name, record in dependencies.items()
-                    if record.get("status") != "healthy"
-                },
-            }
-            raise RuntimeError(
+            error = RuntimeError(
                 f"{command} did not report expected healthy account setup: "
                 f"{sanitize(json.dumps(summary, sort_keys=True))}"
             )
+            error.command = command_line
+            error.component_statuses = {command: summary}
+            raise error
     receipt = read_json(project / ".chaos-engine-dependencies.json")
     components = receipt.get("components")
     commands = receipt.get("commands")
@@ -660,6 +757,7 @@ def verify_account_phase(
             }
             for name, record in components.items()
         },
+        "verification": status_reports,
     }
 
 
@@ -667,14 +765,23 @@ def record_phase(
     evidence: dict[str, object], name: str, operation
 ) -> dict[str, object]:
     started = time.monotonic()
-    checks = operation()
-    phase = {
+    try:
+        checks = operation()
+    except Exception as error:
+        phase_error = AcceptancePhaseFailure(name, error)
+        evidence["phases"].append({
+            "name": name,
+            "status": "fail",
+            "durationSeconds": round(time.monotonic() - started, 3),
+            "failure": failure_evidence(phase_error),
+        })
+        raise phase_error from error
+    evidence["phases"].append({
         "name": name,
         "status": "pass",
         "durationSeconds": round(time.monotonic() - started, 3),
         "checks": checks,
-    }
-    evidence["phases"].append(phase)
+    })
     return checks
 
 
@@ -905,7 +1012,7 @@ def main(argv: list[str] | None = None) -> int:
     if COMMIT.fullmatch(candidate_sha) is None or COMMIT.fullmatch(base_sha) is None:
         raise RuntimeError("candidate and base commits must be exact lowercase SHA-1 values")
     evidence: dict[str, object] = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "accepted": False,
         "platform": platform.system(),
         "python": platform.python_version(),
@@ -919,7 +1026,7 @@ def main(argv: list[str] | None = None) -> int:
             base_sha=base_sha,
         )
     except Exception as error:
-        evidence["failure"] = {"type": type(error).__name__, "detail": sanitize(error)}
+        evidence["failure"] = failure_evidence(error)
         write_evidence(args.output, evidence)
         return 1
     evidence["accepted"] = True

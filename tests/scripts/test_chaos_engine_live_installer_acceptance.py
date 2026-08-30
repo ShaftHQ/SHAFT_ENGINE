@@ -358,6 +358,42 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         for call in runner.call_args_list:
             self.assertEqual(os.defpath, call.kwargs["environment"]["PATH"])
 
+    def test_account_doctor_failure_carries_component_statuses_and_command(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".chaos-engine").mkdir()
+            healthy = json.dumps({"status": "healthy", "commit": "a" * 40})
+            unhealthy = json.dumps({
+                "status": "unhealthy", "commit": "a" * 40,
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "unhealthy"},
+                "dependencies": {
+                    "status": "unhealthy",
+                    "components": {"memory": {"status": "unhealthy"}},
+                },
+                "components": {"hooks": {"status": "unhealthy"}},
+            })
+            with mock.patch.object(module, "run_checked", side_effect=(
+                CompletedProcess([], 0, healthy, ""),
+                CompletedProcess([], 0, unhealthy, ""),
+            )):
+                with self.assertRaisesRegex(RuntimeError, "doctor did not report") as raised:
+                    module.verify_account_phase(project, "a" * 40, probe_generated=False)
+
+        error = raised.exception
+        self.assertEqual("doctor", error.command[2])
+        self.assertEqual(
+            "unhealthy", error.component_statuses["doctor"]["components"]["hooks"]
+        )
+        self.assertEqual(
+            "unhealthy",
+            error.component_statuses["doctor"]["dependencyComponents"]["memory"],
+        )
+
     def test_failure_still_writes_sanitized_json_evidence(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
@@ -375,6 +411,53 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         self.assertFalse(evidence["accepted"])
         self.assertNotIn(leaked, json.dumps(evidence))
         self.assertEqual("RuntimeError", evidence["failure"]["type"])
+
+    def test_failure_evidence_records_sanitized_phase_command_and_components(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "evidence.json"
+            leaked = str(Path(temporary) / "consumer")
+
+            def failing_acceptance(_source, evidence, **_kwargs):
+                error = RuntimeError(
+                    f"doctor rejected {leaked} https://user:secret@example.invalid"
+                )
+                error.command = [
+                    sys.executable, f"{leaked}/.chaos-engine/install.py", "doctor",
+                    "--project", leaked, "--json",
+                ]
+                error.component_statuses = {
+                    "doctor": {
+                        "status": "unhealthy",
+                        "hosts": "unhealthy",
+                        "dependencies": "healthy",
+                        "components": {"hooks": "unhealthy", "mcps": "unhealthy"},
+                        "dependencyComponents": {"memory": "healthy"},
+                    }
+                }
+
+                def fail():
+                    raise error
+
+                module.record_phase(evidence, "preseeded-base-wrapper", fail)
+
+            with mock.patch.object(module, "run_acceptance", side_effect=failing_acceptance):
+                exit_code = module.main(["--output", str(output)])
+            evidence = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(1, exit_code)
+        self.assertEqual("preseeded-base-wrapper", evidence["failure"]["phase"])
+        self.assertEqual("doctor", evidence["failure"]["command"][2])
+        self.assertEqual(
+            "unhealthy", evidence["failure"]["componentStatuses"]["doctor"]["hosts"]
+        )
+        self.assertEqual("fail", evidence["phases"][0]["status"])
+        serialized = json.dumps(evidence)
+        self.assertNotIn(leaked, serialized)
+        self.assertNotIn("secret", serialized)
 
     def test_sanitize_redacts_platform_paths_without_hiding_relative_diagnostics(self):
         module = load_acceptance()
