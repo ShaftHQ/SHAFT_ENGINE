@@ -142,7 +142,7 @@ jobs:
         if: always()
         uses: ./.github/actions/post-test-report
         with:
-          job-name: MacOSX_Safari_Local_1_of_2
+          job-name: MacOSX_Safari_Local_1_of_${{ github.event.inputs.tests != '' && '1' || '2' }}
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Safari_Local_2:

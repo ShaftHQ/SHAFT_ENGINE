@@ -148,7 +148,12 @@ jobs:
             report_step = next(
                 step for step in safari_job["steps"] if step.get("id") == "post_test_report"
             )
-            self.assertEqual(report_step["with"]["job-name"], f"MacOSX_Safari_Local_{index}_of_2")
+            expected_report_name = (
+                "MacOSX_Safari_Local_1_of_${{ github.event.inputs.tests != '' && '1' || '2' }}"
+                if index == 1
+                else "MacOSX_Safari_Local_2_of_2"
+            )
+            self.assertEqual(report_step["with"]["job-name"], expected_report_name)
 
         first_commands = " ".join(str(step.get("run", "")) for step in jobs[safari_ids[0]]["steps"])
         self.assertIn("github.event.inputs.tests != '' && '1/1' || '1/2'", first_commands)
