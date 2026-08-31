@@ -269,11 +269,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     /**
-     * Deterministically partitions test methods by {@code -Dshaft.shard=N/M} (see
+     * Deterministically partitions test classes by {@code -Dshaft.shard=N/M} (see
      * {@link ShardPartitioner}), leaving every non-test (configuration) method untouched so
      * {@code @BeforeSuite}/{@code @BeforeClass}/etc. still run normally for the methods that do
-     * remain. A blank, malformed, or absent {@code shaft.shard} property disables filtering
-     * entirely and returns {@code methods} unchanged.
+     * remain. Class-level partitioning keeps TestNG method dependencies together. A blank,
+     * malformed, or absent {@code shaft.shard} property disables filtering entirely and returns
+     * {@code methods} unchanged.
      */
     private static List<IMethodInstance> shardFilter(List<IMethodInstance> methods) {
         ShardPartitioner.Spec spec = ShardPartitioner.parse(System.getProperty("shaft.shard", ""));
@@ -289,7 +290,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                     String className = method.getTestClass() == null
                             ? method.getRealClass().getName()
                             : method.getTestClass().getName();
-                    return spec.includes(className, method.getMethodName());
+                    return spec.includes(className, "");
                 })
                 .collect(Collectors.toList());
     }

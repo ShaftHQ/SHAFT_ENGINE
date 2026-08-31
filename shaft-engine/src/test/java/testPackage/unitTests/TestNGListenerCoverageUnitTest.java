@@ -65,7 +65,7 @@ public class TestNGListenerCoverageUnitTest {
         TestNGListener listener = new TestNGListener();
         List<IMethodInstance> methods = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
-            methods.add(methodInstance("testPackage.unitTests.TestNGListenerCoverageUnitTest", "test" + i, true));
+            methods.add(methodInstance("testPackage.unitTests.ShardedTest" + i, "test", true));
         }
 
         List<IMethodInstance> shardOne = listener.intercept(new ArrayList<>(methods), Mockito.mock(ITestContext.class));
@@ -76,6 +76,30 @@ public class TestNGListenerCoverageUnitTest {
         Assert.assertTrue(shardTwo.size() < methods.size(), "Shard 2/2 should drop some methods");
         assertEquals(shardOne.size() + shardTwo.size(), methods.size(),
                 "The union of both shards must equal the full method list with no overlap");
+    }
+
+    @Test
+    public void interceptKeepsDependentMethodsFromTheSameClassOnOneShard() {
+        TestNGListener listener = new TestNGListener();
+        List<IMethodInstance> dependentMethods = List.of(
+                methodInstance("com.example.DependentSafariTest", "signIn", true),
+                methodInstance("com.example.DependentSafariTest", "checkout", true),
+                methodInstance("com.example.DependentSafariTest", "signOut", true));
+        Mockito.when(dependentMethods.get(1).getMethod().getMethodsDependedUpon())
+                .thenReturn(new String[]{"signIn"});
+        Mockito.when(dependentMethods.get(2).getMethod().getMethodsDependedUpon())
+                .thenReturn(new String[]{"checkout"});
+
+        System.setProperty("shaft.shard", "1/2");
+        List<IMethodInstance> shardOne = listener.intercept(new ArrayList<>(dependentMethods),
+                Mockito.mock(ITestContext.class));
+        System.setProperty("shaft.shard", "2/2");
+        List<IMethodInstance> shardTwo = listener.intercept(new ArrayList<>(dependentMethods),
+                Mockito.mock(ITestContext.class));
+
+        Assert.assertTrue(shardOne.isEmpty() || shardTwo.isEmpty(),
+                "Methods in one class must not be split because TestNG dependencies are class-scoped.");
+        assertEquals(shardOne.size() + shardTwo.size(), dependentMethods.size());
     }
 
     @Test
