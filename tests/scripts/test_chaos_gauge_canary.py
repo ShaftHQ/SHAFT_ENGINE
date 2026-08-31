@@ -12,7 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 GAUGE = ROOT / "scripts" / "ci" / "chaos_gauge"
 SPEC = importlib.util.spec_from_file_location("chaos_gauge_canary", GAUGE / "canary.py")
-assert SPEC and SPEC.loader
+if SPEC is None or SPEC.loader is None:
+    raise RuntimeError("ChaosGauge canary module is unavailable")
 CANARY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CANARY)
 MANIFEST = json.loads((GAUGE / "experiment.json").read_text(encoding="utf-8"))
