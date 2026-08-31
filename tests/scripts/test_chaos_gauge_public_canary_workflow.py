@@ -100,10 +100,18 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
                 self.assertNotIn("${{", run)
         self.assertIn("GH_TOKEN: ${{ secrets.BOT_TOKEN }}", self.text)
         self.assertIn("OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", self.text)
-        self.assertIn("HARBOR_API_KEY: ${{ secrets.CHAOSGAUGE_HARBOR_TOKEN }}", self.text)
         for step in self.steps:
             if step.get("name") != "Checkout pinned private corpus":
                 self.assertNotIn("BOT_TOKEN", step.get("env", {}))
+
+    def test_excluded_canary_uses_local_harbor_without_hub_credential_or_claim(self) -> None:
+        """This native-runtime canary must not require or advertise Harbor Hub."""
+        provider = self._step("Run excluded two-arm canary")
+        self.assertNotIn("HARBOR_API_KEY", provider["env"])
+        self.assertNotIn("CHAOSGAUGE_HARBOR_TOKEN", self.text)
+        self.assertNotIn("Harbor credential unavailable", str(provider["run"]))
+        self.assertNotIn("Harbor Hub", self.text)
+        self.assertNotIn("Hub URL", self.text)
 
     def test_direct_prepare_cli_reaches_credential_gate_from_any_cwd(self) -> None:
         """The documented direct script call must not depend on repository import paths."""
