@@ -7,12 +7,14 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import subprocess
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+from uuid import UUID
 
 
 ARMS = ("control", "chaos-engine")
@@ -165,8 +167,10 @@ def _validate_lock(lock: object, expected_agent: object, pairs: list[dict[str, o
         raise ValueError("Harbor lock task identity is invalid")
 
 
-def _trials(job: object, arm: str, expected_agent: object, lock: object, pairs: list[dict[str, object]]) -> tuple[dict[str, list[dict[str, object]]], int]:
+def _trials(job: object, arm: str, expected_agent: object, expected_job_id: str, lock: object, pairs: list[dict[str, object]]) -> tuple[dict[str, dict[str, object]], int]:
     value = _object(job, f"{arm} Harbor result")
+    if _job_id(value.get("id")) != expected_job_id:
+        raise ValueError("Harbor job identity is invalid")
     stats = _object(value.get("stats"), "Harbor retries")
     retries = stats.get("n_retries")
     if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
@@ -177,7 +181,8 @@ def _trials(job: object, arm: str, expected_agent: object, lock: object, pairs: 
         raise ValueError("Harbor trial matrix is incomplete")
     expected = _task_counts(pairs)
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
-    names: set[str] = set()
+    by_name: dict[str, dict[str, object]] = {}
+    names: set[tuple[str, str]] = set()
     for raw in results:
         trial = _object(raw, "Harbor trial")
         task, checksum = str(trial.get("task_name")), str(trial.get("task_checksum"))
@@ -196,10 +201,12 @@ def _trials(job: object, arm: str, expected_agent: object, lock: object, pairs: 
         if trial.get("verifier_environment_mode") != "separate":
             raise ValueError("Harbor verifier isolation is invalid")
         started = _timestamp(_object(trial.get("agent_execution"), "Harbor timing").get("started_at"))
-        grouped[task].append({"trialName": native_name, "started": started, "task": task, "sha256": checksum})
+        item = {"trialName": native_name, "started": started, "task": task, "sha256": checksum}
+        grouped[task].append(item)
+        by_name[native_name] = item
     if Counter((task, item["sha256"]) for task, items in grouped.items() for item in items) != expected:
         raise ValueError("Harbor task identity is invalid")
-    return grouped, retries
+    return by_name, retries
 
 
 def _timestamp(value: object) -> datetime:
@@ -212,6 +219,13 @@ def _timestamp(value: object) -> datetime:
     return parsed
 
 
+def _job_id(value: object) -> str:
+    try:
+        return str(UUID(str(value)))
+    except (AttributeError, ValueError) as error:
+        raise ValueError("Harbor job identity is invalid") from error
+
+
 def _canonical_plan(manifest: dict[str, object], planned: object) -> dict[str, object]:
     value = _object(planned, "planned campaign")
     campaign = value.get("campaign")
@@ -220,7 +234,200 @@ def _canonical_plan(manifest: dict[str, object], planned: object) -> dict[str, o
     return value
 
 
-def _completed_pair(manifest: dict[str, object], planned: dict[str, object], pair: dict[str, object], record: object) -> None:
+def _plan_digest(planned: dict[str, object]) -> str:
+    return hashlib.sha256(json.dumps(planned, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _bind_native_trials(manifest: object, planned: object, native_trials: object, *, job_ids: object, prepared_at: object) -> dict[str, object]:
+    """Bind Harbor-created native names to planned attempts before either job starts."""
+    value = _object(manifest, "experiment manifest")
+    canonical = _canonical_plan(value, planned)
+    prepared = _timestamp(prepared_at)
+    supplied = _object(native_trials, "native trial bindings")
+    if set(supplied) != set(ARMS):
+        raise ValueError("native trial binding arms are invalid")
+    supplied_job_ids = _object(job_ids, "Harbor job identities")
+    if set(supplied_job_ids) != set(ARMS):
+        raise ValueError("Harbor job identity is invalid")
+    grouped: dict[str, dict[str, list[str]]] = {arm: defaultdict(list) for arm in ARMS}
+    names: set[tuple[str, str]] = set()
+    for arm in ARMS:
+        trials = supplied[arm]
+        if not isinstance(trials, list) or len(trials) != len(canonical["pairs"]):
+            raise ValueError("native trial binding matrix is invalid")
+        for raw in trials:
+            trial = _object(raw, "native trial binding")
+            task = str(trial.get("task"))
+            name = _native_trial_name(task, trial.get("nativeTrialName"))
+            if (arm, name) in names:
+                raise ValueError("native trial identity is reused")
+            names.add((arm, name))
+            grouped[arm][task].append(name)
+    bindings = []
+    for task in sorted({str(pair["task"]) for pair in canonical["pairs"]}):
+        task_pairs = [pair for pair in canonical["pairs"] if pair["task"] == task]
+        if any(len(grouped[arm][task]) != len(task_pairs) for arm in ARMS):
+            raise ValueError("native trial binding task matrix is invalid")
+        for index, pair in enumerate(task_pairs):
+            bindings.append({
+                "pairId": pair["pairId"], "task": pair["task"], "sha256": pair["sha256"], "attempt": pair["attempt"],
+                "arms": {arm: grouped[arm][task][index] for arm in ARMS},
+            })
+    return {
+        "schemaVersion": 1, "campaign": canonical["campaign"], "implementationRevision": canonical["implementationRevision"],
+        "planSha256": _plan_digest(canonical), "preparedAt": prepared.isoformat(),
+        "jobIds": {arm: _job_id(supplied_job_ids[arm]) for arm in ARMS}, "pairs": bindings,
+    }
+
+
+def bind_resolved_jobs(manifest: object, planned: object, jobs: object, *, prepared_at: object) -> dict[str, object]:
+    """Bind exact resolved Harbor Job instances before their scheduler launches them.
+
+    The caller retains these same instances and calls ``run`` only after writing
+    this artifact; a started or resumed job cannot establish a new binding.
+    """
+    supplied = _object(jobs, "resolved Harbor jobs")
+    if set(supplied) != set(ARMS):
+        raise ValueError("resolved Harbor jobs are invalid")
+    native_trials = {}
+    job_ids = {}
+    for arm in ARMS:
+        job = supplied[arm]
+        if getattr(job, "_existing_job_result", None) is not None or getattr(job, "_job_result", None) is not None:
+            raise ValueError("resolved Harbor job has already started")
+        trials = getattr(job, "_trial_configs", None)
+        if not isinstance(trials, list):
+            raise ValueError("resolved Harbor trials are invalid")
+        native_trials[arm] = []
+        for trial in trials:
+            task = getattr(trial, "task", None)
+            get_task_id = getattr(task, "get_task_id", None)
+            task_id = get_task_id() if callable(get_task_id) else None
+            get_name = getattr(task_id, "get_name", None)
+            if not callable(get_name):
+                raise ValueError("resolved Harbor trials are invalid")
+            native_trials[arm].append({"task": get_name(), "nativeTrialName": getattr(trial, "trial_name", None)})
+        job_ids[arm] = getattr(job, "id", None)
+    return _bind_native_trials(manifest, planned, native_trials, job_ids=job_ids, prepared_at=prepared_at)
+
+
+def _bindings_digest(bindings: object) -> str:
+    return hashlib.sha256(json.dumps(bindings, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def write_native_bindings(path: Path, bindings: object) -> None:
+    """Create one immutable, durable launch map before a resolved Job starts."""
+    target = Path(path)
+    if not target.parent.is_dir() or target.parent.is_symlink() or target.is_symlink():
+        raise ValueError("native trial binding output is invalid")
+    payload = json.dumps(bindings, sort_keys=True, indent=2).encode() + b"\n"
+    try:
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as error:
+        raise ValueError("native trial bindings already exist") from error
+    with os.fdopen(descriptor, "wb") as output:
+        output.write(payload)
+        output.flush()
+        os.fsync(output.fileno())
+    directory = os.open(target.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
+def bind_and_persist_resolved_jobs(manifest: object, planned: object, jobs: object, path: Path, *, prepared_at: object) -> dict[str, object]:
+    """Persist launch map from same pre-run Jobs; scheduler calls their ``run`` only after return."""
+    bindings = bind_resolved_jobs(manifest, planned, jobs, prepared_at=prepared_at)
+    write_native_bindings(path, bindings)
+    return bindings
+
+
+def _canonical_native_bindings(manifest: dict[str, object], planned: dict[str, object], bindings: object) -> tuple[dict[str, dict[str, str]], datetime, dict[str, str]]:
+    value = _object(bindings, "native trial bindings")
+    expected = {
+        "schemaVersion": 1, "campaign": planned["campaign"], "implementationRevision": planned["implementationRevision"], "planSha256": _plan_digest(planned),
+    }
+    if any(value.get(key) != item for key, item in expected.items()):
+        raise ValueError("native trial bindings are invalid")
+    prepared = _timestamp(value.get("preparedAt"))
+    job_ids = _object(value.get("jobIds"), "Harbor job identities")
+    if set(job_ids) != set(ARMS):
+        raise ValueError("Harbor job identity is invalid")
+    pairs = value.get("pairs")
+    if not isinstance(pairs, list) or len(pairs) != len(planned["pairs"]):
+        raise ValueError("native trial binding matrix is invalid")
+    expected_pairs = {str(pair["pairId"]): pair for pair in planned["pairs"]}
+    bound: dict[str, dict[str, str]] = {}
+    names: set[tuple[str, str]] = set()
+    for raw in pairs:
+        pair = _object(raw, "native trial binding")
+        pair_id = str(pair.get("pairId"))
+        expected_pair = expected_pairs.get(pair_id)
+        if expected_pair is None or any(pair.get(key) != expected_pair[key] for key in ("task", "sha256", "attempt")):
+            raise ValueError("native trial binding identity is invalid")
+        arms = _object(pair.get("arms"), "native trial binding")
+        if set(arms) != set(ARMS):
+            raise ValueError("native trial binding arms are invalid")
+        mapped = {}
+        for arm in ARMS:
+            name = _native_trial_name(str(expected_pair["task"]), arms[arm])
+            if (arm, name) in names:
+                raise ValueError("native trial identity is reused")
+            names.add((arm, name))
+            mapped[arm] = name
+        if pair_id in bound:
+            raise ValueError("native trial binding identity is invalid")
+        bound[pair_id] = mapped
+    if set(bound) != set(expected_pairs):
+        raise ValueError("native trial binding matrix is invalid")
+    return bound, prepared, {arm: _job_id(job_ids[arm]) for arm in ARMS}
+
+
+def resume_resolved_jobs(manifest: object, planned: object, bindings: object, jobs: object, completed: object) -> dict[str, object]:
+    """Restore bound native names only on same Harbor jobs after a persisted interruption."""
+    value = _object(manifest, "experiment manifest")
+    canonical = _canonical_plan(value, planned)
+    bound, _, job_ids = _canonical_native_bindings(value, canonical, bindings)
+    supplied = _object(jobs, "resolved Harbor jobs")
+    state = _object(completed, "completed pairs")
+    remaining = resume(value, canonical, state)
+    for pair_id, record in state.items():
+        pair = next((item for item in canonical["pairs"] if item["pairId"] == pair_id), None)
+        if pair is None:
+            continue
+        _completed_pair(value, canonical, _object(pair, "planned pair"), record)
+        arms = _object(_object(record, "resume pair").get("arms"), "resume pair")
+        if any(arms[arm].get("nativeTrialName") != bound[pair_id][arm] for arm in ARMS):
+            raise ValueError("resume native trial binding is invalid")
+    for arm in ARMS:
+        job = supplied.get(arm)
+        if _job_id(getattr(job, "id", None)) != job_ids[arm]:
+            raise ValueError("Harbor job identity is invalid")
+        trials = getattr(job, "_remaining_trial_configs", None)
+        if not isinstance(trials, list) or len(trials) != len(remaining["pairs"]):
+            raise ValueError("resolved Harbor trial matrix is invalid")
+        per_task: dict[str, list[dict[str, object]]] = defaultdict(list)
+        for pair in remaining["pairs"]:
+            per_task[str(pair["task"])].append(pair)
+        cursors: Counter[str] = Counter()
+        for trial in trials:
+            task = getattr(trial, "task", None)
+            get_task_id = getattr(task, "get_task_id", None)
+            task_id = get_task_id() if callable(get_task_id) else None
+            get_name = getattr(task_id, "get_name", None)
+            name = get_name() if callable(get_name) else None
+            if name not in per_task or cursors[name] >= len(per_task[name]):
+                raise ValueError("resolved Harbor trial identity is invalid")
+            pair = per_task[name][cursors[name]]
+            cursors[name] += 1
+            trial.trial_name = bound[str(pair["pairId"])][arm]
+        if any(cursors[task] != len(pairs) for task, pairs in per_task.items()):
+            raise ValueError("resolved Harbor trial matrix is invalid")
+    return remaining
+
+
+def _completed_pair(manifest: dict[str, object], planned: dict[str, object], pair: dict[str, object], record: object) -> set[tuple[str, str]]:
     value = _object(record, "resume pair")
     expected = {"task": pair["task"], "sha256": pair["sha256"], "attempt": pair["attempt"], "implementationRevision": planned["implementationRevision"]}
     if any(value.get(key) != item for key, item in expected.items()):
@@ -228,11 +435,15 @@ def _completed_pair(manifest: dict[str, object], planned: dict[str, object], pai
     arms = _object(value.get("arms"), "resume pair")
     if set(arms) != set(ARMS):
         raise ValueError("resume pair is incomplete")
+    names = set()
     for arm in ARMS:
         evidence = _object(arms[arm], "resume arm")
         treatment = _object(_arm(manifest, arm).get("treatmentSha256"), "treatment identity").get(planned["campaign"])
-        if evidence.get("treatmentSha256") != treatment or _native_trial_name(str(pair["task"]), evidence.get("nativeTrialName")) is None:
+        name = _native_trial_name(str(pair["task"]), evidence.get("nativeTrialName"))
+        if evidence.get("treatmentSha256") != treatment:
             raise ValueError("resume pair identity is invalid")
+        names.add((arm, name))
+    return names
 
 
 def resume(manifest: object, planned: object, completed: object) -> dict[str, object]:
@@ -242,6 +453,7 @@ def resume(manifest: object, planned: object, completed: object) -> dict[str, ob
     state = _object(completed, "completed pairs")
     remaining = []
     known = set()
+    native_names: set[tuple[str, str]] = set()
     for raw in canonical["pairs"]:
         pair = _object(raw, "planned pair")
         pair_id = str(pair["pairId"])
@@ -249,7 +461,10 @@ def resume(manifest: object, planned: object, completed: object) -> dict[str, ob
         if pair_id not in state:
             remaining.append(pair)
             continue
-        _completed_pair(value, canonical, pair, state[pair_id])
+        for identity in _completed_pair(value, canonical, pair, state[pair_id]):
+            if identity in native_names:
+                raise ValueError("native trial identity is reused")
+            native_names.add(identity)
     if set(state) - known:
         raise ValueError("resume pair is unknown")
     return {**canonical, "pairs": remaining, "trials": len(remaining) * len(ARMS)}
@@ -285,7 +500,7 @@ def validate_execution_revision(repository: Path, execution_revision: str, imple
         raise ValueError("execution revision proof is unavailable") from error
 
 
-def collect(manifest: object, planned: object, control: object, candidate: object, *, control_lock: object, candidate_lock: object, private_resolution: object | None, execution_revision: str, repository: Path, run: Callable[[list[str]], str]) -> dict[str, object]:
+def collect(manifest: object, planned: object, control: object, candidate: object, *, control_lock: object, candidate_lock: object, native_bindings: object, private_resolution: object | None, execution_revision: str, repository: Path, run: Callable[[list[str]], str]) -> dict[str, object]:
     """Bind native Harbor results, locks, exact plan, and merged execution evidence."""
     value = _object(manifest, "experiment manifest")
     planned_value = _canonical_plan(value, planned)
@@ -298,33 +513,36 @@ def collect(manifest: object, planned: object, control: object, candidate: objec
     jobs = validator.load_jobs(ROOT, campaign)
     validator.validate_job_contracts(value, jobs, campaign=campaign, root=ROOT)
     pairs = [_object(pair, "planned pair") for pair in planned_value["pairs"]]
+    bindings, prepared, job_ids = _canonical_native_bindings(value, planned_value, native_bindings)
     records = {}
     retries = {}
     for arm, job, lock in (("control", control, control_lock), ("chaos-engine", candidate, candidate_lock)):
-        records[arm], retries[arm] = _trials(job, arm, _object(jobs[arm], "Harbor job")["agents"][0], lock, pairs)
+        records[arm], retries[arm] = _trials(job, arm, _object(jobs[arm], "Harbor job")["agents"][0], job_ids[arm], lock, pairs)
     observed = []
     completed = {}
-    for task in sorted({str(pair["task"]) for pair in pairs}):
-        task_pairs = [pair for pair in pairs if pair["task"] == task]
-        starts = [(item["started"], arm, item) for arm in ARMS for item in records[arm][task]]
-        if len(starts) != len(task_pairs) * 2 or len({item[0] for item in starts}) != len(starts):
-            raise ValueError("Harbor start evidence is invalid")
-        starts.sort(key=lambda item: item[0])
-        for pair, two in zip(task_pairs, (starts[index:index + 2] for index in range(0, len(starts), 2))):
-            first, second = pair["arms"]
-            if [item[1] for item in two] != [first, second]:
-                raise ValueError("observed Harbor start order is invalid")
-            names = {item[1]: item[2]["trialName"] for item in two}
-            observed.append({"pairId": pair["pairId"], "plannedFirstArm": first, "observedFirstArm": first, "nativeTrialNames": names})
-            completed[pair["pairId"]] = {
-                "task": pair["task"], "sha256": pair["sha256"], "attempt": pair["attempt"], "implementationRevision": planned_value["implementationRevision"],
-                "arms": {arm: {"treatmentSha256": _object(_arm(value, arm)["treatmentSha256"], "treatment identity")[campaign], "nativeTrialName": names[arm]} for arm in ARMS},
-            }
-    plan_digest = hashlib.sha256(json.dumps(planned_value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    for pair in pairs:
+        names = bindings[str(pair["pairId"])]
+        first, second = pair["arms"]
+        try:
+            first_result, second_result = records[first][names[first]], records[second][names[second]]
+        except KeyError as error:
+            raise ValueError("Harbor native trial binding is incomplete") from error
+        if any(item["task"] != pair["task"] or item["sha256"] != pair["sha256"] for item in (first_result, second_result)):
+            raise ValueError("Harbor native trial binding is invalid")
+        if prepared >= first_result["started"] or prepared >= second_result["started"]:
+            raise ValueError("native trial bindings were not prepared before execution")
+        if first_result["started"] >= second_result["started"]:
+            raise ValueError("observed Harbor start order is invalid")
+        observed.append({"pairId": pair["pairId"], "plannedFirstArm": first, "observedFirstArm": first, "nativeTrialNames": names})
+        completed[pair["pairId"]] = {
+            "task": pair["task"], "sha256": pair["sha256"], "attempt": pair["attempt"], "implementationRevision": planned_value["implementationRevision"],
+            "arms": {arm: {"treatmentSha256": _object(_arm(value, arm)["treatmentSha256"], "treatment identity")[campaign], "nativeTrialName": names[arm]} for arm in ARMS},
+        }
+    plan_digest = _plan_digest(planned_value)
     result_digest = hashlib.sha256(json.dumps({"control": control, "chaos-engine": candidate, "controlLock": control_lock, "chaosEngineLock": candidate_lock}, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
     return {
         "schemaVersion": 1, "campaign": campaign, "implementationRevision": value["implementationRevision"], "executionRevision": execution_revision,
-        "planSha256": plan_digest, "resultsSha256": result_digest, "jobRetryAccounting": retries,
+        "planSha256": plan_digest, "nativeBindingsSha256": _bindings_digest(native_bindings), "resultsSha256": result_digest, "jobRetryAccounting": retries,
         "pairAccounting": {"planned": len(pairs), "completed": len(observed)}, "trialAccounting": {"planned": len(pairs) * 2, "observed": len(observed) * 2},
         "pairs": observed, "completedPairs": completed,
     }
@@ -387,6 +605,7 @@ def main() -> int:
     parser.add_argument("--chaos-engine", type=Path)
     parser.add_argument("--control-lock", type=Path)
     parser.add_argument("--chaos-engine-lock", type=Path)
+    parser.add_argument("--native-bindings", type=Path)
     parser.add_argument("--resolution", type=Path)
     parser.add_argument("--execution-revision")
     parser.add_argument("--repository", type=Path, default=ROOT.parents[2])
@@ -402,10 +621,10 @@ def main() -> int:
             raise ValueError("full preflight requires a private checkout")
         full_preflight(manifest, args.private_checkout)
         return 0
-    inputs = (args.control, args.chaos_engine, args.control_lock, args.chaos_engine_lock, args.resolution, args.execution_revision, args.out)
+    inputs = (args.control, args.chaos_engine, args.control_lock, args.chaos_engine_lock, args.native_bindings, args.resolution, args.execution_revision, args.out)
     if any(item is None for item in inputs):
         raise ValueError("collection inputs are required")
-    receipt = collect(manifest, planned, json.loads(args.control.read_text()), json.loads(args.chaos_engine.read_text()), control_lock=json.loads(args.control_lock.read_text()), candidate_lock=json.loads(args.chaos_engine_lock.read_text()), private_resolution=json.loads(args.resolution.read_text()), execution_revision=args.execution_revision, repository=args.repository, run=_run)
+    receipt = collect(manifest, planned, json.loads(args.control.read_text()), json.loads(args.chaos_engine.read_text()), control_lock=json.loads(args.control_lock.read_text()), candidate_lock=json.loads(args.chaos_engine_lock.read_text()), native_bindings=json.loads(args.native_bindings.read_text()), private_resolution=json.loads(args.resolution.read_text()), execution_revision=args.execution_revision, repository=args.repository, run=_run)
     args.out.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     return 0
 

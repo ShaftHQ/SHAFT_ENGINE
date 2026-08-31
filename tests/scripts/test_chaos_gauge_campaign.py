@@ -7,6 +7,8 @@ import importlib.util
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest import TestCase, main
 
 import yaml
@@ -33,6 +35,9 @@ class ChaosGaugeCampaignTest(TestCase):
 
     def _native_name(self, task: str, number: int) -> str:
         return f"{task.rsplit('/', 1)[-1][:32].rstrip('_-')}__A{number:06d}"
+
+    def _job_id(self, arm: str) -> str:
+        return "00000000-0000-0000-0000-00000000000" + ("1" if arm == "control" else "2")
 
     def _result(self, planned: dict[str, object], arm: str, *, retries: int = 0) -> dict[str, object]:
         jobs = self._jobs(str(planned["campaign"]))
@@ -61,7 +66,7 @@ class ChaosGaugeCampaignTest(TestCase):
                     }
                 )
                 serial += 1
-        return {"stats": {"n_retries": retries}, "trial_results": trials}
+        return {"id": self._job_id(arm), "stats": {"n_retries": retries}, "trial_results": trials}
 
     def _lock(self, planned: dict[str, object], arm: str) -> dict[str, object]:
         agent = self._jobs(str(planned["campaign"]))[arm]["agents"][0]
@@ -77,6 +82,36 @@ class ChaosGaugeCampaignTest(TestCase):
                 }
                 for pair in planned["pairs"]
             ],
+        }
+
+    def _bindings(self, planned: dict[str, object]) -> dict[str, object]:
+        return CAMPAIGN.bind_resolved_jobs(
+            MANIFEST,
+            planned,
+            self._resolved_jobs(planned),
+            prepared_at="2026-08-29T00:00:00+00:00",
+        )
+
+    def _resolved_jobs(self, planned: dict[str, object]) -> dict[str, object]:
+        class Task:
+            def __init__(self, name):
+                self.name = name
+
+            def get_task_id(self):
+                return self
+
+            def get_name(self):
+                return self.name
+
+        return {
+            arm: SimpleNamespace(
+                id=self._job_id(arm),
+                _trial_configs=[
+                    SimpleNamespace(task=Task(trial["task_name"]), trial_name=trial["trial_name"])
+                    for trial in self._result(planned, arm)["trial_results"]
+                ],
+            )
+            for arm in CAMPAIGN.ARMS
         }
 
     def _merged_git(self, revision: str):
@@ -99,6 +134,7 @@ class ChaosGaugeCampaignTest(TestCase):
             self._result(planned, "chaos-engine", retries=retries),
             control_lock=self._lock(planned, "control"),
             candidate_lock=self._lock(planned, "chaos-engine"),
+            native_bindings=self._bindings(planned),
             private_resolution=CAMPAIGN.private_resolution(MANIFEST),
             execution_revision=revision,
             repository=ROOT,
@@ -140,6 +176,7 @@ class ChaosGaugeCampaignTest(TestCase):
         self.assertEqual(80, receipt["pairAccounting"]["completed"])
         self.assertEqual(160, receipt["trialAccounting"]["observed"])
         self.assertEqual({"control": 3, "chaos-engine": 3}, receipt["jobRetryAccounting"])
+        self.assertEqual(CAMPAIGN._bindings_digest(self._bindings(planned)), receipt["nativeBindingsSha256"])
         self.assertTrue(all(pair["observedFirstArm"] == pair["plannedFirstArm"] for pair in receipt["pairs"]))
         self.assertTrue(all("nativeTrialNames" in pair for pair in receipt["pairs"]))
 
@@ -149,6 +186,7 @@ class ChaosGaugeCampaignTest(TestCase):
             CAMPAIGN.collect(
                 MANIFEST, planned, bad, self._result(planned, "chaos-engine"),
                 control_lock=self._lock(planned, "control"), candidate_lock=self._lock(planned, "chaos-engine"),
+                native_bindings=self._bindings(planned),
                 private_resolution=CAMPAIGN.private_resolution(MANIFEST), execution_revision="f" * 40,
                 repository=ROOT, run=self._merged_git("f" * 40),
             )
@@ -167,6 +205,7 @@ class ChaosGaugeCampaignTest(TestCase):
             CAMPAIGN.collect(
                 MANIFEST, planned, control, candidate,
                 control_lock=self._lock(planned, "control"), candidate_lock=self._lock(planned, "chaos-engine"),
+                native_bindings=self._bindings(planned),
                 private_resolution=CAMPAIGN.private_resolution(MANIFEST), execution_revision="f" * 40,
                 repository=ROOT, run=self._merged_git("f" * 40),
             )
@@ -188,6 +227,7 @@ class ChaosGaugeCampaignTest(TestCase):
             CAMPAIGN.collect(
                 MANIFEST, planned, self._result(planned, "control"), reversed_start,
                 control_lock=self._lock(planned, "control"), candidate_lock=self._lock(planned, "chaos-engine"),
+                native_bindings=self._bindings(planned),
                 private_resolution=CAMPAIGN.private_resolution(MANIFEST), execution_revision="f" * 40,
                 repository=ROOT, run=self._merged_git("f" * 40),
             )
@@ -212,6 +252,124 @@ class ChaosGaugeCampaignTest(TestCase):
             CAMPAIGN.resume(MANIFEST, planned, stale)
         with self.assertRaisesRegex(ValueError, "resume pair"):
             CAMPAIGN.resume(MANIFEST, planned, {pair["pairId"]: {"control": 0, "chaos-engine": 0}})
+
+    def test_resume_rejects_native_identity_reuse_across_attempts(self):
+        planned = CAMPAIGN.plan(MANIFEST, "calibration")
+        first, second = planned["pairs"][:2]
+
+        def record(pair):
+            return {
+                "task": pair["task"], "sha256": pair["sha256"], "attempt": pair["attempt"],
+                "implementationRevision": planned["implementationRevision"],
+                "arms": {
+                    arm: {
+                        "treatmentSha256": next(item for item in MANIFEST["arms"] if item["name"] == arm)["treatmentSha256"]["calibration"],
+                        "nativeTrialName": self._native_name(pair["task"], number),
+                    }
+                    for number, arm in enumerate(CAMPAIGN.ARMS)
+                },
+            }
+
+        reused = {first["pairId"]: record(first), second["pairId"]: record(second)}
+        with self.assertRaisesRegex(ValueError, "native trial identity is reused"):
+            CAMPAIGN.resume(MANIFEST, planned, reused)
+
+    def test_collector_uses_preexecution_native_mapping_not_chronological_adjacency(self):
+        planned = CAMPAIGN.plan(MANIFEST, "full-pilot")
+        bindings = self._bindings(planned)
+        control, candidate = self._result(planned, "control"), self._result(planned, "chaos-engine")
+        first, second = bindings["pairs"][:2]
+        starts = [
+            "2026-08-31T00:00:00+00:00", "2026-08-31T00:00:01+00:00",
+            "2026-08-31T00:00:02+00:00", "2026-08-31T00:00:03+00:00",
+        ]
+
+        pairs = {pair["pairId"]: pair for pair in planned["pairs"]}
+        for binding, first_start, second_start in ((first, starts[0], starts[2]), (second, starts[1], starts[3])):
+            for arm, started in zip(pairs[binding["pairId"]]["arms"], (first_start, second_start)):
+                result = control if arm == "control" else candidate
+                trial = next(item for item in result["trial_results"] if item["trial_name"] == binding["arms"][arm])
+                trial["agent_execution"]["started_at"] = started
+
+        receipt = CAMPAIGN.collect(
+            MANIFEST, planned, control, candidate,
+            control_lock=self._lock(planned, "control"), candidate_lock=self._lock(planned, "chaos-engine"),
+            native_bindings=bindings, private_resolution=CAMPAIGN.private_resolution(MANIFEST), execution_revision="f" * 40,
+            repository=ROOT, run=self._merged_git("f" * 40),
+        )
+        observed = {pair["pairId"]: pair["nativeTrialNames"] for pair in receipt["pairs"]}
+        self.assertEqual(first["arms"], observed[first["pairId"]])
+        self.assertEqual(second["arms"], observed[second["pairId"]])
+
+    def test_binding_uses_exact_resolved_job_identity(self):
+        planned = CAMPAIGN.plan(MANIFEST, "calibration")
+        jobs = self._resolved_jobs(planned)
+        bindings = CAMPAIGN.bind_resolved_jobs(
+            MANIFEST, planned, jobs, prepared_at="2026-08-29T00:00:00+00:00"
+        )
+        self.assertEqual({arm: self._job_id(arm) for arm in CAMPAIGN.ARMS}, bindings["jobIds"])
+
+        started = self._resolved_jobs(planned)
+        started["control"]._job_result = object()
+        with self.assertRaisesRegex(ValueError, "already started"):
+            CAMPAIGN.bind_resolved_jobs(
+                MANIFEST, planned, started, prepared_at="2026-08-29T00:00:00+00:00"
+            )
+
+        control = self._result(planned, "control")
+        control["id"] = self._job_id("chaos-engine")
+        with self.assertRaisesRegex(ValueError, "job identity"):
+            CAMPAIGN.collect(
+                MANIFEST, planned, control, self._result(planned, "chaos-engine"),
+                control_lock=self._lock(planned, "control"), candidate_lock=self._lock(planned, "chaos-engine"),
+                native_bindings=bindings, private_resolution=CAMPAIGN.private_resolution(MANIFEST), execution_revision="f" * 40,
+                repository=ROOT, run=self._merged_git("f" * 40),
+            )
+
+    def test_launch_map_is_exclusive_durable_and_restores_same_job_resume(self):
+        planned = CAMPAIGN.plan(MANIFEST, "calibration")
+        jobs = self._resolved_jobs(planned)
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "launch-map.json"
+            bindings = CAMPAIGN.bind_and_persist_resolved_jobs(
+                MANIFEST, planned, jobs, path, prepared_at="2026-08-29T00:00:00+00:00"
+            )
+            self.assertEqual(bindings, json.loads(path.read_text(encoding="utf-8")))
+            with self.assertRaisesRegex(ValueError, "already exist"):
+                CAMPAIGN.write_native_bindings(path, bindings)
+
+        binding = bindings["pairs"][0]
+        pair = next(item for item in planned["pairs"] if item["pairId"] == binding["pairId"])
+        completed = {
+            pair["pairId"]: {
+                "task": pair["task"], "sha256": pair["sha256"], "attempt": pair["attempt"],
+                "implementationRevision": planned["implementationRevision"],
+                "arms": {
+                    arm: {
+                        "treatmentSha256": next(item for item in MANIFEST["arms"] if item["name"] == arm)["treatmentSha256"]["calibration"],
+                        "nativeTrialName": binding["arms"][arm],
+                    }
+                    for arm in CAMPAIGN.ARMS
+                },
+            }
+        }
+        resumed = self._resolved_jobs(planned)
+        for arm in CAMPAIGN.ARMS:
+            resumed[arm]._remaining_trial_configs = [
+                trial for trial in resumed[arm]._trial_configs if trial.trial_name != binding["arms"][arm]
+            ]
+        remaining = CAMPAIGN.resume_resolved_jobs(MANIFEST, planned, bindings, resumed, completed)
+        self.assertEqual(59, len(remaining["pairs"]))
+        expected = {
+            arm: {pair["arms"][arm] for pair in bindings["pairs"] if pair["pairId"] != binding["pairId"]}
+            for arm in CAMPAIGN.ARMS
+        }
+        for arm in CAMPAIGN.ARMS:
+            self.assertEqual(expected[arm], {trial.trial_name for trial in resumed[arm]._remaining_trial_configs})
+
+        resumed["control"].id = self._job_id("chaos-engine")
+        with self.assertRaisesRegex(ValueError, "job identity"):
+            CAMPAIGN.resume_resolved_jobs(MANIFEST, planned, bindings, resumed, completed)
 
     def test_preflight_validates_live_root_and_provider_capability(self):
         calls = []
