@@ -677,7 +677,8 @@ class OmniRootRunnerTest(unittest.TestCase):
             "completedActionSha256s": ["c" * 64],
             "trackerUrlSha256": "d" * 64, "pullRequestUrlSha256": "e" * 64,
             "alternates": [{"identity": "replacement", "sessionId": "replacement-session",
-                            "capability": "default"}],
+                            "capability": "default", "target": "qualified-target",
+                            "arguments": []}],
         }
         self._dispatch(run_id="failover-e2e", worktree=self.worktree, state_dir=self.state,
             config_path=self.config, target="host-cli", delegate_args=[],
