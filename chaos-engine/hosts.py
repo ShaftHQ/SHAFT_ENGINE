@@ -3392,6 +3392,46 @@ def replace_owned_text_block(
     return (existing[:begin] + block + existing[finish:]).encode()
 
 
+def strip_owned_text_block(
+    current: bytes,
+    recorded: bytes | None,
+    start: str,
+    end: str,
+    label: str,
+    alternatives: tuple[bytes, ...] = (),
+) -> bytes:
+    """Remove an unchanged marker-owned block while preserving foreign text."""
+    try:
+        existing = current.decode("utf-8")
+        expected_values = (
+            recorded.decode("utf-8") if recorded is not None else "",
+            *(value.decode("utf-8") for value in alternatives),
+        )
+    except UnicodeDecodeError as error:
+        raise ValueError(f"invalid {label} configuration") from error
+
+    def bounds(content: str) -> tuple[int, int]:
+        if content.count(start) != 1 or content.count(end) != 1:
+            raise ValueError(f"ChaosEngine {label} collision")
+        begin = content.index(start)
+        finish = content.index(end, begin) + len(end)
+        if finish < len(content) and content[finish] == "\r":
+            finish += 1
+        if finish < len(content) and content[finish] == "\n":
+            finish += 1
+        return begin, finish
+
+    begin, finish = bounds(existing)
+    normalized = existing[begin:finish].replace("\r\n", "\n")
+    accepted = set()
+    for expected in expected_values:
+        expected_begin, expected_finish = bounds(expected)
+        accepted.add(expected[expected_begin:expected_finish].replace("\r\n", "\n"))
+    if normalized not in accepted:
+        raise ValueError(f"ChaosEngine {label} collision")
+    return (existing[:begin] + existing[finish:]).encode()
+
+
 def gitignore_content(before: bytes | None) -> bytes:
     try:
         existing = before.decode("utf-8") if before is not None else ""
@@ -3405,6 +3445,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine.lock\n.chaos-engine.transaction.json\n"
         ".chaos-engine.backup/\n.chaos-engine.backup.*/\n"
         ".chaos-engine-cross-rollback/\n.chaos-engine-uninstall-*\n"
+        ".chaos-engine-dependencies.json\n"
         ".chaos-engine-hosts.json\n.chaos-engine-hosts.*\n"
         ".chaos-engine-directory-claim-*\ngraphify-out/\n"
         ".memory/*\n!.memory/\n!.memory/config.json\n!.memory/events.jsonl\n"
@@ -3425,7 +3466,13 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
         "!plugins/caveman/\n!plugins/caveman/**\n"
         "!plugins/ponytail/\n!plugins/ponytail/**\n"
-        "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n!.gitattributes\n"
+        "!.mcp.json\n\n"
+        "# Machine-local installer and Graphify artifacts remain untracked after the\n"
+        "# installed-harness allowlist above.\n"
+        ".chaos-engine-runtime-pointer.repair-backup-*.json\n"
+        ".claude/*.graphify-bak\n.claude/skills/graphify/\n"
+        ".codex/*.graphify-bak\n.codex/skills/\nplugins/**/__pycache__/\n"
+        "!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n!.gitattributes\n"
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
@@ -4610,6 +4657,16 @@ def upgrade_before_images(
             )
             continue
         if observed in (before[relative], after[relative]):
+            continue
+        if relative == ".gitignore" and observed is not None:
+            restored[relative] = strip_owned_text_block(
+                observed,
+                after[relative],
+                GITIGNORE_START,
+                GITIGNORE_END,
+                "gitignore",
+                (gitignore_content(None),),
+            )
             continue
         if relative == ".agents/skills/README.md":
             restored[relative] = observed
