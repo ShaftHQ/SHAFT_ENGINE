@@ -861,6 +861,80 @@ def _replacement_command(
     return command
 
 
+def _learning_action(state: str, root: str, session_id: str, *, unavailable: bool) -> None:
+    source_root = str(Path(__file__).resolve().parents[4])
+    if source_root not in sys.path:
+        sys.path.insert(0, source_root)
+    if unavailable:
+        from scripts.agents.learning_session import attest_participant_unavailable
+        attest_participant_unavailable(Path(state), root, session_id, "launch-failure")
+    else:
+        from scripts.agents.learning_session import register_runtime_participant
+        register_runtime_participant(Path(state), root, session_id)
+
+
+def _supervised_diagnostic(
+    command: list[str], *, diagnostic_path: Path, process_path: Path, manifest_path: Path,
+    manifest: dict[str, Any], timeout_seconds: int, active_session: str,
+    learning_state: str, learning_root: str,
+) -> tuple[dict[str, Any] | None, int | None]:
+    deadline = _parse_time(manifest.get("deadline"))
+    if deadline is None or deadline <= _utc_now():
+        return None, _finish_supervision(
+            manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
+        )
+    try:
+        process = subprocess.Popen(  # nosec B603 - sealed command identity is verified.
+            command, shell=False, close_fds=True, start_new_session=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+    except OSError:
+        with contextlib.suppress(Exception):
+            _learning_action(learning_state, learning_root, active_session, unavailable=True)
+        return None, _finish_supervision(
+            manifest_path, manifest, "blocked", "blocked", "replacement launch failed",
+        )
+    identity = process_identity(process.pid)
+    if identity is None:
+        _terminate_group(process)
+        return None, _finish_supervision(
+            manifest_path, manifest, "quarantined", "quarantined",
+            "replacement process identity cannot be proven",
+        )
+    process_evidence = {
+        "schemaVersion": SCHEMA_VERSION, "pid": process.pid,
+        "pgid": os.getpgid(process.pid), "processIdentity": identity,
+    }
+    _write_json(process_path, process_evidence)
+    remaining_seconds = (deadline - _utc_now()).total_seconds()
+    if remaining_seconds <= 0:
+        _terminate_group(process)
+        return None, _finish_supervision(
+            manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
+        )
+    _collect_diagnostics(
+        process, diagnostic_path, timeout_seconds=min(timeout_seconds, remaining_seconds),
+        secrets=[os.environ.get("OMNIROUTE_API_KEY", "")],
+    )
+    process.stdout.close()
+    process.stderr.close()
+    diagnostic = _validated_diagnostic(_load_json(diagnostic_path))
+    if _group_alive(process_evidence["pgid"]):
+        try:
+            _terminate_group(process)
+        except OmniRootError:
+            return None, _finish_supervision(
+                manifest_path, manifest, "quarantined", "quarantined",
+                "prior process group death cannot be proven",
+            )
+    if diagnostic["exitCode"] == 0:
+        manifest["continuity"]["state"] = "review"
+        manifest["status"] = "running"
+        _write_json(manifest_path, manifest)
+        return None, 0
+    return diagnostic, None
+
+
 def _supervise_command(arguments: list[str]) -> int:
     """Outlive delegates and replace retryable failures without owner input."""
     (diagnostic_path, process_path, manifest_path, timeout_seconds,
@@ -875,82 +949,25 @@ def _supervise_command(arguments: list[str]) -> int:
     launcher_command = command[:launcher_argc]
     manifest = _supervisor_manifest(manifest_path)
 
-    def attest_launch_failure(session_id: str) -> None:
-        source_root = str(Path(__file__).resolve().parents[4])
-        if source_root not in sys.path:
-            sys.path.insert(0, source_root)
-        from scripts.agents.learning_session import attest_participant_unavailable
-        attest_participant_unavailable(Path(learning_state), learning_root, session_id, "launch-failure")
-
     while True:
-        deadline = _parse_time(manifest.get("deadline"))
-        if deadline is None or deadline <= _utc_now():
-            return _finish_supervision(
-                manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
-            )
-        try:
-            process = subprocess.Popen(  # nosec B603 - sealed command identity is verified.
-                command, shell=False, close_fds=True, start_new_session=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            )
-        except OSError:
-            with contextlib.suppress(Exception):
-                attest_launch_failure(active_session)
-            return _finish_supervision(
-                manifest_path, manifest, "blocked", "blocked", "replacement launch failed",
-            )
-        identity = process_identity(process.pid)
-        if identity is None:
-            _terminate_group(process)
-            return _finish_supervision(
-                manifest_path, manifest, "quarantined", "quarantined",
-                "replacement process identity cannot be proven",
-            )
-        process_evidence = {
-            "schemaVersion": SCHEMA_VERSION, "pid": process.pid,
-            "pgid": os.getpgid(process.pid), "processIdentity": identity,
-        }
-        _write_json(process_path, process_evidence)
-        remaining_seconds = (deadline - _utc_now()).total_seconds()
-        if remaining_seconds <= 0:
-            _terminate_group(process)
-            return _finish_supervision(
-                manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
-            )
-        _collect_diagnostics(process, diagnostic_path,
-                             timeout_seconds=min(timeout_seconds, remaining_seconds),
-                             secrets=[os.environ.get("OMNIROUTE_API_KEY", "")])
-        process.stdout.close()
-        process.stderr.close()
-        diagnostic = _validated_diagnostic(_load_json(diagnostic_path))
-        if _group_alive(process_evidence["pgid"]):
-            try:
-                _terminate_group(process)
-            except OmniRootError:
-                return _finish_supervision(
-                    manifest_path, manifest, "quarantined", "quarantined",
-                    "prior process group death cannot be proven",
-                )
-        if diagnostic["exitCode"] == 0:
-            manifest["continuity"]["state"] = "review"
-            manifest["status"] = "running"
-            _write_json(manifest_path, manifest)
-            return 0
+        diagnostic, result = _supervised_diagnostic(
+            command, diagnostic_path=diagnostic_path, process_path=process_path,
+            manifest_path=manifest_path, manifest=manifest, timeout_seconds=timeout_seconds,
+            active_session=active_session, learning_state=learning_state, learning_root=learning_root,
+        )
+        if result is not None:
+            return result
 
         launched: dict[str, Any] = {}
         def register(session_id: str) -> None:
-            source_root = str(Path(__file__).resolve().parents[4])
-            if source_root not in sys.path:
-                sys.path.insert(0, source_root)
-            from scripts.agents.learning_session import register_runtime_participant
-            register_runtime_participant(Path(learning_state), learning_root, session_id)
+            _learning_action(learning_state, learning_root, session_id, unavailable=False)
 
         def launch(candidate: dict[str, str]) -> dict[str, Any]:
             launched["candidate"] = candidate
             return {"pid": -1, "pgid": -1, "processIdentity": "pending"}
 
         def compensate(session_id: str) -> None:
-            attest_launch_failure(session_id)
+            _learning_action(learning_state, learning_root, session_id, unavailable=True)
 
         supervisor_monitor = manifest.get("monitor")
         manifest = _advance_continuity(
