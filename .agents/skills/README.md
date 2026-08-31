@@ -19,7 +19,7 @@ until the entrypoint sends you there, which is what keeps a small change cheap.
 
 ```mermaid
 flowchart TD
-    H["Host starts a task<br/><i>Claude, Codex, Copilot, Grok</i>"] --> E
+    H["Host starts a task<br/><i>Claude, Codex, Copilot, Gemini, Grok</i>"] --> E
 
     E["<b>ChaosEngine</b><br/>always loaded"]
     E --> T{"Triage<br/>blast radius x reversibility"}
@@ -65,26 +65,23 @@ sequenceDiagram
     A-->>U: outcome, checks run, what was refuted
 ```
 
-## Solo or orchestrate
+## Execution workflows
 
-One rule decides whether the main thread writes code, and it keys on how many
-independent work streams the session owns — not on the host, and not on the
-size of any one change.
+[Execution workflows](../../chaos-engine/references/execution-workflows.md) is
+the sole owner of workflow selection and behavior. This diagram is a navigation
+view, not a second policy definition. Optional transports do not alter these
+role boundaries.
 
 ```mermaid
-flowchart TD
-    Q{"How many independent<br/>work streams?"}
-    Q -->|one| S["<b>Solo</b><br/>implement it yourself, in sequence"]
-    Q -->|"two or more"| O["<b>Orchestrate</b><br/>one agent per stream, up to four"]
-    S --> RV["terminal assurance only<br/>optional review, max two"]
-    O --> OW["main thread implements nothing<br/>and stays reachable"]
-    OW --> RV
+flowchart LR
+    W["Canonical workflow selector"] --> S["SOLO"]
+    W --> O1["ORCHESTRATOR +<br/>SINGLE IMPLEMENTER"]
+    W --> OP["ORCHESTRATOR +<br/>PARALLEL IMPLEMENTERS"]
+    O1 --> T["Qualified transport"]
+    OP --> T
+    T --> OR["Optional OmniRoot"]
+    T --> N["Native implementer"]
 ```
-
-Solo avoids two writers in one tree and the cost of specifying a handoff nobody
-needed. Orchestrating keeps the main thread free to answer the owner and
-re-spec a delegate. A reviewer is never counted as a work stream, so review does
-not turn a solo session into an orchestrated one.
 
 ## Delivery cycle
 
@@ -116,6 +113,7 @@ step with the first.
 | Skill | What it does |
 | --- | --- |
 | [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
+| [OmniRoot](../../chaos-engine/skills/omniroot/SKILL.md) | Optional local OmniRoute transport for a workflow already selected by the canonical execution-workflow owner. Missing service or qualification falls back without weakening normal workflows. |
 | [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) | Optional. Not always-loaded. A local coding loop the decider may use as a mechanical or default delegate after a hardware probe. |
 | [work-item](../../chaos-engine/skills/work-item/SKILL.md) | Optional. Not always-loaded. Open or rewrite a work item under the portable Spec Kit contract; SCM adapters are separate. |
 
@@ -133,9 +131,11 @@ sends you there; the rest by
 - [routing](../../chaos-engine/profiles/shaft/references/routing.md)
 - [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
+- [execution workflows](../../chaos-engine/references/execution-workflows.md)
 - [roles](../../chaos-engine/references/roles.md)
 - [heuristics](../../chaos-engine/references/heuristics.md)
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
+- [orchestrator follow-through](../../chaos-engine/references/orchestrator-follow-through.md)
 - [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)

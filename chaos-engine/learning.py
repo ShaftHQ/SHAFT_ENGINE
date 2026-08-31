@@ -15,6 +15,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlencode
 
 
 SCHEMA_VERSION = 1
@@ -46,7 +47,7 @@ PRIVATE = (
 )
 LIMITS = {"title": 100, "lesson": 400, "proposedChange": 300, "benefit": 300}
 QUEUED_KEYS = ALLOWED_KEYS | {"id", "status", "upstream"}
-OPTIONAL_ITEM_KEYS = {"lastError", "issueUrl"}
+OPTIONAL_ITEM_KEYS = {"lastError", "issueUrl", "fallbackUrl"}
 THREAD_LOCK = threading.RLock()
 
 
@@ -236,6 +237,8 @@ def queue_document(state: Path) -> dict[str, object]:
             raise ValueError("ChaosEngine learning queue is invalid")
         if has_issue_url and not issue_url_matches(item["issueUrl"], str(item["upstream"])):
             raise ValueError("ChaosEngine learning queue is invalid")
+        if "fallbackUrl" in item and item["fallbackUrl"] != enhancement_url(item):
+            raise ValueError("ChaosEngine learning queue is invalid")
     return value
 
 
@@ -296,6 +299,29 @@ def issue_body(item: dict[str, object]) -> str:
     )
 
 
+def enhancement_url(item: dict[str, object]) -> str:
+    """Return a prefilled browser fallback without exposing local runtime data."""
+    upstream = str(item["upstream"])
+    if UPSTREAM.fullmatch(upstream) is None:
+        raise ValueError("learning upstream must be an explicit owner/repository")
+    query = urlencode(
+        {
+            "title": f"ChaosEngine learning: {item['title']}",
+            "body": issue_body(item),
+        }
+    )
+    return f"https://github.com/{upstream}/issues/new?{query}"
+
+
+def _mark_unavailable(
+    item: dict[str, object], document: dict[str, object], state: Path
+) -> dict[str, object]:
+    item["lastError"] = "submission unavailable"
+    item["fallbackUrl"] = enhancement_url(item)
+    write_queue(state, document)
+    return item
+
+
 def submit_learning(state: Path, learning_id: str, *, confirmed: bool, runner=subprocess.run) -> dict[str, object]:
     if not confirmed:
         raise ValueError("learning submission requires explicit confirmation")
@@ -332,22 +358,16 @@ def _submit_learning_locked(state: Path, learning_id: str, *, runner=subprocess.
     except (OSError, subprocess.TimeoutExpired):
         search = None
     if search is None or search.returncode != 0:
-        item["lastError"] = "submission unavailable"
-        write_queue(state, document)
-        return item
+        return _mark_unavailable(item, document, state)
     try:
         matches = json.loads(search.stdout or "[]")
     except json.JSONDecodeError:
-        item["lastError"] = "submission unavailable"
-        write_queue(state, document)
-        return item
+        return _mark_unavailable(item, document, state)
     if not isinstance(matches, list) or any(
         not isinstance(match, dict) or not isinstance(match.get("url"), str)
         for match in matches
     ):
-        item["lastError"] = "submission unavailable"
-        write_queue(state, document)
-        return item
+        return _mark_unavailable(item, document, state)
     if matches:
         url = matches[0].get("url") if isinstance(matches[0], dict) else None
     else:
@@ -372,17 +392,14 @@ def _submit_learning_locked(state: Path, learning_id: str, *, runner=subprocess.
         except (OSError, subprocess.TimeoutExpired):
             created = None
         if created is None or created.returncode != 0:
-            item["lastError"] = "submission unavailable"
-            write_queue(state, document)
-            return item
+            return _mark_unavailable(item, document, state)
         url = created.stdout.strip()
     if not issue_url_matches(url, upstream):
-        item["lastError"] = "submission unavailable"
-        write_queue(state, document)
-        return item
+        return _mark_unavailable(item, document, state)
     item["status"] = "submitted"
     item["issueUrl"] = url
     item.pop("lastError", None)
+    item.pop("fallbackUrl", None)
     write_queue(state, document)
     return item
 

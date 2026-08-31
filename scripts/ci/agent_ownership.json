@@ -4,6 +4,16 @@
       "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
       "terms": ["Canonical provider-neutral skill router", "Roles and capability levels"]
     },
+    "execution workflow policy": {
+      "owner": "chaos-engine/references/execution-workflows.md",
+      "terms": ["SOLO", "ORCHESTRATOR + SINGLE IMPLEMENTER", "ORCHESTRATOR + PARALLEL IMPLEMENTERS"],
+      "allowed": ["chaos-engine/skills/chaos-engine/SKILL.md", ".agents/skills/README.md", "chaos-engine/README.md"]
+    },
+    "optional OmniRoot transport": {
+      "owner": "chaos-engine/skills/omniroot/SKILL.md",
+      "terms": ["Optional provider-neutral transport", "Missing, stopped, unauthenticated"],
+      "allowed": ["chaos-engine/skills/omniroot/scripts/runner.py", "chaos-engine/guides/omniroute.md", "chaos-engine/README.md", "chaos-engine/INSTALL.md", ".agents/skills/README.md"]
+    },
     "lifecycle dispatch and protocol": {
       "owner": "chaos-engine/hooks/lifecycle.py",
       "terms": ["run_hook_protocol", "LIFECYCLE_EVENTS", "session_start_context"],
@@ -86,6 +96,7 @@
     "CLAUDE.md",
     ".agents/skills/chaos-engine/SKILL.md",
     ".claude/skills/chaos-engine/SKILL.md",
-    ".github/copilot-instructions.md"
+    ".github/copilot-instructions.md",
+    "GEMINI.md"
   ]
 }

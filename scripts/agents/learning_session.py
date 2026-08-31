@@ -40,6 +40,8 @@ NO_LEARNING_REASONS = frozenset(
         "store_degraded",
     }
 )
+RUNTIME_DISPOSITIONS = frozenset({"fixed-now", "existing", "new", "blocked"})
+UNAVAILABLE_REASONS = frozenset({"delegate_unavailable", "delegate_lost"})
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_REF_RE = re.compile(r"^[0-9a-f]{40}$")
 OPERATION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -388,7 +390,10 @@ def _receipt_path(state: Path, session_hash: str) -> Path:
 
 def load_receipts(state: Path, session_id: str) -> list[dict]:
     """Return only complete, hash-valid receipts for one session."""
-    expected = _session_hash(session_id)
+    return _load_receipts_by_hash(Path(state), _session_hash(session_id))
+
+
+def _load_receipts_by_hash(state: Path, expected: str) -> list[dict]:
     try:
         path = _receipt_path(Path(state), expected)
     except (OSError, ValueError):
@@ -701,8 +706,12 @@ def _attestation_path(state: Path, session_id: str) -> Path:
 
 
 def load_attestation(state: Path, session_id: str) -> dict | None:
+    return _load_attestation_by_hash(Path(state), _session_hash(session_id))
+
+
+def _load_attestation_by_hash(state: Path, session_hash: str) -> dict | None:
     try:
-        path = _attestation_path(Path(state), session_id)
+        path = _contained_directory(Path(state), "attestations") / f"{session_hash}.json"
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError, UnicodeError):
         return None
@@ -715,14 +724,14 @@ def load_attestation(state: Path, session_id: str) -> dict | None:
     }
     expected = {
         "schema_version": 1,
-        "session_hash": _session_hash(session_id),
+        "session_hash": session_hash,
         "reason_code": value.get("reason_code") if isinstance(value, dict) else None,
     }
     if (
         not isinstance(value, dict)
         or set(value) != required_keys
         or value.get("schema_version") != 1
-        or value.get("session_hash") != _session_hash(session_id)
+        or value.get("session_hash") != session_hash
         or not _valid_utc_timestamp(value.get("assessed_at"))
         or value.get("reason_code") not in NO_LEARNING_REASONS
         or value.get("attestation_id") != _hash_text(_canonical(expected))
@@ -855,6 +864,252 @@ def finalize_session(state: Path, session_id: str) -> dict:
         }
         _atomic_json(_session_completion_path(Path(state), session_id), value)
         return value
+
+
+def _runtime_completion_path(state: Path, root_session_id: str) -> Path:
+    name = f"{_session_hash(root_session_id)}.json"
+    return _contained_directory(Path(state), "runtime-completions") / name
+
+
+def _runtime_registry_path(state: Path, root_session_id: str) -> Path:
+    return _contained_directory(Path(state), "runtime-registries") / f"{_session_hash(root_session_id)}.json"
+
+
+def _runtime_registry_value(root_session_id: str, participant_hashes: list[str], status: str) -> dict:
+    identity = {
+        "kind": "learning-runtime-registry",
+        "root_session_hash": _session_hash(root_session_id),
+        "participant_hashes": sorted(participant_hashes),
+        "status": status,
+    }
+    return {
+        "schema_version": 2,
+        "registry_id": _hash_text(_canonical(identity)),
+        **identity,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def create_runtime(state: Path, root_session_id: str) -> dict:
+    """Create an open root-owned registry before any delegate dispatch."""
+    if not isinstance(root_session_id, str) or not root_session_id.strip():
+        raise ValueError("runtime root must be a nonempty session identifier")
+    root_hash = _session_hash(root_session_id)
+    with _state_lock(Path(state), f"runtime-registry-{root_hash}"):
+        path = _runtime_registry_path(Path(state), root_session_id)
+        if path.is_file():
+            return _load_runtime_registry(Path(state), root_session_id)
+        value = _runtime_registry_value(root_session_id, [root_hash], "open")
+        _atomic_json(path, value)
+    return value
+
+
+def register_runtime_participant(
+    state: Path, root_session_id: str, participant_session_id: str
+) -> dict:
+    """Atomically bind one participant before its process is launched."""
+    if not isinstance(participant_session_id, str) or not participant_session_id.strip():
+        raise ValueError("runtime participant must be a nonempty session identifier")
+    root_hash = _session_hash(root_session_id)
+    participant_hash = _session_hash(participant_session_id)
+    with _state_lock(Path(state), f"runtime-registry-{root_hash}"):
+        registry = _load_runtime_registry(Path(state), root_session_id)
+        if registry["status"] != "open":
+            raise ValueError("runtime participant registry is closed")
+        if participant_hash in registry["participant_hashes"]:
+            return registry
+        value = _runtime_registry_value(
+            root_session_id, registry["participant_hashes"] + [participant_hash], "open"
+        )
+        _atomic_json(_runtime_registry_path(Path(state), root_session_id), value)
+        return value
+
+
+def close_runtime(state: Path, root_session_id: str) -> dict:
+    """Freeze membership explicitly; finalization also closes implicitly."""
+    root_hash = _session_hash(root_session_id)
+    with _state_lock(Path(state), f"runtime-registry-{root_hash}"):
+        registry = _load_runtime_registry(Path(state), root_session_id)
+        if registry["status"] == "closed":
+            return registry
+        value = _runtime_registry_value(
+            root_session_id, registry["participant_hashes"], "closed"
+        )
+        _atomic_json(_runtime_registry_path(Path(state), root_session_id), value)
+        return value
+
+
+def register_runtime(
+    state: Path, root_session_id: str, participant_session_ids: list[str]
+) -> dict:
+    """Compatibility wrapper: create an open runtime and add known participants."""
+    if len(set(participant_session_ids)) != len(participant_session_ids):
+        raise ValueError("runtime participants must appear exactly once")
+    if root_session_id not in participant_session_ids:
+        raise ValueError("runtime participants must include the root session")
+    registry = create_runtime(Path(state), root_session_id)
+    for participant_session_id in participant_session_ids:
+        registry = register_runtime_participant(
+            Path(state), root_session_id, participant_session_id
+        )
+    return registry
+
+
+def _load_runtime_registry(state: Path, root_session_id: str) -> dict:
+    value = _load_json_object(_runtime_registry_path(Path(state), root_session_id))
+    identity = {
+        "kind": "learning-runtime-registry",
+        "root_session_hash": _session_hash(root_session_id),
+        "participant_hashes": value.get("participant_hashes") if value else None,
+        "status": value.get("status") if value else None,
+    }
+    if (
+        value is None
+        or set(value) != {"schema_version", "registry_id", "kind", "root_session_hash", "participant_hashes", "status", "updated_at"}
+        or value.get("schema_version") != 2
+        or not isinstance(value.get("participant_hashes"), list)
+        or not value["participant_hashes"]
+        or len(set(value["participant_hashes"])) != len(value["participant_hashes"])
+        or any(not isinstance(item, str) or not SHA256_RE.fullmatch(item) for item in value["participant_hashes"])
+        or identity["root_session_hash"] not in value["participant_hashes"]
+        or value.get("status") not in {"open", "closed"}
+        or value.get("registry_id") != _hash_text(_canonical(identity))
+        or not _valid_utc_timestamp(value.get("updated_at"))
+    ):
+        raise ValueError("runtime participant registry is missing or invalid")
+    return value
+
+
+def _unavailable_path(state: Path, root_session_id: str, participant_session_id: str) -> Path:
+    name = f"{_session_hash(root_session_id)}-{_session_hash(participant_session_id)}.json"
+    return _contained_directory(Path(state), "runtime-unavailable") / name
+
+
+def _load_unavailable_attestation(state: Path, root_hash: str, participant_hash: str) -> dict | None:
+    value = _load_json_object(
+        _contained_directory(Path(state), "runtime-unavailable")
+        / f"{root_hash}-{participant_hash}.json"
+    )
+    identity = {
+        "kind": "learning-participant-unavailable",
+        "root_session_hash": root_hash,
+        "participant_hash": participant_hash,
+        "reason_code": value.get("reason_code") if value else None,
+    }
+    if (
+        value is None
+        or set(value) != {"schema_version", "attestation_id", *identity, "attested_at"}
+        or value.get("schema_version") != 1
+        or value.get("reason_code") not in UNAVAILABLE_REASONS
+        or value.get("attestation_id") != _hash_text(_canonical(identity))
+        or not _valid_utc_timestamp(value.get("attested_at"))
+    ):
+        return None
+    return value
+
+
+def attest_participant_unavailable(
+    state: Path, root_session_id: str, participant_session_id: str, reason_code: str
+) -> dict:
+    """Attest why a registered delegate cannot produce terminal evidence."""
+    registry = _load_runtime_registry(Path(state), root_session_id)
+    participant_hash = _session_hash(participant_session_id)
+    if participant_hash not in registry["participant_hashes"]:
+        raise ValueError("runtime participant is not registered")
+    if participant_hash == registry["root_session_hash"]:
+        raise ValueError("root participant cannot be unavailable")
+    if reason_code not in UNAVAILABLE_REASONS:
+        raise ValueError("runtime unavailable reason is invalid")
+    identity = {
+        "kind": "learning-participant-unavailable",
+        "root_session_hash": registry["root_session_hash"],
+        "participant_hash": participant_hash,
+        "reason_code": reason_code,
+    }
+    value = {
+        "schema_version": 1,
+        "attestation_id": _hash_text(_canonical(identity)),
+        **identity,
+        "attested_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _state_lock(Path(state), f"runtime-unavailable-{participant_hash}"):
+        path = _unavailable_path(Path(state), root_session_id, participant_session_id)
+        existing = _load_json_object(path) if path.is_file() else None
+        if existing is not None and {key: existing.get(key) for key in identity} != identity:
+            raise ValueError("runtime unavailable attestation is already recorded")
+        if existing is None:
+            _atomic_json(path, value)
+        return existing or value
+
+
+def finalize_runtime_session(
+    state: Path,
+    *,
+    root_session_id: str,
+    dispositions: dict[str, str],
+) -> dict:
+    """Close one root-owned runtime after considering root and delegate receipts."""
+    registry = close_runtime(Path(state), root_session_id)
+    participant_hashes = registry["participant_hashes"]
+    participant_receipts = {
+        participant_hash: _load_receipts_by_hash(Path(state), participant_hash)
+        for participant_hash in participant_hashes
+    }
+    receipts = {
+        receipt["incident_hash"]: receipt
+        for items in participant_receipts.values()
+        for receipt in items
+    }
+    incident_hashes = set(receipts)
+    if set(dispositions) != incident_hashes:
+        raise ValueError("every runtime incident requires exactly one disposition")
+    if any(
+        not SHA256_RE.fullmatch(key) or value not in RUNTIME_DISPOSITIONS
+        for key, value in dispositions.items()
+    ):
+        raise ValueError("runtime disposition is invalid")
+    receipt_participants = {
+        participant_hash for participant_hash, items in participant_receipts.items() if items
+    }
+    for participant_hash in participant_hashes:
+        if participant_hash in receipt_participants:
+            continue
+        if _load_attestation_by_hash(Path(state), participant_hash) is not None:
+            continue
+        unavailable = _load_unavailable_attestation(
+            Path(state), registry["root_session_hash"], participant_hash
+        )
+        if unavailable is None:
+            label = "root" if participant_hash == registry["root_session_hash"] else "delegate"
+            raise ValueError(f"registered {label} lacks terminal evidence")
+    identity = {
+        "kind": "learning-runtime-complete",
+        "root_session_hash": _session_hash(root_session_id),
+        "disposition": "assessed" if incident_hashes else "no-durable",
+        "participant_hashes": participant_hashes,
+        "incidents": [
+            {"incident_hash": key, "disposition": dispositions[key]}
+            for key in sorted(dispositions)
+        ],
+    }
+    value = {
+        "schema_version": 1,
+        "completion_id": _hash_text(_canonical(identity)),
+        **identity,
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _state_lock(Path(state), f"runtime-{identity['root_session_hash']}"):
+        path = _runtime_completion_path(Path(state), root_session_id)
+        if path.is_file():
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, UnicodeError) as error:
+                raise ValueError("runtime completion is invalid") from error
+            if {key: existing.get(key) for key in identity} != identity:
+                raise ValueError("runtime learning session is already complete")
+            return existing
+        _atomic_json(path, value)
+    return value
 
 
 def _completion_identity(value: dict) -> dict:
@@ -1339,6 +1594,19 @@ def _parse_evidence(value: str) -> dict[str, str]:
     return {"kind": parts[0], "id": parts[1], "sha256": parts[2]}
 
 
+def _parse_disposition(value: str) -> tuple[str, str]:
+    incident, separator, disposition = value.partition("=")
+    if (
+        not separator
+        or not SHA256_RE.fullmatch(incident)
+        or disposition not in RUNTIME_DISPOSITIONS
+    ):
+        raise argparse.ArgumentTypeError(
+            "disposition must be SHA256=fixed-now|existing|new|blocked"
+        )
+    return incident, disposition
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1368,6 +1636,23 @@ def build_parser() -> argparse.ArgumentParser:
     none.add_argument("--reason-code", choices=sorted(NO_LEARNING_REASONS), required=True)
     final = commands.add_parser("finalize")
     final.add_argument("--session-id", required=True)
+    create = commands.add_parser("create-runtime")
+    create.add_argument("--session-id", required=True)
+    participant = commands.add_parser("register-participant")
+    participant.add_argument("--session-id", required=True)
+    participant.add_argument("--participant-session-id", required=True)
+    close = commands.add_parser("close-runtime")
+    close.add_argument("--session-id", required=True)
+    register = commands.add_parser("register-runtime")
+    register.add_argument("--session-id", required=True)
+    register.add_argument("--participant-session-id", action="append", required=True)
+    unavailable = commands.add_parser("attest-unavailable")
+    unavailable.add_argument("--session-id", required=True)
+    unavailable.add_argument("--participant-session-id", required=True)
+    unavailable.add_argument("--reason-code", choices=sorted(UNAVAILABLE_REASONS), required=True)
+    runtime = commands.add_parser("finalize-runtime")
+    runtime.add_argument("--session-id", required=True)
+    runtime.add_argument("--disposition", action="append", type=_parse_disposition, default=[])
     evaluate = commands.add_parser("evaluate")
     evaluate.add_argument("--candidate-id", required=True)
     evaluate.add_argument("--manifest", type=Path, required=True)
@@ -1431,6 +1716,26 @@ def main(arguments: list[str] | None = None) -> int:
             )
         elif options.command == "finalize":
             result = finalize_session(state, options.session_id)
+        elif options.command == "create-runtime":
+            result = create_runtime(state, options.session_id)
+        elif options.command == "register-participant":
+            result = register_runtime_participant(
+                state, options.session_id, options.participant_session_id
+            )
+        elif options.command == "close-runtime":
+            result = close_runtime(state, options.session_id)
+        elif options.command == "register-runtime":
+            result = register_runtime(state, options.session_id, options.participant_session_id)
+        elif options.command == "attest-unavailable":
+            result = attest_participant_unavailable(
+                state, options.session_id, options.participant_session_id, options.reason_code
+            )
+        elif options.command == "finalize-runtime":
+            result = finalize_runtime_session(
+                state,
+                root_session_id=options.session_id,
+                dispositions=dict(options.disposition),
+            )
         elif options.command == "evaluate":
             manifest = _load_json_object(options.manifest)
             if manifest is None:

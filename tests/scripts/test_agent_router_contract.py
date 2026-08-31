@@ -1534,7 +1534,7 @@ class HostParityTest(unittest.TestCase):
     def test_both_hosts_expose_the_same_skill_set(self):
         canonical = {path.parent.name for path in CANONICAL_SKILLS.glob("*/SKILL.md")}
         claude = {path.parent.name for path in CLAUDE_SKILLS.glob("*/SKILL.md")}
-        self.assertEqual(canonical, {"chaos-engine", "local-coding-delegate", "work-item"})
+        self.assertEqual(canonical, {"chaos-engine", "local-coding-delegate", "omniroot", "work-item"})
         self.assertEqual(claude, {"chaos-engine"})
 
     def test_claude_skills_are_redirects_to_the_canonical_body(self):
@@ -2155,13 +2155,7 @@ class RetrievalParityTest(unittest.TestCase):
 
 
 class SoloOrOrchestrateTest(unittest.TestCase):
-    """Whether main thread implements has exactly one rule, in one place.
-
-    Two statements previously disagreed: "the orchestrator never implements"
-    against "do the work yourself". Both are right in their own mode and wrong
-    as absolutes, so the discriminator -- how many independent work streams the
-    session owns -- lives in the entrypoint and every other file defers to it.
-    """
+    """Execution workflow has exactly one normative owner."""
 
     # Every tracked surface an agent can read, not just the files that happened
     # to state the rule when this test was written.
@@ -2199,52 +2193,41 @@ class SoloOrOrchestrateTest(unittest.TestCase):
     SCOPED = re.compile(r"\b(?:mode|solo|orchestrate|orchestrating|orchestrated)\b", re.I)
 
     def section(self) -> str:
-        sections = re.split(r"(?m)^#{2,3} ", ENTRYPOINT.read_text(encoding="utf-8"))
-        found = [body for body in sections if body.lower().startswith("solo or orchestrate")]
-        self.assertEqual(len(found), 1, "entrypoint needs exactly one solo-or-orchestrate rule")
+        owner = ROOT / "chaos-engine/references/execution-workflows.md"
+        sections = re.split(r"(?m)^#{2,3} ", owner.read_text(encoding="utf-8"))
+        found = [body for body in sections if body.lower().startswith("select one workflow")]
+        self.assertEqual(len(found), 1, "workflow reference needs exactly one selection rule")
         return found[0]
 
-    def test_the_rule_keys_on_unrelated_tasks_in_flight(self):
+    def test_the_rule_defines_exact_modes_and_selection_inputs(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertIn("unrelated tasks", content, "the trigger is the owner's asks, not any decomposition")
-        self.assertRegex(content, r"subtasks of a single task are \*?\*?one", "subtasks are one stream")
-        self.assertIn("two or more", content)
-        rows = [line for line in self.section().splitlines() if line.strip().startswith("|")]
-        self.assertGreaterEqual(len(rows), 4, "the rule needs a mode table")
+        for mode in (
+            "solo",
+            "orchestrator + single implementer",
+            "orchestrator + parallel implementers",
+        ):
+            self.assertIn(mode, content)
+        self.assertIn("work shape and qualified capacity", content)
 
-    def test_the_rule_resolves_mode_transitions_and_hostless_delegation(self):
+    def test_the_rule_resolves_transitions_and_missing_transport(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(
-            content,
-            r"while any delegate still owns a stream",
-            "a finishing delegate must not silently flip the mode",
-        )
-        self.assertRegex(
-            content,
-            r"no subagent primitive cannot orchestrate",
-            "a host that cannot delegate needs a stated fallback",
-        )
+        self.assertIn("finish or hand over", content)
+        workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(encoding="utf-8")
+        self.assertIn("When OmniRoute is absent", workflows)
+        self.assertIn("host-native implementer or `SOLO`", workflows)
 
-    def test_solo_mode_forbids_delegating_the_work(self):
+    def test_solo_mode_owns_implementation(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(content, r"do the work yourself")
-        self.assertRegex(content, r"do not delegate")
+        self.assertRegex(content, r"\| `solo` .* plan, implement, verify, review")
 
-    def test_orchestrated_mode_keeps_main_thread_out_of_all_task_work(self):
+    def test_orchestrated_modes_keep_main_thread_out_of_implementation(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(content, r"do no task work yourself")
-        self.assertRegex(content, r"no edits, run no long job, and install nothing",
-                         "barring only implementation leaves installs and long jobs allowed")
-        self.assertRegex(content, r"reachable", "the rule must state why main thread stays free")
-        self.assertRegex(content, r"four", "orchestrated mode states the concurrency cap")
+        self.assertIn("do not implement", content)
+        self.assertIn("four parallel agents", content)
 
     def test_review_never_flips_the_mode(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(
-            content,
-            r"reviewer is never a work stream|not turn a solo session",
-            "a review must not be counted as a second work stream",
-        )
+        self.assertIn("review is not an implementation stream", content)
 
     def unscoped_absolutes(self, text: str) -> list[str]:
         """Return sentences stating either pole without naming the mode."""
@@ -3023,8 +3006,12 @@ class DisciplineTest(unittest.TestCase):
         self.assert_clause_holds("unbound-check gap")
         self.assert_clause_holds("apply it, run it, read the failure, revert")
 
-    def test_delegation_states_the_parallel_agent_cap(self):
-        self.assertRegex(compact(DELEGATION), r"(?:four|4) (?:active |concurrent |parallel |writing )*agents")
+    def test_workflow_owner_states_the_parallel_agent_cap(self):
+        workflows = ROOT / "chaos-engine/references/execution-workflows.md"
+        self.assertRegex(
+            compact(workflows),
+            r"(?:four|4) (?:active |concurrent |parallel |writing )*agents",
+        )
 
     def test_delegation_bounds_optional_terminal_review(self):
         content = compact(DELEGATION)

@@ -3966,6 +3966,19 @@ class ChaosEngineHostsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
             module.upgrade_before_images(Path("."), before, after, current)
 
+    def test_preflight_preserves_foreign_gitignore_changes_outside_owned_block(self):
+        module = load(HOSTS, "chaos_engine_hosts_receipt_gitignore_reconciliation")
+        before = {path: None for path in module.managed_paths()}
+        before[".gitignore"] = b"existing/\n"
+        after = dict(before)
+        after[".gitignore"] = module.gitignore_content(before[".gitignore"])
+        current = dict(after)
+        current[".gitignore"] = b"new-foreign/\n" + current[".gitignore"]
+
+        snapshot = module.upgrade_before_images(Path("."), before, after, current)
+
+        self.assertEqual(b"new-foreign/\nexisting/\n", snapshot[".gitignore"])
+
     def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")
         with tempfile.TemporaryDirectory() as temporary:

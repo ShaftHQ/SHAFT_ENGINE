@@ -1,12 +1,13 @@
 # OmniRoute: a selective free-model add-on
 
-OmniRoute is an optional local gateway that can expose several model providers
-through an OpenAI-compatible endpoint. Use it only for bounded, non-sensitive
-delegated work after each selected route passes the tests in this guide. Keep
-the parent agent, architecture decisions, reviews, terminal work, and all
-confidential code on the existing primary provider.
+OmniRoute is an optional local gateway. ChaosEngine uses it only through the
+provider-neutral [OmniRoot skill](../skills/omniroot/SKILL.md), after the
+canonical [execution workflow](../references/execution-workflows.md) is
+selected. OmniRoot detection targets only the default loopback service and
+fails closed. Missing OmniRoute is normal and leaves native delegation and
+`SOLO` fully valid.
 
-This is an integration guide, not part of ChaosEngine's installer or runtime.
+This is an operator integration guide, not a second workflow definition.
 ChaosEngine does not install OmniRoute, create provider accounts, retain
 provider credentials, start a service, or choose a provider on your behalf.
 
