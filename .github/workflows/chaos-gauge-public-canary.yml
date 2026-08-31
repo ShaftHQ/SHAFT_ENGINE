@@ -71,7 +71,8 @@ jobs:
           uv pip install --system --require-hashes --requirement scripts/ci/chaos_gauge/requirements.lock
           npm install --global @openai/codex@0.118.0
           docker version --format '{{.Server.Version}}'
-      - name: Capture Docker baseline
+      - id: docker-baseline
+        name: Capture Docker baseline
         env:
           CANARY_BASELINE_CONTAINERS: ${{ runner.temp }}/chaosgauge-canary-containers.txt
         run: docker ps --all --format '{{.ID}}' | sort > "$CANARY_BASELINE_CONTAINERS"
@@ -105,7 +106,7 @@ jobs:
               raise SystemExit("excluded canary exceeded its two-arm accounted-token budget")
           PY
       - name: Verify Docker teardown
-        if: always()
+        if: ${{ always() && steps.docker-baseline.outcome == 'success' }}
         env:
           CANARY_BASELINE_CONTAINERS: ${{ runner.temp }}/chaosgauge-canary-containers.txt
         run: |

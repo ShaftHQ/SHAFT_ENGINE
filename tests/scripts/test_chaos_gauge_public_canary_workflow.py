@@ -7,7 +7,10 @@ from unittest.mock import patch
 import importlib.util
 import hashlib
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 
 import yaml
@@ -57,6 +60,12 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
         self.assertIn("@openai/codex@0.118.0", install)
         self.assertIn("docker version --format", install)
 
+    def test_teardown_only_runs_after_baseline(self) -> None:
+        self.assertEqual("docker-baseline", self._step("Capture Docker baseline")["id"])
+        teardown = self._step("Verify Docker teardown")
+        self.assertEqual("${{ always() && steps.docker-baseline.outcome == 'success' }}", teardown["if"])
+        self.assertIn("comm -13", teardown["run"])
+
     def test_private_checkout_and_release_capability_precede_provider(self) -> None:
         private = self._step("Checkout pinned private corpus")
         self.assertEqual("ShaftHQ/ChaosGauge-private", private["with"]["repository"])
@@ -95,6 +104,22 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
         for step in self.steps:
             if step.get("name") != "Checkout pinned private corpus":
                 self.assertNotIn("BOT_TOKEN", step.get("env", {}))
+
+    def test_direct_prepare_cli_reaches_credential_gate_from_any_cwd(self) -> None:
+        """The documented direct script call must not depend on repository import paths."""
+        with TemporaryDirectory() as directory:
+            receipt = Path(directory) / "receipt.json"
+            command = [
+                sys.executable, str(BRIDGE_PATH), "prepare", "--repository", str(ROOT),
+                "--run-id", "123", "--receipt-out", str(receipt),
+            ]
+            environment = {key: value for key, value in os.environ.items() if key not in {"GH_TOKEN", "PYTHONPATH"}}
+            for cwd in (ROOT, Path(directory)):
+                with self.subTest(cwd=cwd):
+                    result = subprocess.run(command, cwd=cwd, env=environment, capture_output=True, text=True)
+                    self.assertNotEqual(0, result.returncode)
+                    self.assertIn("GH_TOKEN is unavailable", result.stderr)
+                    self.assertNotIn("ModuleNotFoundError", result.stderr)
 
     def test_owner_exception_has_only_workflow_local_canary_limits(self) -> None:
         self.assertIn("owner-authorized excluded-canary exception", self.text.lower())
