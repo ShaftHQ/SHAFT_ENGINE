@@ -249,7 +249,10 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
     def test_counterbalanced_schedule_covers_every_planned_trial_once(self):
         schedule = json.loads((GAUGE / "schedule.json").read_text(encoding="utf-8"))
         self.assertEqual(5450, schedule["seed"])
-        self.assertEqual("sha256(seed:task:attempt)-low-bit-first-arm", schedule["algorithm"])
+        self.assertEqual(
+            "sha256(seed:task)-balanced-2-or-3-control-first;sha256(seed:task:attempt)-rank",
+            schedule["algorithm"],
+        )
         self.assertEqual(["control", "chaos-engine"], schedule["arms"])
         self.assertEqual(
             {"tasks": 12, "trials": 120}, schedule["campaigns"]["publicCalibration"]
@@ -258,17 +261,26 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         self.assertTrue(
             schedule["campaigns"]["fullPilot"]["requiresPrivatePackageResolution"]
         )
+        tasks = self.manifest()["tasks"]
+        higher = {
+            task["name"] for task in sorted(
+                tasks,
+                key=lambda task: hashlib.sha256(f'{schedule["seed"]}:task:{task["name"]}'.encode()).digest(),
+            )[: len(tasks) // 2]
+        }
         rows = []
-        for task in self.manifest()["tasks"]:
+        for task in tasks:
+            attempts = sorted(
+                range(1, schedule["attemptsPerTask"] + 1),
+                key=lambda attempt: hashlib.sha256(f'{schedule["seed"]}:{task["name"]}:{attempt}'.encode()).digest(),
+            )
+            control = set(attempts[:3 if task["name"] in higher else 2])
             for attempt in range(1, schedule["attemptsPerTask"] + 1):
-                digest = hashlib.sha256(
-                    f'{schedule["seed"]}:{task["name"]}:{attempt}'.encode()
-                ).digest()
-                first = schedule["arms"][digest[0] & 1]
-                second = schedule["arms"][1 - (digest[0] & 1)]
-                rows.extend([(task["name"], attempt, first), (task["name"], attempt, second)])
+                first = "control" if attempt in control else "chaos-engine"
+                rows.extend([(task["name"], attempt, first), (task["name"], attempt, "chaos-engine" if first == "control" else "control")])
         self.assertEqual(160, len(rows))
         self.assertEqual(80, len({(task, attempt) for task, attempt, _ in rows}))
+        self.assertEqual(40, sum(1 for _, _, arm in rows[::2] if arm == "control"))
 
     def test_calibration_is_120_trials_and_full_pilot_requires_resolved_private_package(self):
         manifest = self.manifest()
