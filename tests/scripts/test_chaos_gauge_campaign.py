@@ -160,6 +160,11 @@ class ChaosGaugeCampaignTest(TestCase):
             )
         self.assertEqual([], calls)
 
+    def test_codex_version_probe_accepts_only_exact_pin(self):
+        self.assertTrue(CAMPAIGN.codex_version_is_pinned("codex-cli 0.118.0"))
+        self.assertFalse(CAMPAIGN.codex_version_is_pinned("codex-cli 0.118.1"))
+        self.assertFalse(CAMPAIGN.codex_version_is_pinned("codex-cli 10.118.0"))
+
 
 if __name__ == "__main__":
     main()

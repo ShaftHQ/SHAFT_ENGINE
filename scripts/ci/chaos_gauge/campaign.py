@@ -243,6 +243,10 @@ def _run(command: list[str]) -> str:
     return subprocess.run(command, check=True, capture_output=True, text=True).stdout  # nosec B603 - fixed prerequisite probes.
 
 
+def codex_version_is_pinned(output: str) -> bool:
+    return re.search(r"(?<![0-9.])0\.118\.0(?![0-9.])", output) is not None
+
+
 def full_preflight(manifest: object, checkout: Path, run: Callable[[list[str]], str] = _run) -> None:
     """Validate capabilities and private source pins before any Harbor command is allowed."""
     value = _object(manifest, "experiment manifest")
@@ -274,7 +278,7 @@ def full_preflight(manifest: object, checkout: Path, run: Callable[[list[str]], 
         raise ValueError("Docker is unavailable")
     if run(["python3", "-c", "from importlib.metadata import version; print(version('harbor'))"]).strip() != "0.22.0":
         raise ValueError("Harbor version is invalid")
-    if re.search(r"(?<![0-9.])0\\.118\\.0(?![0-9.])", run(["codex", "--version"])) is None:
+    if not codex_version_is_pinned(run(["codex", "--version"])):
         raise ValueError("Codex version is invalid")
 
 
