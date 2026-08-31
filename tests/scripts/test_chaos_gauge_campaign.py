@@ -5,11 +5,13 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest import TestCase, main
+from unittest.mock import patch
 
 import yaml
 
@@ -44,6 +46,7 @@ class ChaosGaugeCampaignTest(TestCase):
         started = datetime(2026, 8, 31, tzinfo=timezone.utc)
         trials = []
         serial = 0
+        native_serial = 0 if arm == "control" else 10_000
         for task in {pair["task"] for pair in planned["pairs"]}:
             pairs = [pair for pair in planned["pairs"] if pair["task"] == task]
             for pair in pairs:
@@ -51,7 +54,7 @@ class ChaosGaugeCampaignTest(TestCase):
                 trials.append(
                     {
                         "task_name": pair["task"],
-                        "trial_name": self._native_name(pair["task"], serial),
+                        "trial_name": self._native_name(pair["task"], native_serial),
                         "task_checksum": pair["sha256"],
                         "config": {"agent": copy.deepcopy(jobs[arm]["agents"][0])},
                         "agent_info": {
@@ -66,6 +69,7 @@ class ChaosGaugeCampaignTest(TestCase):
                     }
                 )
                 serial += 1
+                native_serial += 1
         return {"id": self._job_id(arm), "stats": {"n_retries": retries}, "trial_results": trials}
 
     def _lock(self, planned: dict[str, object], arm: str) -> dict[str, object]:
@@ -113,6 +117,53 @@ class ChaosGaugeCampaignTest(TestCase):
             )
             for arm in CAMPAIGN.ARMS
         }
+
+    def _pair_jobs(self, planned: dict[str, object]) -> dict[str, object]:
+        class Task:
+            def __init__(self, name):
+                self.name = name
+
+            def get_task_id(self):
+                return self
+
+            def get_name(self):
+                return self.name
+
+        jobs = {}
+        for number, pair in enumerate(planned["pairs"], 1):
+            jobs[pair["pairId"]] = SimpleNamespace(
+                id=f"00000000-0000-0000-0000-{number:012d}",
+                config=SimpleNamespace(job_name=CAMPAIGN._pair_job_name(planned["campaign"], pair["pairId"])),
+                _trial_configs=[
+                    SimpleNamespace(task=Task(pair["task"]), trial_name=self._native_name(pair["task"], number * 2 + index))
+                    for index in range(2)
+                ],
+            )
+        return jobs
+
+    def _pair_evidence(self, planned: dict[str, object], bindings: dict[str, object], *, retries: int = 1) -> dict[str, object]:
+        jobs = self._jobs(planned["campaign"])
+        bound = {pair["pairId"]: pair for pair in bindings["pairs"]}
+        started = datetime(2026, 8, 31, tzinfo=timezone.utc)
+        evidence = {}
+        for serial, pair in enumerate(planned["pairs"]):
+            item = bound[pair["pairId"]]
+            trials = []
+            lock_trials = []
+            for position, arm in enumerate(pair["arms"]):
+                trials.append({
+                    "task_name": pair["task"], "trial_name": item["arms"][arm], "task_checksum": pair["sha256"],
+                    "config": {"agent": copy.deepcopy(jobs[arm]["agents"][0])},
+                    "agent_info": {"name": "codex", "version": "0.118.0", "model_info": {"name": "gpt-5.6-terra", "provider": "openai"}},
+                    "verifier_environment_mode": "separate",
+                    "agent_execution": {"started_at": (started + timedelta(seconds=serial * 2 + position)).isoformat()},
+                })
+                lock_trials.append({"task": {"name": pair["task"], "digest": f"sha256:{pair['sha256']}"}, "agent": copy.deepcopy(jobs[arm]["agents"][0])})
+            evidence[pair["pairId"]] = {
+                "result": {"id": item["jobId"], "stats": {"n_retries": retries}, "trial_results": trials},
+                "lock": {"schema_version": 3, "harbor": {"version": "0.22.0"}, "n_concurrent_trials": 2, "retry": {"max_retries": 2, "include_exceptions": ["EnvironmentStartError", "EnvironmentBuildError"]}, "trials": lock_trials},
+            }
+        return evidence
 
     def _merged_git(self, revision: str):
         def run(command: list[str]) -> str:
@@ -370,6 +421,115 @@ class ChaosGaugeCampaignTest(TestCase):
         resumed["control"].id = self._job_id("chaos-engine")
         with self.assertRaisesRegex(ValueError, "job identity"):
             CAMPAIGN.resume_resolved_jobs(MANIFEST, planned, bindings, resumed, completed)
+
+    def test_pair_launcher_creates_all_native_jobs_before_runs_and_limits_parallel_pairs(self):
+        planned = CAMPAIGN.plan(MANIFEST, "full-pilot")
+        configs = CAMPAIGN.pair_job_configs(MANIFEST, "full-pilot")
+        self.assertEqual(80, len(configs))
+        self.assertTrue(all(config["n_attempts"] == 1 and config["n_concurrent_trials"] == 2 for config in configs.values()))
+        self.assertTrue(all(len(config["agents"]) == 2 and len(config["datasets"]) == 1 and len(config["datasets"][0]["task_names"]) == 1 for config in configs.values()))
+        expected = {config["job_name"]: pair_id for pair_id, config in configs.items()}
+        resolved = self._pair_jobs(planned)
+        created, active, maximum, gates = [], 0, [0], []
+
+        async def create(config):
+            pair_id = expected[config["job_name"]]
+            created.append(pair_id)
+            job = resolved[pair_id]
+
+            async def run():
+                nonlocal active
+                self.assertEqual(80, len(created))
+                active += 1
+                maximum[0] = max(maximum[0], active)
+                await __import__("asyncio").sleep(0)
+                active -= 1
+                return {"id": job.id}
+
+            job.run = run
+            return job
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "pair-launch-map.json"
+            launched = __import__("asyncio").run(CAMPAIGN.launch_pair_jobs(
+                MANIFEST, "full-pilot", path, prepared_at="2026-08-29T00:00:00+00:00", create_job=create,
+                install_gate=lambda job, first, second: gates.append((job.id, first, second)),
+            ))
+            self.assertEqual(80, len(launched["results"]))
+            self.assertEqual(launched["bindings"], json.loads(path.read_text(encoding="utf-8")))
+        self.assertEqual(80, len(created))
+        self.assertLessEqual(maximum[0], 2)
+        self.assertEqual(80, len(gates))
+
+    def test_pair_start_gate_releases_only_after_first_native_agent_start_or_rejects(self):
+        class Events:
+            AGENT_START, END, CANCEL = object(), object(), object()
+
+        hooks_module = ModuleType("harbor.trial.hooks")
+        hooks_module.TrialEvent = Events
+        harbor, trial = ModuleType("harbor"), ModuleType("harbor.trial")
+        with patch.dict(sys.modules, {"harbor": harbor, "harbor.trial": trial, "harbor.trial.hooks": hooks_module}):
+            hooks = {}
+            job = SimpleNamespace(add_hook=lambda event, callback: hooks.__setitem__(event, callback))
+            CAMPAIGN._install_pair_start_gate(job, "first", "second")
+
+            async def prove_order():
+                waiter = __import__("asyncio").create_task(hooks[Events.AGENT_START](SimpleNamespace(trial_name="second")))
+                await __import__("asyncio").sleep(0)
+                self.assertFalse(waiter.done())
+                await hooks[Events.AGENT_START](SimpleNamespace(trial_name="first"))
+                await waiter
+
+            __import__("asyncio").run(prove_order())
+
+            failed = {}
+            failed_job = SimpleNamespace(add_hook=lambda event, callback: failed.__setitem__(event, callback))
+            CAMPAIGN._install_pair_start_gate(failed_job, "first", "second")
+
+            async def prove_failure():
+                waiter = __import__("asyncio").create_task(failed[Events.AGENT_START](SimpleNamespace(trial_name="second")))
+                await __import__("asyncio").sleep(0)
+                await failed[Events.END](SimpleNamespace(trial_name="first"))
+                with self.assertRaisesRegex(ValueError, "did not start"):
+                    await waiter
+
+            __import__("asyncio").run(prove_failure())
+
+    def test_pair_collector_and_resume_use_global_prebound_native_identities(self):
+        planned = CAMPAIGN.plan(MANIFEST, "full-pilot")
+        bindings = CAMPAIGN.bind_pair_jobs(MANIFEST, planned, self._pair_jobs(planned), prepared_at="2026-08-29T00:00:00+00:00")
+        evidence = self._pair_evidence(planned, bindings)
+        receipt = CAMPAIGN.collect_pair_jobs(
+            MANIFEST, planned, evidence, native_bindings=bindings, private_resolution=CAMPAIGN.private_resolution(MANIFEST),
+            execution_revision="f" * 40, repository=ROOT, run=self._merged_git("f" * 40),
+        )
+        self.assertEqual(80, receipt["pairAccounting"]["completed"])
+        self.assertEqual(80, receipt["jobRetryAccounting"]["pairJobs"])
+        self.assertEqual(2, receipt["schemaVersion"])
+
+        reused = copy.deepcopy(bindings)
+        reused["pairs"][1]["arms"]["control"] = reused["pairs"][0]["arms"]["control"]
+        with self.assertRaisesRegex(ValueError, "native trial identity is reused"):
+            CAMPAIGN.collect_pair_jobs(
+                MANIFEST, planned, evidence, native_bindings=reused, private_resolution=CAMPAIGN.private_resolution(MANIFEST),
+                execution_revision="f" * 40, repository=ROOT, run=self._merged_git("f" * 40),
+            )
+
+        completed = receipt["completedPairs"]
+        incomplete = self._pair_jobs(planned)
+        first = planned["pairs"][0]["pairId"]
+        incomplete.pop(first)
+        for job in incomplete.values():
+            job._remaining_trial_configs = job._trial_configs
+        remaining = CAMPAIGN.resume_pair_jobs(MANIFEST, planned, bindings, incomplete, {first: completed[first]})
+        self.assertEqual(79, len(remaining["pairs"]))
+        drifted = self._pair_jobs(planned)
+        drifted.pop(first)
+        for job in drifted.values():
+            job._remaining_trial_configs = job._trial_configs
+        next(iter(drifted.values())).id = "00000000-0000-0000-0000-999999999999"
+        with self.assertRaisesRegex(ValueError, "pair job identity"):
+            CAMPAIGN.resume_pair_jobs(MANIFEST, planned, bindings, drifted, {first: completed[first]})
 
     def test_preflight_validates_live_root_and_provider_capability(self):
         calls = []
