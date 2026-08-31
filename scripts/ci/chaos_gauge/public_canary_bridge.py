@@ -18,7 +18,15 @@ import zipfile
 from pathlib import Path
 from typing import Callable
 
-from scripts.ci.validate_shaft_pilot_release import CREDENTIAL_PATTERNS, SECRET_CANARIES
+_RELEASE_VALIDATOR = importlib.util.spec_from_file_location(
+    "shaft_pilot_release_validator", Path(__file__).parents[1] / "validate_shaft_pilot_release.py"
+)
+if _RELEASE_VALIDATOR is None or _RELEASE_VALIDATOR.loader is None:
+    raise RuntimeError("SHAFT Pilot release validator is unavailable")
+_release_validator = importlib.util.module_from_spec(_RELEASE_VALIDATOR)
+_RELEASE_VALIDATOR.loader.exec_module(_release_validator)
+CREDENTIAL_PATTERNS = _release_validator.CREDENTIAL_PATTERNS
+SECRET_CANARIES = _release_validator.SECRET_CANARIES
 
 
 PRIVATE_REPOSITORY = "ShaftHQ/ChaosGauge-private"
