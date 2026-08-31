@@ -1,5 +1,5 @@
 import os
-import subprocess
+import subprocess  # nosec B404 - integration fixture invokes fixed bash with repository-owned action text.
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,7 +37,7 @@ class PostTestReportActionTest(unittest.TestCase):
                 "SHAFT_JOB_STARTED_S": "",
             })
 
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 B607 - fixed bash executes trusted action fixture text.
                 ["bash", "-c", script], capture_output=True, text=True, env=environment, check=False
             )
 
