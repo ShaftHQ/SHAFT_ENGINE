@@ -107,9 +107,14 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Safari_Local:
+    name: MacOSX_Safari_Local_${{ matrix.shard }}_of_2
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Local,')
     runs-on: macos-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -135,13 +140,13 @@ jobs:
           mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*MobileEmulation.*]', env.GLOBAL_TESTING_SCOPE) }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-Dshaft.shard=${{ matrix.shard }}/2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*MobileEmulation.*]', env.GLOBAL_TESTING_SCOPE) }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
-          job-name: MacOSX_Safari_Local
+          job-name: MacOSX_Safari_Local_${{ matrix.shard }}_of_2
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_Chrome_Local:

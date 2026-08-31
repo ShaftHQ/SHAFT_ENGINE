@@ -135,8 +135,32 @@ jobs:
         workflow = yaml.safe_load(
             (repository_root / ".github/workflows/e2eLocalTests.yml").read_text(encoding="utf-8")
         )
-        timeout = workflow["jobs"]["MacOSX_Safari_Local"].get("timeout-minutes", 0)
-        self.assertEqual(timeout, 120)
+        safari_job = workflow["jobs"]["MacOSX_Safari_Local"]
+        self.assertEqual(safari_job.get("timeout-minutes"), 120)
+        self.assertFalse(safari_job["strategy"]["fail-fast"])
+        self.assertEqual(safari_job["strategy"]["matrix"]["shard"], [1, 2])
+
+        commands = " ".join(str(step.get("run", "")) for step in safari_job["steps"])
+        self.assertIn("-Dshaft.shard=${{ matrix.shard }}/2", commands)
+        self.assertIn("-DsetParallelMode=NONE", commands)
+
+        report_step = next(
+            step for step in safari_job["steps"] if step.get("id") == "post_test_report"
+        )
+        self.assertEqual(
+            report_step["with"]["job-name"],
+            "MacOSX_Safari_Local_${{ matrix.shard }}_of_2",
+        )
+
+    def test_local_chrome_job_remains_unsharded(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/e2eLocalTests.yml").read_text(encoding="utf-8")
+        )
+        chrome_job = workflow["jobs"]["Windows_Chrome_Local"]
+        self.assertNotIn("strategy", chrome_job)
+        commands = " ".join(str(step.get("run", "")) for step in chrome_job["steps"])
+        self.assertNotIn("-Dshaft.shard=", commands)
 
 
 if __name__ == "__main__":
