@@ -130,13 +130,49 @@ jobs:
         timeout = workflow["jobs"]["iOS_Web_SAFARI_BrowserStack"].get("timeout-minutes", 0)
         self.assertEqual(timeout, 15)
 
-    def test_local_safari_job_allows_observed_nightly_runtime_headroom(self):
+    def test_local_safari_shards_preserve_outputs_and_focused_dispatches(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
             (repository_root / ".github/workflows/e2eLocalTests.yml").read_text(encoding="utf-8")
         )
-        timeout = workflow["jobs"]["MacOSX_Safari_Local"].get("timeout-minutes", 0)
-        self.assertEqual(timeout, 120)
+        jobs = workflow["jobs"]
+        safari_ids = ["MacOSX_Safari_Local_1", "MacOSX_Safari_Local_2"]
+        expected_outputs = {"job", "total", "passed", "failed", "broken", "skipped", "duration"}
+        for index, job_id in enumerate(safari_ids, start=1):
+            safari_job = jobs[job_id]
+            self.assertEqual(safari_job.get("timeout-minutes"), 120)
+            self.assertEqual(set(safari_job["outputs"]), expected_outputs)
+            self.assertIn(",MacOSX_Safari_Local,", safari_job["if"])
+            commands = " ".join(str(step.get("run", "")) for step in safari_job["steps"])
+            self.assertIn("-DsetParallelMode=NONE", commands)
+            report_step = next(
+                step for step in safari_job["steps"] if step.get("id") == "post_test_report"
+            )
+            expected_report_name = (
+                "MacOSX_Safari_Local_1_of_${{ github.event.inputs.tests != '' && '1' || '2' }}"
+                if index == 1
+                else "MacOSX_Safari_Local_2_of_2"
+            )
+            self.assertEqual(report_step["with"]["job-name"], expected_report_name)
+
+        first_commands = " ".join(str(step.get("run", "")) for step in jobs[safari_ids[0]]["steps"])
+        self.assertIn("github.event.inputs.tests != '' && '1/1' || '1/2'", first_commands)
+        second_commands = " ".join(str(step.get("run", "")) for step in jobs[safari_ids[1]]["steps"])
+        self.assertIn("-Dshaft.shard=2/2", second_commands)
+        self.assertIn("github.event.inputs.tests == ''", jobs[safari_ids[1]]["if"])
+        for consumer in ("Workflow_Summary", "notify_local_e2e_tests_failure"):
+            for job_id in safari_ids:
+                self.assertIn(job_id, jobs[consumer]["needs"])
+
+    def test_local_chrome_job_remains_unsharded(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/e2eLocalTests.yml").read_text(encoding="utf-8")
+        )
+        chrome_job = workflow["jobs"]["Windows_Chrome_Local"]
+        self.assertNotIn("strategy", chrome_job)
+        commands = " ".join(str(step.get("run", "")) for step in chrome_job["steps"])
+        self.assertNotIn("-Dshaft.shard=", commands)
 
 
 if __name__ == "__main__":
