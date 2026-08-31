@@ -10,17 +10,20 @@
     </style>
 </head>
 <body>
-<div id="drag-source" draggable="true">Drag me</div>
+<div id="drag-source">Drag me</div>
 <div id="drop-target">Waiting</div>
 <script>
     const source = document.getElementById('drag-source');
     const target = document.getElementById('drop-target');
-    source.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', 'dragged'));
-    target.addEventListener('dragover', event => event.preventDefault());
-    target.addEventListener('drop', event => {
-        event.preventDefault();
-        target.textContent = 'Dropped';
+    let dragging = false;
+    source.addEventListener('mousedown', () => dragging = true);
+    target.addEventListener('mouseup', () => {
+        if (dragging) {
+            target.textContent = 'Dropped';
+        }
+        dragging = false;
     });
+    document.addEventListener('mouseup', () => dragging = false);
 </script>
 </body>
 </html>
