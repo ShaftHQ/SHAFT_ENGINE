@@ -423,7 +423,9 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertIn("scripts/ci/agent_ownership.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
 
     def test_agent_validation_script_files_includes_chaos_engine_dependencies(self):
+        self.assertIn("README.md", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
         self.assertIn("chaos-engine/dependencies.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        self.assertIn("chaos-engine/README.md", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
 
     def test_agent_validation_manifest_ships_every_module_the_validator_imports(self):
         # Same class of defect as issue #3363 bug 9, one level up: the manifest
@@ -443,7 +445,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.agent_validation_manifest_missing_imports(shipped),
         )
 
-    def test_downloaded_agent_validation_bundle_imports_from_isolated_project(self):
+    def test_downloaded_agent_validation_bundle_validates_from_isolated_project(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir).resolve()
             (target / "AGENTS.md").write_text("# Installed guidance\n", encoding="utf-8")
@@ -466,8 +468,9 @@ class InstallShaftMcpTest(unittest.TestCase):
                 "import sys; "
                 f"sys.path.insert(0, {str(target)!r}); "
                 "import scripts.agents.guard; "
-                "import scripts.ci.validate_agent_setup; "
-                "import scripts.ci.validate_agent_ownership"
+                "import scripts.ci.validate_agent_setup as validator; "
+                "import scripts.ci.validate_agent_ownership; "
+                f"validator.validate_repository(validator.Path({str(target)!r}), run_external=False)"
             )
             completed = subprocess.run(  # nosec B603 - fixed interpreter and generated local import script.
                 [sys.executable, "-I", "-S", "-c", command],

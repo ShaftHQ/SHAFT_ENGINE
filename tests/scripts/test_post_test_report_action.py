@@ -12,7 +12,7 @@ ACTION = ROOT / ".github/actions/post-test-report/action.yml"
 
 
 class PostTestReportActionTest(unittest.TestCase):
-    def test_rejects_nonzero_total_without_any_status_verdicts(self):
+    def run_summary(self, *, total, passed, failed, broken, skipped):
         action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
         step = next(step for step in action["runs"]["steps"]
                     if step.get("id") == "collect_results")
@@ -25,7 +25,10 @@ class PostTestReportActionTest(unittest.TestCase):
             report.mkdir()
             (results / "test-result.json").write_text("{}", encoding="utf-8")
             (report / "summary.json").write_text(
-                '{"statistic":{"total":14,"passed":0,"failed":0,"broken":0,"skipped":0}}',
+                '{"statistic":'
+                f'{{"total":{total},"passed":{passed},"failed":{failed},'
+                f'"broken":{broken},"skipped":{skipped}}}'
+                '}',
                 encoding="utf-8",
             )
             script = step["run"].replace("${{ inputs.module-directory }}", str(module))
@@ -40,9 +43,43 @@ class PostTestReportActionTest(unittest.TestCase):
             completed = subprocess.run(  # nosec B603 B607 - fixed bash executes trusted action fixture text.
                 ["bash", "-c", script], capture_output=True, text=True, env=environment, check=False
             )
+        return completed
+
+    def test_rejects_nonzero_total_without_any_status_verdicts(self):
+        completed = self.run_summary(total=14, passed=0, failed=0, broken=0, skipped=0)
 
         self.assertNotEqual(0, completed.returncode)
         self.assertIn("14 total tests but 0 status verdicts", completed.stdout)
+
+    def test_rejects_fewer_status_verdicts_than_total(self):
+        completed = self.run_summary(total=14, passed=13, failed=0, broken=0, skipped=0)
+
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("14 total tests but 13 status verdicts", completed.stdout)
+
+    def test_rejects_more_status_verdicts_than_total(self):
+        completed = self.run_summary(total=14, passed=15, failed=0, broken=0, skipped=0)
+
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("14 total tests but 15 status verdicts", completed.stdout)
+
+    def test_accepts_summary_when_total_matches_status_verdicts(self):
+        completed = self.run_summary(total=14, passed=13, failed=0, broken=0, skipped=1)
+
+        self.assertEqual(0, completed.returncode, completed.stdout)
+
+    def test_preserves_failed_and_broken_verdict_failures(self):
+        for failed, broken in ((1, 0), (0, 1)):
+            with self.subTest(failed=failed, broken=broken):
+                completed = self.run_summary(
+                    total=14, passed=13, failed=failed, broken=broken, skipped=0
+                )
+
+                self.assertNotEqual(0, completed.returncode)
+                self.assertIn(
+                    f"Allure report shows {failed} failed and {broken} broken test(s)",
+                    completed.stdout,
+                )
 
 
 if __name__ == "__main__":
