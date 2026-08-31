@@ -20,7 +20,7 @@ agents:
       version: "0.118.0"
       reasoning_effort: medium
       harness_source: chaos-engine
-      harness_commit: "45db5d074a4da47ca6151175c897108e67a1a926"
+      harness_commit: "5ebf1b75f28b8d164e5326c69e81f1df2eb8237d"
       harness_sha256: "fc97d4bf65ddb739c1e8a40f01f552d4719ac5101a5035d4e11af8c66b8805cf"
       adapter_sha256: "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd"
 datasets:

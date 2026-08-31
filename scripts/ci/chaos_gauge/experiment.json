@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "identity": "ShaftHQ/chaos-engine-effectiveness",
-  "implementationRevision": "45db5d074a4da47ca6151175c897108e67a1a926",
+  "implementationRevision": "5ebf1b75f28b8d164e5326c69e81f1df2eb8237d",
   "harbor": {
     "version": "0.22.0",
     "source": "harbor-framework/harbor@v0.22.0",
@@ -41,12 +41,12 @@
       "agent": "codex",
       "model": "gpt-5.6-terra",
       "effort": "medium",
-      "repositoryRevision": "45db5d074a4da47ca6151175c897108e67a1a926",
+      "repositoryRevision": "5ebf1b75f28b8d164e5326c69e81f1df2eb8237d",
       "harness": "none",
       "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "treatmentSha256": {
-        "calibration": "1505e81182dce49823d9aac592fbcbf51268ef0624e2397d791c13d7640b5858",
-        "full-pilot": "555c9aa351379943af2b7173fb416f1cfb6a275ea96148157ffc1afd72181685"
+        "calibration": "28a5ee0a1ad8d8eece12b09bd528577cf591ce78efdcad5e468c7a7169d5168e",
+        "full-pilot": "0a12b16c246fbae379f2aa0fb6a4aae1126e64be15af2ed1b3ae20eaef5372fc"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
@@ -57,12 +57,12 @@
       "agent": "codex",
       "model": "gpt-5.6-terra",
       "effort": "medium",
-      "repositoryRevision": "45db5d074a4da47ca6151175c897108e67a1a926",
+      "repositoryRevision": "5ebf1b75f28b8d164e5326c69e81f1df2eb8237d",
       "harness": "chaos-engine",
       "harnessSha256": "fc97d4bf65ddb739c1e8a40f01f552d4719ac5101a5035d4e11af8c66b8805cf",
       "treatmentSha256": {
-        "calibration": "f3578e5be1d69caf58003ef21124d4e12329cff0d7bd32b9def6f0f5d5410b79",
-        "full-pilot": "ca5a27753dd82b0071fab6fed335f5b6f0b574e67a5f3c80bc54b7f985a16aa8"
+        "calibration": "02a9ec47ce535a883928da9986e6dd1f06ae92a4f52adfcf90e1987224bfddf2",
+        "full-pilot": "0fccd7fd705aa66887e2e4b9b378c6c6474609fce2ded6a6f965f2cebde4076f"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
