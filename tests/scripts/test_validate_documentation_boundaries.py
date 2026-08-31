@@ -68,6 +68,20 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_only_required_chaos_gauge_task_instructions(self):
+        self.write(
+            "scripts/ci/chaos_gauge/dataset/example/instruction.md",
+            "Repair the seeded workspace.\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
+
+        self.write("scripts/ci/chaos_gauge/notes.md", "# Public guide\n")
+        self.assertIn(
+            "public or unapproved Markdown remains: scripts/ci/chaos_gauge/notes.md",
+            validate_repository(self.root),
+        )
+
     def test_allows_codex_internal_markdown(self):
         self.write(".codex/tools/graphify.md", "# Graphify\n")
 

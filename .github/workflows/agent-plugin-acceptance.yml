@@ -34,6 +34,7 @@ jobs:
           set -euo pipefail
           modules=(
             tests.scripts.test_chaos_engine_runtime
+            tests.scripts.test_chaos_gauge_recovery
             tests.scripts.test_agent_harness_adherence
             tests.scripts.test_agent_harness_portability
             tests.scripts.test_agent_harness_reachability

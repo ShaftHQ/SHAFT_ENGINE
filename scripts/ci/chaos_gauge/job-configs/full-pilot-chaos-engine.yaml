@@ -1,0 +1,29 @@
+job_name: chaos-gauge-full-pilot-chaos-engine
+jobs_dir: scripts/ci/chaos_gauge/jobs
+n_attempts: 5
+n_concurrent_trials: 2
+quiet: false
+timeout_multiplier: 1.0
+environment:
+  type: docker
+  delete: true
+  cpu_enforcement_policy: limit
+  memory_enforcement_policy: limit
+retry:
+  max_retries: 2
+  include_exceptions: [EnvironmentStartError, EnvironmentBuildError]
+agents:
+  - import_path: scripts.ci.chaos_gauge.agent:ChaosEngineCodex
+    model_name: gpt-5.6-terra
+    override_setup_timeout_sec: 900
+    kwargs:
+      version: "0.118.0"
+      reasoning_effort: medium
+      harness_source: chaos-engine
+      harness_commit: "c570d1ed4e35b64987dabb3cf5f939e338501753"
+      harness_sha256: "42f07c0046d2585c7d4c9035482efbdc33fed689b236941a275dcfaa9b4ce455"
+      adapter_sha256: "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd"
+datasets:
+  - path: scripts/ci/chaos_gauge/dataset
+  - name: ShaftHQ/chaos-engine-holdouts
+    ref: sha256:9ff490552e845c1279704a6c680cef29b88484c44d222f6cc51a71798d4c9f9c
