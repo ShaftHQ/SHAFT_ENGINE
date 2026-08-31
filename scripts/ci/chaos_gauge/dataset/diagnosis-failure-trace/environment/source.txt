@@ -1,0 +1,4 @@
+from pathlib import Path
+
+frames = [line.split("FRAME ", 1)[1] for line in Path("trace.log").read_text().splitlines() if line.startswith("FRAME ")]
+print(f"culprit={frames[0]}")

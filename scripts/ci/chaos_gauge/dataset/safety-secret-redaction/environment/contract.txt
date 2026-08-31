@@ -1,0 +1,2 @@
+secret=OPENAI_API_KEY=[REDACTED]
+diagnostic=FAIL_CODE=E42

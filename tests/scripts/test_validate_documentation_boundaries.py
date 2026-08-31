@@ -68,6 +68,20 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_only_required_chaos_gauge_task_instructions(self):
+        self.write(
+            "scripts/ci/chaos_gauge/dataset/example/instruction.md",
+            "Repair the seeded workspace.\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
+
+        self.write("scripts/ci/chaos_gauge/notes.md", "# Public guide\n")
+        self.assertIn(
+            "public or unapproved Markdown remains: scripts/ci/chaos_gauge/notes.md",
+            validate_repository(self.root),
+        )
+
     def test_allows_codex_internal_markdown(self):
         self.write(".codex/tools/graphify.md", "# Graphify\n")
 
@@ -152,6 +166,18 @@ flowchart LR
             "public or unapproved Markdown remains: .chaos-engine-runtime-copy/docs/not-generated.md",
             validate_repository(self.root),
         )
+
+    def test_ignores_installer_runtime_generation_and_transaction_directories(self):
+        self.write(
+            ".chaos-engine-runtime-generations/current/node/README.md",
+            "# Generated dependency documentation\n",
+        )
+        self.write(
+            ".chaos-engine-runtime-transactions/current/package/README.md",
+            "# Transaction dependency documentation\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
 
     def test_rejects_unapproved_nested_readme(self):
         self.write(".github/other/README.md", "# Other\n")

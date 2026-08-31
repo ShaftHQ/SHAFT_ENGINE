@@ -575,10 +575,6 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
             planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
     graphify = commands.get("graphify")
     if graphify:
-        if not (project / ".agents/skills/graphify/SKILL.md").is_file():
-            planned.append(
-                [graphify, "install", "--platform", "agents", "--project"]
-            )
         if not (project / "graphify-out/graph.json").is_file():
             planned.append([graphify, "extract", ".", "--code-only"])
     memory = commands.get("memory")

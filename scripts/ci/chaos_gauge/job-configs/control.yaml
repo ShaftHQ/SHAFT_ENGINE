@@ -1,0 +1,24 @@
+job_name: chaos-gauge-control
+jobs_dir: scripts/ci/chaos_gauge/jobs
+n_attempts: 5
+n_concurrent_trials: 2
+timeout_multiplier: 1.0
+environment:
+  type: docker
+  delete: true
+  cpu_enforcement_policy: limit
+  memory_enforcement_policy: limit
+retry:
+  max_retries: 2
+  include_exceptions:
+    - EnvironmentStartError
+    - EnvironmentBuildError
+agents:
+  - name: codex
+    model_name: gpt-5.6-terra
+    override_setup_timeout_sec: 900
+    kwargs:
+      version: "0.118.0"
+      reasoning_effort: medium
+datasets:
+  - path: scripts/ci/chaos_gauge/dataset

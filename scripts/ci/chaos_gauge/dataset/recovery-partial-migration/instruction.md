@@ -1,0 +1,1 @@
+Complete mixed-state configuration loading across `legacy.conf` and `current.conf`. Repair `source.txt` so `python3 run.py` prints `host=old.example;port=8443`; preserve both inputs and `user-work.txt`.

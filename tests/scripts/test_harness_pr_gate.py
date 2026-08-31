@@ -648,6 +648,16 @@ class OutputAndWorkflowTest(unittest.TestCase):
         ):
             self.assertIn(f"'tests/scripts/{name}'", pr_gate)
 
+    def test_scheduled_chaos_gauge_recovery_is_enforced_when_its_workflow_changes(self) -> None:
+        plan = classify_paths([".github/workflows/agent-plugin-acceptance.yml"])
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("ci", plan.surfaces)
+        self.assertIn("tests.scripts.test_harness_pr_gate", plan.test_modules)
+        self.assertIn("tests.scripts.test_chaos_gauge_recovery", scheduled)
+
     def test_host_parity_evidence_can_live_in_scheduled_exhaustive_suite(self) -> None:
         errors = validate_host_parity(ROOT)
 

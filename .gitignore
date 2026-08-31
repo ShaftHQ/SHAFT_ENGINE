@@ -200,6 +200,9 @@
 /allure-results.zip
 /generate_allure_report.bat
 /accessibility-reports/
+/scripts/ci/chaos_gauge/jobs/
+/scripts/ci/chaos_gauge/reports/
+/scripts/ci/chaos_gauge/private/
 .DS_Store
 /.git/
 *.iml
