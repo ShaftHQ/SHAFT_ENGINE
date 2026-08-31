@@ -366,6 +366,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+      - name: Install managed CI Python dependencies
+        run: python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Run ChaosGauge contracts
         run: >-
           python3 -m unittest

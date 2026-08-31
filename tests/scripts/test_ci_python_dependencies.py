@@ -27,6 +27,7 @@ EXPECTED_INSTALLS = {
         "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
     ),
     ".github/workflows/pr-gate.yml": (
+        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
         "python -m pip install --no-deps --requirement requirements-ci.txt --quiet",
         "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
     ),
@@ -123,6 +124,24 @@ class CiPythonDependenciesTest(unittest.TestCase):
                 ]
                 self.assertTrue(setup_steps, "install job must set up repository-standard Python")
                 self.assertEqual(setup_steps[-1].get("with", {}).get("python-version"), "3.13")
+
+    def test_chaos_gauge_installs_dependencies_before_contracts(self):
+        yaml = __import__("yaml")
+        workflow = yaml.safe_load(
+            (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        )
+        steps = workflow["jobs"]["chaos-gauge"]["steps"]
+        install_index = next(
+            index
+            for index, step in enumerate(steps)
+            if "--requirement requirements-ci.txt" in str(step.get("run", ""))
+        )
+        test_index = next(
+            index
+            for index, step in enumerate(steps)
+            if "tests.scripts.test_chaos_gauge_contracts" in str(step.get("run", ""))
+        )
+        self.assertLess(install_index, test_index)
 
 
 if __name__ == "__main__":
