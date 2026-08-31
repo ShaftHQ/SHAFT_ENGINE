@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "identity": "ShaftHQ/chaos-engine-effectiveness",
+  "harbor": {
+    "version": "0.22.0",
+    "source": "harbor-framework/harbor@v0.22.0",
+    "commit": "4407eb5227a2ff4f0d3f16b2eb48849382fdf276"
+  },
+  "dataset": {
+    "schemaVersion": "1.4",
+    "version": "1.0.0",
+    "sha256": "6b097e3316a8365513ff93d2d0cbe3d2521eedd1c0f883ae0682065c30e9626e"
+  },
+  "privatePackage": {
+    "name": "ShaftHQ/chaos-engine-holdouts",
+    "ref": "sha256:9ff490552e845c1279704a6c680cef29b88484c44d222f6cc51a71798d4c9f9c",
+    "status": "unresolved"
+  },
+  "attemptsPerTask": 5,
+  "dependencyLockSha256": "c1f14574606f6db01791fd56ca95e49222fa6fb3c3eedfae68e77c7b1b29aa61",
+  "seed": 5450,
+  "campaigns": {
+    "calibration": {
+      "taskVisibility": ["public"],
+      "taskCount": 12,
+      "privateResolutionRequired": false
+    },
+    "full-pilot": {
+      "taskVisibility": ["public", "private-reference"],
+      "taskCount": 16,
+      "privateResolutionRequired": true
+    }
+  },
+  "arms": [
+    {
+      "name": "control",
+      "agent": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "repositoryRevision": "c570d1ed4e35b64987dabb3cf5f939e338501753",
+      "harness": "none",
+      "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "treatmentSha256": "49730073ea808a925048845af61a677a90b58a0de672cfacf929975d424d2ecd",
+      "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
+      "timeoutSeconds": 1800,
+      "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}
+    },
+    {
+      "name": "chaos-engine",
+      "agent": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "repositoryRevision": "c570d1ed4e35b64987dabb3cf5f939e338501753",
+      "harness": "chaos-engine",
+      "harnessSha256": "42f07c0046d2585c7d4c9035482efbdc33fed689b236941a275dcfaa9b4ce455",
+      "treatmentSha256": "e919a0ce52a479dbf5c083effbbdad065cb9944bae28bfe0a1656cefffb76998",
+      "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
+      "timeoutSeconds": 1800,
+      "resources": {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}
+    }
+  ],
+  "tasks": [
+    {"name": "diagnosis-config-precedence", "visibility": "public", "sha256": "bbb42d74471ba4baa53a365f22fb26c70aa3277d5279aa44d0d3d478887b829b"},
+    {"name": "diagnosis-failure-trace", "visibility": "public", "sha256": "1c5bd61222521bd4d9fc3dd5b078e0408638c686581de3b8c8803bd29406480e"},
+    {"name": "diagnosis-module-boundary", "visibility": "public", "sha256": "cfae3c97feb96c58a771af1957aca60b9cd2353ab257b9a2bdbb3bd735685f86"},
+    {"name": "repair-null-contract", "visibility": "public", "sha256": "5a5213e077a8460ff83c255c11ad9bb321c75d1b9b6f78fe14c3e7bf68d83c9a"},
+    {"name": "repair-timeout-cleanup", "visibility": "public", "sha256": "8e829fc3fb7ff52f3c07352b8939e3ab807c1cac63363aeee37a56f617d97552"},
+    {"name": "repair-regression-test", "visibility": "public", "sha256": "f12fe990df475c5d874065721f23548a4734ca2b7f56bc86f0e004d61a6ba421"},
+    {"name": "recovery-cross-file-contract", "visibility": "public", "sha256": "20a1c654a93adcd2590026b8181c7757395b1793075bbdd27c59e02e2d3eb0c4"},
+    {"name": "recovery-broken-build", "visibility": "public", "sha256": "20fe73e34f8cc4859cb1222ab92176779578850b6dfa5507af0f04ad2054d6c1"},
+    {"name": "recovery-partial-migration", "visibility": "public", "sha256": "833ad2e707cdcd53bef1b56106cf94c22fb5e25639b45d4b6d22fa37c2254bbb"},
+    {"name": "safety-secret-redaction", "visibility": "public", "sha256": "b92c3977ca0e19f4a0e4e1cf6458533df6330ed12d8af2281b0a4a7fce4d1b3f"},
+    {"name": "safety-foreign-work", "visibility": "public", "sha256": "fca4e478d4eab8852d05c1e8cec08882738671e8f53fd067f29054d7e9e8a5f4"},
+    {"name": "delivery-focused-proof", "visibility": "public", "sha256": "b004e9578cf09dd010b387b852f68ade3f4d11b7b665092b8c1b531584b0a2f3"},
+    {"name": "holdout-diagnosis-01", "visibility": "private-reference", "sha256": "77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc"},
+    {"name": "holdout-repair-01", "visibility": "private-reference", "sha256": "ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8"},
+    {"name": "holdout-recovery-01", "visibility": "private-reference", "sha256": "043b1d13fc545083004d7c3ff1c064a43d8fc88bb79575d052058af30d4cbb6d"},
+    {"name": "holdout-safety-01", "visibility": "private-reference", "sha256": "e6cf521a008a43aa8e8977c8e8d33a0a034cbf7944d4c292c35e61eeca7ec226"}
+  ]
+}

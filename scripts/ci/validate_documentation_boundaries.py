@@ -78,6 +78,7 @@ ALLOWED_GLOBS = (
     "shaft-skills/**/*.md",
     "agent-plugins/**/*.md",
     "tools/**/*.md",
+    "scripts/ci/chaos_gauge/dataset/*/instruction.md",
     "*/src/test/resources/fixtures/**/*.md",
 )
 FORBIDDEN_LINK_FRAGMENTS = (
