@@ -422,6 +422,11 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertIn("scripts/ci/validate_agent_ownership.py", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
         self.assertIn("scripts/ci/agent_ownership.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
 
+    def test_agent_validation_script_files_includes_chaos_engine_dependencies(self):
+        self.assertNotIn("README.md", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        self.assertIn("chaos-engine/dependencies.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        self.assertIn("chaos-engine/README.md", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+
     def test_agent_validation_manifest_ships_every_module_the_validator_imports(self):
         # Same class of defect as issue #3363 bug 9, one level up: the manifest
         # copies validate_agent_setup.py into a user's project, so any sibling
@@ -440,10 +445,12 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.agent_validation_manifest_missing_imports(shipped),
         )
 
-    def test_downloaded_agent_validation_bundle_imports_from_isolated_project(self):
+    def test_downloaded_agent_validation_bundle_validates_from_isolated_project(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir).resolve()
             (target / "AGENTS.md").write_text("# Installed guidance\n", encoding="utf-8")
+            adopter_readme = "# Adopter project\n\nKeep this content.\n"
+            (target / "README.md").write_text(adopter_readme, encoding="utf-8")
             retired = target / "scripts" / "agents" / "learning_loop.py"
             retired.parent.mkdir(parents=True)
             retired.write_text("# installer-owned retired controller\n", encoding="utf-8")
@@ -459,12 +466,14 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertTrue((target / "scripts" / "agents" / "learning_session.py").is_file())
             self.assertFalse(retired.exists())
             self.assertTrue((target / "scripts" / "ci" / "agent_ownership.json").is_file())
+            self.assertEqual(adopter_readme, (target / "README.md").read_text(encoding="utf-8"))
             command = (
                 "import sys; "
                 f"sys.path.insert(0, {str(target)!r}); "
                 "import scripts.agents.guard; "
-                "import scripts.ci.validate_agent_setup; "
-                "import scripts.ci.validate_agent_ownership"
+                "import scripts.ci.validate_agent_setup as validator; "
+                "import scripts.ci.validate_agent_ownership; "
+                f"validator.validate_repository(validator.Path({str(target)!r}), run_external=False)"
             )
             completed = subprocess.run(  # nosec B603 - fixed interpreter and generated local import script.
                 [sys.executable, "-I", "-S", "-c", command],
@@ -1430,4 +1439,3 @@ class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

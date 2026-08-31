@@ -218,6 +218,11 @@ runs:
             echo "::error::No tests were executed according to the Allure summary. Check test configuration."
             exit 1
           fi
+          VERDICT_TOTAL=$((PASSED + FAILED + BROKEN + SKIPPED))
+          if [ "$VERDICT_TOTAL" -ne "$TOTAL" ]; then
+            echo "::error::Allure summary reports $TOTAL total tests but $VERDICT_TOTAL status verdicts. Treating this as an invalid test run."
+            exit 1
+          fi
           if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
             if command -v python3 >/dev/null 2>&1; then
               ALLURE_FAILURE_SOURCE=""
