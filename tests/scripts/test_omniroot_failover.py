@@ -113,8 +113,8 @@ class OmniRootFailoverTest(unittest.TestCase):
         result = RUNNER._advance_continuity(
             manifest, exit_code=75, group_dead=True,
             candidates=self.candidates(),
-            register=lambda session_id: launched.append(session_id),
-            launch=lambda candidate: launched.append(candidate),
+            register=launched.append,
+            launch=launched.append,
         )
         self.assertIs(manifest, result)
         self.assertEqual([], launched)

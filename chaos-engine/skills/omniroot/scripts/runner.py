@@ -791,8 +791,7 @@ def _capture_command(arguments: list[str]) -> int:
     return int(process.returncode or 0)
 
 
-def _supervise_command(arguments: list[str]) -> int:
-    """Outlive delegates and replace retryable failures without owner input."""
+def _supervisor_arguments(arguments: list[str]) -> tuple[Path, Path, Path, int, tuple[Any, ...], list[str]]:
     if len(arguments) < 13 or arguments[11] != "--":
         raise OmniRootError("supervisor arguments are invalid")
     diagnostic_path, process_path, manifest_path = map(Path, arguments[:3])
@@ -804,6 +803,10 @@ def _supervise_command(arguments: list[str]) -> int:
     command = arguments[12:]
     if not 1 <= timeout_seconds <= 86400 or not command:
         raise OmniRootError("supervisor arguments are invalid")
+    return diagnostic_path, process_path, manifest_path, timeout_seconds, expected_identity, command
+
+
+def _supervisor_environment(command: list[str]) -> tuple[list[dict[str, str]], str, str, str, str, int]:
     raw = os.environ.pop("OMNIROOT_CONTINUITY", "")
     learning_state = os.environ.pop("OMNIROOT_LEARNING_STATE", "")
     learning_root = os.environ.pop("OMNIROOT_LEARNING_ROOT", "")
@@ -826,18 +829,51 @@ def _supervise_command(arguments: list[str]) -> int:
     if (not candidates or len(candidates) >= MAX_CONTINUITY_WRITERS
             or not all(_valid_private_candidate(candidate) for candidate in candidates)):
         raise OmniRootError("supervisor continuity input is invalid")
+    return candidates, learning_state, learning_root, active_session, invocation_mode, launcher_argc
+
+
+def _supervisor_manifest(path: Path) -> dict[str, Any]:
+    for _ in range(100):
+        manifest = _load_json(path)
+        if isinstance(manifest.get("continuity"), dict):
+            return manifest
+        time.sleep(0.05)
+    raise OmniRootError("supervisor manifest was not published")
+
+
+def _finish_supervision(path: Path, manifest: dict[str, Any], status: str, state: str, reason: str) -> int:
+    manifest["status"] = status
+    manifest["continuity"]["state"] = state
+    manifest["continuity"]["reason"] = reason
+    _write_json(path, manifest)
+    return 1
+
+
+def _replacement_command(
+    launcher_command: list[str], candidate: dict[str, str], invocation_mode: str, credential_mode: str,
+) -> list[str]:
+    if invocation_mode == "direct":
+        return [*launcher_command, *candidate["arguments"]]
+    command = [*launcher_command, candidate["target"], "--port", "20128"]
+    if credential_mode == "environment":
+        command.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+    command.extend(["--", *candidate["arguments"]])
+    return command
+
+
+def _supervise_command(arguments: list[str]) -> int:
+    """Outlive delegates and replace retryable failures without owner input."""
+    (diagnostic_path, process_path, manifest_path, timeout_seconds,
+     expected_identity, command) = _supervisor_arguments(arguments)
+    credential_mode = os.environ.get("OMNIROOT_CREDENTIAL_MODE", "")
+    (candidates, learning_state, learning_root, active_session,
+     invocation_mode, launcher_argc) = _supervisor_environment(command)
     qualified = _resolved_executable(command)
     if qualified is None or qualified[1] != expected_identity:
         raise OmniRootError("qualified launcher changed before execution")
     command = qualified[0]
     launcher_command = command[:launcher_argc]
-    for _ in range(100):
-        manifest = _load_json(manifest_path)
-        if isinstance(manifest.get("continuity"), dict):
-            break
-        time.sleep(0.05)
-    else:
-        raise OmniRootError("supervisor manifest was not published")
+    manifest = _supervisor_manifest(manifest_path)
 
     def attest_launch_failure(session_id: str) -> None:
         source_root = str(Path(__file__).resolve().parents[4])
@@ -849,11 +885,9 @@ def _supervise_command(arguments: list[str]) -> int:
     while True:
         deadline = _parse_time(manifest.get("deadline"))
         if deadline is None or deadline <= _utc_now():
-            manifest["status"] = "blocked"
-            manifest["continuity"]["state"] = "blocked"
-            manifest["continuity"]["reason"] = "overall deadline expired"
-            _write_json(manifest_path, manifest)
-            return 1
+            return _finish_supervision(
+                manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
+            )
         try:
             process = subprocess.Popen(  # nosec B603 - sealed command identity is verified.
                 command, shell=False, close_fds=True, start_new_session=True,
@@ -862,19 +896,16 @@ def _supervise_command(arguments: list[str]) -> int:
         except OSError:
             with contextlib.suppress(Exception):
                 attest_launch_failure(active_session)
-            manifest["status"] = "blocked"
-            manifest["continuity"]["state"] = "blocked"
-            manifest["continuity"]["reason"] = "replacement launch failed"
-            _write_json(manifest_path, manifest)
-            return 1
+            return _finish_supervision(
+                manifest_path, manifest, "blocked", "blocked", "replacement launch failed",
+            )
         identity = process_identity(process.pid)
         if identity is None:
             _terminate_group(process)
-            manifest["status"] = "quarantined"
-            manifest["continuity"]["state"] = "quarantined"
-            manifest["continuity"]["reason"] = "replacement process identity cannot be proven"
-            _write_json(manifest_path, manifest)
-            return 1
+            return _finish_supervision(
+                manifest_path, manifest, "quarantined", "quarantined",
+                "replacement process identity cannot be proven",
+            )
         process_evidence = {
             "schemaVersion": SCHEMA_VERSION, "pid": process.pid,
             "pgid": os.getpgid(process.pid), "processIdentity": identity,
@@ -883,11 +914,9 @@ def _supervise_command(arguments: list[str]) -> int:
         remaining_seconds = (deadline - _utc_now()).total_seconds()
         if remaining_seconds <= 0:
             _terminate_group(process)
-            manifest["status"] = "blocked"
-            manifest["continuity"]["state"] = "blocked"
-            manifest["continuity"]["reason"] = "overall deadline expired"
-            _write_json(manifest_path, manifest)
-            return 1
+            return _finish_supervision(
+                manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
+            )
         _collect_diagnostics(process, diagnostic_path,
                              timeout_seconds=min(timeout_seconds, remaining_seconds),
                              secrets=[os.environ.get("OMNIROUTE_API_KEY", "")])
@@ -898,11 +927,10 @@ def _supervise_command(arguments: list[str]) -> int:
             try:
                 _terminate_group(process)
             except OmniRootError:
-                manifest["status"] = "quarantined"
-                manifest["continuity"]["state"] = "quarantined"
-                manifest["continuity"]["reason"] = "prior process group death cannot be proven"
-                _write_json(manifest_path, manifest)
-                return 1
+                return _finish_supervision(
+                    manifest_path, manifest, "quarantined", "quarantined",
+                    "prior process group death cannot be proven",
+                )
         if diagnostic["exitCode"] == 0:
             manifest["continuity"]["state"] = "review"
             manifest["status"] = "running"
@@ -937,13 +965,7 @@ def _supervise_command(arguments: list[str]) -> int:
         _write_json(manifest_path, manifest)
         active_session = launched["candidate"]["sessionId"]
         candidate = launched["candidate"]
-        if invocation_mode == "direct":
-            command = [*launcher_command, *candidate["arguments"]]
-        else:
-            command = [*launcher_command, candidate["target"], "--port", "20128"]
-            if credential_mode == "environment":
-                command.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
-            command.extend(["--", *candidate["arguments"]])
+        command = _replacement_command(launcher_command, candidate, invocation_mode, credential_mode)
 
 
 def _validated_diagnostic(value: dict[str, Any]) -> dict[str, Any]:
