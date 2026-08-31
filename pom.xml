@@ -74,7 +74,7 @@
         <slf4j.version>2.0.18</slf4j.version>
         <grpc.version>1.83.1</grpc.version>
         <protobuf.version>4.36.0</protobuf.version>
-        <google.auth.library.version>1.50.0</google.auth.library.version>
+        <google.auth.library.version>1.51.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>
         <netty.version>4.2.17.Final</netty.version>
         <!-- Dependency Versions -->
@@ -131,7 +131,7 @@
         <commons.logging.version>1.4.0</commons.logging.version>
         <jsr305.version>3.0.2</jsr305.version>
         <javax.annotation.api.version>1.3.2</javax.annotation.api.version>
-        <google.api.common.version>2.66.0</google.api.common.version>
+        <google.api.common.version>2.67.0</google.api.common.version>
         <j2objc.annotations.version>3.1</j2objc.annotations.version>
         <failureaccess.version>1.0.3</failureaccess.version>
         <auto.value.annotations.version>1.11.1</auto.value.annotations.version>
