@@ -709,7 +709,7 @@ def _reservation(state_dir: Path):
             lock.unlink()
 
 
-def dispatch(  # noqa: C901 - fail-closed dispatch keeps invariant checks in one auditable boundary.
+def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in one auditable boundary.
     *,
     run_id: str,
     worktree: Path,
@@ -989,7 +989,7 @@ def cancel(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
     return manifest
 
 
-def complete(  # noqa: C901 - receipt validation remains one fail-closed audit boundary.
+def complete(  # noqa: MC0001 - receipt validation remains one fail-closed audit boundary.
     *, run_id: str, state_dir: Path, exit_code: int, changed_paths: list[str], learning_disposition: str,
     head: str | None = None, clean: bool = True, checks: list[str] | None = None,
     blockers: list[str] | None = None, adjacent_findings: list[str] | None = None,
