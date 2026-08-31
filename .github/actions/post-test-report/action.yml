@@ -169,9 +169,10 @@ runs:
           FAILED=$(extract_field failed "$ALLURE_SUMMARY"); FAILED=${FAILED:-0}
           BROKEN=$(extract_field broken "$ALLURE_SUMMARY"); BROKEN=${BROKEN:-0}
           SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY"); SKIPPED=${SKIPPED:-0}
+          UNKNOWN=$(extract_field unknown "$ALLURE_SUMMARY"); UNKNOWN=${UNKNOWN:-0}
           DURATION=$(extract_field duration "$ALLURE_SUMMARY"); DURATION=${DURATION:-0}
         else
-          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; DURATION=0
+          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; UNKNOWN=0; DURATION=0
         fi
 
         # Compute job wallclock duration using the GitHub Actions job timing recorded by setup-test-env.
@@ -206,7 +207,7 @@ runs:
         } >> "$GITHUB_OUTPUT"
 
         echo "=== Checking test results using Allure report data ==="
-        echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED"
+        echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED, Unknown=$UNKNOWN"
 
         # Primary check: use Allure report data.
         if [ -f "$ALLURE_SUMMARY" ]; then
@@ -218,7 +219,12 @@ runs:
             echo "::error::No tests were executed according to the Allure summary. Check test configuration."
             exit 1
           fi
-          VERDICT_TOTAL=$((PASSED + FAILED + BROKEN + SKIPPED))
+          KNOWN_VERDICT_TOTAL=$((PASSED + FAILED + BROKEN + SKIPPED))
+          if [ "$KNOWN_VERDICT_TOTAL" -eq 0 ]; then
+            echo "::error::Allure summary reports $TOTAL total tests but 0 known status verdicts. Treating this as an invalid test run."
+            exit 1
+          fi
+          VERDICT_TOTAL=$((KNOWN_VERDICT_TOTAL + UNKNOWN))
           if [ "$VERDICT_TOTAL" -ne "$TOTAL" ]; then
             echo "::error::Allure summary reports $TOTAL total tests but $VERDICT_TOTAL status verdicts. Treating this as an invalid test run."
             exit 1
