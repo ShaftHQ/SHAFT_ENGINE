@@ -531,7 +531,7 @@ class ChaosGaugeCampaignTest(TestCase):
         with self.assertRaisesRegex(ValueError, "pair job identity"):
             CAMPAIGN.resume_pair_jobs(MANIFEST, planned, bindings, drifted, {first: completed[first]})
 
-    def test_preflight_validates_live_root_and_provider_capability(self):
+    def test_preflight_validates_live_root_without_unaccounted_provider_probe(self):
         calls = []
 
         class Validator:
@@ -549,12 +549,7 @@ class ChaosGaugeCampaignTest(TestCase):
         self.assertEqual(("manifest", ROOT), calls[0])
         self.assertEqual({ROOT}, {call[-1] for call in calls if call[0] == "contracts"})
 
-        probe = []
-        self.assertTrue(CAMPAIGN.provider_capability_is_available(
-            lambda command: probe.append(command) or "CHAOSGAUGE_CAPABILITY_OK\n"
-        ))
-        self.assertIn("gpt-5.6-terra", probe[0])
-        self.assertFalse(CAMPAIGN.provider_capability_is_available(lambda command: "unauthorized"))
+        self.assertNotIn("codex", CAMPAIGN.full_preflight.__code__.co_names)
 
     def test_exact_codex_pin_and_merged_execution_proof_fail_closed(self):
         self.assertTrue(CAMPAIGN.codex_version_is_pinned("codex-cli 0.118.0"))
@@ -595,8 +590,6 @@ class ChaosGaugeCampaignTest(TestCase):
                     return "0.22.0\n"
                 if command == ["codex", "--version"]:
                     return "codex-cli 0.118.0\n"
-                if command[0:2] == ["codex", "exec"]:
-                    return CAMPAIGN.CAPABILITY_MARKER + "\n"
                 return ""
 
             with (
@@ -605,6 +598,7 @@ class ChaosGaugeCampaignTest(TestCase):
             ):
                 CAMPAIGN.full_preflight(manifest, checkout, run, private_read_proven=True)
             self.assertFalse(any("ls-remote" in command for command in calls))
+            self.assertFalse(any(command[0:2] == ["codex", "exec"] for command in calls))
 
 
 if __name__ == "__main__":

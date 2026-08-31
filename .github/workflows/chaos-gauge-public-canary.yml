@@ -1,5 +1,11 @@
 name: Run public ChaosGauge excluded canary
 
+# Owner-authorized excluded-canary exception (#5462, ShaftHQ/ChaosGauge-private#3):
+# exactly one public task and two accounted arms may use the generic provider secret.
+# This workflow enforces a 60-minute runtime, exactly two arms, and a 120000-token
+# acceptance budget. It is not a provider-side spend cap. Full pilot keeps its
+# dedicated-secret gate and is not authorized here.
+
 on:
   workflow_dispatch:
 
@@ -38,11 +44,18 @@ jobs:
           revision="$(git -C public rev-parse HEAD)"
           git -C public merge-base --is-ancestor "$revision" origin/main
           printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
-      - name: Prove private release capability
+      - id: private-evidence
+        name: Prepare private evidence storage
         working-directory: public
         env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        run: python3 scripts/ci/chaos_gauge/public_canary_bridge.py preflight
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CANARY_RECEIPT: ${{ runner.temp }}/chaosgauge-canary-receipt.json
+          CANARY_RUN_ID: ${{ github.run_id }}
+        run: |
+          action="$(python3 scripts/ci/chaos_gauge/public_canary_bridge.py prepare \
+            --repository "$PWD" --run-id "$CANARY_RUN_ID" --receipt-out "$CANARY_RECEIPT")"
+          test "$action" = run -o "$action" = recover
+          printf 'action=%s\n' "$action" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.12'
@@ -63,6 +76,7 @@ jobs:
           CANARY_BASELINE_CONTAINERS: ${{ runner.temp }}/chaosgauge-canary-containers.txt
         run: docker ps --all --format '{{.ID}}' | sort > "$CANARY_BASELINE_CONTAINERS"
       - name: Run excluded two-arm canary
+        if: steps.private-evidence.outputs.action == 'run'
         working-directory: public
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -71,6 +85,7 @@ jobs:
           PUBLIC_SOURCE_REVISION: ${{ steps.public-source.outputs.revision }}
           CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
           CANARY_RECEIPT: ${{ runner.temp }}/chaosgauge-canary-receipt.json
+          CANARY_MAX_ACCOUNTED_TOKENS: "120000"
         run: |
           test -n "$OPENAI_API_KEY" || { echo 'provider credential unavailable'; exit 1; }
           test -n "$HARBOR_API_KEY" || { echo 'Harbor credential unavailable'; exit 1; }
@@ -80,6 +95,15 @@ jobs:
             --raw-out "$CANARY_RAW" \
             --receipt-out "$CANARY_RECEIPT" \
             --private-read-proven
+          python3 - "$CANARY_RECEIPT" "$CANARY_MAX_ACCOUNTED_TOKENS" <<'PY'
+          import json
+          import sys
+
+          evidence = json.load(open(sys.argv[1], encoding="utf-8"))
+          tokens = sum(trial["tokens"] for trial in evidence["trials"])
+          if evidence["trialAccounting"] != {"planned": 2, "observed": 2} or tokens > int(sys.argv[2]):
+              raise SystemExit("excluded canary exceeded its two-arm accounted-token budget")
+          PY
       - name: Verify Docker teardown
         if: always()
         env:
@@ -88,6 +112,7 @@ jobs:
           test -f "$CANARY_BASELINE_CONTAINERS" || exit 1
           ! comm -13 "$CANARY_BASELINE_CONTAINERS" <(docker ps --all --format '{{.ID}}' | sort) | grep -q .
       - name: Validate and secret-scan evidence
+        if: steps.private-evidence.outputs.action == 'run'
         working-directory: public
         env:
           CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
@@ -96,9 +121,10 @@ jobs:
           python3 scripts/ci/chaos_gauge/public_canary_bridge.py validate
           --raw "$CANARY_RAW" --receipt "$CANARY_RECEIPT" --repository "$PWD"
       - name: Store evidence in private draft release
+        if: steps.private-evidence.outputs.action == 'run'
         working-directory: public
         env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
           CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
           CANARY_RECEIPT: ${{ runner.temp }}/chaosgauge-canary-receipt.json
           CANARY_RUN_ID: ${{ github.run_id }}
