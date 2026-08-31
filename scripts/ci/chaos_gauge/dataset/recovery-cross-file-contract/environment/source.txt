@@ -1,0 +1,7 @@
+import json
+from pathlib import Path
+
+schema = json.loads(Path("schema.json").read_text())
+payload = {"records": [1, 2, 3]}
+values = payload[schema["collection_key"]]
+print(f"total={sum(values)}")

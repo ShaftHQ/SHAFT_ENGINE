@@ -1,0 +1,6 @@
+from pathlib import Path
+
+lock = Path("worker.lock")
+lock.write_text("owned\n")
+jobs = Path("jobs.txt").read_text().splitlines()
+print("done" if jobs else "empty")

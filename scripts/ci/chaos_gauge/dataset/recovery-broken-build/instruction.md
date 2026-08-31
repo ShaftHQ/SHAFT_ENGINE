@@ -1,0 +1,1 @@
+Recover the broken build described by `build.manifest`. Repair the invalid module import in `source.txt` so `python3 run.py` prints `artifact=42`. Preserve manifest, helper module, and `user-work.txt`.
