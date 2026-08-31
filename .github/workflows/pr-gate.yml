@@ -164,6 +164,11 @@ jobs:
               - 'tests/scripts/test_agent_plugin_release.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_agent_harness_reachability.py'
+              - 'tests/scripts/test_omniroot.py'
+              - 'tests/scripts/test_omniroot_workflow_contract.py'
+              - 'tests/scripts/test_omniroot_orchestrator_docs.py'
+              - 'tests/scripts/test_omniroot_tdd_pdca.py'
+              - 'tests/scripts/test_omniroot_portability.py'
               - 'tests/scripts/test_guard_nul_corruption.py'
               - 'tests/scripts/test_guard_memory_worktree.py'
               - 'tests/scripts/test_guard_lifecycle.py'
@@ -386,7 +391,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 6
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read

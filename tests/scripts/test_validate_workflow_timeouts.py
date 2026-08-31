@@ -102,14 +102,14 @@ jobs:
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(validate_repository(repository_root), [])
 
-    def test_agent_guidance_job_enforces_the_fast_changed_surface_budget(self):
+    def test_agent_guidance_job_keeps_bounded_setup_headroom_around_fast_gate(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
             (repository_root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         )
         job = workflow["jobs"]["agent-guidance"]
         commands = " ".join(str(step.get("run", "")) for step in job["steps"])
-        self.assertLessEqual(job.get("timeout-minutes", 999), 6)
+        self.assertEqual(job.get("timeout-minutes"), 10)
         self.assertIn("scripts/ci/harness_pr_gate.py", commands)
         self.assertIn("--budget-seconds 240", commands)
         self.assertNotIn("matrix", job)

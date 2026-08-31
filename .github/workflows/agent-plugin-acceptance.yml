@@ -56,6 +56,11 @@ jobs:
             tests.scripts.test_chaos_engine_live_installer_acceptance
             tests.scripts.test_chaos_engine_promotion
             tests.scripts.test_chaos_engine_portable_core
+            tests.scripts.test_omniroot
+            tests.scripts.test_omniroot_workflow_contract
+            tests.scripts.test_omniroot_orchestrator_docs
+            tests.scripts.test_omniroot_tdd_pdca
+            tests.scripts.test_omniroot_portability
             tests.scripts.test_chaos_engine_research
             tests.scripts.test_delivery_status
             tests.scripts.test_extract_allure_failures
@@ -184,6 +189,11 @@ jobs:
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           tests.scripts.test_intellij_recording_powershell
+          tests.scripts.test_omniroot
+          tests.scripts.test_omniroot_workflow_contract
+          tests.scripts.test_omniroot_orchestrator_docs
+          tests.scripts.test_omniroot_tdd_pdca
+          tests.scripts.test_omniroot_portability
           -v
 
   agnix-conformance:

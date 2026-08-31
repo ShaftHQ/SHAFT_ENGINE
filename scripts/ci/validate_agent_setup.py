@@ -495,7 +495,7 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
 
 
 def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
-    """Validate the executable Claude/Codex capability map and its evidence."""
+    """Validate the executable five-host capability map and its evidence."""
     relative = Path("scripts/ci/agent_harness_parity.json")
     try:
         matrix = read_json(root / relative)
@@ -519,7 +519,8 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
         if isinstance(item, dict) and isinstance(item.get("id"), str)
     ]
     row_ids = [item["id"] for item in valid_rows]
-    if matrix.get("version") != 1 or matrix.get("hosts") != ["claude", "codex"]:
+    hosts = ["claude", "codex", "copilot", "gemini", "grok"]
+    if matrix.get("version") != 1 or matrix.get("hosts") != hosts:
         errors.append(issue("host-parity-schema", relative.as_posix(), "invalid version or hosts"))
     if len(valid_rows) != len(capabilities):
         errors.append(issue("host-parity-schema", relative.as_posix(), "capabilities must be objects with string ids"))
@@ -528,7 +529,7 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
     for item in valid_rows:
         if not re.fullmatch(r"[a-z][a-z0-9_]*", item["id"]):
             errors.append(issue("host-parity-schema", relative.as_posix(), f"invalid capability id: {item['id']!r}"))
-        errors.extend(parity_evidence_errors(item, root, relative))
+        errors.extend(parity_evidence_errors(item, root, relative, hosts))
         errors.extend(parity_check_errors(item, root, relative, workflows))
         if item.get("mode") not in {"shared", "equivalent", "substitution"}:
             errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')}.mode is invalid"))
@@ -537,10 +538,12 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
     return errors
 
 
-def parity_evidence_errors(item: dict, root: Path, relative: Path) -> list[dict[str, str]]:
+def parity_evidence_errors(
+    item: dict, root: Path, relative: Path, hosts: list[str]
+) -> list[dict[str, str]]:
     """Check that one capability row's evidence paths are relative and present."""
     errors: list[dict[str, str]] = []
-    for field in ("owner", "claude", "codex"):
+    for field in ("owner", *hosts):
         values = item.get(field, [])
         values = values if isinstance(values, list) else [values]
         if not values:
