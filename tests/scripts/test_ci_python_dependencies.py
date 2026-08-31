@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 REQUIREMENTS = ROOT / "requirements-ci.txt"
+CHAOS_GAUGE_REQUIREMENTS = ROOT / "scripts/ci/chaos_gauge/requirements.lock"
 EXPECTED_PINS = {
     "attrs": "26.1.0",
     "jsonschema": "4.26.0",
@@ -34,6 +35,22 @@ EXPECTED_INSTALLS = {
     ".github/workflows/publish-shaft-mcp.yml": (
         "python3 -m pip install --no-deps --requirement ../requirements-ci.txt --quiet",
     ),
+    ".github/workflows/chaos-gauge-public-canary.yml": (
+        "pip install --system --require-hashes --requirement scripts/ci/chaos_gauge/requirements.lock",
+    ),
+}
+EXPECTED_SETUP_PYTHON = {
+    **{path: ("actions/setup-python@v7", "3.13") for path in EXPECTED_INSTALLS if path != ".github/workflows/chaos-gauge-public-canary.yml"},
+    ".github/workflows/chaos-gauge-public-canary.yml": (
+        "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "3.12",
+    ),
+}
+EXPECTED_REQUIREMENTS = {
+    **{path: REQUIREMENTS for path in EXPECTED_INSTALLS if path != ".github/workflows/chaos-gauge-public-canary.yml"},
+    ".github/workflows/chaos-gauge-public-canary.yml": CHAOS_GAUGE_REQUIREMENTS,
+}
+EXPECTED_WORKING_DIRECTORIES = {
+    ".github/workflows/chaos-gauge-public-canary.yml": "public",
 }
 
 
@@ -110,20 +127,26 @@ class CiPythonDependenciesTest(unittest.TestCase):
             with self.subTest(workflow=relative_path, job=job_name):
                 arguments = shlex.split(command)
                 requirement = arguments[arguments.index("--requirement") + 1]
-                resolved = (ROOT / working_directory / requirement).resolve()
-                self.assertEqual(resolved, REQUIREMENTS.resolve())
+                if relative_path in EXPECTED_WORKING_DIRECTORIES:
+                    self.assertEqual(working_directory, EXPECTED_WORKING_DIRECTORIES[relative_path])
+                source_root = ROOT if working_directory == "public" else ROOT / working_directory
+                resolved = (source_root / requirement).resolve()
+                self.assertEqual(resolved, EXPECTED_REQUIREMENTS[relative_path].resolve())
                 self.assertTrue(resolved.is_file())
+                if resolved == CHAOS_GAUGE_REQUIREMENTS:
+                    self.assertIn("--require-hashes", arguments)
 
     def test_each_install_job_sets_up_supported_python_before_installing(self):
         for relative_path, job_name, steps, install_index, _, _ in self.workflow_install_steps():
             with self.subTest(workflow=relative_path, job=job_name):
+                expected_action, expected_version = EXPECTED_SETUP_PYTHON[relative_path]
                 setup_steps = [
                     step
                     for step in steps[:install_index]
-                    if step.get("uses") == "actions/setup-python@v7"
+                    if step.get("uses") == expected_action
                 ]
                 self.assertTrue(setup_steps, "install job must set up repository-standard Python")
-                self.assertEqual(setup_steps[-1].get("with", {}).get("python-version"), "3.13")
+                self.assertEqual(setup_steps[-1].get("with", {}).get("python-version"), expected_version)
 
     def test_chaos_gauge_installs_dependencies_before_contracts(self):
         yaml = __import__("yaml")

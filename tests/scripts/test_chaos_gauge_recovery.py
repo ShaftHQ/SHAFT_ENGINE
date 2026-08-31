@@ -11,9 +11,9 @@ CHAOS_GAUGE = ROOT / "scripts" / "ci" / "chaos_gauge"
 # `e7d329bd3b` is merged PR #5464, immutable recovery source for #5450.
 # This covers its full public ChaosGauge tree, unlike a few representative
 # anchors that can remain after an executable or dataset member is lost.
-RECOVERED_PUBLIC_FILE_COUNT = 140
+RECOVERED_PUBLIC_FILE_COUNT = 141
 RECOVERED_PUBLIC_PATHS_SHA256 = (
-    "4a6eac9a728eb15e556667c401f01493046a1d3a0270b3dc780bb17be43047a2"
+    "f29eac375e2a4ed365916b19b1ec4e6f2b7c01a944f1f2408b484fe92e09b59e"
 )
 
 

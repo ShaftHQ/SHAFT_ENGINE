@@ -103,6 +103,7 @@ jobs:
             chaos_gauge:
               - 'scripts/ci/chaos_gauge/**'
               - 'tests/scripts/test_chaos_gauge_*.py'
+              - '.github/workflows/chaos-gauge-public-canary.yml'
             # Agent guidance had no CI gate at all: validate_agent_setup.py and
             # the harness suites were local-only, so drift only surfaced when
             # someone ran them by hand.
@@ -377,6 +378,7 @@ jobs:
         run: >-
           python3 -m unittest
           tests.scripts.test_chaos_gauge_canary
+          tests.scripts.test_chaos_gauge_public_canary_workflow
           tests.scripts.test_chaos_gauge_contracts
           tests.scripts.test_chaos_gauge_campaign
           tests.scripts.test_chaos_gauge_corpus

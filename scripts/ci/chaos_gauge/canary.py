@@ -293,12 +293,13 @@ async def run(
     public_source_revision: str,
     raw_out: Path,
     receipt_out: Path,
+    private_read_proven: bool = False,
 ) -> dict[str, object]:
     """Run exactly one excluded native pair after the complete paid-run preflight."""
     if not GIT_SHA.fullmatch(public_source_revision):
         raise ValueError("canary source revision is invalid")
     launcher = _campaign()
-    launcher.full_preflight(manifest, private_checkout)
+    launcher.full_preflight(manifest, private_checkout, private_read_proven=private_read_proven)
     planned, config = plan(manifest), job_config(manifest)
     environment = _mapping(config.get("environment"), "canary environment")
     if environment.get("type") != "docker" or environment.get("delete") is not True:
@@ -340,6 +341,7 @@ def main() -> int:
     parser.add_argument("--public-source-revision", required=True)
     parser.add_argument("--raw-out", type=Path, required=True)
     parser.add_argument("--receipt-out", type=Path, required=True)
+    parser.add_argument("--private-read-proven", action="store_true")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     asyncio.run(
@@ -349,6 +351,7 @@ def main() -> int:
             public_source_revision=args.public_source_revision,
             raw_out=args.raw_out,
             receipt_out=args.receipt_out,
+            private_read_proven=args.private_read_proven,
         )
     )
     return 0

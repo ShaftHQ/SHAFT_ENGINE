@@ -24,7 +24,6 @@ GIT_SHA = re.compile(r"[0-9a-f]{40}")
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}")
 ROOT = Path(__file__).resolve().parent
 NATIVE_NAME = re.compile(r"[A-Za-z0-9]{7}")
-CAPABILITY_MARKER = "CHAOSGAUGE_CAPABILITY_OK"
 
 
 def _object(value: object, label: str) -> dict[str, object]:
@@ -862,16 +861,10 @@ def codex_version_is_pinned(output: str) -> bool:
     return output.strip() == "codex-cli 0.118.0"
 
 
-def provider_capability_is_available(run: Callable[[list[str]], str]) -> bool:
-    try:
-        output = run(["codex", "exec", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only", "--model", "gpt-5.6-terra", "-c", 'model_reasoning_effort="medium"', f"Reply with exactly {CAPABILITY_MARKER}."])
-    except (OSError, subprocess.CalledProcessError):
-        return False
-    return output.strip() == CAPABILITY_MARKER
-
-
-def full_preflight(manifest: object, checkout: Path, run: Callable[[list[str]], str] = _run) -> None:
-    """Validate live content, private package, runtime, and paid-model capability before a run."""
+def full_preflight(
+    manifest: object, checkout: Path, run: Callable[[list[str]], str] = _run, *, private_read_proven: bool = False,
+) -> None:
+    """Validate live content, private package, and runtime before accounted arms run."""
     value = _object(manifest, "experiment manifest")
     package = _object(value.get("privatePackage"), "private package")
     if not checkout.is_dir() or checkout.is_symlink():
@@ -884,7 +877,7 @@ def full_preflight(manifest: object, checkout: Path, run: Callable[[list[str]], 
         raise ValueError("implementation revision does not contain campaign source") from error
     if run(["git", "-C", str(checkout), "rev-parse", "HEAD"]).strip() != package["commit"]:
         raise ValueError("private checkout commit is invalid")
-    if not run(["git", "-C", str(checkout), "ls-remote", "origin", "HEAD"]).strip():
+    if not private_read_proven and not run(["git", "-C", str(checkout), "ls-remote", "origin", "HEAD"]).strip():
         raise ValueError("private checkout credentials are unavailable")
     dataset = checkout / "dataset.toml"
     if not dataset.is_file() or f"sha256:{hashlib.sha256(dataset.read_bytes()).hexdigest()}" != package["contentSha256"]:
@@ -897,8 +890,6 @@ def full_preflight(manifest: object, checkout: Path, run: Callable[[list[str]], 
         raise ValueError("Harbor version is invalid")
     if not codex_version_is_pinned(run(["codex", "--version"])):
         raise ValueError("Codex version is invalid")
-    if not provider_capability_is_available(run):
-        raise ValueError("Codex provider credentials or gpt-5.6-terra capability is unavailable")
 
 
 def main() -> int:
