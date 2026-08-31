@@ -43,6 +43,7 @@ _SAFE_RUNTIME_ENVIRONMENT = (
     else ("USERPROFILE", "SystemRoot", "TEMP", "TMP")
 )
 _GIT_EXECUTABLE = shutil.which("git")
+_LOCAL_MONITORS: dict[int, Any] = {}
 if _GIT_EXECUTABLE is not None:
     _GIT_EXECUTABLE = str(Path(_GIT_EXECUTABLE).resolve())
 
@@ -752,7 +753,127 @@ def _capture_command(arguments: list[str]) -> int:
         process, Path(arguments[0]), timeout_seconds=timeout_seconds,
         secrets=[os.environ.get("OMNIROUTE_API_KEY", "")],
     )
+    process.stdout.close()
+    process.stderr.close()
     return int(process.returncode or 0)
+
+
+def _supervise_command(arguments: list[str]) -> int:
+    """Outlive delegates and replace retryable failures without owner input."""
+    if len(arguments) < 13 or arguments[11] != "--":
+        raise OmniRootError("supervisor arguments are invalid")
+    diagnostic_path, process_path, manifest_path = map(Path, arguments[:3])
+    try:
+        timeout_seconds = int(arguments[3])
+        expected_identity = (*tuple(int(value) for value in arguments[4:10]), arguments[10])
+    except ValueError as error:
+        raise OmniRootError("supervisor timeout is invalid") from error
+    command = arguments[12:]
+    if not 1 <= timeout_seconds <= 86400 or not command:
+        raise OmniRootError("supervisor arguments are invalid")
+    raw = os.environ.pop("OMNIROOT_CONTINUITY", "")
+    learning_state = os.environ.pop("OMNIROOT_LEARNING_STATE", "")
+    learning_root = os.environ.pop("OMNIROOT_LEARNING_ROOT", "")
+    active_session = os.environ.pop("OMNIROOT_INITIAL_SESSION", "")
+    try:
+        candidates = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise OmniRootError("supervisor continuity input is invalid") from error
+    if not isinstance(candidates, list):
+        raise OmniRootError("supervisor continuity input is invalid")
+    qualified = _resolved_executable(command)
+    if qualified is None or qualified[1] != expected_identity:
+        raise OmniRootError("qualified launcher changed before execution")
+    command = qualified[0]
+    for _ in range(100):
+        manifest = _load_json(manifest_path)
+        if isinstance(manifest.get("continuity"), dict):
+            break
+        time.sleep(0.05)
+    else:
+        raise OmniRootError("supervisor manifest was not published")
+
+    def attest_launch_failure(session_id: str) -> None:
+        source_root = str(Path(__file__).resolve().parents[4])
+        if source_root not in sys.path:
+            sys.path.insert(0, source_root)
+        from scripts.agents.learning_session import attest_participant_unavailable
+        attest_participant_unavailable(Path(learning_state), learning_root, session_id, "launch-failure")
+
+    while True:
+        try:
+            process = subprocess.Popen(  # nosec B603 - sealed command identity is verified.
+                command, shell=False, close_fds=True, start_new_session=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+        except OSError:
+            with contextlib.suppress(Exception):
+                attest_launch_failure(active_session)
+            manifest["status"] = "blocked"
+            manifest["continuity"]["state"] = "blocked"
+            manifest["continuity"]["reason"] = "replacement launch failed"
+            _write_json(manifest_path, manifest)
+            return 1
+        identity = process_identity(process.pid)
+        if identity is None:
+            _terminate_group(process)
+            manifest["status"] = "quarantined"
+            manifest["continuity"]["state"] = "quarantined"
+            manifest["continuity"]["reason"] = "replacement process identity cannot be proven"
+            _write_json(manifest_path, manifest)
+            return 1
+        process_evidence = {
+            "schemaVersion": SCHEMA_VERSION, "pid": process.pid,
+            "pgid": os.getpgid(process.pid), "processIdentity": identity,
+        }
+        _write_json(process_path, process_evidence)
+        _collect_diagnostics(process, diagnostic_path, timeout_seconds=timeout_seconds,
+                             secrets=[os.environ.get("OMNIROUTE_API_KEY", "")])
+        process.stdout.close()
+        process.stderr.close()
+        diagnostic = _validated_diagnostic(_load_json(diagnostic_path))
+        if _group_alive(process_evidence["pgid"]):
+            try:
+                _terminate_group(process)
+            except OmniRootError:
+                manifest["status"] = "quarantined"
+                manifest["continuity"]["state"] = "quarantined"
+                manifest["continuity"]["reason"] = "prior process group death cannot be proven"
+                _write_json(manifest_path, manifest)
+                return 1
+        if diagnostic["exitCode"] == 0:
+            manifest["continuity"]["state"] = "review"
+            manifest["status"] = "running"
+            _write_json(manifest_path, manifest)
+            return 0
+
+        launched: dict[str, Any] = {}
+        def register(session_id: str) -> None:
+            source_root = str(Path(__file__).resolve().parents[4])
+            if source_root not in sys.path:
+                sys.path.insert(0, source_root)
+            from scripts.agents.learning_session import register_runtime_participant
+            register_runtime_participant(Path(learning_state), learning_root, session_id)
+
+        def launch(candidate: dict[str, str]) -> dict[str, Any]:
+            launched["candidate"] = candidate
+            return {"pid": -1, "pgid": -1, "processIdentity": "pending"}
+
+        def compensate(session_id: str) -> None:
+            attest_launch_failure(session_id)
+
+        supervisor_monitor = manifest.get("monitor")
+        manifest = _advance_continuity(
+            manifest, exit_code=diagnostic["exitCode"], group_dead=True,
+            candidates=candidates, register=register, launch=launch, compensate=compensate,
+        )
+        if manifest.get("status") != "running" or not launched:
+            _write_json(manifest_path, manifest)
+            return diagnostic["exitCode"]
+        manifest["monitor"] = supervisor_monitor
+        manifest["continuity"]["state"] = "replacement_running"
+        _write_json(manifest_path, manifest)
+        active_session = launched["candidate"]["sessionId"]
 
 
 def _validated_diagnostic(value: dict[str, Any]) -> dict[str, Any]:
@@ -974,11 +1095,27 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         with contextlib.suppress(OSError):
             path.unlink()
         raise OmniRootError("bounded process-tree timeout is unsupported on this host")
-    launched_argv = (
-        [sys.executable, str(Path(__file__).resolve()), "_capture", str(diagnostic_path),
-         str(delegate_process_path), str(timeout_seconds), *(str(value) for value in launcher_identity), "--", *argv]
-        if durable_monitor else argv
-    )
+    if durable_monitor and continuity_manifest is not None:
+        launched_argv = [
+            sys.executable, str(Path(__file__).resolve()), "_supervise", str(diagnostic_path),
+            str(delegate_process_path), str(path), str(timeout_seconds),
+            *(str(value) for value in launcher_identity), "--", *argv,
+        ]
+    elif durable_monitor:
+        launched_argv = [
+            sys.executable, str(Path(__file__).resolve()), "_capture", str(diagnostic_path),
+            str(delegate_process_path), str(timeout_seconds), *(str(value) for value in launcher_identity), "--", *argv,
+        ]
+    else:
+        launched_argv = argv
+    launch_environment = dict(dispatch_environment)
+    if durable_monitor and continuity_manifest is not None:
+        launch_environment.update({
+            "OMNIROOT_CONTINUITY": json.dumps(continuity["alternates"], separators=(",", ":")),
+            "OMNIROOT_LEARNING_STATE": str(learning_state),
+            "OMNIROOT_LEARNING_ROOT": str(learning_root_session_id),
+            "OMNIROOT_INITIAL_SESSION": str(delegate_session_id),
+        })
     registered = False
     try:
         if not _same_executable(launcher_argv, launcher_identity):
@@ -993,7 +1130,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         except Exception as registration_error:
             raise OmniRootError("delegate learning registration failed") from registration_error
         process = popen(
-            launched_argv, cwd=str(worktree), env=dispatch_environment, shell=False,
+            launched_argv, cwd=str(worktree), env=launch_environment, shell=False,
             close_fds=True, start_new_session=True,
             stdout=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
             stderr=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
@@ -1023,6 +1160,8 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         with contextlib.suppress(OSError):
             path.unlink()
         raise OmniRootError("durable process identity cannot be proven; use native fallback")
+    if durable_monitor:
+        _LOCAL_MONITORS[pid] = process
     timestamp = _utc_now().isoformat()
     manifest = {
         "schemaVersion": SCHEMA_VERSION, "runId": run_id, "taskId": task_id, "workflow": workflow,
@@ -1074,6 +1213,13 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
         diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
         diagnostic = _validated_diagnostic(_load_json(diagnostic_path)) if diagnostic_path.is_file() else None
         if diagnostic is not None and isinstance(diagnostic.get("exitCode"), int):
+            continuity = manifest.get("continuity")
+            monitor = manifest.get("monitor", {})
+            if (isinstance(continuity, dict) and continuity.get("state") not in {
+                    "review", "blocked", "breaker_open", "quarantined"}
+                    and isinstance(monitor.get("pid"), int)
+                    and process_identity(monitor["pid"]) == monitor.get("processIdentity")):
+                return manifest
             process_path = Path(state_dir) / "processes" / f"{run_id}.json"
             delegate_process = _load_json(process_path) if process_path.is_file() else None
             if not isinstance(delegate_process, dict) or not isinstance(delegate_process.get("pgid"), int) \
@@ -1092,6 +1238,10 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
             }
             manifest.setdefault("timestamps", {})["updatedAt"] = _utc_now().isoformat()
             _write_json(path, manifest)
+            monitor_process = _LOCAL_MONITORS.pop(manifest.get("monitor", {}).get("pid"), None)
+            if monitor_process is not None:
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    monitor_process.wait(timeout=1)
             return manifest
         monitor = manifest.get("monitor", {})
         pid, identity = monitor.get("pid"), monitor.get("processIdentity")
@@ -1257,6 +1407,12 @@ def main(argv: list[str] | None = None) -> int:
     if raw_arguments and raw_arguments[0] == "_capture":
         try:
             return _capture_command(raw_arguments[1:])
+        except OmniRootError as error:
+            print(str(error), file=sys.stderr)
+            return 1
+    if raw_arguments and raw_arguments[0] == "_supervise":
+        try:
+            return _supervise_command(raw_arguments[1:])
         except OmniRootError as error:
             print(str(error), file=sys.stderr)
             return 1

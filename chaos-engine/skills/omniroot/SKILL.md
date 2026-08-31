@@ -115,3 +115,12 @@ attempts open the breaker and block; unverifiable process death or identity
 quarantines. Terminal receipts include only redacted continuity hashes,
 attempt/state, and participant hashes. Root still owns final evidence import and
 the sole Learning Session.
+
+For opted-in dispatches, runner starts its private `_supervise` process instead
+of one-shot `_capture`. Supervisor retains raw alternate session identifiers
+only in its inherited process environment, removes them before launching any
+delegate, and never writes them to disk. It observes sealed-launcher exit,
+proves process-group death, applies backoff and capability selection, registers
+replacement, then launches same frozen task command. Final successful evidence
+moves normal `status` flow to review without owner input. `_supervise` is an
+internal runner command, not an operator-facing interface.

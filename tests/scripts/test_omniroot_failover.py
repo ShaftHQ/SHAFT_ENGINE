@@ -1,6 +1,8 @@
 import importlib.util
 import tempfile
 import unittest
+import os
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -141,6 +143,47 @@ class OmniRootFailoverTest(unittest.TestCase):
         manifest = {"status": "running"}
         self.assertIsNone(RUNNER._continuity_contract(None))
         self.assertNotIn("continuity", manifest)
+
+    def test_durable_supervisor_replaces_retryable_process_without_owner_input(self):
+        launcher = Path(self.temporary.name) / "launcher.py"
+        counter = Path(self.temporary.name) / "counter"
+        launcher.write_text(
+            "#!/usr/bin/env python3\nfrom pathlib import Path\n"
+            f"p=Path({str(counter)!r}); n=int(p.read_text() if p.exists() else '0')+1; p.write_text(str(n)); raise SystemExit(75 if n == 1 else 0)\n",
+            encoding="utf-8",
+        )
+        launcher.chmod(0o700)
+        command, identity = RUNNER._resolved_executable([str(launcher)])
+        diagnostic = self.state / "diagnostics/run.json"
+        process = self.state / "processes/run.json"
+        manifest_path = self.state / "runs/run.json"
+        manifest = self.manifest()
+        manifest["continuity"]["participants"] = [{
+            "identitySha256": RUNNER._sha256("failed"),
+            "sessionSha256": RUNNER._sha256("failed-session"),
+            "capability": "most-intelligent",
+        }]
+        RUNNER._write_json(manifest_path, manifest)
+        learning = Path(self.temporary.name) / "learning.json"
+        from scripts.agents.learning_session import create_runtime, register_runtime_participant
+        create_runtime(learning, "root")
+        register_runtime_participant(learning, "root", "failed-session")
+        environment = {
+            "OMNIROOT_CONTINUITY": __import__("json").dumps(self.candidates()),
+            "OMNIROOT_LEARNING_STATE": str(learning),
+            "OMNIROOT_LEARNING_ROOT": "root",
+        }
+        arguments = [str(diagnostic), str(process), str(manifest_path), "10",
+                     *(str(value) for value in identity), "--", *command]
+        with patch.dict(os.environ, environment, clear=False):
+            result = RUNNER._supervise_command(arguments)
+        final = RUNNER._load_json(manifest_path)
+        self.assertEqual(0, result)
+        self.assertEqual("review", final["continuity"]["state"])
+        self.assertEqual(2, final["continuity"]["attempt"])
+        self.assertEqual(2, len(final["continuity"]["participants"]))
+        self.assertEqual(0, RUNNER._load_json(diagnostic)["exitCode"])
+        self.assertEqual("2", counter.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
