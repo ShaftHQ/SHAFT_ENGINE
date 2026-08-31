@@ -13,6 +13,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 
 ROOT = Path(__file__).resolve().parent
@@ -111,25 +112,61 @@ def _result_mapping(value: object) -> dict[str, object]:
     return _mapping(dump(mode="json") if callable(dump) else value, "Harbor canary result")
 
 
+def _native_bindings(value: object, pair: dict[str, object]) -> dict[str, str]:
+    bindings = _mapping(value, "canary native bindings")
+    if set(bindings) != set(ARMS):
+        raise ValueError("canary native bindings are invalid")
+    names = {}
+    for arm in ARMS:
+        name = _campaign()._native_trial_name(str(pair["task"]), bindings[arm])
+        if name in names.values():
+            raise ValueError("canary native bindings are invalid")
+        names[arm] = name
+    return names
+
+
+def _validate_public_source_revision(
+    manifest: dict[str, object], public_source_revision: str, repository: Path, run: Callable[[list[str]], str] | None,
+) -> None:
+    try:
+        campaign = _campaign()
+        campaign.validate_execution_revision(
+            repository, public_source_revision, manifest["implementationRevision"], campaign._run if run is None else run,
+        )
+    except (KeyError, ValueError) as error:
+        raise ValueError("canary source revision is invalid") from error
+
+
 def receipt(
-    manifest: object, planned: object, result: object, *, public_source_revision: str
+    manifest: object, planned: object, result: object, *, public_source_revision: str,
+    native_bindings: object, repository: Path = ROOT.parents[2], run: Callable[[list[str]], str] | None = None,
 ) -> dict[str, object]:
     """Return strict aggregate evidence; never include raw Harbor output or trajectories."""
     source = _mapping(manifest, "experiment manifest")
     canary = _mapping(planned, "canary plan")
     if canary != plan(source) or not GIT_SHA.fullmatch(public_source_revision):
         raise ValueError("canary plan or source revision is invalid")
+    _validate_public_source_revision(source, public_source_revision, repository, run)
     value = _result_mapping(result)
     trials = value.get("trial_results")
     if not isinstance(trials, list) or len(trials) != 2:
         raise ValueError("canary trial matrix is incomplete")
     pair = _mapping(canary["pair"], "canary pair")
-    observed = []
-    for arm, raw in zip(pair["arms"], trials):
+    bindings = _native_bindings(native_bindings, pair)
+    config = job_config(source)
+    expected_agents = {arm: config["agents"][list(pair["arms"]).index(arm)] for arm in ARMS}
+    observed: dict[str, dict[str, object]] = {}
+    expected_by_native = {name: arm for arm, name in bindings.items()}
+    for raw in trials:
         trial = _mapping(raw, "Harbor canary trial")
         if trial.get("task_name") != pair["task"] or trial.get("task_checksum") != pair["sha256"]:
             raise ValueError("canary task identity is invalid")
         native_name = _campaign()._native_trial_name(str(pair["task"]), trial.get("trial_name"))
+        arm = expected_by_native.get(native_name)
+        if arm is None or arm in observed:
+            raise ValueError("canary native trial binding is invalid")
+        if not _campaign()._agent_matches(_mapping(trial.get("config"), "canary trial config").get("agent"), expected_agents[arm]):
+            raise ValueError("canary arm identity is invalid")
         agent = _mapping(trial.get("agent_info"), "canary agent")
         model = _mapping(agent.get("model_info"), "canary model")
         if agent.get("name") != "codex" or agent.get("version") != "0.118.0" or model != {"name": "gpt-5.6-terra", "provider": "openai"}:
@@ -146,7 +183,7 @@ def receipt(
             raise ValueError("canary verifier, safety, or cleanup evidence is invalid")
         if trial.get("verifier_environment_mode") != "separate":
             raise ValueError("canary verifier isolation is invalid")
-        observed.append({
+        observed[arm] = {
             "arm": arm,
             "task": pair["task"],
             "sha256": pair["sha256"],
@@ -156,8 +193,10 @@ def receipt(
             "seconds": (finished - started).total_seconds(),
             "verifierEnvironmentMode": "separate",
             "rewards": rewards,
-        })
-    return {
+        }
+    if set(observed) != set(ARMS):
+        raise ValueError("canary native trial binding is incomplete")
+    evidence = {
         "schemaVersion": 1,
         "campaign": "canary",
         "excludedFromPilot": True,
@@ -168,11 +207,15 @@ def receipt(
         "rawResultSha256": hashlib.sha256(
             json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
         ).hexdigest(),
-        "trials": observed,
+        "trials": [observed[arm] for arm in pair["arms"]],
     }
+    validate_public_evidence(evidence, repository=repository, run=run)
+    return evidence
 
 
-def validate_public_evidence(value: object) -> None:
+def validate_public_evidence(
+    value: object, *, repository: Path, run: Callable[[list[str]], str] | None = None,
+) -> None:
     """Fail closed unless evidence is exactly the sanitised canary receipt schema."""
     receipt_value = _mapping(value, "public canary evidence")
     expected = {
@@ -183,6 +226,9 @@ def validate_public_evidence(value: object) -> None:
         raise ValueError("public canary evidence is invalid")
     if not GIT_SHA.fullmatch(str(receipt_value.get("implementationRevision"))) or not GIT_SHA.fullmatch(str(receipt_value.get("publicSourceRevision"))):
         raise ValueError("public canary evidence is invalid")
+    _validate_public_source_revision(
+        receipt_value, str(receipt_value["publicSourceRevision"]), repository, run,
+    )
     package = _mapping(receipt_value.get("privatePackage"), "public canary evidence")
     if (
         set(package) != {"repository", "commit", "contentSha256", "name", "ref"}
@@ -273,8 +319,16 @@ async def run(
     launcher._install_pair_start_gate(job, names[0], names[1])
     raw = _result_mapping(await job.run())
     _write_exclusive(raw_out, raw)
-    evidence = receipt(manifest, planned, raw, public_source_revision=public_source_revision)
-    validate_public_evidence(evidence)
+    native_bindings = {}
+    for arm, trial in zip(pair["arms"], trials):
+        name = launcher._native_trial_name(str(pair["task"]), getattr(trial, "trial_name", None))
+        if arm in native_bindings or name in native_bindings.values():
+            raise ValueError("canary native trial binding is invalid")
+        native_bindings[arm] = name
+    evidence = receipt(
+        manifest, planned, raw, public_source_revision=public_source_revision,
+        native_bindings=native_bindings, repository=ROOT.parents[2],
+    )
     _write_exclusive(receipt_out, evidence)
     return evidence
 
