@@ -34,6 +34,7 @@ READINESS = frozenset({
     "ABSENT", "UNHEALTHY", "UNAUTHENTICATED", "ROUTE_UNQUALIFIED", "READY", "RUNTIME_EXHAUSTED",
 })
 RUN_STATUSES = frozenset({"planned", "running", "stalled", "blocked", "review", "completed", "cancelled", "quarantined"})
+_CAPABILITY_RANK = {"mechanical": 0, "default": 1, "most-intelligent": 2}
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 _TARGET = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
@@ -455,6 +456,149 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _continuity_contract(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Validate opt-in failover state; persist identities and links as hashes only."""
+    if value is None:
+        return None
+    required = {
+        "requiredCapability", "maxAttempts", "retryableExitCodes", "backoffSeconds",
+        "authoritySha256", "checkpointSha256", "completedActionSha256s",
+        "trackerUrlSha256", "pullRequestUrlSha256", "alternates",
+    }
+    if not isinstance(value, dict) or set(value) != required:
+        raise OmniRootError("continuity contract fields are invalid")
+    capability = value.get("requiredCapability")
+    attempts = value.get("maxAttempts")
+    exits = value.get("retryableExitCodes")
+    backoff = value.get("backoffSeconds")
+    hashes = [value.get(name) for name in (
+        "authoritySha256", "checkpointSha256", "trackerUrlSha256", "pullRequestUrlSha256",
+    )]
+    completed = value.get("completedActionSha256s")
+    alternates = value.get("alternates")
+    if capability not in _CAPABILITY_RANK or not isinstance(attempts, int) or not 2 <= attempts <= 8:
+        raise OmniRootError("continuity bounds are invalid")
+    if (not isinstance(exits, list) or not exits or len(set(exits)) != len(exits)
+            or not all(isinstance(code, int) and 1 <= code <= 255 for code in exits)):
+        raise OmniRootError("continuity retry exits are invalid")
+    if not isinstance(backoff, int) or not 0 <= backoff <= 300:
+        raise OmniRootError("continuity backoff is invalid")
+    if not all(isinstance(item, str) and _HEX.fullmatch(item) for item in hashes):
+        raise OmniRootError("continuity evidence hashes are invalid")
+    if (not isinstance(completed, list) or len(set(completed)) != len(completed)
+            or not all(isinstance(item, str) and _HEX.fullmatch(item) for item in completed)):
+        raise OmniRootError("continuity completed actions are invalid")
+    if not isinstance(alternates, list) or not alternates:
+        raise OmniRootError("continuity alternates are invalid")
+    safe_alternates = []
+    seen = set()
+    for candidate in alternates:
+        if (not isinstance(candidate, dict) or set(candidate) != {"identity", "sessionId", "capability"}
+                or candidate.get("capability") not in _CAPABILITY_RANK
+                or not all(isinstance(candidate.get(name), str) and candidate[name]
+                           for name in ("identity", "sessionId"))):
+            raise OmniRootError("continuity alternate is invalid")
+        identity = (_sha256(candidate["identity"]), _sha256(candidate["sessionId"]))
+        if identity in seen:
+            raise OmniRootError("continuity alternates must be unique")
+        seen.add(identity)
+        safe_alternates.append({
+            "identitySha256": identity[0], "sessionSha256": identity[1],
+            "capability": candidate["capability"],
+        })
+    return {
+        "requiredCapability": capability, "maxAttempts": attempts,
+        "retryableExitCodes": sorted(exits), "backoffSeconds": backoff,
+        "authoritySha256": value["authoritySha256"],
+        "checkpointSha256": value["checkpointSha256"],
+        "completedActionSha256s": sorted(completed),
+        "trackerUrlSha256": value["trackerUrlSha256"],
+        "pullRequestUrlSha256": value["pullRequestUrlSha256"],
+        "alternates": safe_alternates, "attempt": 1, "state": "running",
+        "participants": [],
+    }
+
+
+def _advance_continuity(
+    manifest: dict[str, Any], *, exit_code: int, group_dead: bool,
+    candidates: list[dict[str, str]], register: Callable[[str], None],
+    launch: Callable[[dict[str, str]], dict[str, Any]],
+    compensate: Callable[[str], None] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict[str, Any]:
+    """Advance one in-memory failover attempt without persisting launch inputs."""
+    continuity = manifest.get("continuity")
+    if not isinstance(continuity, dict) or continuity.get("state") == "replacement_running":
+        return manifest
+    if not group_dead:
+        manifest["status"] = "quarantined"
+        continuity["state"] = "quarantined"
+        continuity["reason"] = "prior process group death cannot be proven"
+        return manifest
+    if exit_code not in continuity["retryableExitCodes"]:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "non-retryable exit"
+        return manifest
+    if continuity["attempt"] >= continuity["maxAttempts"]:
+        manifest["status"] = "blocked"
+        continuity["state"] = "breaker_open"
+        continuity["reason"] = "continuity attempts exhausted"
+        return manifest
+    used = {item["sessionSha256"] for item in continuity["participants"]}
+    required = _CAPABILITY_RANK[continuity["requiredCapability"]]
+    candidate = next((item for item in candidates
+                      if item.get("capability") in _CAPABILITY_RANK
+                      and _CAPABILITY_RANK[item["capability"]] >= required
+                      and _sha256(item.get("sessionId")) not in used), None)
+    if candidate is None:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "no compatible continuity alternate"
+        return manifest
+    try:
+        register(candidate["sessionId"])
+    except Exception:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "replacement learning registration failed"
+        return manifest
+    participant = {
+        "identitySha256": _sha256(candidate["identity"]),
+        "sessionSha256": _sha256(candidate["sessionId"]),
+        "capability": candidate["capability"],
+    }
+    continuity["participants"].append(participant)
+    continuity["state"] = "failover_pending"
+    sleep(continuity["backoffSeconds"])
+    continuity["state"] = "half_open"
+    try:
+        process = launch(candidate)
+    except Exception:
+        if compensate is not None:
+            with contextlib.suppress(Exception):
+                compensate(candidate["sessionId"])
+        continuity["attempt"] += 1
+        continuity["state"] = "failover_pending"
+        continuity["reason"] = "replacement launch failed"
+        manifest["status"] = "stalled"
+        return manifest
+    if (not isinstance(process, dict) or not isinstance(process.get("pid"), int)
+            or not isinstance(process.get("pgid"), int)
+            or not isinstance(process.get("processIdentity"), str)):
+        manifest["status"] = "quarantined"
+        continuity["state"] = "quarantined"
+        continuity["reason"] = "replacement process identity cannot be proven"
+        return manifest
+    continuity["attempt"] += 1
+    continuity["state"] = "replacement_running"
+    continuity.pop("reason", None)
+    manifest["status"] = "running"
+    manifest["delegate"] = {**manifest.get("delegate", {}), **participant}
+    manifest["monitor"] = dict(process)
+    return manifest
+
+
 _SECRET_TEXT = re.compile(
     r'''(?ix)
     (authorization\s*:\s*(?:bearer|basic)\s+)([^\s]+)
@@ -734,6 +878,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     learning_state: Path | None = None,
     learning_root_session_id: str | None = None,
     delegate_session_id: str | None = None,
+    continuity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Launch one bounded implementer only after a fresh strict readiness check."""
     _platform_preflight()
@@ -769,6 +914,12 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         raise OmniRootError("a future timezone-aware deadline is required")
     if not isinstance(delegate, dict) or not delegate.get("pathOwnership"):
         raise OmniRootError("explicit non-empty delegate ownership is required")
+    continuity_manifest = _continuity_contract(continuity)
+    if (continuity_manifest is not None
+            and (delegate.get("capability") not in _CAPABILITY_RANK
+                 or _CAPABILITY_RANK[delegate["capability"]]
+                 < _CAPABILITY_RANK[continuity_manifest["requiredCapability"]])):
+        raise OmniRootError("initial delegate does not satisfy continuity capability floor")
     environment = os.environ.copy() if environ is None else dict(environ)
     config = _read_config(config_path or default_config_path())
     if config is None:
@@ -828,6 +979,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
          str(delegate_process_path), str(timeout_seconds), *(str(value) for value in launcher_identity), "--", *argv]
         if durable_monitor else argv
     )
+    registered = False
     try:
         if not _same_executable(launcher_argv, launcher_identity):
             raise OmniRootError("qualified launcher changed before execution")
@@ -837,6 +989,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         try:
             from scripts.agents.learning_session import register_runtime_participant
             register_runtime_participant(Path(learning_state), learning_root_session_id, delegate_session_id)
+            registered = True
         except Exception as registration_error:
             raise OmniRootError("delegate learning registration failed") from registration_error
         process = popen(
@@ -848,6 +1001,12 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     except (OSError, OmniRootError) as error:
         with contextlib.suppress(OSError):
             path.unlink()
+        if registered:
+            with contextlib.suppress(Exception):
+                from scripts.agents.learning_session import attest_participant_unavailable
+                attest_participant_unavailable(
+                    Path(learning_state), learning_root_session_id, delegate_session_id, "launch-failure"
+                )
         if isinstance(error, OmniRootError):
             raise
         raise OmniRootError("OmniRoute launcher could not start") from error
@@ -880,6 +1039,13 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         "delegateProcess": {"path": str(delegate_process_path)},
         "receipt": {"path": str(_receipt_path(Path(state_dir), run_id)), "sha256": None},
     }
+    if continuity_manifest is not None:
+        continuity_manifest["participants"] = [{
+            "identitySha256": _sha256(delegate.get("identity", "anonymous")),
+            "sessionSha256": _sha256(delegate_session_id),
+            "capability": delegate.get("capability", "default"),
+        }]
+        manifest["continuity"] = continuity_manifest
     try:
         _write_json(path, manifest)
     except Exception:
@@ -1056,6 +1222,14 @@ def complete(  # noqa: MC0001 - receipt validation remains one fail-closed audit
             "stderrTruncated": diagnostic.get("stderrTruncated") is True,
         },
     }
+    continuity = manifest.get("continuity")
+    if isinstance(continuity, dict):
+        receipt["continuity"] = {
+            key: continuity[key] for key in (
+                "authoritySha256", "checkpointSha256", "completedActionSha256s",
+                "trackerUrlSha256", "pullRequestUrlSha256", "attempt", "state", "participants",
+            ) if key in continuity
+        }
     receipt_path = _receipt_path(Path(state_dir), run_id)
     _create_immutable_json(receipt_path, receipt)
     manifest["status"] = receipt["status"]
@@ -1109,7 +1283,7 @@ def main(argv: list[str] | None = None) -> int:
                         "rootSessionId", "baseCommit", "integrationBranch", "integrationWorktree",
                         "delegate", "cadenceSeconds", "deadline", "timeoutSeconds", "learningState",
                         "learningRootSessionId", "delegateSessionId"}
-            if set(contract) != required:
+            if set(contract) not in (required, required | {"continuity"}):
                 raise OmniRootError("dispatch contract fields are invalid")
             return _print(dispatch(run_id=contract["runId"], worktree=Path(contract["worktree"]),
                 state_dir=args.state_dir, config_path=args.config, target=contract["target"],
@@ -1120,7 +1294,7 @@ def main(argv: list[str] | None = None) -> int:
                 cadence_seconds=contract["cadenceSeconds"], deadline=contract["deadline"],
                 timeout_seconds=contract["timeoutSeconds"], learning_state=Path(contract["learningState"]),
                 learning_root_session_id=contract["learningRootSessionId"],
-                delegate_session_id=contract["delegateSessionId"]))
+                delegate_session_id=contract["delegateSessionId"], continuity=contract.get("continuity")))
         if args.command == "status":
             return _print(status(args.run_id, args.state_dir))
         if args.command == "cancel":

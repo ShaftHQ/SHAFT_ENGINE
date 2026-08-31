@@ -97,3 +97,21 @@ learning disposition before the sole Learning Session.
 
 The operator configures the user-local configuration and attestation outside
 the repository. The runner treats both as untrusted input and fails closed.
+
+## Delegate continuity
+
+Dispatch may opt into bounded continuity. Omit `continuity` for unchanged
+legacy behavior. Continuity freezes capability floor, maximum attempts,
+retryable exit codes, bounded backoff, authority/checkpoint hashes, completed
+action hashes, tracker/PR hashes, and ordered alternate identity/session hashes.
+Raw prompts, credentials, links, provider/model names, commands, and local paths
+never enter continuity state.
+
+Replacement starts only after prior process-group death is proven. Lower
+capability alternates are skipped. Learning registration precedes launch;
+registration failure creates no participant or process. One live replacement
+sets `replacement_running`, making repeated resume calls idempotent. Exhausted
+attempts open the breaker and block; unverifiable process death or identity
+quarantines. Terminal receipts include only redacted continuity hashes,
+attempt/state, and participant hashes. Root still owns final evidence import and
+the sole Learning Session.

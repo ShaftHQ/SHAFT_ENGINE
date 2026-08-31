@@ -651,6 +651,16 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual([], launched)
         self.assertFalse((self.state / "runs/learning-fail.json").exists())
 
+    def test_launch_failure_attests_registered_participant_unavailable(self):
+        with patch("scripts.agents.learning_session.attest_participant_unavailable") as attest:
+            with self.assertRaisesRegex(RUNNER.OmniRootError, "could not start"):
+                self._dispatch(run_id="launch-fail", worktree=self.worktree, state_dir=self.state,
+                    config_path=self.config, target="host-cli", delegate_args=[],
+                    opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                    popen=lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+                    process_identity=lambda _: "identity")
+        attest.assert_called_once_with(self.learning_state, "root-1", "launch-fail", "launch-failure")
+
     def test_dispatch_rejects_fabricated_default_runtime_contract(self):
         with self.assertRaises(RUNNER.OmniRootError):
             RUNNER.dispatch(run_id="incomplete", worktree=self.worktree, state_dir=self.state,
