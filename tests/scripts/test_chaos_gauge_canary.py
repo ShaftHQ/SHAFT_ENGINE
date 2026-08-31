@@ -85,6 +85,11 @@ class CanaryContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "public canary evidence"):
             CANARY.validate_public_evidence(leaked)
 
+        leaked = copy.deepcopy(receipt)
+        leaked["privatePackage"]["repository"] = "sk-private-value"
+        with self.assertRaisesRegex(ValueError, "public canary evidence"):
+            CANARY.validate_public_evidence(leaked)
+
 
 if __name__ == "__main__":
     unittest.main()

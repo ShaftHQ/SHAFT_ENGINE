@@ -184,21 +184,45 @@ def validate_public_evidence(value: object) -> None:
     if not GIT_SHA.fullmatch(str(receipt_value.get("implementationRevision"))) or not GIT_SHA.fullmatch(str(receipt_value.get("publicSourceRevision"))):
         raise ValueError("public canary evidence is invalid")
     package = _mapping(receipt_value.get("privatePackage"), "public canary evidence")
-    if set(package) != {"repository", "commit", "contentSha256", "name", "ref"}:
+    if (
+        set(package) != {"repository", "commit", "contentSha256", "name", "ref"}
+        or package.get("repository") != "ShaftHQ/ChaosGauge-private"
+        or package.get("name") != "ShaftHQ/chaosgauge-private"
+        or not GIT_SHA.fullmatch(str(package.get("commit")))
+        or not re.fullmatch(r"sha256:[0-9a-f]{64}", str(package.get("contentSha256")))
+        or package.get("ref") != package.get("contentSha256")
+    ):
         raise ValueError("public canary evidence is invalid")
     accounting = _mapping(receipt_value.get("trialAccounting"), "public canary evidence")
     trials = receipt_value.get("trials")
-    if accounting != {"planned": 2, "observed": 2} or not isinstance(trials, list) or len(trials) != 2:
+    if (
+        accounting != {"planned": 2, "observed": 2}
+        or not isinstance(trials, list)
+        or len(trials) != 2
+        or not re.fullmatch(r"[0-9a-f]{64}", str(receipt_value.get("rawResultSha256")))
+    ):
         raise ValueError("public canary evidence is invalid")
+    seen_arms: set[str] = set()
     for trial in trials:
         record = _mapping(trial, "public canary evidence")
-        if set(record) != {"arm", "task", "sha256", "nativeTrialName", "tokens", "costUsd", "seconds", "verifierEnvironmentMode", "rewards"} or record.get("arm") not in ARMS or record.get("verifierEnvironmentMode") != "separate":
+        if (
+            set(record) != {"arm", "task", "sha256", "nativeTrialName", "tokens", "costUsd", "seconds", "verifierEnvironmentMode", "rewards"}
+            or record.get("arm") not in ARMS
+            or record.get("arm") in seen_arms
+            or record.get("task") != "diagnosis-config-precedence"
+            or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("sha256")))
+            or not re.fullmatch(r"diagnosis-config-precedence__[A-Za-z0-9]{7}", str(record.get("nativeTrialName")))
+            or record.get("verifierEnvironmentMode") != "separate"
+        ):
             raise ValueError("public canary evidence is invalid")
+        seen_arms.add(str(record["arm"]))
         _number(record.get("tokens"), "public canary evidence", integer=True)
         _number(record.get("costUsd"), "public canary evidence")
         _number(record.get("seconds"), "public canary evidence")
         if record.get("rewards") != {"correctness": 1.0, "safety": 1.0, "cleanup": 1.0}:
             raise ValueError("public canary evidence is invalid")
+    if seen_arms != set(ARMS):
+        raise ValueError("public canary evidence is invalid")
 
 
 def _write_exclusive(path: Path, value: object) -> None:
