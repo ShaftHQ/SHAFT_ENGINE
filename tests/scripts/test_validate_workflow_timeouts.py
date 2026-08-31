@@ -138,10 +138,16 @@ jobs:
         safari_job = workflow["jobs"]["MacOSX_Safari_Local"]
         self.assertEqual(safari_job.get("timeout-minutes"), 120)
         self.assertFalse(safari_job["strategy"]["fail-fast"])
-        self.assertEqual(safari_job["strategy"]["matrix"]["shard"], [1, 2])
+        shard_matrix = safari_job["strategy"]["matrix"]["shard"]
+        self.assertIn("github.event.inputs.tests != ''", shard_matrix)
+        self.assertIn('[{"index":1,"total":1}]', shard_matrix)
+        self.assertIn('[{"index":1,"total":2},{"index":2,"total":2}]', shard_matrix)
 
         commands = " ".join(str(step.get("run", "")) for step in safari_job["steps"])
-        self.assertIn("-Dshaft.shard=${{ matrix.shard }}/2", commands)
+        self.assertIn(
+            "-Dshaft.shard=${{ matrix.shard.index }}/${{ matrix.shard.total }}",
+            commands,
+        )
         self.assertIn("-DsetParallelMode=NONE", commands)
 
         report_step = next(
@@ -149,7 +155,7 @@ jobs:
         )
         self.assertEqual(
             report_step["with"]["job-name"],
-            "MacOSX_Safari_Local_${{ matrix.shard }}_of_2",
+            "MacOSX_Safari_Local_${{ matrix.shard.index }}_of_${{ matrix.shard.total }}",
         )
 
     def test_local_chrome_job_remains_unsharded(self):
