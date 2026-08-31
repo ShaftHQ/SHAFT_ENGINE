@@ -5,6 +5,7 @@ import json
 import subprocess  # nosec B404 - fixed local test doubles and commands.
 import tempfile
 import unittest
+from contextlib import contextmanager
 
 from pathlib import Path
 
@@ -131,8 +132,27 @@ class _CleanupScenario:
 class DeliveryStatusTest(unittest.TestCase):
     cleanup = {"primarySynced": True, "taskWorktreesAbsent": True, "taskBranchesAbsent": True, "unrelatedDirtyPreserved": True, "repositories": []}
 
+    @contextmanager
+    def authorized(self, plan=None):
+        plan = manifest() if plan is None else plan
+        with tempfile.TemporaryDirectory() as temporary:
+            for index, item in enumerate(plan["ownedPullRequests"]):
+                root = Path(temporary) / str(index)
+                receipt_dir = root / ".git" / "chaos-engine"
+                receipt_dir.mkdir(parents=True)
+                (receipt_dir / "user-authority.json").write_text(json.dumps({
+                    "schemaVersion": 1,
+                    "kind": "user-merge-authority",
+                    "repository": item["repository"],
+                    "observedAt": "2026-08-12T10:00:00+00:00",
+                    "decision": "allow",
+                }), encoding="utf-8")
+                item.update(root=str(root), authorityEvidence=None)
+            yield plan
+
     def test_authorized_merged_pr_and_scoped_cleanup_allow_completion(self):
-        receipt = evaluate_delivery(manifest(), [merged()], self.cleanup, execution_repository="ShaftHQ/SHAFT_ENGINE", execution_head="abc")
+        with self.authorized() as plan:
+            receipt = evaluate_delivery(plan, [merged()], self.cleanup, execution_repository="ShaftHQ/SHAFT_ENGINE", execution_head="abc")
         self.assertEqual("allow", receipt["decision"])
         self.assertEqual(1, receipt["mergedCount"])
         self.assertEqual("complete", receipt["cleanupDecision"])
@@ -146,7 +166,8 @@ class DeliveryStatusTest(unittest.TestCase):
         ]
         status = {**merged(), "headOid": head}
 
-        receipt = evaluate_delivery(plan, [status], self.cleanup)
+        with self.authorized(plan):
+            receipt = evaluate_delivery(plan, [status], self.cleanup)
 
         self.assertEqual("allow", receipt["decision"])
         self.assertEqual(
@@ -184,7 +205,8 @@ class DeliveryStatusTest(unittest.TestCase):
             "warnings": ["cleanup-residue-remains"],
         }
 
-        receipt = evaluate_delivery(manifest(), [merged()], cleanup)
+        with self.authorized() as plan:
+            receipt = evaluate_delivery(plan, [merged()], cleanup)
 
         self.assertEqual("allow", receipt["decision"])
         self.assertEqual("allow", receipt["deliveryDecision"])
@@ -192,7 +214,8 @@ class DeliveryStatusTest(unittest.TestCase):
         self.assertEqual(cleanup["residues"], receipt["cleanup"]["residues"])
 
     def test_cleanup_unavailability_does_not_hide_successful_delivery(self):
-        receipt = evaluate_delivery(manifest(), [merged()], None)
+        with self.authorized() as plan:
+            receipt = evaluate_delivery(plan, [merged()], None)
 
         self.assertEqual("unavailable", receipt["decision"])
         self.assertEqual("allow", receipt["deliveryDecision"])
@@ -252,8 +275,9 @@ class DeliveryStatusTest(unittest.TestCase):
         })
         engine = merged()
         docs = {**merged(), "repository": "ShaftHQ/shafthq.github.io", "number": 8, "headOid": "def"}
-        self.assertEqual("allow", evaluate_delivery(plan, [engine, docs], self.cleanup)["decision"])
-        self.assertEqual("unavailable", evaluate_delivery(plan, [docs], self.cleanup)["decision"])
+        with self.authorized(plan):
+            self.assertEqual("allow", evaluate_delivery(plan, [engine, docs], self.cleanup)["decision"])
+            self.assertEqual("unavailable", evaluate_delivery(plan, [docs], self.cleanup)["decision"])
 
     def test_failed_audit_or_incomplete_cleanup_blocks(self):
         for mutate in (
@@ -336,6 +360,9 @@ class DeliveryStatusTest(unittest.TestCase):
         scenario = _CleanupScenario()
         self.addCleanup(scenario.close)
         plan = scenario.plan
+        authority = self.authorized(plan)
+        authority.__enter__()
+        self.addCleanup(authority.__exit__, None, None, None)
         target = plan["cleanup"]["repositories"][0]
         state = scenario.state
         removal_calls = scenario.removal_calls
