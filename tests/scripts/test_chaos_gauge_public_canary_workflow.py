@@ -116,7 +116,9 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
             environment = {key: value for key, value in os.environ.items() if key not in {"GH_TOKEN", "PYTHONPATH"}}
             for cwd in (ROOT, Path(directory)):
                 with self.subTest(cwd=cwd):
-                    result = subprocess.run(command, cwd=cwd, env=environment, capture_output=True, text=True)
+                    result = subprocess.run(  # nosec B603 B607 - fixed local regression invocation.
+                        command, cwd=cwd, env=environment, capture_output=True, text=True
+                    )
                     self.assertNotEqual(0, result.returncode)
                     self.assertIn("GH_TOKEN is unavailable", result.stderr)
                     self.assertNotIn("ModuleNotFoundError", result.stderr)
