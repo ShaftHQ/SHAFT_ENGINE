@@ -4877,6 +4877,19 @@ class FreshBaseGateTest(unittest.TestCase):
         os.makedirs(outside, exist_ok=True)
         return root, outside
 
+    def repository_target(self):
+        root, _ = self.repository()
+        subprocess.run(
+            ["git", "init", "--quiet", root],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        target = os.path.join(root, "scripts", "x.py")
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        Path(target).touch()
+        return root, target
+
     def test_functions_exec_apply_patch_uses_absolute_target_worktree_for_r19_scoping(self):
         """Literal wrapped patch targets, not hook cwd, scope R19 (#5289)."""
         main_root, _ = self.repository()
@@ -5060,18 +5073,27 @@ class FreshBaseGateTest(unittest.TestCase):
     def test_editing_on_the_default_branch_is_refused(self):
         for branch in ("main", "master"):
             with self.subTest(branch=branch):
-                with patch("scripts.agents.guard._current_branch", return_value=branch):
-                    reason = guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write")
+                root, target = self.repository_target()
+                with patch("scripts.agents.guard._repository_root", return_value=root), patch(
+                    "scripts.agents.guard._current_branch", return_value=branch
+                ):
+                    reason = guard.check_r19_fresh_base(self.payload(target, cwd=root), "Write")
                 self.assertIsNotNone(reason)
                 self.assertIn("ChaosEngine/", reason)
 
     def test_editing_on_a_task_branch_is_allowed(self):
-        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/thing-1"):
-            self.assertIsNone(guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write"))
+        root, target = self.repository_target()
+        with patch("scripts.agents.guard._repository_root", return_value=root), patch(
+            "scripts.agents.guard._current_branch", return_value="ChaosEngine/thing-1"
+        ):
+            self.assertIsNone(guard.check_r19_fresh_base(self.payload(target, cwd=root), "Write"))
 
     def test_a_detached_head_is_not_the_default_branch(self):
-        with patch("scripts.agents.guard._current_branch", return_value=None):
-            self.assertIsNone(guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write"))
+        root, target = self.repository_target()
+        with patch("scripts.agents.guard._repository_root", return_value=root), patch(
+            "scripts.agents.guard._current_branch", return_value=None
+        ):
+            self.assertIsNone(guard.check_r19_fresh_base(self.payload(target, cwd=root), "Write"))
 
     def test_non_write_tools_are_untouched(self):
         with patch("scripts.agents.guard._current_branch", return_value="main"):

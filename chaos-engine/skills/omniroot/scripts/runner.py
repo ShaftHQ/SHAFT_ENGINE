@@ -28,12 +28,16 @@ DEFAULT_ENDPOINT = "http://127.0.0.1:20128/"
 HEALTH_PATH = "api/health"
 MAX_RESPONSE_BYTES = 64 * 1024
 MAX_DIAGNOSTIC_BYTES = 16 * 1024
+MAX_CONTINUITY_WRITERS = 4
+MAX_DELEGATE_ARGUMENTS = 64
+MAX_DELEGATE_ARGUMENT_BYTES = 16 * 1024
 HTTP_TIMEOUT_SECONDS = 2
 SCHEMA_VERSION = 1
 READINESS = frozenset({
     "ABSENT", "UNHEALTHY", "UNAUTHENTICATED", "ROUTE_UNQUALIFIED", "READY", "RUNTIME_EXHAUSTED",
 })
 RUN_STATUSES = frozenset({"planned", "running", "stalled", "blocked", "review", "completed", "cancelled", "quarantined"})
+_CAPABILITY_RANK = {"mechanical": 0, "default": 1, "most-intelligent": 2}
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 _TARGET = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
@@ -42,6 +46,7 @@ _SAFE_RUNTIME_ENVIRONMENT = (
     else ("USERPROFILE", "SystemRoot", "TEMP", "TMP")
 )
 _GIT_EXECUTABLE = shutil.which("git")
+_LOCAL_MONITORS: dict[int, Any] = {}
 if _GIT_EXECUTABLE is not None:
     _GIT_EXECUTABLE = str(Path(_GIT_EXECUTABLE).resolve())
 
@@ -455,6 +460,244 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _valid_private_candidate(candidate: object) -> bool:
+    return bool(
+        isinstance(candidate, dict)
+        and set(candidate) == {"identity", "sessionId", "capability", "target", "arguments", "resumption"}
+        and candidate.get("capability") in _CAPABILITY_RANK
+        and _TARGET.fullmatch(candidate.get("target", ""))
+        and isinstance(candidate.get("arguments"), list)
+        and len(candidate["arguments"]) <= MAX_DELEGATE_ARGUMENTS
+        and all(isinstance(item, str) and "\x00" not in item for item in candidate["arguments"])
+        and sum(len(item.encode("utf-8")) for item in candidate["arguments"])
+        <= MAX_DELEGATE_ARGUMENT_BYTES
+        and all(isinstance(candidate.get(name), str) and candidate[name]
+                for name in ("identity", "sessionId"))
+    )
+
+
+def _resumption_hashes(value: object) -> dict[str, Any] | None:
+    required = {"task", "authority", "checkpoint", "completedActions", "trackerUrl", "pullRequestUrl"}
+    if not isinstance(value, dict) or set(value) != required:
+        return None
+    completed = value.get("completedActions")
+    if (not all(isinstance(value.get(name), str) and value[name]
+                for name in required - {"completedActions"})
+            or not isinstance(completed, list) or len(set(completed)) != len(completed)
+            or not all(isinstance(item, str) and item for item in completed)):
+        return None
+    return {
+        "taskSha256": _sha256(value["task"]),
+        "authoritySha256": _sha256(value["authority"]),
+        "checkpointSha256": _sha256(value["checkpoint"]),
+        "completedActionSha256s": sorted(_sha256(item) for item in completed),
+        "trackerUrlSha256": _sha256(value["trackerUrl"]),
+        "pullRequestUrlSha256": _sha256(value["pullRequestUrl"]),
+    }
+
+
+def _verified_resumption(candidate: dict[str, Any], continuity: dict[str, Any]) -> dict[str, Any]:
+    hashes = _resumption_hashes(candidate.get("resumption"))
+    expected = {name: continuity.get(name) for name in (
+        "taskSha256", "authoritySha256", "checkpointSha256", "completedActionSha256s",
+        "trackerUrlSha256", "pullRequestUrlSha256",
+    )}
+    if hashes != expected:
+        raise OmniRootError("continuity resumption does not match frozen evidence")
+    return candidate["resumption"]
+
+
+def _resumption_secrets(raw: str) -> list[str]:
+    if not raw:
+        return []
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return [raw]
+    secrets = [raw]
+    if isinstance(value, dict):
+        secrets.extend(item for item in value.values() if isinstance(item, str))
+        secrets.extend(item for items in value.values() if isinstance(items, list)
+                       for item in items if isinstance(item, str))
+    return secrets
+
+
+def _continuity_contract(
+    value: dict[str, Any] | None, *, authoritative_task_sha256: str | None = None,
+) -> dict[str, Any] | None:
+    """Validate opt-in failover state; persist identities and links as hashes only."""
+    if value is None:
+        return None
+    required = {
+        "requiredCapability", "maxAttempts", "retryableExitCodes", "backoffSeconds",
+        "authoritySha256", "checkpointSha256", "completedActionSha256s",
+        "trackerUrlSha256", "pullRequestUrlSha256", "alternates",
+    }
+    if not isinstance(value, dict) or set(value) != required:
+        raise OmniRootError("continuity contract fields are invalid")
+    capability = value.get("requiredCapability")
+    attempts = value.get("maxAttempts")
+    exits = value.get("retryableExitCodes")
+    backoff = value.get("backoffSeconds")
+    hashes = [value.get(name) for name in (
+        "authoritySha256", "checkpointSha256", "trackerUrlSha256", "pullRequestUrlSha256",
+    )]
+    completed = value.get("completedActionSha256s")
+    alternates = value.get("alternates")
+    if (capability not in _CAPABILITY_RANK or not isinstance(attempts, int)
+            or not 2 <= attempts <= MAX_CONTINUITY_WRITERS):
+        raise OmniRootError("continuity bounds are invalid")
+    if (not isinstance(exits, list) or not exits or len(set(exits)) != len(exits)
+            or not all(isinstance(code, int) and (1 <= code <= 255 or -code in signal.valid_signals())
+                       for code in exits)):
+        raise OmniRootError("continuity retry exits are invalid")
+    if not isinstance(backoff, int) or not 0 <= backoff <= 300:
+        raise OmniRootError("continuity backoff is invalid")
+    if not all(isinstance(item, str) and _HEX.fullmatch(item) for item in hashes):
+        raise OmniRootError("continuity evidence hashes are invalid")
+    if (not isinstance(completed, list) or len(set(completed)) != len(completed)
+            or not all(isinstance(item, str) and _HEX.fullmatch(item) for item in completed)):
+        raise OmniRootError("continuity completed actions are invalid")
+    if (not isinstance(alternates, list) or not alternates
+            or len(alternates) >= MAX_CONTINUITY_WRITERS):
+        raise OmniRootError("continuity alternates are invalid")
+    safe_alternates = []
+    seen = set()
+    task_sha256 = None
+    for candidate in alternates:
+        if not _valid_private_candidate(candidate):
+            raise OmniRootError("continuity alternate is invalid")
+        resumption_hashes = _resumption_hashes(candidate["resumption"])
+        expected_hashes = {
+            name: value[name] for name in (
+                "authoritySha256", "checkpointSha256", "completedActionSha256s",
+                "trackerUrlSha256", "pullRequestUrlSha256",
+            )
+        }
+        if (resumption_hashes is None
+                or {name: resumption_hashes[name] for name in expected_hashes} != expected_hashes
+                or task_sha256 not in {None, resumption_hashes["taskSha256"]}):
+            raise OmniRootError("continuity resumption does not match frozen evidence")
+        task_sha256 = resumption_hashes["taskSha256"]
+        identity = (_sha256(candidate["identity"]), _sha256(candidate["sessionId"]))
+        if identity in seen:
+            raise OmniRootError("continuity alternates must be unique")
+        seen.add(identity)
+        safe_alternates.append({
+            "identitySha256": identity[0], "sessionSha256": identity[1],
+            "capability": candidate["capability"],
+        })
+    if authoritative_task_sha256 is not None and task_sha256 != authoritative_task_sha256:
+        raise OmniRootError("continuity resumption does not match authoritative task")
+    return {
+        "requiredCapability": capability, "maxAttempts": attempts,
+        "retryableExitCodes": sorted(exits), "backoffSeconds": backoff,
+        "taskSha256": task_sha256,
+        "authoritySha256": value["authoritySha256"],
+        "checkpointSha256": value["checkpointSha256"],
+        "completedActionSha256s": sorted(completed),
+        "trackerUrlSha256": value["trackerUrlSha256"],
+        "pullRequestUrlSha256": value["pullRequestUrlSha256"],
+        "alternates": safe_alternates, "attempt": 1, "state": "running",
+        "participants": [],
+    }
+
+
+def _advance_continuity(
+    manifest: dict[str, Any], *, exit_code: int, group_dead: bool,
+    candidates: list[dict[str, str]], register: Callable[[str], None],
+    launch: Callable[[dict[str, str]], dict[str, Any]],
+    compensate: Callable[[str], None] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+    now: Callable[[], datetime] = _utc_now,
+) -> dict[str, Any]:
+    """Advance one in-memory failover attempt without persisting launch inputs."""
+    continuity = manifest.get("continuity")
+    if not isinstance(continuity, dict) or continuity.get("state") == "replacement_running":
+        return manifest
+    deadline = _parse_time(manifest.get("deadline"))
+    if deadline is None or deadline <= now():
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "overall deadline expired"
+        return manifest
+    if not group_dead:
+        manifest["status"] = "quarantined"
+        continuity["state"] = "quarantined"
+        continuity["reason"] = "prior process group death cannot be proven"
+        return manifest
+    if exit_code not in continuity["retryableExitCodes"]:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "non-retryable exit"
+        return manifest
+    if continuity["attempt"] >= continuity["maxAttempts"]:
+        manifest["status"] = "blocked"
+        continuity["state"] = "breaker_open"
+        continuity["reason"] = "continuity attempts exhausted"
+        return manifest
+    used = {item["sessionSha256"] for item in continuity["participants"]}
+    required = _CAPABILITY_RANK[continuity["requiredCapability"]]
+    candidate = next((item for item in candidates
+                      if item.get("capability") in _CAPABILITY_RANK
+                      and _CAPABILITY_RANK[item["capability"]] >= required
+                      and _sha256(item.get("sessionId")) not in used), None)
+    if candidate is None:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "no compatible continuity alternate"
+        return manifest
+    try:
+        register(candidate["sessionId"])
+    except Exception:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "replacement learning registration failed"
+        return manifest
+    participant = {
+        "identitySha256": _sha256(candidate["identity"]),
+        "sessionSha256": _sha256(candidate["sessionId"]),
+        "capability": candidate["capability"],
+    }
+    continuity["participants"].append(participant)
+    continuity["state"] = "failover_pending"
+    sleep(continuity["backoffSeconds"])
+    if deadline <= now():
+        if compensate is not None:
+            with contextlib.suppress(Exception):
+                compensate(candidate["sessionId"])
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "overall deadline expired"
+        return manifest
+    continuity["state"] = "half_open"
+    try:
+        process = launch(candidate)
+    except Exception:
+        if compensate is not None:
+            with contextlib.suppress(Exception):
+                compensate(candidate["sessionId"])
+        continuity["attempt"] += 1
+        continuity["state"] = "failover_pending"
+        continuity["reason"] = "replacement launch failed"
+        manifest["status"] = "stalled"
+        return manifest
+    if (not isinstance(process, dict) or not isinstance(process.get("pid"), int)
+            or not isinstance(process.get("pgid"), int)
+            or not isinstance(process.get("processIdentity"), str)):
+        manifest["status"] = "quarantined"
+        continuity["state"] = "quarantined"
+        continuity["reason"] = "replacement process identity cannot be proven"
+        return manifest
+    continuity["attempt"] += 1
+    continuity["state"] = "replacement_running"
+    continuity.pop("reason", None)
+    manifest["status"] = "running"
+    manifest["delegate"] = {**manifest.get("delegate", {}), **participant}
+    manifest["monitor"] = dict(process)
+    return manifest
+
+
 _SECRET_TEXT = re.compile(
     r'''(?ix)
     (authorization\s*:\s*(?:bearer|basic)\s+)([^\s]+)
@@ -533,7 +776,7 @@ def _terminate_group(process: Any) -> int:
     return int(code)
 
 
-def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: int, secrets: list[str] | None = None) -> None:
+def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: float, secrets: list[str] | None = None) -> None:
     """Drain both pipes, enforce runtime bound, then persist only redacted caps."""
     streams: dict[str, tuple[bytes, bool]] = {}
 
@@ -608,7 +851,212 @@ def _capture_command(arguments: list[str]) -> int:
         process, Path(arguments[0]), timeout_seconds=timeout_seconds,
         secrets=[os.environ.get("OMNIROUTE_API_KEY", "")],
     )
+    process.stdout.close()
+    process.stderr.close()
     return int(process.returncode or 0)
+
+
+def _supervisor_arguments(arguments: list[str]) -> tuple[Path, Path, Path, int, tuple[Any, ...], list[str]]:
+    if len(arguments) < 13 or arguments[11] != "--":
+        raise OmniRootError("supervisor arguments are invalid")
+    diagnostic_path, process_path, manifest_path = map(Path, arguments[:3])
+    try:
+        timeout_seconds = int(arguments[3])
+        expected_identity = (*tuple(int(value) for value in arguments[4:10]), arguments[10])
+    except ValueError as error:
+        raise OmniRootError("supervisor timeout is invalid") from error
+    command = arguments[12:]
+    if not 1 <= timeout_seconds <= 86400 or not command:
+        raise OmniRootError("supervisor arguments are invalid")
+    return diagnostic_path, process_path, manifest_path, timeout_seconds, expected_identity, command
+
+
+def _supervisor_environment(command: list[str]) -> tuple[list[dict[str, str]], str, str, str, str, int]:
+    raw = os.environ.pop("OMNIROOT_CONTINUITY", "")
+    learning_state = os.environ.pop("OMNIROOT_LEARNING_STATE", "")
+    learning_root = os.environ.pop("OMNIROOT_LEARNING_ROOT", "")
+    active_session = os.environ.pop("OMNIROOT_INITIAL_SESSION", "")
+    invocation_mode = os.environ.pop("OMNIROOT_INVOCATION_MODE", "")
+    credential_mode = os.environ.pop("OMNIROOT_CREDENTIAL_MODE", "")
+    raw_launcher_argc = os.environ.pop("OMNIROOT_LAUNCHER_ARGC", "")
+    try:
+        candidates = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise OmniRootError("supervisor continuity input is invalid") from error
+    try:
+        launcher_argc = int(raw_launcher_argc)
+    except ValueError as error:
+        raise OmniRootError("supervisor continuity input is invalid") from error
+    if (not isinstance(candidates, list) or invocation_mode not in {"direct", "gateway"}
+            or credential_mode not in {"environment", "launcher"}
+            or not 1 <= launcher_argc <= len(command)):
+        raise OmniRootError("supervisor continuity input is invalid")
+    if (not candidates or len(candidates) >= MAX_CONTINUITY_WRITERS
+            or not all(_valid_private_candidate(candidate) for candidate in candidates)):
+        raise OmniRootError("supervisor continuity input is invalid")
+    return candidates, learning_state, learning_root, active_session, invocation_mode, launcher_argc
+
+
+def _supervisor_manifest(path: Path) -> dict[str, Any]:
+    for _ in range(100):
+        manifest = _load_json(path)
+        if isinstance(manifest.get("continuity"), dict):
+            return manifest
+        time.sleep(0.05)
+    raise OmniRootError("supervisor manifest was not published")
+
+
+def _finish_supervision(path: Path, manifest: dict[str, Any], status: str, state: str, reason: str) -> int:
+    manifest["status"] = status
+    manifest["continuity"]["state"] = state
+    manifest["continuity"]["reason"] = reason
+    _write_json(path, manifest)
+    return 1
+
+
+def _replacement_command(
+    launcher_command: list[str], candidate: dict[str, str], invocation_mode: str, credential_mode: str,
+) -> list[str]:
+    if invocation_mode == "direct":
+        return [*launcher_command, *candidate["arguments"]]
+    command = [*launcher_command, candidate["target"], "--port", "20128"]
+    if credential_mode == "environment":
+        command.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+    command.extend(["--", *candidate["arguments"]])
+    return command
+
+
+def _learning_action(state: str, root: str, session_id: str, *, unavailable: bool) -> None:
+    source_root = str(Path(__file__).resolve().parents[4])
+    if source_root not in sys.path:
+        sys.path.insert(0, source_root)
+    if unavailable:
+        from scripts.agents.learning_session import attest_participant_unavailable
+        attest_participant_unavailable(Path(state), root, session_id, "launch-failure")
+    else:
+        from scripts.agents.learning_session import register_runtime_participant
+        register_runtime_participant(Path(state), root, session_id)
+
+
+def _supervised_diagnostic(
+    command: list[str], *, diagnostic_path: Path, process_path: Path, manifest_path: Path,
+    manifest: dict[str, Any], timeout_seconds: int, active_session: str,
+    learning_state: str, learning_root: str,
+) -> tuple[dict[str, Any] | None, int | None]:
+    resumption_secret = os.environ.pop("OMNIROOT_RESUMPTION", "")
+    deadline = _parse_time(manifest.get("deadline"))
+    if deadline is None or deadline <= _utc_now():
+        return None, _finish_supervision(
+            manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
+        )
+    child_environment = None
+    if resumption_secret:
+        child_environment = dict(os.environ)
+        child_environment["OMNIROOT_RESUMPTION"] = resumption_secret
+    try:
+        process = subprocess.Popen(  # nosec B603 - sealed command identity is verified.
+            command, shell=False, close_fds=True, start_new_session=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=child_environment,
+        )
+    except OSError:
+        with contextlib.suppress(Exception):
+            _learning_action(learning_state, learning_root, active_session, unavailable=True)
+        return None, _finish_supervision(
+            manifest_path, manifest, "blocked", "blocked", "replacement launch failed",
+        )
+    identity = process_identity(process.pid)
+    if identity is None:
+        _terminate_group(process)
+        return None, _finish_supervision(
+            manifest_path, manifest, "quarantined", "quarantined",
+            "replacement process identity cannot be proven",
+        )
+    process_evidence = {
+        "schemaVersion": SCHEMA_VERSION, "pid": process.pid,
+        "pgid": os.getpgid(process.pid), "processIdentity": identity,
+    }
+    _write_json(process_path, process_evidence)
+    remaining_seconds = (deadline - _utc_now()).total_seconds()
+    if remaining_seconds <= 0:
+        _terminate_group(process)
+        return None, _finish_supervision(
+            manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
+        )
+    _collect_diagnostics(
+        process, diagnostic_path, timeout_seconds=min(timeout_seconds, remaining_seconds),
+        secrets=[os.environ.get("OMNIROUTE_API_KEY", ""), *_resumption_secrets(resumption_secret)],
+    )
+    process.stdout.close()
+    process.stderr.close()
+    diagnostic = _validated_diagnostic(_load_json(diagnostic_path))
+    if _group_alive(process_evidence["pgid"]):
+        try:
+            _terminate_group(process)
+        except OmniRootError:
+            return None, _finish_supervision(
+                manifest_path, manifest, "quarantined", "quarantined",
+                "prior process group death cannot be proven",
+            )
+    if diagnostic["exitCode"] == 0:
+        manifest["continuity"]["state"] = "review"
+        manifest["status"] = "running"
+        _write_json(manifest_path, manifest)
+        return None, 0
+    return diagnostic, None
+
+
+def _supervise_command(arguments: list[str]) -> int:
+    """Outlive delegates and replace retryable failures without owner input."""
+    (diagnostic_path, process_path, manifest_path, timeout_seconds,
+     expected_identity, command) = _supervisor_arguments(arguments)
+    credential_mode = os.environ.get("OMNIROOT_CREDENTIAL_MODE", "")
+    (candidates, learning_state, learning_root, active_session,
+     invocation_mode, launcher_argc) = _supervisor_environment(command)
+    qualified = _resolved_executable(command)
+    if qualified is None or qualified[1] != expected_identity:
+        raise OmniRootError("qualified launcher changed before execution")
+    command = qualified[0]
+    launcher_command = command[:launcher_argc]
+    manifest = _supervisor_manifest(manifest_path)
+
+    while True:
+        diagnostic, result = _supervised_diagnostic(
+            command, diagnostic_path=diagnostic_path, process_path=process_path,
+            manifest_path=manifest_path, manifest=manifest, timeout_seconds=timeout_seconds,
+            active_session=active_session, learning_state=learning_state, learning_root=learning_root,
+        )
+        if result is not None:
+            return result
+
+        launched: dict[str, Any] = {}
+        def register(session_id: str) -> None:
+            _learning_action(learning_state, learning_root, session_id, unavailable=False)
+
+        def launch(candidate: dict[str, str]) -> dict[str, Any]:
+            launched["candidate"] = candidate
+            launched["resumption"] = _verified_resumption(candidate, manifest["continuity"])
+            return {"pid": -1, "pgid": -1, "processIdentity": "pending"}
+
+        def compensate(session_id: str) -> None:
+            _learning_action(learning_state, learning_root, session_id, unavailable=True)
+
+        supervisor_monitor = manifest.get("monitor")
+        manifest = _advance_continuity(
+            manifest, exit_code=diagnostic["exitCode"], group_dead=True,
+            candidates=candidates, register=register, launch=launch, compensate=compensate,
+        )
+        if manifest.get("status") != "running" or not launched:
+            _write_json(manifest_path, manifest)
+            return diagnostic["exitCode"]
+        manifest["monitor"] = supervisor_monitor
+        manifest["continuity"]["state"] = "replacement_running"
+        _write_json(manifest_path, manifest)
+        active_session = launched["candidate"]["sessionId"]
+        candidate = launched["candidate"]
+        os.environ["OMNIROOT_RESUMPTION"] = json.dumps(
+            launched["resumption"], sort_keys=True, separators=(",", ":"),
+        )
+        command = _replacement_command(launcher_command, candidate, invocation_mode, credential_mode)
 
 
 def _validated_diagnostic(value: dict[str, Any]) -> dict[str, Any]:
@@ -734,6 +1182,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     learning_state: Path | None = None,
     learning_root_session_id: str | None = None,
     delegate_session_id: str | None = None,
+    continuity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Launch one bounded implementer only after a fresh strict readiness check."""
     _platform_preflight()
@@ -769,6 +1218,12 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         raise OmniRootError("a future timezone-aware deadline is required")
     if not isinstance(delegate, dict) or not delegate.get("pathOwnership"):
         raise OmniRootError("explicit non-empty delegate ownership is required")
+    continuity_manifest = _continuity_contract(continuity, authoritative_task_sha256=_sha256(task_id))
+    if (continuity_manifest is not None
+            and (delegate.get("capability") not in _CAPABILITY_RANK
+                 or _CAPABILITY_RANK[delegate["capability"]]
+                 < _CAPABILITY_RANK[continuity_manifest["requiredCapability"]])):
+        raise OmniRootError("initial delegate does not satisfy continuity capability floor")
     environment = os.environ.copy() if environ is None else dict(environ)
     config = _read_config(config_path or default_config_path())
     if config is None:
@@ -823,11 +1278,31 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         with contextlib.suppress(OSError):
             path.unlink()
         raise OmniRootError("bounded process-tree timeout is unsupported on this host")
-    launched_argv = (
-        [sys.executable, str(Path(__file__).resolve()), "_capture", str(diagnostic_path),
-         str(delegate_process_path), str(timeout_seconds), *(str(value) for value in launcher_identity), "--", *argv]
-        if durable_monitor else argv
-    )
+    if durable_monitor and continuity_manifest is not None:
+        launched_argv = [
+            sys.executable, str(Path(__file__).resolve()), "_supervise", str(diagnostic_path),
+            str(delegate_process_path), str(path), str(timeout_seconds),
+            *(str(value) for value in launcher_identity), "--", *argv,
+        ]
+    elif durable_monitor:
+        launched_argv = [
+            sys.executable, str(Path(__file__).resolve()), "_capture", str(diagnostic_path),
+            str(delegate_process_path), str(timeout_seconds), *(str(value) for value in launcher_identity), "--", *argv,
+        ]
+    else:
+        launched_argv = argv
+    launch_environment = dict(dispatch_environment)
+    if durable_monitor and continuity_manifest is not None:
+        launch_environment.update({
+            "OMNIROOT_CONTINUITY": json.dumps(continuity["alternates"], separators=(",", ":")),
+            "OMNIROOT_LEARNING_STATE": str(learning_state),
+            "OMNIROOT_LEARNING_ROOT": str(learning_root_session_id),
+            "OMNIROOT_INITIAL_SESSION": str(delegate_session_id),
+            "OMNIROOT_INVOCATION_MODE": invocation_mode,
+            "OMNIROOT_CREDENTIAL_MODE": credential_mode,
+            "OMNIROOT_LAUNCHER_ARGC": str(len(launcher_argv)),
+        })
+    registered = False
     try:
         if not _same_executable(launcher_argv, launcher_identity):
             raise OmniRootError("qualified launcher changed before execution")
@@ -837,10 +1312,11 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         try:
             from scripts.agents.learning_session import register_runtime_participant
             register_runtime_participant(Path(learning_state), learning_root_session_id, delegate_session_id)
+            registered = True
         except Exception as registration_error:
             raise OmniRootError("delegate learning registration failed") from registration_error
         process = popen(
-            launched_argv, cwd=str(worktree), env=dispatch_environment, shell=False,
+            launched_argv, cwd=str(worktree), env=launch_environment, shell=False,
             close_fds=True, start_new_session=True,
             stdout=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
             stderr=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
@@ -848,6 +1324,12 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     except (OSError, OmniRootError) as error:
         with contextlib.suppress(OSError):
             path.unlink()
+        if registered:
+            with contextlib.suppress(Exception):
+                from scripts.agents.learning_session import attest_participant_unavailable
+                attest_participant_unavailable(
+                    Path(learning_state), learning_root_session_id, delegate_session_id, "launch-failure"
+                )
         if isinstance(error, OmniRootError):
             raise
         raise OmniRootError("OmniRoute launcher could not start") from error
@@ -864,6 +1346,8 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         with contextlib.suppress(OSError):
             path.unlink()
         raise OmniRootError("durable process identity cannot be proven; use native fallback")
+    if durable_monitor:
+        _LOCAL_MONITORS[pid] = process
     timestamp = _utc_now().isoformat()
     manifest = {
         "schemaVersion": SCHEMA_VERSION, "runId": run_id, "taskId": task_id, "workflow": workflow,
@@ -880,6 +1364,13 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         "delegateProcess": {"path": str(delegate_process_path)},
         "receipt": {"path": str(_receipt_path(Path(state_dir), run_id)), "sha256": None},
     }
+    if continuity_manifest is not None:
+        continuity_manifest["participants"] = [{
+            "identitySha256": _sha256(delegate.get("identity", "anonymous")),
+            "sessionSha256": _sha256(delegate_session_id),
+            "capability": delegate.get("capability", "default"),
+        }]
+        manifest["continuity"] = continuity_manifest
     try:
         _write_json(path, manifest)
     except Exception:
@@ -908,6 +1399,13 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
         diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
         diagnostic = _validated_diagnostic(_load_json(diagnostic_path)) if diagnostic_path.is_file() else None
         if diagnostic is not None and isinstance(diagnostic.get("exitCode"), int):
+            continuity = manifest.get("continuity")
+            monitor = manifest.get("monitor", {})
+            if (isinstance(continuity, dict) and continuity.get("state") not in {
+                    "review", "blocked", "breaker_open", "quarantined"}
+                    and isinstance(monitor.get("pid"), int)
+                    and process_identity(monitor["pid"]) == monitor.get("processIdentity")):
+                return manifest
             process_path = Path(state_dir) / "processes" / f"{run_id}.json"
             delegate_process = _load_json(process_path) if process_path.is_file() else None
             if not isinstance(delegate_process, dict) or not isinstance(delegate_process.get("pgid"), int) \
@@ -926,6 +1424,10 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
             }
             manifest.setdefault("timestamps", {})["updatedAt"] = _utc_now().isoformat()
             _write_json(path, manifest)
+            monitor_process = _LOCAL_MONITORS.pop(manifest.get("monitor", {}).get("pid"), None)
+            if monitor_process is not None:
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    monitor_process.wait(timeout=1)
             return manifest
         monitor = manifest.get("monitor", {})
         pid, identity = monitor.get("pid"), monitor.get("processIdentity")
@@ -1056,6 +1558,14 @@ def complete(  # noqa: MC0001 - receipt validation remains one fail-closed audit
             "stderrTruncated": diagnostic.get("stderrTruncated") is True,
         },
     }
+    continuity = manifest.get("continuity")
+    if isinstance(continuity, dict):
+        receipt["continuity"] = {
+            key: continuity[key] for key in (
+                "taskSha256", "authoritySha256", "checkpointSha256", "completedActionSha256s",
+                "trackerUrlSha256", "pullRequestUrlSha256", "attempt", "state", "participants",
+            ) if key in continuity
+        }
     receipt_path = _receipt_path(Path(state_dir), run_id)
     _create_immutable_json(receipt_path, receipt)
     manifest["status"] = receipt["status"]
@@ -1086,6 +1596,12 @@ def main(argv: list[str] | None = None) -> int:
         except OmniRootError as error:
             print(str(error), file=sys.stderr)
             return 1
+    if raw_arguments and raw_arguments[0] == "_supervise":
+        try:
+            return _supervise_command(raw_arguments[1:])
+        except OmniRootError as error:
+            print(str(error), file=sys.stderr)
+            return 1
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=default_config_path())
     parser.add_argument("--state-dir", type=Path, default=default_state_path())
@@ -1109,7 +1625,7 @@ def main(argv: list[str] | None = None) -> int:
                         "rootSessionId", "baseCommit", "integrationBranch", "integrationWorktree",
                         "delegate", "cadenceSeconds", "deadline", "timeoutSeconds", "learningState",
                         "learningRootSessionId", "delegateSessionId"}
-            if set(contract) != required:
+            if set(contract) not in (required, required | {"continuity"}):
                 raise OmniRootError("dispatch contract fields are invalid")
             return _print(dispatch(run_id=contract["runId"], worktree=Path(contract["worktree"]),
                 state_dir=args.state_dir, config_path=args.config, target=contract["target"],
@@ -1120,7 +1636,7 @@ def main(argv: list[str] | None = None) -> int:
                 cadence_seconds=contract["cadenceSeconds"], deadline=contract["deadline"],
                 timeout_seconds=contract["timeoutSeconds"], learning_state=Path(contract["learningState"]),
                 learning_root_session_id=contract["learningRootSessionId"],
-                delegate_session_id=contract["delegateSessionId"]))
+                delegate_session_id=contract["delegateSessionId"], continuity=contract.get("continuity")))
         if args.command == "status":
             return _print(status(args.run_id, args.state_dir))
         if args.command == "cancel":

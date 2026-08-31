@@ -12,6 +12,7 @@ import signal
 import subprocess  # nosec B404 - tests run fixed local executables with controlled argv.
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 from datetime import UTC, datetime, timedelta
@@ -526,7 +527,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         })
         with patch.object(RUNNER, "_group_alive", return_value=False):
             result = RUNNER.status("run-4", self.state, process_identity=lambda _: None)
-        self.assertEqual("review", result["status"])
+        self.assertEqual("review", result["status"], result)
         self.assertEqual(0, result["diagnostics"]["exitCode"])
         self.assertEqual(RUNNER._sha256(diagnostic), result["diagnostics"]["sha256"])
         self.assertNotIn("stdout", result["diagnostics"])
@@ -650,6 +651,88 @@ class OmniRootRunnerTest(unittest.TestCase):
                     popen=lambda *args, **kwargs: launched.append((args, kwargs)))
         self.assertEqual([], launched)
         self.assertFalse((self.state / "runs/learning-fail.json").exists())
+
+    def test_launch_failure_attests_registered_participant_unavailable(self):
+        with patch("scripts.agents.learning_session.attest_participant_unavailable") as attest:
+            with self.assertRaisesRegex(RUNNER.OmniRootError, "could not start"):
+                self._dispatch(run_id="launch-fail", worktree=self.worktree, state_dir=self.state,
+                    config_path=self.config, target="host-cli", delegate_args=[],
+                    opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                    popen=lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+                    process_identity=lambda _: "identity")
+        attest.assert_called_once_with(self.learning_state, "root-1", "launch-fail", "launch-failure")
+
+    def test_dispatch_durable_supervisor_reaches_review_after_retryable_interruption(self):
+        counter = self.root / "attempts"
+        self.launcher.write_text(
+            "#!/usr/bin/env python3\nfrom pathlib import Path\n"
+            f"p=Path({str(counter)!r}); n=int(p.read_text() if p.exists() else '0')+1; p.write_text(str(n)); raise SystemExit(75 if n == 1 else 0)\n",
+            encoding="utf-8",
+        )
+        self.launcher.chmod(0o700)
+        resumption = {
+            "task": "task-1", "authority": "owner-approved",
+            "checkpoint": "checkpoint-1", "completedActions": ["action-1"],
+            "trackerUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5489",
+            "pullRequestUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5493",
+        }
+        continuity = {
+            "requiredCapability": "default", "maxAttempts": 2,
+            "retryableExitCodes": [75], "backoffSeconds": 0,
+            "authoritySha256": RUNNER._sha256(resumption["authority"]),
+            "checkpointSha256": RUNNER._sha256(resumption["checkpoint"]),
+            "completedActionSha256s": [RUNNER._sha256("action-1")],
+            "trackerUrlSha256": RUNNER._sha256(resumption["trackerUrl"]),
+            "pullRequestUrlSha256": RUNNER._sha256(resumption["pullRequestUrl"]),
+            "alternates": [{"identity": "replacement", "sessionId": "replacement-session",
+                            "capability": "default", "target": "qualified-target",
+                            "arguments": [], "resumption": resumption}],
+        }
+        self._dispatch(run_id="failover-e2e", worktree=self.worktree, state_dir=self.state,
+            config_path=self.config, target="host-cli", delegate_args=[],
+            opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+            delegate={"identity": "failed", "role": "implementer", "capability": "default",
+                      "assignment": "bounded", "pathOwnership": ["docs"]},
+            continuity=continuity)
+        for _ in range(100):
+            result = RUNNER.status("failover-e2e", self.state)
+            if result["status"] == "review":
+                break
+            time.sleep(0.05)
+        self.assertEqual("review", result["status"], result)
+        self.assertEqual(2, result["continuity"]["attempt"])
+        self.assertEqual("2", counter.read_text(encoding="utf-8"))
+        self.assertNotIn("replacement-session", json.dumps(result))
+
+    def test_dispatch_rejects_candidates_bound_to_different_task(self):
+        resumption = {
+            "task": "different-task", "authority": "owner-approved",
+            "checkpoint": "checkpoint-1", "completedActions": [],
+            "trackerUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5489",
+            "pullRequestUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5493",
+        }
+        continuity = {
+            "requiredCapability": "default", "maxAttempts": 2,
+            "retryableExitCodes": [75], "backoffSeconds": 0,
+            "authoritySha256": RUNNER._sha256(resumption["authority"]),
+            "checkpointSha256": RUNNER._sha256(resumption["checkpoint"]),
+            "completedActionSha256s": [],
+            "trackerUrlSha256": RUNNER._sha256(resumption["trackerUrl"]),
+            "pullRequestUrlSha256": RUNNER._sha256(resumption["pullRequestUrl"]),
+            "alternates": [{"identity": "replacement", "sessionId": "replacement-session",
+                            "capability": "default", "target": "qualified-target",
+                            "arguments": [], "resumption": resumption}],
+        }
+        with self.assertRaisesRegex(RUNNER.OmniRootError, "authoritative task"):
+            self._dispatch(
+                run_id="wrong-task", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[],
+                opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                delegate={"identity": "failed", "role": "implementer", "capability": "default",
+                          "assignment": "bounded", "pathOwnership": ["docs"]},
+                continuity=continuity, popen=lambda *_args, **_kwargs: _Process(),
+                process_identity=lambda _pid: "identity",
+            )
 
     def test_dispatch_rejects_fabricated_default_runtime_contract(self):
         with self.assertRaises(RUNNER.OmniRootError):
