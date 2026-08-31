@@ -18,22 +18,26 @@ import java.nio.file.Path;
 import java.util.Comparator;
 
 public class MobileFileActionsTest {
-    private Path tempDirectory;
+    private final ThreadLocal<Path> tempDirectory = new ThreadLocal<>();
 
     @BeforeMethod
     public void createTempDirectory() throws IOException {
-        tempDirectory = Files.createTempDirectory("shaft-mobile-files-test-");
+        tempDirectory.set(Files.createTempDirectory("shaft-mobile-files-test-"));
     }
 
     @AfterMethod
     public void deleteTempDirectory() throws IOException {
-        if (tempDirectory == null || !Files.exists(tempDirectory)) {
-            return;
-        }
-        try (var paths = Files.walk(tempDirectory)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.deleteIfExists(path);
+        Path directory = tempDirectory.get();
+        try {
+            if (directory != null && Files.exists(directory)) {
+                try (var paths = Files.walk(directory)) {
+                    for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                        Files.deleteIfExists(path);
+                    }
+                }
             }
+        } finally {
+            tempDirectory.remove();
         }
     }
 
@@ -65,10 +69,10 @@ public class MobileFileActionsTest {
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("mobile-file-paths"));
         byte[] pulled = "replacement".getBytes(StandardCharsets.UTF_8);
         Mockito.when(driver.pullFile("/device/result.txt")).thenReturn(pulled);
-        Path target = tempDirectory.resolve("nested/result.txt");
+        Path target = tempDirectory.get().resolve("nested/result.txt");
         Files.createDirectories(target.getParent());
         Files.writeString(target, "known-good", StandardCharsets.UTF_8);
-        Path source = tempDirectory.resolve("source.txt");
+        Path source = tempDirectory.get().resolve("source.txt");
         byte[] submitted = "submitted".getBytes(StandardCharsets.UTF_8);
         Files.write(source, submitted);
         MobileActions mobile = new SHAFT.GUI.WebDriver(driver).mobile();

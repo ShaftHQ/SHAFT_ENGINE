@@ -4,30 +4,24 @@ import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
 
 public class DragAndDropTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     @Test(description = "TC001 - Test Drag and Drop function.")
     public void dragAndDrop() {
-        driver.get().browser().navigateToURL("http://the-internet.herokuapp.com/drag_and_drop"); // PASSED
-        By dropDestinationLocator = By.xpath("//div[@id='columns']//*[contains (text(),'B')]");
-        By dragTarget1Locator = By.xpath("//div[@id='columns']//*[contains (text(),'A')]");
+        driver.get().browser().navigateToURL(TestPageServer.url("dragAndDropFixture.html"));
+        By dropDestinationLocator = By.id("drop-target");
+        By dragTargetLocator = By.id("drag-source");
 
-        // BrowserActions.navigateToURL(driver, "http://rubaxa.github.io/Sortable/");
-        // By dropDestinationLocator = By.xpath("//*[@id='bar']");
-        // By dragTarget1Locator = By.xpath("//*[@id='foo']/li[1]");
-
-        // BrowserActions.navigateToURL(driver,
-        // "http://a5hik.github.io/ng-sortable/#/kanban");
-        // http://jqueryui.com/resources/demos/sortable/connect-lists.html
-
-        // ElementActions.click(driver, dragTarget1Locator);
         ReportManager.log("Attempting Drag and Drop");
-        driver.get().element().dragAndDrop(dragTarget1Locator, dropDestinationLocator);
+        driver.get().element().dragAndDrop(dragTargetLocator, dropDestinationLocator);
 
+        Assert.assertEquals(driver.get().element().get().text(dropDestinationLocator), "Dropped");
     }
 
     @Test(description = "TC002 - Test Drag and Drop by offset function.")

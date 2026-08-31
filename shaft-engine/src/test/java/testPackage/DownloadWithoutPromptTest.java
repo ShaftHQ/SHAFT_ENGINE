@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import org.openqa.selenium.By;
 import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -18,6 +19,10 @@ public class DownloadWithoutPromptTest {
 
     @BeforeMethod(alwaysRun = true)
     public void init() {
+        if (!"local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress())
+                || !"chrome".equalsIgnoreCase(SHAFT.Properties.web.targetBrowserName())) {
+            throw new SkipException("Silent download coverage requires local Chrome.");
+        }
         SHAFT.Properties.web.set().headlessExecution(true).targetBrowserName("chrome").incognitoMode(false);
         SHAFT.Properties.flags.set().automaticallyAddRecommendedChromeOptions(false);
         driver.set(new SHAFT.GUI.WebDriver());
