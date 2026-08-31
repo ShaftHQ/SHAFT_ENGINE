@@ -69,7 +69,6 @@ RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
 # tests/scripts/test_install_shaft_mcp.py reads the real import statements and
 # fails when this list falls behind them.
 AGENT_VALIDATION_SCRIPT_FILES = (
-    "README.md",
     "chaos-engine/dependencies.json",
     "chaos-engine/README.md",
     "chaos-engine/hooks/kernel.py",

@@ -423,7 +423,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertIn("scripts/ci/agent_ownership.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
 
     def test_agent_validation_script_files_includes_chaos_engine_dependencies(self):
-        self.assertIn("README.md", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        self.assertNotIn("README.md", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
         self.assertIn("chaos-engine/dependencies.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
         self.assertIn("chaos-engine/README.md", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
 
@@ -449,6 +449,8 @@ class InstallShaftMcpTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir).resolve()
             (target / "AGENTS.md").write_text("# Installed guidance\n", encoding="utf-8")
+            adopter_readme = "# Adopter project\n\nKeep this content.\n"
+            (target / "README.md").write_text(adopter_readme, encoding="utf-8")
             retired = target / "scripts" / "agents" / "learning_loop.py"
             retired.parent.mkdir(parents=True)
             retired.write_text("# installer-owned retired controller\n", encoding="utf-8")
@@ -464,6 +466,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertTrue((target / "scripts" / "agents" / "learning_session.py").is_file())
             self.assertFalse(retired.exists())
             self.assertTrue((target / "scripts" / "ci" / "agent_ownership.json").is_file())
+            self.assertEqual(adopter_readme, (target / "README.md").read_text(encoding="utf-8"))
             command = (
                 "import sys; "
                 f"sys.path.insert(0, {str(target)!r}); "
