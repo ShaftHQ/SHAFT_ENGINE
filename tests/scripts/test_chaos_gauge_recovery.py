@@ -11,9 +11,9 @@ CHAOS_GAUGE = ROOT / "scripts" / "ci" / "chaos_gauge"
 # `e7d329bd3b` is merged PR #5464, immutable recovery source for #5450.
 # This covers its full public ChaosGauge tree, unlike a few representative
 # anchors that can remain after an executable or dataset member is lost.
-RECOVERED_PUBLIC_FILE_COUNT = 138
+RECOVERED_PUBLIC_FILE_COUNT = 139
 RECOVERED_PUBLIC_PATHS_SHA256 = (
-    "65f419c77c8abbe37ad8b8eed50911b8812a3bf71e5d805ad016c7f254d81d4a"
+    "510eb657e5ca3f841c38b09c58a4fbb10e37fc4d5710f44cead1f29105935699"
 )
 
 
@@ -47,6 +47,7 @@ class ChaosGaugeRecoveryTest(unittest.TestCase):
         self.assertIn("'scripts/ci/chaos_gauge/**'", workflow)
         self.assertIn("'tests/scripts/test_chaos_gauge_*.py'", workflow)
         self.assertIn("needs.changes.outputs.chaos_gauge == 'true'", workflow)
+        self.assertIn("tests.scripts.test_chaos_gauge_campaign", workflow)
         self.assertIn("tests.scripts.test_chaos_gauge_recovery", workflow)
         scheduled = (
             ROOT / ".github" / "workflows" / "agent-plugin-acceptance.yml"

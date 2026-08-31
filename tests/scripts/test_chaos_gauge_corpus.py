@@ -43,6 +43,23 @@ class ChaosGaugeCorpusTest(TestCase):
             self.assertEqual("deterministic", task["oracle"])
             self.assertIn(task["contaminationStatus"], {"public-calibration", "private-holdout"})
 
+    def test_private_references_match_exact_sanitized_package_metadata(self):
+        manifest = json.loads((GAUGE / "experiment.json").read_text(encoding="utf-8"))
+        package = manifest["privatePackage"]
+        expected = {
+            task["name"]: (task["stratum"], task["sha256"])
+            for task in manifest["tasks"] if task["visibility"] == "private-reference"
+        }
+        actual = {
+            task["name"]: (task["stratum"], task["sha256"])
+            for task in self.corpus() if task["visibility"] == "private-reference"
+        }
+        self.assertEqual(expected, actual)
+        self.assertEqual(
+            {f'{package["name"]}@{package["ref"]}'},
+            {task["registryReference"] for task in self.corpus() if task["visibility"] == "private-reference"},
+        )
+
     def test_dataset_uses_native_harbor_tasks_and_custom_metric(self):
         dataset = tomllib.loads(DATASET.read_text(encoding="utf-8"))
 

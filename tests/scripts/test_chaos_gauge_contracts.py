@@ -172,6 +172,11 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "job harness"):
             MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
 
+        drifted = copy.deepcopy(jobs)
+        drifted["control"]["retry"]["max_retries"] = 3
+        with self.assertRaisesRegex(ValueError, "retry budget"):
+            MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
+
     async def test_custom_agent_delegates_to_codex_and_installs_full_harness(self):
         calls = []
 
@@ -216,8 +221,8 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             environment = types.SimpleNamespace(upload_dir=AsyncMock())
             agent = module.ChaosEngineCodex(
                 harness_source=str(ROOT / "chaos-engine"),
-                harness_commit="72864935b070cb47e625d33ea71c5a8f5947da46",
-                harness_sha256="7fecb48a95caf607ab3f4efb5bbbac066ef79b0219f531a85a874096c81be3f3",
+                harness_commit="5ebf1b75f28b8d164e5326c69e81f1df2eb8237d",
+                harness_sha256="fc97d4bf65ddb739c1e8a40f01f552d4719ac5101a5035d4e11af8c66b8805cf",
                 adapter_sha256="3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             )
 
@@ -244,7 +249,10 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
     def test_counterbalanced_schedule_covers_every_planned_trial_once(self):
         schedule = json.loads((GAUGE / "schedule.json").read_text(encoding="utf-8"))
         self.assertEqual(5450, schedule["seed"])
-        self.assertEqual("sha256(seed:task:attempt)-low-bit-first-arm", schedule["algorithm"])
+        self.assertEqual(
+            "sha256(seed:task)-balanced-2-or-3-control-first;sha256(seed:task:attempt)-rank",
+            schedule["algorithm"],
+        )
         self.assertEqual(["control", "chaos-engine"], schedule["arms"])
         self.assertEqual(
             {"tasks": 12, "trials": 120}, schedule["campaigns"]["publicCalibration"]
@@ -253,17 +261,26 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         self.assertTrue(
             schedule["campaigns"]["fullPilot"]["requiresPrivatePackageResolution"]
         )
+        tasks = self.manifest()["tasks"]
+        higher = {
+            task["name"] for task in sorted(
+                tasks,
+                key=lambda task: hashlib.sha256(f'{schedule["seed"]}:task:{task["name"]}'.encode()).digest(),
+            )[: len(tasks) // 2]
+        }
         rows = []
-        for task in self.manifest()["tasks"]:
+        for task in tasks:
+            attempts = sorted(
+                range(1, schedule["attemptsPerTask"] + 1),
+                key=lambda attempt: hashlib.sha256(f'{schedule["seed"]}:{task["name"]}:{attempt}'.encode()).digest(),
+            )
+            control = set(attempts[:3 if task["name"] in higher else 2])
             for attempt in range(1, schedule["attemptsPerTask"] + 1):
-                digest = hashlib.sha256(
-                    f'{schedule["seed"]}:{task["name"]}:{attempt}'.encode()
-                ).digest()
-                first = schedule["arms"][digest[0] & 1]
-                second = schedule["arms"][1 - (digest[0] & 1)]
-                rows.extend([(task["name"], attempt, first), (task["name"], attempt, second)])
+                first = "control" if attempt in control else "chaos-engine"
+                rows.extend([(task["name"], attempt, first), (task["name"], attempt, "chaos-engine" if first == "control" else "control")])
         self.assertEqual(160, len(rows))
         self.assertEqual(80, len({(task, attempt) for task, attempt, _ in rows}))
+        self.assertEqual(40, sum(1 for _, _, arm in rows[::2] if arm == "control"))
 
     def test_calibration_is_120_trials_and_full_pilot_requires_resolved_private_package(self):
         manifest = self.manifest()
@@ -278,8 +295,15 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             )
             self.assertEqual(2, len(job["datasets"]))
             self.assertEqual("scripts/ci/chaos_gauge/dataset", job["datasets"][0]["path"])
-            self.assertEqual("ShaftHQ/chaos-engine-holdouts", job["datasets"][1]["name"])
-            self.assertRegex(job["datasets"][1]["ref"], r"^sha256:[0-9a-f]{64}$")
+            self.assertEqual("ShaftHQ/chaosgauge-private", job["datasets"][1]["name"])
+            self.assertEqual(
+                "sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
+                job["datasets"][1]["ref"],
+            )
+        full = MODULE.validate_job_contracts(
+            manifest, MODULE.load_jobs(GAUGE, "full-pilot"), campaign="full-pilot", root=ROOT
+        )
+        self.assertEqual({"control", "chaos-engine"}, set(full))
 
     def test_configs_match_vendored_harbor_v0220_schema_facts(self):
         facts = json.loads(

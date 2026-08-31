@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
   "seed": 5450,
-  "algorithm": "sha256(seed:task:attempt)-low-bit-first-arm",
+  "algorithm": "sha256(seed:task)-balanced-2-or-3-control-first;sha256(seed:task:attempt)-rank",
   "unit": "task-attempt-pair",
   "arms": ["control", "chaos-engine"],
   "attemptsPerTask": 5,
+  "retryBudget": 2,
   "campaigns": {
     "publicCalibration": {"tasks": 12, "trials": 120},
     "fullPilot": {"tasks": 16, "trials": 160, "requiresPrivatePackageResolution": true}

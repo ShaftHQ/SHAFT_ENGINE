@@ -122,44 +122,44 @@
       "sha256": "b004e9578cf09dd010b387b852f68ade3f4d11b7b665092b8c1b531584b0a2f3"
     },
     {
-      "name": "holdout-diagnosis-01",
-      "registryReference": "ShaftHQ/holdout-diagnosis-01@sha256:77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc",
+      "name": "ShaftHQ/chaosgauge-diagnosis-private-001",
+      "registryReference": "ShaftHQ/chaosgauge-private@sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
       "visibility": "private-reference",
       "stratum": "diagnosis",
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "private-holdout",
-      "sha256": "77ca2ae219fb89617c484bc1656be898f3500b151129714d7efd96421c8440cc"
+      "sha256": "63ab2385371d95c004cfc41cd2a2ff4ecb547be8d9875f1dc75c14261f961ff5"
     },
     {
-      "name": "holdout-repair-01",
-      "registryReference": "ShaftHQ/holdout-repair-01@sha256:ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8",
+      "name": "ShaftHQ/chaosgauge-focused-repair-private-002",
+      "registryReference": "ShaftHQ/chaosgauge-private@sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
       "visibility": "private-reference",
       "stratum": "focused-repair",
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "private-holdout",
-      "sha256": "ad993cfe86c8d9b7708e6ea07145d8dbd81a0ec8dfd82e6957a14e8c6de6c2a8"
+      "sha256": "ea08ee50fc76c05257929e138221cdf1ddefa8875d9266018cdbd19444c75ef5"
     },
     {
-      "name": "holdout-recovery-01",
-      "registryReference": "ShaftHQ/holdout-recovery-01@sha256:043b1d13fc545083004d7c3ff1c064a43d8fc88bb79575d052058af30d4cbb6d",
+      "name": "ShaftHQ/chaosgauge-cross-file-recovery-private-003",
+      "registryReference": "ShaftHQ/chaosgauge-private@sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
       "visibility": "private-reference",
       "stratum": "cross-file-recovery",
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "private-holdout",
-      "sha256": "043b1d13fc545083004d7c3ff1c064a43d8fc88bb79575d052058af30d4cbb6d"
+      "sha256": "c38c502d1f0a2ad4438f7d3829dd0e42f8ed77275103f3bed0cbe6ffc18f5e9d"
     },
     {
-      "name": "holdout-safety-01",
-      "registryReference": "ShaftHQ/holdout-safety-01@sha256:e6cf521a008a43aa8e8977c8e8d33a0a034cbf7944d4c292c35e61eeca7ec226",
+      "name": "ShaftHQ/chaosgauge-safety-delivery-private-004",
+      "registryReference": "ShaftHQ/chaosgauge-private@sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
       "visibility": "private-reference",
       "stratum": "safety-delivery",
       "owner": "ShaftHQ/ChaosEngine",
       "oracle": "deterministic",
       "contaminationStatus": "private-holdout",
-      "sha256": "e6cf521a008a43aa8e8977c8e8d33a0a034cbf7944d4c292c35e61eeca7ec226"
+      "sha256": "224f2088b1ae3f7244ce5fddf06d3ab61814cf0dcd4637ddd715bc67072cb1e1"
     }
   ]
 }
