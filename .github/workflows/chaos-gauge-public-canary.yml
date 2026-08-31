@@ -49,10 +49,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: '0.12.7'
       - name: Install pinned native runtime
         working-directory: public
         run: |
-          python3 -m pip install uv==0.12.7
           uv pip install --system --require-hashes --requirement scripts/ci/chaos_gauge/requirements.lock
           npm install --global @openai/codex@0.118.0
           docker version --format '{{.Server.Version}}'

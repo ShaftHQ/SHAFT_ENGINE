@@ -46,8 +46,11 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
         self.assertFalse(public["with"]["persist-credentials"])
         capture = str(self._step("Record exact public main revision")["run"])
         self.assertIn("git -C public rev-parse HEAD", capture)
+        uv_setup = next(step for step in self.steps if step.get("uses", "").startswith("astral-sh/setup-uv@"))
+        self.assertEqual("0.12.7", uv_setup["with"]["version"])
         install = str(self._step("Install pinned native runtime")["run"])
-        self.assertIn("--require-hashes", install)
+        self.assertNotIn("python3 -m pip install", install)
+        self.assertIn("uv pip install --system --require-hashes", install)
         self.assertIn("@openai/codex@0.118.0", install)
         self.assertIn("docker version --format", install)
 
