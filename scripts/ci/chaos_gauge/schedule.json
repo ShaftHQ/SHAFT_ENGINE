@@ -5,6 +5,7 @@
   "unit": "task-attempt-pair",
   "arms": ["control", "chaos-engine"],
   "attemptsPerTask": 5,
+  "retryBudget": 2,
   "campaigns": {
     "publicCalibration": {"tasks": 12, "trials": 120},
     "fullPilot": {"tasks": 16, "trials": 160, "requiresPrivatePackageResolution": true}

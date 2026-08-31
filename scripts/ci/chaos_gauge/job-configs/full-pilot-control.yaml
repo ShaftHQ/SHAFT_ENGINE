@@ -19,5 +19,5 @@ agents:
     kwargs: {version: "0.118.0", reasoning_effort: medium}
 datasets:
   - path: scripts/ci/chaos_gauge/dataset
-  - name: ShaftHQ/chaos-engine-holdouts
-    ref: sha256:9ff490552e845c1279704a6c680cef29b88484c44d222f6cc51a71798d4c9f9c
+  - name: ShaftHQ/chaosgauge-private
+    ref: sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485

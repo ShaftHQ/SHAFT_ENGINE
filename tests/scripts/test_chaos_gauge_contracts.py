@@ -172,6 +172,11 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "job harness"):
             MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
 
+        drifted = copy.deepcopy(jobs)
+        drifted["control"]["retry"]["max_retries"] = 3
+        with self.assertRaisesRegex(ValueError, "retry budget"):
+            MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
+
     async def test_custom_agent_delegates_to_codex_and_installs_full_harness(self):
         calls = []
 
@@ -278,8 +283,15 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             )
             self.assertEqual(2, len(job["datasets"]))
             self.assertEqual("scripts/ci/chaos_gauge/dataset", job["datasets"][0]["path"])
-            self.assertEqual("ShaftHQ/chaos-engine-holdouts", job["datasets"][1]["name"])
-            self.assertRegex(job["datasets"][1]["ref"], r"^sha256:[0-9a-f]{64}$")
+            self.assertEqual("ShaftHQ/chaosgauge-private", job["datasets"][1]["name"])
+            self.assertEqual(
+                "sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
+                job["datasets"][1]["ref"],
+            )
+        full = MODULE.validate_job_contracts(
+            manifest, MODULE.load_jobs(GAUGE, "full-pilot"), campaign="full-pilot", root=ROOT
+        )
+        self.assertEqual({"control", "chaos-engine"}, set(full))
 
     def test_configs_match_vendored_harbor_v0220_schema_facts(self):
         facts = json.loads(
