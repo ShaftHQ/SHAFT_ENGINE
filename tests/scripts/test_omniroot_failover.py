@@ -227,7 +227,7 @@ class OmniRootFailoverTest(unittest.TestCase):
 
     def test_expired_overall_deadline_blocks_before_registration_or_launch(self):
         manifest = self.manifest()
-        manifest["deadline"] = "2029-12-31T23:59:59+00:00"
+        manifest["deadline"] = "2000-01-01T00:00:00+00:00"
         result = RUNNER._advance_continuity(
             manifest, exit_code=75, group_dead=True,
             candidates=self.candidates(),
@@ -237,6 +237,23 @@ class OmniRootFailoverTest(unittest.TestCase):
         )
         self.assertEqual("blocked", result["status"])
         self.assertEqual("overall deadline expired", result["continuity"]["reason"])
+
+    def test_expired_supervisor_clears_private_resumption_before_popen(self):
+        manifest = self.manifest()
+        manifest["deadline"] = "2000-01-01T00:00:00+00:00"
+        manifest_path = self.state / "runs/expired.json"
+        RUNNER._write_json(manifest_path, manifest)
+        with patch.dict(os.environ, {"OMNIROOT_RESUMPTION": "private-envelope"}, clear=False):
+            with patch.object(RUNNER.subprocess, "Popen", side_effect=AssertionError("must not launch")):
+                diagnostic, result = RUNNER._supervised_diagnostic(
+                    ["unused"], diagnostic_path=self.state / "diagnostics/expired.json",
+                    process_path=self.state / "processes/expired.json", manifest_path=manifest_path,
+                    manifest=manifest, timeout_seconds=10, active_session="failed",
+                    learning_state="unused", learning_root="root",
+                )
+            self.assertIsNone(diagnostic)
+            self.assertEqual(1, result)
+            self.assertNotIn("OMNIROOT_RESUMPTION", os.environ)
 
     def test_deadline_expiring_during_backoff_blocks_without_launch(self):
         manifest = self.manifest()

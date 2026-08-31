@@ -671,7 +671,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         )
         self.launcher.chmod(0o700)
         resumption = {
-            "task": "resume bounded delegate", "authority": "owner-approved",
+            "task": "task-1", "authority": "owner-approved",
             "checkpoint": "checkpoint-1", "completedActions": ["action-1"],
             "trackerUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5489",
             "pullRequestUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5493",
@@ -703,6 +703,36 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual(2, result["continuity"]["attempt"])
         self.assertEqual("2", counter.read_text(encoding="utf-8"))
         self.assertNotIn("replacement-session", json.dumps(result))
+
+    def test_dispatch_rejects_candidates_bound_to_different_task(self):
+        resumption = {
+            "task": "different-task", "authority": "owner-approved",
+            "checkpoint": "checkpoint-1", "completedActions": [],
+            "trackerUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5489",
+            "pullRequestUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5493",
+        }
+        continuity = {
+            "requiredCapability": "default", "maxAttempts": 2,
+            "retryableExitCodes": [75], "backoffSeconds": 0,
+            "authoritySha256": RUNNER._sha256(resumption["authority"]),
+            "checkpointSha256": RUNNER._sha256(resumption["checkpoint"]),
+            "completedActionSha256s": [],
+            "trackerUrlSha256": RUNNER._sha256(resumption["trackerUrl"]),
+            "pullRequestUrlSha256": RUNNER._sha256(resumption["pullRequestUrl"]),
+            "alternates": [{"identity": "replacement", "sessionId": "replacement-session",
+                            "capability": "default", "target": "qualified-target",
+                            "arguments": [], "resumption": resumption}],
+        }
+        with self.assertRaisesRegex(RUNNER.OmniRootError, "authoritative task"):
+            self._dispatch(
+                run_id="wrong-task", worktree=self.worktree, state_dir=self.state,
+                config_path=self.config, target="host-cli", delegate_args=[],
+                opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
+                delegate={"identity": "failed", "role": "implementer", "capability": "default",
+                          "assignment": "bounded", "pathOwnership": ["docs"]},
+                continuity=continuity, popen=lambda *_args, **_kwargs: _Process(),
+                process_identity=lambda _pid: "identity",
+            )
 
     def test_dispatch_rejects_fabricated_default_runtime_contract(self):
         with self.assertRaises(RUNNER.OmniRootError):

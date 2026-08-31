@@ -522,7 +522,9 @@ def _resumption_secrets(raw: str) -> list[str]:
     return secrets
 
 
-def _continuity_contract(value: dict[str, Any] | None) -> dict[str, Any] | None:
+def _continuity_contract(
+    value: dict[str, Any] | None, *, authoritative_task_sha256: str | None = None,
+) -> dict[str, Any] | None:
     """Validate opt-in failover state; persist identities and links as hashes only."""
     if value is None:
         return None
@@ -585,6 +587,8 @@ def _continuity_contract(value: dict[str, Any] | None) -> dict[str, Any] | None:
             "identitySha256": identity[0], "sessionSha256": identity[1],
             "capability": candidate["capability"],
         })
+    if authoritative_task_sha256 is not None and task_sha256 != authoritative_task_sha256:
+        raise OmniRootError("continuity resumption does not match authoritative task")
     return {
         "requiredCapability": capability, "maxAttempts": attempts,
         "retryableExitCodes": sorted(exits), "backoffSeconds": backoff,
@@ -939,25 +943,27 @@ def _supervised_diagnostic(
     manifest: dict[str, Any], timeout_seconds: int, active_session: str,
     learning_state: str, learning_root: str,
 ) -> tuple[dict[str, Any] | None, int | None]:
+    resumption_secret = os.environ.pop("OMNIROOT_RESUMPTION", "")
     deadline = _parse_time(manifest.get("deadline"))
     if deadline is None or deadline <= _utc_now():
         return None, _finish_supervision(
             manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
         )
-    resumption_secret = os.environ.get("OMNIROOT_RESUMPTION", "")
+    child_environment = None
+    if resumption_secret:
+        child_environment = dict(os.environ)
+        child_environment["OMNIROOT_RESUMPTION"] = resumption_secret
     try:
         process = subprocess.Popen(  # nosec B603 - sealed command identity is verified.
             command, shell=False, close_fds=True, start_new_session=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=child_environment,
         )
     except OSError:
-        os.environ.pop("OMNIROOT_RESUMPTION", None)
         with contextlib.suppress(Exception):
             _learning_action(learning_state, learning_root, active_session, unavailable=True)
         return None, _finish_supervision(
             manifest_path, manifest, "blocked", "blocked", "replacement launch failed",
         )
-    os.environ.pop("OMNIROOT_RESUMPTION", None)
     identity = process_identity(process.pid)
     if identity is None:
         _terminate_group(process)
@@ -1212,7 +1218,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         raise OmniRootError("a future timezone-aware deadline is required")
     if not isinstance(delegate, dict) or not delegate.get("pathOwnership"):
         raise OmniRootError("explicit non-empty delegate ownership is required")
-    continuity_manifest = _continuity_contract(continuity)
+    continuity_manifest = _continuity_contract(continuity, authoritative_task_sha256=_sha256(task_id))
     if (continuity_manifest is not None
             and (delegate.get("capability") not in _CAPABILITY_RANK
                  or _CAPABILITY_RANK[delegate["capability"]]
