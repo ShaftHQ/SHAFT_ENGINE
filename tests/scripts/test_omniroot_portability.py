@@ -12,8 +12,9 @@ CORE = ROOT / "chaos-engine"
 
 def load(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load module from {path}")
     module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
     spec.loader.exec_module(module)
     return module
 

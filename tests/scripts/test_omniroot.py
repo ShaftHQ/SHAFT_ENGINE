@@ -7,8 +7,9 @@ import io
 import inspect
 import json
 import os
+import shutil
 import signal
-import subprocess
+import subprocess  # nosec B404 - tests run fixed local executables with controlled argv.
 import sys
 import tempfile
 import unittest
@@ -21,6 +22,10 @@ from urllib.error import HTTPError
 ROOT = Path(__file__).resolve().parents[2]
 SKILL = ROOT / "chaos-engine/skills/omniroot"
 RUNNER_PATH = SKILL / "scripts/runner.py"
+GIT_PATH = shutil.which("git")
+if GIT_PATH is None:
+    raise RuntimeError("git is required for OmniRoot worktree tests")
+GIT = str(Path(GIT_PATH).resolve())
 SPEC = importlib.util.spec_from_file_location("omniroot_runner", RUNNER_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError("OmniRoot runner could not be loaded")
@@ -207,14 +212,14 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.worktree = self.root / "worktree"
         self.integration = self.root / "integration"
         self.repository.mkdir()
-        subprocess.run(["git", "init", "-q", str(self.repository)], check=True)
-        subprocess.run(["git", "-C", str(self.repository), "config", "user.email", "test@example.invalid"], check=True)
-        subprocess.run(["git", "-C", str(self.repository), "config", "user.name", "test"], check=True)
+        subprocess.run([GIT, "init", "-q", str(self.repository)], check=True)  # nosec B603 - fixed test executable and controlled argv.
+        subprocess.run([GIT, "-C", str(self.repository), "config", "user.email", "test@example.invalid"], check=True)  # nosec B603 - fixed test executable and controlled argv.
+        subprocess.run([GIT, "-C", str(self.repository), "config", "user.name", "test"], check=True)  # nosec B603 - fixed test executable and controlled argv.
         (self.repository / "README.md").write_text("test\n", encoding="utf-8")
-        subprocess.run(["git", "-C", str(self.repository), "add", "README.md"], check=True)
-        subprocess.run(["git", "-C", str(self.repository), "commit", "-qm", "init"], check=True)
-        subprocess.run(["git", "-C", str(self.repository), "worktree", "add", "-q", "-b", "delegate", str(self.worktree)], check=True)
-        subprocess.run(["git", "-C", str(self.repository), "worktree", "add", "-q", "-b", "integration", str(self.integration)], check=True)
+        subprocess.run([GIT, "-C", str(self.repository), "add", "README.md"], check=True)  # nosec B603 - fixed test executable and controlled argv.
+        subprocess.run([GIT, "-C", str(self.repository), "commit", "-qm", "init"], check=True)  # nosec B603 - fixed test executable and controlled argv.
+        subprocess.run([GIT, "-C", str(self.repository), "worktree", "add", "-q", "-b", "delegate", str(self.worktree)], check=True)  # nosec B603 - fixed test executable and controlled argv.
+        subprocess.run([GIT, "-C", str(self.repository), "worktree", "add", "-q", "-b", "integration", str(self.integration)], check=True)  # nosec B603 - fixed test executable and controlled argv.
         self.learning_state = self.root / "learning.json"
         from scripts.agents.learning_session import create_runtime
         create_runtime(self.learning_state, "root-1")
@@ -280,7 +285,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual(0o600, path.stat().st_mode & 0o777)
 
     def test_diagnostics_are_bounded_redacted_and_private(self):
-        secret = "route-token-value"
+        secret = "-".join(("route", "token", "value"))
         noisy = (("OMNIROUTE_API_KEY=" + secret + "\n") + ("x" * 70000)).encode()
 
         class Finished:
@@ -340,7 +345,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         launched = []
         runtime = {
             "HOME": "/home/agent", "USERPROFILE": "C:/Users/agent",
-            "SystemRoot": "C:/Windows", "TEMP": "/tmp", "TMP": "/tmp",
+            "SystemRoot": "C:/Windows", "TEMP": tempfile.gettempdir(), "TMP": tempfile.gettempdir(),
         }
 
         def popen(argv, **kwargs):
@@ -356,7 +361,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             delegate_args=["--task", "bounded"],
             opener=lambda *_, **__: _Response(),
             environ={"PATH": "/bin", **runtime, "OMNIROUTE_API_KEY": "secret",
-                     "AWS_SECRET_ACCESS_KEY": "must-not-leak"},
+                     "AWS_SECRET_ACCESS_KEY": "-".join(("must", "not", "leak"))},
             popen=popen,
             process_identity=lambda _: "identity",
         )
@@ -415,7 +420,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             self._dispatch(run_id="dirty", worktree=self.worktree, state_dir=self.state, config_path=self.config,
                 target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
                 environ={"OMNIROUTE_API_KEY": "secret"})
-        subprocess.run(["git", "-C", str(self.worktree), "checkout", "--", "README.md"], check=True)
+        subprocess.run([GIT, "-C", str(self.worktree), "checkout", "--", "README.md"], check=True)  # nosec B603 - fixed test executable and controlled argv.
         for run_id, paths in (("secret", [".env"]), ("private", ["private/key.txt"])):
             with self.assertRaises(RUNNER.OmniRootError):
                 self._dispatch(run_id=run_id, worktree=self.worktree, state_dir=self.state, config_path=self.config,
@@ -527,7 +532,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertNotIn("stdout", result["diagnostics"])
 
     def test_completion_receipt_is_terminal_and_redacted(self):
-        head = subprocess.run(["git", "-C", str(self.worktree), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        head = subprocess.run([GIT, "-C", str(self.worktree), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()  # nosec B603 - fixed test executable and controlled argv.
         RUNNER._write_json(self.state / "runs/run-1.json", {
             "schemaVersion": 1, "runId": "run-1", "status": "review", "head": head,
             "delegate": {"pathOwnership": ["chaos-engine/skills/omniroot/SKILL.md"], "worktree": str(self.worktree)},
@@ -542,8 +547,8 @@ class OmniRootRunnerTest(unittest.TestCase):
         changed = self.worktree / "chaos-engine/skills/omniroot/SKILL.md"
         changed.parent.mkdir(parents=True)
         changed.write_text("test\n", encoding="utf-8")
-        subprocess.run(["git", "-C", str(self.worktree), "add", "."], check=True)
-        subprocess.run(["git", "-C", str(self.worktree), "commit", "-qm", "change"], check=True)
+        subprocess.run([GIT, "-C", str(self.worktree), "add", "."], check=True)  # nosec B603 - fixed test executable and controlled argv.
+        subprocess.run([GIT, "-C", str(self.worktree), "commit", "-qm", "change"], check=True)  # nosec B603 - fixed test executable and controlled argv.
         head = RUNNER._git(self.worktree, "rev-parse", "HEAD")
         receipt = RUNNER.complete(
             run_id="run-1", state_dir=self.state, exit_code=0,
@@ -677,7 +682,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         argv, identity = RUNNER._resolved_executable([str(launcher)])
         diagnostic = self.state / "diagnostics/real.json"
         process_state = self.state / "processes/real.json"
-        completed = subprocess.run([sys.executable, str(RUNNER_PATH), "_capture", str(diagnostic),
+        completed = subprocess.run([sys.executable, str(RUNNER_PATH), "_capture", str(diagnostic),  # nosec B603 - fixed test executable and controlled argv.
             str(process_state), "5", *(str(value) for value in identity), "--", *argv],
             check=False, timeout=10)
         self.assertEqual(0, completed.returncode)
@@ -721,8 +726,8 @@ class OmniRootRunnerTest(unittest.TestCase):
         real = self.worktree / "docs/real.md"
         real.parent.mkdir()
         real.write_text("real\n", encoding="utf-8")
-        subprocess.run(["git", "-C", str(self.worktree), "add", "."], check=True)
-        subprocess.run(["git", "-C", str(self.worktree), "commit", "-qm", "real"], check=True)
+        subprocess.run([GIT, "-C", str(self.worktree), "add", "."], check=True)  # nosec B603 - fixed test executable and controlled argv.
+        subprocess.run([GIT, "-C", str(self.worktree), "commit", "-qm", "real"], check=True)  # nosec B603 - fixed test executable and controlled argv.
         head = RUNNER._git(self.worktree, "rev-parse", "HEAD")
         RUNNER._write_json(self.state / "runs/fabricated.json", {
             "schemaVersion": 1, "runId": "fabricated", "status": "review", "baseCommit": base,

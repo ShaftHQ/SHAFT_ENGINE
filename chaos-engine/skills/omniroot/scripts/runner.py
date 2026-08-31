@@ -41,6 +41,9 @@ _SAFE_RUNTIME_ENVIRONMENT = (
     ("HOME", "TEMP", "TMP") if os.name == "posix"
     else ("USERPROFILE", "SystemRoot", "TEMP", "TMP")
 )
+_GIT_EXECUTABLE = shutil.which("git")
+if _GIT_EXECUTABLE is not None:
+    _GIT_EXECUTABLE = str(Path(_GIT_EXECUTABLE).resolve())
 
 
 class OmniRootError(RuntimeError):
@@ -288,6 +291,7 @@ class QualificationCache:
     """Compatibility wrapper; volatile readiness is always freshly probed."""
 
     def __init__(self):
+        """Create an empty volatile qualification cache."""
         self._fingerprint: str | None = None
         self._result: dict[str, str] | None = None
 
@@ -619,9 +623,12 @@ def _validated_diagnostic(value: dict[str, Any]) -> dict[str, Any]:
 
 
 def _git(worktree: Path, *args: str) -> str:
+    if _GIT_EXECUTABLE is None:
+        raise OmniRootError("a real clean git worktree is required")
     try:
         completed = subprocess.run(
-            ["git", "-C", str(worktree), *args], check=True, capture_output=True, text=True,
+            [_GIT_EXECUTABLE, "-C", str(worktree), *args],  # nosec B603 - fixed executable and controlled argv.
+            check=True, capture_output=True, text=True,
         )
     except (OSError, subprocess.CalledProcessError) as error:
         raise OmniRootError("a real clean git worktree is required") from error
@@ -702,7 +709,7 @@ def _reservation(state_dir: Path):
             lock.unlink()
 
 
-def dispatch(
+def dispatch(  # noqa: C901 - fail-closed dispatch keeps invariant checks in one auditable boundary.
     *,
     run_id: str,
     worktree: Path,
@@ -982,7 +989,7 @@ def cancel(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
     return manifest
 
 
-def complete(
+def complete(  # noqa: C901 - receipt validation remains one fail-closed audit boundary.
     *, run_id: str, state_dir: Path, exit_code: int, changed_paths: list[str], learning_disposition: str,
     head: str | None = None, clean: bool = True, checks: list[str] | None = None,
     blockers: list[str] | None = None, adjacent_findings: list[str] | None = None,
