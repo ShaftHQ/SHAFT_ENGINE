@@ -23,21 +23,29 @@ class OmniRootFailoverTest(unittest.TestCase):
         self.temporary.cleanup()
 
     def continuity(self):
+        resumption = {
+            "task": "deliver issue 5489",
+            "authority": "owner-approved",
+            "checkpoint": "checkpoint-1",
+            "completedActions": ["action-1"],
+            "trackerUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5489",
+            "pullRequestUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5493",
+        }
         return {
             "requiredCapability": "most-intelligent",
             "maxAttempts": 3,
             "retryableExitCodes": [75],
             "backoffSeconds": 0,
-            "authoritySha256": "a" * 64,
-            "checkpointSha256": "b" * 64,
-            "completedActionSha256s": ["c" * 64],
-            "trackerUrlSha256": "d" * 64,
-            "pullRequestUrlSha256": "e" * 64,
+            "authoritySha256": RUNNER._sha256(resumption["authority"]),
+            "checkpointSha256": RUNNER._sha256(resumption["checkpoint"]),
+            "completedActionSha256s": [RUNNER._sha256("action-1")],
+            "trackerUrlSha256": RUNNER._sha256(resumption["trackerUrl"]),
+            "pullRequestUrlSha256": RUNNER._sha256(resumption["pullRequestUrl"]),
             "alternates": [
                 {"identity": "replacement-low", "sessionId": "low", "capability": "default",
-                 "target": "low-route", "arguments": ["--candidate", "low"]},
+                 "target": "low-route", "arguments": ["--candidate", "low"], "resumption": resumption},
                 {"identity": "replacement-high", "sessionId": "high", "capability": "most-intelligent",
-                 "target": "high-route", "arguments": ["--candidate", "high"]},
+                 "target": "high-route", "arguments": ["--candidate", "high"], "resumption": resumption},
             ],
         }
 
@@ -67,9 +75,9 @@ class OmniRootFailoverTest(unittest.TestCase):
         )
         self.assertEqual("running", result["status"])
         self.assertEqual(RUNNER._sha256("replacement-high"), result["delegate"]["identitySha256"])
-        self.assertEqual("b" * 64, result["continuity"]["checkpointSha256"])
-        self.assertEqual("a" * 64, result["continuity"]["authoritySha256"])
-        self.assertEqual(["c" * 64], result["continuity"]["completedActionSha256s"])
+        self.assertEqual(RUNNER._sha256("checkpoint-1"), result["continuity"]["checkpointSha256"])
+        self.assertEqual(RUNNER._sha256("owner-approved"), result["continuity"]["authoritySha256"])
+        self.assertEqual([RUNNER._sha256("action-1")], result["continuity"]["completedActionSha256s"])
         self.assertEqual(2, result["continuity"]["attempt"])
         self.assertEqual([("registered", "high"), ("launched", "replacement-high")], launched)
 
@@ -144,6 +152,65 @@ class OmniRootFailoverTest(unittest.TestCase):
         with self.assertRaises(RUNNER.OmniRootError):
             RUNNER._continuity_contract(invalid)
 
+    def test_contract_rejects_candidate_resumption_not_bound_to_frozen_hashes(self):
+        invalid = self.continuity()
+        invalid["alternates"][1]["resumption"] = dict(invalid["alternates"][1]["resumption"])
+        invalid["alternates"][1]["resumption"]["checkpoint"] = "changed"
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._continuity_contract(invalid)
+
+    def test_real_signal_status_can_trigger_failover_and_resumption_prevents_replay(self):
+        launcher = Path(self.temporary.name) / "signal-launcher.py"
+        actions = Path(self.temporary.name) / "actions"
+        received = Path(self.temporary.name) / "received"
+        launcher.write_text(
+            "#!/usr/bin/env python3\nimport json, os, signal\nfrom pathlib import Path\n"
+            f"actions=Path({str(actions)!r}); received=Path({str(received)!r})\n"
+            "if 'OMNIROOT_RESUMPTION' not in os.environ:\n"
+            " actions.write_text('action-1\\n'); os.kill(os.getpid(), signal.SIGTERM)\n"
+            "state=json.loads(os.environ['OMNIROOT_RESUMPTION'])\n"
+            "print(os.environ['OMNIROOT_RESUMPTION'])\n"
+            "assert state['completedActions'] == ['action-1']\n"
+            "if 'action-1' not in state['completedActions']:\n actions.write_text(actions.read_text()+'action-1\\n')\n"
+            "received.write_text(state['checkpoint'])\n",
+            encoding="utf-8",
+        )
+        launcher.chmod(0o700)
+        command, identity = RUNNER._resolved_executable([str(launcher)])
+        diagnostic = self.state / "diagnostics/signal.json"
+        process = self.state / "processes/signal.json"
+        manifest_path = self.state / "runs/signal.json"
+        continuity = self.continuity()
+        continuity["retryableExitCodes"] = [-15]
+        manifest = self.manifest()
+        manifest["continuity"] = RUNNER._continuity_contract(continuity)
+        RUNNER._write_json(manifest_path, manifest)
+        learning = Path(self.temporary.name) / "learning-signal.json"
+        from scripts.agents.learning_session import create_runtime
+        create_runtime(learning, "root")
+        environment = {
+            "OMNIROOT_CONTINUITY": __import__("json").dumps(continuity["alternates"]),
+            "OMNIROOT_LEARNING_STATE": str(learning), "OMNIROOT_LEARNING_ROOT": "root",
+            "OMNIROOT_INVOCATION_MODE": "direct", "OMNIROOT_CREDENTIAL_MODE": "launcher",
+            "OMNIROOT_LAUNCHER_ARGC": "1",
+        }
+        arguments = [str(diagnostic), str(process), str(manifest_path), "10",
+                     *(str(value) for value in identity), "--", *command]
+        with patch.dict(os.environ, environment, clear=False):
+            result = RUNNER._supervise_command(arguments)
+        self.assertEqual(0, result)
+        self.assertEqual("action-1\n", actions.read_text(encoding="utf-8"))
+        self.assertEqual("checkpoint-1", received.read_text(encoding="utf-8"))
+        self.assertNotIn("OMNIROOT_RESUMPTION", os.environ)
+        persisted = manifest_path.read_text(encoding="utf-8")
+        self.assertNotIn("owner-approved", persisted)
+        self.assertNotIn("checkpoint-1", persisted)
+        self.assertNotIn("action-1", persisted)
+        diagnostic_text = diagnostic.read_text(encoding="utf-8")
+        self.assertNotIn("owner-approved", diagnostic_text)
+        self.assertNotIn("checkpoint-1", diagnostic_text)
+        self.assertNotIn("action-1", diagnostic_text)
+
     def test_contract_caps_total_attempts_and_writers_at_four(self):
         invalid = self.continuity()
         invalid["maxAttempts"] = 5
@@ -151,6 +218,10 @@ class OmniRootFailoverTest(unittest.TestCase):
             RUNNER._continuity_contract(invalid)
         invalid = self.continuity()
         invalid["alternates"] *= 2
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._continuity_contract(invalid)
+        invalid = self.continuity()
+        invalid["retryableExitCodes"] = [-65]
         with self.assertRaises(RUNNER.OmniRootError):
             RUNNER._continuity_contract(invalid)
 

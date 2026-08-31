@@ -463,7 +463,7 @@ def _sha256(value: object) -> str:
 def _valid_private_candidate(candidate: object) -> bool:
     return bool(
         isinstance(candidate, dict)
-        and set(candidate) == {"identity", "sessionId", "capability", "target", "arguments"}
+        and set(candidate) == {"identity", "sessionId", "capability", "target", "arguments", "resumption"}
         and candidate.get("capability") in _CAPABILITY_RANK
         and _TARGET.fullmatch(candidate.get("target", ""))
         and isinstance(candidate.get("arguments"), list)
@@ -474,6 +474,52 @@ def _valid_private_candidate(candidate: object) -> bool:
         and all(isinstance(candidate.get(name), str) and candidate[name]
                 for name in ("identity", "sessionId"))
     )
+
+
+def _resumption_hashes(value: object) -> dict[str, Any] | None:
+    required = {"task", "authority", "checkpoint", "completedActions", "trackerUrl", "pullRequestUrl"}
+    if not isinstance(value, dict) or set(value) != required:
+        return None
+    completed = value.get("completedActions")
+    if (not all(isinstance(value.get(name), str) and value[name]
+                for name in required - {"completedActions"})
+            or not isinstance(completed, list) or len(set(completed)) != len(completed)
+            or not all(isinstance(item, str) and item for item in completed)):
+        return None
+    return {
+        "taskSha256": _sha256(value["task"]),
+        "authoritySha256": _sha256(value["authority"]),
+        "checkpointSha256": _sha256(value["checkpoint"]),
+        "completedActionSha256s": sorted(_sha256(item) for item in completed),
+        "trackerUrlSha256": _sha256(value["trackerUrl"]),
+        "pullRequestUrlSha256": _sha256(value["pullRequestUrl"]),
+    }
+
+
+def _verified_resumption(candidate: dict[str, Any], continuity: dict[str, Any]) -> dict[str, Any]:
+    hashes = _resumption_hashes(candidate.get("resumption"))
+    expected = {name: continuity.get(name) for name in (
+        "taskSha256", "authoritySha256", "checkpointSha256", "completedActionSha256s",
+        "trackerUrlSha256", "pullRequestUrlSha256",
+    )}
+    if hashes != expected:
+        raise OmniRootError("continuity resumption does not match frozen evidence")
+    return candidate["resumption"]
+
+
+def _resumption_secrets(raw: str) -> list[str]:
+    if not raw:
+        return []
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return [raw]
+    secrets = [raw]
+    if isinstance(value, dict):
+        secrets.extend(item for item in value.values() if isinstance(item, str))
+        secrets.extend(item for items in value.values() if isinstance(items, list)
+                       for item in items if isinstance(item, str))
+    return secrets
 
 
 def _continuity_contract(value: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -500,7 +546,8 @@ def _continuity_contract(value: dict[str, Any] | None) -> dict[str, Any] | None:
             or not 2 <= attempts <= MAX_CONTINUITY_WRITERS):
         raise OmniRootError("continuity bounds are invalid")
     if (not isinstance(exits, list) or not exits or len(set(exits)) != len(exits)
-            or not all(isinstance(code, int) and 1 <= code <= 255 for code in exits)):
+            or not all(isinstance(code, int) and (1 <= code <= 255 or -code in signal.valid_signals())
+                       for code in exits)):
         raise OmniRootError("continuity retry exits are invalid")
     if not isinstance(backoff, int) or not 0 <= backoff <= 300:
         raise OmniRootError("continuity backoff is invalid")
@@ -514,9 +561,22 @@ def _continuity_contract(value: dict[str, Any] | None) -> dict[str, Any] | None:
         raise OmniRootError("continuity alternates are invalid")
     safe_alternates = []
     seen = set()
+    task_sha256 = None
     for candidate in alternates:
         if not _valid_private_candidate(candidate):
             raise OmniRootError("continuity alternate is invalid")
+        resumption_hashes = _resumption_hashes(candidate["resumption"])
+        expected_hashes = {
+            name: value[name] for name in (
+                "authoritySha256", "checkpointSha256", "completedActionSha256s",
+                "trackerUrlSha256", "pullRequestUrlSha256",
+            )
+        }
+        if (resumption_hashes is None
+                or {name: resumption_hashes[name] for name in expected_hashes} != expected_hashes
+                or task_sha256 not in {None, resumption_hashes["taskSha256"]}):
+            raise OmniRootError("continuity resumption does not match frozen evidence")
+        task_sha256 = resumption_hashes["taskSha256"]
         identity = (_sha256(candidate["identity"]), _sha256(candidate["sessionId"]))
         if identity in seen:
             raise OmniRootError("continuity alternates must be unique")
@@ -528,6 +588,7 @@ def _continuity_contract(value: dict[str, Any] | None) -> dict[str, Any] | None:
     return {
         "requiredCapability": capability, "maxAttempts": attempts,
         "retryableExitCodes": sorted(exits), "backoffSeconds": backoff,
+        "taskSha256": task_sha256,
         "authoritySha256": value["authoritySha256"],
         "checkpointSha256": value["checkpointSha256"],
         "completedActionSha256s": sorted(completed),
@@ -883,17 +944,20 @@ def _supervised_diagnostic(
         return None, _finish_supervision(
             manifest_path, manifest, "blocked", "blocked", "overall deadline expired",
         )
+    resumption_secret = os.environ.get("OMNIROOT_RESUMPTION", "")
     try:
         process = subprocess.Popen(  # nosec B603 - sealed command identity is verified.
             command, shell=False, close_fds=True, start_new_session=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
     except OSError:
+        os.environ.pop("OMNIROOT_RESUMPTION", None)
         with contextlib.suppress(Exception):
             _learning_action(learning_state, learning_root, active_session, unavailable=True)
         return None, _finish_supervision(
             manifest_path, manifest, "blocked", "blocked", "replacement launch failed",
         )
+    os.environ.pop("OMNIROOT_RESUMPTION", None)
     identity = process_identity(process.pid)
     if identity is None:
         _terminate_group(process)
@@ -914,7 +978,7 @@ def _supervised_diagnostic(
         )
     _collect_diagnostics(
         process, diagnostic_path, timeout_seconds=min(timeout_seconds, remaining_seconds),
-        secrets=[os.environ.get("OMNIROUTE_API_KEY", "")],
+        secrets=[os.environ.get("OMNIROUTE_API_KEY", ""), *_resumption_secrets(resumption_secret)],
     )
     process.stdout.close()
     process.stderr.close()
@@ -964,6 +1028,7 @@ def _supervise_command(arguments: list[str]) -> int:
 
         def launch(candidate: dict[str, str]) -> dict[str, Any]:
             launched["candidate"] = candidate
+            launched["resumption"] = _verified_resumption(candidate, manifest["continuity"])
             return {"pid": -1, "pgid": -1, "processIdentity": "pending"}
 
         def compensate(session_id: str) -> None:
@@ -982,6 +1047,9 @@ def _supervise_command(arguments: list[str]) -> int:
         _write_json(manifest_path, manifest)
         active_session = launched["candidate"]["sessionId"]
         candidate = launched["candidate"]
+        os.environ["OMNIROOT_RESUMPTION"] = json.dumps(
+            launched["resumption"], sort_keys=True, separators=(",", ":"),
+        )
         command = _replacement_command(launcher_command, candidate, invocation_mode, credential_mode)
 
 
@@ -1488,7 +1556,7 @@ def complete(  # noqa: MC0001 - receipt validation remains one fail-closed audit
     if isinstance(continuity, dict):
         receipt["continuity"] = {
             key: continuity[key] for key in (
-                "authoritySha256", "checkpointSha256", "completedActionSha256s",
+                "taskSha256", "authoritySha256", "checkpointSha256", "completedActionSha256s",
                 "trackerUrlSha256", "pullRequestUrlSha256", "attempt", "state", "participants",
             ) if key in continuity
         }
