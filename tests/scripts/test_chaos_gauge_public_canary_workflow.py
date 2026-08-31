@@ -157,6 +157,8 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
     def test_prepare_creates_exact_private_draft_before_provider(self) -> None:
         calls = []
         tag = "chaosgauge-canary-123"
+        marker_name = f"{tag}-provider-started.json"
+        marker_content = b'{"runId":"123","schemaVersion":1,"state":"provider-started"}'
         release = {
             "tagName": tag, "isDraft": True, "targetCommitish": BRIDGE.PRIVATE_COMMIT,
             "name": "ChaosGauge excluded canary 123", "assets": [],
@@ -168,12 +170,55 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
                 raise BRIDGE.subprocess.CalledProcessError(1, arguments)
             if arguments[2] == "view":
                 return BRIDGE.subprocess.CompletedProcess(arguments, 0, json.dumps(release), "")
+            if arguments[2] == "upload":
+                marker = Path(arguments[4])
+                self.assertEqual(marker_name, marker.name)
+                self.assertEqual(marker_content, marker.read_bytes())
+                release["assets"] = [{
+                    "name": marker.name,
+                    "digest": f"sha256:{hashlib.sha256(marker_content).hexdigest()}",
+                }]
+            if arguments[2] == "download":
+                Path(arguments[arguments.index("--dir") + 1], marker_name).write_bytes(marker_content)
             return BRIDGE.subprocess.CompletedProcess(arguments, 0, "", "")
 
         with patch.object(BRIDGE, "preflight"):
             self.assertEqual("run", BRIDGE.prepare(ROOT, "123", "token", run=run))
         self.assertEqual("create", calls[1][0][2])
         self.assertIn("--draft", calls[1][0])
+        self.assertTrue(any(arguments[2] == "upload" for arguments, _ in calls))
+        self.assertTrue(any(arguments[2] == "download" for arguments, _ in calls))
+
+    def test_prepare_refuses_marker_only_state_after_evidence_upload_failure(self) -> None:
+        """A run lease survives post-provider loss, so a rerun never repays provider arms."""
+        tag = "chaosgauge-canary-123"
+        marker_name = f"{tag}-provider-started.json"
+        release = {
+            "tagName": tag, "isDraft": True, "targetCommitish": BRIDGE.PRIVATE_COMMIT,
+            "name": "ChaosGauge excluded canary 123", "assets": [],
+        }
+
+        def run(arguments, **_):
+            if arguments[2] == "view":
+                return BRIDGE.subprocess.CompletedProcess(arguments, 0, json.dumps(release), "")
+            if arguments[2] == "upload":
+                marker = Path(arguments[4])
+                release["assets"] = [{
+                    "name": marker.name,
+                    "digest": f"sha256:{hashlib.sha256(marker.read_bytes()).hexdigest()}",
+                }]
+            if arguments[2] == "download":
+                Path(arguments[arguments.index("--dir") + 1], marker_name).write_text(
+                    '{"runId":"123","schemaVersion":1,"state":"provider-started"}', encoding="utf-8"
+                )
+            return BRIDGE.subprocess.CompletedProcess(arguments, 0, "", "")
+
+        with patch.object(BRIDGE, "preflight"):
+            self.assertEqual("run", BRIDGE.prepare(ROOT, "123", "token", run=run))
+            with self.assertRaisesRegex(ValueError, "provider start is already recorded"):
+                BRIDGE.prepare(ROOT, "123", "token", run=run)
+
+        self.assertEqual([marker_name], [asset["name"] for asset in release["assets"]])
 
     def test_prepare_recovers_existing_complete_bundle_without_provider(self) -> None:
         with TemporaryDirectory() as directory:
@@ -182,12 +227,17 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
             raw.write_text('{"raw":true}\n', encoding="utf-8")
             receipt.write_text('{"receipt":true}\n', encoding="utf-8")
             bundle = BRIDGE.bundle(raw, receipt, root, "123")
+            marker = root / "chaosgauge-canary-123-provider-started.json"
+            marker.write_text('{"runId":"123","schemaVersion":1,"state":"provider-started"}', encoding="utf-8")
             digest = f"sha256:{hashlib.sha256(bundle.read_bytes()).hexdigest()}"
             release = {
                 "tagName": "chaosgauge-canary-123", "isDraft": True,
                 "targetCommitish": BRIDGE.PRIVATE_COMMIT,
                 "name": "ChaosGauge excluded canary 123",
-                "assets": [{"name": bundle.name, "digest": digest}],
+                "assets": [
+                    {"name": marker.name, "digest": f"sha256:{hashlib.sha256(marker.read_bytes()).hexdigest()}"},
+                    {"name": bundle.name, "digest": digest},
+                ],
             }
             calls = []
 
@@ -196,7 +246,9 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
                 if arguments[2] == "view":
                     return BRIDGE.subprocess.CompletedProcess(arguments, 0, json.dumps(release), "")
                 if arguments[2] == "download":
-                    Path(arguments[arguments.index("--dir") + 1], bundle.name).write_bytes(bundle.read_bytes())
+                    destination = Path(arguments[arguments.index("--dir") + 1])
+                    name = arguments[arguments.index("--pattern") + 1]
+                    destination.joinpath(name).write_bytes({marker.name: marker.read_bytes(), bundle.name: bundle.read_bytes()}[name])
                 return BRIDGE.subprocess.CompletedProcess(arguments, 0, "", "")
 
             with (
@@ -206,6 +258,24 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
                 self.assertEqual("recover", BRIDGE.prepare(ROOT, "123", "token", receipt_out=recovered, run=run))
             self.assertEqual(receipt.read_bytes(), recovered.read_bytes())
             self.assertTrue(any(arguments[2] == "download" for arguments, _ in calls))
+
+    def test_prepare_refuses_bundle_without_remote_start_marker(self) -> None:
+        release = {
+            "tagName": "chaosgauge-canary-123", "isDraft": True,
+            "targetCommitish": BRIDGE.PRIVATE_COMMIT,
+            "name": "ChaosGauge excluded canary 123",
+            "assets": [{
+                "name": "chaosgauge-canary-123-evidence.zip",
+                "digest": "sha256:" + "0" * 64,
+            }],
+        }
+
+        def run(arguments, **_):
+            return BRIDGE.subprocess.CompletedProcess(arguments, 0, json.dumps(release), "")
+
+        with patch.object(BRIDGE, "preflight"):
+            with self.assertRaisesRegex(ValueError, "release is incomplete"):
+                BRIDGE.prepare(ROOT, "123", "token", receipt_out=ROOT / "receipt.json", run=run)
 
     def test_prepare_refuses_partial_private_evidence_before_provider(self) -> None:
         release = {
@@ -228,22 +298,34 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
             raw, receipt = root / "raw.json", root / "receipt.json"
             raw.write_text('{"raw":true}\n', encoding="utf-8")
             receipt.write_text('{"receipt":true}\n', encoding="utf-8")
-            bundle = BRIDGE.bundle(raw, receipt, root, "123")
-            digest = f"sha256:{hashlib.sha256(bundle.read_bytes()).hexdigest()}"
+            marker = root / "chaosgauge-canary-123-provider-started.json"
+            marker.write_text('{"runId":"123","schemaVersion":1,"state":"provider-started"}', encoding="utf-8")
             release = {
                 "tagName": "chaosgauge-canary-123", "isDraft": True,
                 "targetCommitish": BRIDGE.PRIVATE_COMMIT,
                 "name": "ChaosGauge excluded canary 123",
-                "assets": [{"name": bundle.name, "digest": digest}],
+                "assets": [{
+                    "name": marker.name,
+                    "digest": f"sha256:{hashlib.sha256(marker.read_bytes()).hexdigest()}",
+                }],
             }
             calls = []
+            uploaded = {marker.name: marker.read_bytes()}
 
             def run(arguments, **kwargs):
                 calls.append((arguments, kwargs))
                 if arguments[2] == "view":
                     return BRIDGE.subprocess.CompletedProcess(arguments, 0, json.dumps(release), "")
+                if arguments[2] == "upload":
+                    uploaded_path = Path(arguments[4])
+                    uploaded[uploaded_path.name] = uploaded_path.read_bytes()
+                    release["assets"].append({
+                        "name": uploaded_path.name,
+                        "digest": f"sha256:{hashlib.sha256(uploaded_path.read_bytes()).hexdigest()}",
+                    })
                 if arguments[2] == "download":
-                    Path(arguments[arguments.index("--dir") + 1], bundle.name).write_bytes(bundle.read_bytes())
+                    name = arguments[arguments.index("--pattern") + 1]
+                    Path(arguments[arguments.index("--dir") + 1], name).write_bytes(uploaded[name])
                 return BRIDGE.subprocess.CompletedProcess(arguments, 0, "", "")
 
             with (
@@ -253,8 +335,8 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
             ):
                 BRIDGE.publish(raw, receipt, ROOT, "123", "token", run=run)
             upload = next(arguments for arguments, _ in calls if arguments[2] == "upload")
-            self.assertEqual([bundle.name], [Path(value).name for value in upload if value.endswith(".zip")])
-            self.assertIn("--clobber", upload)
+            self.assertEqual(["chaosgauge-canary-123-evidence.zip"], [Path(value).name for value in upload if value.endswith(".zip")])
+            self.assertNotIn("--clobber", upload)
 
 
 if __name__ == "__main__":

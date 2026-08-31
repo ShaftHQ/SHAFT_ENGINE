@@ -25,6 +25,7 @@ PRIVATE_REPOSITORY = "ShaftHQ/ChaosGauge-private"
 PRIVATE_COMMIT = "08551a3db4376438acddd77422554ce710a58624"
 RUN_ID = re.compile(r"[1-9][0-9]{0,18}")
 BUNDLE_FILES = ("raw.json", "receipt.json")
+MARKER_STATE = "provider-started"
 
 
 def _error(message: str) -> ValueError:
@@ -114,6 +115,17 @@ def _bundle_name(run_id: str) -> str:
     return f"{_tag(run_id)}-evidence.zip"
 
 
+def _marker_name(run_id: str) -> str:
+    return f"{_tag(run_id)}-{MARKER_STATE}.json"
+
+
+def _marker(run_id: str) -> bytes:
+    return json.dumps(
+        {"runId": run_id, "schemaVersion": 1, "state": MARKER_STATE},
+        sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+
+
 def _zip_entry(archive: zipfile.ZipFile, name: str, content: bytes) -> None:
     info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
@@ -199,18 +211,76 @@ def _release(tag: str, run_id: str, run: Callable[..., object], *, create: bool)
     return value
 
 
-def _asset(release: dict[str, object], name: str) -> dict[str, object] | None:
+def _assets(release: dict[str, object]) -> dict[str, dict[str, object]]:
     assets = release["assets"]
     if not isinstance(assets, list):
         raise _error("private draft release is invalid")
-    if not assets:
+    result: dict[str, dict[str, object]] = {}
+    for asset in assets:
+        if not isinstance(asset, dict) or not isinstance(asset.get("name"), str) or asset["name"] in result:
+            raise _error("private draft release is incomplete")
+        result[asset["name"]] = asset
+    return result
+
+
+def _asset(release: dict[str, object], name: str) -> dict[str, object] | None:
+    asset = _assets(release).get(name)
+    if asset is None:
         return None
-    if len(assets) != 1 or not isinstance(assets[0], dict) or assets[0].get("name") != name:
-        raise _error("private draft release is incomplete")
-    digest = assets[0].get("digest")
+    digest = asset.get("digest")
     if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
         raise _error("private evidence asset digest is invalid")
-    return assets[0]
+    return asset
+
+
+def _release_state(release: dict[str, object], run_id: str) -> str:
+    names = set(_assets(release))
+    marker, bundle_name = _marker_name(run_id), _bundle_name(run_id)
+    if not names:
+        return "pristine"
+    if names == {marker}:
+        return "started"
+    if names == {marker, bundle_name}:
+        return "complete"
+    raise _error("private draft release is incomplete")
+
+
+def _verify_marker(path: Path, digest: str, run_id: str) -> None:
+    content = _safe_file(path)
+    if digest != f"sha256:{hashlib.sha256(content).hexdigest()}":
+        raise _error("private provider marker digest mismatch")
+    _scan("private provider marker", content)
+    try:
+        marker = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise _error("private provider marker is invalid") from error
+    if marker != {"runId": run_id, "schemaVersion": 1, "state": MARKER_STATE}:
+        raise _error("private provider marker is invalid")
+
+
+def _verify_remote_marker(tag: str, run_id: str, release: dict[str, object], run: Callable[..., object]) -> None:
+    marker = _marker_name(run_id)
+    asset = _asset(release, marker)
+    if asset is None:
+        raise _error("private draft release is incomplete")
+    with tempfile.TemporaryDirectory() as directory:
+        _verify_marker(_download(tag, marker, Path(directory), run), str(asset["digest"]), run_id)
+
+
+def _start_remote_provider_lease(tag: str, run_id: str, run: Callable[..., object]) -> dict[str, object]:
+    marker = _marker_name(run_id)
+    with tempfile.TemporaryDirectory() as directory:
+        marker_path = Path(directory) / marker
+        marker_path.write_bytes(_marker(run_id))
+        run(
+            ["gh", "release", "upload", tag, str(marker_path), "--repo", PRIVATE_REPOSITORY],
+            check=True, capture_output=True, text=True,
+        )
+        release = _release(tag, run_id, run, create=False)
+        if _release_state(release, run_id) != "started":
+            raise _error("private draft release is incomplete")
+        _verify_remote_marker(tag, run_id, release, run)
+    return release
 
 
 def _download(tag: str, name: str, destination: Path, run: Callable[..., object]) -> Path:
@@ -254,11 +324,18 @@ def prepare(
     tag, name = _tag(run_id), _bundle_name(run_id)
     preflight(token)
     release = _release(tag, run_id, run, create=True)
-    asset = _asset(release, name)
-    if asset is None:
+    state = _release_state(release, run_id)
+    if state == "pristine":
+        _start_remote_provider_lease(tag, run_id, run)
         return "run"
+    _verify_remote_marker(tag, run_id, release, run)
+    if state == "started":
+        raise _error("private provider start is already recorded")
     if receipt_out is None:
         raise _error("receipt recovery output is unavailable")
+    asset = _asset(release, name)
+    if asset is None:
+        raise _error("private draft release is incomplete")
     with tempfile.TemporaryDirectory() as directory:
         receipt = _verify_bundle(_download(tag, name, Path(directory), run), str(asset["digest"]), repository)
     _write_exclusive(receipt_out, receipt)
@@ -266,18 +343,25 @@ def prepare(
 
 
 def publish(raw: Path, receipt: Path, repository: Path, run_id: str, token: str, run: Callable[..., object] = subprocess.run) -> None:
-    """Replace one private bundle and verify remote copy before public recovery."""
+    """Store one complete private bundle only after a verified provider-start lease."""
     tag, name = _tag(run_id), _bundle_name(run_id)
     preflight(token)
     validate(raw, receipt, repository)
-    _asset(_release(tag, run_id, run, create=False), name)
+    release = _release(tag, run_id, run, create=False)
+    if _release_state(release, run_id) != "started":
+        raise _error("private draft release is incomplete")
+    _verify_remote_marker(tag, run_id, release, run)
     archive = bundle(raw, receipt, raw.parent, run_id)
     try:
         run(
-            ["gh", "release", "upload", tag, str(archive), "--repo", PRIVATE_REPOSITORY, "--clobber"],
+            ["gh", "release", "upload", tag, str(archive), "--repo", PRIVATE_REPOSITORY],
             check=True, capture_output=True, text=True,
         )
-        asset = _asset(_release(tag, run_id, run, create=False), name)
+        release = _release(tag, run_id, run, create=False)
+        if _release_state(release, run_id) != "complete":
+            raise _error("private draft release is incomplete")
+        _verify_remote_marker(tag, run_id, release, run)
+        asset = _asset(release, name)
         if asset is None:
             raise _error("private evidence asset is unavailable")
         with tempfile.TemporaryDirectory() as directory:
