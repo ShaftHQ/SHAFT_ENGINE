@@ -4656,6 +4656,8 @@ def upgrade_before_images(
                 observed, before[relative], after[relative]
             )
             continue
+        if observed in (before[relative], after[relative]):
+            continue
         if relative == ".gitignore" and observed is not None:
             restored[relative] = strip_owned_text_block(
                 observed,
@@ -4665,8 +4667,6 @@ def upgrade_before_images(
                 "gitignore",
                 (gitignore_content(None),),
             )
-            continue
-        if observed in (before[relative], after[relative]):
             continue
         if relative == ".agents/skills/README.md":
             restored[relative] = observed
