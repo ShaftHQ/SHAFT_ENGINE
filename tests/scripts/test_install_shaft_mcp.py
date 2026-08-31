@@ -422,6 +422,9 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertIn("scripts/ci/validate_agent_ownership.py", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
         self.assertIn("scripts/ci/agent_ownership.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
 
+    def test_agent_validation_script_files_includes_chaos_engine_dependencies(self):
+        self.assertIn("chaos-engine/dependencies.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+
     def test_agent_validation_manifest_ships_every_module_the_validator_imports(self):
         # Same class of defect as issue #3363 bug 9, one level up: the manifest
         # copies validate_agent_setup.py into a user's project, so any sibling
@@ -1430,4 +1433,3 @@ class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
