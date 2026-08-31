@@ -574,6 +574,38 @@ class ChaosGaugeCampaignTest(TestCase):
             )
         self.assertEqual([], calls)
 
+    def test_metadata_proven_private_read_skips_only_remote_credential_probe(self):
+        manifest = copy.deepcopy(MANIFEST)
+        with TemporaryDirectory() as directory:
+            checkout = Path(directory)
+            dataset = checkout / "dataset.toml"
+            dataset.write_text("private = true\n", encoding="utf-8")
+            manifest["privatePackage"]["commit"] = "a" * 40
+            import hashlib
+            manifest["privatePackage"]["contentSha256"] = f"sha256:{hashlib.sha256(dataset.read_bytes()).hexdigest()}"
+            calls = []
+
+            def run(command):
+                calls.append(command)
+                if "rev-parse" in command:
+                    return "a" * 40 + "\n"
+                if "docker" in command:
+                    return "26.1.0\n"
+                if any("importlib.metadata" in argument for argument in command):
+                    return "0.22.0\n"
+                if command == ["codex", "--version"]:
+                    return "codex-cli 0.118.0\n"
+                if command[0:2] == ["codex", "exec"]:
+                    return CAMPAIGN.CAPABILITY_MARKER + "\n"
+                return ""
+
+            with (
+                patch.object(CAMPAIGN, "_validate_live_campaign"),
+                patch.object(CAMPAIGN, "_load_validator"),
+            ):
+                CAMPAIGN.full_preflight(manifest, checkout, run, private_read_proven=True)
+            self.assertFalse(any("ls-remote" in command for command in calls))
+
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,111 @@
+name: Run public ChaosGauge excluded canary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chaos-gauge-public-canary-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  excluded-canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout merged public source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ShaftHQ/SHAFT_ENGINE
+          ref: main
+          path: public
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout pinned private corpus
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ShaftHQ/ChaosGauge-private
+          ref: 08551a3db4376438acddd77422554ce710a58624
+          path: private
+          fetch-depth: 1
+          persist-credentials: false
+          token: ${{ secrets.BOT_TOKEN }}
+      - id: public-source
+        name: Record exact public main revision
+        run: |
+          revision="$(git -C public rev-parse HEAD)"
+          git -C public merge-base --is-ancestor "$revision" origin/main
+          printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
+      - name: Prove private release capability
+        working-directory: public
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: python3 scripts/ci/chaos_gauge/public_canary_bridge.py preflight
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install pinned native runtime
+        working-directory: public
+        run: |
+          python3 -m pip install uv==0.12.7
+          uv pip install --system --require-hashes --requirement scripts/ci/chaos_gauge/requirements.lock
+          npm install --global @openai/codex@0.118.0
+          docker version --format '{{.Server.Version}}'
+      - name: Capture Docker baseline
+        env:
+          CANARY_BASELINE_CONTAINERS: ${{ runner.temp }}/chaosgauge-canary-containers.txt
+        run: docker ps --all --format '{{.ID}}' | sort > "$CANARY_BASELINE_CONTAINERS"
+      - name: Run excluded two-arm canary
+        working-directory: public
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HARBOR_API_KEY: ${{ secrets.CHAOSGAUGE_HARBOR_TOKEN }}
+          PRIVATE_CHECKOUT: ${{ github.workspace }}/private
+          PUBLIC_SOURCE_REVISION: ${{ steps.public-source.outputs.revision }}
+          CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
+          CANARY_RECEIPT: ${{ runner.temp }}/chaosgauge-canary-receipt.json
+        run: |
+          test -n "$OPENAI_API_KEY" || { echo 'provider credential unavailable'; exit 1; }
+          test -n "$HARBOR_API_KEY" || { echo 'Harbor credential unavailable'; exit 1; }
+          python3 scripts/ci/chaos_gauge/canary.py \
+            --private-checkout "$PRIVATE_CHECKOUT" \
+            --public-source-revision "$PUBLIC_SOURCE_REVISION" \
+            --raw-out "$CANARY_RAW" \
+            --receipt-out "$CANARY_RECEIPT" \
+            --private-read-proven
+      - name: Verify Docker teardown
+        if: always()
+        env:
+          CANARY_BASELINE_CONTAINERS: ${{ runner.temp }}/chaosgauge-canary-containers.txt
+        run: |
+          test -f "$CANARY_BASELINE_CONTAINERS" || exit 1
+          ! comm -13 "$CANARY_BASELINE_CONTAINERS" <(docker ps --all --format '{{.ID}}' | sort) | grep -q .
+      - name: Validate and secret-scan evidence
+        working-directory: public
+        env:
+          CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
+          CANARY_RECEIPT: ${{ runner.temp }}/chaosgauge-canary-receipt.json
+        run: >-
+          python3 scripts/ci/chaos_gauge/public_canary_bridge.py validate
+          --raw "$CANARY_RAW" --receipt "$CANARY_RECEIPT" --repository "$PWD"
+      - name: Store evidence in private draft release
+        working-directory: public
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
+          CANARY_RECEIPT: ${{ runner.temp }}/chaosgauge-canary-receipt.json
+          CANARY_RUN_ID: ${{ github.run_id }}
+        run: >-
+          python3 scripts/ci/chaos_gauge/public_canary_bridge.py publish
+          --raw "$CANARY_RAW" --receipt "$CANARY_RECEIPT" --repository "$PWD" --run-id "$CANARY_RUN_ID"
+      - name: Publish sanitized receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: chaosgauge-excluded-canary-receipt-${{ github.run_id }}
+          path: ${{ runner.temp }}/chaosgauge-canary-receipt.json
+          if-no-files-found: error

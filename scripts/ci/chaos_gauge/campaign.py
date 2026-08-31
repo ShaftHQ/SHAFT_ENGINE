@@ -870,7 +870,9 @@ def provider_capability_is_available(run: Callable[[list[str]], str]) -> bool:
     return output.strip() == CAPABILITY_MARKER
 
 
-def full_preflight(manifest: object, checkout: Path, run: Callable[[list[str]], str] = _run) -> None:
+def full_preflight(
+    manifest: object, checkout: Path, run: Callable[[list[str]], str] = _run, *, private_read_proven: bool = False,
+) -> None:
     """Validate live content, private package, runtime, and paid-model capability before a run."""
     value = _object(manifest, "experiment manifest")
     package = _object(value.get("privatePackage"), "private package")
@@ -884,7 +886,7 @@ def full_preflight(manifest: object, checkout: Path, run: Callable[[list[str]], 
         raise ValueError("implementation revision does not contain campaign source") from error
     if run(["git", "-C", str(checkout), "rev-parse", "HEAD"]).strip() != package["commit"]:
         raise ValueError("private checkout commit is invalid")
-    if not run(["git", "-C", str(checkout), "ls-remote", "origin", "HEAD"]).strip():
+    if not private_read_proven and not run(["git", "-C", str(checkout), "ls-remote", "origin", "HEAD"]).strip():
         raise ValueError("private checkout credentials are unavailable")
     dataset = checkout / "dataset.toml"
     if not dataset.is_file() or f"sha256:{hashlib.sha256(dataset.read_bytes()).hexdigest()}" != package["contentSha256"]:
