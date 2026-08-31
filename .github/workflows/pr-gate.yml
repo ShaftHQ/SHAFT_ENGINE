@@ -376,6 +376,7 @@ jobs:
       - name: Run ChaosGauge contracts
         run: >-
           python3 -m unittest
+          tests.scripts.test_chaos_gauge_canary
           tests.scripts.test_chaos_gauge_contracts
           tests.scripts.test_chaos_gauge_campaign
           tests.scripts.test_chaos_gauge_corpus

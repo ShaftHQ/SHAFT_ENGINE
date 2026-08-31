@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "identity": "ShaftHQ/chaos-engine-effectiveness",
-  "implementationRevision": "5ebf1b75f28b8d164e5326c69e81f1df2eb8237d",
+  "implementationRevision": "0481767def7c31fe144bc20543dfe937b8ffd4d5",
   "harbor": {
     "version": "0.22.0",
     "source": "harbor-framework/harbor@v0.22.0",
@@ -41,12 +41,12 @@
       "agent": "codex",
       "model": "gpt-5.6-terra",
       "effort": "medium",
-      "repositoryRevision": "5ebf1b75f28b8d164e5326c69e81f1df2eb8237d",
+      "repositoryRevision": "0481767def7c31fe144bc20543dfe937b8ffd4d5",
       "harness": "none",
       "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "treatmentSha256": {
-        "calibration": "28a5ee0a1ad8d8eece12b09bd528577cf591ce78efdcad5e468c7a7169d5168e",
-        "full-pilot": "0a12b16c246fbae379f2aa0fb6a4aae1126e64be15af2ed1b3ae20eaef5372fc"
+        "calibration": "eb08b5c36e234e455069003a011b470bbcf09b27cd18065b735cf75b6532a6c4",
+        "full-pilot": "ea69199ef6f030cf38478ecf837f1305c0eef5c5cafd3ccc5afa91d78aa03269"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
@@ -57,12 +57,12 @@
       "agent": "codex",
       "model": "gpt-5.6-terra",
       "effort": "medium",
-      "repositoryRevision": "5ebf1b75f28b8d164e5326c69e81f1df2eb8237d",
+      "repositoryRevision": "0481767def7c31fe144bc20543dfe937b8ffd4d5",
       "harness": "chaos-engine",
-      "harnessSha256": "fc97d4bf65ddb739c1e8a40f01f552d4719ac5101a5035d4e11af8c66b8805cf",
+      "harnessSha256": "ef5977da8d7757b07be8b098fa381e8e9135dd6d93bdc31d30365aeac813845e",
       "treatmentSha256": {
-        "calibration": "02a9ec47ce535a883928da9986e6dd1f06ae92a4f52adfcf90e1987224bfddf2",
-        "full-pilot": "0fccd7fd705aa66887e2e4b9b378c6c6474609fce2ded6a6f965f2cebde4076f"
+        "calibration": "b13305e2f4b1b49bdf9bf1f480d7a753bde3fc18ab4987b1e7b7bd868efa1444",
+        "full-pilot": "a3b105beaf603c93809a16f2126346c84a3fbf7c65a2607511d7665564d58c09"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
