@@ -12,9 +12,9 @@ CHAOS_GAUGE = ROOT / "scripts" / "ci" / "chaos_gauge"
 # additions update this complete inventory together with their task digests.
 # This covers the full public ChaosGauge tree, unlike representative anchors
 # that can remain after an executable or dataset member is lost.
-RECOVERED_PUBLIC_FILE_COUNT = 154
+RECOVERED_PUBLIC_FILE_COUNT = 155
 RECOVERED_PUBLIC_PATHS_SHA256 = (
-    "0de219fd104b229aeb3967b03c25ebc040e80ea493921920f7f36c28ae54e93d"
+    "f78b7b36aa37371c1c8304054585417faece9b5dda3f92ade50737c51af402b8"
 )
 
 
