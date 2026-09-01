@@ -639,6 +639,173 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             module.mark_mempalace_project_setup(project)
             self.assertEqual(b"current\n", marker.read_bytes())
 
+    def test_account_setup_retries_two_transient_mempalace_tls_eofs(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        commands = {"mempalace": "/tools/mempalace", "uv": "/tools/uv", "npm": "/tools/npm"}
+        local = {
+            name: {"healthy": True, "version": "1.0", "detail": "passed"}
+            for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        }
+        actions = {name: {"action": "reused"} for name in local}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            mine = [commands["mempalace"], "mine", "."]
+            calls = []
+
+            def runner(command, **kwargs):
+                calls.append((command, kwargs["env"], kwargs["timeout"]))
+                palace = project / ".chaos-engine-state/mempalace"
+                palace.mkdir(parents=True, exist_ok=True)
+                palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\x00")
+                if len(calls) < 3:
+                    return SimpleNamespace(returncode=1, stdout="", stderr="[SSL: UNEXPECTED_EOF_WHILE_READING]")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with mock.patch.object(module, "discover_account_commands", side_effect=((local, commands), (local, commands))), mock.patch.object(module, "resolve_account_actions", return_value=actions), mock.patch.object(module, "project_setup_plan", return_value=[mine]), mock.patch.object(module.time, "monotonic", side_effect=(0, 0, 1, 2, 3, 4)), mock.patch.object(module.time, "sleep") as sleep:
+                module.install_account_dependencies(project, specification, runner=runner, allow_root=True)
+
+            self.assertEqual([mine, mine, mine], [command for command, _environment, _timeout in calls])
+            self.assertEqual(calls[0][1], calls[1][1])
+            self.assertEqual(calls[1][1], calls[2][1])
+            self.assertEqual([900, 898, 896], [timeout for _command, _environment, timeout in calls])
+            sleep.assert_has_calls((mock.call(1), mock.call(2)))
+            self.assertEqual(b"current\n", (project / ".chaos-engine-state/mempalace/.mined").read_bytes())
+
+    def test_account_setup_stops_after_three_transient_mempalace_tls_eofs(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        commands = {"mempalace": "/tools/mempalace", "uv": "/tools/uv", "npm": "/tools/npm"}
+        local = {
+            name: {"healthy": True, "version": "1.0", "detail": "passed"}
+            for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        }
+        actions = {name: {"action": "reused"} for name in local}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            mine = [commands["mempalace"], "mine", "."]
+            calls = []
+
+            def transient_failure(command, **kwargs):
+                calls.append(command)
+                palace = project / ".chaos-engine-state/mempalace"
+                palace.mkdir(parents=True, exist_ok=True)
+                palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\x00")
+                return SimpleNamespace(returncode=1, stdout="", stderr="[SSL: UNEXPECTED_EOF_WHILE_READING]")
+
+            with mock.patch.object(module, "discover_account_commands", side_effect=((local, commands), (local, commands))), mock.patch.object(module, "resolve_account_actions", return_value=actions), mock.patch.object(module, "project_setup_plan", return_value=[mine]), mock.patch.object(module.time, "monotonic", return_value=0), mock.patch.object(module.time, "sleep") as sleep:
+                with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_EOF_WHILE_READING"):
+                    module.install_account_dependencies(project, specification, runner=transient_failure, allow_root=True)
+
+            self.assertEqual([mine, mine, mine], calls)
+            sleep.assert_has_calls((mock.call(1), mock.call(2)))
+            self.assertFalse((project / ".chaos-engine-state/mempalace/.mined").exists())
+            self.assertFalse((project / ".chaos-engine-dependencies.json").exists())
+
+    def test_account_setup_does_not_retry_permanent_mempalace_failure(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        commands = {"mempalace": "/tools/mempalace", "uv": "/tools/uv", "npm": "/tools/npm"}
+        local = {
+            name: {"healthy": True, "version": "1.0", "detail": "passed"}
+            for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        }
+        actions = {name: {"action": "reused"} for name in local}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            mine = [commands["mempalace"], "mine", "."]
+            calls = []
+
+            def permanent_failure(command, **kwargs):
+                calls.append(command)
+                return SimpleNamespace(returncode=1, stdout="", stderr="invalid project configuration")
+
+            with mock.patch.object(module, "discover_account_commands", side_effect=((local, commands), (local, commands))), mock.patch.object(module, "resolve_account_actions", return_value=actions), mock.patch.object(module, "project_setup_plan", return_value=[mine]):
+                with self.assertRaisesRegex(RuntimeError, "invalid project configuration"):
+                    module.install_account_dependencies(project, specification, runner=permanent_failure, allow_root=True)
+
+            self.assertEqual([mine], calls)
+
+    def test_mempalace_retry_rejects_near_miss_and_other_ssl_errors(self):
+        module = load_controller()
+        for detail in ("UNEXPECTED_EOF_WHILE_READING", "[SSL: CERTIFICATE_VERIFY_FAILED]"):
+            with self.subTest(detail=detail), tempfile.TemporaryDirectory() as temporary:
+                calls = []
+
+                def runner(command, **_kwargs):
+                    calls.append(command)
+                    return SimpleNamespace(returncode=1, stdout="", stderr=detail)
+
+                with mock.patch.object(module.time, "sleep") as sleep:
+                    with self.assertRaisesRegex(RuntimeError, detail):
+                        module._run_transient_mempalace_mine(
+                            ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                        )
+
+                self.assertEqual([["/tools/mempalace", "mine", "."]], calls)
+                sleep.assert_not_called()
+
+    def test_mempalace_retry_classifies_full_captured_output(self):
+        module = load_controller()
+        signature = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
+        for stderr, stdout in (("x" * 501 + signature, ""), ("unrelated stderr", signature)):
+            with self.subTest(stderr=stderr[:20], stdout=stdout), tempfile.TemporaryDirectory() as temporary:
+                calls = []
+
+                def runner(command, **_kwargs):
+                    calls.append(command)
+                    if len(calls) < 3:
+                        return SimpleNamespace(returncode=1, stdout=stdout, stderr=stderr)
+                    return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+                with mock.patch.object(module.time, "monotonic", return_value=0), mock.patch.object(module.time, "sleep") as sleep:
+                    module._run_transient_mempalace_mine(
+                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                    )
+
+                self.assertEqual(3, len(calls))
+                sleep.assert_has_calls((mock.call(1), mock.call(2)))
+
+    def test_account_command_error_keeps_public_output_bounded(self):
+        module = load_controller()
+        signature = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "dependency command failed") as error:
+                module._run_account_command(
+                    ["/tools/mempalace", "mine", "."],
+                    Path(temporary),
+                    runner=lambda *_args, **_kwargs: SimpleNamespace(
+                        returncode=1, stdout="", stderr="x" * 501 + signature
+                    ),
+                )
+
+        self.assertNotIn(signature, str(error.exception))
+
+    def test_mempalace_retry_preserves_the_shared_deadline(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            calls = []
+
+            def runner(command, **_kwargs):
+                calls.append(command)
+                return SimpleNamespace(
+                    returncode=1,
+                    stdout="",
+                    stderr="[SSL: UNEXPECTED_EOF_WHILE_READING]",
+                )
+
+            with mock.patch.object(module.time, "monotonic", side_effect=(0, 0, 899)), mock.patch.object(module.time, "sleep") as sleep:
+                with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_EOF_WHILE_READING"):
+                    module._run_transient_mempalace_mine(
+                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                    )
+
+            self.assertEqual([["/tools/mempalace", "mine", "."]], calls)
+            sleep.assert_not_called()
+
     def test_project_setup_skips_a_repository_resolver(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:

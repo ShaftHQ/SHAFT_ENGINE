@@ -75,6 +75,8 @@ SUPPORTED_PLATFORMS = (
 ACCOUNT_RECEIPT_SCHEMA = 2
 ACCOUNT_RECEIPT_NAME = ".chaos-engine-dependencies.json"
 DEPENDENCY_ACTIONS = frozenset({"reused", "installed", "upgraded", "repaired", "blocked"})
+ACCOUNT_COMMAND_TIMEOUT_SECONDS = 900
+TRANSIENT_MEMPALACE_TLS_EOF = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
 _UNSTABLE_VERSION = re.compile(
     r"(?:alpha|beta|rc|pre|preview|dev|snapshot|nightly)", re.IGNORECASE
 )
@@ -659,6 +661,7 @@ def _run_account_command(
     *,
     runner=subprocess.run,
     extra_environment: dict[str, str] | None = None,
+    timeout: float = ACCOUNT_COMMAND_TIMEOUT_SECONDS,
 ) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
     environment["PATH"] = _account_search_path()
@@ -672,14 +675,52 @@ def _run_account_command(
         capture_output=True,
         text=True,
         check=False,
-        timeout=900,
+        timeout=timeout,
     )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "no process output").strip()
-        raise RuntimeError(
-            f"dependency command failed: {Path(command[0]).name}: {detail[:500]}"
+        raise _AccountCommandError(
+            f"dependency command failed: {Path(command[0]).name}: {detail[:500]}",
+            stderr=str(result.stderr or ""),
+            stdout=str(result.stdout or ""),
         )
     return result
+
+
+class _AccountCommandError(RuntimeError):
+    """Keep full process streams private while presenting a bounded error."""
+
+    def __init__(self, message: str, *, stderr: str, stdout: str) -> None:
+        super().__init__(message)
+        self.full_output = f"{stderr}\n{stdout}"
+
+
+def _run_transient_mempalace_mine(
+    command: list[str], project: Path, *, runner=subprocess.run,
+    extra_environment: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Retry a transient MemPalace TLS EOF within one setup timeout budget."""
+    deadline = time.monotonic() + ACCOUNT_COMMAND_TIMEOUT_SECONDS
+    for attempt in range(3):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("MemPalace setup retry budget exhausted")
+        try:
+            return _run_account_command(
+                command,
+                project,
+                runner=runner,
+                extra_environment=extra_environment,
+                timeout=remaining,
+            )
+        except _AccountCommandError as error:
+            if attempt == 2 or TRANSIENT_MEMPALACE_TLS_EOF not in error.full_output.upper():
+                raise
+            delay = (1, 2)[attempt]
+            if deadline - time.monotonic() <= delay:
+                raise
+            time.sleep(delay)
+    raise AssertionError("bounded MemPalace retry did not return or raise")
 
 
 def install_account_dependencies(  # noqa: MC0001 - preflight then ordered account mutation.
@@ -868,12 +909,15 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     for command in project_setup_plan(project, commands):
-        _run_account_command(
-            command,
-            project,
-            runner=runner,
-            extra_environment=mempalace_project_setup_environment(project, command),
-        )
+        environment = mempalace_project_setup_environment(project, command)
+        if command == [commands.get("mempalace"), "mine", "."]:
+            _run_transient_mempalace_mine(
+                command, project, runner=runner, extra_environment=environment
+            )
+        else:
+            _run_account_command(
+                command, project, runner=runner, extra_environment=environment
+            )
         if command[1:3] in (["init", "."], ["mine", "."]):
             mark_mempalace_project_setup(project)
 
