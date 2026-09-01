@@ -81,6 +81,22 @@ class PostTestReportActionTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout)
 
+    def test_rejects_malformed_present_statistics(self):
+        cases = (
+            ("negative", {"passed": -1, "skipped": 1}),
+            ("fractional", {"passed": 0.5, "skipped": 1}),
+            ("string", {"passed": "1", "skipped": 1}),
+            ("boolean", {"passed": 1, "unknown": True}),
+        )
+        for name, overrides in cases:
+            values = {"total": 1, "passed": 0, "failed": 0, "broken": 0, "skipped": 0}
+            values.update(overrides)
+            with self.subTest(name=name):
+                completed = self.run_summary(**values)
+
+                self.assertNotEqual(0, completed.returncode)
+                self.assertIn("expected a non-negative integer", completed.stderr)
+
     def test_preserves_failed_and_broken_verdict_failures(self):
         for failed, broken in ((1, 0), (0, 1)):
             with self.subTest(failed=failed, broken=broken):

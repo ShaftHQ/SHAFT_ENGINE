@@ -126,14 +126,33 @@ runs:
       if: always()
       shell: bash
       run: |
-        # Extract a numeric field from Allure 3 summary.json.
-        # Returns empty string (defaults to 0 at call site) when the field is absent —
-        # e.g. "failed" is omitted when all tests pass. The "|| true" prevents
-        # set -e / pipefail from failing the step when grep finds no match.
-        extract_field() {
-          local field="$1"
-          local file="$2"
-          grep -o "\"${field}\" *: *[0-9]*" "$file" 2>/dev/null | head -1 | grep -o '[0-9]*' || true
+        # Parse Allure's JSON statistics without accepting numeric prefixes from malformed values.
+        read_statistics() {
+          python3 - "$1" <<'PY'
+        import json
+        import sys
+
+        try:
+            document = json.loads(open(sys.argv[1], encoding="utf-8").read())
+            statistic = document.get("statistic", {})
+            timing = document.get("time", {})
+            if not isinstance(statistic, dict) or not isinstance(timing, dict):
+                raise ValueError("statistic and time must be objects")
+            values = []
+            for field in ("total", "passed", "failed", "broken", "skipped", "unknown"):
+                value = statistic.get(field, 0)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"statistic '{field}'")
+                values.append(value)
+            duration = timing.get("duration", 0)
+            if isinstance(duration, bool) or not isinstance(duration, int) or duration < 0:
+                raise ValueError("time 'duration'")
+            values.append(duration)
+            print(*values)
+        except (OSError, json.JSONDecodeError, ValueError) as error:
+            print(f"::error::Invalid Allure summary {error}: expected a non-negative integer.", file=sys.stderr)
+            raise SystemExit(1)
+        PY
         }
 
         # Describe why RESULT_COUNT is zero: absent directory vs. present-but-empty
@@ -164,13 +183,10 @@ runs:
         ALLURE_SUMMARY="${{ inputs.module-directory }}/allure-report/summary.json"
 
         if [ -f "$ALLURE_SUMMARY" ]; then
-          TOTAL=$(extract_field total "$ALLURE_SUMMARY");   TOTAL=${TOTAL:-0}
-          PASSED=$(extract_field passed "$ALLURE_SUMMARY"); PASSED=${PASSED:-0}
-          FAILED=$(extract_field failed "$ALLURE_SUMMARY"); FAILED=${FAILED:-0}
-          BROKEN=$(extract_field broken "$ALLURE_SUMMARY"); BROKEN=${BROKEN:-0}
-          SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY"); SKIPPED=${SKIPPED:-0}
-          UNKNOWN=$(extract_field unknown "$ALLURE_SUMMARY"); UNKNOWN=${UNKNOWN:-0}
-          DURATION=$(extract_field duration "$ALLURE_SUMMARY"); DURATION=${DURATION:-0}
+          if ! STATISTICS=$(read_statistics "$ALLURE_SUMMARY"); then
+            exit 1
+          fi
+          read -r TOTAL PASSED FAILED BROKEN SKIPPED UNKNOWN DURATION <<< "$STATISTICS"
         else
           TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; UNKNOWN=0; DURATION=0
         fi
