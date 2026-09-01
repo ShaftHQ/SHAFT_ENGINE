@@ -112,7 +112,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("HTTP 429", skill)
         self.assertIn("not available in the active live catalog", skill)
         self.assertIn("Do not pin a Codex profile model", skill)
-        self.assertIn("do not add a second `-c model=`", skill)
+        self.assertIn("pass Codex `-c model='<provider>/<id>'`", skill)
         self.assertIn("native id", skill)
 
     def test_catalog_cli_does_not_forward_ambient_endpoint_key(self):
@@ -203,6 +203,10 @@ class OmniRootCatalogTest(unittest.TestCase):
             skip_identity_sha256s=[picked[0]["identitySha256"]],
         )
         self.assertEqual("glm-4.5-air", skipped[0]["model"])
+        self.assertEqual(
+            ["-c", 'model="glm/glm-4.5"'],
+            RUNNER.codex_model_overlay("glm", "glm-4.5"),
+        )
 
 
 if __name__ == "__main__":

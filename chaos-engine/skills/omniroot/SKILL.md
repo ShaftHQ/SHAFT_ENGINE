@@ -88,8 +88,10 @@ Retry is chosen from the failure, not from a pinned profile:
 
 Never pin a model in a Codex profile. Fetch the live catalog, rank for the
 task, map display names to native ids, then launch
-`omniroute run --model '<id>' --provider '<provider>' codex`.
-`omniroute run` injects the Codex overlay; do not add a second `-c model=`.
+`omniroute run --model '<id>' --provider '<provider>' codex`
+and pass Codex `-c model='<provider>/<id>'`. `omniroute run` sets
+`model_provider=omniroute` but leaves Codex's default model name; without the
+`-c model=` overlay the gateway routes that default to the `codex` provider.
 
 ### Dispatch and follow-through
 

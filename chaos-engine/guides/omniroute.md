@@ -307,10 +307,11 @@ Rank remaining `default` models first for implementation, then most-intelligent,
 then mechanical. Do not pin `chaosengine-omniroute`'s Codex profile model
 (Gemini Flash-Lite). `omniroute --output json models` may list friendly names
 (`GLM 4.5`); dispatch the native id (`glm-4.5`) with
-`omniroute run --model --provider`. That launcher injects the Codex overlay;
-do not add a second `-c model=`. On HTTP 429 or HTTP 400 live-catalog miss,
-skip that identity and pick the next remaining candidate. Native host models
-are last resort when the catalog is empty.
+`omniroute run --model --provider` and Codex `-c model='<provider>/<id>'`.
+The launcher sets `model_provider=omniroute` but does not replace Codex's
+default model name. On HTTP 429 or HTTP 400 live-catalog miss, skip that
+identity and pick the next remaining candidate. Native host models are last
+resort when the catalog is empty.
 
 ## Codex configuration: optional separate session
 

@@ -836,6 +836,16 @@ def diagnostic_is_catalog_mismatch(text: object) -> bool:
     return any(marker in blob for marker in _CATALOG_MISS_MARKERS)
 
 
+def codex_model_overlay(provider: str, model: str) -> list[str]:
+    """Set Codex top-level model to the native OmniRoute id.
+
+    `omniroute run` injects `model_provider=omniroute` but leaves Codex's default
+    model name in place, which the gateway then routes to the `codex` provider.
+    """
+    identity = model if "/" in model else f"{provider}/{model}"
+    return ["-c", f'model="{identity}"']
+
+
 def select_live_candidates(
     catalog: object, quota: object, *, required_capability: str,
     skip_identity_sha256s: object = (),
@@ -1750,7 +1760,10 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         argv.extend(["--model", pick["model"], "--provider", pick["provider"], "--port", "20128"])
         if credential_mode == "environment":
             argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
-        argv.extend([target, "--", *delegate_args])
+        overlay = list(delegate_args)
+        if target == "codex":
+            overlay = [*codex_model_overlay(pick["provider"], pick["model"]), *overlay]
+        argv.extend([target, "--", *overlay])
     else:
         argv = [*launcher_argv, target, "--port", "20128"]
         if credential_mode == "environment":
