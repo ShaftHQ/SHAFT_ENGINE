@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import subprocess
+import shutil
+import subprocess  # nosec B404 - invokes only the resolved Docker executable.
 import tomllib
 import unittest
 from pathlib import Path
@@ -13,6 +14,20 @@ DATASET = ROOT / "scripts" / "ci" / "chaos_gauge" / "dataset"
 USER = "chaosgauge"
 UID = "10001"
 BASE = "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f"
+TASK_NAMES = (
+    "delivery-focused-proof",
+    "diagnosis-config-precedence",
+    "diagnosis-failure-trace",
+    "diagnosis-module-boundary",
+    "recovery-broken-build",
+    "recovery-cross-file-contract",
+    "recovery-partial-migration",
+    "repair-null-contract",
+    "repair-regression-test",
+    "repair-timeout-cleanup",
+    "safety-foreign-work",
+    "safety-secret-redaction",
+)
 
 
 class ChaosGaugeRuntimeTest(unittest.TestCase):
@@ -33,24 +48,30 @@ class ChaosGaugeRuntimeTest(unittest.TestCase):
                 self.assertIn("docker_image", config["verifier"]["environment"])
 
     def test_runtime_probe_runs_as_task_user_with_writable_workspace(self) -> None:
-        for task in sorted(path for path in DATASET.iterdir() if path.is_dir()):
-            with self.subTest(task=task.name):
-                image = f"chaosgauge-runtime-{task.name}"
+        docker = shutil.which("docker")
+        if docker is None:
+            self.skipTest("Docker is required for the runtime image probe")
+        docker_path = str(Path(docker).resolve())
+        self.assertTrue(Path(docker_path).is_absolute())
+        for task_name in TASK_NAMES:
+            with self.subTest(task=task_name):
+                image = f"chaosgauge-runtime-{task_name}"
                 try:
-                    subprocess.run(
-                        ["docker", "build", "--tag", image, str(task / "environment")],
+                    subprocess.run(  # nosec B603 - resolved binary and fixed contract inputs.
+                        [docker_path, "build", "--tag", image, "."],
                         check=True,
                         capture_output=True,
+                        cwd=DATASET / task_name / "environment",
                     )
                     probe = "test \"$(id -u)\" -ne 0; test -w /app; test -w \"$HOME\""
-                    subprocess.run(
-                        ["docker", "run", "--rm", "--network", "none", image, "sh", "-ceu", probe],
+                    subprocess.run(  # nosec B603 - resolved binary and fixed contract inputs.
+                        [docker_path, "run", "--rm", "--network", "none", image, "sh", "-ceu", probe],
                         check=True,
                         capture_output=True,
                     )
                 finally:
-                    subprocess.run(
-                        ["docker", "image", "rm", "--force", image],
+                    subprocess.run(  # nosec B603 - resolved binary and fixed contract inputs.
+                        [docker_path, "image", "rm", "--force", image],
                         check=False,
                         capture_output=True,
                     )
