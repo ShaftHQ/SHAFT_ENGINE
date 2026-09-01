@@ -660,16 +660,16 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 palace.mkdir(parents=True, exist_ok=True)
                 palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\x00")
                 if len(calls) < 3:
-                    return SimpleNamespace(returncode=1, stdout="", stderr="TLS UNEXPECTED_EOF")
+                    return SimpleNamespace(returncode=1, stdout="", stderr="[SSL: UNEXPECTED_EOF_WHILE_READING]")
                 return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-            with mock.patch.object(module, "discover_account_commands", side_effect=((local, commands), (local, commands))), mock.patch.object(module, "resolve_account_actions", return_value=actions), mock.patch.object(module, "project_setup_plan", return_value=[mine]), mock.patch.object(module.time, "monotonic", return_value=0), mock.patch.object(module.time, "sleep") as sleep:
+            with mock.patch.object(module, "discover_account_commands", side_effect=((local, commands), (local, commands))), mock.patch.object(module, "resolve_account_actions", return_value=actions), mock.patch.object(module, "project_setup_plan", return_value=[mine]), mock.patch.object(module.time, "monotonic", side_effect=(0, 0, 1, 2, 3, 4)), mock.patch.object(module.time, "sleep") as sleep:
                 module.install_account_dependencies(project, specification, runner=runner, allow_root=True)
 
             self.assertEqual([mine, mine, mine], [command for command, _environment, _timeout in calls])
             self.assertEqual(calls[0][1], calls[1][1])
             self.assertEqual(calls[1][1], calls[2][1])
-            self.assertEqual([900, 900, 900], [timeout for _command, _environment, timeout in calls])
+            self.assertEqual([900, 898, 896], [timeout for _command, _environment, timeout in calls])
             sleep.assert_has_calls((mock.call(1), mock.call(2)))
             self.assertEqual(b"current\n", (project / ".chaos-engine-state/mempalace/.mined").read_bytes())
 
@@ -693,10 +693,10 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 palace = project / ".chaos-engine-state/mempalace"
                 palace.mkdir(parents=True, exist_ok=True)
                 palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\x00")
-                return SimpleNamespace(returncode=1, stdout="", stderr="TLS UNEXPECTED_EOF")
+                return SimpleNamespace(returncode=1, stdout="", stderr="[SSL: UNEXPECTED_EOF_WHILE_READING]")
 
             with mock.patch.object(module, "discover_account_commands", side_effect=((local, commands), (local, commands))), mock.patch.object(module, "resolve_account_actions", return_value=actions), mock.patch.object(module, "project_setup_plan", return_value=[mine]), mock.patch.object(module.time, "monotonic", return_value=0), mock.patch.object(module.time, "sleep") as sleep:
-                with self.assertRaisesRegex(RuntimeError, "TLS UNEXPECTED_EOF"):
+                with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_EOF_WHILE_READING"):
                     module.install_account_dependencies(project, specification, runner=transient_failure, allow_root=True)
 
             self.assertEqual([mine, mine, mine], calls)
@@ -728,6 +728,47 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                     module.install_account_dependencies(project, specification, runner=permanent_failure, allow_root=True)
 
             self.assertEqual([mine], calls)
+
+    def test_mempalace_retry_rejects_near_miss_and_other_ssl_errors(self):
+        module = load_controller()
+        for detail in ("UNEXPECTED_EOF_WHILE_READING", "[SSL: CERTIFICATE_VERIFY_FAILED]"):
+            with self.subTest(detail=detail), tempfile.TemporaryDirectory() as temporary:
+                calls = []
+
+                def runner(command, **_kwargs):
+                    calls.append(command)
+                    return SimpleNamespace(returncode=1, stdout="", stderr=detail)
+
+                with mock.patch.object(module.time, "sleep") as sleep:
+                    with self.assertRaisesRegex(RuntimeError, detail):
+                        module._run_transient_mempalace_mine(
+                            ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                        )
+
+                self.assertEqual([["/tools/mempalace", "mine", "."]], calls)
+                sleep.assert_not_called()
+
+    def test_mempalace_retry_preserves_the_shared_deadline(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            calls = []
+
+            def runner(command, **_kwargs):
+                calls.append(command)
+                return SimpleNamespace(
+                    returncode=1,
+                    stdout="",
+                    stderr="[SSL: UNEXPECTED_EOF_WHILE_READING]",
+                )
+
+            with mock.patch.object(module.time, "monotonic", side_effect=(0, 0, 899)), mock.patch.object(module.time, "sleep") as sleep:
+                with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_EOF_WHILE_READING"):
+                    module._run_transient_mempalace_mine(
+                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                    )
+
+            self.assertEqual([["/tools/mempalace", "mine", "."]], calls)
+            sleep.assert_not_called()
 
     def test_project_setup_skips_a_repository_resolver(self):
         module = load_controller()

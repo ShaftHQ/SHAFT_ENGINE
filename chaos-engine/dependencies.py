@@ -76,6 +76,7 @@ ACCOUNT_RECEIPT_SCHEMA = 2
 ACCOUNT_RECEIPT_NAME = ".chaos-engine-dependencies.json"
 DEPENDENCY_ACTIONS = frozenset({"reused", "installed", "upgraded", "repaired", "blocked"})
 ACCOUNT_COMMAND_TIMEOUT_SECONDS = 900
+TRANSIENT_MEMPALACE_TLS_EOF = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
 _UNSTABLE_VERSION = re.compile(
     r"(?:alpha|beta|rc|pre|preview|dev|snapshot|nightly)", re.IGNORECASE
 )
@@ -703,7 +704,7 @@ def _run_transient_mempalace_mine(
                 timeout=remaining,
             )
         except RuntimeError as error:
-            if attempt == 2 or "TLS UNEXPECTED_EOF" not in str(error).upper():
+            if attempt == 2 or TRANSIENT_MEMPALACE_TLS_EOF not in str(error).upper():
                 raise
             delay = (1, 2)[attempt]
             if deadline - time.monotonic() <= delay:
