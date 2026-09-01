@@ -306,6 +306,48 @@ class OmniRootProbeTest(unittest.TestCase):
                     RUNNER.attest(config_path=self.root / "destination.json", contract_path=contract,
                                   opener=health)
 
+    def test_status_only_health_uses_verified_local_cli_build_without_exposing_credentials(self):
+        self._config()
+        contract = self.root / "attestation-contract.json"
+        contract.write_text(self.config.read_text(encoding="utf-8"), encoding="utf-8")
+        if os.name == "posix":
+            contract.chmod(0o600)
+        private_directory = self.root / "bootstrap-private"
+        private_directory.mkdir(mode=0o700)
+        anonymous_health = lambda *_, **__: _Response(b'{"status":"ok","timestamp":"now"}')
+        secret = "endpoint-key-must-not-reach-bootstrap"
+        completed = type("Completed", (), {
+            "returncode": 0, "stdout": b'{"status":"healthy","version":"test"}',
+        })()
+        with patch.object(RUNNER, "_trusted_local_cli_executable", side_effect=(
+            "/trusted/omniroute", "/trusted/node", "/trusted/omniroute", "/trusted/node",
+        )), \
+                patch.object(RUNNER.subprocess, "run", return_value=completed) as local_cli:
+            result = RUNNER.probe(config_path=self.config, opener=anonymous_health,
+                                  environ={"OMNIROUTE_API_KEY": secret})
+            self.assertEqual("READY", result["state"])
+            self.assertNotIn(secret, json.dumps(result))
+            self.assertEqual({"state": "ATTESTED"}, RUNNER.attest(
+                config_path=private_directory / "destination.json", contract_path=contract,
+                opener=anonymous_health,
+            ))
+        self.assertEqual(2, local_cli.call_count)
+        command, options = local_cli.call_args
+        self.assertEqual(["/trusted/node", "/trusted/omniroute", "--base-url",
+                          RUNNER.DEFAULT_ENDPOINT.rstrip("/"), "health", "--json"], command[0])
+        self.assertNotIn("OMNIROUTE_API_KEY", options["env"])
+        self.assertNotIn(secret, json.dumps(options["env"]))
+        self.assertRegex(options["env"]["STORAGE_ENCRYPTION_KEY"], r"[0-9a-f]{64}\Z")
+        self.assertIn(os.defpath, options["env"]["PATH"])
+        self.assertNotEqual(options["cwd"], options["env"]["HOME"])
+        self.assertEqual(subprocess.DEVNULL, options["stderr"])
+        self.assertEqual(RUNNER.HTTP_TIMEOUT_SECONDS, options["timeout"])
+        with patch.object(RUNNER, "_local_cli_build", return_value=None, create=True):
+            self.assertEqual("UNHEALTHY", RUNNER.probe(
+                config_path=self.config, opener=anonymous_health,
+                environ={"OMNIROUTE_API_KEY": secret},
+            )["state"])
+
     def test_attest_writes_only_current_fully_qualified_operator_contract(self):
         self._config()
         contract = self.root / "attestation-contract.json"

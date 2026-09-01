@@ -174,6 +174,58 @@ def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, in
     )
 
 
+def _trusted_local_cli_executable(name: str) -> str | None:
+    """Resolve a user-owned global CLI without relaxing sealed-launcher rules."""
+    executable = Path(shutil.which(name) or "")
+    try:
+        resolved = executable.resolve(strict=True)
+        metadata = resolved.stat()
+    except OSError:
+        return None
+    if (not resolved.is_file() or not bool(metadata.st_mode & stat.S_IXUSR)
+            or bool(metadata.st_mode & stat.S_IWOTH)):
+        return None
+    if os.name == "posix" and (metadata.st_uid != os.getuid() or metadata.st_gid != os.getgid()):
+        return None
+    return str(resolved)
+
+
+def _local_cli_build() -> str | None:
+    """Read the running loopback build through a verified CLI without ambient secrets."""
+    cli = _trusted_local_cli_executable("omniroute")
+    node = _trusted_local_cli_executable("node")
+    if cli is None or node is None:
+        return None
+    with tempfile.TemporaryDirectory(prefix="omniroot-health-") as temporary:
+        environment = {
+            "HOME": str(Path.home()),
+            "PATH": os.pathsep.join((str(Path(node).parent), os.defpath)),
+            "CI": "1",
+            "NO_COLOR": "1",
+            "OMNIROUTE_CLI_SKIP_REPO_ENV": "1",
+            "STORAGE_ENCRYPTION_KEY": os.urandom(32).hex(),
+        }
+        try:
+            completed = subprocess.run(
+                [node, cli, "--base-url", DEFAULT_ENDPOINT.rstrip("/"), "health", "--json"],
+                check=False, cwd=temporary, env=environment, stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=False,
+                timeout=HTTP_TIMEOUT_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+    if completed.returncode != 0 or not isinstance(completed.stdout, bytes) \
+            or len(completed.stdout) > MAX_RESPONSE_BYTES:
+        return None
+    try:
+        raw = completed.stdout.decode("utf-8").lstrip()
+        payload = json.loads(raw[raw.rfind("\n{") + 1:])
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    build = payload.get("build") or payload.get("version") if isinstance(payload, dict) else None
+    return build if isinstance(build, str) and build.strip() else None
+
+
 def _same_executable(argv: list[str], identity: tuple[int, int, int, int, int, int, str]) -> bool:
     qualified = _resolved_executable(argv)
     return qualified is not None and qualified[0][0] == argv[0] and qualified[1] == identity
@@ -308,6 +360,8 @@ def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | No
     if not isinstance(payload, dict) or payload.get("status") not in {"ok", "healthy"}:
         return None, "unhealthy"
     build = payload.get("build") or payload.get("version")
+    if (not isinstance(build, str) or not build.strip()) and set(payload) == {"status", "timestamp"}:
+        build = _local_cli_build()
     if not isinstance(build, str) or not build.strip():
         return None, "unhealthy"
     payload["build"] = build
