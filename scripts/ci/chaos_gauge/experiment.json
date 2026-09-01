@@ -45,8 +45,8 @@
       "harness": "none",
       "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "treatmentSha256": {
-        "calibration": "577b043ac791732f048ecce50d714520f875d058bbf0aae4f207ecc36996ab6f",
-        "full-pilot": "73933bd73c6b7e05caa6ecec42df0b34b585039d2e3bb587be0c7a71504630db"
+        "calibration": "878e97de8ecffecb7538920f5ec08f13238ff3784458868391f02d4d4a802570",
+        "full-pilot": "a9e9c76ee80ee941b3d71f2c59a5272e50939f412959ebd96429eac0f0c27438"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
@@ -59,10 +59,10 @@
       "effort": "medium",
       "repositoryRevision": "0481767def7c31fe144bc20543dfe937b8ffd4d5",
       "harness": "chaos-engine",
-      "harnessSha256": "184616dda0fbbba87782bbe44ab325eb989f8c39d6ec601334361f7101038bfb",
+      "harnessSha256": "7f2e6032118771bd9b75820689e1d830a8792db4d26b36c7b769d6b6a239ac0e",
       "treatmentSha256": {
-        "calibration": "3aa3d04bd8562135c08ea67ed3e4a4da72a8684daabd2d5429d6a832e98be4dc",
-        "full-pilot": "c4aaa847f05f0a419ea99ad8cd75abf7fa8a113f5f2e6c7f2d5f14dc41f44298"
+        "calibration": "dfd84487992368761a1b7507da162760bdec3ef6a366cb0f53273a79ff7841fe",
+        "full-pilot": "568d0f28aaf12ad3ff8781ed1a6777dc6d4ed65011995f4a02e89fd78dc8744c"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,

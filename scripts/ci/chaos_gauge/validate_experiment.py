@@ -311,6 +311,7 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
         expected_environment = {
             "type": "docker", "delete": True,
             "cpu_enforcement_policy": "limit", "memory_enforcement_policy": "limit",
+            "extra_allowed_hosts": ["chroma-onnx-models.s3.amazonaws.com"],
         }
         if job.get("environment") != expected_environment:
             raise ValueError("Harbor environment budget drift is not allowed")
@@ -350,7 +351,7 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
                 "reasoning_effort": arm.get("effort"),
                 "harness_source": "chaos-engine",
                 "harness_commit": arm.get("repositoryRevision"),
-                "harness_sha256": "184616dda0fbbba87782bbe44ab325eb989f8c39d6ec601334361f7101038bfb",
+                "harness_sha256": "7f2e6032118771bd9b75820689e1d830a8792db4d26b36c7b769d6b6a239ac0e",
                 "adapter_sha256": "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             }
             if kwargs != expected:

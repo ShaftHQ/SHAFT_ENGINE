@@ -53,6 +53,25 @@ REQUIRED_DISPATCHES = {
     "memory",
     "memory-mcp",
 }
+PINNED_MEMPALACE_PACKAGE = "mempalace==3.8.0"
+PINNED_MEMPALACE_WITH = ("chromadb==1.5.9",)
+SCHEMA3_TOOLS = {
+    "uv": {"package": "uv==0.11.29"},
+    "mempalace": {
+        "package": PINNED_MEMPALACE_PACKAGE,
+        "with": list(PINNED_MEMPALACE_WITH),
+        "commands": ["mempalace", "mempalace-mcp"],
+    },
+    "graphify": {
+        "package": "graphifyy==0.9.43",
+        "with": ["tree-sitter-sql==0.3.11"],
+        "commands": ["graphify"],
+    },
+    "memory": {
+        "package": "@aictx/memory@0.2.1",
+        "commands": ["memory", "memory-mcp"],
+    },
+}
 WINDOWS_UV_JUNCTION_TAG = 0xA0000003
 WINDOWS_UV_ALIAS = re.compile(
     r"uv-python/cpython-(?P<version>3\.\d+)-windows-(?P<arch>x86_64|aarch64)-none"
@@ -204,33 +223,52 @@ def account_tool_plan(
     *,
     actions: dict[str, str],
     executables: dict[str, str],
+    resolved_versions: dict[str, str | None] | None = None,
 ) -> dict[str, list[list[str]]]:
     """Render user-scope tool commands; project initialization is a separate phase."""
     del project
-    if specification.get("schemaVersion") != 3:
-        raise ValueError("dependency specification schema is unsupported")
+    validate_runtime_specification(specification)
     uv = executables["uv"]
     npm = executables["npm"]
 
-    def uv_commands(name: str, package: str) -> list[list[str]]:
+    def resolved_package(name: str, package: str, separator: str) -> str:
+        version = (resolved_versions or {}).get(name)
+        if not version or name == "mempalace":
+            return package
+        return f"{package.rsplit(separator, 1)[0]}{separator}{version}"
+
+    def uv_commands(
+        name: str, package: str, extra: tuple[str, ...] = ()
+    ) -> list[list[str]]:
         action = actions.get(name)
-        if action in {"installed", "repaired"}:
-            return [[uv, "tool", "install", package]]
-        if action == "upgraded":
-            return [[uv, "tool", "upgrade", package]]
+        options = [item for dependency in extra for item in ("--with", dependency)]
+        if action in {"installed", "upgraded", "repaired"}:
+            force = ["--force"] if action in {"upgraded", "repaired"} else []
+            return [[
+                uv, "tool", "install", *force, *options,
+                resolved_package(name, package, "=="),
+            ]]
         return []
 
     def npm_commands(name: str, package: str) -> list[list[str]]:
         return (
-            [[npm, "install", "-g", package]]
+            [[npm, "install", "-g", resolved_package(name, package, "@")]]
             if actions.get(name) in {"installed", "upgraded", "repaired"}
             else []
         )
 
     return {
-        "mempalace": uv_commands("mempalace", "mempalace"),
-        "graphify": uv_commands("graphify", "graphifyy"),
-        "memory": npm_commands("memory", "@aictx/memory@latest"),
+        "mempalace": uv_commands(
+            "mempalace", str(specification["tools"]["mempalace"]["package"]),
+            tuple(specification["tools"]["mempalace"].get("with", [])),
+        ),
+        "graphify": uv_commands(
+            "graphify", str(specification["tools"]["graphify"]["package"]),
+            tuple(specification["tools"]["graphify"].get("with", [])),
+        ),
+        "memory": npm_commands(
+            "memory", str(specification["tools"]["memory"]["package"])
+        ),
         "context7": npm_commands("context7", "ctx7@latest"),
     }
 
@@ -461,6 +499,12 @@ def discover_account_commands(
         probed = probe_account_dependency(
             name, sibling_paths[primary], value, runner=runner
         )
+        if (
+            name == "mempalace"
+            and probed["version"]
+            != PINNED_MEMPALACE_PACKAGE.removeprefix("mempalace==")
+        ):
+            probed = {**probed, "healthy": False, "detail": "version-mismatch"}
         components[name] = {
             "status": "healthy" if probed["healthy"] else "broken",
             **probed,
@@ -477,7 +521,9 @@ def resolve_account_actions(
     opener=urllib.request.urlopen,
 ) -> dict[str, dict[str, object]]:
     """Combine local health with independently attempted stable-channel resolution."""
+    validate_runtime_specification(specification)
     contracts = specification["dependencies"]
+    pinned_mempalace_version = PINNED_MEMPALACE_PACKAGE.removeprefix("mempalace==")
     resolved: dict[str, dict[str, object]] = {}
     for name, contract in contracts.items():  # type: ignore[union-attr]
         if name == "maven-tools-mcp":
@@ -486,11 +532,15 @@ def resolve_account_actions(
         latest = None
         verified = False
         lookup_error = None
-        try:
-            latest = resolve_stable_version(name, contract, opener=opener)
+        if name == "mempalace":
+            latest = pinned_mempalace_version
             verified = True
-        except (OSError, ValueError, json.JSONDecodeError) as error:
-            lookup_error = type(error).__name__
+        else:
+            try:
+                latest = resolve_stable_version(name, contract, opener=opener)
+                verified = True
+            except (OSError, ValueError, json.JSONDecodeError) as error:
+                lookup_error = type(error).__name__
         installed = record.get("version") if isinstance(record.get("version"), str) else None
         healthy = record.get("healthy") is True
         action = dependency_action(
@@ -894,6 +944,11 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         specification,
         actions=tool_actions,
         executables={"uv": commands["uv"], "npm": commands["npm"]},
+        resolved_versions={
+            name: actions[name].get("resolvedVersion")
+            if isinstance(actions[name].get("resolvedVersion"), str) else None
+            for name in tool_actions
+        },
     ).items():
         for command in planned:
             _run_account_command(command, project, runner=runner)
@@ -969,11 +1024,16 @@ def validate_runtime_specification(specification: dict[str, object]) -> None:
         raise ValueError("dependency specification schema is unsupported")
     if specification.get("schemaVersion") == 3:
         dependencies = specification.get("dependencies")
+        tools = specification.get("tools")
         if not isinstance(dependencies, dict) or not {
             "uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7",
             "maven-tools-mcp",
         } <= set(dependencies):
             raise ValueError("account dependency specification is invalid")
+        if not isinstance(tools, dict):
+            raise ValueError("tool dependency specification is invalid")
+        if tools != SCHEMA3_TOOLS:
+            raise ValueError("tool dependency specification is not the exact schema v3 contract")
         for name, contract in dependencies.items():
             if (
                 not isinstance(contract, dict)
@@ -2373,6 +2433,8 @@ def generation_environment(generation: Path, transaction: Path) -> dict[str, str
 def generation_install_plan(
     generation: Path, specification: dict[str, object]
 ) -> dict[str, list[list[str]]]:
+    if specification.get("schemaVersion") == 3:
+        validate_runtime_specification(specification)
     tools = specification.get("tools")
     if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
@@ -2385,12 +2447,13 @@ def generation_install_plan(
         else "node/lib/node_modules/npm/bin/npm-cli.js"
     )
     graphify = tools.get("graphify")
+    mempalace = tools.get("mempalace")
     python_runtime = specification.get("runtimes", {}).get("python", {})
     python_version = python_runtime.get("version") if isinstance(python_runtime, dict) else None
     if not isinstance(python_version, str) or re.fullmatch(r"3\.\d+", python_version) is None:
         raise ValueError("Python runtime specification is invalid")
-    if not isinstance(graphify, dict):
-        raise ValueError("graphify dependency specification is invalid")
+    if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
+        raise ValueError("tool dependency specification is invalid")
     uv_commands = [[uv, "--version"]] if Path(uv).is_file() else [
         [sys.executable, "-m", "venv", "--copies", str(bootstrap)],
         [executable(bootstrap / scripts, "python"), "-m", "pip", "install", "--no-cache-dir", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
@@ -2407,7 +2470,9 @@ def generation_install_plan(
             python_version,
             "--link-mode",
             "copy",
-            str(tools["mempalace"]["package"]),  # type: ignore[index]
+            "--with",
+            str(mempalace["with"][0]),
+            str(mempalace["package"]),
         ]],
         "graphify": [[
             uv,
@@ -3439,6 +3504,8 @@ def finalize_generation_remove(project: Path) -> None:
 
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
+    if specification.get("schemaVersion") == 3:
+        validate_runtime_specification(specification)
     tools = specification.get("tools")
     if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
@@ -3448,15 +3515,16 @@ def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, l
     npm_prefix = runtime / "npm"
     npm = npm_executable(runtime / ("node" if os.name == "nt" else "node/bin"), "npm")
     graphify = tools["graphify"]
-    if not isinstance(graphify, dict):
-        raise ValueError("graphify dependency specification is invalid")
+    mempalace = tools["mempalace"]
+    if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
+        raise ValueError("tool dependency specification is invalid")
     return {
         "uv": [
             [sys.executable, "-m", "venv", "--copies", str(environment)],
             [executable(scripts, "python"), "-m", "pip", "install", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
         ],
         "mempalace": [
-            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", str(tools["mempalace"]["package"])],  # type: ignore[index]
+            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", "--with", str(mempalace["with"][0]), str(mempalace["package"])],
         ],
         "graphify": [
             [uv, "tool", "install", "--managed-python", "--link-mode", "copy", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
