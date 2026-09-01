@@ -108,12 +108,11 @@ no redirect or remote override. It emits only these readiness states:
 `ABSENT`, `UNHEALTHY`, `UNAUTHENTICATED`, `ROUTE_UNQUALIFIED`, `READY`, and
 `RUNTIME_EXHAUSTED`.
 
-`READY` requires loopback health, a usable local launcher, and an endpoint
-credential available to that process. Missing `~/.config/chaos-engine/omniroot.json`
-is normal: the runner uses `chaosengine-omniroute` or `omniroute` from PATH.
-The launcher may load its own credential; environment-key mode remains
-supported. The runner never reads, prints, or records the key, routes, targets,
-or assignments. Optional private config still works when present and safe.
+`READY` means the loopback API answers and the live catalog has at least one
+model with remaining tokens. Then use it. Missing operator config, a
+full-access key, and extra launcher files do not block READY. Dispatch still
+uses `chaosengine-omniroute` or `omniroute` from PATH. The runner never reads,
+prints, or records keys, routes, targets, or assignments.
 
 OmniRoute 3.8.50 may return only `status` and `timestamp` to an anonymous
 `/api/health` request. That is never build evidence. For that exact response

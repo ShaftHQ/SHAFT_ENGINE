@@ -126,9 +126,9 @@ curl --fail --silent http://127.0.0.1:20128/v1/models \
 python3 chaos-engine/skills/omniroot/scripts/runner.py probe
 ```
 
-`probe` is `READY` when loopback health succeeds, a PATH launcher exists, and
-the endpoint credential is available. It does not require a restricted key,
-denied-target HTTP 403, or a private attestation file.
+`probe` is `READY` when the API answers and at least one catalog model has
+remaining tokens. Then use it. It does not require a restricted key or a
+private attestation file.
 
 The endpoint key authorizes access to the local gateway; it is not an upstream
 provider key. Stop an on-demand server with `Ctrl-C`. No autostart is enabled

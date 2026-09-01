@@ -575,7 +575,8 @@ def probe(
     which: Callable[[str], str | None] | None = None,
     live_candidates: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    """Return a secret-free readiness result for the fixed loopback gateway."""
+    """READY when the API answers and at least one model still has remaining tokens."""
+    del config_path, environ, now, config
     payload, error = _health(opener)
     result = {"endpoint": DEFAULT_ENDPOINT, "state": "UNHEALTHY"}
     if error == "absent":
@@ -586,28 +587,20 @@ def probe(
         return {**result, "state": "RUNTIME_EXHAUSTED"}
     if error is not None or payload is None:
         return result
-    environment = os.environ if environ is None else environ
-    config, config_reason = _operator_config(
-        config_path or default_config_path(), environment, which=which, config=config,
-    )
-    reason = config_reason or _qualification_reason(config, payload["build"], now())
-    if reason is not None:
-        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": reason}
-    launcher = _launcher(config)
-    if launcher is None:  # Guard against future changes to _qualification_reason.
-        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": "LAUNCHER_CONFIG_INVALID"}
-    resolved = _resolved_executable(launcher[0])
-    if resolved is None:  # Launcher identity is volatile between qualification and execution.
-        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": "LAUNCHER_UNQUALIFIED"}
-    if launcher[1] == "environment" and not environment.get("OMNIROUTE_API_KEY"):
-        return {**result, "state": "UNAUTHENTICATED", "reasonCode": "ENDPOINT_CREDENTIAL_MISSING"}
     catalog = live_candidates if live_candidates is not None else candidates(which=which)
-    if catalog.get("state") == "RUNTIME_EXHAUSTED" or (
-        catalog.get("state") == "READY" and not catalog.get("candidates")
-    ):
+    rows = catalog.get("candidates") if isinstance(catalog, dict) else None
+    usable = [
+        row for row in rows or []
+        if isinstance(row, dict) and int(row.get("remaining") or 0) > 0
+    ]
+    if catalog.get("state") == "ABSENT" and not usable:
+        return {**result, "state": "ABSENT"}
+    if catalog.get("state") == "UNHEALTHY" and not usable:
+        return result
+    if not usable:
         return {**result, "state": "RUNTIME_EXHAUSTED"}
     fingerprint = hashlib.sha256(json.dumps({
-        "serverBuild": payload["build"], "launcher": resolved[1][-1],
+        "serverBuild": payload["build"], "usable": len(usable),
     }, sort_keys=True).encode("utf-8")).hexdigest()
     return {
         "endpoint": DEFAULT_ENDPOINT,
@@ -1671,7 +1664,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
             raise OmniRootError("state directory must be outside managed worktrees")
     if path.exists():
         raise OmniRootError("run id already exists")
-    launcher = _launcher(config)
+    launcher = _launcher(config) if isinstance(config, dict) else None
     if launcher is None:
         raise OmniRootError("launcher is unqualified")
     launcher_argv, credential_mode, invocation_mode = launcher

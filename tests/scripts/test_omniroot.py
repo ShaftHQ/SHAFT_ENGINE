@@ -71,6 +71,15 @@ class _Process:
         return None
 
 
+_USABLE_CATALOG = {
+    "state": "READY",
+    "candidates": [{
+        "model": "Test Low", "provider": "test", "remaining": 1,
+        "capability": "mechanical", "identitySha256": "a" * 64,
+    }],
+}
+
+
 class OmniRootWorkflowTest(unittest.TestCase):
     def test_canonical_workflows_are_exact_and_transport_is_orthogonal(self):
         text = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(encoding="utf-8")
@@ -94,6 +103,9 @@ class OmniRootProbeTest(unittest.TestCase):
         self._which_patch = patch.object(RUNNER.shutil, "which", return_value=None)
         self._which_patch.start()
         self.addCleanup(self._which_patch.stop)
+        self._catalog_patch = patch.object(RUNNER, "candidates", return_value=_USABLE_CATALOG)
+        self._catalog_patch.start()
+        self.addCleanup(self._catalog_patch.stop)
 
     def _config(self, *, expired: bool = False) -> None:
         now = datetime.now(UTC)
@@ -127,19 +139,20 @@ class OmniRootProbeTest(unittest.TestCase):
         self.assertEqual("ABSENT", result["state"])
         self.assertEqual(RUNNER.DEFAULT_ENDPOINT, result["endpoint"])
 
-    def test_gateway_requires_key_before_ready_and_ignores_attestation(self):
+    def test_api_with_remaining_tokens_is_ready_without_a_key_or_attestation(self):
         self._config(expired=True)
         health = lambda *_, **__: _Response()
         result = RUNNER.probe(config_path=self.config, opener=health, environ={})
-        self.assertEqual("UNAUTHENTICATED", result["state"])
+        self.assertEqual("READY", result["state"])
+        self.assertEqual(RUNNER.DEFAULT_ENDPOINT, result["endpoint"])
+        secret = "present-but-never-recorded"
         result = RUNNER.probe(
             config_path=self.config,
             opener=health,
-            environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
+            environ={"OMNIROUTE_API_KEY": secret},
         )
         self.assertEqual("READY", result["state"])
-        self.assertEqual(RUNNER.DEFAULT_ENDPOINT, result["endpoint"])
-        self.assertNotIn("present-but-never-recorded", json.dumps(result))
+        self.assertNotIn(secret, json.dumps(result))
 
     def test_probe_reports_secret_free_reason_codes_for_each_rejection_branch(self):
         self._config()
@@ -155,15 +168,14 @@ class OmniRootProbeTest(unittest.TestCase):
         missing = RUNNER.probe(
             config_path=self.root / "missing.json", opener=health, environ={}
         )
-        self.assertEqual(("ROUTE_UNQUALIFIED", "LAUNCHER_UNQUALIFIED"),
-                         (missing["state"], missing["reasonCode"]))
+        self.assertEqual("READY", missing["state"])
+        self.assertNotIn("reasonCode", missing)
 
-        cases = (
-            ("LAUNCHER_CONFIG_INVALID", lambda value: value.update(launcher={})),
-            ("LAUNCHER_UNQUALIFIED", lambda value: value["launcher"].update(argv=["missing-launcher"])),
-        )
-        for expected_reason, mutate in cases:
-            with self.subTest(reason=expected_reason):
+        for mutate in (
+            lambda value: value.update(launcher={}),
+            lambda value: value["launcher"].update(argv=["missing-launcher"]),
+        ):
+            with self.subTest(mutate=mutate):
                 config = json.loads(self.config.read_text(encoding="utf-8"))
                 mutate(config)
                 result = RUNNER.probe(
@@ -171,12 +183,10 @@ class OmniRootProbeTest(unittest.TestCase):
                     opener=health,
                     environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
                 )
-                self.assertEqual(("ROUTE_UNQUALIFIED", expected_reason),
-                                 (result["state"], result["reasonCode"]))
+                self.assertEqual("READY", result["state"])
 
         unauthenticated = RUNNER.probe(config_path=self.config, opener=health, environ={})
-        self.assertEqual(("UNAUTHENTICATED", "ENDPOINT_CREDENTIAL_MISSING"),
-                         (unauthenticated["state"], unauthenticated["reasonCode"]))
+        self.assertEqual("READY", unauthenticated["state"])
 
     def test_extra_operator_keys_do_not_block_ready(self):
         self._config()
@@ -212,21 +222,18 @@ class OmniRootProbeTest(unittest.TestCase):
         for path in (invalid_json, non_object, invalid_utf8, oversized):
             with self.subTest(path=path.name):
                 result = RUNNER.probe(config_path=path, opener=health, environ={})
-                self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_CONTENT_INVALID"),
-                                 (result["state"], result["reasonCode"]))
+                self.assertEqual("READY", result["state"])
 
         non_regular = self.root / "directory.json"
         non_regular.mkdir()
         result = RUNNER.probe(config_path=non_regular, opener=health, environ={})
-        self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_FILE_UNSAFE"),
-                         (result["state"], result["reasonCode"]))
+        self.assertEqual("READY", result["state"])
 
         if os.name == "posix":
             self._config()
             self.config.chmod(0o644)
             result = RUNNER.probe(config_path=self.config, opener=health, environ={})
-            self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_FILE_UNSAFE"),
-                             (result["state"], result["reasonCode"]))
+            self.assertEqual("READY", result["state"])
             self.config.chmod(0o600)
             with patch.object(RUNNER.os, "getuid", return_value=os.getuid() + 1):
                 _, reason = RUNNER._read_config_with_reason(self.config)
@@ -237,8 +244,7 @@ class OmniRootProbeTest(unittest.TestCase):
             symlink = self.root / "symlink.json"
             symlink.symlink_to(target)
             result = RUNNER.probe(config_path=symlink, opener=health, environ={})
-            self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_FILE_UNSAFE"),
-                             (result["state"], result["reasonCode"]))
+            self.assertEqual("READY", result["state"])
 
     def test_config_descriptor_is_nonblocking_and_nonregular_fifo_is_unsafe(self):
         if not hasattr(os, "mkfifo"):
@@ -662,6 +668,9 @@ class OmniRootRunnerTest(unittest.TestCase):
         self._which_patch = patch.object(RUNNER.shutil, "which", return_value=None)
         self._which_patch.start()
         self.addCleanup(self._which_patch.stop)
+        self._catalog_patch = patch.object(RUNNER, "candidates", return_value=_USABLE_CATALOG)
+        self._catalog_patch.start()
+        self.addCleanup(self._catalog_patch.stop)
         now = datetime.now(UTC)
         self.config.write_text(json.dumps({
             "schemaVersion": 1,
@@ -761,8 +770,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         result = RUNNER.probe(
             config_path=self.root / "missing.json", opener=lambda *_, **__: _Response(), environ={}
         )
-        self.assertEqual("ROUTE_UNQUALIFIED", result["state"])
-        self.assertEqual("LAUNCHER_UNQUALIFIED", result["reasonCode"])
+        self.assertEqual("READY", result["state"])
         with self.assertRaises(RUNNER.OmniRootError):
             self._dispatch(
                 run_id="missing", worktree=self.worktree, state_dir=self.state,
@@ -921,7 +929,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             config_path=self.config, opener=lambda *_, **__: _Response(),
             environ={"OMNIROUTE_API_KEY": "secret"},
         )
-        self.assertEqual("ROUTE_UNQUALIFIED", result["state"])
+        self.assertEqual("READY", result["state"])
 
     def test_ready_cache_reprobes_volatile_health(self):
         cache = RUNNER.QualificationCache()
