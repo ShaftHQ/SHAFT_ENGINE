@@ -51,7 +51,7 @@ def _attest_fifo_worker(config_path: str, contract_path: str, result: Queue) -> 
 class _Response:
     status = 200
 
-    def __init__(self, payload: bytes = b'{"status":"ok","build":"test"}'):
+    def __init__(self, payload: bytes = b'{"status":"ok","build":"3.8.50"}'):
         self.payload = payload
 
     def read(self, limit: int = -1) -> bytes:
@@ -104,7 +104,7 @@ class OmniRootProbeTest(unittest.TestCase):
                 "schemaVersion": 1,
                 "routePolicySha256": "a" * 64,
                 "endpointKeyIdentitySha256": "b" * 64,
-                "serverBuild": "test",
+                "serverBuild": "3.8.50",
                 "verifiedAt": now.isoformat(),
                 "expiresAt": expires.isoformat(),
                 "noCostConfirmed": True,
@@ -317,7 +317,7 @@ class OmniRootProbeTest(unittest.TestCase):
         anonymous_health = lambda *_, **__: _Response(b'{"status":"ok","timestamp":"now"}')
         secret = "endpoint-key-must-not-reach-bootstrap"
         completed = type("Completed", (), {
-            "returncode": 0, "stdout": b'{"status":"healthy","version":"test"}',
+            "returncode": 0, "stdout": b'{"status":"healthy","version":"3.8.50"}',
         })()
         with patch.object(RUNNER, "_trusted_local_cli_executable", side_effect=(
             "/trusted/omniroute", "/trusted/node", "/trusted/omniroute", "/trusted/node",
@@ -347,6 +347,40 @@ class OmniRootProbeTest(unittest.TestCase):
                 config_path=self.config, opener=anonymous_health,
                 environ={"OMNIROUTE_API_KEY": secret},
             )["state"])
+
+    @unittest.skipUnless(os.name == "posix", "POSIX permissions required")
+    def test_local_cli_rejects_group_writable_executable(self):
+        executable = self.root / "omniroute"
+        executable.write_text("#!/bin/sh\n", encoding="utf-8")
+        executable.chmod(0o770)
+        with patch.object(RUNNER.shutil, "which", return_value=str(executable)), \
+                patch.object(RUNNER, "_private_primary_group", return_value=False):
+            self.assertIsNone(RUNNER._trusted_local_cli_executable("omniroute"))
+
+    def test_status_only_health_rejects_non_versioned_local_cli_evidence(self):
+        self._config()
+        anonymous_health = lambda *_, **__: _Response(b'{"status":"ok","timestamp":"now"}')
+        for evidence in ("unreported", "test", "endpoint-key-must-not-appear"):
+            with self.subTest(evidence=evidence), \
+                    patch.object(RUNNER, "_local_cli_build", return_value=evidence):
+                self.assertEqual("UNHEALTHY", RUNNER.probe(
+                    config_path=self.config, opener=anonymous_health,
+                    environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
+                )["state"])
+
+    def test_local_cli_requires_healthy_semantic_version(self):
+        for payload in (
+            b'{"status":"unhealthy","version":"3.8.50"}',
+            b'{"status":"healthy","version":"unreported"}',
+            b'{"status":"healthy","build":"endpoint-key-must-not-appear"}',
+        ):
+            completed = type("Completed", (), {"returncode": 0, "stdout": payload})()
+            with self.subTest(payload=payload), \
+                    patch.object(RUNNER, "_trusted_local_cli_executable", side_effect=(
+                        "/trusted/omniroute", "/trusted/node",
+                    )), \
+                    patch.object(RUNNER.subprocess, "run", return_value=completed):
+                self.assertIsNone(RUNNER._local_cli_build())
 
     def test_attest_writes_only_current_fully_qualified_operator_contract(self):
         self._config()
@@ -429,7 +463,7 @@ class OmniRootProbeTest(unittest.TestCase):
             "attestation": {
                 "schemaVersion": 1, "routePolicySha256": "a" * 64,
                 "endpointKeyIdentitySha256": "b" * 64, "deniedProbeTargetSha256": "c" * 64,
-                "serverBuild": "test", "verifiedAt": now.isoformat(),
+                "serverBuild": "3.8.50", "verifiedAt": now.isoformat(),
                 "expiresAt": (now + timedelta(minutes=20)).isoformat(),
                 "noCostConfirmed": True, "noPaidFallbackConfirmed": True,
                 "privacyConfirmed": True, "termsConfirmed": True, "deniedProbeConfirmed": True,
@@ -555,7 +589,7 @@ class OmniRootRunnerTest(unittest.TestCase):
                 "schemaVersion": 1,
                 "routePolicySha256": "a" * 64,
                 "endpointKeyIdentitySha256": "b" * 64,
-                "serverBuild": "test",
+                "serverBuild": "3.8.50",
                 "verifiedAt": now.isoformat(),
                 "expiresAt": (now + timedelta(minutes=20)).isoformat(),
                 "noCostConfirmed": True,

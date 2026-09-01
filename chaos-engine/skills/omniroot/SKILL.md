@@ -55,11 +55,13 @@ OmniRoute 3.8.50 may return only `status` and `timestamp` to an anonymous
 `/api/health` request. That is never build evidence. For that exact response
 shape only, the runner may use an owner-verified local OmniRoute CLI against
 the same fixed loopback endpoint with a temporary working directory and
-scrubbed ambient environment, retaining only a bounded non-empty `build` or
-`version`. OmniRoot never reads, passes, prints, or stores endpoint keys or CLI
-token material; the verified CLI resolves its own local machine-token proof.
-Missing, malformed, untrusted, timed-out, or non-versioned CLI evidence remains
-`UNHEALTHY`.
+scrubbed ambient environment, retaining only a healthy semantic-version
+`build` or `version`. Group-writable executables are allowed only for the
+current account's private primary group; shared-group and world-writable paths
+are rejected. OmniRoot never reads, passes, prints, or stores endpoint keys or
+CLI token material; the verified CLI resolves its own local machine-token
+proof. Missing, malformed, untrusted, timed-out, unhealthy, or non-versioned
+CLI evidence remains `UNHEALTHY`.
 
 The user-local launcher configuration accepts `invocationMode: "gateway"` or
 `"direct"`; the default is `gateway` for compatibility. Gateway mode invokes

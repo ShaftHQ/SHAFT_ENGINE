@@ -8,6 +8,9 @@ import contextlib
 import hashlib
 import json
 import os
+if os.name == "posix":
+    import grp
+    import pwd
 import re
 import signal
 import shutil
@@ -50,6 +53,9 @@ _CAPABILITY_RANK = {"mechanical": 0, "default": 1, "most-intelligent": 2}
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 _TARGET = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
+_SERVER_BUILD = re.compile(
+    r"v?(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\+[0-9A-Za-z][0-9A-Za-z.-]*)?\Z"
+)
 _SAFE_RUNTIME_ENVIRONMENT = (
     ("HOME", "TEMP", "TMP") if os.name == "posix"
     else ("USERPROFILE", "SystemRoot", "TEMP", "TMP")
@@ -174,6 +180,21 @@ def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, in
     )
 
 
+def _private_primary_group(group_id: int) -> bool:
+    """Return whether a POSIX group contains only the current account."""
+    if os.name != "posix":
+        return False
+    try:
+        account = pwd.getpwuid(os.getuid()).pw_name
+        group = grp.getgrgid(group_id)
+    except KeyError:
+        return False
+    return (group_id == os.getgid()
+            and all(member == account for member in group.gr_mem)
+            and all(entry.pw_name == account for entry in pwd.getpwall()
+                    if entry.pw_gid == group_id))
+
+
 def _trusted_local_cli_executable(name: str) -> str | None:
     """Resolve a user-owned global CLI without relaxing sealed-launcher rules."""
     executable = Path(shutil.which(name) or "")
@@ -183,7 +204,9 @@ def _trusted_local_cli_executable(name: str) -> str | None:
     except OSError:
         return None
     if (not resolved.is_file() or not bool(metadata.st_mode & stat.S_IXUSR)
-            or bool(metadata.st_mode & stat.S_IWOTH)):
+            or bool(metadata.st_mode & stat.S_IWOTH)
+            or (bool(metadata.st_mode & stat.S_IWGRP)
+                and not _private_primary_group(metadata.st_gid))):
         return None
     if os.name == "posix" and (metadata.st_uid != os.getuid() or metadata.st_gid != os.getgid()):
         return None
@@ -223,7 +246,8 @@ def _local_cli_build() -> str | None:
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
     build = payload.get("build") or payload.get("version") if isinstance(payload, dict) else None
-    return build if isinstance(build, str) and build.strip() else None
+    return build if (isinstance(payload, dict) and payload.get("status") in {"ok", "healthy"}
+                     and isinstance(build, str) and _SERVER_BUILD.fullmatch(build)) else None
 
 
 def _same_executable(argv: list[str], identity: tuple[int, int, int, int, int, int, str]) -> bool:
@@ -362,7 +386,7 @@ def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | No
     build = payload.get("build") or payload.get("version")
     if (not isinstance(build, str) or not build.strip()) and set(payload) == {"status", "timestamp"}:
         build = _local_cli_build()
-    if not isinstance(build, str) or not build.strip():
+    if not isinstance(build, str) or not _SERVER_BUILD.fullmatch(build):
         return None, "unhealthy"
     payload["build"] = build
     return payload, None
