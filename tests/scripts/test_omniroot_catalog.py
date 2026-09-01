@@ -85,6 +85,8 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("JSONDecoder().raw_decode", skill)
         self.assertIn("Use `--output json` before `models`", skill)
         self.assertIn("installed OmniRoute binary", guide)
+        self.assertIn("Missing operator config is normal", guide)
+        self.assertIn("python3 chaos-engine/skills/omniroot/scripts/runner.py probe", guide)
         self.assertIn("candidates --capability", skill)
 
     def test_candidates_cli_queries_live_commands_and_writes_no_cache(self):

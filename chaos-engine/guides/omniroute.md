@@ -1,11 +1,15 @@
-# OmniRoute: a selective free-model add-on
+# OmniRoute: enable ChaosEngine to use the local gateway
 
-OmniRoute is an optional local gateway. ChaosEngine uses it only through the
-provider-neutral [OmniRoot skill](../skills/omniroot/SKILL.md), after the
+OmniRoute is an optional local gateway. ChaosEngine uses it through the
+provider-neutral [OmniRoot skill](../skills/omniroot/SKILL.md) after the
 canonical [execution workflow](../references/execution-workflows.md) is
-selected. OmniRoot detection targets only the default loopback service and
-fails closed. Missing OmniRoute is normal and leaves native delegation and
-`SOLO` fully valid.
+selected. The goal is to make a running local OmniRoute easy to use, not to
+fence operators behind restricted keys or attestation hashes.
+
+OmniRoot probes only `http://127.0.0.1:20128/`. Missing OmniRoute is normal and
+leaves native delegation and `SOLO` valid. Missing
+`~/.config/chaos-engine/omniroot.json` is also normal: the runner uses
+`chaosengine-omniroute` or `omniroute` from PATH.
 
 This is an operator integration guide, not a second workflow definition.
 ChaosEngine does not install OmniRoute, create provider accounts, retain
@@ -111,15 +115,20 @@ It never records routes or provider data. If local CLI build evidence is
 unavailable, qualification stays `UNHEALTHY`; repair the local installation or
 use native fallback.
 
-Create one dedicated OmniRoute endpoint key using **Dashboard → API Keys**.
-Copy it once into a secret manager, then make it available only to processes
-that use this gateway:
+Create an OmniRoute endpoint key using **Dashboard → API Keys**. A full-access
+key is fine. Copy it once into a secret manager, then export it only to
+processes that use this gateway:
 
 ```bash
 export OMNIROUTE_API_KEY='read-this-from-your-secret-manager'
 curl --fail --silent http://127.0.0.1:20128/v1/models \
   -H "Authorization: Bearer $OMNIROUTE_API_KEY"
+python3 chaos-engine/skills/omniroot/scripts/runner.py probe
 ```
+
+`probe` is `READY` when loopback health succeeds, a PATH launcher exists, and
+the endpoint credential is available. It does not require a restricted key,
+denied-target HTTP 403, or a private attestation file.
 
 The endpoint key authorizes access to the local gateway; it is not an upstream
 provider key. Stop an on-demand server with `Ctrl-C`. No autostart is enabled
@@ -283,58 +292,22 @@ curl --fail-with-body http://127.0.0.1:20128/v1/responses \
 If Responses or tool use fails, leave that target out of the selected route; a
 chat-completions success alone is insufficient.
 
-## Strict, fail-closed free coding target
+## ChaosEngine catalog: prefer free, allow what the key can call
 
-Do not use `auto`, `auto/coding`, “best available,” model aliases, or broad
-fallbacks as a zero-cost promise. They may select paid or unreviewed routes.
-The reviewed setup configures exactly one admitted target:
-`gemini/gemini-3.1-flash-lite`. On 2026-08-30 it passed a forced function call
-and a real read-only Codex shell tool call. Do not add another model, paid route,
-or implicit fallback when it rate-limits. A named combo is optional convenience,
-not the target the dedicated endpoint key is permitted to use. If you create
-one, give it exactly one Gemini 3.1 Flash-Lite connection tuple:
+Do not treat `auto` as a cost guarantee. Before every dispatch, query the live
+catalog with no cache files:
 
 ```bash
-omniroute combo create chaosengine-free-coding --strategy priority \
-  --models '[
-    {"providerId":"gemini","model":"gemini-3.1-flash-lite","connectionId":"<gemini-connection-uuid>"}
-  ]'
-omniroute combo list
+omniroute --output json models
+omniroute --output json usage quota
+python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability default
 ```
 
-The combo must contain only exact provider/model/connection UUID tuples. Add a
-second target only after a new direct Responses and tool-use proof; edit the
-existing combo in the dashboard and preserve priority order. Remove every
-implicit fallback and require the request to fail when all listed targets fail,
-rate-limit, or exhaust quota. No `auto`, wildcard, bare-model, alias, or broad
-fallback target is allowed.
+Rank remaining free models first, then any other model the endpoint key can
+call. Native host models are last resort when OmniRoute itself cannot run.
+A dashboard combo is optional convenience, not a READY requirement.
 
-Create a dedicated endpoint key in **Dashboard → API Keys** after the target
-exists. In that key's restriction editor, allow only the exact
-`gemini/gemini-3.1-flash-lite` target and its Gemini connection UUID; set **No log**
-enabled and `autoResolve` disabled. The 3.8.50 CLI's `keys policy set` exposes
-only a subset of those controls, so use the dashboard for the full restriction
-set. Save the key in a mode-600 user-owned environment file or an
-operating-system secret store; never in a repository or profile. Then verify a
-request with this endpoint key cannot use any other model or connection.
-
-Run a direct request against `gemini/gemini-3.1-flash-lite`, then deliberately test
-an unapproved model, a nonexistent target, and an exhausted/disabled target.
-Each must return an error, not reroute to a paid or broad automatic target. The
-reviewed restricted-token proof returned HTTP 403 for unapproved
-`gemini/gemini-3.7-flash`; record the status and sanitized body, never the
-token:
-
-```bash
-curl --silent --show-error --output /tmp/omniroute-restricted.json \
-  --write-out '%{http_code}\n' http://127.0.0.1:20128/v1/responses \
-  -H "Authorization: Bearer $OMNIROUTE_API_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"gemini/gemini-3.7-flash","input":"Return only: deny-check"}'
-# Expected: 403. Do not add a fallback to make this request succeed.
-```
-
-## Codex configuration: separate free session
+## Codex configuration: optional separate session
 
 Back up the Codex configuration before editing it. Refuse a collision with an
 existing `model_providers.omniroute` definition rather than overwriting it:
@@ -407,12 +380,12 @@ chmod 700 "$HOME/.local/bin/chaosengine-omniroute"
 ```
 
 The secret file contains only a quoted `OMNIROUTE_API_KEY` assignment for the
-dedicated restricted endpoint key, for example
+local endpoint key (full access is fine), for example
 `OMNIROUTE_API_KEY='retrieve-from-your-secret-manager'`. Prefer retrieving the
 value from an operating-system secret manager when creating that file (for
 example, `secret-tool lookup service omniroute key chaosengine-free-coding` on
-Linux) instead of typing it. Do not place an upstream Gemini key there. Start a
-bounded free session with:
+Linux) instead of typing it. Do not place an upstream provider key there. Start a
+bounded session with:
 
 ```bash
 chmod 600 "$HOME/.config/omniroute/chaosengine-free-coding.env"
@@ -456,8 +429,7 @@ OmniRoute's Gemini adapter accepts the host App/MCP tool schemas.
 
 ## Acceptance checks
 
-Perform these checks after each provider change and before using the separate
-free session for a real bounded task:
+After the gateway is up and an endpoint key exists:
 
 ```bash
 omniroute --version
@@ -466,34 +438,23 @@ omniroute health --json
 curl --fail --silent http://127.0.0.1:20128/api/health
 curl --fail --silent http://127.0.0.1:20128/v1/models \
   -H "Authorization: Bearer $OMNIROUTE_API_KEY"
-omniroute providers validate
-omniroute combo list
+python3 chaos-engine/skills/omniroot/scripts/runner.py probe
+python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability default
 ```
 
-Then prove the exact admitted route before relying on it:
+`probe` must print `READY`. Missing operator config is normal. Then prove a
+child actually ran (parent-model text is not proof):
 
 ```bash
 readonly acceptance_task='Before answering, load the applicable AGENTS.md, canonical ChaosEngine core, Caveman, Ponytail, selected SHAFT profile, and selected role. Run pwd. Return loaded file paths, role name, exact pwd command, its output, and git status --short before and after. Do not edit files or use network tools.'
 chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only "$acceptance_task"
 ```
 
-1. Direct Responses request succeeds through the operator-attested priority
-   combo. HTTP 429 may advance only to its next already-attested no-cost,
-   no-paid-fallback candidate; exhausted set reports `RUNTIME_EXHAUSTED` and
-   only then permits native fallback.
-2. Harmless function-call request succeeds through that same exact target.
-3. The unapproved `gemini/gemini-3.7-flash` request with the restricted
-   endpoint key returns HTTP 403, as shown above; it must not route elsewhere.
-4. `chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only '<bounded task>'`
-   succeeds as a separate process. Its bounded task must first load and report
-   the applicable `AGENTS.md`, canonical ChaosEngine core, Caveman, Ponytail,
-   selected SHAFT profile, and selected role; then run `pwd` and return its
-   exact command and decisive output. Inspect sanitized OmniRoute route
-   evidence for that exact process and prove `git status --short` is empty
-   before and after: no repository change is allowed.
-5. Built-in `spawn_agent` is not an acceptance test until it stops returning
-   `multi_agent_v1_spawn_agent` unsupported. Do not treat a parent-model reply
-   as proof that the free route ran.
+1. Live catalog returns at least one callable model. Prefer free/remaining
+   first; other models the key can call are allowed.
+2. `chaosengine-omniroute exec` or `omniroute run` returns the child's output.
+3. Built-in `spawn_agent` is not an OmniRoute acceptance test. Do not treat a
+   parent-model reply as proof that the local route ran.
 
 Record the following facts in a private, secret-free inventory. “No account
 created” is a valid status; do not fabricate account completion.
@@ -506,51 +467,16 @@ created” is a valid status; do not fabricate account completion.
 
 ### Secret-free OmniRoot qualification reasons
 
-`python3 chaos-engine/skills/omniroot/scripts/runner.py probe` keeps health
-failures in their existing distinct states and reports a bounded `reasonCode`
-for qualification or local endpoint-credential failures. The value contains no
-credential, route, provider, model, prompt, launcher argument, or local-path
-data. Apply only the matching operator action, then rerun the same probe; do
-not bypass a non-`READY` result or enable paid fallback.
+`python3 chaos-engine/skills/omniroot/scripts/runner.py probe` reports a
+bounded secret-free state. Missing operator config is normal. Use the table
+only when probe is not `READY`.
 
-To create or re-attest an operator configuration without modifying a
-repository, prepare one owner-private, mode-`0600` UTF-8 JSON-object contract
-containing the intended operator configuration and its current attestation,
-then run:
-
-```bash
-python3 chaos-engine/skills/omniroot/scripts/runner.py \
-  --config <operator-private-config> attest \
-  --contract <operator-private-attestation-contract>
-```
-
-The contract stays outside the repository and must be no larger than 64 KiB.
-The runner refuses to write unless fixed loopback health, the current build,
-the resolved owner-owned launcher, all required hashes, fresh timestamps,
-denied-target proof, privacy and terms confirmations, no-cost, and no-paid
-fallback all validate. It writes no partial file and prints only an `ATTESTED` state.
-Afterward, rerun `probe`; use the table only when it does not return `READY`.
-
-| `reasonCode` | Operator action |
+| State or `reasonCode` | Operator action |
 | --- | --- |
-| `CONFIG_MISSING` | Optional. Missing config is normal; probe uses the PATH launcher. |
-| `CONFIG_FILE_UNSAFE` | Replace the destination with an owner-owned regular non-symlink file and private parent directories, then run `attest`. |
-| `CONFIG_CONTENT_INVALID` | Rebuild the private contract as a valid UTF-8 JSON object no larger than 64 KiB, then run `attest`. |
-| `CONFIG_SCHEMA_INVALID` | Recreate the private contract using schema version `1`, then run `attest`. |
-| `ROUTE_REFERENCE_INVALID` | Restore the non-empty accepted route reference in the private contract, then run `attest`. |
-| `LAUNCHER_CONFIG_INVALID` | Restore a non-empty launcher argv, credential mode, and supported invocation mode in the operator configuration. |
-| `LAUNCHER_UNQUALIFIED` | Restore an executable, owner-owned launcher that is not group- or world-writable, then refresh attestation. |
-| `ATTESTATION_SCHEMA_INVALID` | Recreate the attestation using schema version `1`; never copy another user's attestation. |
-| `ATTESTATION_BUILD_MISMATCH` | Re-attest against the current local gateway build after verifying operator policy. |
-| `ATTESTATION_HASH_INVALID` | Re-attest the route policy, endpoint-key identity, and denied-target hashes; do not enter raw values in repository files. |
-| `ATTESTATION_FRESHNESS_INVALID` | Obtain a new unexpired attestation after verifying the local gateway. |
-| `NO_COST_UNCONFIRMED` | Keep the route unqualified until the operator can affirm no-cost use. |
-| `PAID_FALLBACK_UNCONFIRMED` | Keep the route unqualified until paid fallback is disabled and attested. |
-| `PRIVACY_UNCONFIRMED` | Keep the route unqualified until privacy terms are reviewed and attested. |
-| `TERMS_UNCONFIRMED` | Keep the route unqualified until applicable terms are reviewed and attested. |
-| `DENIED_PROBE_UNCONFIRMED` | Re-run the operator's denied-target enforcement check and attest its success. |
-| `DENIED_TARGET_UNCONFIRMED` | Reconfirm the denied probe target exists and re-attest it without recording the target. |
-| `ENDPOINT_CREDENTIAL_MISSING` | Supply the existing endpoint credential only through the operator-managed environment or protected launcher, then rerun the probe. |
+| `ABSENT` / `UNHEALTHY` | Start loopback: `OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open`. |
+| `UNAUTHENTICATED` / `ENDPOINT_CREDENTIAL_MISSING` | Export `OMNIROUTE_API_KEY` or use the launcher env file. Full access is fine. |
+| `LAUNCHER_UNQUALIFIED` | Put `chaosengine-omniroute` or `omniroute` on PATH as an owner-owned executable. |
+| `RUNTIME_EXHAUSTED` | Wait for quota, or use another model the key can call. Native host models only if OmniRoute cannot run. |
 
 - **`doctor` reports an unsupported Node runtime:** select a supported Node
   release, reinstall the same reviewed OmniRoute version, and rerun all checks.
@@ -558,9 +484,9 @@ Afterward, rerun `probe`; use the table only when it does not return `READY`.
   foreground, inspect sanitized output, and check `ss -ltnp | rg ':20128'`.
   Never change the listener to a public interface as a workaround.
 - **A provider returns 401/403/429:** confirm the account, key scope, current
-  quota, and provider terms. For Gemini HTTP 429, wait for quota recovery and
-  retest the same exact target; never add a fallback. Do not create another
-  account or bypass controls.
+  quota, and provider terms. Prefer the next remaining free catalog model;
+  other callable models are allowed. Do not create another account or bypass
+  controls.
 - **A model is missing or tool calls fail:** refresh the provider's current
   catalogue, retest the exact ID, and remove it from the selected route until
   it works.
