@@ -481,8 +481,9 @@ created” is a valid status; do not fabricate account completion.
 
 ### Secret-free OmniRoot qualification reasons
 
-`python3 chaos-engine/skills/omniroot/scripts/runner.py probe` reports a
-bounded `reasonCode` whenever the result is not `READY`. The value contains no
+`python3 chaos-engine/skills/omniroot/scripts/runner.py probe` keeps health
+failures in their existing distinct states and reports a bounded `reasonCode`
+for qualification or local endpoint-credential failures. The value contains no
 credential, route, provider, model, prompt, launcher argument, or local-path
 data. Apply only the matching operator action, then rerun the same probe; do
 not bypass a non-`READY` result or enable paid fallback.
