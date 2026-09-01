@@ -528,6 +528,152 @@ module.install_with_dependencies(project, source, "2" * 40)
             self.assertFalse(project.joinpath(".chaos-engine-account-rollback").exists())
             self.assertEqual("2" * 40, MODULE.status(project)["commit"])
 
+    def test_account_journal_recovers_format_only_prior_host_receipt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+            host_receipt = project / ".chaos-engine-hosts.json"
+            exact_raw = host_receipt.read_bytes() + b"\n"
+            host_receipt.write_bytes(exact_raw)
+            self.assertNotEqual(
+                MODULE.load_installed_controller(
+                    project / ".chaos-engine", "hosts"
+                ).receipt_bytes(
+                    json.loads(exact_raw.decode("utf-8")),
+                    project,
+                ),
+                exact_raw,
+            )
+
+            crash_script = """
+import importlib.util
+import json
+import os
+import sys
+from pathlib import Path
+
+installer_path = Path(sys.argv[1])
+source = Path(sys.argv[2])
+project = Path(sys.argv[3])
+spec = importlib.util.spec_from_file_location("crash_installer", installer_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+original = module.load_dependency_controller
+
+class Controller:
+    def __init__(self, delegate):
+        self.delegate = delegate
+    def __getattr__(self, name):
+        return getattr(self.delegate, name)
+    def install_account_dependencies(self, target, _specification):
+        journal = target / ".chaos-engine-account-rollback" / "journal.json"
+        if not journal.is_file():
+            os._exit(87)
+        target.joinpath(".chaos-engine-dependencies.json").write_text(json.dumps({
+            "schemaVersion": 2, "scope": "user", "components": {}, "commands": {}
+        }), encoding="utf-8")
+        os._exit(86)
+
+module.load_dependency_controller = lambda root: Controller(original(root))
+module.install_with_dependencies(project, source, "2" * 40)
+"""
+            crashed = subprocess.run(
+                [sys.executable, "-c", crash_script, str(INSTALLER), str(SOURCE), str(project)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(86, crashed.returncode)
+            self.assertTrue(
+                project.joinpath(".chaos-engine-account-rollback/journal.json").is_file()
+            )
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+
+            self.assertFalse(project.joinpath(".chaos-engine-account-rollback").exists())
+            self.assertEqual("2" * 40, MODULE.status(project)["commit"])
+
+    def test_status_and_doctor_report_recovery_for_interrupted_account_journal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+
+            crash_script = """
+import importlib.util
+import json
+import os
+import sys
+from pathlib import Path
+
+installer_path = Path(sys.argv[1])
+source = Path(sys.argv[2])
+project = Path(sys.argv[3])
+spec = importlib.util.spec_from_file_location("crash_installer", installer_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+original = module.load_dependency_controller
+
+class Controller:
+    def __init__(self, delegate):
+        self.delegate = delegate
+    def __getattr__(self, name):
+        return getattr(self.delegate, name)
+    def install_account_dependencies(self, target, _specification):
+        journal = target / ".chaos-engine-account-rollback" / "journal.json"
+        if not journal.is_file():
+            os._exit(87)
+        target.joinpath(".chaos-engine-dependencies.json").write_text(json.dumps({
+            "schemaVersion": 2, "scope": "user", "components": {}, "commands": {}
+        }), encoding="utf-8")
+        os._exit(86)
+
+module.load_dependency_controller = lambda root: Controller(original(root))
+module.install_with_dependencies(project, source, "2" * 40)
+"""
+            crashed = subprocess.run(
+                [sys.executable, "-c", crash_script, str(INSTALLER), str(SOURCE), str(project)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(86, crashed.returncode)
+            self.assertTrue(
+                project.joinpath(".chaos-engine-account-rollback/journal.json").is_file()
+            )
+
+            status = MODULE.status_with_dependencies(project)
+            doctor = MODULE.doctor_with_dependencies(project, verify_clients=False)
+            rendered_status = MODULE.status_json(project)
+            rendered_doctor = MODULE.status_json(project, active_probes=True)
+
+            self.assertEqual("recovery-required", status["status"])
+            self.assertEqual("recovery-required", doctor["status"])
+            self.assertEqual("recovery-required", rendered_status["status"])
+            self.assertEqual("recovery-required", rendered_doctor["status"])
+            self.assertNotEqual("CE_DIAGNOSTIC_UNAVAILABLE", rendered_status.get("diagnosticCode"))
+            self.assertNotEqual("CE_DIAGNOSTIC_UNAVAILABLE", rendered_doctor.get("diagnosticCode"))
+
     def test_account_rollback_journal_syncs_directory_entries(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -623,6 +769,53 @@ module.install_with_dependencies(project, source, "2" * 40)
                     MODULE.rollback(project)
 
             self.assertEqual(b"user changed", state.read_bytes())
+
+    def test_mempalace_fail_closed_evidence_uses_safe_relative_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_candidate_state(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    calls.append(args[0])
+                    if len(calls) == 2:
+                        palace = args[0] / ".chaos-engine-state/mempalace"
+                        palace.mkdir(parents=True)
+                        palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"candidate sqlite")
+                    return receipt
+
+                controller.install_account_dependencies = install_with_candidate_state
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, "1" * 40)
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                state = project / ".chaos-engine-state/mempalace/sqlite_exact.sqlite3"
+                state.write_bytes(b"user changed")
+                with self.assertRaises(ValueError) as raised:
+                    MODULE.rollback(project)
+
+            message = str(raised.exception)
+            self.assertIn("candidate MemPalace state changed", message)
+            self.assertNotIn(str(project.resolve()), message)
+            self.assertNotIn(str(state.resolve()), message)
+            payload = json.loads(message[message.index("{") :])
+            self.assertEqual(
+                ".chaos-engine-state/mempalace/sqlite_exact.sqlite3",
+                payload["path"],
+            )
+            self.assertEqual(hashlib.sha256(b"candidate sqlite").hexdigest(), payload["expectedDigest"])
+            self.assertEqual(hashlib.sha256(b"user changed").hexdigest(), payload["actualDigest"])
+            self.assertEqual("project", payload["owner"])
+            self.assertEqual("blocked", payload["action"])
 
     def test_account_rollback_restores_legacy_marker_without_candidate_sqlite(self):
         with tempfile.TemporaryDirectory() as temporary:
