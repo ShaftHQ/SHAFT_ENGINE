@@ -9,7 +9,6 @@ from contextlib import contextmanager
 import email.utils
 import hashlib
 import json
-import math
 import os
 import re
 import runpy
@@ -221,7 +220,6 @@ class InstallReporter:
         self._download_total: int | None = None
         self._downloaded = 0
         self._download_samples = deque(maxlen=30)
-        self._displayed_eta: float | None = None
         self.detail: str | None = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -323,9 +321,6 @@ class InstallReporter:
         seconds = max(0, round(seconds))
         minutes, seconds = divmod(seconds, 60)
         return f"{minutes:02d}:{seconds:02d}"
-
-    def _eta_duration(self, seconds: float) -> str:
-        return self._duration(max(1, math.ceil(seconds)))
 
     def _pause_current(self, now: float) -> None:
         if self.current_operation is None or self._current_started is None:
@@ -447,34 +442,6 @@ class InstallReporter:
             with self._lock:
                 self._render_locked()
 
-    def _remaining(self, now: float) -> str | None:
-        rate = self._download_rate()
-        stage_estimate = self._stage_estimate()
-        pending_count = sum(
-            operation not in self._in_flight for operation in self.remaining_operations
-        )
-        if self._download_total is not None and rate is not None:
-            candidate = max(0, self._download_total - self._downloaded) / rate
-            candidate += pending_count * stage_estimate
-        elif self.current_operation is not None and stage_estimate > 0:
-            current_elapsed = self._elapsed_as_current.get(self.current_operation, 0.0)
-            if self._current_started is not None:
-                current_elapsed += max(0.0, now - self._current_started)
-            candidate = max(0.0, stage_estimate - current_elapsed)
-            candidate += pending_count * stage_estimate
-        elif self._transfer_stalled(now) and self._displayed_eta is not None:
-            return self._eta_duration(self._displayed_eta)
-        else:
-            return None
-        self._displayed_eta = candidate if self._displayed_eta is None else min(
-            self._displayed_eta, candidate
-        )
-        return self._eta_duration(self._displayed_eta)
-
-    def _stage_estimate(self) -> float:
-        durations = [value for value in self._completed_elapsed.values() if value > 0]
-        return sum(durations) / len(durations) if durations else 0.0
-
     def _transfer_stalled(self, now: float) -> bool:
         return bool(
             self._download_total is not None
@@ -536,9 +503,6 @@ class InstallReporter:
         rate = self._download_rate()
         if rate is not None:
             metrics.append(self._size(rate))
-        remaining = self._remaining(now)
-        if remaining is not None:
-            metrics.append(f"remaining {remaining}")
         if self._transfer_stalled(now):
             metrics.append("waiting for data")
         log = self.traces[-TRACE_LIMIT:] or [
