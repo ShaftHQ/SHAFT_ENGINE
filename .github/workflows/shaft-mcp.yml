@@ -28,7 +28,7 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -48,7 +48,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Set up JDK 25
@@ -109,7 +109,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

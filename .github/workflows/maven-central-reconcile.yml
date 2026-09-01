@@ -62,7 +62,7 @@ jobs:
             exit 1
           fi
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ inputs.source_ref }}
           fetch-depth: 0

@@ -74,7 +74,7 @@ jobs:
       already_released: ${{ steps.guard.outputs.already_released }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -101,7 +101,7 @@ jobs:
       release_version: ${{ steps.release_version.outputs.version }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Set up Python 3.13
@@ -248,7 +248,7 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout released source
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -273,7 +273,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout released source
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Publish to JetBrains Marketplace
         uses: ./.github/actions/intellij-verify
         with:
@@ -295,7 +295,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout released source
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File, keep, or close the Marketplace publish tracker
         uses: ./.github/actions/notify-intellij-marketplace-publish
         with:
@@ -317,7 +317,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout released source
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Prepare Release Body
         env:
           RELEASE_VERSION: ${{ needs.build_release_and_deliver.outputs.release_version }}
@@ -418,7 +418,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File or recover the release failure tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

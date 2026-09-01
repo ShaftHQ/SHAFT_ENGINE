@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Validate release metadata
         run: python3 scripts/ci/validate_shaft_pilot_release.py
       - name: Verify IntelliJ plugin
@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Publish to JetBrains Marketplace
         uses: ./.github/actions/intellij-verify
         with:
@@ -63,7 +63,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File a dedicated miss issue when a release does not publish
         uses: ./.github/actions/notify-intellij-marketplace-publish
         with:
