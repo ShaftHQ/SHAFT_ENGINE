@@ -171,13 +171,13 @@ def _implicit_config(
     locator = which or shutil.which
     has_key = bool(environ.get("OMNIROUTE_API_KEY"))
     for name, invocation, mode_without_key in (
-        ("chaosengine-omniroute", "direct", "launcher"),
         ("omniroute", "gateway", "environment"),
+        ("chaosengine-omniroute", "direct", "launcher"),
     ):
         located = locator(name)
         if not located:
             continue
-        argv = [located]
+        argv = [located, "run"] if name == "omniroute" else [located]
         if _resolved_executable(argv) is None:
             continue
         mode = "environment" if has_key else mode_without_key
@@ -807,12 +807,27 @@ def classify_capability(model_id: object) -> str:
     return "default"
 
 
+_DEFAULT_TASK_ORDER = {"default": 0, "most-intelligent": 1, "mechanical": 2}
+_RATE_LIMIT_MARKERS = ("429", "too many requests", "resource_exhausted", "rate limit")
+
+
+def diagnostic_is_rate_limited(text: object) -> bool:
+    """True when child output shows HTTP 429 / provider rate limit, not auth failure."""
+    blob = str(text or "").casefold()
+    return any(marker in blob for marker in _RATE_LIMIT_MARKERS)
+
+
 def select_live_candidates(
     catalog: object, quota: object, *, required_capability: str,
+    skip_identity_sha256s: object = (),
 ) -> list[dict[str, Any]]:
-    """Join the current catalog to remaining quota and order cheapest applicable first."""
+    """Join the current catalog to remaining quota and order the next usable model."""
     if required_capability not in _CAPABILITY_RANK:
         raise OmniRootError("required capability is invalid")
+    skipped = {
+        item for item in skip_identity_sha256s or ()
+        if isinstance(item, str) and _HEX.fullmatch(item)
+    }
     remaining: dict[str, int] = {}
     for row in quota if isinstance(quota, list) else []:
         if not isinstance(row, dict):
@@ -842,18 +857,27 @@ def select_live_candidates(
         if identity in seen:
             continue
         seen.add(identity)
+        identity_sha = _sha256({"model": model, "provider": provider})
+        if identity_sha in skipped:
+            continue
         selected.append({
             "model": model,
             "provider": provider,
             "remaining": left,
             "capability": classify_capability(model),
-            "identitySha256": _sha256({"model": model, "provider": provider}),
+            "identitySha256": identity_sha,
         })
     if required_capability == "most-intelligent":
         pool = [row for row in selected if row["capability"] == "most-intelligent"]
+        pool.sort(key=lambda row: (-row["remaining"], row["model"]))
+    elif required_capability == "mechanical":
+        pool = selected
+        pool.sort(key=lambda row: (_CAPABILITY_RANK[row["capability"]], -row["remaining"], row["model"]))
     else:
         pool = selected
-    pool.sort(key=lambda row: (_CAPABILITY_RANK[row["capability"]], -row["remaining"], row["model"]))
+        pool.sort(key=lambda row: (
+            _DEFAULT_TASK_ORDER.get(row["capability"], 9), -row["remaining"], row["model"],
+        ))
     return pool
 
 
@@ -868,6 +892,7 @@ def candidates(
     *, required_capability: str = "default",
     which: Callable[[str], str | None] | None = None,
     run: Callable[..., Any] | None = None,
+    skip_identity_sha256s: object = (),
 ) -> dict[str, Any]:
     """Query the live local catalog and remaining quota on every dispatch. Never cache to disk."""
     locator = which or shutil.which
@@ -878,7 +903,10 @@ def candidates(
         quota = _omniroute_cli(_QUOTA_COMMAND, run=run)
     except OmniRootError:
         return {"state": "UNHEALTHY", "candidates": []}
-    picked = select_live_candidates(catalog, quota, required_capability=required_capability)
+    picked = select_live_candidates(
+        catalog, quota, required_capability=required_capability,
+        skip_identity_sha256s=skip_identity_sha256s,
+    )
     return {"state": "READY" if picked else "RUNTIME_EXHAUSTED", "candidates": picked}
 
 
@@ -1673,8 +1701,23 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         raise OmniRootError("launcher is unqualified")
     launcher_argv, launcher_identity = qualified
     launcher_argv, launcher_identity = _seal_launcher(launcher_argv, launcher_identity, Path(state_dir))
+    capability = delegate.get("capability") if isinstance(delegate, dict) else "default"
+    if capability not in _CAPABILITY_RANK:
+        capability = "default"
+    catalog = candidates(required_capability=capability)
+    pick = (catalog.get("candidates") or [None])[0]
+    if not isinstance(pick, dict):
+        raise OmniRootError("OmniRoute is not ready: RUNTIME_EXHAUSTED")
     if invocation_mode == "direct":
         argv = [*launcher_argv, *delegate_args]
+    elif Path(launcher_argv[0]).name == "omniroute":
+        argv = list(launcher_argv)
+        if argv[-1:] != ["run"]:
+            argv.append("run")
+        argv.extend(["--model", pick["model"], "--provider", pick["provider"], "--port", "20128"])
+        if credential_mode == "environment":
+            argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+        argv.extend([target, "--", *delegate_args])
     else:
         argv = [*launcher_argv, target, "--port", "20128"]
         if credential_mode == "environment":

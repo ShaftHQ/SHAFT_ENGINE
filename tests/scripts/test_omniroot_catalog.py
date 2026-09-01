@@ -47,10 +47,30 @@ class OmniRootCatalogTest(unittest.TestCase):
         ]
         picked = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
         self.assertEqual(
-            ["Tool Low", "Other Default", "Tool High"],
+            ["Other Default", "Tool High", "Tool Low"],
             [item["model"] for item in picked],
         )
         self.assertNotIn("Gone Low", [item["model"] for item in picked])
+
+    def test_rate_limit_skips_the_failed_identity_and_picks_a_larger_class(self):
+        catalog = [
+            {"id": "Tool Low", "provider": "alpha"},
+            {"id": "Other Default", "provider": "beta"},
+        ]
+        quota = [
+            {"provider": "alpha", "remaining": 40, "state": "available"},
+            {"provider": "beta", "remaining": 90, "state": "available"},
+        ]
+        first = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
+        self.assertEqual("Other Default", first[0]["model"])
+        self.assertTrue(RUNNER.diagnostic_is_rate_limited("exceeded retry limit, last status: 429 Too Many Requests"))
+        self.assertFalse(RUNNER.diagnostic_is_rate_limited("401 Unauthorized: Invalid API key"))
+        skipped = RUNNER.select_live_candidates(
+            catalog, quota, required_capability="default",
+            skip_identity_sha256s=[first[0]["identitySha256"]],
+        )
+        self.assertEqual("Tool Low", skipped[0]["model"])
+        self.assertNotEqual(first[0]["identitySha256"], skipped[0]["identitySha256"])
 
     def test_architecture_uses_only_high_class_then_empty_means_native_fallback(self):
         catalog = [
@@ -88,6 +108,8 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("Missing operator config is normal", guide)
         self.assertIn("python3 chaos-engine/skills/omniroot/scripts/runner.py probe", guide)
         self.assertIn("candidates --capability", skill)
+        self.assertIn("HTTP 429", skill)
+        self.assertIn("Do not pin a Codex profile model", skill)
 
     def test_candidates_cli_queries_live_commands_and_writes_no_cache(self):
         calls = []

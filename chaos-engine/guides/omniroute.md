@@ -303,9 +303,11 @@ omniroute --output json usage quota
 python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability default
 ```
 
-Rank remaining free models first, then any other model the endpoint key can
-call. Native host models are last resort when OmniRoute itself cannot run.
-A dashboard combo is optional convenience, not a READY requirement.
+Rank remaining `default` models first for implementation, then most-intelligent,
+then mechanical. Do not pin `chaosengine-omniroute`'s Codex profile model
+(Gemini Flash-Lite). Dispatch with `omniroute run --model --provider` from the
+live catalog. On HTTP 429, skip that identity and pick the next remaining
+candidate. Native host models are last resort when the catalog is empty.
 
 ## Codex configuration: optional separate session
 
@@ -336,8 +338,9 @@ configuration. Create an opt-in free-session profile at
 
 ```toml
 # OMNIROUTE_API_KEY is loaded by the launcher, not stored here.
+# Do not pin a model here. OmniRoot fetches the live catalog and passes
+# --model / --provider on each launch.
 model_provider = "omniroute"
-model = "gemini/gemini-3.1-flash-lite"
 model_reasoning_effort = "low"
 web_search = "disabled"
 

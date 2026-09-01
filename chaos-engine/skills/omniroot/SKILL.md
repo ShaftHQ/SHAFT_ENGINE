@@ -70,8 +70,21 @@ Classify each remaining `id` by its own tokens, not a stored model list:
 `low|lite|flash|air|mini|nano|turbo|haiku|small` = mechanical;
 `high|max|pro|ultra|opus|thinking|reasoner` = most-intelligent;
 otherwise default. Architecture, review, and analytical work use only
-most-intelligent. Every other task takes the lowest remaining class first,
-then higher remaining within a class. Empty result is `RUNTIME_EXHAUSTED`.
+most-intelligent. Implementation uses `default` first, then most-intelligent,
+then mechanical. Do not pin a Codex profile model such as Gemini Flash-Lite.
+Empty result is `RUNTIME_EXHAUSTED`.
+
+Retry is chosen from the failure, not from a pinned profile:
+
+- HTTP 429 / rate-limit / resource_exhausted: do not retry the same identity.
+  Requery the catalog, skip that `identitySha256`, pick the next remaining
+  model, and relaunch Codex with `--model` / `--provider`.
+- Timeout or a single network blip: retry the same catalog pick once.
+- HTTP 401/403 or invalid key: stop. Do not retry. Fix the endpoint credential.
+- Empty remaining catalog: `RUNTIME_EXHAUSTED`, then native host models.
+
+Never pin a model in a Codex profile. Fetch the live catalog, rank for the
+task, then launch `omniroute run --model '<id>' --provider '<provider>' codex`.
 
 ### Dispatch and follow-through
 
