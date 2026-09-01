@@ -35,8 +35,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         return json.loads(MANIFEST.read_text(encoding="utf-8"))
 
     def test_write_generated_refreshes_coupled_identities_idempotently(self):
-        write_generated = getattr(MODULE, "write_generated", None)
-        self.assertTrue(callable(write_generated))
+        self.assertTrue(callable(MODULE.write_generated))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             shutil.copytree(ROOT / "chaos-engine", root / "chaos-engine")
@@ -60,7 +59,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
                     campaign="calibration",
                 )
 
-            write_generated(root)
+            MODULE.write_generated(root)
             MODULE.validate_job_contracts(
                 json.loads(manifest_path.read_text(encoding="utf-8")),
                 MODULE.load_jobs(gauge, "calibration"),
@@ -81,7 +80,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
                     gauge / "job-configs/full-pilot-chaos-engine.yaml",
                 )
             }
-            write_generated(root)
+            MODULE.write_generated(root)
             second = {
                 path.relative_to(root).as_posix(): path.read_bytes()
                 for path in (
