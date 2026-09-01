@@ -350,7 +350,7 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
                 "reasoning_effort": arm.get("effort"),
                 "harness_source": "chaos-engine",
                 "harness_commit": arm.get("repositoryRevision"),
-                "harness_sha256": "221f988ded1f6f51e4c864bd03f690651ff6db0974e58f7c9535f301e1ad7bda",
+                "harness_sha256": "184616dda0fbbba87782bbe44ab325eb989f8c39d6ec601334361f7101038bfb",
                 "adapter_sha256": "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             }
             if kwargs != expected:

@@ -679,10 +679,20 @@ def _run_account_command(
     )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "no process output").strip()
-        raise RuntimeError(
-            f"dependency command failed: {Path(command[0]).name}: {detail[:500]}"
+        raise _AccountCommandError(
+            f"dependency command failed: {Path(command[0]).name}: {detail[:500]}",
+            stderr=str(result.stderr or ""),
+            stdout=str(result.stdout or ""),
         )
     return result
+
+
+class _AccountCommandError(RuntimeError):
+    """Keep full process streams private while presenting a bounded error."""
+
+    def __init__(self, message: str, *, stderr: str, stdout: str) -> None:
+        super().__init__(message)
+        self.full_output = f"{stderr}\n{stdout}"
 
 
 def _run_transient_mempalace_mine(
@@ -703,8 +713,8 @@ def _run_transient_mempalace_mine(
                 extra_environment=extra_environment,
                 timeout=remaining,
             )
-        except RuntimeError as error:
-            if attempt == 2 or TRANSIENT_MEMPALACE_TLS_EOF not in str(error).upper():
+        except _AccountCommandError as error:
+            if attempt == 2 or TRANSIENT_MEMPALACE_TLS_EOF not in error.full_output.upper():
                 raise
             delay = (1, 2)[attempt]
             if deadline - time.monotonic() <= delay:

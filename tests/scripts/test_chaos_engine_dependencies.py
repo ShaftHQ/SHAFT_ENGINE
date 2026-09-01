@@ -748,6 +748,42 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 self.assertEqual([["/tools/mempalace", "mine", "."]], calls)
                 sleep.assert_not_called()
 
+    def test_mempalace_retry_classifies_full_captured_output(self):
+        module = load_controller()
+        signature = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
+        for stderr, stdout in (("x" * 501 + signature, ""), ("unrelated stderr", signature)):
+            with self.subTest(stderr=stderr[:20], stdout=stdout), tempfile.TemporaryDirectory() as temporary:
+                calls = []
+
+                def runner(command, **_kwargs):
+                    calls.append(command)
+                    if len(calls) < 3:
+                        return SimpleNamespace(returncode=1, stdout=stdout, stderr=stderr)
+                    return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+                with mock.patch.object(module.time, "monotonic", return_value=0), mock.patch.object(module.time, "sleep") as sleep:
+                    module._run_transient_mempalace_mine(
+                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                    )
+
+                self.assertEqual(3, len(calls))
+                sleep.assert_has_calls((mock.call(1), mock.call(2)))
+
+    def test_account_command_error_keeps_public_output_bounded(self):
+        module = load_controller()
+        signature = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "dependency command failed") as error:
+                module._run_account_command(
+                    ["/tools/mempalace", "mine", "."],
+                    Path(temporary),
+                    runner=lambda *_args, **_kwargs: SimpleNamespace(
+                        returncode=1, stdout="", stderr="x" * 501 + signature
+                    ),
+                )
+
+        self.assertNotIn(signature, str(error.exception))
+
     def test_mempalace_retry_preserves_the_shared_deadline(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
