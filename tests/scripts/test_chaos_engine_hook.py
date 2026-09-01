@@ -68,11 +68,12 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertLessEqual(len(result.stdout.encode("utf-8")), 4096)
 
     def test_allowed_non_start_events_are_silent_for_every_host(self):
+        # Stop is excluded on purpose: without a valid Learning Session
+        # completion artifact it is fail-closed, not required to be silent.
         fixtures = (
             {"hook_event_name": "PreToolUse", "tool_name": "Read"},
             {"hook_event_name": "PostToolUse", "tool_name": "Read"},
             {"hook_event_name": "PostToolUseFailure", "tool_name": "Read"},
-            {"hook_event_name": "Stop", "stop_hook_active": False},
             {"hook_event_name": "SubagentStop", "stop_hook_active": False},
         )
         for host in ("codex", "claude", "gemini", "grok", "copilot"):
@@ -82,6 +83,95 @@ class ChaosEngineHookTest(unittest.TestCase):
                     result = self.run_hook(event, environment)
                     self.assertEqual(0, result.returncode)
                     self.assertEqual({}, json.loads(result.stdout))
+
+    def _hook_decision_payload(self, result):
+        rendered = (result.stdout or "").strip() or (result.stderr or "").strip() or "{}"
+        return json.loads(rendered)
+
+    def test_stop_without_completion_artifact_is_fail_closed_for_every_host(self):
+        for host in ("codex", "claude", "gemini", "grok", "copilot"):
+            with self.subTest(host=host):
+                with tempfile.TemporaryDirectory() as temporary:
+                    environment = {
+                        **os.environ,
+                        "CHAOS_ENGINE_HOST": host,
+                        "TMPDIR": temporary,
+                        "TEMP": temporary,
+                    }
+                    session = f"stop-deny-{host}"
+                    self.run_hook(
+                        {
+                            "hook_event_name": "PostToolUse",
+                            "tool_name": "PowerShell",
+                            "tool_input": {
+                                "command": (
+                                    "py -3 scripts/agents/chaos_engine_cli.py "
+                                    "delivery-status --manifest m --receipt-out r"
+                                )
+                            },
+                            "session_id": session,
+                        },
+                        environment,
+                    )
+                    stopped = self.run_hook(
+                        {
+                            "hook_event_name": "Stop",
+                            "session_id": session,
+                            "stop_hook_active": False,
+                        },
+                        environment,
+                    )
+                self.assertNotEqual(0, stopped.returncode)
+                payload = self._hook_decision_payload(stopped)
+                self.assertEqual("block", payload.get("decision"))
+                self.assertTrue(
+                    str(payload.get("reason", "")).casefold().startswith("learning session:")
+                )
+
+    def test_stop_with_completion_artifact_is_silent_for_every_host(self):
+        import importlib
+
+        learning_session = importlib.import_module("scripts.agents.learning_session")
+        for host in ("codex", "claude", "gemini", "grok", "copilot"):
+            with self.subTest(host=host):
+                with tempfile.TemporaryDirectory() as temporary:
+                    environment = {
+                        **os.environ,
+                        "CHAOS_ENGINE_HOST": host,
+                        "TMPDIR": temporary,
+                        "TEMP": temporary,
+                    }
+                    session = f"stop-allow-{host}"
+                    state = Path(temporary) / "chaosengine-learning-v1"
+                    learning_session.attest_no_learning(state, session, "no_new_evidence")
+                    learning_session.finalize_session(state, session)
+                    for command in (
+                        "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r",
+                        "py -3 scripts/agents/learning_session.py finalize --session-id " + session,
+                    ):
+                        self.run_hook(
+                            {
+                                "hook_event_name": "PostToolUse",
+                                "tool_name": "PowerShell",
+                                "tool_input": {"command": command},
+                                "session_id": session,
+                            },
+                            environment,
+                        )
+                    stopped = self.run_hook(
+                        {
+                            "hook_event_name": "Stop",
+                            "session_id": session,
+                            "stop_hook_active": False,
+                        },
+                        environment,
+                    )
+                self.assertEqual(0, stopped.returncode)
+                payload = self._hook_decision_payload(stopped)
+                self.assertNotEqual("block", payload.get("decision"))
+                self.assertFalse(
+                    str(payload.get("reason", "")).casefold().startswith("learning session:")
+                )
 
     def test_claude_stop_block_writes_continuation_prompt_to_stderr(self):
         with tempfile.TemporaryDirectory() as temporary:
