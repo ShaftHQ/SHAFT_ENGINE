@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Map ChaosGauge public calibration outputs to redacted decision-quality evidence.
+"""
+Map ChaosGauge public calibration outputs to redacted decision-quality evidence.
 
 Reuses the immutable #5450 calibration campaign (12 public tasks, two arms, five
 attempts, seed 5450) without changing task identities. Missing telemetry is the
@@ -13,7 +14,7 @@ import argparse
 import json
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - fixed local harbor/docker probe commands only.
 from pathlib import Path
 from typing import Callable
 
@@ -56,7 +57,9 @@ def _object(value: object, label: str) -> dict[str, object]:
 
 
 def _run(command: list[str]) -> str:
-    return subprocess.run(command, check=True, capture_output=True, text=True).stdout  # nosec B603
+    return subprocess.run(  # nosec B603 B607 - fixed local probe argv, never shell=True.
+        command, check=True, capture_output=True, text=True
+    ).stdout
 
 
 def load_manifest(path: Path | None = None) -> dict[str, object]:
@@ -312,14 +315,7 @@ def _walk_strings(value: object) -> list[str]:
     return []
 
 
-def validate_redacted_aggregate(value: object, manifest: object) -> None:
-    """Fail closed on identity drift, zero-filled gaps, or privacy leaks."""
-    evidence = _object(value, "redacted aggregate")
-    identity = calibration_identity(manifest)
-    if evidence.get("schemaVersion") != 1 or evidence.get("campaign") != "calibration":
-        raise ValueError("redacted aggregate schema is invalid")
-    if evidence.get("identity") != identity:
-        raise ValueError("redacted aggregate identity drifted from #5450 contracts")
+def _validate_trial_accounting(evidence: dict[str, object]) -> None:
     accounting = _object(evidence.get("trialAccounting"), "trial accounting")
     if accounting.get("planned") != TRIAL_COUNT:
         raise ValueError("redacted aggregate planned trial count is invalid")
@@ -333,6 +329,9 @@ def validate_redacted_aggregate(value: object, manifest: object) -> None:
         raise ValueError("blocked evidence must not claim observed trials")
     if status == "blocked" and not evidence.get("missingInputs"):
         raise ValueError("blocked evidence must list exact missing inputs")
+
+
+def _validate_arm_metrics(evidence: dict[str, object]) -> None:
     metrics = _object(evidence.get("metrics"), "metrics")
     if set(metrics) != set(ARMS):
         raise ValueError("redacted aggregate arms are invalid")
@@ -345,10 +344,26 @@ def validate_redacted_aggregate(value: object, manifest: object) -> None:
                 raise ValueError(f"{arm}.{name} must use UNAVAILABLE rather than null")
             if item != UNAVAILABLE and not isinstance(item, (int, float)):
                 raise ValueError(f"{arm}.{name} is invalid")
+
+
+def _validate_privacy(evidence: dict[str, object]) -> None:
     for text in _walk_strings(evidence):
         for pattern in FORBIDDEN_PRIVACY:
             if pattern.search(text):
                 raise ValueError("redacted aggregate failed privacy scan")
+
+
+def validate_redacted_aggregate(value: object, manifest: object) -> None:
+    """Fail closed on identity drift, zero-filled gaps, or privacy leaks."""
+    evidence = _object(value, "redacted aggregate")
+    identity = calibration_identity(manifest)
+    if evidence.get("schemaVersion") != 1 or evidence.get("campaign") != "calibration":
+        raise ValueError("redacted aggregate schema is invalid")
+    if evidence.get("identity") != identity:
+        raise ValueError("redacted aggregate identity drifted from #5450 contracts")
+    _validate_trial_accounting(evidence)
+    _validate_arm_metrics(evidence)
+    _validate_privacy(evidence)
 
 
 def main() -> int:

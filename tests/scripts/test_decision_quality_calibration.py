@@ -247,14 +247,15 @@ class ProbeAndValidateTest(unittest.TestCase):
             MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
 
     def test_cli_blocked_writes_json(self):
-        import subprocess
+        import subprocess  # nosec B404 - fixed local module CLI under sys.executable.
+        import sys
         import tempfile
 
         with tempfile.TemporaryDirectory() as temporary:
             out = Path(temporary) / "blocked.json"
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - fixed interpreter and repository module path.
                 [
-                    "python3",
+                    sys.executable,
                     str(MODULE_PATH),
                     "blocked",
                     "--out",
