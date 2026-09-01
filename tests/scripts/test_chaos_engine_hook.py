@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess  # nosec B404 - fixed repository hook.
 import sys
 import tempfile
@@ -152,10 +153,13 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertNotIn("def _write_hook_json(", launcher)
 
     def test_javascript_launch_denies_when_guard_is_missing(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
         launcher = ROOT / "chaos-engine/hooks/launch.js"
         with tempfile.TemporaryDirectory() as temporary:
             completed = subprocess.run(  # nosec B603 - fixed node launcher.
-                ["node", str(launcher), "gemini"],
+                [node, str(launcher), "gemini"],
                 input=json.dumps(
                     {
                         "hook_event_name": "BeforeTool",
@@ -174,6 +178,9 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertIn("ChaosEngine guard unavailable", rendered)
 
     def test_javascript_launch_reports_missing_cwd_without_private_paths(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
         launcher = ROOT / "chaos-engine/hooks/launch.js"
         event = {"hook_event_name": "BeforeTool", "tool_name": "write_file"}
         with tempfile.TemporaryDirectory() as temporary:
@@ -188,13 +195,13 @@ const launcher = {json.dumps(str(launcher))};
 const input = Buffer.from({json.dumps(json.dumps(event))});
 process.chdir(target);
 fs.rmSync(target, {{recursive: true, force: true}});
-const result = spawnSync('node', [launcher, 'gemini'], {{input, encoding: 'utf8'}});
+const result = spawnSync({json.dumps(node)}, [launcher, 'gemini'], {{input, encoding: 'utf8'}});
 process.stdout.write(String(result.status) + '\\n');
 process.stdout.write(result.stdout || '');
 process.stderr.write(result.stderr || '');
 """
             completed = subprocess.run(  # nosec B603 - fixed node probe.
-                ["node", "-e", probe],
+                [node, "-e", probe],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -210,9 +217,12 @@ process.stderr.write(result.stderr || '');
         self.assertNotEqual({}, payload)
 
     def test_javascript_launch_keeps_ordinary_guard_execution_when_cwd_restored(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
         launcher = ROOT / "chaos-engine/hooks/launch.js"
         completed = subprocess.run(  # nosec B603 - fixed node launcher.
-            ["node", str(launcher), "gemini"],
+            [node, str(launcher), "gemini"],
             input=json.dumps(
                 {
                     "hook_event_name": "BeforeTool",

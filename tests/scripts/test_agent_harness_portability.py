@@ -718,6 +718,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_inline_and_javascript_launchers_deny_when_guard_is_missing(self):
         """Missing guard must never fall back to a silent allow object."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
         claude = hook_groups(ROOT / ".claude/settings.json")
         command = claude["PreToolUse"][0]["hooks"][0]["command"]
         self.assertNotIn("print('{}')", command)
@@ -739,7 +742,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 check=False,
             )
             launch = subprocess.run(  # nosec B603 - fixed node launcher.
-                ["node", str(ROOT / "chaos-engine/hooks/launch.js"), "copilot"],
+                [node, str(ROOT / "chaos-engine/hooks/launch.js"), "copilot"],
                 cwd=temporary,
                 input=json.dumps(
                     {
