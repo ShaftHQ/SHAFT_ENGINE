@@ -35,11 +35,12 @@ review, learning, or completion duties. Canonical orchestration must probe the
 fixed loopback endpoint before native fallback, with no endpoint prompt. If
 `omniroute` is installed and `http://127.0.0.1:20128/api/health` fails, start
 loopback only with `OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open`.
-Never install OmniRoute. Before every dispatch, query
+Never install OmniRoute. Missing operator config is normal: use the PATH
+launcher (`chaosengine-omniroute` or `omniroute`). Before every dispatch, query
 `omniroute --output json models` and `omniroute --output json usage quota`
-(no cache files). Rank remaining free candidates dynamically from live ids:
-lowest applicable class first; architecture/review uses most-intelligent only.
-Receipts and repository files never persist route, model, or provider IDs.
+(no cache files). Rank remaining free candidates first from live ids, then any
+other model the endpoint can call; architecture/review uses most-intelligent
+only. Receipts and repository files never persist route, model, or provider IDs.
 `RUNTIME_EXHAUSTED`, an empty remaining catalog, or sealed-launcher exit code
 `78` falls back to the current host session's native models or `SOLO`. OmniRoute is absent,
 unhealthy, unauthenticated, or unqualified does the same. This is

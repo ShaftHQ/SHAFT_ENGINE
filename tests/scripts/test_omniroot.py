@@ -91,6 +91,9 @@ class OmniRootProbeTest(unittest.TestCase):
         self.launcher = self.root / "launcher"
         self.launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         self.launcher.chmod(0o700)
+        self._which_patch = patch.object(RUNNER.shutil, "which", return_value=None)
+        self._which_patch.start()
+        self.addCleanup(self._which_patch.stop)
 
     def _config(self, *, expired: bool = False) -> None:
         now = datetime.now(UTC)
@@ -124,8 +127,8 @@ class OmniRootProbeTest(unittest.TestCase):
         self.assertEqual("ABSENT", result["state"])
         self.assertEqual(RUNNER.DEFAULT_ENDPOINT, result["endpoint"])
 
-    def test_gateway_requires_key_and_current_attestation_before_ready(self):
-        self._config()
+    def test_gateway_requires_key_before_ready_and_ignores_attestation(self):
+        self._config(expired=True)
         health = lambda *_, **__: _Response()
         result = RUNNER.probe(config_path=self.config, opener=health, environ={})
         self.assertEqual("UNAUTHENTICATED", result["state"])
@@ -135,6 +138,7 @@ class OmniRootProbeTest(unittest.TestCase):
             environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
         )
         self.assertEqual("READY", result["state"])
+        self.assertEqual(RUNNER.DEFAULT_ENDPOINT, result["endpoint"])
         self.assertNotIn("present-but-never-recorded", json.dumps(result))
 
     def test_probe_reports_secret_free_reason_codes_for_each_rejection_branch(self):
@@ -151,24 +155,12 @@ class OmniRootProbeTest(unittest.TestCase):
         missing = RUNNER.probe(
             config_path=self.root / "missing.json", opener=health, environ={}
         )
-        self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_MISSING"),
+        self.assertEqual(("ROUTE_UNQUALIFIED", "LAUNCHER_UNQUALIFIED"),
                          (missing["state"], missing["reasonCode"]))
 
         cases = (
-            ("CONFIG_SCHEMA_INVALID", lambda value: value.update(schemaVersion=0)),
-            ("ROUTE_REFERENCE_INVALID", lambda value: value.update(routeId="")),
             ("LAUNCHER_CONFIG_INVALID", lambda value: value.update(launcher={})),
             ("LAUNCHER_UNQUALIFIED", lambda value: value["launcher"].update(argv=["missing-launcher"])),
-            ("ATTESTATION_SCHEMA_INVALID", lambda value: value["attestation"].update(schemaVersion=0)),
-            ("ATTESTATION_BUILD_MISMATCH", lambda value: value["attestation"].update(serverBuild="other")),
-            ("ATTESTATION_HASH_INVALID", lambda value: value["attestation"].update(routePolicySha256="invalid")),
-            ("ATTESTATION_FRESHNESS_INVALID", lambda value: value["attestation"].update(expiresAt="2000-01-01T00:00:00+00:00")),
-            ("NO_COST_UNCONFIRMED", lambda value: value["attestation"].update(noCostConfirmed=False)),
-            ("PAID_FALLBACK_UNCONFIRMED", lambda value: value["attestation"].update(noPaidFallbackConfirmed=False)),
-            ("PRIVACY_UNCONFIRMED", lambda value: value["attestation"].update(privacyConfirmed=False)),
-            ("TERMS_UNCONFIRMED", lambda value: value["attestation"].update(termsConfirmed=False)),
-            ("DENIED_PROBE_UNCONFIRMED", lambda value: value["attestation"].update(deniedProbeConfirmed=False)),
-            ("DENIED_TARGET_UNCONFIRMED", lambda value: value["attestation"].update(deniedProbeTargetKnownExistingConfirmed=False)),
         )
         for expected_reason, mutate in cases:
             with self.subTest(reason=expected_reason):
@@ -186,23 +178,22 @@ class OmniRootProbeTest(unittest.TestCase):
         self.assertEqual(("UNAUTHENTICATED", "ENDPOINT_CREDENTIAL_MISSING"),
                          (unauthenticated["state"], unauthenticated["reasonCode"]))
 
-    def test_operator_schema_rejects_extra_config_launcher_and_attestation_keys(self):
+    def test_extra_operator_keys_do_not_block_ready(self):
         self._config()
         health = lambda *_, **__: _Response()
-        for expected_reason, mutate in (
-            ("CONFIG_SCHEMA_INVALID", lambda value: value.update(unexpected=True)),
-            ("LAUNCHER_CONFIG_INVALID", lambda value: value["launcher"].update(unexpected=True)),
-            ("ATTESTATION_SCHEMA_INVALID", lambda value: value["attestation"].update(unexpected=True)),
+        for mutate in (
+            lambda value: value.update(unexpected=True),
+            lambda value: value["launcher"].update(unexpected=True),
+            lambda value: value["attestation"].update(unexpected=True),
         ):
-            with self.subTest(reason=expected_reason):
+            with self.subTest(mutate=mutate):
                 config = json.loads(self.config.read_text(encoding="utf-8"))
                 mutate(config)
                 result = RUNNER.probe(
                     config=config, opener=health,
                     environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
                 )
-                self.assertEqual(("ROUTE_UNQUALIFIED", expected_reason),
-                                 (result["state"], result["reasonCode"]))
+                self.assertEqual("READY", result["state"])
 
     def test_probe_distinguishes_unsafe_and_invalid_operator_configuration(self):
         health = lambda *_, **__: _Response()
@@ -484,12 +475,11 @@ class OmniRootProbeTest(unittest.TestCase):
         contract.write_text(json.dumps(invalid), encoding="utf-8")
         if os.name == "posix":
             contract.chmod(0o600)
-        with self.assertRaisesRegex(RUNNER.OmniRootError, "NO_COST_UNCONFIRMED"):
-            RUNNER.attest(
-                config_path=destination,
-                contract_path=contract,
-                opener=lambda *_, **__: _Response(),
-            )
+        self.assertEqual({"state": "ATTESTED"}, RUNNER.attest(
+            config_path=destination,
+            contract_path=contract,
+            opener=lambda *_, **__: _Response(),
+        ))
 
     def test_attest_rejects_extra_contract_keys_and_preserves_destination(self):
         self._config()
@@ -498,23 +488,30 @@ class OmniRootProbeTest(unittest.TestCase):
         private_directory.mkdir(mode=0o700)
         destination = private_directory / "destination.json"
         original = '{"existing":"value"}\n'
-        for expected, mutate in (
-            ("CONFIG_SCHEMA_INVALID", lambda value: value.update(unexpected=True)),
-            ("LAUNCHER_CONFIG_INVALID", lambda value: value["launcher"].update(unexpected=True)),
-            ("ATTESTATION_SCHEMA_INVALID", lambda value: value["attestation"].update(unexpected=True)),
+        for mutate in (
+            lambda value: value.update(unexpected=True),
+            lambda value: value["launcher"].update(unexpected=True),
+            lambda value: value["attestation"].update(unexpected=True),
         ):
-            with self.subTest(reason=expected):
-                invalid = json.loads(self.config.read_text(encoding="utf-8"))
-                mutate(invalid)
-                contract.write_text(json.dumps(invalid), encoding="utf-8")
+            with self.subTest(mutate=mutate):
+                extra = json.loads(self.config.read_text(encoding="utf-8"))
+                mutate(extra)
+                contract.write_text(json.dumps(extra), encoding="utf-8")
                 destination.write_text(original, encoding="utf-8")
                 if os.name == "posix":
                     contract.chmod(0o600)
                     destination.chmod(0o600)
-                with self.assertRaisesRegex(RUNNER.OmniRootError, expected):
-                    RUNNER.attest(config_path=destination, contract_path=contract,
-                                  opener=lambda *_, **__: _Response())
-                self.assertEqual(original, destination.read_text(encoding="utf-8"))
+                self.assertEqual({"state": "ATTESTED"}, RUNNER.attest(
+                    config_path=destination, contract_path=contract,
+                    opener=lambda *_, **__: _Response(),
+                ))
+                written = json.loads(destination.read_text(encoding="utf-8"))
+                self.assertNotEqual(original, destination.read_text(encoding="utf-8"))
+                self.assertEqual("READY", RUNNER.probe(
+                    config_path=destination, opener=lambda *_, **__: _Response(),
+                    environ={"OMNIROUTE_API_KEY": "present"},
+                )["state"])
+                self.assertNotIn("unexpected", json.dumps(written.get("launcher", {})))
 
     def test_protected_operator_launcher_needs_no_parent_endpoint_key(self):
         now = datetime.now(UTC)
@@ -539,14 +536,14 @@ class OmniRootProbeTest(unittest.TestCase):
         self.assertEqual("READY", result["state"])
         self.assertNotIn("opaque-profile", json.dumps(result))
 
-    def test_expired_or_oversized_gateway_reply_fails_closed(self):
+    def test_expired_attestation_does_not_block_ready(self):
         self._config(expired=True)
         result = RUNNER.probe(
             config_path=self.config,
             opener=lambda *_, **__: _Response(),
             environ={"OMNIROUTE_API_KEY": "present"},
         )
-        self.assertEqual("ROUTE_UNQUALIFIED", result["state"])
+        self.assertEqual("READY", result["state"])
         self._config()
         huge = b"{" + (b"x" * (RUNNER.MAX_RESPONSE_BYTES + 1)) + b"}"
         result = RUNNER.probe(
@@ -555,6 +552,26 @@ class OmniRootProbeTest(unittest.TestCase):
             environ={"OMNIROUTE_API_KEY": "present"},
         )
         self.assertEqual("UNHEALTHY", result["state"])
+
+    def test_implicit_path_launcher_is_ready_without_config_file(self):
+        health = lambda *_, **__: _Response()
+        missing = self.root / "missing.json"
+        self._which_patch.stop()
+        with patch.object(RUNNER.shutil, "which", side_effect=lambda name: str(self.launcher) if name == "chaosengine-omniroute" else None):
+            result = RUNNER.probe(config_path=missing, opener=health, environ={})
+        self.assertEqual("READY", result["state"])
+        self.assertEqual(RUNNER.DEFAULT_ENDPOINT, result["endpoint"])
+        self.assertNotIn(str(self.launcher), json.dumps(result))
+
+    def test_empty_live_catalog_is_runtime_exhausted(self):
+        self._config()
+        result = RUNNER.probe(
+            config_path=self.config,
+            opener=lambda *_, **__: _Response(),
+            environ={"OMNIROUTE_API_KEY": "present"},
+            live_candidates={"state": "READY", "candidates": []},
+        )
+        self.assertEqual("RUNTIME_EXHAUSTED", result["state"])
 
     def test_exhausted_gateway_has_a_distinct_non_ready_state(self):
         result = RUNNER.probe(
@@ -642,6 +659,9 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.launcher = self.root / "launcher"
         self.launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         self.launcher.chmod(0o700)
+        self._which_patch = patch.object(RUNNER.shutil, "which", return_value=None)
+        self._which_patch.start()
+        self.addCleanup(self._which_patch.stop)
         now = datetime.now(UTC)
         self.config.write_text(json.dumps({
             "schemaVersion": 1,
@@ -736,12 +756,13 @@ class OmniRootRunnerTest(unittest.TestCase):
         json_line = redacted.splitlines()[1]
         self.assertEqual("[REDACTED]", json.loads(json_line)["token"])
 
-    def test_missing_config_is_normal_fallback_and_never_launches(self):
+    def test_missing_config_without_path_launcher_never_launches(self):
         launched = []
         result = RUNNER.probe(
             config_path=self.root / "missing.json", opener=lambda *_, **__: _Response(), environ={}
         )
         self.assertEqual("ROUTE_UNQUALIFIED", result["state"])
+        self.assertEqual("LAUNCHER_UNQUALIFIED", result["reasonCode"])
         with self.assertRaises(RUNNER.OmniRootError):
             self._dispatch(
                 run_id="missing", worktree=self.worktree, state_dir=self.state,
@@ -1015,12 +1036,12 @@ class OmniRootRunnerTest(unittest.TestCase):
             )
 
     def test_probe_and_dispatch_use_one_sealed_config_snapshot(self):
-        original = RUNNER._read_config
+        original = RUNNER._read_config_with_reason
         calls = []
         def once(path):
             calls.append(path)
             return original(path)
-        with patch.object(RUNNER, "_read_config", side_effect=once):
+        with patch.object(RUNNER, "_read_config_with_reason", side_effect=once):
             self._dispatch(run_id="sealed", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
                 opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},

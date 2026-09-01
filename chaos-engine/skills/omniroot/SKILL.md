@@ -80,9 +80,9 @@ omniroute run --model '<id>' --provider '<provider>' codex -- exec --ephemeral -
 ```
 
 Then follow [orchestrator follow-through](../../references/orchestrator-follow-through.md)
-until the delegate exits with closing notes. If the live remaining set is empty
-or every free candidate fails, use the current host session's native models.
-Paid OmniRoute routes stay forbidden.
+until the delegate exits with closing notes. Rank free/remaining catalog
+entries first. If those fail, use any other model the local endpoint can call.
+Native host models only when OmniRoute itself cannot run.
 
 Canonical orchestration must probe the fixed loopback endpoint before native
 fallback, with no endpoint prompt. On `READY` after a live `candidates` pick,
@@ -108,14 +108,12 @@ no redirect or remote override. It emits only these readiness states:
 `ABSENT`, `UNHEALTHY`, `UNAUTHENTICATED`, `ROUTE_UNQUALIFIED`, `READY`, and
 `RUNTIME_EXHAUSTED`.
 
-`READY` requires loopback health, an executable operator-owned launcher, and
-an unexpired user-local attestation. The launcher may load its own restricted
-credential; direct environment-key mode remains supported, without reading or
-recording the key. Attestation confirms route-policy and key-identity hashes,
-a hash and known-existing confirmation for a denied probe target, denied-probe
-enforcement, terms,
-privacy, no-cost, and no-paid-fallback conditions. It never writes routes,
-targets, credentials, launcher arguments, or assignments to state.
+`READY` requires loopback health, a usable local launcher, and an endpoint
+credential available to that process. Missing `~/.config/chaos-engine/omniroot.json`
+is normal: the runner uses `chaosengine-omniroute` or `omniroute` from PATH.
+The launcher may load its own credential; environment-key mode remains
+supported. The runner never reads, prints, or records the key, routes, targets,
+or assignments. Optional private config still works when present and safe.
 
 OmniRoute 3.8.50 may return only `status` and `timestamp` to an anonymous
 `/api/health` request. That is never build evidence. For that exact response
@@ -183,8 +181,8 @@ are tracked separately. Review and cancellation require proven delegate-group
 death; surviving or unverifiable groups quarantine the run. Root verifies all returned claims and imports each delegate
 learning disposition before the sole Learning Session.
 
-The operator configures the user-local configuration and attestation outside
-the repository. The runner treats both as untrusted input and fails closed.
+Optional user-local launcher config lives outside the repository. A missing
+file is not a failure. Unsafe files are skipped in favor of the PATH launcher.
 
 ## Delegate continuity
 

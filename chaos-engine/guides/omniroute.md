@@ -429,15 +429,13 @@ the canonical ChaosEngine skill, and the role named in its task instructions.
 Keep its scope read-only and non-sensitive.
 
 For bounded automatic delegation, canonical orchestration must probe the fixed
-loopback endpoint before native fallback, with no endpoint prompt. When that
-probe is `READY`, OmniRoot dispatches through the sealed operator launcher. The
-operator-owned priority combo is the sole owner of first-available route/model
-selection: it may move through only its already-attested ordered no-cost and
-no-paid-fallback candidates. OmniRoot never reads, writes, or persists route,
-model, or provider IDs. When the combo reports its entire allowed set exhausted,
-the sealed launcher exits `78`; OmniRoot records only `RUNTIME_EXHAUSTED`, then
-the canonical workflow may use a native implementer. Do not add candidates or
-change the combo from repository automation.
+loopback endpoint before native fallback, with no endpoint prompt. Missing
+operator config is normal. When that probe is `READY`, OmniRoot dispatches
+through `chaosengine-omniroute` or `omniroute run`. Rank live catalog
+free/remaining-first, then any other model the local endpoint can call.
+OmniRoot never reads, writes, or persists route, model, or provider IDs. When
+no callable model remains, the launcher may exit `78`; OmniRoot records
+`RUNTIME_EXHAUSTED`, then the canonical workflow may use a native implementer.
 
 ### Current subagent limitation
 
@@ -535,7 +533,7 @@ Afterward, rerun `probe`; use the table only when it does not return `READY`.
 
 | `reasonCode` | Operator action |
 | --- | --- |
-| `CONFIG_MISSING` | Run the private `attest` command above with a complete current contract. |
+| `CONFIG_MISSING` | Optional. Missing config is normal; probe uses the PATH launcher. |
 | `CONFIG_FILE_UNSAFE` | Replace the destination with an owner-owned regular non-symlink file and private parent directories, then run `attest`. |
 | `CONFIG_CONTENT_INVALID` | Rebuild the private contract as a valid UTF-8 JSON object no larger than 64 KiB, then run `attest`. |
 | `CONFIG_SCHEMA_INVALID` | Recreate the private contract using schema version `1`, then run `attest`. |
