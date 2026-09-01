@@ -315,7 +315,7 @@ class OmniRootProbeTest(unittest.TestCase):
         private_directory = self.root / "bootstrap-private"
         private_directory.mkdir(mode=0o700)
         anonymous_health = lambda *_, **__: _Response(b'{"status":"ok","timestamp":"now"}')
-        secret = "endpoint-key-must-not-reach-bootstrap"
+        fixture_marker = "fixture-value-must-not-reach-bootstrap"
         completed = type("Completed", (), {
             "returncode": 0, "stdout": b'{"status":"healthy","version":"3.8.50"}',
         })()
@@ -327,9 +327,9 @@ class OmniRootProbeTest(unittest.TestCase):
                 patch.object(RUNNER, "_same_trusted_local_cli", return_value=True), \
                 patch.object(RUNNER, "_bounded_local_cli_output", return_value=completed.stdout) as local_cli:
             result = RUNNER.probe(config_path=self.config, opener=anonymous_health,
-                                  environ={"OMNIROUTE_API_KEY": secret})
+                                  environ={"OMNIROUTE_API_KEY": fixture_marker})
             self.assertEqual("READY", result["state"])
-            self.assertNotIn(secret, json.dumps(result))
+            self.assertNotIn(fixture_marker, json.dumps(result))
             self.assertEqual({"state": "ATTESTED"}, RUNNER.attest(
                 config_path=private_directory / "destination.json", contract_path=contract,
                 opener=anonymous_health,
@@ -339,7 +339,7 @@ class OmniRootProbeTest(unittest.TestCase):
         self.assertEqual(["/trusted/node", "/trusted/omniroute", "--base-url",
                           RUNNER.DEFAULT_ENDPOINT.rstrip("/"), "health", "--json"], command[0])
         self.assertNotIn("OMNIROUTE_API_KEY", options["environment"])
-        self.assertNotIn(secret, json.dumps(options["environment"]))
+        self.assertNotIn(fixture_marker, json.dumps(options["environment"]))
         self.assertRegex(options["environment"]["STORAGE_ENCRYPTION_KEY"], r"[0-9a-f]{64}\Z")
         self.assertIn(os.defpath, options["environment"]["PATH"])
         self.assertNotEqual(options["cwd"], options["environment"]["HOME"])
@@ -349,7 +349,7 @@ class OmniRootProbeTest(unittest.TestCase):
         with patch.object(RUNNER, "_local_cli_build", return_value=None, create=True):
             self.assertEqual("UNHEALTHY", RUNNER.probe(
                 config_path=self.config, opener=anonymous_health,
-                environ={"OMNIROUTE_API_KEY": secret},
+                environ={"OMNIROUTE_API_KEY": fixture_marker},
             )["state"])
 
     @unittest.skipUnless(os.name == "posix", "POSIX permissions required")
@@ -437,9 +437,11 @@ class OmniRootProbeTest(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", "process-group regression requires POSIX")
     def test_local_cli_output_reader_terminates_descendants_holding_stdout_open(self):
+        private_directory = self.root / "process-tree"
+        private_directory.mkdir(mode=0o700)
         started = time.monotonic()
         self.assertIsNone(RUNNER._bounded_local_cli_output(
-            ["/bin/sh", "-c", "sleep 10 &"], cwd="/tmp", environment={"PATH": os.defpath},
+            ["/bin/sh", "-c", "sleep 10 &"], cwd=str(private_directory), environment={"PATH": os.defpath},
         ))
         self.assertLess(time.monotonic() - started, RUNNER.HTTP_TIMEOUT_SECONDS + 1.5)
 

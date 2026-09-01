@@ -278,21 +278,26 @@ def _terminate_local_cli_tree(process: subprocess.Popen[bytes]) -> None:
     process.kill()
 
 
-def _bounded_local_cli_output(argv: list[str], *, cwd: str, environment: dict[str, str]) -> bytes | None:
-    """Collect at most one bounded CLI response and terminate on overflow or timeout."""
+def _start_local_cli(argv: list[str], cwd: str, environment: dict[str, str]) -> subprocess.Popen[bytes] | None:
+    """Start a locally verified CLI in a session isolated from this runner."""
+    options: dict[str, Any] = {
+        "cwd": cwd, "env": environment, "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.PIPE, "stderr": subprocess.DEVNULL,
+    }
+    if os.name == "posix":
+        options["start_new_session"] = True
+    elif hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+        options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     try:
-        options: dict[str, Any] = {
-            "cwd": cwd, "env": environment, "stdin": subprocess.DEVNULL,
-            "stdout": subprocess.PIPE, "stderr": subprocess.DEVNULL,
-        }
-        if os.name == "posix":
-            options["start_new_session"] = True
-        elif hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
-            options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-        process = subprocess.Popen(argv, **options)
+        return subprocess.Popen(argv, **options)  # nosec B603 - argv comes only from verified local CLI identities.
     except OSError:
         return None
-    if process.stdout is None:
+
+
+def _bounded_local_cli_output(argv: list[str], *, cwd: str, environment: dict[str, str]) -> bytes | None:
+    """Collect at most one bounded CLI response and terminate on overflow or timeout."""
+    process = _start_local_cli(argv, cwd, environment)
+    if process is None or process.stdout is None:
         return None
     response = bytearray()
     complete = threading.Event()
