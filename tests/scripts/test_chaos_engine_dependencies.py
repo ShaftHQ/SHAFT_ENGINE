@@ -213,7 +213,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             plan["graphify"],
         )
         self.assertEqual(
-            [["/user/bin/npm", "install", "-g", "@aictx/memory@latest"]],
+            [["/user/bin/npm", "install", "-g", "@aictx/memory@0.2.1"]],
             plan["memory"],
         )
         self.assertEqual([], plan["context7"])
@@ -250,33 +250,47 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.assertEqual("chromadb==1.5.9", command[command.index("--with") + 1])
             self.assertEqual("mempalace==3.8.0", command[-1])
 
-    def test_runtime_specification_rejects_any_mempalace_pin_drift(self):
+    def test_runtime_specification_rejects_any_schema3_tool_contract_drift(self):
         module = load_controller()
         source = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         mutations = {
-            "missing": lambda value: value["tools"]["mempalace"].pop("with"),
             "empty": lambda value: value["tools"]["mempalace"].__setitem__("with", []),
             "floating": lambda value: value["tools"]["mempalace"].update(package="mempalace"),
             "wrong": lambda value: value["tools"]["mempalace"].__setitem__("with", ["chromadb==1.5.8"]),
             "multiple": lambda value: value["tools"]["mempalace"].__setitem__("with", ["chromadb==1.5.9", "other==1.0.0"]),
             "future": lambda value: value["tools"]["mempalace"].update(package="mempalace==3.8.1"),
+            "extra-tool": lambda value: value["tools"].update(rogue={"package": "rogue==1.0.0"}),
         }
+        for name, fields in source["tools"].items():
+            mutations[f"missing-tool-{name}"] = lambda value, name=name: value["tools"].pop(name)
+            for key, expected in fields.items():
+                mutations[f"missing-{name}-{key}"] = (
+                    lambda value, name=name, key=key: value["tools"][name].pop(key)
+                )
+                malformed = "malformed" if isinstance(expected, list) else []
+                mutations[f"malformed-{name}-{key}"] = (
+                    lambda value, name=name, key=key, malformed=malformed:
+                    value["tools"][name].__setitem__(key, malformed)
+                )
+            mutations[f"extra-{name}-field"] = (
+                lambda value, name=name: value["tools"][name].update(rogue="value")
+            )
         for label, mutate in mutations.items():
             with self.subTest(label=label):
                 specification = copy.deepcopy(source)
                 mutate(specification)
-                with self.assertRaisesRegex(ValueError, "MemPalace tool dependency pin"):
+                with self.assertRaisesRegex(ValueError, "tool dependency specification is not the exact"):
                     module.validate_runtime_specification(specification)
                 with tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary)
-                    with self.assertRaisesRegex(ValueError, "MemPalace tool dependency pin"):
+                    with self.assertRaisesRegex(ValueError, "tool dependency specification is not the exact"):
                         module.account_tool_plan(
                             root, specification, actions={},
                             executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
                         )
-                    with self.assertRaisesRegex(ValueError, "MemPalace tool dependency pin"):
+                    with self.assertRaisesRegex(ValueError, "tool dependency specification is not the exact"):
                         module.generation_install_plan(root, specification)
-                    with self.assertRaisesRegex(ValueError, "MemPalace tool dependency pin"):
+                    with self.assertRaisesRegex(ValueError, "tool dependency specification is not the exact"):
                         module.install_plan(root, specification)
 
     def test_mempalace_action_resolution_uses_the_declared_pin_not_the_latest_channel(self):
@@ -1183,7 +1197,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             runtime = Path(temporary) / ".chaos-engine-runtime"
             first = module.repair(runtime, specification, runner=self.fake_runner(runtime))
             changed = json.loads(json.dumps(specification))
-            changed["tools"]["graphify"]["package"] = "graphifyy==next"
+            changed["runtimes"]["python"]["version"] = "3.12"
             upgraded = module.repair(runtime, changed, runner=self.fake_runner(runtime))
 
             self.assertNotEqual(first["specificationSha256"], upgraded["specificationSha256"])
@@ -1575,7 +1589,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             runtime = Path(temporary) / ".chaos-engine-runtime"
             module.repair(runtime, specification, runner=self.fake_runner(runtime))
             changed = json.loads(json.dumps(specification))
-            changed["tools"]["memory"]["package"] = "@aictx/memory@next"
+            changed["runtimes"]["python"]["version"] = "3.12"
             receipt = module.repair(
                 runtime, changed, runner=self.fake_runner(runtime), force=True
             )

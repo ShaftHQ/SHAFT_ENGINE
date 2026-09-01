@@ -55,6 +55,23 @@ REQUIRED_DISPATCHES = {
 }
 PINNED_MEMPALACE_PACKAGE = "mempalace==3.8.0"
 PINNED_MEMPALACE_WITH = ("chromadb==1.5.9",)
+SCHEMA3_TOOLS = {
+    "uv": {"package": "uv==0.11.29"},
+    "mempalace": {
+        "package": PINNED_MEMPALACE_PACKAGE,
+        "with": list(PINNED_MEMPALACE_WITH),
+        "commands": ["mempalace", "mempalace-mcp"],
+    },
+    "graphify": {
+        "package": "graphifyy==0.9.43",
+        "with": ["tree-sitter-sql==0.3.11"],
+        "commands": ["graphify"],
+    },
+    "memory": {
+        "package": "@aictx/memory@0.2.1",
+        "commands": ["memory", "memory-mcp"],
+    },
+}
 WINDOWS_UV_JUNCTION_TAG = 0xA0000003
 WINDOWS_UV_ALIAS = re.compile(
     r"uv-python/cpython-(?P<version>3\.\d+)-windows-(?P<arch>x86_64|aarch64)-none"
@@ -239,7 +256,9 @@ def account_tool_plan(
             "graphify", str(specification["tools"]["graphify"]["package"]),
             tuple(specification["tools"]["graphify"].get("with", [])),
         ),
-        "memory": npm_commands("memory", "@aictx/memory@latest"),
+        "memory": npm_commands(
+            "memory", str(specification["tools"]["memory"]["package"])
+        ),
         "context7": npm_commands("context7", "ctx7@latest"),
     }
 
@@ -998,13 +1017,8 @@ def validate_runtime_specification(specification: dict[str, object]) -> None:
             raise ValueError("account dependency specification is invalid")
         if not isinstance(tools, dict):
             raise ValueError("tool dependency specification is invalid")
-        mempalace = tools.get("mempalace")
-        if (
-            not isinstance(mempalace, dict)
-            or mempalace.get("package") != PINNED_MEMPALACE_PACKAGE
-            or mempalace.get("with") != list(PINNED_MEMPALACE_WITH)
-        ):
-            raise ValueError("MemPalace tool dependency pin is invalid")
+        if tools != SCHEMA3_TOOLS:
+            raise ValueError("tool dependency specification is not the exact schema v3 contract")
         for name, contract in dependencies.items():
             if (
                 not isinstance(contract, dict)
