@@ -15,8 +15,13 @@ This is an operator integration guide, not a second workflow definition.
 ChaosEngine does not install OmniRoute, create provider accounts, retain
 provider credentials, start a service, or choose a provider on your behalf.
 
-> **Research snapshot — 2026-08-30.** Commands and provider/model identifiers
-> below were reviewed against OmniRoute `v3.8.50`. Its own
+> **Research snapshot — 2026-09-01.** Dispatch and CLI wiring were reviewed
+> against OmniRoute docs on `release/v3.8.51`
+> ([guides](https://github.com/diegosouzapw/OmniRoute/tree/release/v3.8.51/docs/guides)).
+> The installed npm package on the reviewed machine was still `3.8.50`;
+> `omniroute run` targets and `--model` wiring match that package's
+> `bin/cli/cli-manifest.mjs`. Provider/model identifiers in the curated
+> shortlist below remain the 3.8.50 review. Its own
 > [free-tier catalogue](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/reference/FREE_TIERS.md)
 > labels free allowances as estimates and says they change frequently. Before
 > onboarding, recheck the provider's current official pricing, terms, privacy,
@@ -308,10 +313,16 @@ Rank remaining `default` models first for implementation, then most-intelligent,
 then mechanical. Do not pin `chaosengine-omniroute`'s Codex profile model
 (Gemini Flash-Lite). `omniroute --output json models` may list friendly names
 (`GLM 4.5`); dispatch the native id (`glm-4.5`) with
-`omniroute run --model --provider` and Codex `-c model='<provider>/<id>'`.
-The launcher sets `model_provider=omniroute` but does not replace Codex's
-default model name. On HTTP 429 or HTTP 400 live-catalog miss, skip that
-identity and pick the next remaining candidate. Native host models are last
+`omniroute run --model --provider <target>`. Prefer `omniroute run` over
+`setup-*` (no config writes). Official run targets: `claude`, `codex`,
+`opencode`, `aider`, `goose`, `qwen`, `gemini`. ChaosEngine picks the first
+installed implementer: `claude`, then `opencode`, then `codex`. For Codex,
+pass Codex `-c model='<provider>/<id>'`. The launcher sets
+`model_provider=omniroute` but does not replace Codex's default model name.
+Claude uses `ANTHROPIC_BASE_URL` at the gateway root (no `/v1`). OpenCode
+gets `--model omniroute/<id>`. On HTTP 429 or HTTP 400 live-catalog miss, skip
+that identity and pick the next remaining candidate. Hard quota exhaustion
+needs another provider, not the same identity. Native host models are last
 resort when the catalog is empty.
 
 ## Codex configuration: optional separate session

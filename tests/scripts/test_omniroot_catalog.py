@@ -118,6 +118,13 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("native id", skill)
         self.assertIn("prefer `model` over `id`/`name`", skill)
         self.assertIn("Do not drop `available: false`", skill)
+        self.assertIn("Prefer `omniroute run` over `setup-*`", skill)
+        self.assertIn("bin/cli/cli-manifest.mjs", skill)
+        self.assertIn("ANTHROPIC_BASE_URL` is the gateway **root", skill)
+        self.assertIn("`--model omniroute/<id>`", skill)
+        self.assertIn("first installed implementer target: `claude`, then `opencode`, then", skill)
+        self.assertIn("OMNIROUTE_ROTATE_ON_400=true", skill)
+        self.assertIn("Thinking Budget on the OmniRoute host must be `passthrough`", skill)
 
     def test_catalog_cli_does_not_forward_ambient_endpoint_key(self):
         seen = []

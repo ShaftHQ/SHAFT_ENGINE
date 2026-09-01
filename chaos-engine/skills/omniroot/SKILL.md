@@ -77,30 +77,68 @@ most-intelligent. Implementation uses `default` first, then most-intelligent,
 then mechanical. Do not pin a Codex profile model such as Gemini Flash-Lite.
 Empty result is `RUNTIME_EXHAUSTED`.
 
-Retry is chosen from the failure, not from a pinned profile:
+Retry is chosen from the failure, not from a pinned profile. Official
+troubleshooting splits transient rate/400/401 from hard quota exhaustion:
 
 - HTTP 429 / rate-limit / resource_exhausted: do not retry the same identity.
   Requery the catalog, skip that `identitySha256`, pick the next remaining
-  model, and relaunch Codex with `--model` / `--provider`.
+  model, and relaunch `omniroute run --model` / `--provider` on the same
+  installed target. If the provider is out of balance, skip that provider
+  family. Daemon-side `OMNIROUTE_ROTATE_ON_400=true` hops 400/401 inside the
+  gateway; ChaosEngine still skips a failed identity at launch.
 - HTTP 400 live-catalog miss (`not available in the active live catalog`):
   same as 429. Skip that identity, requery, launch the next remaining native id.
 - Stream closed before `response.completed` after one same-pick retry: same as 429.
+  Debug format translation at Dashboard Translator (Playground / Chat Tester).
 - Timeout or a single network blip: retry the same catalog pick once.
 - HTTP 401/403 or invalid key: stop. Do not retry. Fix the endpoint credential.
+  Expired OAuth: Dashboard reconnect or `omniroute providers auth`.
 - Empty remaining catalog: `RUNTIME_EXHAUSTED`, then native host models.
 
 Never pin a model in a Codex profile. Fetch the live catalog, rank for the
-task, map display names to native ids, then launch
-`omniroute run --model '<id>' --provider '<provider>' codex`
-and pass Codex `-c model='<provider>/<id>'`. `omniroute run` sets
-`model_provider=omniroute` but leaves Codex's default model name; without the
-`-c model=` overlay the gateway routes that default to the `codex` provider.
+task, map display names to native ids, then launch `omniroute run`.
 
-### Dispatch and follow-through
+### Dispatch (`omniroute run`, no config writes)
+
+Prefer `omniroute run` over `setup-*` / `configure`. `run` writes nothing.
+Official run targets come from `bin/cli/cli-manifest.mjs`: `claude`
+(`claude-code|cc|anthropic`), `codex` (`codex-cli|openai-codex|openai`),
+`opencode` (`open-code`), `aider`, `goose` (`goose-cli`), `qwen`
+(`qwen-code`; `--model` required), `gemini` (`gemini-cli`). Missing binary
+exits `127`: skip that target. Invalid args exit `2`. Child exit is
+propagated. Do not use `setup-codex`, `setup-claude`, or `setup-opencode`
+from a task. Do not pass `--remote` or a non-loopback `--base-url`. Do not
+dispatch through OmniRoute Chaos Mode (`/dashboard/chaos` or `auto/chaos`).
+
+`--model` wiring (CLI-INTEGRATIONS):
+
+- **claude**: `ANTHROPIC_MODEL`. `ANTHROPIC_BASE_URL` is the gateway **root,
+  no `/v1`**. Pin non-Claude ids with `--model`; the `/model` picker lists
+  only `claude*`/`anthropic*` unless `EXPOSE_CC_DISCOVERY_ALIASES`.
+- **opencode**: `--model omniroute/<id>` (prefix added only if missing).
+- **qwen** / **gemini**: id verbatim. Gemini uses root (`/v1beta`).
+- **goose**: `GOOSE_MODEL`. Base URL is root.
+- **codex**: `-c model_providers.omniroute.*` with `base_url` **including
+  `/v1`** and `wire_api=responses` (never `chat`). For Codex, pass Codex `-c model='<provider>/<id>'` after `--`; `omniroute run` sets
+  `model_provider=omniroute` but leaves Codex's default model name.
+
+Pick the first installed implementer target: `claude`, then `opencode`, then
+`codex`. Launch from the delegate worktree as cwd.
 
 ```text
-omniroute run --model '<id>' --provider '<provider>' codex -- exec --ephemeral --approve-for-me -C '<worktree>' '<prompt>'
+omniroute run --port 20128 --model '<id>' --provider '<provider>' claude -- --print --dangerously-skip-permissions '<prompt>'
+omniroute run --port 20128 --model '<id>' --provider '<provider>' opencode -- run --auto --dir '<worktree>' '<prompt>'
+omniroute run --port 20128 --model '<id>' --provider '<provider>' codex -- -c model='<provider>/<id>' exec --ephemeral --approve-for-me -C '<worktree>' '<prompt>'
 ```
+
+Local Codex `env_key` accepts placeholder `OMNIROUTE_API_KEY=local` when the
+gateway is unauthenticated; a real inference key is required for protected
+`/v1`. GET `/v1/models` without that key returns 401; that is not a dispatch
+failure. Thinking Budget on the OmniRoute host must be `passthrough` or
+client effort/summary is stripped. Long tasks: raise `sessionAffinityTtlMs`
+above expected wall-clock; set `STREAM_IDLE_TIMEOUT_MS=0` and
+`FETCH_BODY_TIMEOUT_MS=0` (or above the longest quiet gap). Heartbeats do
+not reset the idle clock.
 
 Then follow [orchestrator follow-through](../../references/orchestrator-follow-through.md)
 until the delegate exits with closing notes. Rank free/remaining catalog
@@ -135,8 +173,9 @@ no redirect or remote override. It emits only these readiness states:
 model with remaining tokens. Then use it. Catalog queries use the local CLI
 session and must not inherit ambient `OMNIROUTE_API_KEY` or `OMNIROUTE_BASE_URL`
 values that return "No models found". Missing operator config does not block
-READY. Dispatch launches `omniroute run --model --provider` from the live
-catalog. The runner never reads, prints, or records keys, routes, targets, or
+READY. Dispatch launches `omniroute run --model --provider <target>` from the live
+catalog (`claude`, then `opencode`, then `codex` when those binaries exist).
+The runner never reads, prints, or records keys, routes, targets, or
 assignments.
 
 OmniRoute 3.8.50 may return only `status` and `timestamp` to an anonymous
