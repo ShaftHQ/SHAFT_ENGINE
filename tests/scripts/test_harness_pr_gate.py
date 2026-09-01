@@ -13,7 +13,9 @@ from unittest.mock import patch
 
 import yaml
 
+import scripts.ci.harness_pr_gate as harness_pr_gate
 from scripts.ci.harness_pr_gate import (
+    Check,
     GateError,
     GatePlan,
     WaiverReceipt,
@@ -139,8 +141,18 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("documentation", plan.surfaces)
         self.assertIn("documentation-inventory-contract", {check.id for check in plan.checks})
         self.assertTrue(account_proofs.issubset(modules), modules)
-        omitted = modules - account_proofs
-        self.assertFalse(account_proofs.issubset(omitted))
+        original = harness_pr_gate.CHECKS["dependency-account-contract"]
+        dropped = account_proofs - {original.modules[0]}
+        mutated = Check(
+            original.id,
+            original.surface,
+            original.modules[:1],
+            original.protected,
+        )
+        with patch.dict(harness_pr_gate.CHECKS, {"dependency-account-contract": mutated}):
+            broken = classify_paths(["chaos-engine/dependencies.json"])
+        self.assertFalse(account_proofs.issubset(set(broken.test_modules)), broken.test_modules)
+        self.assertTrue(dropped.isdisjoint(set(broken.test_modules)), broken.test_modules)
 
     def test_harness_tree_change_closes_coupled_identity_checks(self) -> None:
         plan = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
@@ -152,8 +164,13 @@ class ClassifierTest(unittest.TestCase):
 
         self.assertIn("identities", plan.surfaces)
         self.assertTrue(identity_proofs.issubset(modules), modules)
-        sibling_omission = modules - {"tests.scripts.test_chaos_gauge_recovery"}
-        self.assertFalse(identity_proofs.issubset(sibling_omission))
+        with patch.dict(
+            harness_pr_gate.SURFACE_CHECKS,
+            {"identities": ("identity-contract",)},
+        ):
+            broken = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+        self.assertFalse(identity_proofs.issubset(set(broken.test_modules)), broken.test_modules)
+        self.assertNotIn("tests.scripts.test_chaos_gauge_recovery", broken.test_modules)
 
     def test_every_installer_manifest_uses_protected_installer_checks(self) -> None:
         manifests = (

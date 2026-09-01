@@ -238,6 +238,13 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "retry budget"):
             MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
 
+        unbound = copy.deepcopy(jobs)
+        for name in ("control", "chaos-engine"):
+            unbound[name]["agents"][0]["kwargs"]["version"] = "9.9.9"
+        with self.assertRaisesRegex(ValueError, "job harness treatment"):
+            MODULE.validate_job_contracts(self.manifest(), unbound)
+        self.assertEqual("0.118.0", jobs["chaos-engine"]["agents"][0]["kwargs"]["version"])
+
     def test_all_harbor_job_arms_add_only_the_pinned_chroma_model_host(self):
         host = "chroma-onnx-models.s3.amazonaws.com"
         for name in (
