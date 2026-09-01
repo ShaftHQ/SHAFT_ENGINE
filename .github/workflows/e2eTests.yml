@@ -771,9 +771,10 @@ jobs:
         # markers). Reverted back to self-skip (the pre-#4303 default). Issue #4313 (this
         # job's new Flutter_Demo_App_Build prerequisite above) now replaces flutter-demo.apk
         # with one actually built via the same Ptarget=.../integration_test/appium.dart
-        # pipeline Android_Flutter_Emulator_E2E already uses; re-enabling this flag still
-        # requires a real workflow_dispatch run verifying FlutterTest passes against it
-        # first -- the exact verification step #4294 skipped, not to be repeated.
+        # pipeline Android_Flutter_Emulator_E2E already uses. Re-enabling this flag must
+        # first pass the smallest directly affected local test and exact-head PR checks;
+        # the scheduled nightly then owns integrated remote E2E validation. That proof
+        # must not be skipped as it was in #4294.
         # The -Dtest selector below still deliberately matches FlutterTest.* (harmless
         # while self-skipping) so re-enabling later is a one-line change again.
         run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dsurefire.excludedGroups=allure3-visual-demo,mobile-recording-compatible-provider,mobile-evidence-real-provider,visual-ocr-mobile-acceptance" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
