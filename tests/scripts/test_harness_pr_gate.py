@@ -14,18 +14,6 @@ from unittest.mock import patch
 import yaml
 
 import scripts.ci.harness_pr_gate as harness_pr_gate
-from scripts.ci.harness_pr_gate import (
-    Check,
-    GateError,
-    GatePlan,
-    WaiverReceipt,
-    changed_paths,
-    classify_paths,
-    event_waiver,
-    parse_waiver,
-    render_json,
-    run_plan,
-)
 from scripts.ci.validate_agent_setup import validate_host_parity
 
 
@@ -68,9 +56,9 @@ def write_reviews(directory: str, reviews: list[dict[str, object]]) -> Path:
 
 class ClassifierTest(unittest.TestCase):
     def test_readme_and_promotion_changes_select_only_focused_contracts(self) -> None:
-        documentation = classify_paths(["chaos-engine/README.md"])
-        promotion = classify_paths(["scripts/ci/chaos_engine_promotion.py"])
-        promotion_runner = classify_paths(
+        documentation = harness_pr_gate.classify_paths(["chaos-engine/README.md"])
+        promotion = harness_pr_gate.classify_paths(["scripts/ci/chaos_engine_promotion.py"])
+        promotion_runner = harness_pr_gate.classify_paths(
             ["scripts/ci/chaos_engine_promotion_trials.py"]
         )
 
@@ -90,7 +78,7 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(("promotion",), promotion_runner.surfaces)
 
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
-        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
+        plan = harness_pr_gate.classify_paths(["chaos-engine/hooks/kernel.py"])
 
         self.assertEqual(("kernel", "identities"), plan.surfaces)
         self.assertEqual(
@@ -110,7 +98,7 @@ class ClassifierTest(unittest.TestCase):
         )
 
     def test_copilot_repository_hook_selects_host_contract(self) -> None:
-        plan = classify_paths([".github/hooks/chaos-engine.json"])
+        plan = harness_pr_gate.classify_paths([".github/hooks/chaos-engine.json"])
 
         self.assertEqual(("hosts",), plan.surfaces)
         self.assertEqual(
@@ -119,7 +107,7 @@ class ClassifierTest(unittest.TestCase):
         )
 
     def test_installer_change_keeps_5299_acceptance_and_rollback_protected(self) -> None:
-        plan = classify_paths(["chaos-engine/dependencies.py"])
+        plan = harness_pr_gate.classify_paths(["chaos-engine/dependencies.py"])
 
         self.assertIn("installer", plan.surfaces)
         protected = {check.id for check in plan.checks if check.protected}
@@ -129,7 +117,7 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_chaos_engine_dependencies", plan.test_modules)
 
     def test_dependency_manifest_change_closes_readme_and_account_version_proofs(self) -> None:
-        plan = classify_paths(["chaos-engine/dependencies.json"])
+        plan = harness_pr_gate.classify_paths(["chaos-engine/dependencies.json"])
         modules = set(plan.test_modules)
         account_proofs = {
             "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
@@ -143,19 +131,19 @@ class ClassifierTest(unittest.TestCase):
         self.assertTrue(account_proofs.issubset(modules), modules)
         original = harness_pr_gate.CHECKS["dependency-account-contract"]
         dropped = account_proofs - {original.modules[0]}
-        mutated = Check(
+        mutated = harness_pr_gate.Check(
             original.id,
             original.surface,
             original.modules[:1],
             original.protected,
         )
         with patch.dict(harness_pr_gate.CHECKS, {"dependency-account-contract": mutated}):
-            broken = classify_paths(["chaos-engine/dependencies.json"])
+            broken = harness_pr_gate.classify_paths(["chaos-engine/dependencies.json"])
         self.assertFalse(account_proofs.issubset(set(broken.test_modules)), broken.test_modules)
         self.assertTrue(dropped.isdisjoint(set(broken.test_modules)), broken.test_modules)
 
     def test_harness_tree_change_closes_coupled_identity_checks(self) -> None:
-        plan = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+        plan = harness_pr_gate.classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
         modules = set(plan.test_modules)
         identity_proofs = {
             "tests.scripts.test_chaos_gauge_contracts",
@@ -168,7 +156,7 @@ class ClassifierTest(unittest.TestCase):
             harness_pr_gate.SURFACE_CHECKS,
             {"identities": ("identity-contract",)},
         ):
-            broken = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+            broken = harness_pr_gate.classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
         self.assertFalse(identity_proofs.issubset(set(broken.test_modules)), broken.test_modules)
         self.assertNotIn("tests.scripts.test_chaos_gauge_recovery", broken.test_modules)
 
@@ -185,14 +173,14 @@ class ClassifierTest(unittest.TestCase):
         )
         for path in manifests:
             with self.subTest(path=path):
-                plan = classify_paths([path])
+                plan = harness_pr_gate.classify_paths([path])
                 self.assertIn("installer", plan.surfaces)
                 protected = {check.id for check in plan.checks if check.protected}
                 self.assertIn("protected-installer-acceptance", protected)
                 self.assertIn("protected-rollback", protected)
 
     def test_guard_owner_change_runs_non_waivable_security_check(self) -> None:
-        plan = classify_paths(["scripts/agents/guard.py"])
+        plan = harness_pr_gate.classify_paths(["scripts/agents/guard.py"])
 
         checks = {check.id: check for check in plan.checks}
         self.assertIn("protected-security", checks)
@@ -212,7 +200,7 @@ class ClassifierTest(unittest.TestCase):
         )
 
     def test_unknown_harness_path_falls_back_instead_of_skipping(self) -> None:
-        plan = classify_paths(["scripts/agents/new_runtime_surface.py"])
+        plan = harness_pr_gate.classify_paths(["scripts/agents/new_runtime_surface.py"])
 
         self.assertEqual(("fallback",), plan.surfaces)
         self.assertEqual(("scripts/agents/new_runtime_surface.py",), plan.unknown_paths)
@@ -234,16 +222,16 @@ class ClassifierTest(unittest.TestCase):
             "tools/intellij-plugin-recording/install.ps1",
         ):
             with self.subTest(path=path):
-                self.assertIn("fallback", classify_paths([path]).surfaces)
+                self.assertIn("fallback", harness_pr_gate.classify_paths([path]).surfaces)
 
     def test_edited_harness_test_uses_its_mapped_final_batch_contract(self) -> None:
-        plan = classify_paths(["tests/scripts/test_agent_router_contract.py"])
+        plan = harness_pr_gate.classify_paths(["tests/scripts/test_agent_router_contract.py"])
 
         self.assertEqual(("guidance",), plan.surfaces)
         self.assertFalse(any(check.surface == "changed-test" for check in plan.checks))
 
     def test_setup_aggregator_change_selects_its_direct_contract(self) -> None:
-        plan = classify_paths(["scripts/ci/validate_agent_setup.py"])
+        plan = harness_pr_gate.classify_paths(["scripts/ci/validate_agent_setup.py"])
 
         self.assertIn("tests.scripts.test_validate_agent_setup", plan.test_modules)
 
@@ -256,7 +244,7 @@ class ClassifierTest(unittest.TestCase):
             "T\0chaos-engine/hooks/kernel.py\0",
         )
         with patch("scripts.ci.harness_pr_gate.subprocess.run", return_value=completed) as run:
-            paths = changed_paths(ROOT, "a" * 40, "b" * 40)
+            paths = harness_pr_gate.changed_paths(ROOT, "a" * 40, "b" * 40)
 
         self.assertIn("--diff-filter=ACDMRT", run.call_args.args[0])
         self.assertIn("--name-status", run.call_args.args[0])
@@ -265,8 +253,8 @@ class ClassifierTest(unittest.TestCase):
             [False, False, True, True],
             [path.executable for path in paths],
         )
-        deleted_plan = classify_paths([paths[0]])
-        renamed_plan = classify_paths([paths[2]])
+        deleted_plan = harness_pr_gate.classify_paths([paths[0]])
+        renamed_plan = harness_pr_gate.classify_paths([paths[2]])
         self.assertIn("fallback", deleted_plan.surfaces)
         self.assertIn("lifecycle", renamed_plan.surfaces)
         self.assertFalse(any(check.surface == "changed-test" for check in renamed_plan.checks))
@@ -304,7 +292,7 @@ class ClassifierTest(unittest.TestCase):
             git("commit", "-m", "base")
             base = git("rev-parse", "HEAD")
 
-            paths = changed_paths(root, base, head)
+            paths = harness_pr_gate.changed_paths(root, base, head)
 
         self.assertEqual(["candidate-only.txt"], list(paths))
 
@@ -346,7 +334,7 @@ class ClassifierTest(unittest.TestCase):
             git("commit", "-m", "rewritten candidate")
             rewritten_head = git("rev-parse", "HEAD")
 
-            paths = changed_paths(root, old_head, rewritten_head)
+            paths = harness_pr_gate.changed_paths(root, old_head, rewritten_head)
 
         self.assertEqual([".github/workflows/pr-gate.yml"], list(paths))
 
@@ -356,7 +344,7 @@ class ClassifierTest(unittest.TestCase):
             "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
         ):
             with self.subTest(path=path):
-                plan = classify_paths([path])
+                plan = harness_pr_gate.classify_paths([path])
                 check_ids = {check.id for check in plan.checks}
                 self.assertEqual(("installer",), plan.surfaces)
                 self.assertNotIn("fallback-contract", check_ids)
@@ -364,37 +352,37 @@ class ClassifierTest(unittest.TestCase):
                 self.assertIn("protected-rollback", check_ids)
 
     def test_reachability_contract_uses_focused_guidance_surface(self) -> None:
-        plan = classify_paths(["tests/scripts/test_agent_harness_reachability.py"])
+        plan = harness_pr_gate.classify_paths(["tests/scripts/test_agent_harness_reachability.py"])
 
         self.assertEqual(("guidance",), plan.surfaces)
         self.assertNotIn("fallback-contract", {check.id for check in plan.checks})
         self.assertIn("tests.scripts.test_agent_harness_reachability", plan.test_modules)
 
     def test_non_harness_path_selects_no_harness_checks(self) -> None:
-        plan = classify_paths(["shaft-engine/src/main/java/example/Thing.java"])
+        plan = harness_pr_gate.classify_paths(["shaft-engine/src/main/java/example/Thing.java"])
 
         self.assertEqual((), plan.surfaces)
         self.assertEqual((), plan.checks)
 
     def test_dotted_host_adapter_is_not_lost_during_path_normalization(self) -> None:
-        plan = classify_paths([".claude/settings.json"])
+        plan = harness_pr_gate.classify_paths([".claude/settings.json"])
 
         self.assertIn("hosts", plan.surfaces)
 
     def test_path_traversal_input_fails_closed(self) -> None:
-        with self.assertRaises(GateError):
-            classify_paths(["../chaos-engine/hooks/kernel.py"])
+        with self.assertRaises(harness_pr_gate.GateError):
+            harness_pr_gate.classify_paths(["../chaos-engine/hooks/kernel.py"])
 
 
 class WaiverTest(unittest.TestCase):
     def test_valid_receipt_is_exact_head_check_specific_and_expiring(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            receipt = event_waiver(
+            receipt = harness_pr_gate.event_waiver(
                 write_reviews(directory, [review_record()]), HEAD, now=NOW
             )
 
         self.assertIsNotNone(receipt)
-        receipt = cast(WaiverReceipt, receipt)
+        receipt = cast(harness_pr_gate.WaiverReceipt, receipt)
         self.assertEqual(("guidance-contract",), receipt.check_ids)
         self.assertEqual(HEAD, receipt.head_sha)
 
@@ -409,8 +397,8 @@ class WaiverTest(unittest.TestCase):
         )
         for body in cases:
             with self.subTest(body=body[:80]):
-                with self.assertRaises(GateError):
-                    parse_waiver(body, now=NOW)
+                with self.assertRaises(harness_pr_gate.GateError):
+                    harness_pr_gate.parse_waiver(body, now=NOW)
 
     def test_protected_categories_can_never_be_waived(self) -> None:
         protected = (
@@ -424,8 +412,8 @@ class WaiverTest(unittest.TestCase):
         )
         for check_id in protected:
             with self.subTest(check_id=check_id):
-                with self.assertRaises(GateError):
-                    parse_waiver(
+                with self.assertRaises(harness_pr_gate.GateError):
+                    harness_pr_gate.parse_waiver(
                         waiver_body(allowed_check_ids=[check_id]),
                         now=NOW,
                     )
@@ -436,7 +424,7 @@ class WaiverTest(unittest.TestCase):
                 self.assertTrue(
                     next(
                         check
-                        for check in classify_paths(
+                        for check in harness_pr_gate.classify_paths(
                             {
                                 "kernel-contract": ["chaos-engine/hooks/kernel.py"],
                                 "lifecycle-contract": ["chaos-engine/hooks/guard.py"],
@@ -446,8 +434,8 @@ class WaiverTest(unittest.TestCase):
                         if check.id == check_id
                     ).protected
                 )
-                with self.assertRaises(GateError):
-                    parse_waiver(
+                with self.assertRaises(harness_pr_gate.GateError):
+                    harness_pr_gate.parse_waiver(
                         waiver_body(allowed_check_ids=[check_id]),
                         now=NOW,
                     )
@@ -457,7 +445,7 @@ class WaiverTest(unittest.TestCase):
             non_owner = review_record(user={"login": "outside-contributor"})
             stale_owner = review_record(commit_id="b" * 40)
             path = write_reviews(directory, [non_owner, stale_owner])
-            self.assertIsNone(event_waiver(path, HEAD, now=NOW))
+            self.assertIsNone(harness_pr_gate.event_waiver(path, HEAD, now=NOW))
 
     def test_pr_author_or_editor_body_cannot_authorize(self) -> None:
         forgeable_event = {
@@ -471,8 +459,8 @@ class WaiverTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "event.json"
             path.write_text(json.dumps(forgeable_event), encoding="utf-8")
-            with self.assertRaises(GateError):
-                event_waiver(path, HEAD, now=NOW)
+            with self.assertRaises(harness_pr_gate.GateError):
+                harness_pr_gate.event_waiver(path, HEAD, now=NOW)
 
     def test_owner_review_must_be_submitted_and_unambiguous(self) -> None:
         invalid = (
@@ -485,11 +473,11 @@ class WaiverTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             path = write_reviews(directory, list(invalid))
-            self.assertIsNone(event_waiver(path, HEAD, now=NOW))
+            self.assertIsNone(harness_pr_gate.event_waiver(path, HEAD, now=NOW))
 
             path = write_reviews(directory, [review_record(), review_record(id=43)])
-            with self.assertRaises(GateError):
-                event_waiver(path, HEAD, now=NOW)
+            with self.assertRaises(harness_pr_gate.GateError):
+                harness_pr_gate.event_waiver(path, HEAD, now=NOW)
 
 
 class OutputAndWorkflowTest(unittest.TestCase):
@@ -551,16 +539,14 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertIn("agent-guidance", job["needs"])
 
     def test_local_preflight_documents_full_head_write_generated_command(self) -> None:
-        import scripts.ci.harness_pr_gate as gate
-
         readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
         self.assertIn("--write-generated", readme)
         self.assertIn("scripts/ci/harness_pr_gate.py", readme)
-        self.assertTrue(callable(getattr(gate, "write_generated_artifacts", None)))
+        self.assertTrue(callable(getattr(harness_pr_gate, "write_generated_artifacts", None)))
 
     def test_json_plan_is_concise_reproducible_and_contains_no_pr_body(self) -> None:
-        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
-        payload = json.loads(render_json(plan, head_sha=HEAD, budget_seconds=240))
+        plan = harness_pr_gate.classify_paths(["chaos-engine/hooks/kernel.py"])
+        payload = json.loads(harness_pr_gate.render_json(plan, head_sha=HEAD, budget_seconds=240))
 
         self.assertEqual(1, payload["schema"])
         self.assertEqual(["kernel", "identities"], payload["surfaces"])
@@ -580,8 +566,8 @@ class OutputAndWorkflowTest(unittest.TestCase):
         )
 
     def test_runner_never_applies_a_waiver_to_a_protected_failed_check(self) -> None:
-        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
-        receipt = WaiverReceipt(
+        plan = harness_pr_gate.classify_paths(["chaos-engine/hooks/kernel.py"])
+        receipt = harness_pr_gate.WaiverReceipt(
             HEAD,
             ("kernel-contract",),
             datetime(2026, 8, 29, tzinfo=timezone.utc),
@@ -592,7 +578,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
             return ("failed", 1) if module.endswith("kernel") else ("passed", 0)
 
         with patch("scripts.ci.harness_pr_gate._run_check", side_effect=result_for):
-            payload, exit_code = run_plan(
+            payload, exit_code = harness_pr_gate.run_plan(
                 ROOT,
                 plan,
                 head_sha=HEAD,
@@ -605,11 +591,11 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertEqual([], payload["waiver"]["applied_check_ids"])
 
     def test_timeout_is_never_waived(self) -> None:
-        plan = GatePlan(("kernel",), (classify_paths(["chaos-engine/hooks/kernel.py"]).checks[0],))
-        receipt = WaiverReceipt(HEAD, ("kernel-contract",), NOW)
+        plan = harness_pr_gate.GatePlan(("kernel",), (harness_pr_gate.classify_paths(["chaos-engine/hooks/kernel.py"]).checks[0],))
+        receipt = harness_pr_gate.WaiverReceipt(HEAD, ("kernel-contract",), NOW)
 
         with patch("scripts.ci.harness_pr_gate._run_check", return_value=("timeout", None)):
-            payload, exit_code = run_plan(
+            payload, exit_code = harness_pr_gate.run_plan(
                 ROOT,
                 plan,
                 head_sha=HEAD,
@@ -678,7 +664,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_chaos_engine_generation_runtime", deterministic)
 
     def test_omniroot_portability_is_registered_in_focused_path_gate(self) -> None:
-        plan = classify_paths(["tests/scripts/test_omniroot_portability.py"])
+        plan = harness_pr_gate.classify_paths(["tests/scripts/test_omniroot_portability.py"])
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
 
         self.assertIn("guidance", plan.surfaces)
@@ -699,7 +685,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
 
         for path in paths:
             with self.subTest(path=path):
-                plan = classify_paths([path])
+                plan = harness_pr_gate.classify_paths([path])
                 self.assertIn("guidance", plan.surfaces)
                 self.assertIn(behavioral, plan.test_modules)
 
@@ -716,7 +702,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
             self.assertIn(f"'tests/scripts/{name}'", pr_gate)
 
     def test_scheduled_chaos_gauge_recovery_is_enforced_when_its_workflow_changes(self) -> None:
-        plan = classify_paths([".github/workflows/agent-plugin-acceptance.yml"])
+        plan = harness_pr_gate.classify_paths([".github/workflows/agent-plugin-acceptance.yml"])
         scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
             encoding="utf-8"
         )
