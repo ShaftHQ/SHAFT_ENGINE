@@ -137,7 +137,12 @@ runs:
             if not isinstance(document, dict):
                 raise ValueError("root must be an object")
             fields = ("total", "passed", "failed", "broken", "skipped", "unknown")
-            if any(field in document for field in fields):
+            has_flat_statistics = any(field in document for field in fields)
+            if (has_flat_statistics and "statistic" in document) or (
+                "duration" in document and "time" in document
+            ):
+                raise ValueError("contains ambiguous mixed schemas")
+            if has_flat_statistics:
                 statistic = document
                 timing = document
             else:

@@ -14,7 +14,7 @@ ACTION = ROOT / ".github/actions/post-test-report/action.yml"
 
 class PostTestReportActionTest(unittest.TestCase):
     def run_summary(self, *, total, passed, failed, broken, skipped, unknown=None,
-                    schema="nested", duration=None):
+                    schema="nested", duration=None, document_updates=None):
         action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
         step = next(step for step in action["runs"]["steps"]
                     if step.get("id") == "collect_results")
@@ -43,6 +43,8 @@ class PostTestReportActionTest(unittest.TestCase):
                 document = {"statistic": statistic}
                 if duration is not None:
                     document["time"] = {"duration": duration}
+            if document_updates:
+                document.update(document_updates)
             (report / "summary.json").write_text(
                 json.dumps(document), encoding="utf-8"
             )
@@ -97,6 +99,26 @@ class PostTestReportActionTest(unittest.TestCase):
         completed = self.run_summary(total=14, passed=13, failed=0, broken=0, skipped=1)
 
         self.assertEqual(0, completed.returncode, completed.stdout)
+
+    def test_rejects_mixed_flat_and_nested_statistics(self):
+        completed = self.run_summary(
+            total=1, passed=1, failed=0, broken=0, skipped=0, schema="flat",
+            document_updates={
+                "statistic": {"total": 1, "passed": 0, "failed": 1, "broken": 0, "skipped": 0}
+            },
+        )
+
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("ambiguous mixed schemas", completed.stderr)
+
+    def test_rejects_mixed_nested_time_and_flat_duration(self):
+        completed = self.run_summary(
+            total=1, passed=1, failed=0, broken=0, skipped=0, duration=10,
+            document_updates={"duration": 10},
+        )
+
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("ambiguous mixed schemas", completed.stderr)
 
     def test_rejects_malformed_present_statistics(self):
         cases = (
