@@ -479,6 +479,33 @@ created” is a valid status; do not fabricate account completion.
 
 ## Troubleshooting and rollback
 
+### Secret-free OmniRoot qualification reasons
+
+`python3 chaos-engine/skills/omniroot/scripts/runner.py probe` reports a
+bounded `reasonCode` whenever the result is not `READY`. The value contains no
+credential, route, provider, model, prompt, launcher argument, or local-path
+data. Apply only the matching operator action, then rerun the same probe; do
+not bypass a non-`READY` result or enable paid fallback.
+
+| `reasonCode` | Operator action |
+| --- | --- |
+| `CONFIG_UNREADABLE` | Restore an owner-owned, non-symlink, mode-`0600` operator configuration and probe it with `--config <operator-private-config>`. |
+| `CONFIG_SCHEMA_INVALID` | Recreate the operator configuration using schema version `1`, owner-only permissions, and the current attestation fields. |
+| `ROUTE_ACCEPTANCE_INVALID` | Restore the non-empty accepted route reference in the operator configuration, then obtain a new attestation. |
+| `LAUNCHER_CONFIG_INVALID` | Restore a non-empty launcher argv, credential mode, and supported invocation mode in the operator configuration. |
+| `LAUNCHER_UNQUALIFIED` | Restore an executable, owner-owned launcher that is not group- or world-writable, then refresh attestation. |
+| `ATTESTATION_SCHEMA_INVALID` | Recreate the attestation using schema version `1`; never copy another user's attestation. |
+| `ATTESTATION_BUILD_MISMATCH` | Re-attest against the current local gateway build after verifying operator policy. |
+| `ATTESTATION_HASH_INVALID` | Re-attest the route policy, endpoint-key identity, and denied-target hashes; do not enter raw values in repository files. |
+| `ATTESTATION_FRESHNESS_INVALID` | Obtain a new unexpired attestation after verifying the local gateway. |
+| `NO_COST_UNCONFIRMED` | Keep the route unqualified until the operator can affirm no-cost use. |
+| `PAID_FALLBACK_UNCONFIRMED` | Keep the route unqualified until paid fallback is disabled and attested. |
+| `PRIVACY_UNCONFIRMED` | Keep the route unqualified until privacy terms are reviewed and attested. |
+| `TERMS_UNCONFIRMED` | Keep the route unqualified until applicable terms are reviewed and attested. |
+| `DENIED_PROBE_UNCONFIRMED` | Re-run the operator's denied-target enforcement check and attest its success. |
+| `DENIED_TARGET_UNCONFIRMED` | Reconfirm the denied probe target exists and re-attest it without recording the target. |
+| `ENDPOINT_CREDENTIAL_MISSING` | Supply the existing endpoint credential only through the operator-managed environment or protected launcher, then rerun the probe. |
+
 - **`doctor` reports an unsupported Node runtime:** select a supported Node
   release, reinstall the same reviewed OmniRoute version, and rerun all checks.
 - **Health fails:** run `omniroute serve --port 20128 --no-open` in the

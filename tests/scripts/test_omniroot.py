@@ -122,6 +122,55 @@ class OmniRootProbeTest(unittest.TestCase):
         self.assertEqual("READY", result["state"])
         self.assertNotIn("present-but-never-recorded", json.dumps(result))
 
+    def test_probe_reports_secret_free_reason_codes_for_each_rejection_branch(self):
+        self._config()
+        health = lambda *_, **__: _Response()
+        ready = RUNNER.probe(
+            config_path=self.config,
+            opener=health,
+            environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
+        )
+        self.assertEqual("READY", ready["state"])
+        self.assertNotIn("reasonCode", ready)
+
+        missing = RUNNER.probe(
+            config_path=self.root / "missing.json", opener=health, environ={}
+        )
+        self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_UNREADABLE"),
+                         (missing["state"], missing["reasonCode"]))
+
+        cases = (
+            ("CONFIG_SCHEMA_INVALID", lambda value: value.update(schemaVersion=0)),
+            ("ROUTE_ACCEPTANCE_INVALID", lambda value: value.update(routeId="")),
+            ("LAUNCHER_CONFIG_INVALID", lambda value: value.update(launcher={})),
+            ("LAUNCHER_UNQUALIFIED", lambda value: value["launcher"].update(argv=["missing-launcher"])),
+            ("ATTESTATION_SCHEMA_INVALID", lambda value: value["attestation"].update(schemaVersion=0)),
+            ("ATTESTATION_BUILD_MISMATCH", lambda value: value["attestation"].update(serverBuild="other")),
+            ("ATTESTATION_HASH_INVALID", lambda value: value["attestation"].update(routePolicySha256="invalid")),
+            ("ATTESTATION_FRESHNESS_INVALID", lambda value: value["attestation"].update(expiresAt="2000-01-01T00:00:00+00:00")),
+            ("NO_COST_UNCONFIRMED", lambda value: value["attestation"].update(noCostConfirmed=False)),
+            ("PAID_FALLBACK_UNCONFIRMED", lambda value: value["attestation"].update(noPaidFallbackConfirmed=False)),
+            ("PRIVACY_UNCONFIRMED", lambda value: value["attestation"].update(privacyConfirmed=False)),
+            ("TERMS_UNCONFIRMED", lambda value: value["attestation"].update(termsConfirmed=False)),
+            ("DENIED_PROBE_UNCONFIRMED", lambda value: value["attestation"].update(deniedProbeConfirmed=False)),
+            ("DENIED_TARGET_UNCONFIRMED", lambda value: value["attestation"].update(deniedProbeTargetKnownExistingConfirmed=False)),
+        )
+        for expected_reason, mutate in cases:
+            with self.subTest(reason=expected_reason):
+                config = json.loads(self.config.read_text(encoding="utf-8"))
+                mutate(config)
+                result = RUNNER.probe(
+                    config=config,
+                    opener=health,
+                    environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
+                )
+                self.assertEqual(("ROUTE_UNQUALIFIED", expected_reason),
+                                 (result["state"], result["reasonCode"]))
+
+        unauthenticated = RUNNER.probe(config_path=self.config, opener=health, environ={})
+        self.assertEqual(("UNAUTHENTICATED", "ENDPOINT_CREDENTIAL_MISSING"),
+                         (unauthenticated["state"], unauthenticated["reasonCode"]))
+
     def test_protected_operator_launcher_needs_no_parent_endpoint_key(self):
         now = datetime.now(UTC)
         self.config.write_text(json.dumps({

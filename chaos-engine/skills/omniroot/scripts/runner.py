@@ -36,6 +36,14 @@ SCHEMA_VERSION = 1
 READINESS = frozenset({
     "ABSENT", "UNHEALTHY", "UNAUTHENTICATED", "ROUTE_UNQUALIFIED", "READY", "RUNTIME_EXHAUSTED",
 })
+REASON_CODES = frozenset({
+    "CONFIG_UNREADABLE", "CONFIG_SCHEMA_INVALID", "ROUTE_ACCEPTANCE_INVALID",
+    "LAUNCHER_CONFIG_INVALID", "LAUNCHER_UNQUALIFIED", "ATTESTATION_SCHEMA_INVALID",
+    "ATTESTATION_BUILD_MISMATCH", "ATTESTATION_HASH_INVALID", "ATTESTATION_FRESHNESS_INVALID",
+    "NO_COST_UNCONFIRMED", "PAID_FALLBACK_UNCONFIRMED", "PRIVACY_UNCONFIRMED",
+    "TERMS_UNCONFIRMED", "DENIED_PROBE_UNCONFIRMED", "DENIED_TARGET_UNCONFIRMED",
+    "ENDPOINT_CREDENTIAL_MISSING",
+})
 RUN_STATUSES = frozenset({"planned", "running", "stalled", "blocked", "review", "completed", "cancelled", "quarantined"})
 _CAPABILITY_RANK = {"mechanical": 0, "default": 1, "most-intelligent": 2}
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
@@ -197,32 +205,49 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
     return qualified
 
 
-def _attestation_valid(config: dict[str, Any], build: object, now: datetime) -> bool:
+def _qualification_reason(config: dict[str, Any] | None, build: object, now: datetime) -> str | None:
+    """Return one bounded reason without exposing operator-owned inputs."""
+    if config is None:
+        return "CONFIG_UNREADABLE"
     if config.get("schemaVersion") != SCHEMA_VERSION:
-        return False
+        return "CONFIG_SCHEMA_INVALID"
     if not isinstance(config.get("routeId"), str) or not config["routeId"].strip():
-        return False
+        return "ROUTE_ACCEPTANCE_INVALID"
     launcher = _launcher(config)
-    if launcher is None or _resolved_executable(launcher[0]) is None:
-        return False
+    if launcher is None:
+        return "LAUNCHER_CONFIG_INVALID"
+    if _resolved_executable(launcher[0]) is None:
+        return "LAUNCHER_UNQUALIFIED"
     attestation = config.get("attestation")
     if not isinstance(attestation, dict) or attestation.get("schemaVersion") != SCHEMA_VERSION:
-        return False
+        return "ATTESTATION_SCHEMA_INVALID"
     if attestation.get("serverBuild") != build:
-        return False
+        return "ATTESTATION_BUILD_MISMATCH"
     if not all(
         isinstance(attestation.get(key), str) and _HEX.fullmatch(attestation[key])
         for key in ("routePolicySha256", "endpointKeyIdentitySha256", "deniedProbeTargetSha256")
     ):
-        return False
+        return "ATTESTATION_HASH_INVALID"
     verified = _parse_time(attestation.get("verifiedAt"))
     expires = _parse_time(attestation.get("expiresAt"))
     if verified is None or expires is None or verified > now or expires <= now:
-        return False
-    return all(attestation.get(key) is True for key in (
-        "noCostConfirmed", "noPaidFallbackConfirmed", "privacyConfirmed", "termsConfirmed",
-        "deniedProbeConfirmed", "deniedProbeTargetKnownExistingConfirmed",
-    ))
+        return "ATTESTATION_FRESHNESS_INVALID"
+    for key, reason in (
+        ("noCostConfirmed", "NO_COST_UNCONFIRMED"),
+        ("noPaidFallbackConfirmed", "PAID_FALLBACK_UNCONFIRMED"),
+        ("privacyConfirmed", "PRIVACY_UNCONFIRMED"),
+        ("termsConfirmed", "TERMS_UNCONFIRMED"),
+        ("deniedProbeConfirmed", "DENIED_PROBE_UNCONFIRMED"),
+        ("deniedProbeTargetKnownExistingConfirmed", "DENIED_TARGET_UNCONFIRMED"),
+    ):
+        if attestation.get(key) is not True:
+            return reason
+    return None
+
+
+def _attestation_valid(config: dict[str, Any], build: object, now: datetime) -> bool:
+    """Compatibility predicate for callers that only need qualification truth."""
+    return _qualification_reason(config, build, now) is None
 
 
 def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | None]:
@@ -275,21 +300,27 @@ def probe(
     if error is not None or payload is None:
         return result
     config = config if config is not None else _read_config(config_path or default_config_path())
-    if config is None or not _attestation_valid(config, payload["build"], now()):
-        return {**result, "state": "ROUTE_UNQUALIFIED"}
+    reason = _qualification_reason(config, payload["build"], now())
+    if reason is not None:
+        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": reason}
     launcher = _launcher(config)
-    if launcher is None:
-        return {**result, "state": "ROUTE_UNQUALIFIED"}
+    if launcher is None:  # Guard against future changes to _qualification_reason.
+        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": "LAUNCHER_CONFIG_INVALID"}
     resolved = _resolved_executable(launcher[0])
-    if resolved is None:
-        return {**result, "state": "ROUTE_UNQUALIFIED"}
+    if resolved is None:  # Launcher identity is volatile between qualification and execution.
+        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": "LAUNCHER_UNQUALIFIED"}
     environment = os.environ if environ is None else environ
     if launcher[1] == "environment" and not environment.get("OMNIROUTE_API_KEY"):
-        return {**result, "state": "UNAUTHENTICATED"}
+        return {**result, "state": "UNAUTHENTICATED", "reasonCode": "ENDPOINT_CREDENTIAL_MISSING"}
     fingerprint = hashlib.sha256(json.dumps({
         "config": config, "serverBuild": payload["build"], "launcher": resolved[0],
     }, sort_keys=True).encode("utf-8")).hexdigest()
-    return {**result, "state": "READY", "serverBuild": payload["build"], "qualificationFingerprint": fingerprint}
+    return {
+        "endpoint": DEFAULT_ENDPOINT,
+        "state": "READY",
+        "serverBuild": payload["build"],
+        "qualificationFingerprint": fingerprint,
+    }
 
 
 class QualificationCache:
