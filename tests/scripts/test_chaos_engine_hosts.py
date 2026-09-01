@@ -991,8 +991,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 json.loads(wrapped_source_destruction.stdout)["decision"],
             )
 
-    def test_lifecycle_hook_is_a_noop_outside_an_installed_project(self):
-        module = load(HOSTS, "chaos_engine_hook_noop")
+    def test_lifecycle_hook_denies_outside_an_installed_project(self):
+        module = load(HOSTS, "chaos_engine_hook_missing_guard")
         document = json.loads(module.lifecycle_hooks_document("codex"))
         handler = document["hooks"]["PreToolUse"][0]["hooks"][0]
         command = handler["commandWindows"] if os.name == "nt" else handler["command"]
@@ -1008,8 +1008,68 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 check=False,
             )
 
+        self.assertNotEqual(0, completed.returncode, completed.stdout)
+        payload = json.loads(completed.stdout)
+        rendered = completed.stdout + completed.stderr
+        self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+        self.assertIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered)
+        self.assertNotEqual({}, payload)
+
+    def test_inline_launch_reports_missing_cwd_without_private_paths(self):
+        module = load(HOSTS, "chaos_engine_hook_missing_cwd")
+        command = module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
+        event = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+
+        with tempfile.TemporaryDirectory() as temporary:
+            gone = Path(temporary) / "missing-cwd"
+            gone.mkdir()
+            private = str(gone.resolve())
+            probe = (
+                "import json, os, shutil, subprocess, sys\n"
+                "from pathlib import Path\n"
+                f"target = Path({private!r})\n"
+                "os.chdir(target)\n"
+                "shutil.rmtree(target)\n"
+                "completed = subprocess.run(\n"
+                f"    {command!r}, shell=True, input={event!r},\n"
+                "    capture_output=True, text=True, check=False,\n"
+                ")\n"
+                "print(completed.returncode)\n"
+                "print(completed.stdout, end='')\n"
+                "print(completed.stderr, end='', file=sys.stderr)\n"
+            )
+            completed = subprocess.run(  # nosec B603 - fixed local interpreter probe.
+                [os.sys.executable, "-c", probe],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
         self.assertEqual(0, completed.returncode, completed.stderr)
-        self.assertEqual({}, json.loads(completed.stdout))
+        lines = completed.stdout.splitlines()
+        self.assertGreaterEqual(len(lines), 2, completed.stdout)
+        self.assertNotEqual("0", lines[0])
+        payload = json.loads("\n".join(lines[1:]))
+        rendered = completed.stdout + completed.stderr
+        self.assertEqual("block", payload.get("decision"))
+        self.assertIn(module.LAUNCH_CWD_UNAVAILABLE, rendered)
+        self.assertIn("repository working directory unavailable", rendered)
+        self.assertNotIn(private, rendered)
+        self.assertNotRegex(rendered, r"(?i)\b(git clone|remount|worktree add|os\.chdir\()\b")
+
+    def test_launch_preflight_maps_stale_and_disconnected_errnos(self):
+        module = load(HOSTS, "chaos_engine_hook_cwd_errnos")
+        for code in (
+            errno.ENOENT,
+            getattr(errno, "ESTALE", 116),
+            getattr(errno, "ENOTCONN", 107),
+        ):
+            self.assertTrue(module.is_cwd_unavailable_errno(code), code)
+        command = module.chaos_guard_locator_command(windows=False, host="claude")
+        for token in ("ESTALE", "ENOTCONN", "ENOENT", module.LAUNCH_CWD_UNAVAILABLE):
+            self.assertIn(token, command)
+        for forbidden in ("git clone", "worktree add", "os.chdir(", "subprocess"):
+            self.assertNotIn(forbidden, command)
 
     def test_generated_host_hooks_share_preventive_and_observational_matchers(self):
         module = load(HOSTS, "chaos_engine_hook_matchers")

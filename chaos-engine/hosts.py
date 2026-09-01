@@ -3190,17 +3190,53 @@ def _tool_matchers() -> tuple[str, str]:
 
 PRE_TOOL_MATCHER, POST_TOOL_MATCHER = _tool_matchers()
 
+LAUNCH_CWD_UNAVAILABLE = (
+    "repository working directory unavailable; restore the original mount or checkout, then retry"
+)
+LAUNCH_GUARD_UNAVAILABLE = (
+    "ChaosEngine guard unavailable; repair the original installation, then retry"
+)
+_CWD_UNAVAILABLE_ERRNOS = {
+    errno.ENOENT,
+    getattr(errno, "ESTALE", 116),
+    getattr(errno, "ENOTCONN", 107),
+}
+
+
+def is_cwd_unavailable_errno(code: int | None) -> bool:
+    return code in _CWD_UNAVAILABLE_ERRNOS
+
 
 def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
     interpreter = json.dumps(str(managed_python)) if managed_python else ("py -3" if windows else "python3")
-    return (
-        f'{interpreter} -c "import os,pathlib,runpy;'
-        f"os.environ['CHAOS_ENGINE_HOST']='{host}';"
-        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py');"
-        "p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) "
-        "for rel in cands if (root/rel).is_file()),None);"
-        "runpy.run_path(str(p),run_name='__main__') if p else print('{}')\""
+    script = (
+        "import errno,json,os,pathlib,runpy,sys\n"
+        f"os.environ['CHAOS_ENGINE_HOST']={host!r}\n"
+        f"CWD={LAUNCH_CWD_UNAVAILABLE!r}\n"
+        f"GUARD={LAUNCH_GUARD_UNAVAILABLE!r}\n"
+        "E={errno.ENOENT,getattr(errno,'ESTALE',116),getattr(errno,'ENOTCONN',107)}\n"
+        "def deny(message):\n"
+        "    print(json.dumps({'decision':'block','reason':message}))\n"
+        "    raise SystemExit(2)\n"
+        "try:\n"
+        "    cwd=pathlib.Path.cwd()\n"
+        "    roots=(cwd,*cwd.parents)\n"
+        "except OSError as error:\n"
+        "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py')\n"
+        "try:\n"
+        "    path=next((root/rel for root in roots for rel in cands if (root/rel).is_file()),None)\n"
+        "except OSError as error:\n"
+        "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "if path is None:\n"
+        "    deny(GUARD)\n"
+        "try:\n"
+        "    runpy.run_path(str(path),run_name='__main__')\n"
+        "except OSError as error:\n"
+        "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
     )
+    # json.dumps(script) alone would leave literal \n for the shell; wrap in exec().
+    return f"{interpreter} -c {json.dumps('exec(' + json.dumps(script) + ')')}"
 
 
 def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, managed_python: Path | None = None) -> bytes:
