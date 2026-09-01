@@ -91,9 +91,10 @@ dispatch then runs `register-participant` atomically before launching its
 delegate. Before finalization, record schema-v2 evidence-bearing disposition
 receipts (`fixed-now` with changed files plus passing proof, `existing`/`new`
 with a tracking URL, or `blocked` with a privacy-safe queued learning payload).
-`finalize-runtime` automatically harvests root and delegate receipts plus
-sibling incident sources, closes membership, and rejects callers that omit a
-registered participant or supply enum-only dispositions without evidence.
+`finalize-runtime` automatically harvests root and delegate receipts, live
+session ledgers (failures, guard blocks, retries), and sibling incident
+sources, closes membership, and rejects callers that omit a registered
+participant or supply enum-only dispositions without evidence.
 After closure no caller can replace, omit, or add participants. Every
 registered participant must contribute incident dispositions, a structured
 no-learning attestation, or, for an unreachable delegate only, an explicit

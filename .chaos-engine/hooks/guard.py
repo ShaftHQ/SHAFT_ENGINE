@@ -101,12 +101,6 @@ def learning_session_reason(session_id: str, event: dict) -> str | None:
         return None
     if learning_completion_artifact(session_id) is not None:
         return None
-    if any(
-        item.get("kind") == "reflection-receipt"
-        and item.get("durableDisposition") in reflection.DISPOSITIONS
-        for item in recorded
-    ):
-        return None
     return (
         "Learning Session: delivery is complete. Run exactly one terminal Learning "
         "Session immediately before the final report."

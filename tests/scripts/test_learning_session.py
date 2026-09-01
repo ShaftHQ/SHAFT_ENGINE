@@ -1885,6 +1885,84 @@ class DispositionReceiptLearningSessionTest(unittest.TestCase):
             self.assertIsNotNone(loaded)
             self.assertEqual(2, loaded["schema_version"])
 
+    def test_finalize_rejects_forged_fixed_now_evidence(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.create_runtime(state, "root")
+            sibling = controller.runtime_incident_source_path(state, "root")
+            sibling.write_text(
+                json.dumps(
+                    {
+                        "incident_id": "forged-fixed",
+                        "kind": "tool_failure",
+                        "origin": "tool",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            session_hash = controller._session_hash("root")
+            incident = controller.incident_hash("forged-fixed")
+            evidence = {"note": "no proof"}
+            identity = {
+                "kind": "learning-disposition",
+                "session_hash": session_hash,
+                "incident_hash": incident,
+                "disposition": "fixed-now",
+                "evidence": evidence,
+            }
+            forged = {
+                "schema_version": 2,
+                "disposition_id": controller._hash_text(controller._canonical(identity)),
+                **identity,
+                "recorded_at": "2020-01-01T00:00:00+00:00",
+            }
+            path = controller._disposition_path(
+                state, session_hash, forged["disposition_id"]
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(forged), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "fixed-now|proof|evidence"):
+                controller.finalize_runtime_session(state, root_session_id="root")
+
+    def test_finalize_harvests_participant_ledgers_without_manual_sibling(self):
+        controller = self.controller()
+        reflection = importlib.import_module("scripts.agents.reflection")
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            environment = {"TMPDIR": directory, "TEMP": directory, "TMP": directory}
+            with patch.dict(os.environ, environment, clear=False):
+                controller.create_runtime(state, "root")
+                controller.register_runtime_participant(state, "root", "delegate")
+                controller.attest_no_learning(state, "root", "no_new_evidence")
+                recorded = reflection.record_failure(
+                    "delegate",
+                    phase="guard",
+                    target="unsafe-command",
+                    failure_class="policy-block",
+                    attempted=True,
+                )
+                self.assertIsNotNone(recorded)
+                with self.assertRaisesRegex(ValueError, "disposition|terminal evidence"):
+                    controller.finalize_runtime_session(state, root_session_id="root")
+                controller.record_disposition(
+                    state,
+                    session_id="delegate",
+                    incident_id=f"ledger:{recorded['failureId']}",
+                    disposition="existing",
+                    evidence={
+                        "tracking_issue_url": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296"
+                    },
+                )
+                completed = controller.finalize_runtime_session(
+                    state, root_session_id="root"
+                )
+            self.assertEqual(
+                controller.incident_hash(f"ledger:{recorded['failureId']}"),
+                completed["incidents"][0]["incident_hash"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

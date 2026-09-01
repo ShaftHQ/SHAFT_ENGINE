@@ -904,9 +904,11 @@ def create_runtime(state: Path, root_session_id: str) -> dict:
     with _state_lock(Path(state), f"runtime-registry-{root_hash}"):
         path = _runtime_registry_path(Path(state), root_session_id)
         if path.is_file():
+            _remember_participant_session_id(Path(state), root_session_id, root_session_id)
             return _load_runtime_registry(Path(state), root_session_id)
         value = _runtime_registry_value(root_session_id, [root_hash], "open")
         _atomic_json(path, value)
+        _remember_participant_session_id(Path(state), root_session_id, root_session_id)
     return value
 
 
@@ -923,11 +925,17 @@ def register_runtime_participant(
         if registry["status"] != "open":
             raise ValueError("runtime participant registry is closed")
         if participant_hash in registry["participant_hashes"]:
+            _remember_participant_session_id(
+                Path(state), root_session_id, participant_session_id
+            )
             return registry
         value = _runtime_registry_value(
             root_session_id, registry["participant_hashes"] + [participant_hash], "open"
         )
         _atomic_json(_runtime_registry_path(Path(state), root_session_id), value)
+        _remember_participant_session_id(
+            Path(state), root_session_id, participant_session_id
+        )
         return value
 
 
@@ -1322,6 +1330,154 @@ def _valid_disposition(value: object, session_hash: str) -> bool:
         return False
 
 
+def _revalidate_disposition_evidence(receipt: dict) -> None:
+    """Reject forged disposition evidence using the same field rules as record_disposition."""
+    disposition = receipt.get("disposition")
+    evidence = receipt.get("evidence")
+    if disposition == "fixed-now":
+        if (
+            not isinstance(evidence, dict)
+            or set(evidence)
+            != {"changed_files", "head", "proof_command_hash", "proof_exit_code"}
+            or not isinstance(evidence.get("changed_files"), list)
+            or not evidence["changed_files"]
+            or not all(_safe_relative_file(path) for path in evidence["changed_files"])
+            or not isinstance(evidence.get("head"), str)
+            or not GIT_REF_RE.fullmatch(evidence["head"])
+            or not isinstance(evidence.get("proof_command_hash"), str)
+            or not SHA256_RE.fullmatch(evidence["proof_command_hash"])
+            or evidence.get("proof_exit_code") != 0
+        ):
+            raise ValueError("fixed-now proof evidence is required")
+        return
+    if disposition in ISSUE_BOUND_DISPOSITIONS:
+        _validate_issue_bound_evidence(evidence)
+        return
+    if disposition == "blocked":
+        if (
+            not isinstance(evidence, dict)
+            or not isinstance(evidence.get("queued_learning_id"), str)
+            or not evidence.get("queued_learning_id")
+            or evidence.get("queue_status") not in {"queued", "submitted"}
+            or not isinstance(evidence.get("upstream"), str)
+            or not evidence.get("upstream")
+        ):
+            raise ValueError("blocked disposition requires a privacy-safe queue payload")
+        return
+    raise ValueError("runtime disposition is invalid")
+
+
+def _participant_session_map_path(state: Path, root_session_id: str) -> Path:
+    return (
+        _contained_directory(Path(state), "runtime-participant-ids")
+        / f"{_session_hash(root_session_id)}.json"
+    )
+
+
+def _remember_participant_session_id(
+    state: Path, root_session_id: str, participant_session_id: str
+) -> None:
+    path = _participant_session_map_path(Path(state), root_session_id)
+    existing = _load_json_object(path) if path.is_file() else {}
+    if not isinstance(existing, dict):
+        existing = {}
+    existing[_session_hash(participant_session_id)] = participant_session_id.strip()
+    _atomic_json(path, existing)
+
+
+def _load_participant_session_ids(state: Path, root_session_id: str) -> dict[str, str]:
+    path = _participant_session_map_path(Path(state), root_session_id)
+    value = _load_json_object(path) if path.is_file() else None
+    if not isinstance(value, dict):
+        return {}
+    return {
+        key: session_id
+        for key, session_id in value.items()
+        if isinstance(key, str)
+        and SHA256_RE.fullmatch(key)
+        and isinstance(session_id, str)
+        and session_id.strip()
+    }
+
+
+def _load_reflection_module():
+    try:
+        from scripts.agents import reflection as loaded
+    except (ImportError, OSError, AttributeError):
+        path = Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "reflection.py"
+        specification = importlib.util.spec_from_file_location(
+            "chaos_engine_reflection_harvest", path
+        )
+        if specification is None or specification.loader is None:
+            return None
+        loaded = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(loaded)
+    return loaded
+
+
+def _harvest_ledger_incidents(session_id: str) -> dict[str, dict]:
+    """Harvest failures, guard blocks, and retries from an existing session ledger."""
+    reflection = _load_reflection_module()
+    if reflection is None:
+        return {}
+    try:
+        recorded = reflection.entries(session_id)
+    except (OSError, TypeError, ValueError):
+        return {}
+    incidents: dict[str, dict] = {}
+    for item in recorded:
+        if not isinstance(item, dict):
+            continue
+        kind = item.get("kind")
+        if kind == "task-failure" and item.get("attempted") is not False:
+            failure_id = item.get("failureId") or item.get("fingerprint")
+            if not isinstance(failure_id, str) or not failure_id.strip():
+                continue
+            signal_kind = (
+                "guard_block" if item.get("phase") == "guard" else "tool_failure"
+            )
+            digest = incident_hash(f"ledger:{failure_id}")
+            incidents[digest] = {
+                "incident_hash": digest,
+                "kind": signal_kind,
+                "origin": "tool",
+                "source": "ledger",
+            }
+        elif kind == "platform-outcome" and item.get("outcome") == "failed":
+            target = item.get("target")
+            if not isinstance(target, str) or not target.strip():
+                continue
+            digest = incident_hash(f"ledger:platform:{target}")
+            incidents[digest] = {
+                "incident_hash": digest,
+                "kind": "test_failure",
+                "origin": "tool",
+                "source": "ledger",
+            }
+        elif kind == "reflection-trigger":
+            trigger = item.get("trigger")
+            fingerprint = item.get("fingerprint") or "manual"
+            if trigger not in {
+                "second-failure",
+                "repeated-fingerprint",
+                "third-fix",
+                "guard-repeat",
+                "review-repeat",
+            }:
+                continue
+            digest = incident_hash(f"ledger:trigger:{trigger}:{fingerprint}")
+            signal_kind = (
+                "guard_block" if trigger == "guard-repeat" else "tool_failure"
+            )
+            incidents[digest] = {
+                "incident_hash": digest,
+                "kind": signal_kind,
+                "origin": "tool",
+                "source": "ledger",
+            }
+    return incidents
+
+
 def _load_sibling_incidents(state: Path, participant_hash: str) -> dict[str, dict]:
     path = (
         _contained_directory(Path(state), "runtime-incident-sources")
@@ -1355,8 +1511,9 @@ def _load_sibling_incidents(state: Path, participant_hash: str) -> dict[str, dic
 
 
 def collect_runtime_incidents(state: Path, root_session_id: str) -> dict[str, dict]:
-    """Harvest unique incidents from registered receipts and sibling sources."""
+    """Harvest unique incidents from receipts, sibling sources, and live ledgers."""
     registry = _load_runtime_registry(Path(state), root_session_id)
+    session_ids = _load_participant_session_ids(Path(state), root_session_id)
     collected: dict[str, dict] = {}
     for participant_hash in registry["participant_hashes"]:
         for receipt in _load_receipts_by_hash(Path(state), participant_hash):
@@ -1368,6 +1525,14 @@ def collect_runtime_incidents(state: Path, root_session_id: str) -> dict[str, di
                 "participant_hash": participant_hash,
             }
         for digest, item in _load_sibling_incidents(Path(state), participant_hash).items():
+            collected.setdefault(
+                digest,
+                {**item, "participant_hash": participant_hash},
+            )
+        session_id = session_ids.get(participant_hash)
+        if not session_id:
+            continue
+        for digest, item in _harvest_ledger_incidents(session_id).items():
             collected.setdefault(
                 digest,
                 {**item, "participant_hash": participant_hash},
@@ -1442,6 +1607,15 @@ def finalize_runtime_session(
         participant_hash: _load_sibling_incidents(Path(state), participant_hash)
         for participant_hash in participant_hashes
     }
+    session_ids = _load_participant_session_ids(Path(state), root_session_id)
+    ledger_incidents = {
+        participant_hash: (
+            _harvest_ledger_incidents(session_ids[participant_hash])
+            if participant_hash in session_ids
+            else {}
+        )
+        for participant_hash in participant_hashes
+    }
     collected = collect_runtime_incidents(Path(state), root_session_id)
     incident_hashes = set(collected)
     disposition_receipts = {
@@ -1463,6 +1637,7 @@ def finalize_runtime_session(
             raise ValueError("every runtime incident requires exactly one disposition")
         if receipt["disposition"] not in RUNTIME_DISPOSITIONS - {"no-durable"}:
             raise ValueError("runtime disposition is invalid")
+        _revalidate_disposition_evidence(receipt)
     evidence_participants = {
         participant_hash
         for participant_hash, items in participant_receipts.items()
@@ -1470,6 +1645,10 @@ def finalize_runtime_session(
     } | {
         participant_hash
         for participant_hash, items in sibling_incidents.items()
+        if items
+    } | {
+        participant_hash
+        for participant_hash, items in ledger_incidents.items()
         if items
     }
     for participant_hash in participant_hashes:

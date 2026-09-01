@@ -714,6 +714,71 @@ process.stderr.write(result.stderr || '');
             with patch.dict(os.environ, environment):
                 self.assertFalse(reflection.has_valid_terminal_receipt("portable-delivery"))
 
+    def test_reflection_receipt_alone_does_not_clear_stop_after_delivery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "learn-reflection-only"
+            with patch.dict(os.environ, environment):
+                token = reflection.record_session_start(session)
+                reflection.record_failure(
+                    session,
+                    phase="tool-outcome",
+                    target="flaky-command",
+                    failure_class="tool-failure",
+                    attempted=True,
+                )
+                reflection.record_failure(
+                    session,
+                    phase="tool-outcome",
+                    target="flaky-command",
+                    failure_class="tool-failure",
+                    attempted=True,
+                )
+                checkpoint = reflection.pending_checkpoint(session)
+                self.assertIsNotNone(checkpoint)
+                receipt = {
+                    "schemaVersion": 1,
+                    "taskId": "issue-5517",
+                    "trigger": checkpoint["trigger"],
+                    "failureFingerprints": checkpoint.get("failureFingerprints", []),
+                    "failedAssumption": "Reflection alone cleared Learning Session.",
+                    "approachesCompared": ["Stop on reflection", "Require learning artifact"],
+                    "chosenExperiment": "Keep only the reflection receipt.",
+                    "changedApproach": "Require the learning completion artifact.",
+                    "proofCommandOrCheck": "portable stop after delivery",
+                    "proofOutcome": "Stop remained blocked.",
+                    "durableDisposition": "guidance-fixed",
+                }
+                reflection.record_receipt(session, receipt, token)
+            self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {
+                        "command": (
+                            "py -3 scripts/agents/chaos_engine_cli.py "
+                            "delivery-status --manifest m --receipt-out r"
+                        )
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+            self.assertNotEqual(0, stopped.returncode)
+            payload = self._hook_decision_payload(stopped)
+            self.assertEqual("block", payload.get("decision"))
+            self.assertTrue(
+                str(payload.get("reason", "")).casefold().startswith("learning session:")
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
