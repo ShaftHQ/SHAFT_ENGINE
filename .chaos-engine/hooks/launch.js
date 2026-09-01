@@ -5,8 +5,32 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
+const CWD_UNAVAILABLE =
+  "repository working directory unavailable; restore the original mount or checkout, then retry";
+const GUARD_UNAVAILABLE =
+  "ChaosEngine guard unavailable; repair the original installation, then retry";
+const CWD_UNAVAILABLE_CODES = new Set(["ENOENT", "ESTALE", "ENOTCONN"]);
+
+function deny(message, code = 2) {
+  process.stdout.write(JSON.stringify({ decision: "block", reason: message }) + "\n");
+  process.exit(code);
+}
+
+function unavailableError(error) {
+  return Boolean(error && CWD_UNAVAILABLE_CODES.has(error.code));
+}
+
+function currentRoot() {
+  try {
+    return process.cwd();
+  } catch (error) {
+    if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+    throw error;
+  }
+}
+
 function guardPath() {
-  let root = process.cwd();
+  let root = currentRoot();
   while (true) {
     for (const relative of [
       ".chaos-engine/hooks/guard.py",
@@ -14,7 +38,12 @@ function guardPath() {
       "chaos-engine/hooks/guard.py",
     ]) {
       const candidate = path.join(root, relative);
-      if (fs.existsSync(candidate)) return candidate;
+      try {
+        if (fs.existsSync(candidate)) return candidate;
+      } catch (error) {
+        if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+        throw error;
+      }
     }
     const parent = path.dirname(root);
     if (parent === root) return null;
@@ -22,7 +51,14 @@ function guardPath() {
   }
 }
 
-const input = fs.readFileSync(0);
+let input;
+try {
+  input = fs.readFileSync(0);
+} catch (error) {
+  if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+  throw error;
+}
+
 function matchesHook() {
   try {
     const event = JSON.parse(input.toString("utf8"));
@@ -37,7 +73,8 @@ function matchesHook() {
         ? observational
         : null;
     return matcher === null || new RegExp(`^(?:${matcher})$`).test(toolName);
-  } catch (_) {
+  } catch (error) {
+    if (unavailableError(error)) deny(CWD_UNAVAILABLE);
     return true;
   }
 }
@@ -49,8 +86,7 @@ if (!matchesHook()) {
 
 const guard = guardPath();
 if (!guard) {
-  process.stdout.write("{}\n");
-  process.exit(0);
+  deny(GUARD_UNAVAILABLE);
 }
 
 const candidates = process.platform === "win32"
@@ -63,8 +99,9 @@ for (const [command, prefix] of candidates) {
     encoding: "buffer",
   });
   if (result.error && result.error.code === "ENOENT") continue;
+  if (result.error && unavailableError(result.error)) deny(CWD_UNAVAILABLE);
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   process.exit(result.status === null ? 1 : result.status);
 }
-process.stdout.write("{}\n");
+deny(GUARD_UNAVAILABLE);

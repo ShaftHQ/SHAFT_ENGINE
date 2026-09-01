@@ -6,7 +6,9 @@ import copy
 import hashlib
 import importlib.util
 import json
+import shutil
 import sys
+import tempfile
 import types
 import tomllib
 from pathlib import Path
@@ -31,6 +33,63 @@ SPEC.loader.exec_module(MODULE)
 class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
     def manifest(self) -> dict[str, object]:
         return json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+    def test_write_generated_refreshes_coupled_identities_idempotently(self):
+        self.assertTrue(callable(MODULE.write_generated))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shutil.copytree(ROOT / "chaos-engine", root / "chaos-engine")
+            gauge = root / "scripts/ci/chaos_gauge"
+            shutil.copytree(GAUGE, gauge)
+            manifest_path = gauge / "experiment.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["arms"][1]["harnessSha256"] = "0" * 64
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                ValueError,
+                "job harness treatment|digest mismatch|treatment digest",
+            ):
+                MODULE.validate_job_contracts(
+                    json.loads(manifest_path.read_text(encoding="utf-8")),
+                    MODULE.load_jobs(gauge, "calibration"),
+                    root=root,
+                    campaign="calibration",
+                )
+
+            MODULE.write_generated(root)
+            MODULE.validate_job_contracts(
+                json.loads(manifest_path.read_text(encoding="utf-8")),
+                MODULE.load_jobs(gauge, "calibration"),
+                root=root,
+                campaign="calibration",
+            )
+            MODULE.validate_job_contracts(
+                json.loads(manifest_path.read_text(encoding="utf-8")),
+                MODULE.load_jobs(gauge, "full-pilot"),
+                root=root,
+                campaign="full-pilot",
+            )
+            first = {
+                path.relative_to(root).as_posix(): path.read_bytes()
+                for path in (
+                    manifest_path,
+                    gauge / "job-configs/chaos-engine.yaml",
+                    gauge / "job-configs/full-pilot-chaos-engine.yaml",
+                )
+            }
+            MODULE.write_generated(root)
+            second = {
+                path.relative_to(root).as_posix(): path.read_bytes()
+                for path in (
+                    manifest_path,
+                    gauge / "job-configs/chaos-engine.yaml",
+                    gauge / "job-configs/full-pilot-chaos-engine.yaml",
+                )
+            }
+            self.assertEqual(first, second)
 
     def test_canonical_manifest_is_pinned_comparable_and_reproducible(self):
         manifest = self.manifest()
@@ -160,7 +219,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         self.assertNotEqual(identities["control"], identities["chaos-engine"])
         drifted_manifest = self.manifest()
         drifted_manifest["arms"][1]["harnessSha256"] = "f" * 64
-        with self.assertRaisesRegex(ValueError, "manifest harness source"):
+        with self.assertRaisesRegex(ValueError, "job harness treatment"):
             MODULE.validate_job_contracts(drifted_manifest, jobs, root=ROOT)
 
         drifted = copy.deepcopy(jobs)
@@ -177,6 +236,13 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         drifted["control"]["retry"]["max_retries"] = 3
         with self.assertRaisesRegex(ValueError, "retry budget"):
             MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
+
+        unbound = copy.deepcopy(jobs)
+        for name in ("control", "chaos-engine"):
+            unbound[name]["agents"][0]["kwargs"]["version"] = "9.9.9"
+        with self.assertRaisesRegex(ValueError, "job harness treatment"):
+            MODULE.validate_job_contracts(self.manifest(), unbound)
+        self.assertEqual("0.152.0", jobs["chaos-engine"]["agents"][0]["kwargs"]["version"])
 
     def test_all_harbor_job_arms_add_only_the_pinned_chroma_model_host(self):
         host = "chroma-onnx-models.s3.amazonaws.com"
@@ -232,8 +298,8 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             agent = module.ChaosEngineCodex(
                 harness_source=str(ROOT / "chaos-engine"),
                 harness_commit="0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
-                harness_sha256="ff693b8f4f728fcdb73d74c204ae2ce0190a0e4009108bf3d9baabe0aafe98a4",
-                adapter_sha256="3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
+                harness_sha256=MODULE._tree_sha256(ROOT / "chaos-engine"),
+                adapter_sha256=MODULE._file_sha256(GAUGE / "agent.py"),
             )
 
             await agent.install(environment)

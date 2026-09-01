@@ -1674,7 +1674,7 @@ def _learning_session_operation(hook_input: dict, command: str) -> tuple[str, li
         (
             item
             for item in remaining
-            if item in {"signal", "assess", "attest-none", "finalize"}
+            if item in {"signal", "assess", "attest-none", "finalize", "finalize-runtime"}
         ),
         None,
     )
@@ -1715,6 +1715,13 @@ def _learning_session_events(hook_input: dict, command: str) -> list[str]:
     try:
         if operation == "finalize":
             completed = learning_session.load_session_completion(state, supplied_session)
+            if completed is not None:
+                return [
+                    "learning-session-complete:" + completed["completion_id"]
+                ]
+            return []
+        if operation == "finalize-runtime":
+            completed = learning_session.load_runtime_completion(state, supplied_session)
             if completed is not None:
                 return [
                     "learning-session-complete:" + completed["completion_id"]
@@ -5305,8 +5312,15 @@ def check_r16_learning_session(hook_input: dict) -> str | None:
     events = ledger_events(hook_input)
     if "commit" not in events or check_r29_delivery_complete(hook_input) is not None:
         return None
-    if any(event.startswith("learning-session-complete:") for event in events):
-        return None
+    session_id = hook_input.get("session_id")
+    if isinstance(session_id, str) and session_id.strip():
+        learning_session = _learning_session_core()
+        state = learning_session.default_state_dir()
+        if (
+            learning_session.load_session_completion(state, session_id) is not None
+            or learning_session.load_runtime_completion(state, session_id) is not None
+        ):
+            return None
     return (
         "Learning Session: delivery is complete. Run exactly one terminal Learning "
         "Session now, after timing, failed-call, recursion, and cleanup analysis, then "
@@ -6178,7 +6192,7 @@ def run_required_action_self_test() -> int:
         is not None,
     )
     check(
-        "R16 accepts one immutable terminal completion",
+        "R16 ignores forged ledger completion without an artifact",
         _with_stubs(
             {
                 "ledger_events": lambda payload: [
@@ -6190,7 +6204,30 @@ def run_required_action_self_test() -> int:
             },
             lambda: check_r16_learning_session({"session_id": "s"}),
         )
-        is None,
+        is not None,
+    )
+    def _r16_with_real_completion():
+        learning_session = _learning_session_core()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "chaosengine-learning-v1"
+            learning_session.attest_no_learning(state, "s", "no_new_evidence")
+            learning_session.finalize_session(state, "s")
+            original = learning_session.default_state_dir
+            learning_session.default_state_dir = lambda: state
+            try:
+                return _with_stubs(
+                    {
+                        "ledger_events": lambda payload: ["commit", "delivery:{}"],
+                        "check_r29_delivery_complete": lambda payload: None,
+                    },
+                    lambda: check_r16_learning_session({"session_id": "s"}),
+                )
+            finally:
+                learning_session.default_state_dir = original
+
+    check(
+        "R16 accepts one immutable terminal completion artifact",
+        _r16_with_real_completion() is None,
     )
 
     # R31: controller operations are terminal and root-session owned.

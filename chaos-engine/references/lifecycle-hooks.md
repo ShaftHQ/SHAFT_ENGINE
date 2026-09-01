@@ -56,6 +56,20 @@ as a path relative to the settings file, and resolve `hooks/guard.py` from the
 installed tree (`.chaos-engine/hooks/guard.py` or
 `plugins/chaos-engine/hooks/guard.py`).
 
+Inline Python launchers (Codex/Claude/Grok) and `hooks/launch.js`
+(Gemini/Copilot) preflight the repository working directory before starting
+guard code. Missing, stale, or disconnected cwd errors map to a path-free
+denial that names `repository working directory unavailable` and tells the
+operator to restore the original mount or checkout. A missing or unreadable
+guard denies with repair guidance instead of a silent `{}` allow. Launchers
+never clone, remount, mutate, or invent another checkout.
+
+Provider process spawn is an unavoidable host boundary: if the session cwd is
+already gone before the provider can start the tracked command, repository
+code cannot run and the host surfaces its own opaque spawn failure. Restore
+the original filesystem or checkout, then retry. That recovery is filesystem
+restoration, not hook-code repair.
+
 Tool matching is owned by [`hooks/matchers.json`](../hooks/matchers.json). Preventive and observational matching include
 only surfaces that can be denied usefully: mutation-capable shell execution,
 file writes, dispatch, and memory/store writes. Read, search, web research, and

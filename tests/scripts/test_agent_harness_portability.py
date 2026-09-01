@@ -658,18 +658,20 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                         "hook_event_name": "PreToolUse",
                         "session_id": "portable-hook-contract",
                         "tool_name": "shell_command",
-                        "tool_input": {"command": "mvn test"},
+                        "tool_input": {"command": "echo nested-cwd"},
                     }
                 ),
                 cwd=ROOT / "shaft-engine",
-                env=dict(os.environ, SHAFT_GUARD_HOST="codex"),
+                env=dict(os.environ, CHAOS_ENGINE_HOST="codex"),
                 capture_output=True,
                 text=True,
                 timeout=10,
                 check=False,
             )
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertIn("R1", completed.stdout)
+            rendered = completed.stdout + completed.stderr
+            self.assertNotIn("repository working directory unavailable", rendered)
+            self.assertNotIn("ChaosEngine guard unavailable", rendered)
+            self.assertEqual({}, json.loads(completed.stdout or "{}"))
         settings_path = ROOT / ".claude/settings.json"
         for groups in claude_hooks.values():
             for group in groups:
@@ -683,7 +685,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                         "Grok resolves a single-token command relative to .claude/",
                     )
                     self.assertTrue(command.startswith("python3 "))
-                    self.assertIn("scripts/agents/guard.py", command)
+                    self.assertIn(".chaos-engine/hooks/guard.py", command)
+                    self.assertIn("repository working directory unavailable", command)
+                    self.assertNotIn("print('{}')", command)
                     self.assertFalse(
                         handler.get("args"),
                         "Grok ignores Claude args and only runs command",
@@ -696,6 +700,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 for handler in group["hooks"]:
                     self.assertTrue(handler["commandWindows"].startswith("py -3 "))
                     self.assertNotIn(str(ROOT), handler["commandWindows"])
+                    self.assertIn("repository working directory unavailable", handler["command"])
         self.assertFalse((ROOT / ".claude/hooks/guard.py").exists())
         self.assertTrue(GUARD.is_file())
 
@@ -710,6 +715,55 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertEqual(tracked.returncode, 0, tracked.stderr)
         for path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
             self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
+
+    def test_inline_and_javascript_launchers_deny_when_guard_is_missing(self):
+        """Missing guard must never fall back to a silent allow object."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        claude = hook_groups(ROOT / ".claude/settings.json")
+        command = claude["PreToolUse"][0]["hooks"][0]["command"]
+        self.assertNotIn("print('{}')", command)
+        self.assertNotIn('print("{}")', command)
+        with tempfile.TemporaryDirectory() as temporary:
+            inline = subprocess.run(  # nosec B602 - tracked fixed hook command.
+                command,
+                shell=True,
+                cwd=temporary,
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "Bash",
+                        "tool_input": {"command": "echo missing-guard"},
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            launch = subprocess.run(  # nosec B603 - fixed node launcher.
+                [node, str(ROOT / "chaos-engine/hooks/launch.js"), "copilot"],
+                cwd=temporary,
+                input=json.dumps(
+                    {
+                        "hook_event_name": "preToolUse",
+                        "tool_name": "Bash",
+                        "tool_input": {"command": "echo missing-guard"},
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        for completed in (inline, launch):
+            with self.subTest(returncode=completed.returncode, stdout=completed.stdout):
+                self.assertNotEqual(0, completed.returncode, completed.stderr)
+                payload = json.loads(completed.stdout)
+                self.assertNotEqual({}, payload)
+                rendered = completed.stdout + completed.stderr
+                self.assertIn("ChaosEngine guard unavailable", rendered)
+                decision, _reason = self.logical_decision(payload)
+                self.assertIn(decision, {"deny", "block"})
 
     def test_codex_intercepts_collaboration_dispatches(self):
         config = json.loads((ROOT / ".codex/hooks.json").read_text(encoding="utf-8"))

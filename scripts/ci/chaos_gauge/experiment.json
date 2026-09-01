@@ -68,10 +68,10 @@
       "effort": "medium",
       "repositoryRevision": "0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
       "harness": "chaos-engine",
-      "harnessSha256": "ff693b8f4f728fcdb73d74c204ae2ce0190a0e4009108bf3d9baabe0aafe98a4",
+      "harnessSha256": "3cfb478242408314c390a4403a98f693afb213f22fe0a5e8c7ed4b14a12b47d8",
       "treatmentSha256": {
-        "calibration": "044a803558fec14c5bc24869bc62ded665571dcf6a2fbd6b2041fcd49d7f6b5d",
-        "full-pilot": "83d5e2e46032301963920626403e9a852b7385c179633c19bb9e0bec24d146b4"
+        "calibration": "14c917d4f0b8a24f4a8e114148b7d59831cb7231988fd7c64e6a51819c6960ec",
+        "full-pilot": "e8888fd37ce59575c3dfa23946bbf38ce6e8babee3d2da0de3008c36da26e66d"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,

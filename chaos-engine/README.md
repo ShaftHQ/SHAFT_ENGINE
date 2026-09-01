@@ -301,7 +301,6 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | importlib | Portable runtime standard-library dependency. | chaos-engine/hooks/guard.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | io | Portable runtime standard-library dependency. | chaos-engine/hooks/lifecycle.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | json | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/skills/omniroot/scripts/runner.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
-| math | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | msvcrt | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | os | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/skills/omniroot/scripts/runner.py, chaos-engine/tool.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | pathlib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/skills/omniroot/scripts/runner.py, chaos-engine/tool.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
@@ -607,6 +606,18 @@ py -3 -m unittest tests.scripts.test_chaos_engine_installer
 py -3 -m unittest tests.scripts.test_chaos_engine_bootstrap
 py -3 -m unittest tests.scripts.test_chaos_engine_hosts
 py -3 scripts/ci/validate_agent_setup.py --skip-external
+```
+
+Before pushing harness changes, run the single changed-closure preflight against
+the full lowercase `HEAD` and its resolvable merge base. The explicit
+`--write-generated` flag refreshes owned README inventory and ChaosGauge
+identity artifacts, then validates the selected closure:
+
+```bash
+python3 scripts/ci/harness_pr_gate.py \
+  --base "$(git merge-base HEAD origin/main)" \
+  --head "$(git rev-parse HEAD)" \
+  --write-generated
 ```
 
 Use the equivalent Python 3 command on non-Windows hosts. Run the smallest

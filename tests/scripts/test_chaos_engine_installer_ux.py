@@ -202,14 +202,15 @@ class InstallerUxTests(unittest.TestCase):
                 reporter._render_locked()
                 output = stream.getvalue()
                 self.assertIn("250 B/s", output)
-                self.assertIn("remaining 00:02", output)
                 self.assertIn("Elapsed", output)
+                self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
+                self.assertNotIn("ETA calculating", output)
                 self.assertNotIn("Current action:", output)
             finally:
                 reporter._stop.set()
                 reporter._thread = None
 
-    def test_whole_install_eta_includes_pending_stages_and_never_rounds_to_zero(self):
+    def test_download_keeps_pending_stages_and_completed_durations_without_remaining_time(self):
         class Tty(io.StringIO):
             def isatty(self):
                 return True
@@ -222,32 +223,40 @@ class InstallerUxTests(unittest.TestCase):
 
         clock = Clock()
         stream = Tty()
-        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}), unittest.mock.patch.object(
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm", "NO_COLOR": "1"}), unittest.mock.patch.object(
             BOOTSTRAP.threading.Thread, "start", lambda self: None
         ):
             reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
             try:
-                reporter.start("Resolve source", remaining=("Download source", "Install core", "Verify installation"))
+                reporter.start(
+                    "Resolve source",
+                    remaining=("Download source", "Install core", "Verify installation"),
+                )
                 clock.now = 4.0
-                reporter.complete("Resolve source", remaining=("Download source", "Install core", "Verify installation"))
+                reporter.complete(
+                    "Resolve source",
+                    remaining=("Download source", "Install core", "Verify installation"),
+                )
                 reporter.start("Download source", remaining=("Install core", "Verify installation"))
                 reporter.begin_download(1000)
                 clock.now = 5.0
                 reporter.downloaded(250)
                 clock.now = 6.0
                 reporter.downloaded(250)
-                self.assertEqual("00:10", reporter._remaining(clock.now))
-                rounding = BOOTSTRAP.InstallReporter(stream=io.StringIO(), clock=clock)
-                rounding.start("Download source")
-                rounding.begin_download(3)
-                clock.now = 7.0
-                rounding.downloaded(2)
-                self.assertEqual("00:01", rounding._remaining(clock.now))
+                reporter._render_locked()
+                output = stream.getvalue()
+                self.assertIn("Resolve source  00:04", output)
+                self.assertIn("Install core", output)
+                self.assertIn("Verify installation", output)
+                self.assertIn("250 B/s", output)
+                self.assertIn("Elapsed", output)
+                self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
+                self.assertNotIn("ETA calculating", output)
             finally:
                 reporter._stop.set()
                 reporter._thread = None
 
-    def test_stalled_transfer_waits_without_stale_speed_and_keeps_eta(self):
+    def test_stalled_transfer_waits_without_stale_speed_or_remaining_time(self):
         class Tty(io.StringIO):
             def isatty(self):
                 return True
@@ -271,20 +280,24 @@ class InstallerUxTests(unittest.TestCase):
                 reporter.downloaded(250)
                 clock.now = 2.0
                 reporter.downloaded(250)
-                self.assertEqual("00:02", reporter._remaining(clock.now))
                 stream.seek(0)
                 stream.truncate(0)
                 clock.now = 11.0
                 reporter._render_locked()
                 output = stream.getvalue()
                 self.assertIn("waiting for data", output)
-                self.assertIn("remaining 00:02", output)
+                self.assertIn("Elapsed", output)
+                self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
                 self.assertNotIn("250 B/s", output)
             finally:
                 reporter._stop.set()
                 reporter._thread = None
 
-    def test_eta_ceiling_never_increases_while_progress_advances(self):
+    def test_progress_never_renders_remaining_time_as_bytes_advance(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
         class Clock:
             now = 0.0
 
@@ -292,19 +305,29 @@ class InstallerUxTests(unittest.TestCase):
                 return self.now
 
         clock = Clock()
-        reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO(), clock=clock)
-        reporter.start("Resolve source", remaining=("Download source", "Install core"))
-        clock.now = 4.0
-        reporter.complete("Resolve source", remaining=("Download source", "Install core"))
-        reporter.start("Download source", remaining=("Install core",))
-        reporter.begin_download(1000)
-        clock.now = 5.0
-        reporter.downloaded(500)
-        first = reporter._remaining(clock.now)
-        clock.now = 7.0
-        reporter.downloaded(1)
-        self.assertEqual(first, reporter._remaining(clock.now))
-        reporter.close()
+        stream = Tty()
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}), unittest.mock.patch.object(
+            BOOTSTRAP.threading.Thread, "start", lambda self: None
+        ):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+            try:
+                reporter.start("Resolve source", remaining=("Download source", "Install core"))
+                clock.now = 4.0
+                reporter.complete("Resolve source", remaining=("Download source", "Install core"))
+                reporter.start("Download source", remaining=("Install core",))
+                reporter.begin_download(1000)
+                clock.now = 5.0
+                reporter.downloaded(500)
+                first = stream.getvalue()
+                clock.now = 7.0
+                reporter.downloaded(1)
+                second = stream.getvalue()
+                for output in (first, second):
+                    self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
+                    self.assertNotIn("ETA calculating", output)
+            finally:
+                reporter._stop.set()
+                reporter._thread = None
 
     def test_redirected_stalled_transfer_emits_waiting_heartbeat(self):
         class Clock:
@@ -326,7 +349,8 @@ class InstallerUxTests(unittest.TestCase):
         reporter.downloaded(250)
         clock.now = 2.0
         reporter.downloaded(250)
-        reporter._remaining(clock.now)
+        reporter._render_locked()
+        self.assertRegex(stream.getvalue(), r"250 B/s|Elapsed")
         stream.seek(0)
         stream.truncate(0)
         clock.now = 11.0
@@ -335,7 +359,7 @@ class InstallerUxTests(unittest.TestCase):
         reporter._ticker()
         output = stream.getvalue()
         self.assertIn("waiting for data", output)
-        self.assertIn("remaining 00:02", output)
+        self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
         self.assertNotIn("B/s", output)
 
     def test_success_cta_reports_agent_session_and_user_guide_on_stderr(self):
@@ -392,7 +416,11 @@ class InstallerUxTests(unittest.TestCase):
         self.assertTrue(reporter._stop.is_set())
         self.assertIn("Installation Successful!", stream.getvalue())
 
-    def test_nested_start_keeps_inflight_stage_visible_with_learned_eta(self):
+    def test_nested_start_keeps_inflight_stage_visible_without_remaining_time(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
         class Clock:
             def __init__(self):
                 self.now = 0.0
@@ -400,25 +428,39 @@ class InstallerUxTests(unittest.TestCase):
             def __call__(self):
                 return self.now
 
-        stream = io.StringIO()
+        stream = Tty()
         clock = Clock()
-        reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
-        reporter.start(
-            "Resolve source",
-            remaining=("Install core", "Provision dependencies", "Verify installation"),
-        )
-        clock.now = 4.0
-        reporter.complete(
-            "Resolve source",
-            remaining=("Install core", "Provision dependencies", "Verify installation"),
-        )
-        reporter.start(
-            "Install core",
-            remaining=("Provision dependencies", "Verify installation"),
-        )
-        reporter.start("Provision dependencies", remaining=("Verify installation",))
-        self.assertIn("Install core", getattr(reporter, "_in_flight", ()))
-        self.assertEqual("00:08", reporter._remaining(clock.now))
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm", "NO_COLOR": "1"}), unittest.mock.patch.object(
+            BOOTSTRAP.threading.Thread, "start", lambda self: None
+        ):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+            try:
+                reporter.start(
+                    "Resolve source",
+                    remaining=("Install core", "Provision dependencies", "Verify installation"),
+                )
+                clock.now = 4.0
+                reporter.complete(
+                    "Resolve source",
+                    remaining=("Install core", "Provision dependencies", "Verify installation"),
+                )
+                reporter.start(
+                    "Install core",
+                    remaining=("Provision dependencies", "Verify installation"),
+                )
+                reporter.start("Provision dependencies", remaining=("Verify installation",))
+                reporter._render_locked()
+                output = stream.getvalue()
+                self.assertIn("Install core", getattr(reporter, "_in_flight", ()))
+                self.assertIn("Verify installation", reporter.remaining_operations)
+                self.assertIn("Install core", output)
+                self.assertIn("Provision dependencies", output)
+                self.assertIn("Verify installation", output)
+                self.assertIn("Resolve source  00:04", output)
+                self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
+            finally:
+                reporter._stop.set()
+                reporter._thread = None
 
     def test_non_tty_history_has_timestamp_result_duration_and_current_action(self):
         class Clock:

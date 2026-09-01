@@ -2888,15 +2888,32 @@ class LearningSessionStopGateTest(unittest.TestCase):
         self.assertIn("Learning Session", reason)
 
     def test_one_completion_receipt_permanently_satisfies_terminal_gate(self):
-        events = [
+        forged_events = [
             "commit",
             'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}',
             "learning-session-complete:" + "a" * 64,
         ]
-        with patch("scripts.agents.guard.ledger_events", return_value=events), patch(
+        with patch("scripts.agents.guard.ledger_events", return_value=forged_events), patch(
             "scripts.agents.guard.check_r29_delivery_complete", return_value=None
         ):
-            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
+            self.assertIsNotNone(
+                guard.check_r16_learning_session({"session_id": "s"}),
+                "ledger learning-session-complete prose alone must not clear R16",
+            )
+
+        learning_session = importlib.import_module("scripts.agents.learning_session")
+        delivered = [
+            "commit",
+            'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}',
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "chaosengine-learning-v1"
+            learning_session.attest_no_learning(state, "s", "no_new_evidence")
+            learning_session.finalize_session(state, "s")
+            with patch("scripts.agents.guard.ledger_events", return_value=delivered), patch(
+                "scripts.agents.guard.check_r29_delivery_complete", return_value=None
+            ), patch.object(learning_session, "default_state_dir", return_value=state):
+                self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
 
     def test_a_recorded_memory_write_satisfies_it(self):
         with patch(

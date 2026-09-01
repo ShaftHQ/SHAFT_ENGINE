@@ -346,13 +346,14 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
         if agent.get("override_setup_timeout_sec") != 900:
             raise ValueError("job setup timeout drift is not allowed")
         if name == "chaos-engine":
+            adapter = _file_sha256(Path(__file__).with_name("agent.py"))
             expected = {
                 "version": "0.152.0",
                 "reasoning_effort": arm.get("effort"),
                 "harness_source": "chaos-engine",
                 "harness_commit": arm.get("repositoryRevision"),
-                "harness_sha256": "ff693b8f4f728fcdb73d74c204ae2ce0190a0e4009108bf3d9baabe0aafe98a4",
-                "adapter_sha256": "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
+                "harness_sha256": arm.get("harnessSha256"),
+                "adapter_sha256": adapter,
             }
             if kwargs != expected:
                 raise ValueError("job harness treatment is invalid")
@@ -400,10 +401,103 @@ def load_manifest(path: Path) -> dict[str, object]:
     return value
 
 
+def _replace_yaml_scalar(text: str, key: str, value: str) -> str:
+    pattern = re.compile(
+        rf"^([ \t]*{re.escape(key)}:[ \t]*)\"?[0-9a-f]{{64}}\"?[ \t]*$",
+        re.MULTILINE,
+    )
+    replaced, count = pattern.subn(rf'\1"{value}"', text, count=1)
+    if count != 1:
+        raise ValueError(f"job identity field is missing: {key}")
+    return replaced
+
+
+def _replace_exact_sha(text: str, old: str, new: str) -> str:
+    if not SHA256.fullmatch(old) or not SHA256.fullmatch(new):
+        raise ValueError("identity digest is invalid")
+    if old == new:
+        return text
+    if text.count(old) != 1:
+        raise ValueError(f"identity digest is not unique: {old}")
+    return text.replace(old, new, 1)
+
+
+def write_generated(root: Path) -> None:
+    """Refresh coupled manifest and job identities from live harness bytes."""
+    repository = root.resolve()
+    gauge = _gauge_root(repository)
+    if not (repository / "chaos-engine").is_dir():
+        raise ValueError("canonical ChaosEngine source tree is required")
+    harness = _tree_sha256(repository / "chaos-engine")
+    adapter = _file_sha256(gauge / "agent.py")
+    lock = _file_sha256(gauge / "requirements.lock")
+    manifest_path = gauge / "experiment.json"
+    original = manifest_path.read_text(encoding="utf-8")
+    manifest = json.loads(original)
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("arms"), list):
+        raise ValueError("experiment manifest JSON is malformed")
+    if len(manifest["arms"]) != 2:
+        raise ValueError("experiment arms are invalid")
+    control = _mapping(manifest["arms"][0], "control arm")
+    candidate = _mapping(manifest["arms"][1], "candidate arm")
+    old_candidate_harness = str(candidate.get("harnessSha256"))
+    old_lock = str(manifest.get("dependencyLockSha256"))
+    candidate["harnessSha256"] = harness
+    treatments: dict[str, dict[str, str]] = {"control": {}, "chaos-engine": {}}
+    old_treatments: dict[str, dict[str, str]] = {"control": {}, "chaos-engine": {}}
+    for index, name in enumerate(("control", "chaos-engine")):
+        arm = _mapping(manifest["arms"][index], "experiment arm")
+        current = _mapping(arm.get("treatmentSha256"), "treatment identity")
+        for campaign in ("calibration", "full-pilot"):
+            old_treatments[name][campaign] = str(current[campaign])
+    for campaign in ("calibration", "full-pilot"):
+        prefix = "" if campaign == "calibration" else "full-pilot-"
+        path = gauge / "job-configs" / f"{prefix}chaos-engine.yaml"
+        text = path.read_text(encoding="utf-8")
+        text = _replace_yaml_scalar(text, "harness_sha256", harness)
+        text = _replace_yaml_scalar(text, "adapter_sha256", adapter)
+        path.write_text(text, encoding="utf-8")
+        jobs = load_jobs(gauge, campaign)
+        for index, name in enumerate(("control", "chaos-engine")):
+            arm = control if name == "control" else candidate
+            treatments[name][campaign] = _sha256(
+                {
+                    "repositoryRevision": arm["repositoryRevision"],
+                    "taskDataset": _mapping(manifest.get("dataset"), "dataset")["sha256"],
+                    "harnessTree": "none" if name == "control" else harness,
+                    "adapter": "none" if name == "control" else adapter,
+                    "dependencyLock": lock,
+                    "campaign": campaign,
+                    "job": jobs[name],
+                }
+            )
+    rendered = original
+    rendered = _replace_exact_sha(rendered, old_lock, lock)
+    rendered = _replace_exact_sha(rendered, old_candidate_harness, harness)
+    for name in ("control", "chaos-engine"):
+        for campaign in ("calibration", "full-pilot"):
+            rendered = _replace_exact_sha(
+                rendered,
+                old_treatments[name][campaign],
+                treatments[name][campaign],
+            )
+    if rendered != original:
+        manifest_path.write_text(rendered, encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="refresh coupled manifest and job identities from live harness bytes",
+    )
     args = parser.parse_args()
+    root = args.manifest.parent
+    if args.write:
+        repository = root.parents[2] if root.name == "chaos_gauge" else root
+        write_generated(repository)
     value = load_manifest(args.manifest)
     for selected_campaign in ("calibration", "full-pilot"):
         validate_job_contracts(

@@ -679,16 +679,20 @@ def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -
             },
         )
     if exists:
-        recorded_ancestors = {
-            PurePosixPath(relative).parts[0]
-            for relative in after_files
-            if len(PurePosixPath(relative).parts) > 1
-        }
-        for child in palace.iterdir():
-            if child.is_dir() and child.name not in recorded_ancestors:
+        recorded_ancestors: set[str] = set()
+        for relative in after_files:
+            parts = PurePosixPath(relative).parts
+            for depth in range(1, len(parts)):
+                recorded_ancestors.add(PurePosixPath(*parts[:depth]).as_posix())
+        for child in sorted(
+            (item for item in palace.rglob("*") if item.is_dir()),
+            key=lambda item: item.relative_to(palace).as_posix(),
+        ):
+            relative = child.relative_to(palace).as_posix()
+            if relative not in recorded_ancestors:
                 mismatches.append(
                     {
-                        "path": _mempalace_state_relative(child.name),
+                        "path": _mempalace_state_relative(relative),
                         "expectedDigest": None,
                         "actualDigest": None,
                     }
