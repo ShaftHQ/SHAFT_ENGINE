@@ -151,6 +151,87 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertNotIn("def _strict_json_loads(", launcher)
             self.assertNotIn("def _write_hook_json(", launcher)
 
+    def test_javascript_launch_denies_when_guard_is_missing(self):
+        launcher = ROOT / "chaos-engine/hooks/launch.js"
+        with tempfile.TemporaryDirectory() as temporary:
+            completed = subprocess.run(  # nosec B603 - fixed node launcher.
+                ["node", str(launcher), "gemini"],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "BeforeTool",
+                        "tool_name": "write_file",
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                cwd=temporary,
+                check=False,
+            )
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertNotEqual({}, payload)
+        self.assertIn("ChaosEngine guard unavailable", rendered)
+
+    def test_javascript_launch_reports_missing_cwd_without_private_paths(self):
+        launcher = ROOT / "chaos-engine/hooks/launch.js"
+        event = {"hook_event_name": "BeforeTool", "tool_name": "write_file"}
+        with tempfile.TemporaryDirectory() as temporary:
+            gone = Path(temporary) / "missing-cwd"
+            gone.mkdir()
+            private = str(gone.resolve())
+            probe = f"""
+const {{spawnSync}} = require('child_process');
+const fs = require('fs');
+const target = {json.dumps(private)};
+const launcher = {json.dumps(str(launcher))};
+const input = Buffer.from({json.dumps(json.dumps(event))});
+process.chdir(target);
+fs.rmSync(target, {{recursive: true, force: true}});
+const result = spawnSync('node', [launcher, 'gemini'], {{input, encoding: 'utf8'}});
+process.stdout.write(String(result.status) + '\\n');
+process.stdout.write(result.stdout || '');
+process.stderr.write(result.stderr || '');
+"""
+            completed = subprocess.run(  # nosec B603 - fixed node probe.
+                ["node", "-e", probe],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        lines = completed.stdout.splitlines()
+        self.assertGreaterEqual(len(lines), 2, completed.stdout)
+        self.assertNotEqual("0", lines[0])
+        payload = json.loads("\n".join(lines[1:]))
+        rendered = completed.stdout + completed.stderr
+        self.assertIn("repository working directory unavailable", rendered)
+        self.assertNotIn(private, rendered)
+        self.assertNotEqual({}, payload)
+
+    def test_javascript_launch_keeps_ordinary_guard_execution_when_cwd_restored(self):
+        launcher = ROOT / "chaos-engine/hooks/launch.js"
+        completed = subprocess.run(  # nosec B603 - fixed node launcher.
+            ["node", str(launcher), "gemini"],
+            input=json.dumps(
+                {
+                    "hook_event_name": "BeforeTool",
+                    "tool_name": "write_file",
+                    "tool_input": {"path": "notes.txt", "content": "ok"},
+                    "session_id": "restored-cwd",
+                }
+            ),
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            check=False,
+        )
+        rendered = completed.stdout + completed.stderr
+        self.assertNotIn("repository working directory unavailable", rendered)
+        self.assertNotIn("ChaosEngine guard unavailable", rendered)
+        payload = json.loads(completed.stdout or "{}")
+        self.assertIsInstance(payload, dict)
+
     def test_stop_learning_session_rule_fires_only_after_terminal_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
