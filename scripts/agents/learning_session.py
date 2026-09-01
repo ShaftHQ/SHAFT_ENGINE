@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
+import shlex
 import stat
+import subprocess  # nosec B404 - fixed list-form proof commands, never a shell.
 import tempfile
 import threading
 import time
@@ -40,7 +43,8 @@ NO_LEARNING_REASONS = frozenset(
         "store_degraded",
     }
 )
-RUNTIME_DISPOSITIONS = frozenset({"fixed-now", "existing", "new", "blocked"})
+RUNTIME_DISPOSITIONS = frozenset({"fixed-now", "existing", "new", "blocked", "no-durable"})
+ISSUE_BOUND_DISPOSITIONS = frozenset({"existing", "new"})
 UNAVAILABLE_REASONS = frozenset({"delegate_unavailable", "delegate_lost"})
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_REF_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -48,6 +52,8 @@ OPERATION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 TRACKING_ISSUE_URL_RE = re.compile(
     r"^https://github\.com/ShaftHQ/SHAFT_ENGINE/issues/[1-9][0-9]*$"
 )
+UNSAFE_PROOF_COMMAND = re.compile(r"[;|&`$<>]")
+DEFAULT_LEARNING_UPSTREAM = "ShaftHQ/SHAFT_ENGINE"
 RECEIPT_KEYS = frozenset(
     {
         "schema_version",
@@ -1042,37 +1048,406 @@ def attest_participant_unavailable(
         return existing or value
 
 
+def runtime_incident_source_path(state: Path, session_id: str) -> Path:
+    """Return the automatic harvest ledger for one runtime participant."""
+    return (
+        _contained_directory(Path(state), "runtime-incident-sources")
+        / f"{_session_hash(session_id)}.jsonl"
+    )
+
+
+def _disposition_path(state: Path, session_hash: str, disposition_id: str) -> Path:
+    return _contained_directory(Path(state), "dispositions") / session_hash / f"{disposition_id}.json"
+
+
+def _load_chaos_engine_learning(module: object | None = None):
+    if module is not None:
+        return module
+    path = Path(__file__).resolve().parents[2] / "chaos-engine" / "learning.py"
+    specification = importlib.util.spec_from_file_location(
+        "chaos_engine_learning_runtime", path
+    )
+    if specification is None or specification.loader is None:
+        raise ValueError("ChaosEngine learning queue is unavailable")
+    loaded = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(loaded)
+    return loaded
+
+
+def _validate_fixed_now_evidence(evidence: dict, evidence_root: Path) -> dict:
+    if not isinstance(evidence, dict):
+        raise ValueError("fixed-now proof evidence is required")
+    changed_files = evidence.get("changed_files")
+    head = evidence.get("head")
+    proof_command = evidence.get("proof_command")
+    proof_exit_code = evidence.get("proof_exit_code")
+    if not isinstance(changed_files, list) or not changed_files:
+        raise ValueError("fixed-now proof requires changed files")
+    if not all(_safe_relative_file(path) for path in changed_files):
+        raise ValueError("fixed-now proof requires safe relative changed files")
+    root = Path(evidence_root)
+    for relative in changed_files:
+        if not (root / relative).is_file():
+            raise ValueError("fixed-now proof requires existing changed files")
+    if not isinstance(head, str) or not GIT_REF_RE.fullmatch(head):
+        raise ValueError("fixed-now proof requires a bound HEAD")
+    if (
+        not isinstance(proof_command, str)
+        or not proof_command.strip()
+        or UNSAFE_PROOF_COMMAND.search(proof_command)
+    ):
+        raise ValueError("fixed-now proof command is unsafe or missing")
+    try:
+        tokens = shlex.split(proof_command.strip(), posix=os.name != "nt")
+    except ValueError as error:
+        raise ValueError("fixed-now proof command is unsafe or missing") from error
+    if not tokens:
+        raise ValueError("fixed-now proof command is unsafe or missing")
+    executable = Path(tokens[0])
+    command = [tokens[0], *tokens[1:]]
+    if not executable.is_absolute():
+        if not _safe_relative_file(tokens[0]):
+            raise ValueError("fixed-now proof command is unsafe or missing")
+        command = [str(root / tokens[0]), *tokens[1:]]
+    try:
+        completed = subprocess.run(  # nosec B603 - validated argv, no shell.
+            command,
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError("fixed-now proof failed to run") from error
+    if completed.returncode != 0:
+        raise ValueError("fixed-now proof did not pass")
+    if proof_exit_code not in (0, None) and proof_exit_code != completed.returncode:
+        raise ValueError("fixed-now proof exit code mismatch")
+    return {
+        "changed_files": list(dict.fromkeys(changed_files)),
+        "head": head,
+        "proof_command_hash": _hash_text(proof_command.strip()),
+        "proof_exit_code": 0,
+    }
+
+
+def _validate_issue_bound_evidence(evidence: dict) -> dict:
+    if not isinstance(evidence, dict):
+        raise ValueError("tracking issue evidence is required")
+    url = evidence.get("tracking_issue_url")
+    if not isinstance(url, str) or not TRACKING_ISSUE_URL_RE.fullmatch(url):
+        raise ValueError("tracking issue URL is required")
+    return {"tracking_issue_url": url}
+
+
+def _validate_blocked_evidence(
+    evidence: dict,
+    *,
+    learning_state: Path | None,
+    learning_module: object | None,
+) -> dict:
+    if not isinstance(evidence, dict):
+        raise ValueError("blocked disposition requires a privacy-safe queue payload")
+    candidate = evidence.get("learning_candidate")
+    upstream = evidence.get("upstream") or DEFAULT_LEARNING_UPSTREAM
+    if learning_state is None:
+        raise ValueError("blocked disposition requires a learning queue state")
+    learning = _load_chaos_engine_learning(learning_module)
+    if not isinstance(candidate, dict):
+        raise ValueError("blocked disposition requires a privacy-safe queue payload")
+    queued = learning.queue_learning(Path(learning_state), candidate, str(upstream))
+    payload = {
+        "queued_learning_id": queued["id"],
+        "queue_status": queued["status"],
+        "upstream": queued["upstream"],
+    }
+    fallback = queued.get("fallbackUrl")
+    if isinstance(fallback, str) and fallback:
+        payload["fallback_url"] = fallback
+    return payload
+
+
+def record_disposition(
+    state: Path,
+    *,
+    session_id: str,
+    incident_id: str,
+    disposition: str,
+    evidence: dict,
+    evidence_root: Path | None = None,
+    learning_state: Path | None = None,
+    learning_module: object | None = None,
+) -> dict:
+    """Record one schema-v2 evidence-bearing disposition receipt."""
+    if disposition not in RUNTIME_DISPOSITIONS - {"no-durable"}:
+        raise ValueError("runtime disposition is invalid")
+    if load_runtime_completion(Path(state), session_id) is not None:
+        raise ValueError("runtime learning session is already complete")
+    if load_session_completion(Path(state), session_id) is not None:
+        raise ValueError("learning session is already complete")
+    session_hash = _session_hash(session_id)
+    normalized_incident = incident_hash(incident_id)
+    if disposition == "fixed-now":
+        if evidence_root is None:
+            raise ValueError("fixed-now proof requires an evidence root")
+        validated = _validate_fixed_now_evidence(evidence, Path(evidence_root))
+    elif disposition in ISSUE_BOUND_DISPOSITIONS:
+        validated = _validate_issue_bound_evidence(evidence)
+    elif disposition == "blocked":
+        validated = _validate_blocked_evidence(
+            evidence, learning_state=learning_state, learning_module=learning_module
+        )
+    else:
+        raise ValueError("runtime disposition is invalid")
+    identity = {
+        "kind": "learning-disposition",
+        "session_hash": session_hash,
+        "incident_hash": normalized_incident,
+        "disposition": disposition,
+        "evidence": validated,
+    }
+    value = {
+        "schema_version": 2,
+        "disposition_id": _hash_text(_canonical(identity)),
+        **identity,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _state_lock(Path(state), f"disposition-{session_hash}-{normalized_incident}"):
+        directory = _contained_directory(Path(state), "dispositions") / session_hash
+        directory.mkdir(exist_ok=True)
+        existing = [
+            item
+            for item in load_dispositions(Path(state), session_id)
+            if item["incident_hash"] == normalized_incident
+        ]
+        if existing:
+            if existing[0] != value and existing[0]["disposition_id"] != value["disposition_id"]:
+                # Compare identity fields only for idempotent retries.
+                prior_identity = {
+                    key: existing[0][key]
+                    for key in ("kind", "session_hash", "incident_hash", "disposition", "evidence")
+                }
+                if prior_identity != identity:
+                    raise ValueError("incident already has a different disposition")
+                return existing[0]
+            return existing[0]
+        _atomic_json(_disposition_path(Path(state), session_hash, value["disposition_id"]), value)
+        return value
+
+
+def load_dispositions(state: Path, session_id: str) -> list[dict]:
+    """Load schema-v2 disposition receipts for one session."""
+    return _load_dispositions_by_hash(Path(state), _session_hash(session_id))
+
+
+def _load_dispositions_by_hash(state: Path, session_hash: str) -> list[dict]:
+    try:
+        directory = _contained_directory(Path(state), "dispositions") / session_hash
+    except (OSError, ValueError):
+        return []
+    if not directory.is_dir():
+        return []
+    values: list[dict] = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeError):
+            continue
+        if _valid_disposition(value, session_hash):
+            values.append(value)
+    return values
+
+
+def _valid_disposition(value: object, session_hash: str) -> bool:
+    if not isinstance(value, dict):
+        return False
+    required = {
+        "schema_version",
+        "disposition_id",
+        "kind",
+        "session_hash",
+        "incident_hash",
+        "disposition",
+        "evidence",
+        "recorded_at",
+    }
+    try:
+        identity = {
+            "kind": value["kind"],
+            "session_hash": value["session_hash"],
+            "incident_hash": value["incident_hash"],
+            "disposition": value["disposition"],
+            "evidence": value["evidence"],
+        }
+        return bool(
+            set(value) == required
+            and value["schema_version"] == 2
+            and value["kind"] == "learning-disposition"
+            and value["session_hash"] == session_hash
+            and SHA256_RE.fullmatch(value["incident_hash"])
+            and value["disposition"] in RUNTIME_DISPOSITIONS - {"no-durable"}
+            and isinstance(value["evidence"], dict)
+            and bool(value["evidence"])
+            and _valid_utc_timestamp(value["recorded_at"])
+            and value["disposition_id"] == _hash_text(_canonical(identity))
+        )
+    except (KeyError, TypeError):
+        return False
+
+
+def _load_sibling_incidents(state: Path, participant_hash: str) -> dict[str, dict]:
+    path = (
+        _contained_directory(Path(state), "runtime-incident-sources")
+        / f"{participant_hash}.jsonl"
+    )
+    if not path.is_file():
+        return {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return {}
+    incidents: dict[str, dict] = {}
+    for line in lines:
+        try:
+            item = json.loads(line)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(item, dict):
+            continue
+        incident_id = item.get("incident_id")
+        if not isinstance(incident_id, str) or not incident_id.strip():
+            continue
+        digest = incident_hash(incident_id)
+        incidents[digest] = {
+            "incident_hash": digest,
+            "kind": item.get("kind") if item.get("kind") in SIGNAL_KINDS else "tool_failure",
+            "origin": item.get("origin") if item.get("origin") in ORIGINS else "tool",
+            "source": "sibling",
+        }
+    return incidents
+
+
+def collect_runtime_incidents(state: Path, root_session_id: str) -> dict[str, dict]:
+    """Harvest unique incidents from registered receipts and sibling sources."""
+    registry = _load_runtime_registry(Path(state), root_session_id)
+    collected: dict[str, dict] = {}
+    for participant_hash in registry["participant_hashes"]:
+        for receipt in _load_receipts_by_hash(Path(state), participant_hash):
+            collected[receipt["incident_hash"]] = {
+                "incident_hash": receipt["incident_hash"],
+                "kind": receipt["signal_kind"],
+                "origin": receipt["origin"],
+                "source": "receipt",
+                "participant_hash": participant_hash,
+            }
+        for digest, item in _load_sibling_incidents(Path(state), participant_hash).items():
+            collected.setdefault(
+                digest,
+                {**item, "participant_hash": participant_hash},
+            )
+    return collected
+
+
+def load_runtime_completion(state: Path, root_session_id: str) -> dict | None:
+    """Load one immutable root-owned runtime completion artifact."""
+    try:
+        value = json.loads(
+            _runtime_completion_path(Path(state), root_session_id).read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError, UnicodeError):
+        return None
+    required = {
+        "schema_version",
+        "completion_id",
+        "kind",
+        "root_session_hash",
+        "disposition",
+        "participant_hashes",
+        "incidents",
+        "completed_at",
+    }
+    try:
+        if (
+            not isinstance(value, dict)
+            or set(value) != required
+            or value.get("schema_version") not in {1, 2}
+            or value.get("kind") != "learning-runtime-complete"
+            or value.get("root_session_hash") != _session_hash(root_session_id)
+            or value.get("disposition") not in {"assessed", "no-durable"}
+            or not isinstance(value.get("participant_hashes"), list)
+            or not isinstance(value.get("incidents"), list)
+            or not _valid_utc_timestamp(value.get("completed_at"))
+        ):
+            return None
+        identity = {
+            "kind": value["kind"],
+            "root_session_hash": value["root_session_hash"],
+            "disposition": value["disposition"],
+            "participant_hashes": value["participant_hashes"],
+            "incidents": value["incidents"],
+        }
+        if value["completion_id"] != _hash_text(_canonical(identity)):
+            return None
+    except (KeyError, TypeError):
+        return None
+    return value
+
+
 def finalize_runtime_session(
     state: Path,
     *,
     root_session_id: str,
-    dispositions: dict[str, str],
+    dispositions: dict[str, str] | None = None,
 ) -> dict:
-    """Close one root-owned runtime after considering root and delegate receipts."""
+    """Close one root-owned runtime after automatic incident and disposition harvest."""
+    existing = load_runtime_completion(Path(state), root_session_id)
+    if existing is not None:
+        if dispositions:
+            raise ValueError("runtime learning session is already complete")
+        return existing
     registry = close_runtime(Path(state), root_session_id)
     participant_hashes = registry["participant_hashes"]
     participant_receipts = {
         participant_hash: _load_receipts_by_hash(Path(state), participant_hash)
         for participant_hash in participant_hashes
     }
-    receipts = {
-        receipt["incident_hash"]: receipt
-        for items in participant_receipts.values()
-        for receipt in items
+    sibling_incidents = {
+        participant_hash: _load_sibling_incidents(Path(state), participant_hash)
+        for participant_hash in participant_hashes
     }
-    incident_hashes = set(receipts)
-    if set(dispositions) != incident_hashes:
+    collected = collect_runtime_incidents(Path(state), root_session_id)
+    incident_hashes = set(collected)
+    disposition_receipts = {
+        item["incident_hash"]: item
+        for participant_hash in participant_hashes
+        for item in _load_dispositions_by_hash(Path(state), participant_hash)
+    }
+    if dispositions:
+        if set(dispositions) != incident_hashes:
+            raise ValueError("every runtime incident requires exactly one disposition")
+        for key, value in dispositions.items():
+            receipt = disposition_receipts.get(key)
+            if receipt is None or receipt["disposition"] != value:
+                raise ValueError("every runtime incident requires evidence-bearing disposition")
+    elif set(disposition_receipts) != incident_hashes:
         raise ValueError("every runtime incident requires exactly one disposition")
-    if any(
-        not SHA256_RE.fullmatch(key) or value not in RUNTIME_DISPOSITIONS
-        for key, value in dispositions.items()
-    ):
-        raise ValueError("runtime disposition is invalid")
-    receipt_participants = {
-        participant_hash for participant_hash, items in participant_receipts.items() if items
+    for key, receipt in disposition_receipts.items():
+        if key not in incident_hashes:
+            raise ValueError("every runtime incident requires exactly one disposition")
+        if receipt["disposition"] not in RUNTIME_DISPOSITIONS - {"no-durable"}:
+            raise ValueError("runtime disposition is invalid")
+    evidence_participants = {
+        participant_hash
+        for participant_hash, items in participant_receipts.items()
+        if items
+    } | {
+        participant_hash
+        for participant_hash, items in sibling_incidents.items()
+        if items
     }
     for participant_hash in participant_hashes:
-        if participant_hash in receipt_participants:
+        if participant_hash in evidence_participants:
             continue
         if _load_attestation_by_hash(Path(state), participant_hash) is not None:
             continue
@@ -1082,18 +1457,26 @@ def finalize_runtime_session(
         if unavailable is None:
             label = "root" if participant_hash == registry["root_session_hash"] else "delegate"
             raise ValueError(f"registered {label} lacks terminal evidence")
+    incident_records = []
+    for key in sorted(incident_hashes):
+        receipt = disposition_receipts[key]
+        incident_records.append(
+            {
+                "incident_hash": key,
+                "disposition": receipt["disposition"],
+                "disposition_id": receipt["disposition_id"],
+                "evidence": receipt["evidence"],
+            }
+        )
     identity = {
         "kind": "learning-runtime-complete",
         "root_session_hash": _session_hash(root_session_id),
         "disposition": "assessed" if incident_hashes else "no-durable",
         "participant_hashes": participant_hashes,
-        "incidents": [
-            {"incident_hash": key, "disposition": dispositions[key]}
-            for key in sorted(dispositions)
-        ],
+        "incidents": incident_records,
     }
     value = {
-        "schema_version": 1,
+        "schema_version": 2,
         "completion_id": _hash_text(_canonical(identity)),
         **identity,
         "completed_at": datetime.now(timezone.utc).isoformat(),
@@ -1101,13 +1484,12 @@ def finalize_runtime_session(
     with _state_lock(Path(state), f"runtime-{identity['root_session_hash']}"):
         path = _runtime_completion_path(Path(state), root_session_id)
         if path.is_file():
-            try:
-                existing = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError, UnicodeError) as error:
-                raise ValueError("runtime completion is invalid") from error
-            if {key: existing.get(key) for key in identity} != identity:
+            loaded = load_runtime_completion(Path(state), root_session_id)
+            if loaded is None:
+                raise ValueError("runtime completion is invalid")
+            if {key: loaded.get(key) for key in identity} != identity:
                 raise ValueError("runtime learning session is already complete")
-            return existing
+            return loaded
         _atomic_json(path, value)
     return value
 
@@ -1599,7 +1981,7 @@ def _parse_disposition(value: str) -> tuple[str, str]:
     if (
         not separator
         or not SHA256_RE.fullmatch(incident)
-        or disposition not in RUNTIME_DISPOSITIONS
+        or disposition not in RUNTIME_DISPOSITIONS - {"no-durable"}
     ):
         raise argparse.ArgumentTypeError(
             "disposition must be SHA256=fixed-now|existing|new|blocked"
@@ -1731,10 +2113,11 @@ def main(arguments: list[str] | None = None) -> int:
                 state, options.session_id, options.participant_session_id, options.reason_code
             )
         elif options.command == "finalize-runtime":
+            supplied = dict(options.disposition) if options.disposition else None
             result = finalize_runtime_session(
                 state,
                 root_session_id=options.session_id,
-                dispositions=dict(options.disposition),
+                dispositions=supplied,
             )
         elif options.command == "evaluate":
             manifest = _load_json_object(options.manifest)

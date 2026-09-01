@@ -1304,6 +1304,13 @@ class TerminalLearningSessionTest(unittest.TestCase):
         controller = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
+            workspace = state / "workspace"
+            workspace.mkdir()
+            changed = workspace / "scripts" / "agents" / "guard.py"
+            changed.parent.mkdir(parents=True, exist_ok=True)
+            changed.write_text("print('ok')\n", encoding="utf-8")
+            proof = workspace / "proof_ok.py"
+            proof.write_text("raise SystemExit(0)\n", encoding="utf-8")
             for session_id, incident_id in (
                 ("root-runtime", "broken-command"),
                 ("delegate-runtime", "token-waste"),
@@ -1317,10 +1324,31 @@ class TerminalLearningSessionTest(unittest.TestCase):
                     evidence=self.evidence(state),
                     evidence_root=state,
                 )
-
+            controller.record_disposition(
+                state,
+                session_id="root-runtime",
+                incident_id="broken-command",
+                disposition="fixed-now",
+                evidence={
+                    "changed_files": ["scripts/agents/guard.py"],
+                    "head": "a" * 40,
+                    "proof_command": f"{sys.executable} proof_ok.py",
+                    "proof_exit_code": 0,
+                },
+                evidence_root=workspace,
+            )
+            controller.record_disposition(
+                state,
+                session_id="delegate-runtime",
+                incident_id="token-waste",
+                disposition="existing",
+                evidence={
+                    "tracking_issue_url": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296"
+                },
+            )
             dispositions = {
                 controller.incident_hash("broken-command"): "fixed-now",
-                controller.incident_hash("token-waste"): "blocked",
+                controller.incident_hash("token-waste"): "existing",
             }
             controller.register_runtime(
                 state, "root-runtime", ["root-runtime", "delegate-runtime"]
@@ -1328,7 +1356,6 @@ class TerminalLearningSessionTest(unittest.TestCase):
             completed = controller.finalize_runtime_session(
                 state,
                 root_session_id="root-runtime",
-                dispositions=dispositions,
             )
 
             self.assertEqual("learning-runtime-complete", completed["kind"])
@@ -1345,7 +1372,6 @@ class TerminalLearningSessionTest(unittest.TestCase):
                 controller.finalize_runtime_session(
                     state,
                     root_session_id="root-runtime",
-                    dispositions=dispositions,
                 ),
             )
 
@@ -1459,6 +1485,13 @@ class TerminalLearningSessionTest(unittest.TestCase):
         controller = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
+            workspace = state / "workspace"
+            workspace.mkdir()
+            changed = workspace / "scripts" / "agents" / "guard.py"
+            changed.parent.mkdir(parents=True, exist_ok=True)
+            changed.write_text("print('ok')\n", encoding="utf-8")
+            proof = workspace / "proof_ok.py"
+            proof.write_text("raise SystemExit(0)\n", encoding="utf-8")
             controller.record_signal(
                 state,
                 session_id="delegate-cli",
@@ -1468,7 +1501,19 @@ class TerminalLearningSessionTest(unittest.TestCase):
                 evidence=self.evidence(state),
                 evidence_root=state,
             )
-            digest = controller.incident_hash("broken-cli")
+            controller.record_disposition(
+                state,
+                session_id="delegate-cli",
+                incident_id="broken-cli",
+                disposition="fixed-now",
+                evidence={
+                    "changed_files": ["scripts/agents/guard.py"],
+                    "head": "a" * 40,
+                    "proof_command": f"{sys.executable} proof_ok.py",
+                    "proof_exit_code": 0,
+                },
+                evidence_root=workspace,
+            )
             controller.register_runtime(state, "root-cli", ["root-cli", "delegate-cli"])
             controller.attest_no_learning(state, "root-cli", "no_new_evidence")
             with patch.object(controller, "default_state_dir", return_value=state), redirect_stdout(
@@ -1479,8 +1524,6 @@ class TerminalLearningSessionTest(unittest.TestCase):
                         "finalize-runtime",
                         "--session-id",
                         "root-cli",
-                        "--disposition",
-                        f"{digest}=fixed-now",
                     ]
                 )
             self.assertEqual(0, result)
@@ -1549,6 +1592,298 @@ class TerminalLearningSessionTest(unittest.TestCase):
                 "learning-session-complete:" + completed["completion_id"],
                 guard.ledger_events(payload),
             )
+
+
+class DispositionReceiptLearningSessionTest(unittest.TestCase):
+    """Schema-v2 disposition receipts and automatic terminal collection (#5517)."""
+
+    def controller(self):
+        return importlib.import_module("scripts.agents.learning_session")
+
+    def evidence(self, root: Path) -> list[dict[str, str]]:
+        artifact = root / "failure.json"
+        artifact.write_text('{"failure":"guard recursion"}', encoding="utf-8")
+        return [
+            {
+                "kind": "guard",
+                "id": artifact.name,
+                "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+            }
+        ]
+
+    def fixed_now_evidence(self, root: Path) -> dict:
+        changed = root / "scripts" / "agents" / "guard.py"
+        changed.parent.mkdir(parents=True, exist_ok=True)
+        changed.write_text("print('ok')\n", encoding="utf-8")
+        proof = root / "proof_ok.py"
+        proof.write_text("raise SystemExit(0)\n", encoding="utf-8")
+        return {
+            "changed_files": ["scripts/agents/guard.py"],
+            "head": "a" * 40,
+            "proof_command": f"{sys.executable} proof_ok.py",
+            "proof_exit_code": 0,
+        }
+
+    def privacy_candidate(self) -> dict:
+        return {
+            "category": "reliability",
+            "title": "Keep learning dispositions evidence-bound",
+            "lesson": "Queue privacy-safe payloads when issue filing is unavailable.",
+            "proposedChange": "Bind blocked lessons to the local learning queue.",
+            "benefit": "Prevents a false complete claim when GitHub auth is missing.",
+            "estimatedTokens": 120,
+        }
+
+    def test_fixed_now_disposition_requires_changed_files_and_passing_proof(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            workspace = state / "workspace"
+            workspace.mkdir()
+            controller.record_signal(
+                state,
+                session_id="root",
+                kind="tool_failure",
+                incident_id="broken-command",
+                origin="agent",
+                evidence=self.evidence(state),
+                evidence_root=state,
+            )
+            receipt = controller.record_disposition(
+                state,
+                session_id="root",
+                incident_id="broken-command",
+                disposition="fixed-now",
+                evidence=self.fixed_now_evidence(workspace),
+                evidence_root=workspace,
+            )
+            self.assertEqual(2, receipt["schema_version"])
+            self.assertEqual("fixed-now", receipt["disposition"])
+            self.assertEqual(
+                ["scripts/agents/guard.py"], receipt["evidence"]["changed_files"]
+            )
+            with self.assertRaisesRegex(ValueError, "proof"):
+                controller.record_disposition(
+                    state,
+                    session_id="root",
+                    incident_id="assertion-only",
+                    disposition="fixed-now",
+                    evidence={"assertion": "tests pass"},
+                    evidence_root=workspace,
+                )
+
+    def test_issue_bound_and_blocked_dispositions_reuse_privacy_queue(self):
+        controller = self.controller()
+        spec = importlib.util.spec_from_file_location(
+            "chaos_engine_learning_under_test",
+            Path(__file__).resolve().parents[2] / "chaos-engine" / "learning.py",
+        )
+        learning = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(learning)
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            queue = state / "learning-queue"
+            for disposition, url in (
+                ("existing", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296"),
+                ("new", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5517"),
+            ):
+                receipt = controller.record_disposition(
+                    state,
+                    session_id="root",
+                    incident_id=f"{disposition}-lesson",
+                    disposition=disposition,
+                    evidence={"tracking_issue_url": url},
+                )
+                self.assertEqual(disposition, receipt["disposition"])
+                self.assertEqual(url, receipt["evidence"]["tracking_issue_url"])
+            blocked = controller.record_disposition(
+                state,
+                session_id="root",
+                incident_id="auth-missing",
+                disposition="blocked",
+                evidence={
+                    "learning_candidate": self.privacy_candidate(),
+                    "upstream": "ShaftHQ/SHAFT_ENGINE",
+                },
+                learning_state=queue,
+                learning_module=learning,
+            )
+            self.assertEqual("blocked", blocked["disposition"])
+            self.assertEqual("queued", blocked["evidence"]["queue_status"])
+            serialized = json.dumps(blocked)
+            self.assertNotIn(str(state), serialized)
+            self.assertNotIn("prompt", serialized.lower())
+            self.assertNotIn("/home/", serialized)
+            with self.assertRaisesRegex(ValueError, "privacy|tracking|queue"):
+                controller.record_disposition(
+                    state,
+                    session_id="root",
+                    incident_id="leaky",
+                    disposition="blocked",
+                    evidence={
+                        "learning_candidate": {
+                            **self.privacy_candidate(),
+                            "lesson": "Read /home/secret/.bashrc and raw prompt text",
+                        },
+                        "upstream": "ShaftHQ/SHAFT_ENGINE",
+                    },
+                    learning_state=queue,
+                    learning_module=learning,
+                )
+
+    def test_terminal_finalize_auto_collects_receipts_and_sibling_sources(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            workspace = state / "workspace"
+            workspace.mkdir()
+            controller.create_runtime(state, "root")
+            controller.register_runtime_participant(state, "root", "delegate")
+            controller.record_signal(
+                state,
+                session_id="root",
+                kind="tool_failure",
+                incident_id="broken-command",
+                origin="agent",
+                evidence=self.evidence(state),
+                evidence_root=state,
+            )
+            controller.record_disposition(
+                state,
+                session_id="root",
+                incident_id="broken-command",
+                disposition="fixed-now",
+                evidence=self.fixed_now_evidence(workspace),
+                evidence_root=workspace,
+            )
+            sibling = controller.runtime_incident_source_path(state, "delegate")
+            sibling.write_text(
+                json.dumps(
+                    {
+                        "incident_id": "token-waste",
+                        "kind": "guard_block",
+                        "origin": "tool",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            controller.record_disposition(
+                state,
+                session_id="delegate",
+                incident_id="token-waste",
+                disposition="existing",
+                evidence={
+                    "tracking_issue_url": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296"
+                },
+            )
+
+            completed = controller.finalize_runtime_session(
+                state, root_session_id="root"
+            )
+
+            self.assertEqual(2, completed["schema_version"])
+            self.assertEqual("learning-runtime-complete", completed["kind"])
+            self.assertEqual(
+                {
+                    controller.incident_hash("broken-command"): "fixed-now",
+                    controller.incident_hash("token-waste"): "existing",
+                },
+                {
+                    item["incident_hash"]: item["disposition"]
+                    for item in completed["incidents"]
+                },
+            )
+            self.assertTrue(
+                all("evidence" in item and item["evidence"] for item in completed["incidents"])
+            )
+            self.assertEqual(
+                completed,
+                controller.finalize_runtime_session(state, root_session_id="root"),
+            )
+            with self.assertRaisesRegex(ValueError, "already complete"):
+                controller.finalize_runtime_session(
+                    state,
+                    root_session_id="root",
+                    dispositions={
+                        controller.incident_hash("broken-command"): "fixed-now",
+                    },
+                )
+
+    def test_omitted_sibling_source_blocks_finalization(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.create_runtime(state, "root")
+            controller.register_runtime_participant(state, "root", "delegate")
+            controller.attest_no_learning(state, "root", "no_new_evidence")
+            sibling = controller.runtime_incident_source_path(state, "delegate")
+            sibling.write_text(
+                json.dumps(
+                    {
+                        "incident_id": "ci-flake",
+                        "kind": "test_failure",
+                        "origin": "tool",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "disposition|terminal evidence"):
+                controller.finalize_runtime_session(state, root_session_id="root")
+
+    def test_blocked_without_queue_cannot_claim_complete(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.create_runtime(state, "root")
+            controller.record_signal(
+                state,
+                session_id="root",
+                kind="tool_failure",
+                incident_id="needs-issue",
+                origin="agent",
+                evidence=self.evidence(state),
+                evidence_root=state,
+            )
+            with self.assertRaisesRegex(ValueError, "disposition"):
+                controller.finalize_runtime_session(state, root_session_id="root")
+
+    def test_cli_finalize_runtime_needs_no_disposition_flags(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            workspace = state / "workspace"
+            workspace.mkdir()
+            controller.create_runtime(state, "root-cli")
+            controller.record_signal(
+                state,
+                session_id="root-cli",
+                kind="tool_failure",
+                incident_id="broken-cli",
+                origin="agent",
+                evidence=self.evidence(state),
+                evidence_root=state,
+            )
+            controller.record_disposition(
+                state,
+                session_id="root-cli",
+                incident_id="broken-cli",
+                disposition="fixed-now",
+                evidence=self.fixed_now_evidence(workspace),
+                evidence_root=workspace,
+            )
+            with patch.object(controller, "default_state_dir", return_value=state), redirect_stdout(
+                io.StringIO()
+            ):
+                self.assertEqual(
+                    0,
+                    controller.main(["finalize-runtime", "--session-id", "root-cli"]),
+                )
+            loaded = controller.load_runtime_completion(state, "root-cli")
+            self.assertIsNotNone(loaded)
+            self.assertEqual(2, loaded["schema_version"])
 
 
 if __name__ == "__main__":

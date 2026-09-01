@@ -1674,7 +1674,7 @@ def _learning_session_operation(hook_input: dict, command: str) -> tuple[str, li
         (
             item
             for item in remaining
-            if item in {"signal", "assess", "attest-none", "finalize"}
+            if item in {"signal", "assess", "attest-none", "finalize", "finalize-runtime"}
         ),
         None,
     )
@@ -1715,6 +1715,13 @@ def _learning_session_events(hook_input: dict, command: str) -> list[str]:
     try:
         if operation == "finalize":
             completed = learning_session.load_session_completion(state, supplied_session)
+            if completed is not None:
+                return [
+                    "learning-session-complete:" + completed["completion_id"]
+                ]
+            return []
+        if operation == "finalize-runtime":
+            completed = learning_session.load_runtime_completion(state, supplied_session)
             if completed is not None:
                 return [
                     "learning-session-complete:" + completed["completion_id"]

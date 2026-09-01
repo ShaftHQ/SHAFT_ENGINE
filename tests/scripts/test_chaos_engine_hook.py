@@ -300,9 +300,15 @@ process.stderr.write(result.stderr || '');
             )
 
     def test_terminal_learning_session_completion_clears_portable_stop_gate(self):
+        import importlib
+
+        learning_session = importlib.import_module("scripts.agents.learning_session")
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             session = "learn-complete"
+            state = Path(temporary) / "chaosengine-learning-v1"
+            learning_session.attest_no_learning(state, session, "no_new_evidence")
+            learning_session.finalize_session(state, session)
             for command in (
                 "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r",
                 "py -3 scripts/agents/learning_session.py finalize --session-id learn-complete",
@@ -329,6 +335,38 @@ process.stderr.write(result.stderr || '');
             self.assertEqual(0, stopped.returncode)
             self.assertFalse(
                 json.loads(stopped.stdout).get("reason", "").casefold().startswith("learning session:")
+            )
+
+    def test_finalize_command_without_artifact_does_not_clear_portable_stop_gate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "learn-forged"
+            for command in (
+                "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r",
+                "py -3 scripts/agents/learning_session.py finalize --session-id learn-forged",
+            ):
+                self.run_hook(
+                    {
+                        "hook_event_name": "PostToolUse",
+                        "tool_name": "PowerShell",
+                        "tool_input": {"command": command},
+                        "session_id": session,
+                    },
+                    environment,
+                )
+
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+
+            self.assertEqual(2, stopped.returncode)
+            self.assertTrue(
+                json.loads(stopped.stdout)["reason"].casefold().startswith("learning session:")
             )
 
     def test_failed_read_only_agent_diagnostics_do_not_open_portable_checkpoint(self):

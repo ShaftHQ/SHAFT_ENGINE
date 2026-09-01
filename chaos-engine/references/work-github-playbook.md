@@ -88,14 +88,20 @@ performs and verifies the repair or revert.
 
 For an orchestrated runtime, the root first runs `create-runtime`. Every
 dispatch then runs `register-participant` atomically before launching its
-delegate. `finalize-runtime` closes membership; after closure no caller can
-replace, omit, or add participants. Before finalization, every
+delegate. Before finalization, record schema-v2 evidence-bearing disposition
+receipts (`fixed-now` with changed files plus passing proof, `existing`/`new`
+with a tracking URL, or `blocked` with a privacy-safe queued learning payload).
+`finalize-runtime` automatically harvests root and delegate receipts plus
+sibling incident sources, closes membership, and rejects callers that omit a
+registered participant or supply enum-only dispositions without evidence.
+After closure no caller can replace, omit, or add participants. Every
 registered participant must contribute incident dispositions, a structured
 no-learning attestation, or, for an unreachable delegate only, an explicit
 `attest-unavailable` record. Finalization reads membership from the frozen
-closed registry rather than accepting a caller-supplied participant list. It writes one
-immutable root-owned completion without copying transcripts, private routes,
-model identities, credentials, or local paths.
+closed registry rather than accepting a caller-supplied participant list. It
+writes one immutable root-owned schema-v2 completion. Stop hooks validate that
+artifact and never credit finalize command prose alone. Completions omit
+transcripts, private routes, model identities, credentials, and local paths.
 
 ## 7. Push, PR, green, merge, compact
 
