@@ -8,12 +8,13 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 CHAOS_GAUGE = ROOT / "scripts" / "ci" / "chaos_gauge"
 
-# `e7d329bd3b` is merged PR #5464, immutable recovery source for #5450.
-# This covers its full public ChaosGauge tree, unlike a few representative
-# anchors that can remain after an executable or dataset member is lost.
-RECOVERED_PUBLIC_FILE_COUNT = 141
+# `e7d329bd3b` is the recovery-source baseline; deliberate public corpus
+# additions update this complete inventory together with their task digests.
+# This covers the full public ChaosGauge tree, unlike representative anchors
+# that can remain after an executable or dataset member is lost.
+RECOVERED_PUBLIC_FILE_COUNT = 153
 RECOVERED_PUBLIC_PATHS_SHA256 = (
-    "f29eac375e2a4ed365916b19b1ec4e6f2b7c01a944f1f2408b484fe92e09b59e"
+    "3ee8ea70621c13545dc2c97cf657a607c5edacf3726f196212bcf31ce7067517"
 )
 
 
