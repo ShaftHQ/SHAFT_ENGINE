@@ -100,6 +100,10 @@ flowchart LR
             "chaos-engine/decision-quality-baseline.md",
             "# Decision-quality baseline\n",
         )
+        self.write(
+            "chaos-engine/decision-quality-rubric.md",
+            "# Decision-quality rubric\n",
+        )
         self.write("chaos-engine/STANDALONE.md", "# Spec\n")
         self.write("chaos-engine/INSTALL.md", "# Install\n")
         self.write("chaos-engine/THIRD_PARTY_NOTICES.md", "# Notices\n")
