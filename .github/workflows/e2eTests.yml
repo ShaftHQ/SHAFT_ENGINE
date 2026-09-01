@@ -700,7 +700,7 @@ jobs:
           flutter build apk --debug
           cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
       - name: Upload wired Flutter demo-app APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: flutter-demo-apk
           path: appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk
@@ -1262,7 +1262,7 @@ jobs:
             curl --max-time 30 -fsS -X DELETE "http://127.0.0.1:4723/session/$SESSION_ID" || true
       - name: Upload Appium server log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: Android_Flutter_Emulator_E2E_appium_log
           path: ${{ runner.temp }}/appium-server.log

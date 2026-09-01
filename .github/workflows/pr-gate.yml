@@ -452,7 +452,7 @@ jobs:
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: harness-pr-gate
           path: harness-pr-gate.json
@@ -521,7 +521,7 @@ jobs:
           required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
           source-id: pr-gate-intellij-build
       - name: Upload plugin distribution
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: shaft-intellij-plugin
           path: shaft-intellij/build/distributions/*.zip
@@ -1030,7 +1030,7 @@ jobs:
           --output chaos-engine-live-installer-evidence.json
       - name: Upload fresh-install evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: chaos-engine-live-installer-${{ matrix.os }}
           path: chaos-engine-live-installer-evidence.json

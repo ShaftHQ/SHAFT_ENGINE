@@ -65,7 +65,7 @@ jobs:
           --min-executed 6
       - name: Upload shaft-cli live evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: shaft-cli-live-evidence
           path: |
@@ -115,7 +115,7 @@ jobs:
           --min-executed 4
       - name: Upload live tool evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: intellij-live-tools-core-evidence
           path: |
@@ -163,7 +163,7 @@ jobs:
           --min-executed 5
       - name: Upload live tool evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: intellij-live-tools-diagnostics-evidence
           path: |
@@ -235,7 +235,7 @@ jobs:
           source-id: live-tools-intellij-authoring-networked
       - name: Upload live tool evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: intellij-live-tools-authoring-evidence
           path: |
@@ -300,7 +300,7 @@ jobs:
         run: echo "::notice::GEMINI_API_KEY is not configured; skipping the live Gemini E2E job."
       - name: Upload live Gemini evidence
         if: always() && env.GEMINI_API_KEY != ''
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: intellij-live-gemini-evidence
           path: |

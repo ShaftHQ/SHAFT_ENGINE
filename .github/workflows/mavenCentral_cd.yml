@@ -209,7 +209,7 @@ jobs:
       - name: Build portable Agent Plugin release assets
         run: python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets
       - name: Upload portable Agent Plugin release assets
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: agent-plugin-release-assets
           path: agent-plugin-release-assets/*
