@@ -56,12 +56,14 @@ OmniRoute 3.8.50 may return only `status` and `timestamp` to an anonymous
 shape only, the runner may use an owner-verified local OmniRoute CLI against
 the same fixed loopback endpoint with a temporary working directory and
 scrubbed ambient environment, retaining only a healthy semantic-version
-`build` or `version`. Group-writable executables are allowed only for the
-current account's private primary group; shared-group and world-writable paths
-are rejected. OmniRoot never reads, passes, prints, or stores endpoint keys or
-CLI token material; the verified CLI resolves its own local machine-token
-proof. Missing, malformed, untrusted, timed-out, unhealthy, or non-versioned
-CLI evidence remains `UNHEALTHY`.
+`build` or `version`. The runner verifies every executable's owner, private
+group, non-public ancestry, descriptor identity, and pre/post-exec identity;
+the CLI response is hard-bounded. The child receives an isolated temporary
+`HOME`, data, and XDG directories, so it cannot migrate or alter operator
+files. OmniRoot never reads, passes, prints, or stores endpoint keys or CLI
+token material; the verified CLI resolves its local machine-token proof.
+Missing, malformed, untrusted, changed, oversized, timed-out, unhealthy, or
+non-versioned CLI evidence remains `UNHEALTHY`.
 
 The user-local launcher configuration accepts `invocationMode: "gateway"` or
 `"direct"`; the default is `gateway` for compatibility. Gateway mode invokes

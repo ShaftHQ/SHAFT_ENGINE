@@ -319,10 +319,13 @@ class OmniRootProbeTest(unittest.TestCase):
         completed = type("Completed", (), {
             "returncode": 0, "stdout": b'{"status":"healthy","version":"3.8.50"}',
         })()
+        identity = (1, 2, 3, 4, 5, 6, "a" * 64)
         with patch.object(RUNNER, "_trusted_local_cli_executable", side_effect=(
-            "/trusted/omniroute", "/trusted/node", "/trusted/omniroute", "/trusted/node",
+            ("/trusted/omniroute", identity), ("/trusted/node", identity),
+            ("/trusted/omniroute", identity), ("/trusted/node", identity),
         )), \
-                patch.object(RUNNER.subprocess, "run", return_value=completed) as local_cli:
+                patch.object(RUNNER, "_same_trusted_local_cli", return_value=True), \
+                patch.object(RUNNER, "_bounded_local_cli_output", return_value=completed.stdout) as local_cli:
             result = RUNNER.probe(config_path=self.config, opener=anonymous_health,
                                   environ={"OMNIROUTE_API_KEY": secret})
             self.assertEqual("READY", result["state"])
@@ -335,13 +338,14 @@ class OmniRootProbeTest(unittest.TestCase):
         command, options = local_cli.call_args
         self.assertEqual(["/trusted/node", "/trusted/omniroute", "--base-url",
                           RUNNER.DEFAULT_ENDPOINT.rstrip("/"), "health", "--json"], command[0])
-        self.assertNotIn("OMNIROUTE_API_KEY", options["env"])
-        self.assertNotIn(secret, json.dumps(options["env"]))
-        self.assertRegex(options["env"]["STORAGE_ENCRYPTION_KEY"], r"[0-9a-f]{64}\Z")
-        self.assertIn(os.defpath, options["env"]["PATH"])
-        self.assertNotEqual(options["cwd"], options["env"]["HOME"])
-        self.assertEqual(subprocess.DEVNULL, options["stderr"])
-        self.assertEqual(RUNNER.HTTP_TIMEOUT_SECONDS, options["timeout"])
+        self.assertNotIn("OMNIROUTE_API_KEY", options["environment"])
+        self.assertNotIn(secret, json.dumps(options["environment"]))
+        self.assertRegex(options["environment"]["STORAGE_ENCRYPTION_KEY"], r"[0-9a-f]{64}\Z")
+        self.assertIn(os.defpath, options["environment"]["PATH"])
+        self.assertNotEqual(options["cwd"], options["environment"]["HOME"])
+        self.assertNotEqual(str(Path.home()), options["environment"]["HOME"])
+        self.assertTrue(options["environment"]["DATA_DIR"].startswith(options["cwd"]))
+        self.assertTrue(options["environment"]["XDG_CONFIG_HOME"].startswith(options["cwd"]))
         with patch.object(RUNNER, "_local_cli_build", return_value=None, create=True):
             self.assertEqual("UNHEALTHY", RUNNER.probe(
                 config_path=self.config, opener=anonymous_health,
@@ -355,6 +359,17 @@ class OmniRootProbeTest(unittest.TestCase):
         executable.chmod(0o770)
         with patch.object(RUNNER.shutil, "which", return_value=str(executable)), \
                 patch.object(RUNNER, "_private_primary_group", return_value=False):
+            self.assertIsNone(RUNNER._trusted_local_cli_executable("omniroute"))
+
+    @unittest.skipUnless(os.name == "posix", "POSIX permissions required")
+    def test_local_cli_rejects_publicly_writable_parent_directory(self):
+        unsafe_directory = self.root / "unsafe"
+        unsafe_directory.mkdir()
+        executable = unsafe_directory / "omniroute"
+        executable.write_text("#!/bin/sh\n", encoding="utf-8")
+        executable.chmod(0o700)
+        unsafe_directory.chmod(0o777)
+        with patch.object(RUNNER.shutil, "which", return_value=str(executable)):
             self.assertIsNone(RUNNER._trusted_local_cli_executable("omniroute"))
 
     def test_status_only_health_rejects_non_versioned_local_cli_evidence(self):
@@ -374,13 +389,50 @@ class OmniRootProbeTest(unittest.TestCase):
             b'{"status":"healthy","version":"unreported"}',
             b'{"status":"healthy","build":"endpoint-key-must-not-appear"}',
         ):
-            completed = type("Completed", (), {"returncode": 0, "stdout": payload})()
+            identity = (1, 2, 3, 4, 5, 6, "a" * 64)
             with self.subTest(payload=payload), \
                     patch.object(RUNNER, "_trusted_local_cli_executable", side_effect=(
-                        "/trusted/omniroute", "/trusted/node",
+                        ("/trusted/omniroute", identity), ("/trusted/node", identity),
                     )), \
-                    patch.object(RUNNER.subprocess, "run", return_value=completed):
+                    patch.object(RUNNER, "_same_trusted_local_cli", return_value=True), \
+                    patch.object(RUNNER, "_bounded_local_cli_output", return_value=payload):
                 self.assertIsNone(RUNNER._local_cli_build())
+
+    def test_local_cli_rejects_identity_change_before_or_after_execution(self):
+        identity = (1, 2, 3, 4, 5, 6, "a" * 64)
+        healthy = b'{"status":"healthy","version":"3.8.50"}'
+        for revalidations in ((False,), (True, True, False)):
+            with self.subTest(revalidations=revalidations), \
+                    patch.object(RUNNER, "_trusted_local_cli_executable", side_effect=(
+                        ("/trusted/omniroute", identity), ("/trusted/node", identity),
+                    )), \
+                    patch.object(RUNNER, "_same_trusted_local_cli", side_effect=revalidations), \
+                    patch.object(RUNNER, "_bounded_local_cli_output", return_value=healthy) as output:
+                self.assertIsNone(RUNNER._local_cli_build())
+            self.assertEqual(revalidations != (False,), output.called)
+
+    def test_local_cli_output_reader_kills_overflow_before_retaining_it(self):
+        class OverflowingProcess:
+            def __init__(self):
+                self.stdout = io.BytesIO(b"x" * (RUNNER.MAX_RESPONSE_BYTES + 1))
+                self.returncode = 0
+                self.killed = False
+
+            def poll(self):
+                return 0
+
+            def wait(self, timeout=None):
+                return 0
+
+            def kill(self):
+                self.killed = True
+
+        process = OverflowingProcess()
+        with patch.object(RUNNER.subprocess, "Popen", return_value=process):
+            self.assertIsNone(RUNNER._bounded_local_cli_output(
+                ["/trusted/node", "/trusted/omniroute"], cwd=str(self.root), environment={},
+            ))
+        self.assertTrue(process.killed)
 
     def test_attest_writes_only_current_fully_qualified_operator_contract(self):
         self._config()

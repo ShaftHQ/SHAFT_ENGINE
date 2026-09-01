@@ -195,22 +195,128 @@ def _private_primary_group(group_id: int) -> bool:
                     if entry.pw_gid == group_id))
 
 
-def _trusted_local_cli_executable(name: str) -> str | None:
-    """Resolve a user-owned global CLI without relaxing sealed-launcher rules."""
-    executable = Path(shutil.which(name) or "")
+def _secure_local_cli_ancestry(path: Path) -> bool:
+    """Reject executable paths reachable through another user's writable directory."""
+    for parent in path.parents:
+        try:
+            metadata = parent.stat()
+        except OSError:
+            return False
+        mode = metadata.st_mode
+        if not stat.S_ISDIR(mode):
+            return False
+        if os.name != "posix":
+            continue
+        if metadata.st_uid not in {0, os.getuid()}:
+            return False
+        public_sticky_root = (metadata.st_uid == 0 and bool(mode & stat.S_ISVTX)
+                              and bool(mode & (stat.S_IWGRP | stat.S_IWOTH)))
+        if public_sticky_root:
+            continue
+        if bool(mode & stat.S_IWOTH):
+            return False
+        if bool(mode & stat.S_IWGRP) and not _private_primary_group(metadata.st_gid):
+            return False
+    return True
+
+
+def _trusted_local_cli_path(path: Path) -> tuple[str, tuple[int, int, int, int, int, int, str]] | None:
+    """Snapshot the identity of one locally installed CLI file."""
     try:
-        resolved = executable.resolve(strict=True)
-        metadata = resolved.stat()
+        resolved = path.resolve(strict=True)
     except OSError:
         return None
-    if (not resolved.is_file() or not bool(metadata.st_mode & stat.S_IXUSR)
-            or bool(metadata.st_mode & stat.S_IWOTH)
-            or (bool(metadata.st_mode & stat.S_IWGRP)
-                and not _private_primary_group(metadata.st_gid))):
+    if not _secure_local_cli_ancestry(resolved):
         return None
-    if os.name == "posix" and (metadata.st_uid != os.getuid() or metadata.st_gid != os.getgid()):
+    source_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(resolved, source_flags)
+    except OSError:
         return None
-    return str(resolved)
+    try:
+        metadata = os.fstat(descriptor)
+        mode = metadata.st_mode
+        if (not stat.S_ISREG(mode) or not bool(mode & stat.S_IXUSR)
+                or bool(mode & stat.S_IWOTH)
+                or (bool(mode & stat.S_IWGRP) and not _private_primary_group(metadata.st_gid))):
+            return None
+        if os.name == "posix" and (metadata.st_uid != os.getuid() or metadata.st_gid != os.getgid()):
+            return None
+        digest = hashlib.sha256()
+        while chunk := os.read(descriptor, 64 * 1024):
+            digest.update(chunk)
+    finally:
+        os.close(descriptor)
+    return str(resolved), (
+        metadata.st_dev, metadata.st_ino, metadata.st_uid, mode,
+        metadata.st_size, metadata.st_mtime_ns, digest.hexdigest(),
+    )
+
+
+def _trusted_local_cli_executable(name: str) -> tuple[str, tuple[int, int, int, int, int, int, str]] | None:
+    """Resolve a user-owned global CLI and bind it to its verified identity."""
+    executable = Path(shutil.which(name) or "")
+    return _trusted_local_cli_path(executable)
+
+
+def _same_trusted_local_cli(path: str, identity: tuple[int, int, int, int, int, int, str]) -> bool:
+    """Ensure a CLI path has not changed since it was verified."""
+    current = _trusted_local_cli_path(Path(path))
+    return current is not None and current[0] == path and current[1] == identity
+
+
+def _bounded_local_cli_output(argv: list[str], *, cwd: str, environment: dict[str, str]) -> bytes | None:
+    """Collect at most one bounded CLI response and terminate on overflow or timeout."""
+    try:
+        process = subprocess.Popen(
+            argv, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return None
+    if process.stdout is None:
+        return None
+    response = bytearray()
+    complete = threading.Event()
+
+    def _read_response() -> None:
+        try:
+            while len(response) <= MAX_RESPONSE_BYTES:
+                chunk = process.stdout.read(min(64 * 1024, MAX_RESPONSE_BYTES + 1 - len(response)))
+                if not chunk:
+                    break
+                response.extend(chunk)
+        finally:
+            complete.set()
+
+    reader = threading.Thread(target=_read_response, daemon=True)
+    reader.start()
+    deadline = time.monotonic() + HTTP_TIMEOUT_SECONDS
+    try:
+        if not complete.wait(HTTP_TIMEOUT_SECONDS) or len(response) > MAX_RESPONSE_BYTES:
+            process.kill()
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            process.kill()
+            return None
+        try:
+            process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            return None
+        if len(response) > MAX_RESPONSE_BYTES or process.returncode != 0:
+            return None
+        return bytes(response)
+    finally:
+        if process.poll() is None:
+            process.kill()
+        try:
+            process.wait(timeout=1)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        complete.wait(1)
+        process.stdout.close()
 
 
 def _local_cli_build() -> str | None:
@@ -220,28 +326,38 @@ def _local_cli_build() -> str | None:
     if cli is None or node is None:
         return None
     with tempfile.TemporaryDirectory(prefix="omniroot-health-") as temporary:
+        private_root = Path(temporary)
+        private_home = private_root / "home"
+        private_data = private_root / "data"
+        private_config = private_root / "config"
+        private_cache = private_root / "cache"
+        private_share = private_root / "share"
+        for directory in (private_home, private_data, private_config, private_cache, private_share):
+            directory.mkdir(mode=0o700)
         environment = {
-            "HOME": str(Path.home()),
-            "PATH": os.pathsep.join((str(Path(node).parent), os.defpath)),
+            "HOME": str(private_home),
+            "DATA_DIR": str(private_data),
+            "XDG_CONFIG_HOME": str(private_config),
+            "XDG_CACHE_HOME": str(private_cache),
+            "XDG_DATA_HOME": str(private_share),
+            "PATH": os.pathsep.join((str(Path(node[0]).parent), os.defpath)),
             "CI": "1",
             "NO_COLOR": "1",
             "OMNIROUTE_CLI_SKIP_REPO_ENV": "1",
             "STORAGE_ENCRYPTION_KEY": os.urandom(32).hex(),
         }
-        try:
-            completed = subprocess.run(
-                [node, cli, "--base-url", DEFAULT_ENDPOINT.rstrip("/"), "health", "--json"],
-                check=False, cwd=temporary, env=environment, stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=False,
-                timeout=HTTP_TIMEOUT_SECONDS,
-            )
-        except (OSError, subprocess.TimeoutExpired):
+        if not _same_trusted_local_cli(cli[0], cli[1]) or not _same_trusted_local_cli(node[0], node[1]):
             return None
-    if completed.returncode != 0 or not isinstance(completed.stdout, bytes) \
-            or len(completed.stdout) > MAX_RESPONSE_BYTES:
+        raw = _bounded_local_cli_output(
+            [node[0], cli[0], "--base-url", DEFAULT_ENDPOINT.rstrip("/"), "health", "--json"],
+            cwd=temporary, environment=environment,
+        )
+        if not _same_trusted_local_cli(cli[0], cli[1]) or not _same_trusted_local_cli(node[0], node[1]):
+            return None
+    if raw is None:
         return None
     try:
-        raw = completed.stdout.decode("utf-8").lstrip()
+        raw = raw.decode("utf-8").lstrip()
         payload = json.loads(raw[raw.rfind("\n{") + 1:])
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
