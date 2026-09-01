@@ -128,6 +128,7 @@ jobs:
               - '.memory/**'
               - 'scripts/agents/**'
               - 'scripts/ci/harness_pr_gate.py'
+              - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
               - 'scripts/ci/chaos_engine_promotion.py'
               - 'scripts/ci/validate_chaos_engine_readme.py'
               - 'scripts/ci/validate_agent_setup.py'
@@ -202,6 +203,13 @@ jobs:
               - 'tests/scripts/test_agnix_conformance.py'
               - 'tests/scripts/test_agent_plugin_client_smoke.py'
               - 'tests/scripts/test_harness_pr_gate.py'
+              - 'tests/scripts/test_chaos_engine_bootstrap.py'
+              - 'tests/scripts/test_chaos_engine_dependencies.py'
+              - 'tests/scripts/test_chaos_engine_generation_runtime.py'
+              - 'tests/scripts/test_chaos_engine_installer.py'
+              - 'tests/scripts/test_chaos_engine_install_wrappers.py'
+              - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
+              - 'tests/scripts/test_chaos_engine_installer_ux.py'
               - 'tests/scripts/test_chaos_engine_promotion.py'
               - 'tests/scripts/test_validate_chaos_engine_readme.py'
               # Not agent guidance, but this is the only gate that runs the
@@ -986,7 +994,9 @@ jobs:
 
   chaos-installer-acceptance:
     name: ChaosEngine fresh installer (${{ matrix.os }})
-    needs: changes
+    needs:
+      - changes
+      - agent-guidance
     if: needs.changes.outputs.chaos_installer == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30

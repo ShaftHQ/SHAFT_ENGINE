@@ -354,19 +354,43 @@ def validate(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def write_generated(root: Path = ROOT) -> None:
+    """Rewrite source-derived inventory sections between canonical markers."""
+    root = root.resolve()
+    path = root / README
+    readme = path.read_text(encoding="utf-8")
+    for name, table in inventory_sections(root).items():
+        start = f"<!-- inventory:{name}:start -->"
+        end = f"<!-- inventory:{name}:end -->"
+        if readme.count(start) != 1 or readme.count(end) != 1:
+            raise ValueError(f"inventory marker count is invalid: {name}")
+        before, rest = readme.split(start, 1)
+        _, after = rest.split(end, 1)
+        readme = f"{before}{start}\n{table}\n{end}{after}"
+    path.write_text(readme, encoding="utf-8")
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--root", type=Path, default=ROOT)
     result.add_argument("--render", action="store_true")
+    result.add_argument(
+        "--write",
+        action="store_true",
+        help="refresh source-derived README inventory sections",
+    )
     return result
 
 
 def main() -> int:
     arguments = parser().parse_args()
+    root = arguments.root.resolve()
     if arguments.render:
-        print(rendered_inventory(arguments.root.resolve()))
+        print(rendered_inventory(root))
         return 0
-    errors = validate(arguments.root.resolve())
+    if arguments.write:
+        write_generated(root)
+    errors = validate(root)
     for error in errors:
         print(error, file=sys.stderr)
     return 1 if errors else 0

@@ -72,10 +72,12 @@ class ClassifierTest(unittest.TestCase):
             ["scripts/ci/chaos_engine_promotion_trials.py"]
         )
 
-        self.assertEqual(("documentation",), documentation.surfaces)
+        self.assertEqual(("documentation", "identities"), documentation.surfaces)
         self.assertEqual(
             {
                 "documentation-inventory-contract",
+                "identity-contract",
+                "identity-recovery-contract",
                 "protected-ownership",
                 "protected-secret-safety",
             },
@@ -88,9 +90,15 @@ class ClassifierTest(unittest.TestCase):
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
 
-        self.assertEqual(("kernel",), plan.surfaces)
+        self.assertEqual(("kernel", "identities"), plan.surfaces)
         self.assertEqual(
-            ("kernel-contract", "protected-ownership", "protected-secret-safety"),
+            (
+                "kernel-contract",
+                "identity-contract",
+                "identity-recovery-contract",
+                "protected-ownership",
+                "protected-secret-safety",
+            ),
             tuple(check.id for check in plan.checks),
         )
         self.assertEqual((), plan.unknown_paths)
@@ -111,12 +119,41 @@ class ClassifierTest(unittest.TestCase):
     def test_installer_change_keeps_5299_acceptance_and_rollback_protected(self) -> None:
         plan = classify_paths(["chaos-engine/dependencies.py"])
 
-        self.assertEqual(("installer",), plan.surfaces)
+        self.assertIn("installer", plan.surfaces)
         protected = {check.id for check in plan.checks if check.protected}
         self.assertIn("protected-installer-acceptance", protected)
         self.assertIn("protected-rollback", protected)
         self.assertIn("tests.scripts.test_chaos_engine_bootstrap", plan.test_modules)
         self.assertIn("tests.scripts.test_chaos_engine_dependencies", plan.test_modules)
+
+    def test_dependency_manifest_change_closes_readme_and_account_version_proofs(self) -> None:
+        plan = classify_paths(["chaos-engine/dependencies.json"])
+        modules = set(plan.test_modules)
+        account_proofs = {
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses",
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_install_passes_resolved_tool_versions_to_the_account_plan",
+        }
+
+        self.assertIn("documentation", plan.surfaces)
+        self.assertIn("documentation-inventory-contract", {check.id for check in plan.checks})
+        self.assertTrue(account_proofs.issubset(modules), modules)
+        omitted = modules - account_proofs
+        self.assertFalse(account_proofs.issubset(omitted))
+
+    def test_harness_tree_change_closes_coupled_identity_checks(self) -> None:
+        plan = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+        modules = set(plan.test_modules)
+        identity_proofs = {
+            "tests.scripts.test_chaos_gauge_contracts",
+            "tests.scripts.test_chaos_gauge_recovery",
+        }
+
+        self.assertIn("identities", plan.surfaces)
+        self.assertTrue(identity_proofs.issubset(modules), modules)
+        sibling_omission = modules - {"tests.scripts.test_chaos_gauge_recovery"}
+        self.assertFalse(identity_proofs.issubset(sibling_omission))
 
     def test_every_installer_manifest_uses_protected_installer_checks(self) -> None:
         manifests = (
@@ -491,12 +528,25 @@ class OutputAndWorkflowTest(unittest.TestCase):
                 self.assertNotIn("outputs.pr_gate", condition)
                 self.assertIn("outputs.infra", condition)
 
+    def test_live_installer_job_needs_successful_agent_guidance_gate(self) -> None:
+        job = self.workflow()["jobs"]["chaos-installer-acceptance"]
+
+        self.assertIn("agent-guidance", job["needs"])
+
+    def test_local_preflight_documents_full_head_write_generated_command(self) -> None:
+        import scripts.ci.harness_pr_gate as gate
+
+        readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
+        self.assertIn("--write-generated", readme)
+        self.assertIn("scripts/ci/harness_pr_gate.py", readme)
+        self.assertTrue(callable(getattr(gate, "write_generated_artifacts", None)))
+
     def test_json_plan_is_concise_reproducible_and_contains_no_pr_body(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
         payload = json.loads(render_json(plan, head_sha=HEAD, budget_seconds=240))
 
         self.assertEqual(1, payload["schema"])
-        self.assertEqual(["kernel"], payload["surfaces"])
+        self.assertEqual(["kernel", "identities"], payload["surfaces"])
         self.assertEqual(240, payload["timing"]["budget_seconds"])
         self.assertEqual(600, payload["timing"]["recorded_baseline_median_seconds"])
         self.assertEqual(0.6, payload["timing"]["maximum_budget_reduction"])

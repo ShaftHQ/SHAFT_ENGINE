@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.ci import validate_chaos_engine_readme as readme_owner
 from scripts.ci.validate_chaos_engine_readme import inventory_sections, validate
 
 
@@ -14,6 +15,26 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ChaosEngineReadmeInventoryTest(unittest.TestCase):
+    def test_write_generated_refreshes_inventory_and_second_run_is_clean(self):
+        write_generated = getattr(readme_owner, "write_generated", None)
+        self.assertTrue(callable(write_generated))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shutil.copytree(ROOT / "chaos-engine", root / "chaos-engine")
+            readme = root / "chaos-engine/README.md"
+            original = readme.read_text(encoding="utf-8")
+            readme.write_text(
+                original.replace("| uv |", "| ux |", 1),
+                encoding="utf-8",
+            )
+            self.assertTrue(any("managed-dependencies" in error for error in validate(root)))
+
+            write_generated(root)
+            self.assertEqual([], validate(root))
+            after_first = readme.read_text(encoding="utf-8")
+            write_generated(root)
+            self.assertEqual(after_first, readme.read_text(encoding="utf-8"))
+
     def test_repository_readme_matches_every_source_derived_inventory(self):
         self.assertEqual([], validate(ROOT))
         sections = inventory_sections(ROOT)
