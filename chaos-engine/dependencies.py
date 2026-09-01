@@ -53,6 +53,8 @@ REQUIRED_DISPATCHES = {
     "memory",
     "memory-mcp",
 }
+PINNED_MEMPALACE_PACKAGE = "mempalace==3.8.0"
+PINNED_MEMPALACE_WITH = ("chromadb==1.5.9",)
 WINDOWS_UV_JUNCTION_TAG = 0xA0000003
 WINDOWS_UV_ALIAS = re.compile(
     r"uv-python/cpython-(?P<version>3\.\d+)-windows-(?P<arch>x86_64|aarch64)-none"
@@ -207,8 +209,7 @@ def account_tool_plan(
 ) -> dict[str, list[list[str]]]:
     """Render user-scope tool commands; project initialization is a separate phase."""
     del project
-    if specification.get("schemaVersion") != 3:
-        raise ValueError("dependency specification schema is unsupported")
+    validate_runtime_specification(specification)
     uv = executables["uv"]
     npm = executables["npm"]
 
@@ -217,10 +218,9 @@ def account_tool_plan(
     ) -> list[list[str]]:
         action = actions.get(name)
         options = [item for dependency in extra for item in ("--with", dependency)]
-        if action in {"installed", "repaired"}:
-            return [[uv, "tool", "install", *options, package]]
-        if action == "upgraded":
-            return [[uv, "tool", "upgrade", *options, package]]
+        if action in {"installed", "upgraded", "repaired"}:
+            force = ["--force"] if action in {"upgraded", "repaired"} else []
+            return [[uv, "tool", "install", *force, *options, package]]
         return []
 
     def npm_commands(name: str, package: str) -> list[list[str]]:
@@ -235,7 +235,10 @@ def account_tool_plan(
             "mempalace", str(specification["tools"]["mempalace"]["package"]),
             tuple(specification["tools"]["mempalace"].get("with", [])),
         ),
-        "graphify": uv_commands("graphify", "graphifyy"),
+        "graphify": uv_commands(
+            "graphify", str(specification["tools"]["graphify"]["package"]),
+            tuple(specification["tools"]["graphify"].get("with", [])),
+        ),
         "memory": npm_commands("memory", "@aictx/memory@latest"),
         "context7": npm_commands("context7", "ctx7@latest"),
     }
@@ -467,6 +470,12 @@ def discover_account_commands(
         probed = probe_account_dependency(
             name, sibling_paths[primary], value, runner=runner
         )
+        if (
+            name == "mempalace"
+            and probed["version"]
+            != PINNED_MEMPALACE_PACKAGE.removeprefix("mempalace==")
+        ):
+            probed = {**probed, "healthy": False, "detail": "version-mismatch"}
         components[name] = {
             "status": "healthy" if probed["healthy"] else "broken",
             **probed,
@@ -483,7 +492,9 @@ def resolve_account_actions(
     opener=urllib.request.urlopen,
 ) -> dict[str, dict[str, object]]:
     """Combine local health with independently attempted stable-channel resolution."""
+    validate_runtime_specification(specification)
     contracts = specification["dependencies"]
+    pinned_mempalace_version = PINNED_MEMPALACE_PACKAGE.removeprefix("mempalace==")
     resolved: dict[str, dict[str, object]] = {}
     for name, contract in contracts.items():  # type: ignore[union-attr]
         if name == "maven-tools-mcp":
@@ -492,11 +503,15 @@ def resolve_account_actions(
         latest = None
         verified = False
         lookup_error = None
-        try:
-            latest = resolve_stable_version(name, contract, opener=opener)
+        if name == "mempalace":
+            latest = pinned_mempalace_version
             verified = True
-        except (OSError, ValueError, json.JSONDecodeError) as error:
-            lookup_error = type(error).__name__
+        else:
+            try:
+                latest = resolve_stable_version(name, contract, opener=opener)
+                verified = True
+            except (OSError, ValueError, json.JSONDecodeError) as error:
+                lookup_error = type(error).__name__
         installed = record.get("version") if isinstance(record.get("version"), str) else None
         healthy = record.get("healthy") is True
         action = dependency_action(
@@ -975,11 +990,21 @@ def validate_runtime_specification(specification: dict[str, object]) -> None:
         raise ValueError("dependency specification schema is unsupported")
     if specification.get("schemaVersion") == 3:
         dependencies = specification.get("dependencies")
+        tools = specification.get("tools")
         if not isinstance(dependencies, dict) or not {
             "uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7",
             "maven-tools-mcp",
         } <= set(dependencies):
             raise ValueError("account dependency specification is invalid")
+        if not isinstance(tools, dict):
+            raise ValueError("tool dependency specification is invalid")
+        mempalace = tools.get("mempalace")
+        if (
+            not isinstance(mempalace, dict)
+            or mempalace.get("package") != PINNED_MEMPALACE_PACKAGE
+            or mempalace.get("with") != list(PINNED_MEMPALACE_WITH)
+        ):
+            raise ValueError("MemPalace tool dependency pin is invalid")
         for name, contract in dependencies.items():
             if (
                 not isinstance(contract, dict)
@@ -2379,6 +2404,8 @@ def generation_environment(generation: Path, transaction: Path) -> dict[str, str
 def generation_install_plan(
     generation: Path, specification: dict[str, object]
 ) -> dict[str, list[list[str]]]:
+    if specification.get("schemaVersion") == 3:
+        validate_runtime_specification(specification)
     tools = specification.get("tools")
     if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
@@ -3448,6 +3475,8 @@ def finalize_generation_remove(project: Path) -> None:
 
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
+    if specification.get("schemaVersion") == 3:
+        validate_runtime_specification(specification)
     tools = specification.get("tools")
     if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
         raise ValueError("dependency specification schema is unsupported")
