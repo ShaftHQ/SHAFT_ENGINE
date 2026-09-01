@@ -1074,31 +1074,37 @@ def _load_chaos_engine_learning(module: object | None = None):
     return loaded
 
 
-def _validate_fixed_now_evidence(evidence: dict, evidence_root: Path) -> dict:
-    if not isinstance(evidence, dict):
-        raise ValueError("fixed-now proof evidence is required")
-    changed_files = evidence.get("changed_files")
-    head = evidence.get("head")
-    proof_command = evidence.get("proof_command")
-    proof_exit_code = evidence.get("proof_exit_code")
+def _validate_fixed_now_changed_files(
+    changed_files: object, evidence_root: Path
+) -> list[str]:
     if not isinstance(changed_files, list) or not changed_files:
         raise ValueError("fixed-now proof requires changed files")
     if not all(_safe_relative_file(path) for path in changed_files):
         raise ValueError("fixed-now proof requires safe relative changed files")
-    root = Path(evidence_root)
     for relative in changed_files:
-        if not (root / relative).is_file():
+        if not (evidence_root / relative).is_file():
             raise ValueError("fixed-now proof requires existing changed files")
+    return list(changed_files)
+
+
+def _validate_fixed_now_head(head: object) -> str:
     if not isinstance(head, str) or not GIT_REF_RE.fullmatch(head):
         raise ValueError("fixed-now proof requires a bound HEAD")
+    return head
+
+
+def _resolve_fixed_now_proof_command(
+    proof_command: object, evidence_root: Path
+) -> tuple[str, list[str]]:
     if (
         not isinstance(proof_command, str)
         or not proof_command.strip()
         or UNSAFE_PROOF_COMMAND.search(proof_command)
     ):
         raise ValueError("fixed-now proof command is unsafe or missing")
+    stripped = proof_command.strip()
     try:
-        tokens = shlex.split(proof_command.strip(), posix=os.name != "nt")
+        tokens = shlex.split(stripped, posix=os.name != "nt")
     except ValueError as error:
         raise ValueError("fixed-now proof command is unsafe or missing") from error
     if not tokens:
@@ -1108,11 +1114,17 @@ def _validate_fixed_now_evidence(evidence: dict, evidence_root: Path) -> dict:
     if not executable.is_absolute():
         if not _safe_relative_file(tokens[0]):
             raise ValueError("fixed-now proof command is unsafe or missing")
-        command = [str(root / tokens[0]), *tokens[1:]]
+        command = [str(evidence_root / tokens[0]), *tokens[1:]]
+    return stripped, command
+
+
+def _run_fixed_now_proof(
+    command: list[str], evidence_root: Path, proof_exit_code: object
+) -> None:
     try:
         completed = subprocess.run(  # nosec B603 - validated argv, no shell.
             command,
-            cwd=str(root),
+            cwd=str(evidence_root),
             capture_output=True,
             text=True,
             timeout=30,
@@ -1124,10 +1136,24 @@ def _validate_fixed_now_evidence(evidence: dict, evidence_root: Path) -> dict:
         raise ValueError("fixed-now proof did not pass")
     if proof_exit_code not in (0, None) and proof_exit_code != completed.returncode:
         raise ValueError("fixed-now proof exit code mismatch")
+
+
+def _validate_fixed_now_evidence(evidence: dict, evidence_root: Path) -> dict:
+    if not isinstance(evidence, dict):
+        raise ValueError("fixed-now proof evidence is required")
+    root = Path(evidence_root)
+    changed_files = _validate_fixed_now_changed_files(
+        evidence.get("changed_files"), root
+    )
+    head = _validate_fixed_now_head(evidence.get("head"))
+    proof_command, command = _resolve_fixed_now_proof_command(
+        evidence.get("proof_command"), root
+    )
+    _run_fixed_now_proof(command, root, evidence.get("proof_exit_code"))
     return {
         "changed_files": list(dict.fromkeys(changed_files)),
         "head": head,
-        "proof_command_hash": _hash_text(proof_command.strip()),
+        "proof_command_hash": _hash_text(proof_command),
         "proof_exit_code": 0,
     }
 

@@ -1679,7 +1679,7 @@ class DispositionReceiptLearningSessionTest(unittest.TestCase):
             Path(__file__).resolve().parents[2] / "chaos-engine" / "learning.py",
         )
         learning = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
+        self.assertIsNotNone(spec.loader)
         spec.loader.exec_module(learning)
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
