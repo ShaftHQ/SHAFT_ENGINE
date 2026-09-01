@@ -110,6 +110,19 @@ jobs:
         run: |
           test -f "$CANARY_BASELINE_CONTAINERS" || exit 1
           ! comm -13 "$CANARY_BASELINE_CONTAINERS" <(docker ps --all --format '{{.ID}}' | sort) | grep -q .
+      - name: Preserve paid raw result after receipt failure
+        if: ${{ always() && steps.private-evidence.outputs.action == 'run' }}
+        working-directory: public
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
+          CANARY_RECEIPT: ${{ runner.temp }}/chaosgauge-canary-receipt.json
+          CANARY_RUN_ID: ${{ github.run_id }}
+        run: |
+          test -f "$CANARY_RAW" || exit 0
+          test ! -f "$CANARY_RECEIPT" || exit 0
+          python3 scripts/ci/chaos_gauge/public_canary_bridge.py preserve-failure \
+            --raw "$CANARY_RAW" --repository "$PWD" --run-id "$CANARY_RUN_ID"
       - name: Validate and secret-scan evidence
         if: steps.private-evidence.outputs.action == 'run'
         working-directory: public

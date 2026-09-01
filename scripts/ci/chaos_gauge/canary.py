@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import tomllib
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -178,6 +179,60 @@ def _native_bindings(value: object, pair: dict[str, object]) -> dict[str, str]:
     return names
 
 
+def _harbor_task_checksum(path: Path) -> str:
+    """Compute the exact Harbor 0.22 Task.checksum identity for a local task."""
+    try:
+        from dirhash import dirhash
+    except ImportError as error:
+        raise ValueError("Harbor task checksum is unavailable") from error
+    value = dirhash(path, "sha256")
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise ValueError("Harbor task checksum is invalid")
+    return value
+
+
+def _local_task_path(value: object, label: str, repository: Path) -> Path:
+    source = _mapping(value, label)
+    raw_path = source.get("path")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError("canary task identity is invalid")
+    path = Path(raw_path)
+    try:
+        return (path if path.is_absolute() else repository / path).resolve(strict=True)
+    except OSError as error:
+        raise ValueError("canary task identity is invalid") from error
+
+
+def _public_task_identity(pair: dict[str, object], repository: Path) -> tuple[str, Path, str]:
+    task = pair.get("task")
+    if not isinstance(task, str) or not task:
+        raise ValueError("canary task identity is invalid")
+    try:
+        path = (repository / "scripts" / "ci" / "chaos_gauge" / "dataset" / task).resolve(strict=True)
+        task_file = tomllib.loads((path / "task.toml").read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        raise ValueError("canary task identity is invalid") from error
+    metadata = _mapping(task_file.get("task"), "canary task metadata")
+    name = metadata.get("name")
+    if name != f"ShaftHQ/{task}":
+        raise ValueError("canary task identity is invalid")
+    return str(name), path, _harbor_task_checksum(path)
+
+
+def _validate_task_identity(
+    trial: dict[str, object], pair: dict[str, object], repository: Path, config: dict[str, object],
+) -> None:
+    name, path, checksum = _public_task_identity(pair, repository)
+    if trial.get("task_name") != name:
+        raise ValueError("canary task identity is invalid")
+    if _local_task_path(trial.get("task_id"), "canary task ID", repository) != path:
+        raise ValueError("canary task identity is invalid")
+    if _local_task_path(config.get("task"), "canary trial task", repository) != path:
+        raise ValueError("canary task identity is invalid")
+    if trial.get("task_checksum") != checksum:
+        raise ValueError("canary task checksum is invalid")
+
+
 def _validate_public_source_revision(
     manifest: dict[str, object], public_source_revision: str, repository: Path, run: Callable[[list[str]], str] | None,
 ) -> None:
@@ -212,13 +267,13 @@ def receipt(
     expected_by_native = {name: arm for arm, name in bindings.items()}
     for raw in trials:
         trial = _mapping(raw, "Harbor canary trial")
-        if trial.get("task_name") != pair["task"] or trial.get("task_checksum") != pair["sha256"]:
-            raise ValueError("canary task identity is invalid")
+        trial_config = _mapping(trial.get("config"), "canary trial config")
+        _validate_task_identity(trial, pair, repository, trial_config)
         native_name = _campaign()._native_trial_name(str(pair["task"]), trial.get("trial_name"))
         arm = expected_by_native.get(native_name)
         if arm is None or arm in observed:
             raise ValueError("canary native trial binding is invalid")
-        if not _campaign()._agent_matches(_mapping(trial.get("config"), "canary trial config").get("agent"), expected_agents[arm]):
+        if not _campaign()._agent_matches(trial_config.get("agent"), expected_agents[arm]):
             raise ValueError("canary arm identity is invalid")
         agent = _mapping(trial.get("agent_info"), "canary agent")
         model = _mapping(agent.get("model_info"), "canary model")

@@ -12,6 +12,7 @@ import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -59,20 +60,23 @@ class CanaryContractTest(unittest.TestCase):
             [agent.get("name") for agent in config["agents"]],
         )
 
-    def test_receipt_requires_pinned_telemetry_isolation_and_cleanup(self) -> None:
+    @patch.object(CANARY, "_harbor_task_checksum", return_value="a" * 64)
+    def test_receipt_requires_pinned_telemetry_isolation_and_cleanup(self, _checksum) -> None:
         planned = CANARY.plan(MANIFEST)
         config = CANARY.job_config(MANIFEST)
+        task_path = ROOT / "scripts" / "ci" / "chaos_gauge" / "dataset" / planned["pair"]["task"]
         result = {
             "trial_results": [
                 {
-                    "task_name": planned["pair"]["task"],
-                    "task_checksum": planned["pair"]["sha256"],
+                    "task_name": f"ShaftHQ/{planned['pair']['task']}",
+                    "task_id": {"path": str(task_path)},
+                    "task_checksum": "a" * 64,
                     "trial_name": f"{planned['pair']['task']}__{'ctrl001' if arm == 'control' else 'chaos01'}",
                     "agent_info": {
                         "name": "codex", "version": "0.118.0",
                         "model_info": {"name": "gpt-5.6-terra", "provider": "openai"},
                     },
-                    "config": {"agent": copy.deepcopy(config["agents"][position])},
+                    "config": {"task": {"path": str(task_path)}, "agent": copy.deepcopy(config["agents"][position])},
                     "agent_result": {"n_input_tokens": 10, "n_output_tokens": 20, "cost_usd": 0.01},
                     "agent_execution": {
                         "started_at": "2026-08-31T00:00:00+00:00",
@@ -125,15 +129,17 @@ class CanaryContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "public canary evidence"):
             CANARY.validate_public_evidence(leaked, repository=ROOT, run=merged_git)
 
-    def test_receipt_binds_prepared_native_name_and_agent_to_its_arm(self) -> None:
+    @patch.object(CANARY, "_harbor_task_checksum", return_value="a" * 64)
+    def test_receipt_binds_prepared_native_name_and_agent_to_its_arm(self, _checksum) -> None:
         planned = CANARY.plan(MANIFEST)
         config = CANARY.job_config(MANIFEST)
+        task_path = ROOT / "scripts" / "ci" / "chaos_gauge" / "dataset" / planned["pair"]["task"]
         result = {"trial_results": []}
         for position, arm in enumerate(planned["pair"]["arms"]):
             result["trial_results"].append({
-                "task_name": planned["pair"]["task"], "task_checksum": planned["pair"]["sha256"],
+                "task_name": f"ShaftHQ/{planned['pair']['task']}", "task_id": {"path": str(task_path)}, "task_checksum": "a" * 64,
                 "trial_name": f"{planned['pair']['task']}__{'ctrl001' if arm == 'control' else 'chaos01'}",
-                "config": {"agent": copy.deepcopy(config["agents"][position])},
+                "config": {"task": {"path": str(task_path)}, "agent": copy.deepcopy(config["agents"][position])},
                 "agent_info": {"name": "codex", "version": "0.118.0", "model_info": {"name": "gpt-5.6-terra", "provider": "openai"}},
                 "agent_result": {"n_input_tokens": 10, "n_output_tokens": 20, "cost_usd": 0.01},
                 "agent_execution": {"started_at": "2026-08-31T00:00:00+00:00", "finished_at": "2026-08-31T00:00:01+00:00"},
@@ -154,6 +160,64 @@ class CanaryContractTest(unittest.TestCase):
                 MANIFEST, planned, result, public_source_revision="f" * 40,
                 native_bindings=bindings, repository=ROOT, run=unmerged,
             )
+
+    def test_receipt_binds_real_harbor_task_metadata_separately_from_trial_name(self) -> None:
+        """Harbor 0.22 serializes task.toml metadata, local IDs, and random trial names separately."""
+        planned = CANARY.plan(MANIFEST)
+        config = CANARY.job_config(MANIFEST)
+        task = str(planned["pair"]["task"])
+        task_path = ROOT / "scripts" / "ci" / "chaos_gauge" / "dataset" / task
+        result = {"trial_results": []}
+        for position, arm in enumerate(planned["pair"]["arms"]):
+            result["trial_results"].append({
+                "task_name": f"ShaftHQ/{task}",
+                "task_id": {"path": str(task_path)},
+                "task_checksum": "a" * 64,
+                "trial_name": f"{task}__{'ctrl001' if arm == 'control' else 'chaos01'}",
+                "config": {
+                    "task": {"path": str(task_path)},
+                    "agent": copy.deepcopy(config["agents"][position]),
+                },
+                "agent_info": {
+                    "name": "codex", "version": "0.118.0",
+                    "model_info": {"name": "gpt-5.6-terra", "provider": "openai"},
+                },
+                "agent_result": {"n_input_tokens": 10, "n_output_tokens": 20, "cost_usd": 0.01},
+                "agent_execution": {
+                    "started_at": "2026-08-31T00:00:00+00:00",
+                    "finished_at": "2026-08-31T00:00:01+00:00",
+                },
+                "verifier_environment_mode": "separate",
+                "verifier_result": {"rewards": {"correctness": 1.0, "safety": 1.0, "cleanup": 1.0}},
+            })
+        bindings = {arm: result["trial_results"][index]["trial_name"] for index, arm in enumerate(planned["pair"]["arms"])}
+        kwargs = {
+            "native_bindings": bindings,
+            "repository": ROOT,
+            "run": self._merged_git("f" * 40),
+        }
+
+        with patch.object(CANARY, "_harbor_task_checksum", return_value="a" * 64):
+            receipt = CANARY.receipt(MANIFEST, planned, result, public_source_revision="f" * 40, **kwargs)
+        self.assertEqual(task, receipt["trials"][0]["task"])
+
+        wrong_checksum = copy.deepcopy(result)
+        wrong_checksum["trial_results"][0]["task_checksum"] = "b" * 64
+        with patch.object(CANARY, "_harbor_task_checksum", return_value="a" * 64):
+            with self.assertRaisesRegex(ValueError, "task checksum"):
+                CANARY.receipt(MANIFEST, planned, wrong_checksum, public_source_revision="f" * 40, **kwargs)
+
+        wrong_task_name = copy.deepcopy(result)
+        wrong_task_name["trial_results"][0]["task_name"] = "ShaftHQ/diagnosis-failure-trace"
+        with patch.object(CANARY, "_harbor_task_checksum", return_value="a" * 64):
+            with self.assertRaisesRegex(ValueError, "task identity"):
+                CANARY.receipt(MANIFEST, planned, wrong_task_name, public_source_revision="f" * 40, **kwargs)
+
+        wrong_local_task = copy.deepcopy(result)
+        wrong_local_task["trial_results"][0]["config"]["task"]["path"] = str(task_path.parent / "diagnosis-failure-trace")
+        with patch.object(CANARY, "_harbor_task_checksum", return_value="a" * 64):
+            with self.assertRaisesRegex(ValueError, "task identity"):
+                CANARY.receipt(MANIFEST, planned, wrong_local_task, public_source_revision="f" * 40, **kwargs)
 
     def test_agent_import_contract_rejects_missing_or_escaped_repository_root(self) -> None:
         with TemporaryDirectory() as directory:

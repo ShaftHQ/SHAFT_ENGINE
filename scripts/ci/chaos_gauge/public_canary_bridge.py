@@ -33,6 +33,7 @@ PRIVATE_REPOSITORY = "ShaftHQ/ChaosGauge-private"
 PRIVATE_COMMIT = "08551a3db4376438acddd77422554ce710a58624"
 RUN_ID = re.compile(r"[1-9][0-9]{0,18}")
 BUNDLE_FILES = ("raw.json", "receipt.json")
+FAILURE_BUNDLE_FILES = ("raw.json",)
 MARKER_STATE = "provider-started"
 
 
@@ -99,6 +100,22 @@ def _scan(label: str, content: bytes) -> None:
         raise _error(f"{label} contains a secret-shaped value")
 
 
+def _raw_content(raw: Path) -> bytes:
+    content = _safe_file(raw)
+    _raw_content_from_bytes(content)
+    return content
+
+
+def _raw_content_from_bytes(content: bytes) -> None:
+    _scan("raw evidence", content)
+    try:
+        value = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise _error("raw evidence is invalid") from error
+    if not isinstance(value, dict):
+        raise _error("raw evidence is invalid")
+
+
 def _validate_contents(raw_content: bytes, receipt_content: bytes, repository: Path) -> None:
     _scan("raw evidence", raw_content)
     _scan("sanitized receipt", receipt_content)
@@ -121,6 +138,10 @@ def _tag(run_id: str) -> str:
 
 def _bundle_name(run_id: str) -> str:
     return f"{_tag(run_id)}-evidence.zip"
+
+
+def _failure_bundle_name(run_id: str) -> str:
+    return f"{_tag(run_id)}-failure-evidence.zip"
 
 
 def _marker_name(run_id: str) -> str:
@@ -158,6 +179,22 @@ def bundle(raw: Path, receipt: Path, destination: Path, run_id: str) -> Path:
     return target
 
 
+def failure_bundle(raw: Path, destination: Path, run_id: str) -> Path:
+    """Build raw-only private evidence after paid receipt generation fails."""
+    content = {"raw.json": _raw_content(raw)}
+    manifest = {
+        "schemaVersion": 1,
+        "files": {name: hashlib.sha256(content[name]).hexdigest() for name in FAILURE_BUNDLE_FILES},
+    }
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9, strict_timestamps=True) as archive:
+        _zip_entry(archive, "manifest.json", json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+        _zip_entry(archive, "raw.json", content["raw.json"])
+    target = Path(destination) / _failure_bundle_name(run_id)
+    target.write_bytes(payload.getvalue())
+    return target
+
+
 def bundle_contents(path: Path) -> tuple[dict[str, object], dict[str, bytes]]:
     """Read only fixed evidence entries and verify declared hashes."""
     payload = _safe_file(path)
@@ -173,6 +210,25 @@ def bundle_contents(path: Path) -> tuple[dict[str, object], dict[str, bytes]]:
     expected = {"schemaVersion": 1, "files": {name: hashlib.sha256(content[name]).hexdigest() for name in BUNDLE_FILES}}
     if manifest != expected:
         raise _error("private evidence bundle hashes are invalid")
+    return manifest, content
+
+
+def failure_bundle_contents(path: Path) -> tuple[dict[str, object], dict[str, bytes]]:
+    """Read raw-only private failure evidence and verify declared hashes."""
+    payload = _safe_file(path)
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            names = [entry.filename for entry in archive.infolist()]
+            if len(names) != len(set(names)) or set(names) != {"manifest.json", *FAILURE_BUNDLE_FILES}:
+                raise _error("private failure evidence bundle entries are invalid")
+            manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
+            content = {"raw.json": archive.read("raw.json")}
+    except (OSError, UnicodeDecodeError, ValueError, zipfile.BadZipFile, json.JSONDecodeError) as error:
+        raise _error("private failure evidence bundle is invalid") from error
+    expected = {"schemaVersion": 1, "files": {"raw.json": hashlib.sha256(content["raw.json"]).hexdigest()}}
+    if manifest != expected:
+        raise _error("private failure evidence bundle hashes are invalid")
+    _raw_content_from_bytes(content["raw.json"])
     return manifest, content
 
 
@@ -243,13 +299,15 @@ def _asset(release: dict[str, object], name: str) -> dict[str, object] | None:
 
 def _release_state(release: dict[str, object], run_id: str) -> str:
     names = set(_assets(release))
-    marker, bundle_name = _marker_name(run_id), _bundle_name(run_id)
+    marker, bundle_name, failure_name = _marker_name(run_id), _bundle_name(run_id), _failure_bundle_name(run_id)
     if not names:
         return "pristine"
     if names == {marker}:
         return "started"
     if names == {marker, bundle_name}:
         return "complete"
+    if names == {marker, failure_name}:
+        return "failed"
     raise _error("private draft release is incomplete")
 
 
@@ -310,6 +368,12 @@ def _verify_bundle(path: Path, digest: str, repository: Path) -> bytes:
     return content["receipt.json"]
 
 
+def _verify_failure_bundle(path: Path, digest: str) -> None:
+    if digest != f"sha256:{hashlib.sha256(_safe_file(path)).hexdigest()}":
+        raise _error("private evidence asset digest mismatch")
+    failure_bundle_contents(path)
+
+
 def _write_exclusive(path: Path, content: bytes) -> None:
     target = Path(path)
     if not target.parent.is_dir() or target.parent.is_symlink() or target.is_symlink():
@@ -338,6 +402,13 @@ def prepare(
         return "run"
     _verify_remote_marker(tag, run_id, release, run)
     if state == "started":
+        raise _error("private provider start is already recorded")
+    if state == "failed":
+        asset = _asset(release, _failure_bundle_name(run_id))
+        if asset is None:
+            raise _error("private draft release is incomplete")
+        with tempfile.TemporaryDirectory() as directory:
+            _verify_failure_bundle(_download(tag, _failure_bundle_name(run_id), Path(directory), run), str(asset["digest"]))
         raise _error("private provider start is already recorded")
     if receipt_out is None:
         raise _error("receipt recovery output is unavailable")
@@ -379,6 +450,35 @@ def publish(raw: Path, receipt: Path, repository: Path, run_id: str, token: str,
             archive.unlink()
 
 
+def preserve_failure(raw: Path, repository: Path, run_id: str, token: str, run: Callable[..., object] = subprocess.run) -> None:
+    """Store paid raw output after receipt failure; never upload an invalid receipt."""
+    tag, name = _tag(run_id), _failure_bundle_name(run_id)
+    preflight(token)
+    _raw_content(raw)
+    release = _release(tag, run_id, run, create=False)
+    if _release_state(release, run_id) != "started":
+        raise _error("private draft release is incomplete")
+    _verify_remote_marker(tag, run_id, release, run)
+    archive = failure_bundle(raw, raw.parent, run_id)
+    try:
+        run(
+            ["gh", "release", "upload", tag, str(archive), "--repo", PRIVATE_REPOSITORY],
+            check=True, capture_output=True, text=True,
+        )
+        release = _release(tag, run_id, run, create=False)
+        if _release_state(release, run_id) != "failed":
+            raise _error("private draft release is incomplete")
+        _verify_remote_marker(tag, run_id, release, run)
+        asset = _asset(release, name)
+        if asset is None:
+            raise _error("private evidence asset is unavailable")
+        with tempfile.TemporaryDirectory() as directory:
+            _verify_failure_bundle(_download(tag, name, Path(directory), run), str(asset["digest"]))
+    finally:
+        if archive.exists():
+            archive.unlink()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -386,6 +486,7 @@ def main() -> int:
     prepare_parser = commands.add_parser("prepare")
     validate_parser = commands.add_parser("validate")
     publish_parser = commands.add_parser("publish")
+    failure_parser = commands.add_parser("preserve-failure")
     prepare_parser.add_argument("--repository", type=Path, required=True)
     prepare_parser.add_argument("--run-id", required=True)
     prepare_parser.add_argument("--receipt-out", type=Path, required=True)
@@ -394,6 +495,9 @@ def main() -> int:
         command.add_argument("--receipt", type=Path, required=True)
         command.add_argument("--repository", type=Path, required=True)
     publish_parser.add_argument("--run-id", required=True)
+    failure_parser.add_argument("--raw", type=Path, required=True)
+    failure_parser.add_argument("--repository", type=Path, required=True)
+    failure_parser.add_argument("--run-id", required=True)
     args = parser.parse_args()
     token = os.environ.get("GH_TOKEN", "")
     if args.command == "preflight":
@@ -402,8 +506,10 @@ def main() -> int:
         print(prepare(args.repository, args.run_id, token, receipt_out=args.receipt_out))
     elif args.command == "validate":
         validate(args.raw, args.receipt, args.repository)
-    else:
+    elif args.command == "publish":
         publish(args.raw, args.receipt, args.repository, args.run_id, token)
+    else:
+        preserve_failure(args.raw, args.repository, args.run_id, token)
     return 0
 
 

@@ -93,6 +93,17 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
         self.assertIn("ShaftHQ/ChaosGauge-private", bridge)
         self.assertIn("--draft", bridge)
 
+    def test_paid_raw_result_is_retained_privately_when_receipt_generation_fails(self) -> None:
+        failure = self._step("Preserve paid raw result after receipt failure")
+        self.assertEqual("${{ always() && steps.private-evidence.outputs.action == 'run' }}", failure["if"])
+        self.assertIn("public_canary_bridge.py preserve-failure", str(failure["run"]))
+        self.assertIn("test -f \"$CANARY_RAW\"", str(failure["run"]))
+        self.assertIn("test ! -f \"$CANARY_RECEIPT\"", str(failure["run"]))
+        self.assertLess(
+            self.steps.index(failure),
+            self.steps.index(self._step("Validate and secret-scan evidence")),
+        )
+
     def test_context_values_never_enter_shell_source(self) -> None:
         for step in self.steps:
             run = step.get("run")
@@ -372,6 +383,62 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
             upload = next(arguments for arguments, _ in calls if arguments[2] == "upload")
             self.assertEqual(["chaosgauge-canary-123-evidence.zip"], [Path(value).name for value in upload if value.endswith(".zip")])
             self.assertNotIn("--clobber", upload)
+
+    def test_preserve_failure_uploads_secret_scanned_raw_without_an_invalid_receipt(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root / "raw.json"
+            raw.write_text('{"trial_results":[]}\n', encoding="utf-8")
+            marker = root / "chaosgauge-canary-123-provider-started.json"
+            marker.write_text('{"runId":"123","schemaVersion":1,"state":"provider-started"}', encoding="utf-8")
+            release = {
+                "tagName": "chaosgauge-canary-123", "isDraft": True,
+                "targetCommitish": BRIDGE.PRIVATE_COMMIT,
+                "name": "ChaosGauge excluded canary 123",
+                "assets": [{
+                    "name": marker.name,
+                    "digest": f"sha256:{hashlib.sha256(marker.read_bytes()).hexdigest()}",
+                }],
+            }
+            uploaded = {marker.name: marker.read_bytes()}
+
+            def run(arguments, **_):
+                if arguments[2] == "view":
+                    return BRIDGE.subprocess.CompletedProcess(arguments, 0, json.dumps(release), "")
+                if arguments[2] == "upload":
+                    uploaded_path = Path(arguments[4])
+                    uploaded[uploaded_path.name] = uploaded_path.read_bytes()
+                    release["assets"].append({
+                        "name": uploaded_path.name,
+                        "digest": f"sha256:{hashlib.sha256(uploaded_path.read_bytes()).hexdigest()}",
+                    })
+                if arguments[2] == "download":
+                    name = arguments[arguments.index("--pattern") + 1]
+                    Path(arguments[arguments.index("--dir") + 1], name).write_bytes(uploaded[name])
+                return BRIDGE.subprocess.CompletedProcess(arguments, 0, "", "")
+
+            with patch.object(BRIDGE, "preflight"):
+                BRIDGE.preserve_failure(raw, ROOT, "123", "token", run=run)
+
+            failure_name = "chaosgauge-canary-123-failure-evidence.zip"
+            self.assertEqual({marker.name, failure_name}, {asset["name"] for asset in release["assets"]})
+            self.assertEqual("failed", BRIDGE._release_state(release, "123"))
+            archive = root / failure_name
+            archive.write_bytes(uploaded[failure_name])
+            _, content = BRIDGE.failure_bundle_contents(archive)
+            self.assertEqual({"raw.json"}, set(content))
+
+            with patch.object(BRIDGE, "preflight"):
+                with self.assertRaisesRegex(ValueError, "provider start is already recorded"):
+                    BRIDGE.prepare(ROOT, "123", "token", receipt_out=root / "recover.json", run=run)
+
+    def test_preserve_failure_rejects_secret_shaped_raw_evidence_before_release_access(self) -> None:
+        with TemporaryDirectory() as directory:
+            raw = Path(directory) / "raw.json"
+            raw.write_bytes(BRIDGE.SECRET_CANARIES[0])
+            with patch.object(BRIDGE, "preflight"):
+                with self.assertRaisesRegex(ValueError, "secret-shaped"):
+                    BRIDGE.preserve_failure(raw, ROOT, "123", "token")
 
 
 if __name__ == "__main__":
