@@ -73,7 +73,7 @@ class CanaryContractTest(unittest.TestCase):
                     "task_checksum": "a" * 64,
                     "trial_name": f"{planned['pair']['task']}__{'ctrl001' if arm == 'control' else 'chaos01'}",
                     "agent_info": {
-                        "name": "codex", "version": "0.118.0",
+                        "name": "codex", "version": "0.152.0",
                         "model_info": {"name": "gpt-5.6-terra", "provider": "openai"},
                     },
                     "config": {"task": {"path": str(task_path)}, "agent": copy.deepcopy(config["agents"][position])},
@@ -140,7 +140,7 @@ class CanaryContractTest(unittest.TestCase):
                 "task_name": f"ShaftHQ/{planned['pair']['task']}", "task_id": {"path": str(task_path)}, "task_checksum": "a" * 64,
                 "trial_name": f"{planned['pair']['task']}__{'ctrl001' if arm == 'control' else 'chaos01'}",
                 "config": {"task": {"path": str(task_path)}, "agent": copy.deepcopy(config["agents"][position])},
-                "agent_info": {"name": "codex", "version": "0.118.0", "model_info": {"name": "gpt-5.6-terra", "provider": "openai"}},
+                "agent_info": {"name": "codex", "version": "0.152.0", "model_info": {"name": "gpt-5.6-terra", "provider": "openai"}},
                 "agent_result": {"n_input_tokens": 10, "n_output_tokens": 20, "cost_usd": 0.01},
                 "agent_execution": {"started_at": "2026-08-31T00:00:00+00:00", "finished_at": "2026-08-31T00:00:01+00:00"},
                 "verifier_environment_mode": "separate",
@@ -179,7 +179,7 @@ class CanaryContractTest(unittest.TestCase):
                     "agent": copy.deepcopy(config["agents"][position]),
                 },
                 "agent_info": {
-                    "name": "codex", "version": "0.118.0",
+                    "name": "codex", "version": "0.152.0",
                     "model_info": {"name": "gpt-5.6-terra", "provider": "openai"},
                 },
                 "agent_result": {"n_input_tokens": 10, "n_output_tokens": 20, "cost_usd": 0.01},

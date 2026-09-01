@@ -242,7 +242,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             unbound[name]["agents"][0]["kwargs"]["version"] = "9.9.9"
         with self.assertRaisesRegex(ValueError, "job harness treatment"):
             MODULE.validate_job_contracts(self.manifest(), unbound)
-        self.assertEqual("0.118.0", jobs["chaos-engine"]["agents"][0]["kwargs"]["version"])
+        self.assertEqual("0.152.0", jobs["chaos-engine"]["agents"][0]["kwargs"]["version"])
 
     def test_all_harbor_job_arms_add_only_the_pinned_chroma_model_host(self):
         host = "chroma-onnx-models.s3.amazonaws.com"
@@ -297,7 +297,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             environment = types.SimpleNamespace(upload_dir=AsyncMock())
             agent = module.ChaosEngineCodex(
                 harness_source=str(ROOT / "chaos-engine"),
-                harness_commit="0481767def7c31fe144bc20543dfe937b8ffd4d5",
+                harness_commit="0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
                 harness_sha256=MODULE._tree_sha256(ROOT / "chaos-engine"),
                 adapter_sha256=MODULE._file_sha256(GAUGE / "agent.py"),
             )

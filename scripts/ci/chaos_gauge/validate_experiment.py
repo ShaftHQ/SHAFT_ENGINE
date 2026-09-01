@@ -348,7 +348,7 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
         if name == "chaos-engine":
             adapter = _file_sha256(Path(__file__).with_name("agent.py"))
             expected = {
-                "version": "0.118.0",
+                "version": "0.152.0",
                 "reasoning_effort": arm.get("effort"),
                 "harness_source": "chaos-engine",
                 "harness_commit": arm.get("repositoryRevision"),

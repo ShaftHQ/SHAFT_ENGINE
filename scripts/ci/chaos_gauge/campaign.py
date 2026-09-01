@@ -26,6 +26,20 @@ ROOT = Path(__file__).resolve().parent
 NATIVE_NAME = re.compile(r"[A-Za-z0-9]{7}")
 
 
+def _runtime():
+    spec = importlib.util.spec_from_file_location("chaos_gauge_runtime", ROOT / "runtime.py")
+    if spec is None or spec.loader is None:
+        raise RuntimeError("ChaosGauge runtime pin is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_RUNTIME = _runtime()
+CODEX_VERSION = _RUNTIME.CODEX_VERSION
+CODEX_CLI_BANNER = _RUNTIME.CODEX_CLI_BANNER
+
+
 def _object(value: object, label: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ValueError(f"{label} is invalid")
@@ -310,7 +324,7 @@ def _trials(job: object, arm: str, expected_agent: object, expected_job_id: str,
         if not _agent_matches(config.get("agent"), expected_agent):
             raise ValueError("Harbor arm identity is invalid")
         agent, model = _object(trial.get("agent_info"), "Harbor agent identity"), _object(_object(trial.get("agent_info"), "Harbor agent identity").get("model_info"), "Harbor model identity")
-        if agent.get("name") != "codex" or agent.get("version") != "0.118.0" or model != {"name": "gpt-5.6-terra", "provider": "openai"}:
+        if agent.get("name") != "codex" or agent.get("version") != CODEX_VERSION or model != {"name": "gpt-5.6-terra", "provider": "openai"}:
             raise ValueError("Harbor agent identity is invalid")
         if trial.get("verifier_environment_mode") != "separate":
             raise ValueError("Harbor verifier isolation is invalid")
@@ -558,7 +572,7 @@ def _pair_trials(result: object, pair: dict[str, object], binding: dict[str, obj
             raise ValueError("Harbor native pair identity is invalid")
         config = _object(trial.get("config"), "Harbor pair config")
         agent, model = _object(trial.get("agent_info"), "Harbor agent identity"), _object(_object(trial.get("agent_info"), "Harbor agent identity").get("model_info"), "Harbor model identity")
-        if not _agent_matches(config.get("agent"), _object(jobs[arm], "Harbor job")["agents"][0]) or agent.get("name") != "codex" or agent.get("version") != "0.118.0" or model != {"name": "gpt-5.6-terra", "provider": "openai"}:
+        if not _agent_matches(config.get("agent"), _object(jobs[arm], "Harbor job")["agents"][0]) or agent.get("name") != "codex" or agent.get("version") != CODEX_VERSION or model != {"name": "gpt-5.6-terra", "provider": "openai"}:
             raise ValueError("Harbor pair arm identity is invalid")
         if trial.get("verifier_environment_mode") != "separate":
             raise ValueError("Harbor verifier isolation is invalid")
@@ -858,7 +872,7 @@ def _run(command: list[str]) -> str:
 
 
 def codex_version_is_pinned(output: str) -> bool:
-    return output.strip() == "codex-cli 0.118.0"
+    return output.strip() == CODEX_CLI_BANNER
 
 
 def full_preflight(

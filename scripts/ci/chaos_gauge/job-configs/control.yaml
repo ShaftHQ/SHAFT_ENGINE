@@ -19,7 +19,7 @@ agents:
     model_name: gpt-5.6-terra
     override_setup_timeout_sec: 900
     kwargs:
-      version: "0.118.0"
+      version: "0.152.0"
       reasoning_effort: medium
 datasets:
   - path: scripts/ci/chaos_gauge/dataset
