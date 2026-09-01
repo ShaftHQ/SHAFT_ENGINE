@@ -719,6 +719,45 @@ module.install_with_dependencies(project, source, "2" * 40)
             )
             self.assertFalse(palace.exists())
 
+    def test_restore_candidate_mempalace_refuses_extra_empty_nested_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            palace = project / ".chaos-engine-state" / "mempalace"
+            nested = palace / ".mempalace"
+            nested.mkdir(parents=True)
+            origin = nested.joinpath("origin.json")
+            origin.write_text('{"wing":"exact"}\n', encoding="utf-8")
+            exists, files = MODULE.project_setup_output_files(
+                project, MODULE.MEMPALACE_STATE_OUTPUT
+            )
+            self.assertTrue(exists)
+            self.assertEqual({".mempalace/origin.json"}, set(files))
+            rooms = nested / "rooms"
+            rooms.mkdir()
+
+            with self.assertRaises(ValueError) as raised:
+                MODULE.restore_candidate_mempalace_state(
+                    project,
+                    {
+                        "before": {"exists": False, "files": {}},
+                        "after": {"exists": True, "files": files},
+                    },
+                )
+            message = str(raised.exception)
+            self.assertIn("candidate MemPalace state changed", message)
+            payload = json.loads(message[message.index("{") :])
+            self.assertEqual(
+                ".chaos-engine-state/mempalace/.mempalace/rooms",
+                payload["path"],
+            )
+            self.assertIsNone(payload["expectedDigest"])
+            self.assertIsNone(payload["actualDigest"])
+            self.assertEqual("project", payload["owner"])
+            self.assertEqual("blocked", payload["action"])
+            self.assertTrue(rooms.is_dir())
+            self.assertEqual('{"wing":"exact"}\n', origin.read_text(encoding="utf-8"))
+
     def test_restore_candidate_mempalace_refuses_extra_non_ancestor_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
