@@ -63,7 +63,7 @@ def job(
                     "task_checksum": task["sha256"],
                     "agent_info": {
                         "name": "codex",
-                        "version": "0.118.0",
+                        "version": "0.152.0",
                         "model_info": {"name": "gpt-5.6-terra", "provider": "openai"},
                     },
                     "agent_result": agent_result,

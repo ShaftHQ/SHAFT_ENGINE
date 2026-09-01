@@ -347,11 +347,11 @@ def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invarian
             raise ValueError("job setup timeout drift is not allowed")
         if name == "chaos-engine":
             expected = {
-                "version": "0.118.0",
+                "version": "0.152.0",
                 "reasoning_effort": arm.get("effort"),
                 "harness_source": "chaos-engine",
                 "harness_commit": arm.get("repositoryRevision"),
-                "harness_sha256": "7f2e6032118771bd9b75820689e1d830a8792db4d26b36c7b769d6b6a239ac0e",
+                "harness_sha256": "ff693b8f4f728fcdb73d74c204ae2ce0190a0e4009108bf3d9baabe0aafe98a4",
                 "adapter_sha256": "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             }
             if kwargs != expected:

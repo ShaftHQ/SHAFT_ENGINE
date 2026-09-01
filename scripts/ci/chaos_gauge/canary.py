@@ -277,7 +277,7 @@ def receipt(
             raise ValueError("canary arm identity is invalid")
         agent = _mapping(trial.get("agent_info"), "canary agent")
         model = _mapping(agent.get("model_info"), "canary model")
-        if agent.get("name") != "codex" or agent.get("version") != "0.118.0" or model != {"name": "gpt-5.6-terra", "provider": "openai"}:
+        if agent.get("name") != "codex" or agent.get("version") != _campaign().CODEX_VERSION or model != {"name": "gpt-5.6-terra", "provider": "openai"}:
             raise ValueError("canary runtime identity is invalid")
         context = _mapping(trial.get("agent_result"), "canary telemetry")
         tokens = _number(context.get("n_input_tokens"), "canary token telemetry", integer=True) + _number(context.get("n_output_tokens"), "canary token telemetry", integer=True)

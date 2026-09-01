@@ -57,7 +57,7 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
         install = str(self._step("Install pinned native runtime")["run"])
         self.assertNotIn("python3 -m pip install", install)
         self.assertIn("uv pip install --system --require-hashes", install)
-        self.assertIn("@openai/codex@0.118.0", install)
+        self.assertIn("@openai/codex@0.152.0", install)
         self.assertIn("docker version --format", install)
 
     def test_teardown_only_runs_after_baseline(self) -> None:

@@ -59,7 +59,7 @@ class ChaosGaugeCampaignTest(TestCase):
                         "config": {"agent": copy.deepcopy(jobs[arm]["agents"][0])},
                         "agent_info": {
                             "name": "codex",
-                            "version": "0.118.0",
+                            "version": "0.152.0",
                             "model_info": {"name": "gpt-5.6-terra", "provider": "openai"},
                         },
                         "verifier_environment_mode": "separate",
@@ -154,7 +154,7 @@ class ChaosGaugeCampaignTest(TestCase):
                 trials.append({
                     "task_name": pair["task"], "trial_name": item["arms"][arm], "task_checksum": pair["sha256"],
                     "config": {"agent": copy.deepcopy(jobs[arm]["agents"][0])},
-                    "agent_info": {"name": "codex", "version": "0.118.0", "model_info": {"name": "gpt-5.6-terra", "provider": "openai"}},
+                    "agent_info": {"name": "codex", "version": "0.152.0", "model_info": {"name": "gpt-5.6-terra", "provider": "openai"}},
                     "verifier_environment_mode": "separate",
                     "agent_execution": {"started_at": (started + timedelta(seconds=serial * 2 + position)).isoformat()},
                 })
@@ -552,8 +552,16 @@ class ChaosGaugeCampaignTest(TestCase):
         self.assertNotIn("codex", CAMPAIGN.full_preflight.__code__.co_names)
 
     def test_exact_codex_pin_and_merged_execution_proof_fail_closed(self):
-        self.assertTrue(CAMPAIGN.codex_version_is_pinned("codex-cli 0.118.0"))
-        for value in ("codex-cli 0.118.0-beta", "codex-cli 0.118.1", "codex-cli 10.118.0"):
+        self.assertTrue(CAMPAIGN.codex_version_is_pinned(CAMPAIGN.CODEX_CLI_BANNER))
+        self.assertEqual(CAMPAIGN.CODEX_VERSION, "0.152.0")
+        workflow = (ROOT / ".github/workflows/chaos-gauge-public-canary.yml").read_text(encoding="utf-8")
+        self.assertIn(f"@openai/codex@{CAMPAIGN.CODEX_VERSION}", workflow)
+        for name in ("control.yaml", "chaos-engine.yaml", "full-pilot-control.yaml", "full-pilot-chaos-engine.yaml"):
+            self.assertIn(
+                f'version: "{CAMPAIGN.CODEX_VERSION}"',
+                (GAUGE / "job-configs" / name).read_text(encoding="utf-8"),
+            )
+        for value in (f"{CAMPAIGN.CODEX_CLI_BANNER}-beta", "codex-cli 0.118.0", "codex-cli 10.152.0"):
             self.assertFalse(CAMPAIGN.codex_version_is_pinned(value))
 
         with self.assertRaisesRegex(ValueError, "execution revision"):
@@ -589,7 +597,7 @@ class ChaosGaugeCampaignTest(TestCase):
                 if any("importlib.metadata" in argument for argument in command):
                     return "0.22.0\n"
                 if command == ["codex", "--version"]:
-                    return "codex-cli 0.118.0\n"
+                    return CAMPAIGN.CODEX_CLI_BANNER + "\n"
                 return ""
 
             with (
