@@ -337,6 +337,7 @@ def _bounded_local_cli_output(argv: list[str], *, cwd: str, environment: dict[st
         try:
             process.wait(timeout=1)
         except (OSError, subprocess.TimeoutExpired):
+            # Best-effort 1s reap after SIGTERM/SIGKILL; the process may already be dead.
             pass
         complete.wait(1)
         process.stdout.close()
