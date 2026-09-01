@@ -1,6 +1,6 @@
 name: Run public ChaosGauge excluded canary
 
-# Owner-authorized excluded-canary exception (#5462, ShaftHQ/ChaosGauge-private#3):
+# Owner-authorized excluded-canary exception (#5462, ShaftHQ/ChaosGauge-private#4):
 # exactly one public task and two accounted arms may use the generic provider secret.
 # This workflow enforces a 60-minute runtime, exactly two arms, and a 120000-token
 # acceptance budget. It is not a provider-side spend cap. Full pilot keeps its
@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: ShaftHQ/ChaosGauge-private
-          ref: 08551a3db4376438acddd77422554ce710a58624
+          ref: 5c5c00896139c767946747ba38029d88fe750472
           path: private
           fetch-depth: 1
           persist-credentials: false

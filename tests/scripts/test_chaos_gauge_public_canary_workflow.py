@@ -69,7 +69,7 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
     def test_private_checkout_and_release_capability_precede_provider(self) -> None:
         private = self._step("Checkout pinned private corpus")
         self.assertEqual("ShaftHQ/ChaosGauge-private", private["with"]["repository"])
-        self.assertEqual("08551a3db4376438acddd77422554ce710a58624", private["with"]["ref"])
+        self.assertEqual("5c5c00896139c767946747ba38029d88fe750472", private["with"]["ref"])
         self.assertFalse(private["with"]["persist-credentials"])
         capability_index = next(index for index, step in enumerate(self.steps) if step.get("name") == "Prepare private evidence storage")
         provider_index = next(index for index, step in enumerate(self.steps) if step.get("name") == "Run excluded two-arm canary")
@@ -144,7 +144,7 @@ class PublicCanaryWorkflowTest(unittest.TestCase):
 
     def test_owner_exception_has_only_workflow_local_canary_limits(self) -> None:
         self.assertIn("owner-authorized excluded-canary exception", self.text.lower())
-        self.assertIn("ShaftHQ/ChaosGauge-private#3", self.text)
+        self.assertIn("ShaftHQ/ChaosGauge-private#4", self.text)
         self.assertIn("#5462", self.text)
         self.assertIn("not a provider-side spend cap", self.text)
         self.assertEqual(60, self.job["timeout-minutes"])

@@ -10,14 +10,14 @@
   "dataset": {
     "schemaVersion": "1.4",
     "version": "1.0.0",
-    "sha256": "6b097e3316a8365513ff93d2d0cbe3d2521eedd1c0f883ae0682065c30e9626e"
+    "sha256": "110348fc316570ca97ee6bea44e934400a3939563cfdb52eb337a3af13ecf8d8"
   },
   "privatePackage": {
     "repository": "ShaftHQ/ChaosGauge-private",
-    "commit": "08551a3db4376438acddd77422554ce710a58624",
-    "contentSha256": "sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
+    "commit": "5c5c00896139c767946747ba38029d88fe750472",
+    "contentSha256": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
     "name": "ShaftHQ/chaosgauge-private",
-    "ref": "sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
+    "ref": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
     "status": "requires-credentials"
   },
   "attemptsPerTask": 5,
@@ -45,8 +45,8 @@
       "harness": "none",
       "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "treatmentSha256": {
-        "calibration": "eb08b5c36e234e455069003a011b470bbcf09b27cd18065b735cf75b6532a6c4",
-        "full-pilot": "ea69199ef6f030cf38478ecf837f1305c0eef5c5cafd3ccc5afa91d78aa03269"
+        "calibration": "577b043ac791732f048ecce50d714520f875d058bbf0aae4f207ecc36996ab6f",
+        "full-pilot": "73933bd73c6b7e05caa6ecec42df0b34b585039d2e3bb587be0c7a71504630db"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
@@ -61,8 +61,8 @@
       "harness": "chaos-engine",
       "harnessSha256": "ef5977da8d7757b07be8b098fa381e8e9135dd6d93bdc31d30365aeac813845e",
       "treatmentSha256": {
-        "calibration": "b13305e2f4b1b49bdf9bf1f480d7a753bde3fc18ab4987b1e7b7bd868efa1444",
-        "full-pilot": "a3b105beaf603c93809a16f2126346c84a3fbf7c65a2607511d7665564d58c09"
+        "calibration": "939c5570dbb8bd778d5446533e7a107a2ef473ad6451790a5bb327f8a505fd31",
+        "full-pilot": "39940faa6ea5a0b511b8b840bd155708e82fc72d1e9660b752ff586b405df7c7"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,
@@ -70,21 +70,21 @@
     }
   ],
   "tasks": [
-    {"name": "diagnosis-config-precedence", "visibility": "public", "sha256": "bbb42d74471ba4baa53a365f22fb26c70aa3277d5279aa44d0d3d478887b829b"},
-    {"name": "diagnosis-failure-trace", "visibility": "public", "sha256": "1c5bd61222521bd4d9fc3dd5b078e0408638c686581de3b8c8803bd29406480e"},
-    {"name": "diagnosis-module-boundary", "visibility": "public", "sha256": "cfae3c97feb96c58a771af1957aca60b9cd2353ab257b9a2bdbb3bd735685f86"},
-    {"name": "repair-null-contract", "visibility": "public", "sha256": "5a5213e077a8460ff83c255c11ad9bb321c75d1b9b6f78fe14c3e7bf68d83c9a"},
-    {"name": "repair-timeout-cleanup", "visibility": "public", "sha256": "8e829fc3fb7ff52f3c07352b8939e3ab807c1cac63363aeee37a56f617d97552"},
-    {"name": "repair-regression-test", "visibility": "public", "sha256": "f12fe990df475c5d874065721f23548a4734ca2b7f56bc86f0e004d61a6ba421"},
-    {"name": "recovery-cross-file-contract", "visibility": "public", "sha256": "20a1c654a93adcd2590026b8181c7757395b1793075bbdd27c59e02e2d3eb0c4"},
-    {"name": "recovery-broken-build", "visibility": "public", "sha256": "20fe73e34f8cc4859cb1222ab92176779578850b6dfa5507af0f04ad2054d6c1"},
-    {"name": "recovery-partial-migration", "visibility": "public", "sha256": "833ad2e707cdcd53bef1b56106cf94c22fb5e25639b45d4b6d22fa37c2254bbb"},
-    {"name": "safety-secret-redaction", "visibility": "public", "sha256": "b92c3977ca0e19f4a0e4e1cf6458533df6330ed12d8af2281b0a4a7fce4d1b3f"},
-    {"name": "safety-foreign-work", "visibility": "public", "sha256": "fca4e478d4eab8852d05c1e8cec08882738671e8f53fd067f29054d7e9e8a5f4"},
-    {"name": "delivery-focused-proof", "visibility": "public", "sha256": "b004e9578cf09dd010b387b852f68ade3f4d11b7b665092b8c1b531584b0a2f3"},
-    {"name": "ShaftHQ/chaosgauge-diagnosis-private-001", "visibility": "private-reference", "stratum": "diagnosis", "sha256": "63ab2385371d95c004cfc41cd2a2ff4ecb547be8d9875f1dc75c14261f961ff5"},
-    {"name": "ShaftHQ/chaosgauge-focused-repair-private-002", "visibility": "private-reference", "stratum": "focused-repair", "sha256": "ea08ee50fc76c05257929e138221cdf1ddefa8875d9266018cdbd19444c75ef5"},
-    {"name": "ShaftHQ/chaosgauge-cross-file-recovery-private-003", "visibility": "private-reference", "stratum": "cross-file-recovery", "sha256": "c38c502d1f0a2ad4438f7d3829dd0e42f8ed77275103f3bed0cbe6ffc18f5e9d"},
-    {"name": "ShaftHQ/chaosgauge-safety-delivery-private-004", "visibility": "private-reference", "stratum": "safety-delivery", "sha256": "224f2088b1ae3f7244ce5fddf06d3ab61814cf0dcd4637ddd715bc67072cb1e1"}
+    {"name": "diagnosis-config-precedence", "visibility": "public", "sha256": "5677baea3f56f69e0fb6b1ab6e2d8adb361b7487721704e1f616665fd5a065ba"},
+    {"name": "diagnosis-failure-trace", "visibility": "public", "sha256": "ec8bdd0cbb60badb2a7ff7db2d9e4b7189700ce34bce29c7ef475cfd08d162d6"},
+    {"name": "diagnosis-module-boundary", "visibility": "public", "sha256": "2f1c31b4e2e2bab8cb876692bfd3ce144a12e5c1811884f92462000babfe5b41"},
+    {"name": "repair-null-contract", "visibility": "public", "sha256": "f0034f6dd441900320b267feca9e7703fd00ea46004c5f15f81164ff7185cc90"},
+    {"name": "repair-timeout-cleanup", "visibility": "public", "sha256": "6cdb0e3f601bec77379ffa422b744e4fe2d2681cd93f098be28440f1e7301371"},
+    {"name": "repair-regression-test", "visibility": "public", "sha256": "0a60e91111c5d604f9d88b5c4b7c7a9bb0d60d81279411525aa80d50371a50ec"},
+    {"name": "recovery-cross-file-contract", "visibility": "public", "sha256": "08178c0bbca09ce747d76b05c9635b12e21d1062d8226aed1dc55c9322a2802d"},
+    {"name": "recovery-broken-build", "visibility": "public", "sha256": "7269c9b7cb4df165f8c0d4782e871bec243dcd2184d1610c165985f1572b5be5"},
+    {"name": "recovery-partial-migration", "visibility": "public", "sha256": "f945fec62d5154a6f8efb0cc0ad305aa5120184bb4eb656a6c63914927273527"},
+    {"name": "safety-secret-redaction", "visibility": "public", "sha256": "f3c44c1ab9485fafdefb26060775d53a21d295259dda87e5ce43401436dc2eb2"},
+    {"name": "safety-foreign-work", "visibility": "public", "sha256": "57b7670105a8a19e35ef65048cf41628e4691ec7e766c32c66568d69858ff68e"},
+    {"name": "delivery-focused-proof", "visibility": "public", "sha256": "fa9d844431eb2541162bff2be0eb4344f542805349b15155188ac648a321cca5"},
+    {"name": "ShaftHQ/chaosgauge-diagnosis-private-001", "visibility": "private-reference", "stratum": "diagnosis", "sha256": "5acf36b30a244b10d4e59fb7981ac56c3f741a077bb84a501f7fc261f57c8245"},
+    {"name": "ShaftHQ/chaosgauge-focused-repair-private-002", "visibility": "private-reference", "stratum": "focused-repair", "sha256": "233584a4f778787a562312cfd90c1a8518198f65fec43c7deb9c445e948b27e4"},
+    {"name": "ShaftHQ/chaosgauge-cross-file-recovery-private-003", "visibility": "private-reference", "stratum": "cross-file-recovery", "sha256": "83bfda79eae1b05e24c9fe8be9948fb1ce76f293d93a9975f6665dc43789cbd6"},
+    {"name": "ShaftHQ/chaosgauge-safety-delivery-private-004", "visibility": "private-reference", "stratum": "safety-delivery", "sha256": "f83cc5949a2cc2f128b26c6b3d6d7ca2d737ed53f4bd07fb07025713c04f2df4"}
   ]
 }

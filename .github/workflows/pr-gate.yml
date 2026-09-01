@@ -42,7 +42,7 @@ jobs:
   release-governance:
     name: Release-note governance
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -382,6 +382,7 @@ jobs:
           tests.scripts.test_chaos_gauge_contracts
           tests.scripts.test_chaos_gauge_campaign
           tests.scripts.test_chaos_gauge_corpus
+          tests.scripts.test_chaos_gauge_runtime
           tests.scripts.test_chaos_gauge_recovery
           tests.scripts.test_chaos_gauge_scoring
           -v

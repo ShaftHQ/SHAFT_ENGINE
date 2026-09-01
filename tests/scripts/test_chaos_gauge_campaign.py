@@ -211,7 +211,7 @@ class ChaosGaugeCampaignTest(TestCase):
     def test_full_pilot_binds_private_git_content_package_and_strata(self):
         package = MANIFEST["privatePackage"]
         self.assertEqual("ShaftHQ/ChaosGauge-private", package["repository"])
-        self.assertEqual("08551a3db4376438acddd77422554ce710a58624", package["commit"])
+        self.assertEqual("5c5c00896139c767946747ba38029d88fe750472", package["commit"])
         self.assertEqual("ShaftHQ/chaosgauge-private", package["name"])
         private = [task for task in MANIFEST["tasks"] if task["visibility"] == "private-reference"]
         self.assertEqual(4, len(private))

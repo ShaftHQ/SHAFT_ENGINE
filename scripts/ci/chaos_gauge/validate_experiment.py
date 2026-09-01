@@ -170,10 +170,10 @@ def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-
     private_package = _mapping(manifest["privatePackage"], "private package")
     if private_package != {
         "repository": "ShaftHQ/ChaosGauge-private",
-        "commit": "08551a3db4376438acddd77422554ce710a58624",
-        "contentSha256": "sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
+        "commit": "5c5c00896139c767946747ba38029d88fe750472",
+        "contentSha256": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
         "name": "ShaftHQ/chaosgauge-private",
-        "ref": "sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485",
+        "ref": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
         "status": "requires-credentials",
     }:
         raise ValueError("private package plan is invalid")
