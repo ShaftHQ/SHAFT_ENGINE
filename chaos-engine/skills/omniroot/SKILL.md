@@ -13,17 +13,82 @@ canonical workflow in [execution workflows](../../references/execution-workflows
 first. Missing, stopped, unauthenticated, exhausted, or unqualified OmniRoute
 is normal: use a qualified native implementer or `SOLO`.
 
-Do not install, start, configure, authenticate, or choose routes for OmniRoute.
-Do not expose credentials, route internals, account data, prompts, or consumer
-code outside the approved bounded task.
+Do not install OmniRoute, create provider accounts, or write operator
+credentials. Do not expose credentials, account data, prompts, or consumer
+code outside the approved bounded task. Receipts and repository files never
+persist route, model, or provider IDs; live stdout of `candidates` may name
+them for the current dispatch only.
+
+## Ensure the local gateway
+
+Dashboard: `http://127.0.0.1:20128/home`. Health (anonymous JSON
+`status`/`timestamp` is enough here):
+
+```text
+command -v omniroute
+curl -sf --max-time 2 http://127.0.0.1:20128/api/health
+```
+
+If `omniroute` is missing, do not install it; use native host-session models.
+If the binary exists and health fails, start loopback only:
+
+```text
+OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open
+```
+
+Never bind a non-loopback address. Never use a remote `--base-url`.
+
+## Live catalog on every dispatch
+
+Do not read cache files. Do not keep a session catalog file. Remaining tokens
+change after each delegate, so query both of these immediately before every
+dispatch:
+
+```text
+omniroute --output json models
+omniroute --output json usage quota
+python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability mechanical|default|most-intelligent
+```
+
+Do not add `--json` after the `models` subcommand: that form prints a table, not JSON. Use `--output json` before `models`.
+Do not use `omniroute openapi try /api/models/catalog` without the CLI session;
+it returns HTTP 401.
+
+### Decode
+
+1. Strip ANSI with `\\x1b\\[[0-9;]*[A-Za-z]`.
+2. Find the first `{` or `[`.
+3. Parse with `json.JSONDecoder().raw_decode` so trailing extra JSON is ignored.
+4. Catalog is a JSON array of objects with `id` and `provider`.
+5. Quota is a JSON array of objects with `provider`, `remaining`, and `state`.
+6. Join on alphanumeric-lowercased provider ids (`glm-cn` matches `glmcn`).
+7. Drop `state == "exhausted"` or `remaining <= 0`.
+
+### Rank (dynamic, from the live ids)
+
+Classify each remaining `id` by its own tokens, not a stored model list:
+`low|lite|flash|air|mini|nano|turbo|haiku|small` = mechanical;
+`high|max|pro|ultra|opus|thinking|reasoner` = most-intelligent;
+otherwise default. Architecture, review, and analytical work use only
+most-intelligent. Every other task takes the lowest remaining class first,
+then higher remaining within a class. Empty result is `RUNTIME_EXHAUSTED`.
+
+### Dispatch and follow-through
+
+```text
+omniroute run --model '<id>' --provider '<provider>' codex -- exec --ephemeral --approve-for-me -C '<worktree>' '<prompt>'
+```
+
+Then follow [orchestrator follow-through](../../references/orchestrator-follow-through.md)
+until the delegate exits with closing notes. If the live remaining set is empty
+or every free candidate fails, use the current host session's native models.
+Paid OmniRoute routes stay forbidden.
 
 Canonical orchestration must probe the fixed loopback endpoint before native
-fallback, with no endpoint prompt. On `READY`, dispatch through the sealed
-operator launcher. The operator-owned priority combo alone selects first
-available candidates from its attested no-cost/no-paid-fallback order; OmniRoot
-never reads, persists, or selects route, model, or provider IDs. A concrete
-`RUNTIME_EXHAUSTED` health result or sealed-launcher exit code `78` means that
-allowed set is exhausted and only then permits native implementer fallback.
+fallback, with no endpoint prompt. On `READY` after a live `candidates` pick,
+dispatch through `omniroute run` as above. A concrete `RUNTIME_EXHAUSTED`
+health result, empty remaining catalog, or sealed-launcher exit code `78`
+permits native implementer fallback.
 
 ## Runner
 
@@ -31,6 +96,7 @@ Use only the standard-library [runner](scripts/runner.py):
 
 ```text
 python3 chaos-engine/skills/omniroot/scripts/runner.py probe
+python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability mechanical|default|most-intelligent
 python3 chaos-engine/skills/omniroot/scripts/runner.py dispatch --contract <private-state>/dispatch.json
 python3 chaos-engine/skills/omniroot/scripts/runner.py status ...
 python3 chaos-engine/skills/omniroot/scripts/runner.py cancel ...

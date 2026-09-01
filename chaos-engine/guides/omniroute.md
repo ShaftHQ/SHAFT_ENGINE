@@ -79,8 +79,11 @@ omniroute --version
 omniroute doctor --no-liveness
 ```
 
-Start it only when needed. `OMNIROUTE_SERVER_HOST=127.0.0.1` keeps the gateway
-on loopback; do not bind it to a LAN address or expose it through a tunnel.
+If an installed OmniRoute binary is present and
+`curl -sf --max-time 2 http://127.0.0.1:20128/api/health` fails, start loopback
+only. Never install OmniRoute from a task. `OMNIROUTE_SERVER_HOST=127.0.0.1`
+keeps the gateway on loopback; do not bind it to a LAN address or expose it
+through a tunnel.
 `HOST` is not OmniRoute's cross-platform bind setting.
 
 ```bash

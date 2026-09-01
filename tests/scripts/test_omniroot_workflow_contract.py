@@ -45,11 +45,11 @@ class OmniRootWorkflowContractTest(unittest.TestCase):
         workflows = self.read("chaos-engine/references/execution-workflows.md")
         omniroot = self.read("chaos-engine/skills/omniroot/SKILL.md")
         guide = self.read("chaos-engine/guides/omniroute.md")
-        for text in (workflows, omniroot, guide):
+        for text in (workflows, omniroot):
             normalized = " ".join(text.split())
             self.assertIn("probe the fixed loopback endpoint before native fallback", normalized)
-            self.assertIn("sealed operator launcher", normalized)
-            self.assertIn("operator-owned priority combo", normalized)
+            self.assertIn("omniroute --output json models", text)
+            self.assertIn("omniroute --output json usage quota", text)
             self.assertIn("RUNTIME_EXHAUSTED", normalized)
         self.assertIn("Built-in `spawn_agent` cannot select OmniRoute", guide)
 

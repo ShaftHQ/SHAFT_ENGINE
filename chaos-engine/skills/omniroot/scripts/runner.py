@@ -50,6 +50,11 @@ READINESS = frozenset({
 })
 RUN_STATUSES = frozenset({"planned", "running", "stalled", "blocked", "review", "completed", "cancelled", "quarantined"})
 _CAPABILITY_RANK = {"mechanical": 0, "default": 1, "most-intelligent": 2}
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_MECHANICAL_MARKERS = frozenset({"low", "lite", "flash", "air", "mini", "nano", "turbo", "haiku", "small"})
+_HIGH_MARKERS = frozenset({"high", "max", "pro", "ultra", "opus", "thinking", "reasoner"})
+_CATALOG_COMMAND = ("omniroute", "--output", "json", "models")
+_QUOTA_COMMAND = ("omniroute", "--output", "json", "usage", "quota")
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 _TARGET = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
@@ -743,6 +748,110 @@ def _dispatch_environment(environ: dict[str, str], credential_mode: str) -> dict
 
 def _sha256(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def decode_cli_json(text: str) -> object:
+    """Parse the first JSON value from OmniRoute CLI stdout; banners and extra objects are ignored."""
+    cleaned = _ANSI.sub("", text)
+    index = min((item for item in (cleaned.find("["), cleaned.find("{")) if item >= 0), default=-1)
+    if index < 0:
+        raise OmniRootError("OmniRoute CLI JSON is missing")
+    try:
+        value, _unused = json.JSONDecoder().raw_decode(cleaned[index:])
+    except json.JSONDecodeError as error:
+        raise OmniRootError("OmniRoute CLI JSON is invalid") from error
+    return value
+
+
+def _provider_key(value: object) -> str:
+    if not isinstance(value, str) or not value:
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def classify_capability(model_id: object) -> str:
+    """Map a live model id to a capability class. This is a ranking method, not a stored catalog."""
+    tokens = set(re.findall(r"[a-z0-9]+", str(model_id).lower()))
+    if tokens & _HIGH_MARKERS:
+        return "most-intelligent"
+    if tokens & _MECHANICAL_MARKERS:
+        return "mechanical"
+    return "default"
+
+
+def select_live_candidates(
+    catalog: object, quota: object, *, required_capability: str,
+) -> list[dict[str, Any]]:
+    """Join the current catalog to remaining quota and order cheapest applicable first."""
+    if required_capability not in _CAPABILITY_RANK:
+        raise OmniRootError("required capability is invalid")
+    remaining: dict[str, int] = {}
+    for row in quota if isinstance(quota, list) else []:
+        if not isinstance(row, dict):
+            continue
+        key = _provider_key(row.get("provider"))
+        if not key:
+            continue
+        if row.get("state") == "exhausted":
+            remaining[key] = 0
+            continue
+        left = row.get("remaining")
+        if isinstance(left, (int, float)) and left > 0:
+            remaining[key] = int(left)
+    selected: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in catalog if isinstance(catalog, list) else []:
+        if not isinstance(item, dict):
+            continue
+        model = item.get("id")
+        provider = item.get("provider")
+        if not isinstance(model, str) or not model or not isinstance(provider, str) or not provider:
+            continue
+        left = remaining.get(_provider_key(provider))
+        if not left:
+            continue
+        identity = (model, provider)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        selected.append({
+            "model": model,
+            "provider": provider,
+            "remaining": left,
+            "capability": classify_capability(model),
+            "identitySha256": _sha256({"model": model, "provider": provider}),
+        })
+    if required_capability == "most-intelligent":
+        pool = [row for row in selected if row["capability"] == "most-intelligent"]
+    else:
+        pool = selected
+    pool.sort(key=lambda row: (_CAPABILITY_RANK[row["capability"]], -row["remaining"], row["model"]))
+    return pool
+
+
+def _omniroute_cli(command: tuple[str, ...], run: Callable[..., Any] | None = None) -> object:
+    runner = run or subprocess.run
+    completed = runner(list(command), capture_output=True, text=True, check=False)  # nosec B603 - fixed local OmniRoute argv.
+    stdout = getattr(completed, "stdout", "") or ""
+    return decode_cli_json(stdout)
+
+
+def candidates(
+    *, required_capability: str = "default",
+    which: Callable[[str], str | None] | None = None,
+    run: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
+    """Query the live local catalog and remaining quota on every dispatch. Never cache to disk."""
+    locator = which or shutil.which
+    if locator("omniroute") is None:
+        return {"state": "ABSENT", "candidates": []}
+    try:
+        catalog = _omniroute_cli(_CATALOG_COMMAND, run=run)
+        quota = _omniroute_cli(_QUOTA_COMMAND, run=run)
+    except OmniRootError:
+        return {"state": "UNHEALTHY", "candidates": []}
+    picked = select_live_candidates(catalog, quota, required_capability=required_capability)
+    return {"state": "READY" if picked else "RUNTIME_EXHAUSTED", "candidates": picked}
 
 
 def _valid_private_candidate(candidate: object) -> bool:
@@ -1935,10 +2044,16 @@ def main(argv: list[str] | None = None) -> int:
     cancel_parser.add_argument("--run-id", required=True)
     complete_parser = commands.add_parser("complete")
     complete_parser.add_argument("--contract", type=Path, required=True)
+    candidates_parser = commands.add_parser("candidates")
+    candidates_parser.add_argument(
+        "--capability", default="default", choices=sorted(_CAPABILITY_RANK),
+    )
     args = parser.parse_args(raw_arguments)
     try:
         if args.command == "probe":
             return _print(probe(config_path=args.config))
+        if args.command == "candidates":
+            return _print(candidates(required_capability=args.capability))
         if args.command == "attest":
             return _print(attest(config_path=args.config, contract_path=args.contract))
         if args.command == "dispatch":

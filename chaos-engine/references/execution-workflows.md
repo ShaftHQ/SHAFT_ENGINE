@@ -32,12 +32,15 @@ the selected host and task boundary:
 
 The transport does not change the selected workflow, role boundaries, tests,
 review, learning, or completion duties. Canonical orchestration must probe the
-fixed loopback endpoint before native fallback, with no endpoint prompt. `READY`
-means dispatch the bounded delegate through the sealed operator launcher;
-OmniRoute is never installed, started, authenticated, configured, or selected
-by ChaosEngine. The operator-owned priority combo alone selects its ordered
-attested no-cost candidates and never exposes route, model, or provider IDs to
-OmniRoot. A gateway `RUNTIME_EXHAUSTED` result, including sealed-launcher exit
-code `78` after that combo exhausts its allowed set, falls back to a qualified
-host-native implementer or `SOLO`. OmniRoute is absent, unhealthy, unauthenticated,
-or unqualified result does the same. This is normal fallback, not harness failure.
+fixed loopback endpoint before native fallback, with no endpoint prompt. If
+`omniroute` is installed and `http://127.0.0.1:20128/api/health` fails, start
+loopback only with `OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open`.
+Never install OmniRoute. Before every dispatch, query
+`omniroute --output json models` and `omniroute --output json usage quota`
+(no cache files). Rank remaining free candidates dynamically from live ids:
+lowest applicable class first; architecture/review uses most-intelligent only.
+Receipts and repository files never persist route, model, or provider IDs.
+`RUNTIME_EXHAUSTED`, an empty remaining catalog, or sealed-launcher exit code
+`78` falls back to the current host session's native models or `SOLO`. OmniRoute is absent,
+unhealthy, unauthenticated, or unqualified does the same. This is
+normal fallback, not harness failure.
