@@ -55,6 +55,7 @@ _MECHANICAL_MARKERS = frozenset({"low", "lite", "flash", "air", "mini", "nano", 
 _HIGH_MARKERS = frozenset({"high", "max", "pro", "ultra", "opus", "thinking", "reasoner"})
 _CATALOG_COMMAND = ("omniroute", "--output", "json", "models")
 _QUOTA_COMMAND = ("omniroute", "--output", "json", "usage", "quota")
+_PROVIDER_ARG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 _TARGET = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
@@ -836,6 +837,12 @@ def diagnostic_is_catalog_mismatch(text: object) -> bool:
     return any(marker in blob for marker in _CATALOG_MISS_MARKERS)
 
 
+def diagnostic_is_stream_disconnected(text: object) -> bool:
+    """True when Codex/OmniRoute closes the responses stream before completion."""
+    blob = str(text or "").casefold()
+    return "stream disconnected before completion" in blob or "stream closed before response.completed" in blob
+
+
 def codex_model_overlay(provider: str, model: str) -> list[str]:
     """Set Codex top-level model to the native OmniRoute id.
 
@@ -931,6 +938,44 @@ def _omniroute_cli(command: tuple[str, ...], run: Callable[..., Any] | None = No
     return decode_cli_json(stdout)
 
 
+def _remaining_quota_providers(quota: object) -> list[str]:
+    names: list[str] = []
+    seen: set[str] = set()
+    for row in quota if isinstance(quota, list) else []:
+        if not isinstance(row, dict):
+            continue
+        provider = row.get("provider")
+        if not isinstance(provider, str) or not _PROVIDER_ARG.fullmatch(provider):
+            continue
+        if row.get("state") == "exhausted":
+            continue
+        left = row.get("remaining")
+        if not (isinstance(left, (int, float)) and left > 0):
+            continue
+        key = _provider_key(provider)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        names.append(provider)
+    return names
+
+
+def _live_catalog_rows(quota: object, run: Callable[..., Any] | None = None) -> list[object]:
+    """The unfiltered `models` CLI is capped at 50 rows, often one family. Query remaining providers."""
+    catalog: list[object] = []
+    for provider in _remaining_quota_providers(quota):
+        try:
+            rows = _omniroute_cli((*_CATALOG_COMMAND, provider), run=run)
+        except OmniRootError:
+            continue
+        if isinstance(rows, list):
+            catalog.extend(rows)
+    if catalog:
+        return catalog
+    fallback = _omniroute_cli(_CATALOG_COMMAND, run=run)
+    return fallback if isinstance(fallback, list) else []
+
+
 def candidates(
     *, required_capability: str = "default",
     which: Callable[[str], str | None] | None = None,
@@ -942,8 +987,8 @@ def candidates(
     if locator("omniroute") is None:
         return {"state": "ABSENT", "candidates": []}
     try:
-        catalog = _omniroute_cli(_CATALOG_COMMAND, run=run)
         quota = _omniroute_cli(_QUOTA_COMMAND, run=run)
+        catalog = _live_catalog_rows(quota, run=run)
     except OmniRootError:
         return {"state": "UNHEALTHY", "candidates": []}
     picked = select_live_candidates(

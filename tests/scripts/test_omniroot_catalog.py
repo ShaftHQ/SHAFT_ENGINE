@@ -100,6 +100,8 @@ class OmniRootCatalogTest(unittest.TestCase):
             self.assertIn("every dispatch", text)
             self.assertNotIn("catalog-policy.json", text)
             self.assertNotIn("session cache", text.lower())
+        self.assertIn("models <provider>", skill)
+        self.assertIn("Stream closed before `response.completed`", skill)
         self.assertIn("OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open", skill)
         self.assertIn("http://127.0.0.1:20128/api/health", skill)
         self.assertIn("omniroute run --model", skill)
@@ -123,7 +125,7 @@ class OmniRootCatalogTest(unittest.TestCase):
             class Result:
                 stdout = json.dumps([{"id": "Live Default", "provider": "alpha"}])
                 returncode = 0
-            if command[-1] != "models":
+            if command[-2:] == ["usage", "quota"]:
                 Result.stdout = json.dumps([
                     {"provider": "alpha", "remaining": 7, "state": "available"},
                 ])
@@ -153,14 +155,14 @@ class OmniRootCatalogTest(unittest.TestCase):
             class Result:
                 stdout = ""
                 returncode = 0
-            if command[-1] == "models":
+            if command[-2:] == ["usage", "quota"]:
+                Result.stdout = json.dumps([
+                    {"provider": "alpha", "remaining": 7, "state": "available"},
+                ])
+            elif "models" in command:
                 Result.stdout = json.dumps([
                     {"id": "Live Low", "provider": "alpha"},
                     {"id": "Live High", "provider": "alpha"},
-                ])
-            else:
-                Result.stdout = json.dumps([
-                    {"provider": "alpha", "remaining": 7, "state": "available"},
                 ])
             return Result()
 
@@ -168,8 +170,8 @@ class OmniRootCatalogTest(unittest.TestCase):
             with unittest.mock.patch.object(RUNNER.subprocess, "run", side_effect=fake_run):
                 result = RUNNER.candidates(required_capability="mechanical")
         self.assertEqual(
-            [["omniroute", "--output", "json", "models"],
-             ["omniroute", "--output", "json", "usage", "quota"]],
+            [["omniroute", "--output", "json", "usage", "quota"],
+             ["omniroute", "--output", "json", "models", "alpha"]],
             calls,
         )
         self.assertEqual("READY", result["state"])
@@ -207,6 +209,10 @@ class OmniRootCatalogTest(unittest.TestCase):
             ["-c", 'model="glm/glm-4.5"'],
             RUNNER.codex_model_overlay("glm", "glm-4.5"),
         )
+        self.assertTrue(RUNNER.diagnostic_is_stream_disconnected(
+            "stream disconnected before completion: stream closed before response.completed"
+        ))
+        self.assertFalse(RUNNER.diagnostic_is_stream_disconnected("401 Unauthorized: Invalid API key"))
 
 
 if __name__ == "__main__":

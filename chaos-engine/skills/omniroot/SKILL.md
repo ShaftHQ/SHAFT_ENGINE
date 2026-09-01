@@ -47,10 +47,12 @@ dispatch:
 ```text
 omniroute --output json models
 omniroute --output json usage quota
+omniroute --output json models <provider>
 python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability mechanical|default|most-intelligent
 ```
 
 Do not add `--json` after the `models` subcommand: that form prints a table, not JSON. Use `--output json` before `models`.
+Unfiltered `models` JSON is capped at 50 rows. Query `models <provider>` for each remaining quota provider so ranking is not stuck on one family.
 Do not use `omniroute openapi try /api/models/catalog` without the CLI session;
 it returns HTTP 401.
 
@@ -82,6 +84,7 @@ Retry is chosen from the failure, not from a pinned profile:
   model, and relaunch Codex with `--model` / `--provider`.
 - HTTP 400 live-catalog miss (`not available in the active live catalog`):
   same as 429. Skip that identity, requery, launch the next remaining native id.
+- Stream closed before `response.completed` after one same-pick retry: same as 429.
 - Timeout or a single network blip: retry the same catalog pick once.
 - HTTP 401/403 or invalid key: stop. Do not retry. Fix the endpoint credential.
 - Empty remaining catalog: `RUNTIME_EXHAUSTED`, then native host models.

@@ -300,6 +300,7 @@ catalog with no cache files:
 ```bash
 omniroute --output json models
 omniroute --output json usage quota
+omniroute --output json models glm
 python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability default
 ```
 
