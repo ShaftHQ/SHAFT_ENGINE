@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import copy
+import importlib
 import importlib.util
 import json
+import os
 import subprocess
+import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -150,6 +154,40 @@ class CanaryContractTest(unittest.TestCase):
                 MANIFEST, planned, result, public_source_revision="f" * 40,
                 native_bindings=bindings, repository=ROOT, run=unmerged,
             )
+
+    def test_agent_import_contract_rejects_missing_or_escaped_repository_root(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaisesRegex(ValueError, "repository root"):
+                CANARY._custom_agent_module_spec(root / "missing")
+
+            escaped = root / "escaped-agent.py"
+            escaped.write_text("class ChaosEngineCodex: pass\n", encoding="utf-8")
+            candidate = root / "repository" / "scripts" / "ci" / "chaos_gauge"
+            candidate.mkdir(parents=True)
+            os.symlink(escaped, candidate / "agent.py")
+            with self.assertRaisesRegex(ValueError, "agent module"):
+                CANARY._custom_agent_module_spec(root / "repository")
+
+    def test_direct_canary_cli_binds_harbor_agent_from_any_cwd(self) -> None:
+        """Direct script execution must bind the configured import before provider preflight."""
+        command = [sys.executable, str(GAUGE / "canary.py"), "--verify-agent-import"]
+        environment = {
+            key: value for key, value in os.environ.items()
+            if key not in {"PYTHONPATH", "OPENAI_API_KEY", "HARBOR_API_KEY"}
+        }
+        with TemporaryDirectory() as directory:
+            for cwd in (ROOT, Path(directory)):
+                with self.subTest(cwd=cwd):
+                    result = subprocess.run(  # nosec B603 B607 - fixed local regression invocation.
+                        command, cwd=cwd, env=environment, capture_output=True, text=True
+                    )
+                    if importlib.util.find_spec("harbor"):
+                        self.assertEqual(0, result.returncode, result.stderr)
+                    else:
+                        self.assertNotEqual(0, result.returncode)
+                        self.assertIn("canary agent module is unavailable", result.stderr)
+                    self.assertNotIn("No module named 'scripts'", result.stderr)
 
 
 if __name__ == "__main__":

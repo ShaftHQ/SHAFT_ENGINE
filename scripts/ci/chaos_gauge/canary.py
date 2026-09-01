@@ -7,10 +7,12 @@ import argparse
 import asyncio
 import copy
 import hashlib
+import importlib
 import importlib.util
 import json
 import os
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -19,6 +21,57 @@ from typing import Callable
 ROOT = Path(__file__).resolve().parent
 ARMS = ("control", "chaos-engine")
 GIT_SHA = re.compile(r"[0-9a-f]{40}")
+AGENT_IMPORT_PATH = "scripts.ci.chaos_gauge.agent:ChaosEngineCodex"
+
+
+def _custom_agent_module_spec(repository: Path) -> importlib.machinery.ModuleSpec:
+    """Bind Harbor's custom-agent import to this checked-out repository only."""
+    root = Path(repository).resolve()
+    if not root.is_dir():
+        raise ValueError("canary repository root is invalid")
+    expected = root / "scripts" / "ci" / "chaos_gauge" / "agent.py"
+    try:
+        actual = expected.resolve(strict=True)
+    except OSError as error:
+        raise ValueError("canary agent module is unavailable") from error
+    try:
+        actual.relative_to(root)
+    except ValueError as error:
+        raise ValueError("canary agent module escapes repository root") from error
+    if actual != expected or not actual.is_file():
+        raise ValueError("canary agent module is invalid")
+    root_text = str(root)
+    sys.path[:] = [root_text, *(entry for entry in sys.path if entry != root_text)]
+    os.environ["PYTHONPATH"] = root_text
+    spec = importlib.util.find_spec(AGENT_IMPORT_PATH.partition(":")[0])
+    if spec is None or spec.origin is None or Path(spec.origin).resolve() != actual:
+        raise ValueError("canary agent module resolves outside repository root")
+    return spec
+
+
+def _bind_custom_agent_import(repository: Path) -> type:
+    """Make the exact custom treatment importable before Harbor builds trials."""
+    spec = _custom_agent_module_spec(repository)
+    try:
+        module = importlib.import_module(spec.name)
+    except ImportError as error:
+        raise ValueError("canary agent module is unavailable") from error
+    if Path(str(getattr(module, "__file__", ""))).resolve() != Path(str(spec.origin)).resolve():
+        raise ValueError("canary agent module resolves outside repository root")
+    agent = getattr(module, "ChaosEngineCodex", None)
+    if not isinstance(agent, type):
+        raise ValueError("canary agent class is invalid")
+    try:
+        factory = importlib.import_module("harbor.agents.factory")
+    except ImportError as error:
+        raise ValueError("Harbor AgentFactory is unavailable") from error
+    agent_factory = getattr(factory, "AgentFactory", None)
+    load_agent = getattr(factory, "_import_agent_class", None)
+    if not callable(getattr(agent_factory, "create_agent_from_import_path", None)) or not callable(load_agent):
+        raise ValueError("Harbor AgentFactory import contract is unavailable")
+    if load_agent(AGENT_IMPORT_PATH) is not agent:
+        raise ValueError("Harbor AgentFactory resolved wrong canary agent")
+    return agent
 
 
 def _campaign():
@@ -298,6 +351,7 @@ async def run(
     """Run exactly one excluded native pair after the complete paid-run preflight."""
     if not GIT_SHA.fullmatch(public_source_revision):
         raise ValueError("canary source revision is invalid")
+    _bind_custom_agent_import(ROOT.parents[2])
     launcher = _campaign()
     launcher.full_preflight(manifest, private_checkout, private_read_proven=private_read_proven)
     planned, config = plan(manifest), job_config(manifest)
@@ -337,12 +391,18 @@ async def run(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=ROOT / "experiment.json")
-    parser.add_argument("--private-checkout", type=Path, required=True)
-    parser.add_argument("--public-source-revision", required=True)
-    parser.add_argument("--raw-out", type=Path, required=True)
-    parser.add_argument("--receipt-out", type=Path, required=True)
+    parser.add_argument("--private-checkout", type=Path)
+    parser.add_argument("--public-source-revision")
+    parser.add_argument("--raw-out", type=Path)
+    parser.add_argument("--receipt-out", type=Path)
     parser.add_argument("--private-read-proven", action="store_true")
+    parser.add_argument("--verify-agent-import", action="store_true")
     args = parser.parse_args()
+    if args.verify_agent_import:
+        _bind_custom_agent_import(ROOT.parents[2])
+        return 0
+    if None in (args.private_checkout, args.public_source_revision, args.raw_out, args.receipt_out):
+        parser.error("canary execution requires private checkout, source revision, raw output, and receipt output")
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     asyncio.run(
         run(
