@@ -20,4 +20,4 @@ agents:
 datasets:
   - path: scripts/ci/chaos_gauge/dataset
   - name: ShaftHQ/chaosgauge-private
-    ref: sha256:a832b3507b8ec20731140f51efb18247819ede29f2c220269cbd7e191835d485
+    ref: sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10

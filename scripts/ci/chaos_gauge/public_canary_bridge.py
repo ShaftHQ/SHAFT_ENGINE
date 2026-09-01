@@ -30,7 +30,7 @@ SECRET_CANARIES = _release_validator.SECRET_CANARIES
 
 
 PRIVATE_REPOSITORY = "ShaftHQ/ChaosGauge-private"
-PRIVATE_COMMIT = "08551a3db4376438acddd77422554ce710a58624"
+PRIVATE_COMMIT = "5c5c00896139c767946747ba38029d88fe750472"
 RUN_ID = re.compile(r"[1-9][0-9]{0,18}")
 BUNDLE_FILES = ("raw.json", "receipt.json")
 FAILURE_BUNDLE_FILES = ("raw.json",)

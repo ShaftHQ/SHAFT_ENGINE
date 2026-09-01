@@ -27,6 +27,7 @@ class ChaosGaugeRuntimeTest(unittest.TestCase):
                 self.assertIn(f"--uid {UID}", dockerfile)
                 self.assertIn(f"ENV HOME=/home/{USER}", dockerfile)
                 self.assertIn("WORKDIR /app", dockerfile)
+                self.assertIn("RUN chown chaosgauge:chaosgauge /app", dockerfile)
                 self.assertTrue(dockerfile.rstrip().endswith(f"USER {USER}"))
                 self.assertEqual("separate", config["verifier"]["environment_mode"])
                 self.assertIn("docker_image", config["verifier"]["environment"])
