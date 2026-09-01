@@ -31,9 +31,13 @@ the selected host and task boundary:
 3. No qualified delegate: `SOLO`.
 
 The transport does not change the selected workflow, role boundaries, tests,
-review, learning, or completion duties. OmniRoute must be detected but never
-installed, started, authenticated, configured, or selected automatically. Its
-runner fails closed unless loopback health, a current operator attestation, and
-endpoint-key presence qualify it. When OmniRoute is absent, unhealthy, or
-unqualified, continue with a qualified host-native implementer or `SOLO`; this
-is a normal fallback, not a harness failure.
+review, learning, or completion duties. Canonical orchestration must probe the
+fixed loopback endpoint before native fallback, with no endpoint prompt. `READY`
+means dispatch the bounded delegate through the sealed operator launcher;
+OmniRoute is never installed, started, authenticated, configured, or selected
+by ChaosEngine. The operator-owned priority combo alone selects its ordered
+attested no-cost candidates and never exposes route, model, or provider IDs to
+OmniRoot. A gateway `RUNTIME_EXHAUSTED` result, including sealed-launcher exit
+code `78` after that combo exhausts its allowed set, falls back to a qualified
+host-native implementer or `SOLO`. OmniRoute is absent, unhealthy, unauthenticated,
+or unqualified result does the same. This is normal fallback, not harness failure.

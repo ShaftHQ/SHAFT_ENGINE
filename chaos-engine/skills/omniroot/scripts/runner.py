@@ -32,7 +32,16 @@ MAX_CONTINUITY_WRITERS = 4
 MAX_DELEGATE_ARGUMENTS = 64
 MAX_DELEGATE_ARGUMENT_BYTES = 16 * 1024
 HTTP_TIMEOUT_SECONDS = 2
+RUNTIME_EXHAUSTED_EXIT_CODE = 78
 SCHEMA_VERSION = 1
+_CONFIG_KEYS = frozenset({"schemaVersion", "routeId", "launcher", "attestation"})
+_LAUNCHER_KEYS = frozenset({"argv", "credentialMode", "invocationMode"})
+_ATTESTATION_KEYS = frozenset({
+    "schemaVersion", "routePolicySha256", "endpointKeyIdentitySha256", "serverBuild",
+    "verifiedAt", "expiresAt", "noCostConfirmed", "noPaidFallbackConfirmed",
+    "privacyConfirmed", "termsConfirmed", "deniedProbeTargetSha256", "deniedProbeConfirmed",
+    "deniedProbeTargetKnownExistingConfirmed",
+})
 READINESS = frozenset({
     "ABSENT", "UNHEALTHY", "UNAUTHENTICATED", "ROUTE_UNQUALIFIED", "READY", "RUNTIME_EXHAUSTED",
 })
@@ -99,19 +108,22 @@ def _read_config_with_reason(path: Path) -> tuple[dict[str, Any] | None, str | N
     """Read one private JSON object and return only a bounded failure category."""
     descriptor = -1
     try:
-        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        flags = (os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+                 | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
         descriptor = os.open(path, flags)
         metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_RESPONSE_BYTES:
+        if not stat.S_ISREG(metadata.st_mode):
             return None, "CONFIG_FILE_UNSAFE"
         if os.name == "posix" and (metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600):
             return None, "CONFIG_FILE_UNSAFE"
+        if metadata.st_size > MAX_RESPONSE_BYTES:
+            return None, "CONFIG_CONTENT_INVALID"
         with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
             descriptor = -1
             value = json.load(handle)
     except FileNotFoundError:
         return None, "CONFIG_MISSING"
-    except (UnicodeError, json.JSONDecodeError):
+    except (UnicodeError, ValueError):
         return None, "CONFIG_CONTENT_INVALID"
     except OSError:
         return None, "CONFIG_FILE_UNSAFE"
@@ -129,12 +141,10 @@ def _read_config(path: Path) -> dict[str, Any] | None:
 def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
     """Return operator-owned launcher argv and credential mode without exposing it."""
     launcher = config.get("launcher")
-    if launcher == "omniroute":
-        return ["omniroute", "run"], "environment", "gateway"
-    if not isinstance(launcher, dict):
+    if not isinstance(launcher, dict) or set(launcher) != _LAUNCHER_KEYS:
         return None
     argv, mode = launcher.get("argv"), launcher.get("credentialMode")
-    invocation_mode = launcher.get("invocationMode", "gateway")
+    invocation_mode = launcher.get("invocationMode")
     if not isinstance(argv, list) or not argv or not all(isinstance(item, str) and item and "\x00" not in item for item in argv):
         return None
     if mode not in {"environment", "launcher"} or invocation_mode not in {"gateway", "direct"}:
@@ -214,7 +224,7 @@ def _qualification_reason(config: dict[str, Any] | None, build: object, now: dat
     """Return one bounded reason without exposing operator-owned inputs."""
     if config is None:
         return "CONFIG_MISSING"
-    if config.get("schemaVersion") != SCHEMA_VERSION:
+    if set(config) != _CONFIG_KEYS or config.get("schemaVersion") != SCHEMA_VERSION:
         return "CONFIG_SCHEMA_INVALID"
     if not isinstance(config.get("routeId"), str) or not config["routeId"].strip():
         return "ROUTE_REFERENCE_INVALID"
@@ -224,7 +234,8 @@ def _qualification_reason(config: dict[str, Any] | None, build: object, now: dat
     if _resolved_executable(launcher[0]) is None:
         return "LAUNCHER_UNQUALIFIED"
     attestation = config.get("attestation")
-    if not isinstance(attestation, dict) or attestation.get("schemaVersion") != SCHEMA_VERSION:
+    if (not isinstance(attestation, dict) or set(attestation) != _ATTESTATION_KEYS
+            or attestation.get("schemaVersion") != SCHEMA_VERSION):
         return "ATTESTATION_SCHEMA_INVALID"
     if attestation.get("serverBuild") != build:
         return "ATTESTATION_BUILD_MISMATCH"
@@ -255,6 +266,22 @@ def _attestation_valid(config: dict[str, Any], build: object, now: datetime) -> 
     return _qualification_reason(config, build, now) is None
 
 
+def _canonical_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Copy only the accepted private schema before publishing an attestation."""
+    launcher = config["launcher"]
+    attestation = config["attestation"]
+    return {
+        "schemaVersion": config["schemaVersion"],
+        "routeId": config["routeId"],
+        "launcher": {
+            "argv": list(launcher["argv"]),
+            "credentialMode": launcher["credentialMode"],
+            "invocationMode": launcher["invocationMode"],
+        },
+        "attestation": {key: attestation[key] for key in sorted(_ATTESTATION_KEYS)},
+    }
+
+
 def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | None]:
     request = Request(DEFAULT_ENDPOINT + HEALTH_PATH, headers={"Accept": "application/json"})
     try:
@@ -281,7 +308,9 @@ def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | No
     if not isinstance(payload, dict) or payload.get("status") not in {"ok", "healthy"}:
         return None, "unhealthy"
     build = payload.get("build") or payload.get("version")
-    payload["build"] = build if isinstance(build, str) and build else "health-unreported"
+    if not isinstance(build, str) or not build.strip():
+        return None, "unhealthy"
+    payload["build"] = build
     return payload, None
 
 
@@ -389,10 +418,10 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
-        path.chmod(0o600)
-    finally:
-        if os.path.exists(temporary):
+    except Exception:
+        with contextlib.suppress(OSError):
             os.unlink(temporary)
+        raise
 
 
 def _create_immutable_json(path: Path, value: dict[str, Any]) -> None:
@@ -585,7 +614,8 @@ def _continuity_contract(
     if (capability not in _CAPABILITY_RANK or not isinstance(attempts, int)
             or not 2 <= attempts <= MAX_CONTINUITY_WRITERS):
         raise OmniRootError("continuity bounds are invalid")
-    if (not isinstance(exits, list) or not exits or len(set(exits)) != len(exits)
+    if (not isinstance(exits, list) or not exits or RUNTIME_EXHAUSTED_EXIT_CODE in exits
+            or len(set(exits)) != len(exits)
             or not all(isinstance(code, int) and (1 <= code <= 255 or -code in signal.valid_signals())
                        for code in exits)):
         raise OmniRootError("continuity retry exits are invalid")
@@ -663,6 +693,11 @@ def _advance_continuity(
         manifest["status"] = "quarantined"
         continuity["state"] = "quarantined"
         continuity["reason"] = "prior process group death cannot be proven"
+        return manifest
+    if exit_code == RUNTIME_EXHAUSTED_EXIT_CODE:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "RUNTIME_EXHAUSTED"
         return manifest
     if exit_code not in continuity["retryableExitCodes"]:
         manifest["status"] = "blocked"
@@ -1454,6 +1489,8 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
                 _write_json(path, manifest)
                 return manifest
             manifest["status"] = "review" if diagnostic["exitCode"] == 0 else "blocked"
+            if diagnostic["exitCode"] == RUNTIME_EXHAUSTED_EXIT_CODE:
+                manifest["reason"] = "RUNTIME_EXHAUSTED"
             manifest["diagnostics"] = {
                 "sha256": _sha256(diagnostic), "exitCode": diagnostic["exitCode"],
                 "timedOut": diagnostic.get("timedOut") is True,
@@ -1647,7 +1684,7 @@ def attest(
     _, destination_reason = _read_config_with_reason(config_path)
     if destination_reason == "CONFIG_FILE_UNSAFE":
         raise OmniRootError("attestation destination is unsafe")
-    _write_json(config_path, contract)
+    _write_json(config_path, _canonical_config(contract))
     return {"state": "ATTESTED"}
 
 

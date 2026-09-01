@@ -414,9 +414,21 @@ delegate-style task today. That child still loads the repository's `AGENTS.md`,
 the canonical ChaosEngine skill, and the role named in its task instructions.
 Keep its scope read-only and non-sensitive.
 
+For bounded automatic delegation, canonical orchestration must probe the fixed
+loopback endpoint before native fallback, with no endpoint prompt. When that
+probe is `READY`, OmniRoot dispatches through the sealed operator launcher. The
+operator-owned priority combo is the sole owner of first-available route/model
+selection: it may move through only its already-attested ordered no-cost and
+no-paid-fallback candidates. OmniRoot never reads, writes, or persists route,
+model, or provider IDs. When the combo reports its entire allowed set exhausted,
+the sealed launcher exits `78`; OmniRoot records only `RUNTIME_EXHAUSTED`, then
+the canonical workflow may use a native implementer. Do not add candidates or
+change the combo from repository automation.
+
 ### Current subagent limitation
 
-Do not claim that `spawn_agent` can currently select this free OmniRoute route.
+Built-in `spawn_agent` cannot select OmniRoute. Do not claim that it can select
+this free OmniRoute route.
 The built-in all-free subagent path returns
 `multi_agent_v1_spawn_agent` unsupported. A ChatGPT-authenticated parent also
 rejects a cross-provider Gemini child. Named personal files such as
@@ -453,9 +465,10 @@ readonly acceptance_task='Before answering, load the applicable AGENTS.md, canon
 chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only "$acceptance_task"
 ```
 
-1. Direct Responses request succeeds through `gemini/gemini-3.1-flash-lite` and
-   returns that exact route in sanitized OmniRoute evidence. HTTP 429 means
-   retry later after quota recovery; it never authorizes a fallback.
+1. Direct Responses request succeeds through the operator-attested priority
+   combo. HTTP 429 may advance only to its next already-attested no-cost,
+   no-paid-fallback candidate; exhausted set reports `RUNTIME_EXHAUSTED` and
+   only then permits native fallback.
 2. Harmless function-call request succeeds through that same exact target.
 3. The unapproved `gemini/gemini-3.7-flash` request with the restricted
    endpoint key returns HTTP 403, as shown above; it must not route elsewhere.
