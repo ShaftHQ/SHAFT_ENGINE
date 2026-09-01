@@ -605,6 +605,42 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("localRoot", profile_text)
         self.assertNotIn("../shafthq.github.io", profile_text)
 
+    def test_shaft_agents_leave_e2e_execution_to_scheduled_nightly_workflows(self):
+        entry_path = Path("profiles/shaft/entrypoint.md")
+        forensics_path = Path("profiles/shaft/references/shaft-mastery/ci-forensics.md")
+        entry_source = (CORE / entry_path).read_text(encoding="utf-8")
+        forensics_source = (CORE / forensics_path).read_text(encoding="utf-8")
+        self.assertEqual(
+            entry_source,
+            (ROOT / ".chaos-engine" / entry_path).read_text(encoding="utf-8"),
+        )
+        self.assertEqual(
+            forensics_source,
+            (ROOT / ".chaos-engine" / forensics_path).read_text(encoding="utf-8"),
+        )
+        entry = " ".join(entry_source.split())
+        forensics = " ".join(forensics_source.split())
+
+        for phrase in (
+            "never manually start, rerun, or replace",
+            "`E2E Tests`",
+            "`Local E2E Tests`",
+            "scheduled nightly workflows",
+        ):
+            with self.subTest(surface="entrypoint", phrase=phrase):
+                self.assertIn(phrase, entry)
+        for phrase in (
+            "smallest directly affected local headless test",
+            "local composite-action replay",
+            "exact-head PR checks",
+            "sole E2E execution owner",
+            "inspect scheduled results and fix failures",
+        ):
+            with self.subTest(surface="ci-forensics", phrase=phrase):
+                self.assertIn(phrase, forensics)
+        self.assertNotIn("gh workflow run", forensics)
+        self.assertNotIn("Targeted dispatch", forensics)
+
     def test_shaft_user_facing_changes_require_companion_docs_prs(self):
         entry = (CORE / "profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
         playbook = (

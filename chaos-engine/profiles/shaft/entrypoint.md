@@ -21,6 +21,9 @@ apply unchanged to repository and portable installed hosts.
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.
+- Agents never manually start, rerun, or replace the `E2E Tests` or
+  `Local E2E Tests` workflows. Smallest local proof and exact-head PR checks
+  gate delivery; scheduled nightly workflows own E2E execution.
 - The companion public-documentation repository is
   `ShaftHQ/shafthq.github.io` on `master`; discover its local root or use an
   explicitly configured root, never a fixed sibling path. Every user-facing
