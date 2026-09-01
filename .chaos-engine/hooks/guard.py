@@ -46,6 +46,32 @@ if reflection is None:  # Repository adapter fallback for a source-only layout.
     from scripts.agents import reflection
 
 
+def _learning_session_controller():
+    repository_root = Path(__file__).resolve().parents[2]
+    candidate = repository_root / "scripts" / "agents" / "learning_session.py"
+    if not candidate.is_file():
+        return None
+    if str(repository_root) not in sys.path:
+        sys.path.insert(0, str(repository_root))
+    try:
+        from scripts.agents import learning_session
+    except (ImportError, OSError, AttributeError):
+        return None
+    return learning_session
+
+
+def learning_completion_artifact(session_id: str) -> dict | None:
+    """Return the immutable Learning Session completion for hooks, if present."""
+    controller = _learning_session_controller()
+    if controller is None or not isinstance(session_id, str) or not session_id.strip():
+        return None
+    state = controller.default_state_dir()
+    completed = controller.load_session_completion(state, session_id)
+    if completed is not None:
+        return completed
+    return controller.load_runtime_completion(state, session_id)
+
+
 ACTIVATION = "Follow .chaos-engine/skills/chaos-engine/SKILL.md before continuing."
 ROOT_DRIVE = re.compile(r"(?i)(?:^|\s)[a-z]:\\(?:\s|$)")
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -73,13 +99,7 @@ def learning_session_reason(session_id: str, event: dict) -> str | None:
     }
     if "delivery-complete" not in activities:
         return None
-    if "learning-session-complete" in activities:
-        return None
-    if any(
-        item.get("kind") == "reflection-receipt"
-        and item.get("durableDisposition") in reflection.DISPOSITIONS
-        for item in recorded
-    ):
+    if learning_completion_artifact(session_id) is not None:
         return None
     return (
         "Learning Session: delivery is complete. Run exactly one terminal Learning "
@@ -165,7 +185,7 @@ def learning_session_finalize_command(command: str) -> bool:
     script = arguments[0].replace("\\", "/").casefold()
     return bool(
         script.endswith("scripts/agents/learning_session.py")
-        and arguments[1] == "finalize"
+        and arguments[1] in {"finalize", "finalize-runtime"}
         and "--session-id" in arguments[2:]
     )
 
@@ -528,7 +548,8 @@ def _run_event(event: dict, _host: str) -> int:
         return 2
     if event_name == "PostToolUse" and not receipt_command:
         if any(learning_session_finalize_command(candidate) for candidate in commands):
-            reflection.record_activity(session_id, "learning-session-complete")
+            if learning_completion_artifact(session_id) is not None:
+                reflection.record_activity(session_id, "learning-session-complete")
         elif any(terminal_delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "delivery-complete")
         elif mutation or any(delivery_command(candidate) for candidate in commands):
