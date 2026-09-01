@@ -8,6 +8,9 @@ import contextlib
 import hashlib
 import json
 import os
+if os.name == "posix":
+    import grp
+    import pwd
 import re
 import signal
 import shutil
@@ -50,6 +53,9 @@ _CAPABILITY_RANK = {"mechanical": 0, "default": 1, "most-intelligent": 2}
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 _TARGET = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
+_SERVER_BUILD = re.compile(
+    r"v?(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\+[0-9A-Za-z][0-9A-Za-z.-]*)?\Z"
+)
 _SAFE_RUNTIME_ENVIRONMENT = (
     ("HOME", "TEMP", "TMP") if os.name == "posix"
     else ("USERPROFILE", "SystemRoot", "TEMP", "TMP")
@@ -172,6 +178,216 @@ def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, in
         metadata.st_dev, metadata.st_ino, metadata.st_uid, mode,
         metadata.st_size, metadata.st_mtime_ns, digest,
     )
+
+
+def _private_primary_group(group_id: int) -> bool:
+    """Return whether a POSIX group contains only the current account."""
+    if os.name != "posix":
+        return False
+    try:
+        account = pwd.getpwuid(os.getuid()).pw_name
+        group = grp.getgrgid(group_id)
+    except KeyError:
+        return False
+    return (group_id == os.getgid()
+            and all(member == account for member in group.gr_mem)
+            and all(entry.pw_name == account for entry in pwd.getpwall()
+                    if entry.pw_gid == group_id))
+
+
+def _secure_local_cli_ancestry(path: Path) -> bool:
+    """Reject executable paths reachable through another user's writable directory."""
+    for parent in path.parents:
+        try:
+            metadata = parent.stat()
+        except OSError:
+            return False
+        mode = metadata.st_mode
+        if not stat.S_ISDIR(mode):
+            return False
+        if os.name != "posix":
+            continue
+        if metadata.st_uid not in {0, os.getuid()}:
+            return False
+        public_sticky_root = (metadata.st_uid == 0 and bool(mode & stat.S_ISVTX)
+                              and bool(mode & (stat.S_IWGRP | stat.S_IWOTH)))
+        if public_sticky_root:
+            continue
+        if bool(mode & stat.S_IWOTH):
+            return False
+        if bool(mode & stat.S_IWGRP) and not _private_primary_group(metadata.st_gid):
+            return False
+    return True
+
+
+def _trusted_local_cli_path(path: Path) -> tuple[str, tuple[int, int, int, int, int, int, str]] | None:
+    """Snapshot the identity of one locally installed CLI file."""
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError:
+        return None
+    if not _secure_local_cli_ancestry(resolved):
+        return None
+    source_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(resolved, source_flags)
+    except OSError:
+        return None
+    try:
+        metadata = os.fstat(descriptor)
+        mode = metadata.st_mode
+        if (not stat.S_ISREG(mode) or not bool(mode & stat.S_IXUSR)
+                or bool(mode & stat.S_IWOTH)
+                or (bool(mode & stat.S_IWGRP) and not _private_primary_group(metadata.st_gid))):
+            return None
+        if os.name == "posix" and (metadata.st_uid != os.getuid() or metadata.st_gid != os.getgid()):
+            return None
+        digest = hashlib.sha256()
+        while chunk := os.read(descriptor, 64 * 1024):
+            digest.update(chunk)
+    finally:
+        os.close(descriptor)
+    return str(resolved), (
+        metadata.st_dev, metadata.st_ino, metadata.st_uid, mode,
+        metadata.st_size, metadata.st_mtime_ns, digest.hexdigest(),
+    )
+
+
+def _trusted_local_cli_executable(name: str) -> tuple[str, tuple[int, int, int, int, int, int, str]] | None:
+    """Resolve a user-owned global CLI and bind it to its verified identity."""
+    executable = Path(shutil.which(name) or "")
+    return _trusted_local_cli_path(executable)
+
+
+def _same_trusted_local_cli(path: str, identity: tuple[int, int, int, int, int, int, str]) -> bool:
+    """Ensure a CLI path has not changed since it was verified."""
+    current = _trusted_local_cli_path(Path(path))
+    return current is not None and current[0] == path and current[1] == identity
+
+
+def _terminate_local_cli_tree(process: subprocess.Popen[bytes]) -> None:
+    """Terminate the health command and descendants that inherited its pipe."""
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+            return
+        except ProcessLookupError:
+            return
+        except OSError:
+            pass
+    process.kill()
+
+
+def _start_local_cli(argv: list[str], cwd: str, environment: dict[str, str]) -> subprocess.Popen[bytes] | None:
+    """Start a locally verified CLI in a session isolated from this runner."""
+    options: dict[str, Any] = {
+        "cwd": cwd, "env": environment, "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.PIPE, "stderr": subprocess.DEVNULL,
+    }
+    if os.name == "posix":
+        options["start_new_session"] = True
+    elif hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+        options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    try:
+        return subprocess.Popen(argv, **options)  # nosec B603 - argv comes only from verified local CLI identities.
+    except OSError:
+        return None
+
+
+def _bounded_local_cli_output(argv: list[str], *, cwd: str, environment: dict[str, str]) -> bytes | None:
+    """Collect at most one bounded CLI response and terminate on overflow or timeout."""
+    process = _start_local_cli(argv, cwd, environment)
+    if process is None or process.stdout is None:
+        return None
+    response = bytearray()
+    complete = threading.Event()
+
+    def _read_response() -> None:
+        try:
+            while len(response) <= MAX_RESPONSE_BYTES:
+                chunk = process.stdout.read(min(64 * 1024, MAX_RESPONSE_BYTES + 1 - len(response)))
+                if not chunk:
+                    break
+                response.extend(chunk)
+        finally:
+            complete.set()
+
+    reader = threading.Thread(target=_read_response, daemon=True)
+    reader.start()
+    deadline = time.monotonic() + HTTP_TIMEOUT_SECONDS
+    try:
+        if not complete.wait(HTTP_TIMEOUT_SECONDS) or len(response) > MAX_RESPONSE_BYTES:
+            _terminate_local_cli_tree(process)
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            _terminate_local_cli_tree(process)
+            return None
+        try:
+            process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            _terminate_local_cli_tree(process)
+            return None
+        if len(response) > MAX_RESPONSE_BYTES or process.returncode != 0:
+            return None
+        return bytes(response)
+    finally:
+        if process.poll() is None:
+            _terminate_local_cli_tree(process)
+        try:
+            process.wait(timeout=1)
+        except (OSError, subprocess.TimeoutExpired):
+            # Best-effort 1s reap after SIGTERM/SIGKILL; the process may already be dead.
+            pass
+        complete.wait(1)
+        process.stdout.close()
+
+
+def _local_cli_build() -> str | None:
+    """Read the running loopback build through a verified CLI without ambient secrets."""
+    cli = _trusted_local_cli_executable("omniroute")
+    node = _trusted_local_cli_executable("node")
+    if cli is None or node is None:
+        return None
+    with tempfile.TemporaryDirectory(prefix="omniroot-health-") as temporary:
+        private_root = Path(temporary)
+        private_home = private_root / "home"
+        private_data = private_root / "data"
+        private_config = private_root / "config"
+        private_cache = private_root / "cache"
+        private_share = private_root / "share"
+        for directory in (private_home, private_data, private_config, private_cache, private_share):
+            directory.mkdir(mode=0o700)
+        environment = {
+            "HOME": str(private_home),
+            "DATA_DIR": str(private_data),
+            "XDG_CONFIG_HOME": str(private_config),
+            "XDG_CACHE_HOME": str(private_cache),
+            "XDG_DATA_HOME": str(private_share),
+            "PATH": os.pathsep.join((str(Path(node[0]).parent), os.defpath)),
+            "CI": "1",
+            "NO_COLOR": "1",
+            "OMNIROUTE_CLI_SKIP_REPO_ENV": "1",
+            "STORAGE_ENCRYPTION_KEY": os.urandom(32).hex(),
+        }
+        if not _same_trusted_local_cli(cli[0], cli[1]) or not _same_trusted_local_cli(node[0], node[1]):
+            return None
+        raw = _bounded_local_cli_output(
+            [node[0], cli[0], "--base-url", DEFAULT_ENDPOINT.rstrip("/"), "health", "--json"],
+            cwd=temporary, environment=environment,
+        )
+        if not _same_trusted_local_cli(cli[0], cli[1]) or not _same_trusted_local_cli(node[0], node[1]):
+            return None
+    if raw is None:
+        return None
+    try:
+        raw = raw.decode("utf-8").lstrip()
+        payload = json.loads(raw[raw.rfind("\n{") + 1:])
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    build = payload.get("build") or payload.get("version") if isinstance(payload, dict) else None
+    return build if (isinstance(payload, dict) and payload.get("status") in {"ok", "healthy"}
+                     and isinstance(build, str) and _SERVER_BUILD.fullmatch(build)) else None
 
 
 def _same_executable(argv: list[str], identity: tuple[int, int, int, int, int, int, str]) -> bool:
@@ -308,7 +524,9 @@ def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | No
     if not isinstance(payload, dict) or payload.get("status") not in {"ok", "healthy"}:
         return None, "unhealthy"
     build = payload.get("build") or payload.get("version")
-    if not isinstance(build, str) or not build.strip():
+    if (not isinstance(build, str) or not build.strip()) and set(payload) == {"status", "timestamp"}:
+        build = _local_cli_build()
+    if not isinstance(build, str) or not _SERVER_BUILD.fullmatch(build):
         return None, "unhealthy"
     payload["build"] = build
     return payload, None

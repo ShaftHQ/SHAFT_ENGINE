@@ -97,6 +97,17 @@ omniroute providers available --search groq
 omniroute providers list
 ```
 
+OmniRoute 3.8.50 deliberately gives anonymous `/api/health` callers only
+`status` and `timestamp`. OmniRoot does not accept that as a build sentinel.
+When that exact fixed-loopback response occurs, OmniRoot verifies the local
+`omniroute` and Node executables, invokes CLI health with a temporary scrubbed
+working directory and fixed `127.0.0.1` target, and retains only its non-empty
+build/version. OmniRoot never reads, passes, prints, or stores endpoint keys or
+CLI token material; the verified CLI resolves its own local machine-token proof.
+It never records routes or provider data. If local CLI build evidence is
+unavailable, qualification stays `UNHEALTHY`; repair the local installation or
+use native fallback.
+
 Create one dedicated OmniRoute endpoint key using **Dashboard → API Keys**.
 Copy it once into a secret manager, then make it available only to processes
 that use this gateway:
