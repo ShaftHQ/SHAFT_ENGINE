@@ -147,6 +147,26 @@ CHECKS = {
         "documentation",
         ("tests.scripts.test_validate_chaos_engine_readme",),
     ),
+    "dependency-account-contract": Check(
+        "dependency-account-contract",
+        "installer",
+        (
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses",
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_install_passes_resolved_tool_versions_to_the_account_plan",
+        ),
+    ),
+    "identity-contract": Check(
+        "identity-contract",
+        "identities",
+        ("tests.scripts.test_chaos_gauge_contracts",),
+    ),
+    "identity-recovery-contract": Check(
+        "identity-recovery-contract",
+        "identities",
+        ("tests.scripts.test_chaos_gauge_recovery",),
+    ),
     "promotion-contract": Check(
         "promotion-contract",
         "promotion",
@@ -219,9 +239,12 @@ SURFACE_CHECKS = {
     "ci": ("ci-contract", "setup-aggregator-contract"),
     "installer": ("protected-installer-acceptance", "protected-rollback"),
     "documentation": ("documentation-inventory-contract",),
+    "identities": ("identity-contract", "identity-recovery-contract"),
     "promotion": ("promotion-contract",),
     "fallback": ("fallback-contract",),
 }
+
+DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
 
 SURFACE_PATTERNS = {
     "kernel": (
@@ -317,6 +340,9 @@ SURFACE_PATTERNS = {
         "scripts/ci/validate_chaos_engine_readme.py",
         "tests/scripts/test_validate_chaos_engine_readme.py",
     ),
+    "identities": (
+        "chaos-engine/**",
+    ),
     "promotion": (
         "scripts/ci/chaos_engine_promotion*.py",
         "tests/scripts/test_chaos_engine_promotion.py",
@@ -379,6 +405,7 @@ HARNESS_PATTERNS = (
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
+    dependency_closure = False
     for raw_path in paths:
         path = raw_path.replace("\\", "/")
         while path.startswith("./"):
@@ -400,6 +427,10 @@ def classify_paths(paths: list[str]) -> GatePlan:
                 if surface not in selected:
                     selected.append(surface)
                 matched = True
+        if path in DEPENDENCY_CLOSURE_PATHS:
+            dependency_closure = True
+            if "documentation" not in selected:
+                selected.append("documentation")
         harness_path = (
             path in HARNESS_FILES
             or path.startswith(HARNESS_PREFIXES)
@@ -413,6 +444,8 @@ def classify_paths(paths: list[str]) -> GatePlan:
         return GatePlan()
 
     check_ids = [check_id for surface in selected for check_id in SURFACE_CHECKS[surface]]
+    if dependency_closure:
+        check_ids.append("dependency-account-contract")
     for protected_id in ("protected-ownership", "protected-secret-safety"):
         if protected_id not in check_ids:
             check_ids.append(protected_id)
@@ -423,6 +456,34 @@ def classify_paths(paths: list[str]) -> GatePlan:
         ),
         tuple(sorted(set(unknown))),
     )
+
+
+def write_generated_artifacts(root: Path, plan: GatePlan) -> tuple[str, ...]:
+    """Refresh owned generated artifacts for the selected changed-closure surfaces."""
+    written: list[str] = []
+    root = root.resolve()
+    if "documentation" in plan.surfaces:
+        from scripts.ci.validate_chaos_engine_readme import write_generated as write_readme
+
+        readme = root / "chaos-engine/README.md"
+        before = readme.read_bytes() if readme.is_file() else b""
+        write_readme(root)
+        if readme.read_bytes() != before:
+            written.append("chaos-engine/README.md")
+    if "identities" in plan.surfaces:
+        from scripts.ci.chaos_gauge.validate_experiment import write_generated as write_identities
+
+        targets = (
+            root / "scripts/ci/chaos_gauge/experiment.json",
+            root / "scripts/ci/chaos_gauge/job-configs/chaos-engine.yaml",
+            root / "scripts/ci/chaos_gauge/job-configs/full-pilot-chaos-engine.yaml",
+        )
+        before = {path: path.read_bytes() for path in targets if path.is_file()}
+        write_identities(root)
+        for path, payload in before.items():
+            if path.read_bytes() != payload:
+                written.append(path.relative_to(root).as_posix())
+    return tuple(dict.fromkeys(written))
 
 
 def _waiver_payload(body: str) -> dict[str, object] | None:
@@ -805,6 +866,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--plan-only", action="store_true")
+    parser.add_argument(
+        "--write-generated",
+        action="store_true",
+        help="refresh owned generated inventory and identity artifacts before validation",
+    )
     return parser
 
 
@@ -815,12 +881,16 @@ def main() -> int:
             raise GateError("budget must be between 1 and 600 seconds")
         if not re.fullmatch(r"[0-9a-f]{40}", args.head):
             raise GateError("head must be a full lowercase SHA")
+        if args.plan_only and args.write_generated:
+            raise GateError("plan-only cannot write generated artifacts")
         root = args.root.resolve()
         plan = classify_paths(changed_paths(root, args.base, args.head))
+        written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(
                 render_json(plan, head_sha=args.head, budget_seconds=args.budget_seconds)
             )
+            payload["written"] = list(written)
             exit_code = 0
         else:
             waiver = event_waiver(args.reviews, args.head)
@@ -831,6 +901,7 @@ def main() -> int:
                 budget_seconds=args.budget_seconds,
                 waiver=waiver,
             )
+            payload["written"] = list(written)
     except GateError as error:
         payload = {"schema": 1, "valid": False, "error": str(error)}
         exit_code = 2

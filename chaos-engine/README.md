@@ -608,6 +608,18 @@ py -3 -m unittest tests.scripts.test_chaos_engine_hosts
 py -3 scripts/ci/validate_agent_setup.py --skip-external
 ```
 
+Before pushing harness changes, run the single changed-closure preflight against
+the full lowercase `HEAD` and its resolvable merge base. The explicit
+`--write-generated` flag refreshes owned README inventory and ChaosGauge
+identity artifacts, then validates the selected closure:
+
+```bash
+python3 scripts/ci/harness_pr_gate.py \
+  --base "$(git merge-base HEAD origin/main)" \
+  --head "$(git rev-parse HEAD)" \
+  --write-generated
+```
+
 Use the equivalent Python 3 command on non-Windows hosts. Run the smallest
 affected check first, then the nearest broader gate. Never commit generated
 reports, caches, runtime indexes, or `graphify-out/`.
