@@ -9,6 +9,7 @@ environment:
   delete: true
   cpu_enforcement_policy: limit
   memory_enforcement_policy: limit
+  extra_allowed_hosts: [chroma-onnx-models.s3.amazonaws.com]
 retry:
   max_retries: 2
   include_exceptions: [EnvironmentStartError, EnvironmentBuildError]
@@ -21,7 +22,7 @@ agents:
       reasoning_effort: medium
       harness_source: chaos-engine
       harness_commit: "0481767def7c31fe144bc20543dfe937b8ffd4d5"
-      harness_sha256: "184616dda0fbbba87782bbe44ab325eb989f8c39d6ec601334361f7101038bfb"
+      harness_sha256: "28be870ed7cca15e13f5f10ff1dcc678c8913463cb68908bad7ca60e8b4c1a79"
       adapter_sha256: "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd"
 datasets:
   - path: scripts/ci/chaos_gauge/dataset

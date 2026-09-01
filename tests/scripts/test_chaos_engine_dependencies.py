@@ -201,7 +201,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
         self.assertEqual(3, specification["schemaVersion"])
         self.assertEqual(
-            [["/user/bin/uv", "tool", "install", "mempalace"]],
+            [["/user/bin/uv", "tool", "install", "--with", "chromadb==1.5.9", "mempalace==3.8.0"]],
             plan["mempalace"],
         )
         self.assertEqual(
@@ -213,6 +213,20 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             plan["memory"],
         )
         self.assertEqual([], plan["context7"])
+
+    def test_mempalace_install_plans_pin_chromadb_model_loader(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        self.assertEqual("mempalace==3.8.0", specification["tools"]["mempalace"]["package"])
+        self.assertEqual(["chromadb==1.5.9"], specification["tools"]["mempalace"]["with"])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generated = module.generation_install_plan(root, specification)["mempalace"][0]
+            legacy = module.install_plan(root, specification)["mempalace"][0]
+        for command in (generated, legacy):
+            self.assertIn("--with", command)
+            self.assertEqual("chromadb==1.5.9", command[command.index("--with") + 1])
+            self.assertEqual("mempalace==3.8.0", command[-1])
 
     def test_stable_versions_reject_prerelease_and_yanked_candidates(self):
         module = load_controller()

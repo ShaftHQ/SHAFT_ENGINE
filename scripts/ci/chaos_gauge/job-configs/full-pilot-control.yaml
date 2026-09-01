@@ -9,6 +9,7 @@ environment:
   delete: true
   cpu_enforcement_policy: limit
   memory_enforcement_policy: limit
+  extra_allowed_hosts: [chroma-onnx-models.s3.amazonaws.com]
 retry:
   max_retries: 2
   include_exceptions: [EnvironmentStartError, EnvironmentBuildError]

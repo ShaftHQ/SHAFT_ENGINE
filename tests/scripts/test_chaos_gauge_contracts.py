@@ -139,6 +139,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         )
         self.assertNotIn("name", jobs["chaos-engine"]["agents"][0])
         self.assertNotIn("skills", jobs["chaos-engine"]["agents"][0])
+
         control = copy.deepcopy(jobs["control"])
         candidate = copy.deepcopy(jobs["chaos-engine"])
         for job in (control, candidate):
@@ -176,6 +177,15 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
         drifted["control"]["retry"]["max_retries"] = 3
         with self.assertRaisesRegex(ValueError, "retry budget"):
             MODULE.validate_job_contracts(self.manifest(), drifted, root=ROOT)
+
+    def test_all_harbor_job_arms_add_only_the_pinned_chroma_model_host(self):
+        host = "chroma-onnx-models.s3.amazonaws.com"
+        for name in (
+            "control", "chaos-engine", "full-pilot-control", "full-pilot-chaos-engine",
+        ):
+            job = yaml.safe_load((GAUGE / f"job-configs/{name}.yaml").read_text())
+            self.assertEqual([host], job["environment"].get("extra_allowed_hosts"))
+            self.assertNotIn("extra_allowed_hosts", job["agents"][0])
 
     async def test_custom_agent_delegates_to_codex_and_installs_full_harness(self):
         calls = []
@@ -222,7 +232,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             agent = module.ChaosEngineCodex(
                 harness_source=str(ROOT / "chaos-engine"),
                 harness_commit="0481767def7c31fe144bc20543dfe937b8ffd4d5",
-                harness_sha256="184616dda0fbbba87782bbe44ab325eb989f8c39d6ec601334361f7101038bfb",
+                harness_sha256="28be870ed7cca15e13f5f10ff1dcc678c8913463cb68908bad7ca60e8b4c1a79",
                 adapter_sha256="3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             )
 

@@ -212,12 +212,15 @@ def account_tool_plan(
     uv = executables["uv"]
     npm = executables["npm"]
 
-    def uv_commands(name: str, package: str) -> list[list[str]]:
+    def uv_commands(
+        name: str, package: str, extra: tuple[str, ...] = ()
+    ) -> list[list[str]]:
         action = actions.get(name)
+        options = [item for dependency in extra for item in ("--with", dependency)]
         if action in {"installed", "repaired"}:
-            return [[uv, "tool", "install", package]]
+            return [[uv, "tool", "install", *options, package]]
         if action == "upgraded":
-            return [[uv, "tool", "upgrade", package]]
+            return [[uv, "tool", "upgrade", *options, package]]
         return []
 
     def npm_commands(name: str, package: str) -> list[list[str]]:
@@ -228,7 +231,10 @@ def account_tool_plan(
         )
 
     return {
-        "mempalace": uv_commands("mempalace", "mempalace"),
+        "mempalace": uv_commands(
+            "mempalace", str(specification["tools"]["mempalace"]["package"]),
+            tuple(specification["tools"]["mempalace"].get("with", [])),
+        ),
         "graphify": uv_commands("graphify", "graphifyy"),
         "memory": npm_commands("memory", "@aictx/memory@latest"),
         "context7": npm_commands("context7", "ctx7@latest"),
@@ -2385,12 +2391,13 @@ def generation_install_plan(
         else "node/lib/node_modules/npm/bin/npm-cli.js"
     )
     graphify = tools.get("graphify")
+    mempalace = tools.get("mempalace")
     python_runtime = specification.get("runtimes", {}).get("python", {})
     python_version = python_runtime.get("version") if isinstance(python_runtime, dict) else None
     if not isinstance(python_version, str) or re.fullmatch(r"3\.\d+", python_version) is None:
         raise ValueError("Python runtime specification is invalid")
-    if not isinstance(graphify, dict):
-        raise ValueError("graphify dependency specification is invalid")
+    if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
+        raise ValueError("tool dependency specification is invalid")
     uv_commands = [[uv, "--version"]] if Path(uv).is_file() else [
         [sys.executable, "-m", "venv", "--copies", str(bootstrap)],
         [executable(bootstrap / scripts, "python"), "-m", "pip", "install", "--no-cache-dir", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
@@ -2407,7 +2414,9 @@ def generation_install_plan(
             python_version,
             "--link-mode",
             "copy",
-            str(tools["mempalace"]["package"]),  # type: ignore[index]
+            "--with",
+            str(mempalace["with"][0]),
+            str(mempalace["package"]),
         ]],
         "graphify": [[
             uv,
@@ -3448,15 +3457,16 @@ def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, l
     npm_prefix = runtime / "npm"
     npm = npm_executable(runtime / ("node" if os.name == "nt" else "node/bin"), "npm")
     graphify = tools["graphify"]
-    if not isinstance(graphify, dict):
-        raise ValueError("graphify dependency specification is invalid")
+    mempalace = tools["mempalace"]
+    if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
+        raise ValueError("tool dependency specification is invalid")
     return {
         "uv": [
             [sys.executable, "-m", "venv", "--copies", str(environment)],
             [executable(scripts, "python"), "-m", "pip", "install", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
         ],
         "mempalace": [
-            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", str(tools["mempalace"]["package"])],  # type: ignore[index]
+            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", "--with", str(mempalace["with"][0]), str(mempalace["package"])],
         ],
         "graphify": [
             [uv, "tool", "install", "--managed-python", "--link-mode", "copy", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
