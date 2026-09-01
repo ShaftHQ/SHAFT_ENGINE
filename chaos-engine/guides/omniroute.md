@@ -414,9 +414,21 @@ delegate-style task today. That child still loads the repository's `AGENTS.md`,
 the canonical ChaosEngine skill, and the role named in its task instructions.
 Keep its scope read-only and non-sensitive.
 
+For bounded automatic delegation, canonical orchestration must probe the fixed
+loopback endpoint before native fallback, with no endpoint prompt. When that
+probe is `READY`, OmniRoot dispatches through the sealed operator launcher. The
+operator-owned priority combo is the sole owner of first-available route/model
+selection: it may move through only its already-attested ordered no-cost and
+no-paid-fallback candidates. OmniRoot never reads, writes, or persists route,
+model, or provider IDs. When the combo reports its entire allowed set exhausted,
+the sealed launcher exits `78`; OmniRoot records only `RUNTIME_EXHAUSTED`, then
+the canonical workflow may use a native implementer. Do not add candidates or
+change the combo from repository automation.
+
 ### Current subagent limitation
 
-Do not claim that `spawn_agent` can currently select this free OmniRoute route.
+Built-in `spawn_agent` cannot select OmniRoute. Do not claim that it can select
+this free OmniRoute route.
 The built-in all-free subagent path returns
 `multi_agent_v1_spawn_agent` unsupported. A ChatGPT-authenticated parent also
 rejects a cross-provider Gemini child. Named personal files such as
@@ -453,9 +465,10 @@ readonly acceptance_task='Before answering, load the applicable AGENTS.md, canon
 chaosengine-omniroute exec --ephemeral -C "$PWD" -s read-only "$acceptance_task"
 ```
 
-1. Direct Responses request succeeds through `gemini/gemini-3.1-flash-lite` and
-   returns that exact route in sanitized OmniRoute evidence. HTTP 429 means
-   retry later after quota recovery; it never authorizes a fallback.
+1. Direct Responses request succeeds through the operator-attested priority
+   combo. HTTP 429 may advance only to its next already-attested no-cost,
+   no-paid-fallback candidate; exhausted set reports `RUNTIME_EXHAUSTED` and
+   only then permits native fallback.
 2. Harmless function-call request succeeds through that same exact target.
 3. The unapproved `gemini/gemini-3.7-flash` request with the restricted
    endpoint key returns HTTP 403, as shown above; it must not route elsewhere.
@@ -478,6 +491,54 @@ created” is a valid status; do not fabricate account completion.
 | Example only | URL | private reference, not the address | API key / none | pending / active | current documented limit | exact ID | terms, privacy, billing checked | YYYY-MM-DD |
 
 ## Troubleshooting and rollback
+
+### Secret-free OmniRoot qualification reasons
+
+`python3 chaos-engine/skills/omniroot/scripts/runner.py probe` keeps health
+failures in their existing distinct states and reports a bounded `reasonCode`
+for qualification or local endpoint-credential failures. The value contains no
+credential, route, provider, model, prompt, launcher argument, or local-path
+data. Apply only the matching operator action, then rerun the same probe; do
+not bypass a non-`READY` result or enable paid fallback.
+
+To create or re-attest an operator configuration without modifying a
+repository, prepare one owner-private, mode-`0600` UTF-8 JSON-object contract
+containing the intended operator configuration and its current attestation,
+then run:
+
+```bash
+python3 chaos-engine/skills/omniroot/scripts/runner.py \
+  --config <operator-private-config> attest \
+  --contract <operator-private-attestation-contract>
+```
+
+The contract stays outside the repository and must be no larger than 64 KiB.
+The runner refuses to write unless fixed loopback health, the current build,
+the resolved owner-owned launcher, all required hashes, fresh timestamps,
+denied-target proof, privacy and terms confirmations, no-cost, and no-paid
+fallback all validate. It writes no partial file and prints only an `ATTESTED` state.
+Afterward, rerun `probe`; use the table only when it does not return `READY`.
+
+| `reasonCode` | Operator action |
+| --- | --- |
+| `CONFIG_MISSING` | Run the private `attest` command above with a complete current contract. |
+| `CONFIG_FILE_UNSAFE` | Replace the destination with an owner-owned regular non-symlink file and private parent directories, then run `attest`. |
+| `CONFIG_CONTENT_INVALID` | Rebuild the private contract as a valid UTF-8 JSON object no larger than 64 KiB, then run `attest`. |
+| `CONFIG_SCHEMA_INVALID` | Recreate the private contract using schema version `1`, then run `attest`. |
+| `ROUTE_REFERENCE_INVALID` | Restore the non-empty accepted route reference in the private contract, then run `attest`. |
+| `LAUNCHER_CONFIG_INVALID` | Restore a non-empty launcher argv, credential mode, and supported invocation mode in the operator configuration. |
+| `LAUNCHER_UNQUALIFIED` | Restore an executable, owner-owned launcher that is not group- or world-writable, then refresh attestation. |
+| `ATTESTATION_SCHEMA_INVALID` | Recreate the attestation using schema version `1`; never copy another user's attestation. |
+| `ATTESTATION_BUILD_MISMATCH` | Re-attest against the current local gateway build after verifying operator policy. |
+| `ATTESTATION_HASH_INVALID` | Re-attest the route policy, endpoint-key identity, and denied-target hashes; do not enter raw values in repository files. |
+| `ATTESTATION_FRESHNESS_INVALID` | Obtain a new unexpired attestation after verifying the local gateway. |
+| `NO_COST_UNCONFIRMED` | Keep the route unqualified until the operator can affirm no-cost use. |
+| `PAID_FALLBACK_UNCONFIRMED` | Keep the route unqualified until paid fallback is disabled and attested. |
+| `PRIVACY_UNCONFIRMED` | Keep the route unqualified until privacy terms are reviewed and attested. |
+| `TERMS_UNCONFIRMED` | Keep the route unqualified until applicable terms are reviewed and attested. |
+| `DENIED_PROBE_UNCONFIRMED` | Re-run the operator's denied-target enforcement check and attest its success. |
+| `DENIED_TARGET_UNCONFIRMED` | Reconfirm the denied probe target exists and re-attest it without recording the target. |
+| `ENDPOINT_CREDENTIAL_MISSING` | Supply the existing endpoint credential only through the operator-managed environment or protected launcher, then rerun the probe. |
 
 - **`doctor` reports an unsupported Node runtime:** select a supported Node
   release, reinstall the same reviewed OmniRoute version, and rerun all checks.

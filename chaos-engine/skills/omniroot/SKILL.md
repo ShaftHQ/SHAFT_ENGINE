@@ -17,6 +17,14 @@ Do not install, start, configure, authenticate, or choose routes for OmniRoute.
 Do not expose credentials, route internals, account data, prompts, or consumer
 code outside the approved bounded task.
 
+Canonical orchestration must probe the fixed loopback endpoint before native
+fallback, with no endpoint prompt. On `READY`, dispatch through the sealed
+operator launcher. The operator-owned priority combo alone selects first
+available candidates from its attested no-cost/no-paid-fallback order; OmniRoot
+never reads, persists, or selects route, model, or provider IDs. A concrete
+`RUNTIME_EXHAUSTED` health result or sealed-launcher exit code `78` means that
+allowed set is exhausted and only then permits native implementer fallback.
+
 ## Runner
 
 Use only the standard-library [runner](scripts/runner.py):

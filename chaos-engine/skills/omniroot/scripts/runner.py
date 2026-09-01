@@ -32,7 +32,16 @@ MAX_CONTINUITY_WRITERS = 4
 MAX_DELEGATE_ARGUMENTS = 64
 MAX_DELEGATE_ARGUMENT_BYTES = 16 * 1024
 HTTP_TIMEOUT_SECONDS = 2
+RUNTIME_EXHAUSTED_EXIT_CODE = 78
 SCHEMA_VERSION = 1
+_CONFIG_KEYS = frozenset({"schemaVersion", "routeId", "launcher", "attestation"})
+_LAUNCHER_KEYS = frozenset({"argv", "credentialMode", "invocationMode"})
+_ATTESTATION_KEYS = frozenset({
+    "schemaVersion", "routePolicySha256", "endpointKeyIdentitySha256", "serverBuild",
+    "verifiedAt", "expiresAt", "noCostConfirmed", "noPaidFallbackConfirmed",
+    "privacyConfirmed", "termsConfirmed", "deniedProbeTargetSha256", "deniedProbeConfirmed",
+    "deniedProbeTargetKnownExistingConfirmed",
+})
 READINESS = frozenset({
     "ABSENT", "UNHEALTHY", "UNAUTHENTICATED", "ROUTE_UNQUALIFIED", "READY", "RUNTIME_EXHAUSTED",
 })
@@ -95,33 +104,47 @@ def _parse_time(value: object) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
-def _read_config(path: Path) -> dict[str, Any] | None:
+def _read_config_with_reason(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Read one private JSON object and return only a bounded failure category."""
+    descriptor = -1
     try:
-        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        flags = (os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+                 | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
         descriptor = os.open(path, flags)
         metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_RESPONSE_BYTES:
-            os.close(descriptor)
-            return None
+        if not stat.S_ISREG(metadata.st_mode):
+            return None, "CONFIG_FILE_UNSAFE"
         if os.name == "posix" and (metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600):
-            os.close(descriptor)
-            return None
+            return None, "CONFIG_FILE_UNSAFE"
+        if metadata.st_size > MAX_RESPONSE_BYTES:
+            return None, "CONFIG_CONTENT_INVALID"
         with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+            descriptor = -1
             value = json.load(handle)
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return None
-    return value if isinstance(value, dict) else None
+    except FileNotFoundError:
+        return None, "CONFIG_MISSING"
+    except (UnicodeError, ValueError):
+        return None, "CONFIG_CONTENT_INVALID"
+    except OSError:
+        return None, "CONFIG_FILE_UNSAFE"
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    return (value, None) if isinstance(value, dict) else (None, "CONFIG_CONTENT_INVALID")
+
+
+def _read_config(path: Path) -> dict[str, Any] | None:
+    """Read one operator-owned configuration without exposing why it failed."""
+    return _read_config_with_reason(path)[0]
 
 
 def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
     """Return operator-owned launcher argv and credential mode without exposing it."""
     launcher = config.get("launcher")
-    if launcher == "omniroute":
-        return ["omniroute", "run"], "environment", "gateway"
-    if not isinstance(launcher, dict):
+    if not isinstance(launcher, dict) or set(launcher) != _LAUNCHER_KEYS:
         return None
     argv, mode = launcher.get("argv"), launcher.get("credentialMode")
-    invocation_mode = launcher.get("invocationMode", "gateway")
+    invocation_mode = launcher.get("invocationMode")
     if not isinstance(argv, list) or not argv or not all(isinstance(item, str) and item and "\x00" not in item for item in argv):
         return None
     if mode not in {"environment", "launcher"} or invocation_mode not in {"gateway", "direct"}:
@@ -197,32 +220,66 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
     return qualified
 
 
-def _attestation_valid(config: dict[str, Any], build: object, now: datetime) -> bool:
-    if config.get("schemaVersion") != SCHEMA_VERSION:
-        return False
+def _qualification_reason(config: dict[str, Any] | None, build: object, now: datetime) -> str | None:
+    """Return one bounded reason without exposing operator-owned inputs."""
+    if config is None:
+        return "CONFIG_MISSING"
+    if set(config) != _CONFIG_KEYS or config.get("schemaVersion") != SCHEMA_VERSION:
+        return "CONFIG_SCHEMA_INVALID"
     if not isinstance(config.get("routeId"), str) or not config["routeId"].strip():
-        return False
+        return "ROUTE_REFERENCE_INVALID"
     launcher = _launcher(config)
-    if launcher is None or _resolved_executable(launcher[0]) is None:
-        return False
+    if launcher is None:
+        return "LAUNCHER_CONFIG_INVALID"
+    if _resolved_executable(launcher[0]) is None:
+        return "LAUNCHER_UNQUALIFIED"
     attestation = config.get("attestation")
-    if not isinstance(attestation, dict) or attestation.get("schemaVersion") != SCHEMA_VERSION:
-        return False
+    if (not isinstance(attestation, dict) or set(attestation) != _ATTESTATION_KEYS
+            or attestation.get("schemaVersion") != SCHEMA_VERSION):
+        return "ATTESTATION_SCHEMA_INVALID"
     if attestation.get("serverBuild") != build:
-        return False
+        return "ATTESTATION_BUILD_MISMATCH"
     if not all(
         isinstance(attestation.get(key), str) and _HEX.fullmatch(attestation[key])
         for key in ("routePolicySha256", "endpointKeyIdentitySha256", "deniedProbeTargetSha256")
     ):
-        return False
+        return "ATTESTATION_HASH_INVALID"
     verified = _parse_time(attestation.get("verifiedAt"))
     expires = _parse_time(attestation.get("expiresAt"))
     if verified is None or expires is None or verified > now or expires <= now:
-        return False
-    return all(attestation.get(key) is True for key in (
-        "noCostConfirmed", "noPaidFallbackConfirmed", "privacyConfirmed", "termsConfirmed",
-        "deniedProbeConfirmed", "deniedProbeTargetKnownExistingConfirmed",
-    ))
+        return "ATTESTATION_FRESHNESS_INVALID"
+    for key, reason in (
+        ("noCostConfirmed", "NO_COST_UNCONFIRMED"),
+        ("noPaidFallbackConfirmed", "PAID_FALLBACK_UNCONFIRMED"),
+        ("privacyConfirmed", "PRIVACY_UNCONFIRMED"),
+        ("termsConfirmed", "TERMS_UNCONFIRMED"),
+        ("deniedProbeConfirmed", "DENIED_PROBE_UNCONFIRMED"),
+        ("deniedProbeTargetKnownExistingConfirmed", "DENIED_TARGET_UNCONFIRMED"),
+    ):
+        if attestation.get(key) is not True:
+            return reason
+    return None
+
+
+def _attestation_valid(config: dict[str, Any], build: object, now: datetime) -> bool:
+    """Compatibility predicate for callers that only need qualification truth."""
+    return _qualification_reason(config, build, now) is None
+
+
+def _canonical_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Copy only the accepted private schema before publishing an attestation."""
+    launcher = config["launcher"]
+    attestation = config["attestation"]
+    return {
+        "schemaVersion": config["schemaVersion"],
+        "routeId": config["routeId"],
+        "launcher": {
+            "argv": list(launcher["argv"]),
+            "credentialMode": launcher["credentialMode"],
+            "invocationMode": launcher["invocationMode"],
+        },
+        "attestation": {key: attestation[key] for key in sorted(_ATTESTATION_KEYS)},
+    }
 
 
 def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | None]:
@@ -251,7 +308,9 @@ def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | No
     if not isinstance(payload, dict) or payload.get("status") not in {"ok", "healthy"}:
         return None, "unhealthy"
     build = payload.get("build") or payload.get("version")
-    payload["build"] = build if isinstance(build, str) and build else "health-unreported"
+    if not isinstance(build, str) or not build.strip():
+        return None, "unhealthy"
+    payload["build"] = build
     return payload, None
 
 
@@ -274,22 +333,30 @@ def probe(
         return {**result, "state": "RUNTIME_EXHAUSTED"}
     if error is not None or payload is None:
         return result
-    config = config if config is not None else _read_config(config_path or default_config_path())
-    if config is None or not _attestation_valid(config, payload["build"], now()):
-        return {**result, "state": "ROUTE_UNQUALIFIED"}
+    config_reason = None
+    if config is None:
+        config, config_reason = _read_config_with_reason(config_path or default_config_path())
+    reason = config_reason or _qualification_reason(config, payload["build"], now())
+    if reason is not None:
+        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": reason}
     launcher = _launcher(config)
-    if launcher is None:
-        return {**result, "state": "ROUTE_UNQUALIFIED"}
+    if launcher is None:  # Guard against future changes to _qualification_reason.
+        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": "LAUNCHER_CONFIG_INVALID"}
     resolved = _resolved_executable(launcher[0])
-    if resolved is None:
-        return {**result, "state": "ROUTE_UNQUALIFIED"}
+    if resolved is None:  # Launcher identity is volatile between qualification and execution.
+        return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": "LAUNCHER_UNQUALIFIED"}
     environment = os.environ if environ is None else environ
     if launcher[1] == "environment" and not environment.get("OMNIROUTE_API_KEY"):
-        return {**result, "state": "UNAUTHENTICATED"}
+        return {**result, "state": "UNAUTHENTICATED", "reasonCode": "ENDPOINT_CREDENTIAL_MISSING"}
     fingerprint = hashlib.sha256(json.dumps({
         "config": config, "serverBuild": payload["build"], "launcher": resolved[0],
     }, sort_keys=True).encode("utf-8")).hexdigest()
-    return {**result, "state": "READY", "serverBuild": payload["build"], "qualificationFingerprint": fingerprint}
+    return {
+        "endpoint": DEFAULT_ENDPOINT,
+        "state": "READY",
+        "serverBuild": payload["build"],
+        "qualificationFingerprint": fingerprint,
+    }
 
 
 class QualificationCache:
@@ -339,7 +406,7 @@ def _private_directory(path: Path) -> Path:
 
 def _write_json(path: Path, value: dict[str, Any]) -> None:
     """Atomically write a private state file without following a symlink target."""
-    if path.exists() and path.is_symlink():
+    if path.is_symlink():
         raise OmniRootError("state target must not be a symlink")
     _private_directory(path.parent)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -351,10 +418,10 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
-        path.chmod(0o600)
-    finally:
-        if os.path.exists(temporary):
+    except Exception:
+        with contextlib.suppress(OSError):
             os.unlink(temporary)
+        raise
 
 
 def _create_immutable_json(path: Path, value: dict[str, Any]) -> None:
@@ -547,7 +614,8 @@ def _continuity_contract(
     if (capability not in _CAPABILITY_RANK or not isinstance(attempts, int)
             or not 2 <= attempts <= MAX_CONTINUITY_WRITERS):
         raise OmniRootError("continuity bounds are invalid")
-    if (not isinstance(exits, list) or not exits or len(set(exits)) != len(exits)
+    if (not isinstance(exits, list) or not exits or RUNTIME_EXHAUSTED_EXIT_CODE in exits
+            or len(set(exits)) != len(exits)
             or not all(isinstance(code, int) and (1 <= code <= 255 or -code in signal.valid_signals())
                        for code in exits)):
         raise OmniRootError("continuity retry exits are invalid")
@@ -625,6 +693,11 @@ def _advance_continuity(
         manifest["status"] = "quarantined"
         continuity["state"] = "quarantined"
         continuity["reason"] = "prior process group death cannot be proven"
+        return manifest
+    if exit_code == RUNTIME_EXHAUSTED_EXIT_CODE:
+        manifest["status"] = "blocked"
+        continuity["state"] = "blocked"
+        continuity["reason"] = "RUNTIME_EXHAUSTED"
         return manifest
     if exit_code not in continuity["retryableExitCodes"]:
         manifest["status"] = "blocked"
@@ -1416,6 +1489,8 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
                 _write_json(path, manifest)
                 return manifest
             manifest["status"] = "review" if diagnostic["exitCode"] == 0 else "blocked"
+            if diagnostic["exitCode"] == RUNTIME_EXHAUSTED_EXIT_CODE:
+                manifest["reason"] = "RUNTIME_EXHAUSTED"
             manifest["diagnostics"] = {
                 "sha256": _sha256(diagnostic), "exitCode": diagnostic["exitCode"],
                 "timedOut": diagnostic.get("timedOut") is True,
@@ -1588,6 +1663,31 @@ def _private_contract(path: Path) -> dict[str, Any]:
     return value
 
 
+def attest(
+    *,
+    config_path: Path,
+    contract_path: Path,
+    opener: Callable[..., Any] = _open,
+    now: Callable[[], datetime] = _utc_now,
+) -> dict[str, str]:
+    """Atomically publish one already-verified private operator attestation."""
+    contract = _private_contract(contract_path)
+    payload, error = _health(opener)
+    if error is not None or payload is None:
+        state = {
+            "absent": "ABSENT", "unauthenticated": "UNAUTHENTICATED", "exhausted": "RUNTIME_EXHAUSTED",
+        }.get(error, "UNHEALTHY")
+        raise OmniRootError(f"attestation requires healthy local gateway: {state}")
+    reason = _qualification_reason(contract, payload["build"], now())
+    if reason is not None:
+        raise OmniRootError(f"attestation contract is unqualified: {reason}")
+    _, destination_reason = _read_config_with_reason(config_path)
+    if destination_reason == "CONFIG_FILE_UNSAFE":
+        raise OmniRootError("attestation destination is unsafe")
+    _write_json(config_path, _canonical_config(contract))
+    return {"state": "ATTESTED"}
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_arguments = sys.argv[1:] if argv is None else argv
     if raw_arguments and raw_arguments[0] == "_capture":
@@ -1607,6 +1707,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--state-dir", type=Path, default=default_state_path())
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("probe")
+    attest_parser = commands.add_parser("attest")
+    attest_parser.add_argument("--contract", type=Path, required=True)
     dispatch_parser = commands.add_parser("dispatch")
     dispatch_parser.add_argument("--contract", type=Path, required=True)
     status_parser = commands.add_parser("status")
@@ -1619,6 +1721,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "probe":
             return _print(probe(config_path=args.config))
+        if args.command == "attest":
+            return _print(attest(config_path=args.config, contract_path=args.contract))
         if args.command == "dispatch":
             contract = _private_contract(args.contract)
             required = {"runId", "worktree", "target", "delegateArgs", "taskId", "workflow",

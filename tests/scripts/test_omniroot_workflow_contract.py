@@ -41,6 +41,18 @@ class OmniRootWorkflowContractTest(unittest.TestCase):
         self.assertIn("host-native", workflows)
         self.assertIn("does not change the selected workflow", workflows)
 
+    def test_omniroute_auto_use_preserves_operator_route_selection_boundary(self):
+        workflows = self.read("chaos-engine/references/execution-workflows.md")
+        omniroot = self.read("chaos-engine/skills/omniroot/SKILL.md")
+        guide = self.read("chaos-engine/guides/omniroute.md")
+        for text in (workflows, omniroot, guide):
+            normalized = " ".join(text.split())
+            self.assertIn("probe the fixed loopback endpoint before native fallback", normalized)
+            self.assertIn("sealed operator launcher", normalized)
+            self.assertIn("operator-owned priority combo", normalized)
+            self.assertIn("RUNTIME_EXHAUSTED", normalized)
+        self.assertIn("Built-in `spawn_agent` cannot select OmniRoute", guide)
+
     def test_cadence_has_one_numeric_owner(self):
         follow_through = self.read("chaos-engine/references/orchestrator-follow-through.md")
         consumers = "\n".join(

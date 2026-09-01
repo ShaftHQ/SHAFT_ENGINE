@@ -114,6 +114,20 @@ class OmniRootFailoverTest(unittest.TestCase):
         self.assertEqual("blocked", result["status"])
         self.assertEqual("non-retryable exit", result["continuity"]["reason"])
 
+    def test_runtime_exhaustion_is_terminal_not_a_delegate_continuity_retry(self):
+        invalid = self.continuity()
+        invalid["retryableExitCodes"] = [78]
+        with self.assertRaises(RUNNER.OmniRootError):
+            RUNNER._continuity_contract(invalid)
+        result = RUNNER._advance_continuity(
+            self.manifest(), exit_code=78, group_dead=True,
+            candidates=self.candidates(),
+            register=lambda _session_id: self.fail("must not register"),
+            launch=lambda _candidate: self.fail("must not launch"),
+        )
+        self.assertEqual("blocked", result["status"])
+        self.assertEqual("RUNTIME_EXHAUSTED", result["continuity"]["reason"])
+
     def test_concurrent_resume_is_idempotent_and_completed_actions_are_hashes_only(self):
         manifest = self.manifest()
         manifest["continuity"]["state"] = "replacement_running"
