@@ -232,7 +232,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             agent = module.ChaosEngineCodex(
                 harness_source=str(ROOT / "chaos-engine"),
                 harness_commit="0481767def7c31fe144bc20543dfe937b8ffd4d5",
-                harness_sha256="c508262b1fc5eb8d8ec4880a9a21badd822f2f6650686fd86008fe415510ce72",
+                harness_sha256="7f2e6032118771bd9b75820689e1d830a8792db4d26b36c7b769d6b6a239ac0e",
                 adapter_sha256="3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd",
             )
 

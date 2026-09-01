@@ -223,12 +223,19 @@ def account_tool_plan(
     *,
     actions: dict[str, str],
     executables: dict[str, str],
+    resolved_versions: dict[str, str | None] | None = None,
 ) -> dict[str, list[list[str]]]:
     """Render user-scope tool commands; project initialization is a separate phase."""
     del project
     validate_runtime_specification(specification)
     uv = executables["uv"]
     npm = executables["npm"]
+
+    def resolved_package(name: str, package: str, separator: str) -> str:
+        version = (resolved_versions or {}).get(name)
+        if not version or name == "mempalace":
+            return package
+        return f"{package.rsplit(separator, 1)[0]}{separator}{version}"
 
     def uv_commands(
         name: str, package: str, extra: tuple[str, ...] = ()
@@ -237,12 +244,15 @@ def account_tool_plan(
         options = [item for dependency in extra for item in ("--with", dependency)]
         if action in {"installed", "upgraded", "repaired"}:
             force = ["--force"] if action in {"upgraded", "repaired"} else []
-            return [[uv, "tool", "install", *force, *options, package]]
+            return [[
+                uv, "tool", "install", *force, *options,
+                resolved_package(name, package, "=="),
+            ]]
         return []
 
     def npm_commands(name: str, package: str) -> list[list[str]]:
         return (
-            [[npm, "install", "-g", package]]
+            [[npm, "install", "-g", resolved_package(name, package, "@")]]
             if actions.get(name) in {"installed", "upgraded", "repaired"}
             else []
         )
@@ -934,6 +944,11 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         specification,
         actions=tool_actions,
         executables={"uv": commands["uv"], "npm": commands["npm"]},
+        resolved_versions={
+            name: actions[name].get("resolvedVersion")
+            if isinstance(actions[name].get("resolvedVersion"), str) else None
+            for name in tool_actions
+        },
     ).items():
         for command in planned:
             _run_account_command(command, project, runner=runner)

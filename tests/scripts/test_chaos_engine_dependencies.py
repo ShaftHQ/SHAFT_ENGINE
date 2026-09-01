@@ -303,6 +303,115 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual("3.8.0", actions["mempalace"]["resolvedVersion"])
         self.assertEqual("upgraded", actions["mempalace"]["action"])
 
+    def test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        versions = {
+            "graphify": "0.9.53",
+            "memory": "0.2.2",
+            "context7": "0.4.0",
+        }
+        first_plan = module.account_tool_plan(
+            Path("."), specification,
+            actions={name: "installed" for name in versions},
+            executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
+            resolved_versions=versions,
+        )
+        self.assertEqual(
+            [[
+                "/user/bin/uv", "tool", "install", "--with",
+                "tree-sitter-sql==0.3.11", "graphifyy==0.9.53",
+            ]],
+            first_plan["graphify"],
+        )
+        self.assertEqual(
+            [["/user/bin/npm", "install", "-g", "@aictx/memory@0.2.2"]],
+            first_plan["memory"],
+        )
+        self.assertEqual(
+            [["/user/bin/npm", "install", "-g", "ctx7@0.4.0"]],
+            first_plan["context7"],
+        )
+
+        local = {
+            name: {"healthy": True, "version": "99.0.0"}
+            for name in specification["dependencies"]
+        }
+        local.update({
+            name: {"healthy": True, "version": version}
+            for name, version in versions.items()
+        })
+        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+        with mock.patch.object(
+            module,
+            "resolve_stable_version",
+            side_effect=lambda name, *_args, **_kwargs: versions.get(name, "99.0.0"),
+        ):
+            actions = module.resolve_account_actions(specification, local)
+        self.assertTrue(all(actions[name]["action"] == "reused" for name in versions))
+        self.assertEqual(
+            {"mempalace": [], "graphify": [], "memory": [], "context7": []},
+            module.account_tool_plan(
+                Path("."), specification,
+                actions={
+                    name: str(actions[name]["action"])
+                    for name in ("mempalace", "graphify", "memory", "context7")
+                },
+                executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
+                resolved_versions={
+                    name: actions[name]["resolvedVersion"]
+                    for name in ("mempalace", "graphify", "memory", "context7")
+                },
+            ),
+        )
+
+    def test_account_install_passes_resolved_tool_versions_to_the_account_plan(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        commands = {"uv": "/tools/uv", "npm": "/tools/npm"}
+        local = {
+            name: {"healthy": True, "version": "1.0", "detail": "passed"}
+            for name in specification["dependencies"]
+            if name != "maven-tools-mcp"
+        }
+        actions = {
+            name: {"action": "reused", "resolvedVersion": "1.0"}
+            for name in local
+        }
+        actions.update({
+            "mempalace": {"action": "reused", "resolvedVersion": "3.8.0"},
+            "graphify": {"action": "upgraded", "resolvedVersion": "0.9.53"},
+            "memory": {"action": "upgraded", "resolvedVersion": "0.2.2"},
+            "context7": {"action": "installed", "resolvedVersion": "0.4.0"},
+        })
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            with mock.patch.object(
+                module, "discover_account_commands",
+                side_effect=((local, commands), (local, commands)),
+            ), mock.patch.object(
+                module, "resolve_account_actions", return_value=actions
+            ), mock.patch.object(
+                module, "require_user_writable_npm_prefix"
+            ), mock.patch.object(
+                module,
+                "account_tool_plan",
+                return_value={
+                    "mempalace": [], "graphify": [], "memory": [], "context7": [],
+                },
+            ) as plan, mock.patch.object(module, "project_setup_plan", return_value=[]):
+                module.install_account_dependencies(project, specification, allow_root=True)
+
+        self.assertEqual(
+            {
+                "mempalace": "3.8.0",
+                "graphify": "0.9.53",
+                "memory": "0.2.2",
+                "context7": "0.4.0",
+            },
+            plan.call_args.kwargs["resolved_versions"],
+        )
+
     def test_mempalace_probe_rejects_a_nonpinned_postinstall_version(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
