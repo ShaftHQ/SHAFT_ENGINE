@@ -95,22 +95,35 @@ def _parse_time(value: object) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
-def _read_config(path: Path) -> dict[str, Any] | None:
+def _read_config_with_reason(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Read one private JSON object and return only a bounded failure category."""
+    descriptor = -1
     try:
         flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
         descriptor = os.open(path, flags)
         metadata = os.fstat(descriptor)
         if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_RESPONSE_BYTES:
-            os.close(descriptor)
-            return None
+            return None, "CONFIG_FILE_UNSAFE"
         if os.name == "posix" and (metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600):
-            os.close(descriptor)
-            return None
+            return None, "CONFIG_FILE_UNSAFE"
         with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+            descriptor = -1
             value = json.load(handle)
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return None
-    return value if isinstance(value, dict) else None
+    except FileNotFoundError:
+        return None, "CONFIG_MISSING"
+    except (UnicodeError, json.JSONDecodeError):
+        return None, "CONFIG_CONTENT_INVALID"
+    except OSError:
+        return None, "CONFIG_FILE_UNSAFE"
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    return (value, None) if isinstance(value, dict) else (None, "CONFIG_CONTENT_INVALID")
+
+
+def _read_config(path: Path) -> dict[str, Any] | None:
+    """Read one operator-owned configuration without exposing why it failed."""
+    return _read_config_with_reason(path)[0]
 
 
 def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
@@ -200,11 +213,11 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
 def _qualification_reason(config: dict[str, Any] | None, build: object, now: datetime) -> str | None:
     """Return one bounded reason without exposing operator-owned inputs."""
     if config is None:
-        return "CONFIG_UNREADABLE"
+        return "CONFIG_MISSING"
     if config.get("schemaVersion") != SCHEMA_VERSION:
         return "CONFIG_SCHEMA_INVALID"
     if not isinstance(config.get("routeId"), str) or not config["routeId"].strip():
-        return "ROUTE_ACCEPTANCE_INVALID"
+        return "ROUTE_REFERENCE_INVALID"
     launcher = _launcher(config)
     if launcher is None:
         return "LAUNCHER_CONFIG_INVALID"
@@ -291,8 +304,10 @@ def probe(
         return {**result, "state": "RUNTIME_EXHAUSTED"}
     if error is not None or payload is None:
         return result
-    config = config if config is not None else _read_config(config_path or default_config_path())
-    reason = _qualification_reason(config, payload["build"], now())
+    config_reason = None
+    if config is None:
+        config, config_reason = _read_config_with_reason(config_path or default_config_path())
+    reason = config_reason or _qualification_reason(config, payload["build"], now())
     if reason is not None:
         return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": reason}
     launcher = _launcher(config)
@@ -362,7 +377,7 @@ def _private_directory(path: Path) -> Path:
 
 def _write_json(path: Path, value: dict[str, Any]) -> None:
     """Atomically write a private state file without following a symlink target."""
-    if path.exists() and path.is_symlink():
+    if path.is_symlink():
         raise OmniRootError("state target must not be a symlink")
     _private_directory(path.parent)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -1611,6 +1626,31 @@ def _private_contract(path: Path) -> dict[str, Any]:
     return value
 
 
+def attest(
+    *,
+    config_path: Path,
+    contract_path: Path,
+    opener: Callable[..., Any] = _open,
+    now: Callable[[], datetime] = _utc_now,
+) -> dict[str, str]:
+    """Atomically publish one already-verified private operator attestation."""
+    contract = _private_contract(contract_path)
+    payload, error = _health(opener)
+    if error is not None or payload is None:
+        state = {
+            "absent": "ABSENT", "unauthenticated": "UNAUTHENTICATED", "exhausted": "RUNTIME_EXHAUSTED",
+        }.get(error, "UNHEALTHY")
+        raise OmniRootError(f"attestation requires healthy local gateway: {state}")
+    reason = _qualification_reason(contract, payload["build"], now())
+    if reason is not None:
+        raise OmniRootError(f"attestation contract is unqualified: {reason}")
+    _, destination_reason = _read_config_with_reason(config_path)
+    if destination_reason == "CONFIG_FILE_UNSAFE":
+        raise OmniRootError("attestation destination is unsafe")
+    _write_json(config_path, contract)
+    return {"state": "ATTESTED"}
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_arguments = sys.argv[1:] if argv is None else argv
     if raw_arguments and raw_arguments[0] == "_capture":
@@ -1630,6 +1670,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--state-dir", type=Path, default=default_state_path())
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("probe")
+    attest_parser = commands.add_parser("attest")
+    attest_parser.add_argument("--contract", type=Path, required=True)
     dispatch_parser = commands.add_parser("dispatch")
     dispatch_parser.add_argument("--contract", type=Path, required=True)
     status_parser = commands.add_parser("status")
@@ -1642,6 +1684,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "probe":
             return _print(probe(config_path=args.config))
+        if args.command == "attest":
+            return _print(attest(config_path=args.config, contract_path=args.contract))
         if args.command == "dispatch":
             contract = _private_contract(args.contract)
             required = {"runId", "worktree", "target", "delegateArgs", "taskId", "workflow",

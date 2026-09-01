@@ -136,12 +136,12 @@ class OmniRootProbeTest(unittest.TestCase):
         missing = RUNNER.probe(
             config_path=self.root / "missing.json", opener=health, environ={}
         )
-        self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_UNREADABLE"),
+        self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_MISSING"),
                          (missing["state"], missing["reasonCode"]))
 
         cases = (
             ("CONFIG_SCHEMA_INVALID", lambda value: value.update(schemaVersion=0)),
-            ("ROUTE_ACCEPTANCE_INVALID", lambda value: value.update(routeId="")),
+            ("ROUTE_REFERENCE_INVALID", lambda value: value.update(routeId="")),
             ("LAUNCHER_CONFIG_INVALID", lambda value: value.update(launcher={})),
             ("LAUNCHER_UNQUALIFIED", lambda value: value["launcher"].update(argv=["missing-launcher"])),
             ("ATTESTATION_SCHEMA_INVALID", lambda value: value["attestation"].update(schemaVersion=0)),
@@ -170,6 +170,92 @@ class OmniRootProbeTest(unittest.TestCase):
         unauthenticated = RUNNER.probe(config_path=self.config, opener=health, environ={})
         self.assertEqual(("UNAUTHENTICATED", "ENDPOINT_CREDENTIAL_MISSING"),
                          (unauthenticated["state"], unauthenticated["reasonCode"]))
+
+    def test_probe_distinguishes_unsafe_and_invalid_operator_configuration(self):
+        health = lambda *_, **__: _Response()
+        invalid_json = self.root / "invalid.json"
+        invalid_json.write_text("{", encoding="utf-8")
+        non_object = self.root / "non-object.json"
+        non_object.write_text("[]", encoding="utf-8")
+        oversized = self.root / "oversized.json"
+        oversized.write_text("x" * (RUNNER.MAX_RESPONSE_BYTES + 1), encoding="utf-8")
+        for path in (invalid_json, non_object, oversized):
+            if os.name == "posix":
+                path.chmod(0o600)
+
+        for path in (invalid_json, non_object, oversized):
+            with self.subTest(path=path.name):
+                result = RUNNER.probe(config_path=path, opener=health, environ={})
+                expected = "CONFIG_FILE_UNSAFE" if path == oversized else "CONFIG_CONTENT_INVALID"
+                self.assertEqual(("ROUTE_UNQUALIFIED", expected),
+                                 (result["state"], result["reasonCode"]))
+
+        non_regular = self.root / "directory.json"
+        non_regular.mkdir()
+        result = RUNNER.probe(config_path=non_regular, opener=health, environ={})
+        self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_FILE_UNSAFE"),
+                         (result["state"], result["reasonCode"]))
+
+        if os.name == "posix":
+            self._config()
+            self.config.chmod(0o644)
+            result = RUNNER.probe(config_path=self.config, opener=health, environ={})
+            self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_FILE_UNSAFE"),
+                             (result["state"], result["reasonCode"]))
+            self.config.chmod(0o600)
+            with patch.object(RUNNER.os, "getuid", return_value=os.getuid() + 1):
+                _, reason = RUNNER._read_config_with_reason(self.config)
+            self.assertEqual("CONFIG_FILE_UNSAFE", reason)
+            target = self.root / "target.json"
+            target.write_text("{}", encoding="utf-8")
+            target.chmod(0o600)
+            symlink = self.root / "symlink.json"
+            symlink.symlink_to(target)
+            result = RUNNER.probe(config_path=symlink, opener=health, environ={})
+            self.assertEqual(("ROUTE_UNQUALIFIED", "CONFIG_FILE_UNSAFE"),
+                             (result["state"], result["reasonCode"]))
+
+    def test_attest_writes_only_current_fully_qualified_operator_contract(self):
+        self._config()
+        contract = self.root / "attestation-contract.json"
+        contract.write_text(self.config.read_text(encoding="utf-8"), encoding="utf-8")
+        if os.name == "posix":
+            contract.chmod(0o600)
+        private_directory = self.root / "private"
+        private_directory.mkdir(mode=0o700)
+        destination = private_directory / "written.json"
+        result = RUNNER.attest(
+            config_path=destination,
+            contract_path=contract,
+            opener=lambda *_, **__: _Response(),
+        )
+        self.assertEqual({"state": "ATTESTED"}, result)
+        self.assertEqual("READY", RUNNER.probe(
+            config_path=destination,
+            opener=lambda *_, **__: _Response(),
+            environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
+        )["state"])
+
+        with patch.object(RUNNER, "attest", return_value={"state": "ATTESTED"}) as command:
+            output = io.StringIO()
+            with patch("sys.stdout", output):
+                self.assertEqual(0, RUNNER.main([
+                    "--config", str(destination), "attest", "--contract", str(contract),
+                ]))
+        command.assert_called_once_with(config_path=destination, contract_path=contract)
+        self.assertIn("ATTESTED", output.getvalue())
+
+        invalid = json.loads(contract.read_text(encoding="utf-8"))
+        invalid["attestation"]["noCostConfirmed"] = False
+        contract.write_text(json.dumps(invalid), encoding="utf-8")
+        if os.name == "posix":
+            contract.chmod(0o600)
+        with self.assertRaisesRegex(RUNNER.OmniRootError, "NO_COST_UNCONFIRMED"):
+            RUNNER.attest(
+                config_path=destination,
+                contract_path=contract,
+                opener=lambda *_, **__: _Response(),
+            )
 
     def test_protected_operator_launcher_needs_no_parent_endpoint_key(self):
         now = datetime.now(UTC)

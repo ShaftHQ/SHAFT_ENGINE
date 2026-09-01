@@ -488,11 +488,31 @@ credential, route, provider, model, prompt, launcher argument, or local-path
 data. Apply only the matching operator action, then rerun the same probe; do
 not bypass a non-`READY` result or enable paid fallback.
 
+To create or re-attest an operator configuration without modifying a
+repository, prepare one owner-private, mode-`0600` UTF-8 JSON-object contract
+containing the intended operator configuration and its current attestation,
+then run:
+
+```bash
+python3 chaos-engine/skills/omniroot/scripts/runner.py \
+  --config <operator-private-config> attest \
+  --contract <operator-private-attestation-contract>
+```
+
+The contract stays outside the repository and must be no larger than 64 KiB.
+The runner refuses to write unless fixed loopback health, the current build,
+the resolved owner-owned launcher, all required hashes, fresh timestamps,
+denied-target proof, privacy and terms confirmations, no-cost, and no-paid
+fallback all validate. It writes no partial file and prints only an `ATTESTED` state.
+Afterward, rerun `probe`; use the table only when it does not return `READY`.
+
 | `reasonCode` | Operator action |
 | --- | --- |
-| `CONFIG_UNREADABLE` | Restore an owner-owned, non-symlink, mode-`0600` operator configuration and probe it with `--config <operator-private-config>`. |
-| `CONFIG_SCHEMA_INVALID` | Recreate the operator configuration using schema version `1`, owner-only permissions, and the current attestation fields. |
-| `ROUTE_ACCEPTANCE_INVALID` | Restore the non-empty accepted route reference in the operator configuration, then obtain a new attestation. |
+| `CONFIG_MISSING` | Run the private `attest` command above with a complete current contract. |
+| `CONFIG_FILE_UNSAFE` | Replace the destination with an owner-owned regular non-symlink file and private parent directories, then run `attest`. |
+| `CONFIG_CONTENT_INVALID` | Rebuild the private contract as a valid UTF-8 JSON object no larger than 64 KiB, then run `attest`. |
+| `CONFIG_SCHEMA_INVALID` | Recreate the private contract using schema version `1`, then run `attest`. |
+| `ROUTE_REFERENCE_INVALID` | Restore the non-empty accepted route reference in the private contract, then run `attest`. |
 | `LAUNCHER_CONFIG_INVALID` | Restore a non-empty launcher argv, credential mode, and supported invocation mode in the operator configuration. |
 | `LAUNCHER_UNQUALIFIED` | Restore an executable, owner-owned launcher that is not group- or world-writable, then refresh attestation. |
 | `ATTESTATION_SCHEMA_INVALID` | Recreate the attestation using schema version `1`; never copy another user's attestation. |
