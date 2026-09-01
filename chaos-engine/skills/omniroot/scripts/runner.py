@@ -171,7 +171,7 @@ def _implicit_config(
     locator = which or shutil.which
     has_key = bool(environ.get("OMNIROUTE_API_KEY"))
     for name, invocation, mode_without_key in (
-        ("omniroute", "gateway", "environment"),
+        ("omniroute", "gateway", "launcher"),
         ("chaosengine-omniroute", "direct", "launcher"),
     ):
         located = locator(name)
@@ -881,9 +881,20 @@ def select_live_candidates(
     return pool
 
 
+def _omniroute_cli_environment(environ: dict[str, str] | None = None) -> dict[str, str]:
+    """Use the local loopback CLI session. Ambient endpoint overrides must not poison catalog JSON."""
+    env = dict(os.environ if environ is None else environ)
+    for name in ("OMNIROUTE_API_KEY", "OMNIROUTE_BASE_URL", "OMNIROUTE_CONTEXT"):
+        env.pop(name, None)
+    return env
+
+
 def _omniroute_cli(command: tuple[str, ...], run: Callable[..., Any] | None = None) -> object:
     runner = run or subprocess.run
-    completed = runner(list(command), capture_output=True, text=True, check=False)  # nosec B603 - fixed local OmniRoute argv.
+    completed = runner(  # nosec B603 - fixed local OmniRoute argv.
+        list(command), capture_output=True, text=True, check=False,
+        env=_omniroute_cli_environment(),
+    )
     stdout = getattr(completed, "stdout", "") or ""
     return decode_cli_json(stdout)
 

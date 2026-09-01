@@ -122,10 +122,12 @@ no redirect or remote override. It emits only these readiness states:
 `RUNTIME_EXHAUSTED`.
 
 `READY` means the loopback API answers and the live catalog has at least one
-model with remaining tokens. Then use it. Missing operator config, a
-full-access key, and extra launcher files do not block READY. Dispatch still
-uses `chaosengine-omniroute` or `omniroute` from PATH. The runner never reads,
-prints, or records keys, routes, targets, or assignments.
+model with remaining tokens. Then use it. Catalog queries use the local CLI
+session and must not inherit ambient `OMNIROUTE_API_KEY` or `OMNIROUTE_BASE_URL`
+values that return "No models found". Missing operator config does not block
+READY. Dispatch launches `omniroute run --model --provider` from the live
+catalog. The runner never reads, prints, or records keys, routes, targets, or
+assignments.
 
 OmniRoute 3.8.50 may return only `status` and `timestamp` to an anonymous
 `/api/health` request. That is never build evidence. For that exact response

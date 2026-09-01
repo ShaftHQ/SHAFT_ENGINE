@@ -111,6 +111,36 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("HTTP 429", skill)
         self.assertIn("Do not pin a Codex profile model", skill)
 
+    def test_catalog_cli_does_not_forward_ambient_endpoint_key(self):
+        seen = []
+
+        def fake_run(command, **kwargs):
+            seen.append(kwargs.get("env") or {})
+            class Result:
+                stdout = json.dumps([{"id": "Live Default", "provider": "alpha"}])
+                returncode = 0
+            if command[-1] != "models":
+                Result.stdout = json.dumps([
+                    {"provider": "alpha", "remaining": 7, "state": "available"},
+                ])
+            return Result()
+
+        with unittest.mock.patch.object(RUNNER.shutil, "which", return_value="/usr/bin/omniroute"):
+            with unittest.mock.patch.object(RUNNER.subprocess, "run", side_effect=fake_run):
+                with unittest.mock.patch.dict(
+                    RUNNER.os.environ,
+                    {"OMNIROUTE_API_KEY": "poison-key", "OMNIROUTE_BASE_URL": "http://example.invalid"},
+                    clear=False,
+                ):
+                    result = RUNNER.candidates(required_capability="default")
+        self.assertEqual("READY", result["state"])
+        self.assertTrue(seen)
+        for env in seen:
+            self.assertNotIn("OMNIROUTE_API_KEY", env)
+            self.assertNotIn("OMNIROUTE_BASE_URL", env)
+            self.assertNotIn("poison-key", json.dumps(env))
+            self.assertNotIn("example.invalid", json.dumps(env))
+
     def test_candidates_cli_queries_live_commands_and_writes_no_cache(self):
         calls = []
 
