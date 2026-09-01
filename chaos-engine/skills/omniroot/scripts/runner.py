@@ -810,6 +810,27 @@ def catalog_launch_id(model_id: object) -> str:
     return re.sub(r"\s+", "-", stripped.lower())
 
 
+def catalog_native_id(item: dict[str, Any]) -> str:
+    """Gateway `/api/models` uses `model`; CLI `models` JSON uses display `name` as `id`."""
+    for key in ("model", "fullModel", "alias", "id", "name"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            text = value.strip()
+            if key == "fullModel" and "/" in text:
+                text = text.split("/", 1)[1]
+            return catalog_launch_id(text)
+    return ""
+
+
+def catalog_request_id(provider: str, model: str) -> str:
+    """Compose the id `omniroute run --model` should receive."""
+    if not model:
+        return ""
+    if not provider or model.startswith(f"{provider}/"):
+        return model
+    return f"{provider}/{model}"
+
+
 def classify_capability(model_id: object) -> str:
     """Map a live model id to a capability class. This is a ranking method, not a stored catalog."""
     tokens = set(re.findall(r"[a-z0-9]+", catalog_launch_id(model_id).lower()))
@@ -849,8 +870,7 @@ def codex_model_overlay(provider: str, model: str) -> list[str]:
     `omniroute run` injects `model_provider=omniroute` but leaves Codex's default
     model name in place, which the gateway then routes to the `codex` provider.
     """
-    identity = model if "/" in model else f"{provider}/{model}"
-    return ["-c", f'model="{identity}"']
+    return ["-c", f'model="{catalog_request_id(provider, model)}"']
 
 
 def select_live_candidates(
@@ -882,11 +902,17 @@ def select_live_candidates(
     for item in catalog if isinstance(catalog, list) else []:
         if not isinstance(item, dict):
             continue
-        raw_model = item.get("id")
-        provider = item.get("provider")
-        if not isinstance(raw_model, str) or not raw_model or not isinstance(provider, str) or not provider:
+        if item.get("available") is False:
             continue
-        model = catalog_launch_id(raw_model)
+        if item.get("supportsVision") is True:
+            continue
+        provider = item.get("provider")
+        if not isinstance(provider, str) or not provider:
+            continue
+        native = catalog_native_id(item)
+        if not native:
+            continue
+        model = catalog_request_id(provider, native)
         if not model:
             continue
         left = remaining.get(_provider_key(provider))
@@ -960,20 +986,78 @@ def _remaining_quota_providers(quota: object) -> list[str]:
     return names
 
 
-def _live_catalog_rows(quota: object, run: Callable[..., Any] | None = None) -> list[object]:
-    """The unfiltered `models` CLI is capped at 50 rows, often one family. Query remaining providers."""
+_GATEWAY_MODELS_EVAL = (
+    "import { pathToFileURL } from 'node:url';"
+    "const api = process.env.OMNIROUTE_CLI_API_MJS;"
+    "const { apiFetch } = await import(pathToFileURL(api).href);"
+    "const res = await apiFetch('/api/models', { retry: false, timeout: 8000, acceptNotOk: true });"
+    "const data = res.ok ? await res.json() : [];"
+    "const models = Array.isArray(data) ? data : (data.models || data.data || []);"
+    "process.stdout.write(JSON.stringify(models));"
+)
+
+
+def _catalog_rows(value: object) -> list[object]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        rows = value.get("models") or value.get("data")
+        if isinstance(rows, list):
+            return rows
+    return []
+
+
+def _raw_gateway_models(
+    run: Callable[..., Any] | None = None,
+    which: Callable[[str], str | None] | None = None,
+) -> list[object]:
+    """Read `/api/models` through the same local CLI session the `omniroute` binary uses."""
+    locator = which or shutil.which
+    omni = locator("omniroute")
+    node = locator("node")
+    if not omni or not node:
+        return []
+    api = Path(omni).resolve().parent / "cli" / "api.mjs"
+    if not api.is_file():
+        return []
+    env = _omniroute_cli_environment()
+    env["OMNIROUTE_CLI_API_MJS"] = str(api)
+    runner = run or subprocess.run
+    try:
+        completed = runner(  # nosec B603 - fixed local Node argv against the OmniRoute CLI module.
+            [node, "--input-type", "module", "--eval", _GATEWAY_MODELS_EVAL],
+            capture_output=True, text=True, check=False, env=env,
+        )
+    except OSError:
+        return []
+    stdout = getattr(completed, "stdout", "") or ""
+    try:
+        return _catalog_rows(decode_cli_json(stdout))
+    except OmniRootError:
+        return []
+
+
+def _live_catalog_rows(
+    quota: object, run: Callable[..., Any] | None = None,
+    which: Callable[[str], str | None] | None = None,
+) -> list[object]:
+    """Prefer gateway `/api/models` (`model` + `available`). CLI `models` JSON uses display names and is capped at 50."""
+    raw = _raw_gateway_models(run=run, which=which)
+    if raw:
+        return raw
     catalog: list[object] = []
     for provider in _remaining_quota_providers(quota):
         try:
             rows = _omniroute_cli((*_CATALOG_COMMAND, provider), run=run)
         except OmniRootError:
             continue
-        if isinstance(rows, list):
-            catalog.extend(rows)
+        catalog.extend(_catalog_rows(rows))
     if catalog:
         return catalog
-    fallback = _omniroute_cli(_CATALOG_COMMAND, run=run)
-    return fallback if isinstance(fallback, list) else []
+    try:
+        return _catalog_rows(_omniroute_cli(_CATALOG_COMMAND, run=run))
+    except OmniRootError:
+        return []
 
 
 def candidates(
@@ -988,7 +1072,7 @@ def candidates(
         return {"state": "ABSENT", "candidates": []}
     try:
         quota = _omniroute_cli(_QUOTA_COMMAND, run=run)
-        catalog = _live_catalog_rows(quota, run=run)
+        catalog = _live_catalog_rows(quota, run=run, which=locator)
     except OmniRootError:
         return {"state": "UNHEALTHY", "candidates": []}
     picked = select_live_candidates(

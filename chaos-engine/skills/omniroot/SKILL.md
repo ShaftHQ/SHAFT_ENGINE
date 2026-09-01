@@ -61,11 +61,11 @@ it returns HTTP 401.
 1. Strip ANSI with `\\x1b\\[[0-9;]*[A-Za-z]`.
 2. Find the first `{` or `[`.
 3. Parse with `json.JSONDecoder().raw_decode` so trailing extra JSON is ignored.
-4. Catalog is a JSON array of objects with `id` and `provider`. The `id` may be a friendly display name (`GLM 4.5`); launch the native id (`glm-4.5`).
+4. Gateway `/api/models` rows use `model` (native id), `name` (display), `provider`, and `available`. CLI `omniroute models` JSON sets `id` from `name` when `id` is missing, so prefer `model` over `id`/`name`.
 5. Quota is a JSON array of objects with `provider`, `remaining`, and `state`.
 6. Join on alphanumeric-lowercased provider ids (`glm-cn` matches `glmcn`).
-7. Drop `state == "exhausted"` or `remaining <= 0`.
-8. Whitespace display names become native ids by stripping parentheticals, lowercasing, and replacing spaces with hyphens. Already-slugged ids stay unchanged.
+7. Drop `state == "exhausted"` or `remaining <= 0`, drop `available: false`, and drop `supportsVision: true` for implementation ranking.
+8. Whitespace display names become native ids by stripping parentheticals, lowercasing, and replacing spaces with hyphens. Already-slugged ids stay unchanged. Compose `--model` as `provider/model` when the native id has no provider prefix.
 
 ### Rank (dynamic, from the live ids)
 

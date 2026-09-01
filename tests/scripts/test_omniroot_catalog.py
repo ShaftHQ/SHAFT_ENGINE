@@ -47,7 +47,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         ]
         picked = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
         self.assertEqual(
-            ["other-default", "tool-high", "tool-low"],
+            ["beta/other-default", "alpha/tool-high", "alpha/tool-low"],
             [item["model"] for item in picked],
         )
         self.assertNotIn("Gone Low", [item["model"] for item in picked])
@@ -63,14 +63,14 @@ class OmniRootCatalogTest(unittest.TestCase):
             {"provider": "beta", "remaining": 90, "state": "available"},
         ]
         first = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
-        self.assertEqual("other-default", first[0]["model"])
+        self.assertEqual("beta/other-default", first[0]["model"])
         self.assertTrue(RUNNER.diagnostic_is_rate_limited("exceeded retry limit, last status: 429 Too Many Requests"))
         self.assertFalse(RUNNER.diagnostic_is_rate_limited("401 Unauthorized: Invalid API key"))
         skipped = RUNNER.select_live_candidates(
             catalog, quota, required_capability="default",
             skip_identity_sha256s=[first[0]["identitySha256"]],
         )
-        self.assertEqual("tool-low", skipped[0]["model"])
+        self.assertEqual("alpha/tool-low", skipped[0]["model"])
         self.assertNotEqual(first[0]["identitySha256"], skipped[0]["identitySha256"])
 
     def test_architecture_uses_only_high_class_then_empty_means_native_fallback(self):
@@ -82,7 +82,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         picked = RUNNER.select_live_candidates(
             catalog, quota, required_capability="most-intelligent",
         )
-        self.assertEqual(["tool-high"], [item["model"] for item in picked])
+        self.assertEqual(["alpha/tool-high"], [item["model"] for item in picked])
         empty = RUNNER.select_live_candidates(
             [{"id": "Tool Low", "provider": "alpha"}],
             [{"provider": "alpha", "remaining": 12, "state": "available"}],
@@ -116,6 +116,8 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("Do not pin a Codex profile model", skill)
         self.assertIn("pass Codex `-c model='<provider>/<id>'`", skill)
         self.assertIn("native id", skill)
+        self.assertIn("prefer `model` over `id`/`name`", skill)
+        self.assertIn("available: false", skill)
 
     def test_catalog_cli_does_not_forward_ambient_endpoint_key(self):
         seen = []
@@ -175,7 +177,7 @@ class OmniRootCatalogTest(unittest.TestCase):
             calls,
         )
         self.assertEqual("READY", result["state"])
-        self.assertEqual("live-low", result["candidates"][0]["model"])
+        self.assertEqual("alpha/live-low", result["candidates"][0]["model"])
         self.assertFalse(any(Path.cwd().joinpath(name).exists()
                              for name in (".omniroot-catalog.json", "catalog-cache.json")))
 
@@ -191,7 +193,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         ]
         quota = [{"provider": "glm", "remaining": 100, "state": "available"}]
         picked = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
-        self.assertEqual(["glm-4.5", "glm-4.5-air"], [item["model"] for item in picked])
+        self.assertEqual(["glm/glm-4.5", "glm/glm-4.5-air"], [item["model"] for item in picked])
         self.assertEqual("default", picked[0]["capability"])
         self.assertEqual("mechanical", picked[1]["capability"])
         miss = (
@@ -204,11 +206,25 @@ class OmniRootCatalogTest(unittest.TestCase):
             catalog, quota, required_capability="default",
             skip_identity_sha256s=[picked[0]["identitySha256"]],
         )
-        self.assertEqual("glm-4.5-air", skipped[0]["model"])
+        self.assertEqual("glm/glm-4.5-air", skipped[0]["model"])
         self.assertEqual(
             ["-c", 'model="glm/glm-4.5"'],
             RUNNER.codex_model_overlay("glm", "glm-4.5"),
         )
+        self.assertEqual(
+            ["-c", 'model="nvidia/z-ai/glm-5.2"'],
+            RUNNER.codex_model_overlay("nvidia", "z-ai/glm-5.2"),
+        )
+        gateway = [
+            {"name": "GLM 4.5", "model": "glm-4.5", "provider": "glm", "available": False},
+            {"name": "GLM 5.2", "model": "z-ai/glm-5.2", "provider": "nvidia", "available": True},
+        ]
+        quota = [
+            {"provider": "glm", "remaining": 100, "state": "available"},
+            {"provider": "nvidia", "remaining": 100, "state": "available"},
+        ]
+        live = RUNNER.select_live_candidates(gateway, quota, required_capability="default")
+        self.assertEqual(["nvidia/z-ai/glm-5.2"], [item["model"] for item in live])
         self.assertTrue(RUNNER.diagnostic_is_stream_disconnected(
             "stream disconnected before completion: stream closed before response.completed"
         ))
