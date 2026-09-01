@@ -7,7 +7,7 @@ import tomllib
 from pathlib import Path
 
 import yaml
-from harbor.models.task.config import TaskConfig, VerifierEnvironmentMode
+from harbor.models.task.config import TaskConfig
 from harbor.models.task.verifier_mode import resolve_task_verifier_mode
 from harbor.models.trial.config import AgentConfig as TrialAgentConfig
 from harbor.models.trial.config import EnvironmentConfig as TrialEnvironmentConfig
