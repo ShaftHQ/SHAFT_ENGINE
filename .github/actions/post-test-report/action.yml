@@ -137,17 +137,21 @@ runs:
             if not isinstance(document, dict):
                 raise ValueError("root must be an object")
             fields = ("total", "passed", "failed", "broken", "skipped", "unknown")
-            has_flat_statistics = any(field in document for field in fields)
-            if (has_flat_statistics and "statistic" in document) or (
-                "duration" in document and "time" in document
-            ):
+            has_root_verdicts = any(field in document for field in fields)
+            has_allure3_statistics = "stats" in document
+            has_allure2_statistics = "statistic" in document
+            if has_allure3_statistics and has_allure2_statistics:
                 raise ValueError("contains ambiguous mixed schemas")
-            if (has_flat_statistics and "time" in document) or (
-                not has_flat_statistics and "duration" in document
+            if has_root_verdicts and (has_allure3_statistics or has_allure2_statistics):
+                raise ValueError("contains root verdicts beside statistics container")
+            if "duration" in document and "time" in document:
+                raise ValueError("contains ambiguous mixed schemas")
+            if (has_allure3_statistics and "time" in document) or (
+                has_allure2_statistics and "duration" in document
             ):
                 raise ValueError("timing schema does not match statistics")
-            if has_flat_statistics:
-                statistic = document
+            if has_allure3_statistics:
+                statistic = document.get("stats")
                 timing = document
             else:
                 statistic = document.get("statistic")

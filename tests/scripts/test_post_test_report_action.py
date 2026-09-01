@@ -14,7 +14,7 @@ ACTION = ROOT / ".github/actions/post-test-report/action.yml"
 
 class PostTestReportActionTest(unittest.TestCase):
     def run_summary(self, *, total, passed, failed, broken, skipped, unknown=None,
-                    schema="nested", duration=None, document_updates=None):
+                    schema="allure2", duration=None, document_updates=None):
         action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
         step = next(step for step in action["runs"]["steps"]
                     if step.get("id") == "collect_results")
@@ -35,8 +35,13 @@ class PostTestReportActionTest(unittest.TestCase):
             }
             if unknown is not None:
                 statistic["unknown"] = unknown
-            if schema == "flat":
-                document = dict(statistic)
+            if schema == "allure3":
+                statistic.update({"new": 2, "retries": 3})
+                document = {
+                    "stats": statistic,
+                    "reportName": "SHAFT",
+                    "metadata": {"generatedBy": "allure3"},
+                }
                 if duration is not None:
                     document["duration"] = duration
             else:
@@ -75,10 +80,10 @@ class PostTestReportActionTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout)
 
-    def test_accepts_flat_allure3_statistics_with_unknown_entries(self):
+    def test_accepts_real_allure3_summary_with_unknown_entries_and_metadata(self):
         completed = self.run_summary(
             total=1434, passed=1408, failed=0, broken=0, skipped=12, unknown=14,
-            schema="flat", duration=123456
+            schema="allure3", duration=123456
         )
 
         self.assertEqual(0, completed.returncode, completed.stdout)
@@ -100,9 +105,9 @@ class PostTestReportActionTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout)
 
-    def test_rejects_mixed_flat_and_nested_statistics(self):
+    def test_rejects_both_allure_statistics_containers(self):
         completed = self.run_summary(
-            total=1, passed=1, failed=0, broken=0, skipped=0, schema="flat",
+            total=1, passed=1, failed=0, broken=0, skipped=0, schema="allure3",
             document_updates={
                 "statistic": {"total": 1, "passed": 0, "failed": 1, "broken": 0, "skipped": 0}
             },
@@ -111,7 +116,7 @@ class PostTestReportActionTest(unittest.TestCase):
         self.assertNotEqual(0, completed.returncode)
         self.assertIn("ambiguous mixed schemas", completed.stderr)
 
-    def test_rejects_mixed_nested_time_and_flat_duration(self):
+    def test_rejects_dual_timing_containers(self):
         completed = self.run_summary(
             total=1, passed=1, failed=0, broken=0, skipped=0, duration=10,
             document_updates={"duration": 10},
@@ -120,10 +125,10 @@ class PostTestReportActionTest(unittest.TestCase):
         self.assertNotEqual(0, completed.returncode)
         self.assertIn("ambiguous mixed schemas", completed.stderr)
 
-    def test_rejects_timing_schema_that_does_not_match_statistics(self):
+    def test_rejects_cross_schema_timing(self):
         cases = (
-            ("nested-statistics-flat-duration", "nested", {"duration": 10}),
-            ("flat-statistics-nested-time", "flat", {"time": {"duration": 10}}),
+            ("allure2-statistics-allure3-duration", "allure2", {"duration": 10}),
+            ("allure3-statistics-allure2-time", "allure3", {"time": {"duration": 10}}),
         )
         for name, schema, document_updates in cases:
             with self.subTest(name=name):
@@ -142,7 +147,7 @@ class PostTestReportActionTest(unittest.TestCase):
             ("string", {"passed": "1", "skipped": 1}),
             ("boolean", {"passed": 1, "unknown": True}),
         )
-        for schema in ("nested", "flat"):
+        for schema in ("allure2", "allure3"):
             for name, overrides in cases:
                 values = {"total": 1, "passed": 0, "failed": 0, "broken": 0, "skipped": 0}
                 values.update(overrides)
@@ -151,6 +156,17 @@ class PostTestReportActionTest(unittest.TestCase):
 
                     self.assertNotEqual(0, completed.returncode)
                     self.assertIn("expected a non-negative integer", completed.stderr)
+
+    def test_rejects_root_verdicts_beside_statistics_container(self):
+        for schema in ("allure2", "allure3"):
+            with self.subTest(schema=schema):
+                completed = self.run_summary(
+                    total=1, passed=1, failed=0, broken=0, skipped=0,
+                    schema=schema, document_updates={"passed": 1},
+                )
+
+                self.assertNotEqual(0, completed.returncode)
+                self.assertIn("root verdicts beside statistics container", completed.stderr)
 
     def test_preserves_failed_and_broken_verdict_failures(self):
         for failed, broken in ((1, 0), (0, 1)):
