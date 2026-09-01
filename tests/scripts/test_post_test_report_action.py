@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess  # nosec B404 - integration fixture invokes fixed bash with repository-owned action text.
 import tempfile
@@ -12,7 +13,7 @@ ACTION = ROOT / ".github/actions/post-test-report/action.yml"
 
 
 class PostTestReportActionTest(unittest.TestCase):
-    def run_summary(self, *, total, passed, failed, broken, skipped):
+    def run_summary(self, *, total, passed, failed, broken, skipped, unknown=None):
         action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
         step = next(step for step in action["runs"]["steps"]
                     if step.get("id") == "collect_results")
@@ -24,12 +25,17 @@ class PostTestReportActionTest(unittest.TestCase):
             results.mkdir(parents=True)
             report.mkdir()
             (results / "test-result.json").write_text("{}", encoding="utf-8")
+            statistic = {
+                "total": total,
+                "passed": passed,
+                "failed": failed,
+                "broken": broken,
+                "skipped": skipped,
+            }
+            if unknown is not None:
+                statistic["unknown"] = unknown
             (report / "summary.json").write_text(
-                '{"statistic":'
-                f'{{"total":{total},"passed":{passed},"failed":{failed},'
-                f'"broken":{broken},"skipped":{skipped}}}'
-                '}',
-                encoding="utf-8",
+                json.dumps({"statistic": statistic}), encoding="utf-8"
             )
             script = step["run"].replace("${{ inputs.module-directory }}", str(module))
             script = script.replace("${{ inputs.job-name }}", "Safari shard 1")
@@ -45,11 +51,18 @@ class PostTestReportActionTest(unittest.TestCase):
             )
         return completed
 
-    def test_rejects_nonzero_total_without_any_status_verdicts(self):
-        completed = self.run_summary(total=14, passed=0, failed=0, broken=0, skipped=0)
+    def test_rejects_all_unknown_summary_without_known_status_verdicts(self):
+        completed = self.run_summary(total=14, passed=0, failed=0, broken=0, skipped=0, unknown=14)
 
         self.assertNotEqual(0, completed.returncode)
-        self.assertIn("14 total tests but 0 status verdicts", completed.stdout)
+        self.assertIn("0 known status verdicts", completed.stdout)
+
+    def test_accepts_unknown_entries_alongside_accounted_known_verdicts(self):
+        completed = self.run_summary(
+            total=1434, passed=1408, failed=0, broken=0, skipped=12, unknown=14
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stdout)
 
     def test_rejects_fewer_status_verdicts_than_total(self):
         completed = self.run_summary(total=14, passed=13, failed=0, broken=0, skipped=0)
@@ -58,7 +71,7 @@ class PostTestReportActionTest(unittest.TestCase):
         self.assertIn("14 total tests but 13 status verdicts", completed.stdout)
 
     def test_rejects_more_status_verdicts_than_total(self):
-        completed = self.run_summary(total=14, passed=15, failed=0, broken=0, skipped=0)
+        completed = self.run_summary(total=14, passed=14, failed=0, broken=0, skipped=0, unknown=1)
 
         self.assertNotEqual(0, completed.returncode)
         self.assertIn("14 total tests but 15 status verdicts", completed.stdout)
@@ -67,6 +80,22 @@ class PostTestReportActionTest(unittest.TestCase):
         completed = self.run_summary(total=14, passed=13, failed=0, broken=0, skipped=1)
 
         self.assertEqual(0, completed.returncode, completed.stdout)
+
+    def test_rejects_malformed_present_statistics(self):
+        cases = (
+            ("negative", {"passed": -1, "skipped": 1}),
+            ("fractional", {"passed": 0.5, "skipped": 1}),
+            ("string", {"passed": "1", "skipped": 1}),
+            ("boolean", {"passed": 1, "unknown": True}),
+        )
+        for name, overrides in cases:
+            values = {"total": 1, "passed": 0, "failed": 0, "broken": 0, "skipped": 0}
+            values.update(overrides)
+            with self.subTest(name=name):
+                completed = self.run_summary(**values)
+
+                self.assertNotEqual(0, completed.returncode)
+                self.assertIn("expected a non-negative integer", completed.stderr)
 
     def test_preserves_failed_and_broken_verdict_failures(self):
         for failed, broken in ((1, 0), (0, 1)):
