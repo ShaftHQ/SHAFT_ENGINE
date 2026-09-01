@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-class OmniRootWorkflowContractTest(unittest.TestCase):
+class OmniRouteWorkflowContractTest(unittest.TestCase):
     def read(self, relative_path):
         return (ROOT / relative_path).read_text(encoding="utf-8")
 
@@ -27,7 +27,7 @@ class OmniRootWorkflowContractTest(unittest.TestCase):
 
         for target in (
             "execution-workflows.md",
-            "omniroot/SKILL.md",
+            "omniroute/SKILL.md",
             "tdd.md#workflow",
             "roles.md",
             "delegation.md",
@@ -43,9 +43,9 @@ class OmniRootWorkflowContractTest(unittest.TestCase):
 
     def test_omniroute_auto_use_preserves_operator_route_selection_boundary(self):
         workflows = self.read("chaos-engine/references/execution-workflows.md")
-        omniroot = self.read("chaos-engine/skills/omniroot/SKILL.md")
+        omniroute = self.read("chaos-engine/skills/omniroute/SKILL.md")
         guide = self.read("chaos-engine/guides/omniroute.md")
-        for text in (workflows, omniroot):
+        for text in (workflows, omniroute):
             normalized = " ".join(text.split())
             self.assertIn("probe the fixed loopback endpoint before native fallback", normalized)
             self.assertIn("omniroute --output json models", text)

@@ -72,29 +72,29 @@ if _GIT_EXECUTABLE is not None:
     _GIT_EXECUTABLE = str(Path(_GIT_EXECUTABLE).resolve())
 
 
-class OmniRootError(RuntimeError):
+class OmniRouteError(RuntimeError):
     """A required transport invariant did not hold."""
 
 
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, newurl):  # noqa: ANN001
-        raise OmniRootError("gateway redirect is forbidden")
+        raise OmniRouteError("gateway redirect is forbidden")
 
 
 def default_config_path() -> Path:
-    return Path.home() / ".config" / "chaos-engine" / "omniroot.json"
+    return Path.home() / ".config" / "chaos-engine" / "omniroute.json"
 
 
 def default_state_path() -> Path:
     """Keep runtime state outside repositories by default."""
     base = os.environ.get("XDG_STATE_HOME")
     root = Path(base) if base and Path(base).is_absolute() else Path.home() / ".local" / "state"
-    return root / "chaos-engine" / "omniroot"
+    return root / "chaos-engine" / "omniroute"
 
 
 def _platform_preflight() -> None:
     if sys.platform != "linux" or os.name != "posix" or not Path(os.sep, "proc", "self", "stat").is_file():
-        raise OmniRootError("durable process identity and tree termination are unsupported; use native fallback")
+        raise OmniRouteError("durable process identity and tree termination are unsupported; use native fallback")
 
 
 def _open(request: Request, *, timeout: int):
@@ -411,7 +411,7 @@ def _local_cli_build() -> str | None:
     node = _trusted_local_cli_executable("node")
     if cli is None or node is None:
         return None
-    with tempfile.TemporaryDirectory(prefix="omniroot-health-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="omniroute-health-") as temporary:
         private_root = Path(temporary)
         private_home = private_root / "home"
         private_data = private_root / "data"
@@ -474,7 +474,7 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
     observed = (metadata.st_dev, metadata.st_ino, metadata.st_uid, metadata.st_mode,
                 metadata.st_size, metadata.st_mtime_ns, hashlib.sha256(data).hexdigest())
     if observed != identity:
-        raise OmniRootError("qualified launcher changed before sealing")
+        raise OmniRouteError("qualified launcher changed before sealing")
     directory = _private_directory(state_dir / "launchers")
     sealed = directory / identity[-1]
     if not sealed.exists():
@@ -494,7 +494,7 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
                 os.unlink(temporary)
     qualified = _resolved_executable([str(sealed), *argv[1:]])
     if qualified is None or qualified[1][-1] != identity[-1]:
-        raise OmniRootError("sealed launcher is invalid")
+        raise OmniRouteError("sealed launcher is invalid")
     return qualified
 
 
@@ -547,7 +547,7 @@ def _health(opener: Callable[..., Any]) -> tuple[dict[str, Any] | None, str | No
         return None, "unhealthy"
     except (OSError, URLError):
         return None, "absent"
-    except OmniRootError:
+    except OmniRouteError:
         return None, "unhealthy"
     if not isinstance(raw, bytes) or len(raw) > MAX_RESPONSE_BYTES:
         return None, "unhealthy"
@@ -634,7 +634,7 @@ def _reject_symlink_components(path: Path) -> None:
         except FileNotFoundError:
             continue
         if stat.S_ISLNK(metadata.st_mode):
-            raise OmniRootError("state path must not contain symlinks")
+            raise OmniRouteError("state path must not contain symlinks")
 
 
 def _private_directory(path: Path) -> Path:
@@ -650,16 +650,16 @@ def _private_directory(path: Path) -> Path:
     for cursor in (path.parent, path):
         metadata = cursor.lstat()
         if stat.S_ISLNK(metadata.st_mode):
-            raise OmniRootError("state path must not contain symlinks")
+            raise OmniRouteError("state path must not contain symlinks")
         if os.name == "posix" and (metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) & 0o077):
-            raise OmniRootError("state directory must be owner-owned and private")
+            raise OmniRouteError("state directory must be owner-owned and private")
     return path
 
 
 def _write_json(path: Path, value: dict[str, Any]) -> None:
     """Atomically write a private state file without following a symlink target."""
     if path.is_symlink():
-        raise OmniRootError("state target must not be a symlink")
+        raise OmniRouteError("state target must not be a symlink")
     _private_directory(path.parent)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
@@ -690,7 +690,7 @@ def _create_immutable_json(path: Path, value: dict[str, Any]) -> None:
         try:
             os.link(temporary, path, follow_symlinks=False)
         except FileExistsError as error:
-            raise OmniRootError("terminal receipt already exists") from error
+            raise OmniRouteError("terminal receipt already exists") from error
         directory = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
         try:
             os.fsync(directory)
@@ -709,29 +709,29 @@ def _load_json(path: Path) -> dict[str, Any]:
         metadata = path.stat()
         parents = (path.parent, path.parent.parent)
         if not path.is_file() or path.is_symlink() or metadata.st_size > MAX_RESPONSE_BYTES:
-            raise OmniRootError("run state is missing or unsafe")
+            raise OmniRouteError("run state is missing or unsafe")
         if os.name == "posix" and (
             metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) not in {0o400, 0o600}
             or any(parent.stat().st_uid != os.getuid() or stat.S_IMODE(parent.stat().st_mode) & 0o077 for parent in parents)
         ):
-            raise OmniRootError("run state is missing or unsafe")
+            raise OmniRouteError("run state is missing or unsafe")
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise OmniRootError("run state is invalid") from error
+        raise OmniRouteError("run state is invalid") from error
     if not isinstance(value, dict):
-        raise OmniRootError("run state is invalid")
+        raise OmniRouteError("run state is invalid")
     return value
 
 
 def _run_path(state_dir: Path, run_id: str) -> Path:
     if not _RUN_ID.fullmatch(run_id):
-        raise OmniRootError("run id is invalid")
+        raise OmniRouteError("run id is invalid")
     return state_dir / "runs" / f"{run_id}.json"
 
 
 def _receipt_path(state_dir: Path, run_id: str) -> Path:
     if not _RUN_ID.fullmatch(run_id):
-        raise OmniRootError("run id is invalid")
+        raise OmniRouteError("run id is invalid")
     return state_dir / "receipts" / f"{run_id}.json"
 
 
@@ -742,7 +742,7 @@ def _relative_paths(paths: list[str]) -> list[str]:
         and ".." not in Path(path).parts and not (set(Path(path).parts) & forbidden)
         for path in paths
     ):
-        raise OmniRootError("changed paths must be repository-relative")
+        raise OmniRouteError("changed paths must be repository-relative")
     return sorted(set(paths))
 
 
@@ -770,7 +770,7 @@ def _dispatch_environment(environ: dict[str, str], credential_mode: str) -> dict
     if credential_mode == "environment":
         key = environ.get("OMNIROUTE_API_KEY")
         if not key:
-            raise OmniRootError("endpoint key is unavailable")
+            raise OmniRouteError("endpoint key is unavailable")
         result["OMNIROUTE_API_KEY"] = key
     return result
 
@@ -784,11 +784,11 @@ def decode_cli_json(text: str) -> object:
     cleaned = _ANSI.sub("", text)
     index = min((item for item in (cleaned.find("["), cleaned.find("{")) if item >= 0), default=-1)
     if index < 0:
-        raise OmniRootError("OmniRoute CLI JSON is missing")
+        raise OmniRouteError("OmniRoute CLI JSON is missing")
     try:
         value, _unused = json.JSONDecoder().raw_decode(cleaned[index:])
     except json.JSONDecodeError as error:
-        raise OmniRootError("OmniRoute CLI JSON is invalid") from error
+        raise OmniRouteError("OmniRoute CLI JSON is invalid") from error
     return value
 
 
@@ -879,7 +879,7 @@ def select_live_candidates(
 ) -> list[dict[str, Any]]:
     """Join the current catalog to remaining quota and order the next usable model."""
     if required_capability not in _CAPABILITY_RANK:
-        raise OmniRootError("required capability is invalid")
+        raise OmniRouteError("required capability is invalid")
     skipped = {
         item for item in skip_identity_sha256s or ()
         if isinstance(item, str) and _HEX.fullmatch(item)
@@ -901,8 +901,6 @@ def select_live_candidates(
     seen: set[tuple[str, str]] = set()
     for item in catalog if isinstance(catalog, list) else []:
         if not isinstance(item, dict):
-            continue
-        if item.get("supportsVision") is True:
             continue
         provider = item.get("provider")
         if not isinstance(provider, str) or not provider:
@@ -1031,7 +1029,7 @@ def _raw_gateway_models(
     stdout = getattr(completed, "stdout", "") or ""
     try:
         return _catalog_rows(decode_cli_json(stdout))
-    except OmniRootError:
+    except OmniRouteError:
         return []
 
 
@@ -1047,14 +1045,14 @@ def _live_catalog_rows(
     for provider in _remaining_quota_providers(quota):
         try:
             rows = _omniroute_cli((*_CATALOG_COMMAND, provider), run=run)
-        except OmniRootError:
+        except OmniRouteError:
             continue
         catalog.extend(_catalog_rows(rows))
     if catalog:
         return catalog
     try:
         return _catalog_rows(_omniroute_cli(_CATALOG_COMMAND, run=run))
-    except OmniRootError:
+    except OmniRouteError:
         return []
 
 
@@ -1071,7 +1069,7 @@ def candidates(
     try:
         quota = _omniroute_cli(_QUOTA_COMMAND, run=run)
         catalog = _live_catalog_rows(quota, run=run, which=locator)
-    except OmniRootError:
+    except OmniRouteError:
         return {"state": "UNHEALTHY", "candidates": []}
     picked = select_live_candidates(
         catalog, quota, required_capability=required_capability,
@@ -1123,7 +1121,7 @@ def _verified_resumption(candidate: dict[str, Any], continuity: dict[str, Any]) 
         "trackerUrlSha256", "pullRequestUrlSha256",
     )}
     if hashes != expected:
-        raise OmniRootError("continuity resumption does not match frozen evidence")
+        raise OmniRouteError("continuity resumption does not match frozen evidence")
     return candidate["resumption"]
 
 
@@ -1154,7 +1152,7 @@ def _continuity_contract(
         "trackerUrlSha256", "pullRequestUrlSha256", "alternates",
     }
     if not isinstance(value, dict) or set(value) != required:
-        raise OmniRootError("continuity contract fields are invalid")
+        raise OmniRouteError("continuity contract fields are invalid")
     capability = value.get("requiredCapability")
     attempts = value.get("maxAttempts")
     exits = value.get("retryableExitCodes")
@@ -1166,28 +1164,28 @@ def _continuity_contract(
     alternates = value.get("alternates")
     if (capability not in _CAPABILITY_RANK or not isinstance(attempts, int)
             or not 2 <= attempts <= MAX_CONTINUITY_WRITERS):
-        raise OmniRootError("continuity bounds are invalid")
+        raise OmniRouteError("continuity bounds are invalid")
     if (not isinstance(exits, list) or not exits or RUNTIME_EXHAUSTED_EXIT_CODE in exits
             or len(set(exits)) != len(exits)
             or not all(isinstance(code, int) and (1 <= code <= 255 or -code in signal.valid_signals())
                        for code in exits)):
-        raise OmniRootError("continuity retry exits are invalid")
+        raise OmniRouteError("continuity retry exits are invalid")
     if not isinstance(backoff, int) or not 0 <= backoff <= 300:
-        raise OmniRootError("continuity backoff is invalid")
+        raise OmniRouteError("continuity backoff is invalid")
     if not all(isinstance(item, str) and _HEX.fullmatch(item) for item in hashes):
-        raise OmniRootError("continuity evidence hashes are invalid")
+        raise OmniRouteError("continuity evidence hashes are invalid")
     if (not isinstance(completed, list) or len(set(completed)) != len(completed)
             or not all(isinstance(item, str) and _HEX.fullmatch(item) for item in completed)):
-        raise OmniRootError("continuity completed actions are invalid")
+        raise OmniRouteError("continuity completed actions are invalid")
     if (not isinstance(alternates, list) or not alternates
             or len(alternates) >= MAX_CONTINUITY_WRITERS):
-        raise OmniRootError("continuity alternates are invalid")
+        raise OmniRouteError("continuity alternates are invalid")
     safe_alternates = []
     seen = set()
     task_sha256 = None
     for candidate in alternates:
         if not _valid_private_candidate(candidate):
-            raise OmniRootError("continuity alternate is invalid")
+            raise OmniRouteError("continuity alternate is invalid")
         resumption_hashes = _resumption_hashes(candidate["resumption"])
         expected_hashes = {
             name: value[name] for name in (
@@ -1198,18 +1196,18 @@ def _continuity_contract(
         if (resumption_hashes is None
                 or {name: resumption_hashes[name] for name in expected_hashes} != expected_hashes
                 or task_sha256 not in {None, resumption_hashes["taskSha256"]}):
-            raise OmniRootError("continuity resumption does not match frozen evidence")
+            raise OmniRouteError("continuity resumption does not match frozen evidence")
         task_sha256 = resumption_hashes["taskSha256"]
         identity = (_sha256(candidate["identity"]), _sha256(candidate["sessionId"]))
         if identity in seen:
-            raise OmniRootError("continuity alternates must be unique")
+            raise OmniRouteError("continuity alternates must be unique")
         seen.add(identity)
         safe_alternates.append({
             "identitySha256": identity[0], "sessionSha256": identity[1],
             "capability": candidate["capability"],
         })
     if authoritative_task_sha256 is not None and task_sha256 != authoritative_task_sha256:
-        raise OmniRootError("continuity resumption does not match authoritative task")
+        raise OmniRouteError("continuity resumption does not match authoritative task")
     return {
         "requiredCapability": capability, "maxAttempts": attempts,
         "retryableExitCodes": sorted(exits), "backoffSeconds": backoff,
@@ -1378,7 +1376,7 @@ def _group_alive(pid: int) -> bool:
 
 def _terminate_group(process: Any) -> int:
     if os.name != "posix" or not hasattr(os, "killpg"):
-        raise OmniRootError("durable process identity and tree termination are unsupported; use native fallback")
+        raise OmniRouteError("durable process identity and tree termination are unsupported; use native fallback")
     with contextlib.suppress(ProcessLookupError):
         os.killpg(process.pid, signal.SIGTERM)
     try:
@@ -1389,7 +1387,7 @@ def _terminate_group(process: Any) -> int:
         try:
             code = process.wait(timeout=5)
         except subprocess.TimeoutExpired as error:
-            raise OmniRootError("process group survived SIGKILL; state must remain quarantined") from error
+            raise OmniRouteError("process group survived SIGKILL; state must remain quarantined") from error
     if _group_alive(process.pid):
         with contextlib.suppress(ProcessLookupError):
             os.killpg(process.pid, signal.SIGKILL)
@@ -1398,7 +1396,7 @@ def _terminate_group(process: Any) -> int:
                 break
             time.sleep(0.1)
         else:
-            raise OmniRootError("process group death could not be proven; state must remain quarantined")
+            raise OmniRouteError("process group death could not be proven; state must remain quarantined")
     return int(code)
 
 
@@ -1432,36 +1430,36 @@ def _collect_diagnostics(process: Any, path: Path, *, timeout_seconds: float, se
 def _capture_command(arguments: list[str]) -> int:
     """Run one qualified launcher in a durable monitor subprocess."""
     if len(arguments) < 12 or arguments[10] != "--":
-        raise OmniRootError("capture arguments are invalid")
+        raise OmniRouteError("capture arguments are invalid")
     try:
         timeout_seconds = int(arguments[2])
         expected_identity = (*tuple(int(value) for value in arguments[3:9]), arguments[9])
     except ValueError as error:
-        raise OmniRootError("capture timeout is invalid") from error
+        raise OmniRouteError("capture timeout is invalid") from error
     if not 1 <= timeout_seconds <= 86400:
-        raise OmniRootError("capture timeout is invalid")
+        raise OmniRouteError("capture timeout is invalid")
     command = arguments[11:]
     if not command or not all(value and "\x00" not in value for value in command):
-        raise OmniRootError("capture command is invalid")
+        raise OmniRouteError("capture command is invalid")
     if os.name != "posix":
-        raise OmniRootError("bounded process-tree timeout is unsupported on this host")
+        raise OmniRouteError("bounded process-tree timeout is unsupported on this host")
     qualified = _resolved_executable(command)
     if qualified is None:
-        raise OmniRootError("qualified launcher changed before execution")
+        raise OmniRouteError("qualified launcher changed before execution")
     command, identity = qualified
     if identity != expected_identity or not _same_executable(command, identity):
-        raise OmniRootError("qualified launcher changed before execution")
+        raise OmniRouteError("qualified launcher changed before execution")
     try:
         process = subprocess.Popen(  # nosec B603 - argv was qualified before monitor launch.
             command, shell=False, close_fds=True, start_new_session=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
     except OSError as error:
-        raise OmniRootError("qualified launcher could not start") from error
+        raise OmniRouteError("qualified launcher could not start") from error
     identity = process_identity(process.pid)
     if identity is None:
         _terminate_group(process)
-        raise OmniRootError("delegate process identity cannot be proven")
+        raise OmniRouteError("delegate process identity cannot be proven")
     _write_json(Path(arguments[1]), {
         "schemaVersion": SCHEMA_VERSION, "pid": process.pid, "pgid": os.getpgid(process.pid),
         "processIdentity": identity,
@@ -1484,16 +1482,16 @@ def _capture_command(arguments: list[str]) -> int:
 
 def _supervisor_arguments(arguments: list[str]) -> tuple[Path, Path, Path, int, tuple[Any, ...], list[str]]:
     if len(arguments) < 13 or arguments[11] != "--":
-        raise OmniRootError("supervisor arguments are invalid")
+        raise OmniRouteError("supervisor arguments are invalid")
     diagnostic_path, process_path, manifest_path = map(Path, arguments[:3])
     try:
         timeout_seconds = int(arguments[3])
         expected_identity = (*tuple(int(value) for value in arguments[4:10]), arguments[10])
     except ValueError as error:
-        raise OmniRootError("supervisor timeout is invalid") from error
+        raise OmniRouteError("supervisor timeout is invalid") from error
     command = arguments[12:]
     if not 1 <= timeout_seconds <= 86400 or not command:
-        raise OmniRootError("supervisor arguments are invalid")
+        raise OmniRouteError("supervisor arguments are invalid")
     return diagnostic_path, process_path, manifest_path, timeout_seconds, expected_identity, command
 
 
@@ -1508,18 +1506,18 @@ def _supervisor_environment(command: list[str]) -> tuple[list[dict[str, str]], s
     try:
         candidates = json.loads(raw)
     except json.JSONDecodeError as error:
-        raise OmniRootError("supervisor continuity input is invalid") from error
+        raise OmniRouteError("supervisor continuity input is invalid") from error
     try:
         launcher_argc = int(raw_launcher_argc)
     except ValueError as error:
-        raise OmniRootError("supervisor continuity input is invalid") from error
+        raise OmniRouteError("supervisor continuity input is invalid") from error
     if (not isinstance(candidates, list) or invocation_mode not in {"direct", "gateway"}
             or credential_mode not in {"environment", "launcher"}
             or not 1 <= launcher_argc <= len(command)):
-        raise OmniRootError("supervisor continuity input is invalid")
+        raise OmniRouteError("supervisor continuity input is invalid")
     if (not candidates or len(candidates) >= MAX_CONTINUITY_WRITERS
             or not all(_valid_private_candidate(candidate) for candidate in candidates)):
-        raise OmniRootError("supervisor continuity input is invalid")
+        raise OmniRouteError("supervisor continuity input is invalid")
     return candidates, learning_state, learning_root, active_session, invocation_mode, launcher_argc
 
 
@@ -1529,7 +1527,7 @@ def _supervisor_manifest(path: Path) -> dict[str, Any]:
         if isinstance(manifest.get("continuity"), dict):
             return manifest
         time.sleep(0.05)
-    raise OmniRootError("supervisor manifest was not published")
+    raise OmniRouteError("supervisor manifest was not published")
 
 
 def _finish_supervision(path: Path, manifest: dict[str, Any], status: str, state: str, reason: str) -> int:
@@ -1618,7 +1616,7 @@ def _supervised_diagnostic(
     if _group_alive(process_evidence["pgid"]):
         try:
             _terminate_group(process)
-        except OmniRootError:
+        except OmniRouteError:
             return None, _finish_supervision(
                 manifest_path, manifest, "quarantined", "quarantined",
                 "prior process group death cannot be proven",
@@ -1640,7 +1638,7 @@ def _supervise_command(arguments: list[str]) -> int:
      invocation_mode, launcher_argc) = _supervisor_environment(command)
     qualified = _resolved_executable(command)
     if qualified is None or qualified[1] != expected_identity:
-        raise OmniRootError("qualified launcher changed before execution")
+        raise OmniRouteError("qualified launcher changed before execution")
     command = qualified[0]
     launcher_command = command[:launcher_argc]
     manifest = _supervisor_manifest(manifest_path)
@@ -1692,20 +1690,20 @@ def _validated_diagnostic(value: dict[str, Any]) -> dict[str, Any]:
             or not all(isinstance(value.get(name), str) for name in ("stdout", "stderr"))
             or not all(isinstance(value.get(name), bool)
                        for name in ("stdoutTruncated", "stderrTruncated"))):
-        raise OmniRootError("terminal diagnostic is invalid")
+        raise OmniRouteError("terminal diagnostic is invalid")
     return value
 
 
 def _git(worktree: Path, *args: str) -> str:
     if _GIT_EXECUTABLE is None:
-        raise OmniRootError("a real clean git worktree is required")
+        raise OmniRouteError("a real clean git worktree is required")
     try:
         completed = subprocess.run(
             [_GIT_EXECUTABLE, "-C", str(worktree), *args],  # nosec B603 - fixed executable and controlled argv.
             check=True, capture_output=True, text=True,
         )
     except (OSError, subprocess.CalledProcessError) as error:
-        raise OmniRootError("a real clean git worktree is required") from error
+        raise OmniRouteError("a real clean git worktree is required") from error
     return completed.stdout.strip()
 
 
@@ -1713,15 +1711,15 @@ def _validate_worktree(worktree: Path) -> tuple[Path, str]:
     try:
         resolved = worktree.resolve(strict=True)
     except OSError as error:
-        raise OmniRootError("existing isolated worktree is required") from error
+        raise OmniRouteError("existing isolated worktree is required") from error
     if not resolved.is_dir() or _git(resolved, "rev-parse", "--is-inside-work-tree") != "true":
-        raise OmniRootError("a real clean git worktree is required")
+        raise OmniRouteError("a real clean git worktree is required")
     git_dir = Path(_git(resolved, "rev-parse", "--path-format=absolute", "--git-dir"))
     common_dir = Path(_git(resolved, "rev-parse", "--path-format=absolute", "--git-common-dir"))
     if git_dir == common_dir:
-        raise OmniRootError("a linked isolated git worktree is required")
+        raise OmniRouteError("a linked isolated git worktree is required")
     if _git(resolved, "status", "--porcelain", "--untracked-files=all"):
-        raise OmniRootError("source worktree must be clean, including untracked files")
+        raise OmniRouteError("source worktree must be clean, including untracked files")
     return resolved, _git(resolved, "rev-parse", "HEAD")
 
 
@@ -1733,16 +1731,16 @@ def _delegate_contract(delegate: dict[str, Any] | None, worktree: Path, target: 
     candidate = {} if delegate is None else dict(delegate)
     ownership = _relative_paths(candidate.get("pathOwnership", []))
     if not isinstance(candidate.get("pathOwnership", []), list):
-        raise OmniRootError("delegate ownership is invalid")
+        raise OmniRouteError("delegate ownership is invalid")
     values = {
         "identity": candidate.get("identity", "anonymous"), "role": candidate.get("role", "implementer"),
         "capability": candidate.get("capability", "default"), "transport": candidate.get("transport", "omniroute"),
     }
     if not all(isinstance(value, str) and value for value in values.values()):
-        raise OmniRootError("delegate identity is invalid")
+        raise OmniRouteError("delegate identity is invalid")
     assignment = candidate.get("assignment", "")
     if not isinstance(assignment, str):
-        raise OmniRootError("delegate assignment is invalid")
+        raise OmniRouteError("delegate assignment is invalid")
     return {
         **values, "assignmentSha256": _sha256(assignment), "pathOwnership": ownership,
         "worktree": str(worktree), "commandSha256": _sha256(command),
@@ -1774,7 +1772,7 @@ def _reservation(state_dir: Path):
     try:
         descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     except FileExistsError as error:
-        raise OmniRootError("another dispatch reservation is active") from error
+        raise OmniRouteError("another dispatch reservation is active") from error
     try:
         os.close(descriptor)
         yield
@@ -1813,62 +1811,62 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     """Launch one bounded implementer only after a fresh strict readiness check."""
     _platform_preflight()
     if not _TARGET.fullmatch(target) or not all(isinstance(value, str) and "\x00" not in value for value in delegate_args):
-        raise OmniRootError("target or delegated arguments are invalid")
+        raise OmniRouteError("target or delegated arguments are invalid")
     if workflow not in {"ORCHESTRATOR + SINGLE IMPLEMENTER", "ORCHESTRATOR + PARALLEL IMPLEMENTERS"}:
-        raise OmniRootError("dispatch requires an orchestrated workflow")
+        raise OmniRouteError("dispatch requires an orchestrated workflow")
     if not all(isinstance(value, str) and value and "unspecified" not in value
                for value in (task_id, root_session_id, integration_branch)):
-        raise OmniRootError("runtime identity is invalid")
+        raise OmniRouteError("runtime identity is invalid")
     if not isinstance(cadence_seconds, int) or cadence_seconds not in {300, 600, 900}:
-        raise OmniRootError("cadence must be 300, 600, or 900 seconds")
+        raise OmniRouteError("cadence must be 300, 600, or 900 seconds")
     if not isinstance(timeout_seconds, int) or not 1 <= timeout_seconds <= 86400:
-        raise OmniRootError("timeout must be between 1 and 86400 seconds")
+        raise OmniRouteError("timeout must be between 1 and 86400 seconds")
     worktree, actual_head = _validate_worktree(Path(worktree))
     if integration_worktree is None:
-        raise OmniRootError("integration worktree is required")
+        raise OmniRouteError("integration worktree is required")
     integration = Path(integration_worktree).resolve(strict=True)
     _validate_worktree(integration)
     if integration == worktree:
-        raise OmniRootError("delegate and integration worktrees must be distinct")
+        raise OmniRouteError("delegate and integration worktrees must be distinct")
     if _repository_identity(worktree) != _repository_identity(integration):
-        raise OmniRootError("delegate and integration worktrees must belong to the same repository")
+        raise OmniRouteError("delegate and integration worktrees must belong to the same repository")
     if _git(integration, "branch", "--show-current") != integration_branch:
-        raise OmniRootError("integration worktree branch does not match the declared branch")
+        raise OmniRouteError("integration worktree branch does not match the declared branch")
     frozen_base = base_commit
     if not isinstance(frozen_base, str) or not re.fullmatch(r"[0-9a-f]{40}", frozen_base):
-        raise OmniRootError("base commit must be a full git object id")
+        raise OmniRouteError("base commit must be a full git object id")
     _git(worktree, "cat-file", "-e", f"{frozen_base}^{{commit}}")
     _git(worktree, "merge-base", "--is-ancestor", frozen_base, actual_head)
     parsed_deadline = _parse_time(deadline)
     if parsed_deadline is None or parsed_deadline <= _utc_now():
-        raise OmniRootError("a future timezone-aware deadline is required")
+        raise OmniRouteError("a future timezone-aware deadline is required")
     if not isinstance(delegate, dict) or not delegate.get("pathOwnership"):
-        raise OmniRootError("explicit non-empty delegate ownership is required")
+        raise OmniRouteError("explicit non-empty delegate ownership is required")
     continuity_manifest = _continuity_contract(continuity, authoritative_task_sha256=_sha256(task_id))
     if (continuity_manifest is not None
             and (delegate.get("capability") not in _CAPABILITY_RANK
                  or _CAPABILITY_RANK[delegate["capability"]]
                  < _CAPABILITY_RANK[continuity_manifest["requiredCapability"]])):
-        raise OmniRootError("initial delegate does not satisfy continuity capability floor")
+        raise OmniRouteError("initial delegate does not satisfy continuity capability floor")
     environment = os.environ.copy() if environ is None else dict(environ)
     config, _ = _operator_config(config_path or default_config_path(), environment)
     readiness = probe(config_path=config_path, opener=opener, environ=environment, config=config)
     if readiness["state"] != "READY":
-        raise OmniRootError(f"OmniRoute is not ready: {readiness['state']}")
+        raise OmniRouteError(f"OmniRoute is not ready: {readiness['state']}")
     path = _run_path(Path(state_dir), run_id)
     state_resolved = Path(state_dir).resolve()
     for managed in (worktree, integration):
         if state_resolved == managed or managed in state_resolved.parents:
-            raise OmniRootError("state directory must be outside managed worktrees")
+            raise OmniRouteError("state directory must be outside managed worktrees")
     if path.exists():
-        raise OmniRootError("run id already exists")
+        raise OmniRouteError("run id already exists")
     launcher = _launcher(config) if isinstance(config, dict) else None
     if launcher is None:
-        raise OmniRootError("launcher is unqualified")
+        raise OmniRouteError("launcher is unqualified")
     launcher_argv, credential_mode, invocation_mode = launcher
     qualified = _resolved_executable(launcher_argv)
     if qualified is None:
-        raise OmniRootError("launcher is unqualified")
+        raise OmniRouteError("launcher is unqualified")
     launcher_argv, launcher_identity = qualified
     launcher_argv, launcher_identity = _seal_launcher(launcher_argv, launcher_identity, Path(state_dir))
     capability = delegate.get("capability") if isinstance(delegate, dict) else "default"
@@ -1877,7 +1875,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     catalog = candidates(required_capability=capability)
     pick = (catalog.get("candidates") or [None])[0]
     if not isinstance(pick, dict):
-        raise OmniRootError("OmniRoute is not ready: RUNTIME_EXHAUSTED")
+        raise OmniRouteError("OmniRoute is not ready: RUNTIME_EXHAUSTED")
     if invocation_mode == "direct":
         argv = [*launcher_argv, *delegate_args]
     elif Path(launcher_argv[0]).name == "omniroute":
@@ -1900,15 +1898,15 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     delegate_manifest = _delegate_contract(delegate, worktree, target, argv, dispatch_environment)
     with _reservation(Path(state_dir)):
         if path.exists():
-            raise OmniRootError("run id already exists")
+            raise OmniRouteError("run id already exists")
         if _overlaps_owned_paths(Path(state_dir), delegate_manifest["pathOwnership"]):
-            raise OmniRootError("delegate ownership overlaps a live run")
+            raise OmniRouteError("delegate ownership overlaps a live run")
         runs_dir = Path(state_dir) / "runs"
         for existing_path in runs_dir.glob("*.json"):
             existing = _load_json(existing_path)
             if existing.get("status") in {"planned", "running", "stalled", "blocked", "review"} \
                     and existing.get("delegate", {}).get("worktree") == str(worktree):
-                raise OmniRootError("each live run requires a unique delegate worktree")
+                raise OmniRouteError("each live run requires a unique delegate worktree")
         _write_json(path, {
             "schemaVersion": SCHEMA_VERSION, "runId": run_id, "status": "planned",
             "delegate": delegate_manifest,
@@ -1919,7 +1917,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     if durable_monitor and os.name != "posix":
         with contextlib.suppress(OSError):
             path.unlink()
-        raise OmniRootError("bounded process-tree timeout is unsupported on this host")
+        raise OmniRouteError("bounded process-tree timeout is unsupported on this host")
     if durable_monitor and continuity_manifest is not None:
         launched_argv = [
             sys.executable, str(Path(__file__).resolve()), "_supervise", str(diagnostic_path),
@@ -1947,23 +1945,23 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     registered = False
     try:
         if not _same_executable(launcher_argv, launcher_identity):
-            raise OmniRootError("qualified launcher changed before execution")
+            raise OmniRouteError("qualified launcher changed before execution")
         if learning_state is None or not all(isinstance(value, str) and value for value in (
                 learning_root_session_id, delegate_session_id)):
-            raise OmniRootError("learning runtime registration is required")
+            raise OmniRouteError("learning runtime registration is required")
         try:
             from scripts.agents.learning_session import register_runtime_participant
             register_runtime_participant(Path(learning_state), learning_root_session_id, delegate_session_id)
             registered = True
         except Exception as registration_error:
-            raise OmniRootError("delegate learning registration failed") from registration_error
+            raise OmniRouteError("delegate learning registration failed") from registration_error
         process = popen(
             launched_argv, cwd=str(worktree), env=launch_environment, shell=False,
             close_fds=True, start_new_session=True,
             stdout=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
             stderr=subprocess.DEVNULL if durable_monitor else subprocess.PIPE,
         )
-    except (OSError, OmniRootError) as error:
+    except (OSError, OmniRouteError) as error:
         with contextlib.suppress(OSError):
             path.unlink()
         if registered:
@@ -1972,14 +1970,14 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
                 attest_participant_unavailable(
                     Path(learning_state), learning_root_session_id, delegate_session_id, "launch-failure"
                 )
-        if isinstance(error, OmniRootError):
+        if isinstance(error, OmniRouteError):
             raise
-        raise OmniRootError("OmniRoute launcher could not start") from error
+        raise OmniRouteError("OmniRoute launcher could not start") from error
     pid = getattr(process, "pid", None)
     if not isinstance(pid, int) or pid <= 1:
         with contextlib.suppress(OSError):
             path.unlink()
-        raise OmniRootError("launcher did not expose a safe process id")
+        raise OmniRouteError("launcher did not expose a safe process id")
     identity = process_identity(pid)
     if not isinstance(identity, str) or not identity:
         if os.name == "posix" and hasattr(os, "killpg"):
@@ -1987,7 +1985,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
                 os.killpg(pid, signal.SIGKILL)
         with contextlib.suppress(OSError):
             path.unlink()
-        raise OmniRootError("durable process identity cannot be proven; use native fallback")
+        raise OmniRouteError("durable process identity cannot be proven; use native fallback")
     if durable_monitor:
         _LOCAL_MONITORS[pid] = process
     timestamp = _utc_now().isoformat()
@@ -2036,7 +2034,7 @@ def status(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
     path = _run_path(Path(state_dir), run_id)
     manifest = _load_json(path)
     if manifest.get("status") not in RUN_STATUSES:
-        raise OmniRootError("run status is invalid")
+        raise OmniRouteError("run status is invalid")
     if manifest.get("status") == "running":
         diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
         diagnostic = _validated_diagnostic(_load_json(diagnostic_path)) if diagnostic_path.is_file() else None
@@ -2108,7 +2106,7 @@ def cancel(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
         try:
             if not isinstance(pid, int) or not isinstance(delegate_process.get("processIdentity"), str) \
                     or process_identity(delegate_process["pid"]) != delegate_process["processIdentity"]:
-                raise OmniRootError("delegate process identity cannot be proven")
+                raise OmniRouteError("delegate process identity cannot be proven")
             os.killpg(pid, signal.SIGTERM)
             for _ in range(50):
                 if not _group_alive(pid):
@@ -2121,11 +2119,11 @@ def cancel(run_id: str, state_dir: Path, *, process_identity: Callable[[int], st
                         break
                     time.sleep(0.1)
                 else:
-                    raise OmniRootError("process group survived SIGKILL")
+                    raise OmniRouteError("process group survived SIGKILL")
             if isinstance(monitor_pid, int) and process_identity(monitor_pid) == monitor.get("processIdentity"):
                 with contextlib.suppress(ProcessLookupError):
                     os.killpg(monitor.get("pgid", monitor_pid), signal.SIGTERM)
-        except (OSError, ProcessLookupError, OmniRootError):
+        except (OSError, ProcessLookupError, OmniRouteError):
             manifest["status"] = "quarantined"
             manifest["reason"] = "process termination could not be proven"
         else:
@@ -2142,53 +2140,53 @@ def complete(  # noqa: MC0001 - receipt validation remains one fail-closed audit
 ) -> dict[str, Any]:
     """Write the root-verifiable terminal receipt for one delegate."""
     if learning_disposition not in {"candidates", "nothing-durable", "unavailable"}:
-        raise OmniRootError("learning disposition is invalid")
+        raise OmniRouteError("learning disposition is invalid")
     if not isinstance(exit_code, int):
-        raise OmniRootError("exit code is invalid")
+        raise OmniRouteError("exit code is invalid")
     if not isinstance(clean, bool) or not all(isinstance(item, str) for item in (checks or []) + (blockers or []) + (adjacent_findings or [])):
-        raise OmniRootError("receipt evidence is invalid")
+        raise OmniRouteError("receipt evidence is invalid")
     outcome = "success" if exit_code == 0 else "failed"
     manifest_path = _run_path(Path(state_dir), run_id)
     manifest = _load_json(manifest_path)
     if manifest.get("status") not in {"review", "blocked", "cancelled"}:
-        raise OmniRootError("completion requires a terminal review, blocked, or cancelled manifest")
+        raise OmniRouteError("completion requires a terminal review, blocked, or cancelled manifest")
     diagnostic_path = Path(state_dir) / "diagnostics" / f"{run_id}.json"
     diagnostic = _validated_diagnostic(_load_json(diagnostic_path))
     if diagnostic.get("exitCode") != exit_code:
-        raise OmniRootError("receipt exit code conflicts with captured process evidence")
+        raise OmniRouteError("receipt exit code conflicts with captured process evidence")
     if manifest.get("status") == "cancelled":
         outcome = "cancelled"
     delegate = manifest.get("delegate")
     ownership = delegate.get("pathOwnership") if isinstance(delegate, dict) else None
     worktree_value = delegate.get("worktree") if isinstance(delegate, dict) else None
     if not isinstance(ownership, list) or not isinstance(worktree_value, str):
-        raise OmniRootError("manifest lacks ownership-bound worktree evidence")
+        raise OmniRouteError("manifest lacks ownership-bound worktree evidence")
     normalized = _relative_paths(changed_paths)
     for changed in map(Path, normalized):
         if not any(changed == Path(owned) or Path(owned) in changed.parents for owned in ownership):
-            raise OmniRootError("changed path falls outside delegate ownership")
+            raise OmniRouteError("changed path falls outside delegate ownership")
     verified_worktree, verified_head = _validate_worktree(Path(worktree_value))
     integration_value = manifest.get("integration")
     integration_path = integration_value.get("worktree") if isinstance(integration_value, dict) else None
     if not isinstance(integration_path, str):
-        raise OmniRootError("manifest lacks integration worktree evidence")
+        raise OmniRouteError("manifest lacks integration worktree evidence")
     verified_integration, _ = _validate_worktree(Path(integration_path))
     if verified_worktree == verified_integration:
-        raise OmniRootError("delegate and integration worktrees must be distinct")
+        raise OmniRouteError("delegate and integration worktrees must be distinct")
     if _repository_identity(verified_worktree) != _repository_identity(verified_integration):
-        raise OmniRootError("receipt worktrees do not belong to the same repository")
+        raise OmniRouteError("receipt worktrees do not belong to the same repository")
     if clean is not True or head != verified_head:
-        raise OmniRootError("receipt HEAD and clean evidence must match the delegate worktree")
+        raise OmniRouteError("receipt HEAD and clean evidence must match the delegate worktree")
     frozen_base = manifest.get("baseCommit")
     if not isinstance(frozen_base, str) or not re.fullmatch(r"[0-9a-f]{40}", frozen_base):
-        raise OmniRootError("manifest lacks a frozen dispatch base")
+        raise OmniRouteError("manifest lacks a frozen dispatch base")
     _git(verified_worktree, "merge-base", "--is-ancestor", frozen_base, verified_head)
     actual = _relative_paths(_git(verified_worktree, "diff", "--name-only", frozen_base, verified_head).splitlines())
     if actual != normalized:
-        raise OmniRootError("changed path claim does not equal the frozen-base git diff")
+        raise OmniRouteError("changed path claim does not equal the frozen-base git diff")
     for changed in actual:
         if not (verified_worktree / changed).is_file():
-            raise OmniRootError("changed path claim must name a real file")
+            raise OmniRouteError("changed path claim must name a real file")
     timestamp = _utc_now().isoformat()
     receipt = {
         "schemaVersion": SCHEMA_VERSION, "runId": run_id, "outcome": outcome,
@@ -2228,7 +2226,7 @@ def _print(value: dict[str, Any]) -> int:
 def _private_contract(path: Path) -> dict[str, Any]:
     value = _read_config(path)
     if value is None:
-        raise OmniRootError("contract must be one owner-owned 0600 JSON file")
+        raise OmniRouteError("contract must be one owner-owned 0600 JSON file")
     return value
 
 
@@ -2246,13 +2244,13 @@ def attest(
         state = {
             "absent": "ABSENT", "unauthenticated": "UNAUTHENTICATED", "exhausted": "RUNTIME_EXHAUSTED",
         }.get(error, "UNHEALTHY")
-        raise OmniRootError(f"attestation requires healthy local gateway: {state}")
+        raise OmniRouteError(f"attestation requires healthy local gateway: {state}")
     reason = _qualification_reason(contract, payload["build"], now())
     if reason is not None:
-        raise OmniRootError(f"attestation contract is unqualified: {reason}")
+        raise OmniRouteError(f"attestation contract is unqualified: {reason}")
     _, destination_reason = _read_config_with_reason(config_path)
     if destination_reason == "CONFIG_FILE_UNSAFE":
-        raise OmniRootError("attestation destination is unsafe")
+        raise OmniRouteError("attestation destination is unsafe")
     _write_json(config_path, _canonical_config(contract))
     return {"state": "ATTESTED"}
 
@@ -2262,13 +2260,13 @@ def main(argv: list[str] | None = None) -> int:
     if raw_arguments and raw_arguments[0] == "_capture":
         try:
             return _capture_command(raw_arguments[1:])
-        except OmniRootError as error:
+        except OmniRouteError as error:
             print(str(error), file=sys.stderr)
             return 1
     if raw_arguments and raw_arguments[0] == "_supervise":
         try:
             return _supervise_command(raw_arguments[1:])
-        except OmniRootError as error:
+        except OmniRouteError as error:
             print(str(error), file=sys.stderr)
             return 1
     parser = argparse.ArgumentParser(description=__doc__)
@@ -2305,7 +2303,7 @@ def main(argv: list[str] | None = None) -> int:
                         "delegate", "cadenceSeconds", "deadline", "timeoutSeconds", "learningState",
                         "learningRootSessionId", "delegateSessionId"}
             if set(contract) not in (required, required | {"continuity"}):
-                raise OmniRootError("dispatch contract fields are invalid")
+                raise OmniRouteError("dispatch contract fields are invalid")
             return _print(dispatch(run_id=contract["runId"], worktree=Path(contract["worktree"]),
                 state_dir=args.state_dir, config_path=args.config, target=contract["target"],
                 delegate_args=contract["delegateArgs"], task_id=contract["taskId"],
@@ -2324,13 +2322,13 @@ def main(argv: list[str] | None = None) -> int:
         required = {"runId", "exitCode", "changedPaths", "learningDisposition", "head", "clean",
                     "checks", "blockers", "adjacentFindings"}
         if set(contract) != required:
-            raise OmniRootError("complete contract fields are invalid")
+            raise OmniRouteError("complete contract fields are invalid")
         return _print(complete(run_id=contract["runId"], state_dir=args.state_dir,
             exit_code=contract["exitCode"], changed_paths=contract["changedPaths"],
             learning_disposition=contract["learningDisposition"], head=contract["head"],
             clean=contract["clean"], checks=contract["checks"], blockers=contract["blockers"],
             adjacent_findings=contract["adjacentFindings"]))
-    except OmniRootError as error:
+    except OmniRouteError as error:
         print(str(error), file=sys.stderr)
         return 1
 

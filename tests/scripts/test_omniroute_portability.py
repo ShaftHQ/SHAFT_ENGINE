@@ -19,17 +19,17 @@ def load(path: Path, name: str):
     return module
 
 
-class OmniRootPortabilityTest(unittest.TestCase):
+class OmniRoutePortabilityTest(unittest.TestCase):
     def test_portable_payload_contains_optional_transport_and_workflow_owner(self):
-        installer = load(CORE / "install.py", "omniroot_portable_installer")
+        installer = load(CORE / "install.py", "omniroute_portable_installer")
         packaged = {
             path.relative_to(CORE).as_posix()
             for path in installer.source_files(CORE, "portable")
         }
         self.assertLessEqual(
             {
-                "skills/omniroot/SKILL.md",
-                "skills/omniroot/scripts/runner.py",
+                "skills/omniroute/SKILL.md",
+                "skills/omniroute/scripts/runner.py",
                 "references/execution-workflows.md",
             },
             packaged,
@@ -54,10 +54,10 @@ class OmniRootPortabilityTest(unittest.TestCase):
         map_text = (ROOT / ".agents/skills/README.md").read_text(encoding="utf-8")
         guide = (CORE / "guides/omniroute.md").read_text(encoding="utf-8")
         for text in (readme, install, map_text):
-            self.assertIn("omniroot", text.casefold())
-        self.assertIn("skills/omniroot/SKILL.md", readme)
+            self.assertIn("omniroute", text.casefold())
+        self.assertIn("skills/omniroute/SKILL.md", readme)
         self.assertIn("references/execution-workflows.md", map_text)
-        self.assertIn("../skills/omniroot/SKILL.md", guide)
+        self.assertIn("../skills/omniroute/SKILL.md", guide)
         self.assertIn("optional", guide.casefold())
 
 

@@ -212,7 +212,7 @@ that page reach.
 Select exactly one mode from [execution workflows](../../references/execution-workflows.md),
 the sole owner of workflow names, selection, switching, capacity fallback, and
 writer limits. Use optional local transport only through the
-[OmniRoot skill](../omniroot/SKILL.md); missing OmniRoute never weakens or
+[OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens or
 disables the canonical workflows.
 
 When orchestrating, [delegation](../../references/delegation.md) owns dispatch,

@@ -1,4 +1,4 @@
-"""Focused contracts for the optional OmniRoot transport."""
+"""Focused contracts for the optional OmniRoute transport."""
 
 from __future__ import annotations
 
@@ -22,15 +22,15 @@ from urllib.error import HTTPError
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILL = ROOT / "chaos-engine/skills/omniroot"
+SKILL = ROOT / "chaos-engine/skills/omniroute"
 RUNNER_PATH = SKILL / "scripts/runner.py"
 GIT_PATH = shutil.which("git")
 if GIT_PATH is None:
-    raise RuntimeError("git is required for OmniRoot worktree tests")
+    raise RuntimeError("git is required for OmniRoute worktree tests")
 GIT = str(Path(GIT_PATH).resolve())
-SPEC = importlib.util.spec_from_file_location("omniroot_runner", RUNNER_PATH)
+SPEC = importlib.util.spec_from_file_location("omniroute_runner", RUNNER_PATH)
 if SPEC is None or SPEC.loader is None:
-    raise RuntimeError("OmniRoot runner could not be loaded")
+    raise RuntimeError("OmniRoute runner could not be loaded")
 RUNNER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNNER)
 
@@ -80,7 +80,7 @@ _USABLE_CATALOG = {
 }
 
 
-class OmniRootWorkflowTest(unittest.TestCase):
+class OmniRouteWorkflowTest(unittest.TestCase):
     def test_canonical_workflows_are_exact_and_transport_is_orthogonal(self):
         text = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(encoding="utf-8")
         for workflow in (
@@ -93,10 +93,10 @@ class OmniRootWorkflowTest(unittest.TestCase):
         self.assertIn("OmniRoute is absent", text)
 
 
-class OmniRootProbeTest(unittest.TestCase):
+class OmniRouteProbeTest(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
-        self.config = self.root / "omniroot.json"
+        self.config = self.root / "omniroute.json"
         self.launcher = self.root / "launcher"
         self.launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         self.launcher.chmod(0o700)
@@ -299,7 +299,7 @@ class OmniRootProbeTest(unittest.TestCase):
                     config_path=self.config, opener=health,
                     environ={"OMNIROUTE_API_KEY": "present-but-never-recorded"},
                 )["state"])
-                with self.assertRaisesRegex(RUNNER.OmniRootError, "UNHEALTHY"):
+                with self.assertRaisesRegex(RUNNER.OmniRouteError, "UNHEALTHY"):
                     RUNNER.attest(config_path=self.root / "destination.json", contract_path=contract,
                                   opener=health)
 
@@ -590,7 +590,7 @@ class OmniRootProbeTest(unittest.TestCase):
         self.assertEqual("RUNTIME_EXHAUSTED", result["state"])
 
 
-class OmniRootRunnerTest(unittest.TestCase):
+class OmniRouteRunnerTest(unittest.TestCase):
     def _dispatch(self, **kwargs):
         contract = {
             "task_id": "task-1", "workflow": "ORCHESTRATOR + SINGLE IMPLEMENTER",
@@ -661,7 +661,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         from scripts.agents.learning_session import create_runtime
         create_runtime(self.learning_state, "root-1")
         self.state = self.root / "state"
-        self.config = self.root / "omniroot.json"
+        self.config = self.root / "omniroute.json"
         self.launcher = self.root / "launcher"
         self.launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         self.launcher.chmod(0o700)
@@ -771,7 +771,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             config_path=self.root / "missing.json", opener=lambda *_, **__: _Response(), environ={}
         )
         self.assertEqual("READY", result["state"])
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             self._dispatch(
                 run_id="missing", worktree=self.worktree, state_dir=self.state,
                 config_path=self.root / "missing.json", target="host-cli", delegate_args=[],
@@ -860,13 +860,13 @@ class OmniRootRunnerTest(unittest.TestCase):
 
     def test_dispatch_rejects_dirty_worktree_and_overlapping_or_secret_ownership(self):
         (self.worktree / "README.md").write_text("dirty\n", encoding="utf-8")
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             self._dispatch(run_id="dirty", worktree=self.worktree, state_dir=self.state, config_path=self.config,
                 target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
                 environ={"OMNIROUTE_API_KEY": "secret"})
         subprocess.run([GIT, "-C", str(self.worktree), "checkout", "--", "README.md"], check=True)  # nosec B603 - fixed test executable and controlled argv.
         for run_id, paths in (("secret", [".env"]), ("private", ["private/key.txt"])):
-            with self.assertRaises(RUNNER.OmniRootError):
+            with self.assertRaises(RUNNER.OmniRouteError):
                 self._dispatch(run_id=run_id, worktree=self.worktree, state_dir=self.state, config_path=self.config,
                     target="host-cli", delegate_args=[], opener=lambda *_, **__: _Response(),
                     environ={"OMNIROUTE_API_KEY": "secret"}, delegate={"pathOwnership": paths})
@@ -876,7 +876,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             "schemaVersion": 1, "runId": "existing", "status": "running",
             "delegate": {"pathOwnership": ["docs"]},
         })
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             self._dispatch(
                 run_id="nested", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
@@ -890,7 +890,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         os.close(descriptor)
         try:
-            with self.assertRaises(RUNNER.OmniRootError):
+            with self.assertRaises(RUNNER.OmniRouteError):
                 with RUNNER._reservation(self.state):
                     self.fail("reservation must not be shared")
         finally:
@@ -901,7 +901,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         real.mkdir(mode=0o700)
         linked = self.root / "linked-state"
         linked.symlink_to(real, target_is_directory=True)
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._write_json(linked / "runs/run.json", {"ok": True})
 
     def test_state_root_rejects_nested_symlink_ancestor(self):
@@ -909,7 +909,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         (real / "nested").mkdir(parents=True, mode=0o700)
         alias = self.root / "alias"
         alias.symlink_to(real, target_is_directory=True)
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._write_json(alias / "nested/state/runs/run.json", {"ok": True})
 
     def test_state_reader_rejects_non_private_file(self):
@@ -918,7 +918,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         if os.name != "posix":
             self.skipTest("POSIX permission contract")
         path.chmod(0o644)
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._load_json(path)
 
     def test_config_requires_private_owner_mode_on_posix(self):
@@ -942,7 +942,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertEqual("ABSENT", second["state"])
 
     def test_dispatch_rejects_non_ready_and_stale_cancel_quarantines(self):
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             self._dispatch(
                 run_id="run-1", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
@@ -998,7 +998,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         head = subprocess.run([GIT, "-C", str(self.worktree), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()  # nosec B603 - fixed test executable and controlled argv.
         RUNNER._write_json(self.state / "runs/run-1.json", {
             "schemaVersion": 1, "runId": "run-1", "status": "review", "head": head,
-            "delegate": {"pathOwnership": ["chaos-engine/skills/omniroot/SKILL.md"], "worktree": str(self.worktree)},
+            "delegate": {"pathOwnership": ["chaos-engine/skills/omniroute/SKILL.md"], "worktree": str(self.worktree)},
             "integration": {"branch": "integration", "worktree": str(self.integration)},
             "baseCommit": head,
         })
@@ -1007,7 +1007,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             "schemaVersion": 1, "exitCode": 0, "timedOut": False,
             "stdout": "ok", "stderr": "", "stdoutTruncated": False, "stderrTruncated": False,
         })
-        changed = self.worktree / "chaos-engine/skills/omniroot/SKILL.md"
+        changed = self.worktree / "chaos-engine/skills/omniroute/SKILL.md"
         changed.parent.mkdir(parents=True)
         changed.write_text("test\n", encoding="utf-8")
         subprocess.run([GIT, "-C", str(self.worktree), "add", "."], check=True)  # nosec B603 - fixed test executable and controlled argv.
@@ -1015,7 +1015,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         head = RUNNER._git(self.worktree, "rev-parse", "HEAD")
         receipt = RUNNER.complete(
             run_id="run-1", state_dir=self.state, exit_code=0,
-            changed_paths=["chaos-engine/skills/omniroot/SKILL.md"],
+            changed_paths=["chaos-engine/skills/omniroute/SKILL.md"],
             learning_disposition="nothing-durable", head=head, clean=True,
             checks=["python3 -m unittest"], blockers=[], adjacent_findings=[],
         )
@@ -1037,7 +1037,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             "schemaVersion": 1, "exitCode": 9, "timedOut": False,
             "stdout": "", "stderr": "failed", "stdoutTruncated": False, "stderrTruncated": False,
         })
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER.complete(
                 run_id="run-3", state_dir=self.state, exit_code=0, changed_paths=[],
                 learning_disposition="nothing-durable",
@@ -1072,15 +1072,15 @@ class OmniRootRunnerTest(unittest.TestCase):
         replacement.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
         replacement.chmod(0o700)
         os.replace(replacement, self.launcher)
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._seal_launcher(argv, identity, self.state)
 
     def test_dispatch_rejects_untracked_and_primary_worktrees(self):
         (self.worktree / "untracked.txt").write_text("x", encoding="utf-8")
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._validate_worktree(self.worktree)
         (self.worktree / "untracked.txt").unlink()
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._validate_worktree(self.repository)
 
     def test_corrupt_live_manifest_aborts_reservation(self):
@@ -1088,14 +1088,14 @@ class OmniRootRunnerTest(unittest.TestCase):
         bad = self.state / "runs/bad.json"
         bad.write_text("not-json", encoding="utf-8")
         bad.chmod(0o600)
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             self._dispatch(run_id="new", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
                 opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
                 popen=lambda *_a, **_k: _Process(), process_identity=lambda _: "identity")
 
     def test_dispatch_never_records_running_without_process_identity(self):
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             self._dispatch(run_id="unknown", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
                 opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
@@ -1106,7 +1106,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         launched = []
         with patch("scripts.agents.learning_session.register_runtime_participant",
                         side_effect=RuntimeError("closed")):
-            with self.assertRaisesRegex(RUNNER.OmniRootError, "learning registration"):
+            with self.assertRaisesRegex(RUNNER.OmniRouteError, "learning registration"):
                 self._dispatch(run_id="learning-fail", worktree=self.worktree, state_dir=self.state,
                     config_path=self.config, target="host-cli", delegate_args=[],
                     opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
@@ -1116,7 +1116,7 @@ class OmniRootRunnerTest(unittest.TestCase):
 
     def test_launch_failure_attests_registered_participant_unavailable(self):
         with patch("scripts.agents.learning_session.attest_participant_unavailable") as attest:
-            with self.assertRaisesRegex(RUNNER.OmniRootError, "could not start"):
+            with self.assertRaisesRegex(RUNNER.OmniRouteError, "could not start"):
                 self._dispatch(run_id="launch-fail", worktree=self.worktree, state_dir=self.state,
                     config_path=self.config, target="host-cli", delegate_args=[],
                     opener=lambda *_, **__: _Response(), environ={"OMNIROUTE_API_KEY": "secret"},
@@ -1185,7 +1185,7 @@ class OmniRootRunnerTest(unittest.TestCase):
                             "capability": "default", "target": "qualified-target",
                             "arguments": [], "resumption": resumption}],
         }
-        with self.assertRaisesRegex(RUNNER.OmniRootError, "authoritative task"):
+        with self.assertRaisesRegex(RUNNER.OmniRouteError, "authoritative task"):
             self._dispatch(
                 run_id="wrong-task", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
@@ -1197,7 +1197,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             )
 
     def test_dispatch_rejects_fabricated_default_runtime_contract(self):
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER.dispatch(run_id="incomplete", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[])
 
@@ -1242,7 +1242,7 @@ class OmniRootRunnerTest(unittest.TestCase):
     def test_unsupported_platform_fails_before_state_mutation(self):
         state = self.root / "never-created"
         with patch.object(RUNNER.sys, "platform", "win32"):
-            with self.assertRaises(RUNNER.OmniRootError):
+            with self.assertRaises(RUNNER.OmniRouteError):
                 self._dispatch(run_id="unsupported", worktree=self.worktree, state_dir=state,
                     config_path=self.config, target="host-cli", delegate_args=[])
         self.assertFalse(state.exists())
@@ -1255,13 +1255,13 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertFalse(target.exists())
 
     def test_dispatch_rejects_state_inside_managed_worktree(self):
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             self._dispatch(run_id="inside", worktree=self.worktree,
                 state_dir=self.worktree / ".state", config_path=self.config,
                 target="host-cli", delegate_args=[])
 
     def test_dispatch_rejects_shared_delegate_and_integration_worktree(self):
-        with self.assertRaisesRegex(RUNNER.OmniRootError, "distinct"):
+        with self.assertRaisesRegex(RUNNER.OmniRouteError, "distinct"):
             self._dispatch(run_id="shared", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[],
                 integration_worktree=self.worktree, integration_branch="delegate")
@@ -1283,7 +1283,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             "schemaVersion": 1, "exitCode": 0, "timedOut": False, "stdout": "", "stderr": "",
             "stdoutTruncated": False, "stderrTruncated": False,
         })
-        with self.assertRaisesRegex(RUNNER.OmniRootError, "git diff"):
+        with self.assertRaisesRegex(RUNNER.OmniRouteError, "git diff"):
             RUNNER.complete(run_id="fabricated", state_dir=self.state, exit_code=0,
                 changed_paths=["docs/fake.md"], learning_disposition="nothing-durable",
                 head=head, clean=True)
@@ -1293,7 +1293,7 @@ class OmniRootRunnerTest(unittest.TestCase):
         self.assertNotIn("exact-value", redacted)
 
     def test_completion_requires_manifest_terminal_state_ownership_and_clean_head(self):
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER.complete(run_id="unknown", state_dir=self.state, exit_code=0,
                 changed_paths=[], learning_disposition="nothing-durable")
         head = RUNNER._git(self.worktree, "rev-parse", "HEAD")
@@ -1301,7 +1301,7 @@ class OmniRootRunnerTest(unittest.TestCase):
             "status": "running", "head": head,
             "delegate": {"pathOwnership": ["docs"], "worktree": str(self.worktree)},
             "integration": {"branch": "integration", "worktree": str(self.worktree)}})
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER.complete(run_id="live", state_dir=self.state, exit_code=0,
                 changed_paths=["other/file"], learning_disposition="nothing-durable", head=head)
 

@@ -101,11 +101,11 @@ CHECKS = {
         "guidance",
         (
             "tests.scripts.test_validate_agent_guidance",
-            "tests.scripts.test_omniroot",
-            "tests.scripts.test_omniroot_workflow_contract",
-            "tests.scripts.test_omniroot_orchestrator_docs",
-            "tests.scripts.test_omniroot_tdd_pdca",
-            "tests.scripts.test_omniroot_portability",
+            "tests.scripts.test_omniroute",
+            "tests.scripts.test_omniroute_workflow_contract",
+            "tests.scripts.test_omniroute_orchestrator_docs",
+            "tests.scripts.test_omniroute_tdd_pdca",
+            "tests.scripts.test_omniroute_portability",
         ),
     ),
     "skill-contract": Check(
@@ -298,7 +298,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_agent_router_contract.py",
         "tests/scripts/test_agent_harness_portability.py",
         "tests/scripts/test_agent_harness_reachability.py",
-        "tests/scripts/test_omniroot*.py",
+        "tests/scripts/test_omniroute*.py",
         "tests/scripts/test_validate_agent_guidance.py",
         "tests/scripts/test_validate_skills.py",
     ),
@@ -397,7 +397,7 @@ HARNESS_PATTERNS = (
     "tests/scripts/test_agent*.py",
     "tests/scripts/test_guard*.py",
     "tests/scripts/test_chaos_engine*.py",
-    "tests/scripts/test_omniroot*.py",
+    "tests/scripts/test_omniroute*.py",
     "tools/intellij-plugin-recording/*",
 )
 

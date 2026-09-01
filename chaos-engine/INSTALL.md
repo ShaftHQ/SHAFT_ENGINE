@@ -52,7 +52,7 @@ so Windows Git checkouts retain the exact owned bytes while unrelated
 `.gitattributes` rules remain untouched.
 
 The payload includes the optional
-[`omniroot` skill](skills/omniroot/SKILL.md) and its standard-library runner.
+[`omniroute` skill](skills/omniroute/SKILL.md) and its standard-library runner.
 This copies integration capability only: installation never installs, starts,
 configures, authenticates, or requires OmniRoute. Without a qualified local
 service, canonical [execution workflows](references/execution-workflows.md)

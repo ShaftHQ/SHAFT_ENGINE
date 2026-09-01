@@ -118,7 +118,7 @@
     ".agents/skills/*/SKILL.md",
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/skills/local-coding-delegate/SKILL.md",
-    "chaos-engine/skills/omniroot/SKILL.md",
+    "chaos-engine/skills/omniroute/SKILL.md",
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",
@@ -153,7 +153,7 @@
     "chaos-engine/skills": [
       "chaos-engine",
       "local-coding-delegate",
-      "omniroot",
+      "omniroute",
       "work-item"
     ]
   },
@@ -255,7 +255,7 @@
     ".agents/skills/*/SKILL.md",
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/skills/local-coding-delegate/SKILL.md",
-    "chaos-engine/skills/omniroot/SKILL.md",
+    "chaos-engine/skills/omniroute/SKILL.md",
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",

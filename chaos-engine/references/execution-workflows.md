@@ -26,7 +26,7 @@ After workflow selection, choose the first available transport permitted by
 the selected host and task boundary:
 
 1. A qualified optional local OmniRoute process through the
-   [OmniRoot skill](../skills/omniroot/SKILL.md).
+   [OmniRoute skill](../skills/omniroute/SKILL.md).
 2. A qualified host-native lower-capability implementer.
 3. No qualified delegate: `SOLO`.
 

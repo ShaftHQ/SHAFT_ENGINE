@@ -1,14 +1,14 @@
 # OmniRoute: enable ChaosEngine to use the local gateway
 
 OmniRoute is an optional local gateway. ChaosEngine uses it through the
-provider-neutral [OmniRoot skill](../skills/omniroot/SKILL.md) after the
+provider-neutral [OmniRoute skill](../skills/omniroute/SKILL.md) after the
 canonical [execution workflow](../references/execution-workflows.md) is
 selected. The goal is to make a running local OmniRoute easy to use, not to
 fence operators behind restricted keys or attestation hashes.
 
-OmniRoot probes only `http://127.0.0.1:20128/`. Missing OmniRoute is normal and
+OmniRoute probes only `http://127.0.0.1:20128/`. Missing OmniRoute is normal and
 leaves native delegation and `SOLO` valid. Missing
-`~/.config/chaos-engine/omniroot.json` is also normal: the runner uses
+`~/.config/chaos-engine/omniroute.json` is also normal: the runner uses
 `chaosengine-omniroute` or `omniroute` from PATH.
 
 This is an operator integration guide, not a second workflow definition.
@@ -110,11 +110,11 @@ omniroute providers list
 ```
 
 OmniRoute 3.8.50 deliberately gives anonymous `/api/health` callers only
-`status` and `timestamp`. OmniRoot does not accept that as a build sentinel.
-When that exact fixed-loopback response occurs, OmniRoot verifies the local
+`status` and `timestamp`. OmniRoute does not accept that as a build sentinel.
+When that exact fixed-loopback response occurs, OmniRoute verifies the local
 `omniroute` and Node executables, invokes CLI health with a temporary scrubbed
 working directory and fixed `127.0.0.1` target, and retains only its non-empty
-build/version. OmniRoot never reads, passes, prints, or stores endpoint keys or
+build/version. OmniRoute never reads, passes, prints, or stores endpoint keys or
 CLI token material; the verified CLI resolves its own local machine-token proof.
 It never records routes or provider data. If local CLI build evidence is
 unavailable, qualification stays `UNHEALTHY`; repair the local installation or
@@ -128,7 +128,7 @@ processes that use this gateway:
 export OMNIROUTE_API_KEY='read-this-from-your-secret-manager'
 curl --fail --silent http://127.0.0.1:20128/v1/models \
   -H "Authorization: Bearer $OMNIROUTE_API_KEY"
-python3 chaos-engine/skills/omniroot/scripts/runner.py probe
+python3 chaos-engine/skills/omniroute/scripts/runner.py probe
 ```
 
 `probe` is `READY` when the API answers and at least one catalog model has
@@ -306,7 +306,7 @@ catalog with no cache files:
 omniroute --output json models
 omniroute --output json usage quota
 omniroute --output json models glm
-python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability default
+python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability default
 ```
 
 Rank remaining `default` models first for implementation, then most-intelligent,
@@ -354,7 +354,7 @@ configuration. Create an opt-in free-session profile at
 
 ```toml
 # OMNIROUTE_API_KEY is loaded by the launcher, not stored here.
-# Do not pin a model here. OmniRoot fetches the live catalog and passes
+# Do not pin a model here. OmniRoute fetches the live catalog and passes
 # --model / --provider on each launch.
 model_provider = "omniroute"
 model_reasoning_effort = "low"
@@ -422,11 +422,11 @@ Keep its scope read-only and non-sensitive.
 
 For bounded automatic delegation, canonical orchestration must probe the fixed
 loopback endpoint before native fallback, with no endpoint prompt. Missing
-operator config is normal. When that probe is `READY`, OmniRoot dispatches
+operator config is normal. When that probe is `READY`, OmniRoute dispatches
 through `chaosengine-omniroute` or `omniroute run`. Rank live catalog
 free/remaining-first, then any other model the local endpoint can call.
-OmniRoot never reads, writes, or persists route, model, or provider IDs. When
-no callable model remains, the launcher may exit `78`; OmniRoot records
+OmniRoute never reads, writes, or persists route, model, or provider IDs. When
+no callable model remains, the launcher may exit `78`; OmniRoute records
 `RUNTIME_EXHAUSTED`, then the canonical workflow may use a native implementer.
 
 ### Current subagent limitation
@@ -457,8 +457,8 @@ omniroute health --json
 curl --fail --silent http://127.0.0.1:20128/api/health
 curl --fail --silent http://127.0.0.1:20128/v1/models \
   -H "Authorization: Bearer $OMNIROUTE_API_KEY"
-python3 chaos-engine/skills/omniroot/scripts/runner.py probe
-python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability default
+python3 chaos-engine/skills/omniroute/scripts/runner.py probe
+python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability default
 ```
 
 `probe` must print `READY`. Missing operator config is normal. Then prove a
@@ -484,9 +484,9 @@ created” is a valid status; do not fabricate account completion.
 
 ## Troubleshooting and rollback
 
-### Secret-free OmniRoot qualification reasons
+### Secret-free OmniRoute qualification reasons
 
-`python3 chaos-engine/skills/omniroot/scripts/runner.py probe` reports a
+`python3 chaos-engine/skills/omniroute/scripts/runner.py probe` reports a
 bounded secret-free state. Missing operator config is normal. Use the table
 only when probe is not `READY`.
 

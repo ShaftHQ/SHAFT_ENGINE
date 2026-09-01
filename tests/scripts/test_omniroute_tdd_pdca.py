@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-class OmniRootTddPdcaTest(unittest.TestCase):
+class OmniRouteTddPdcaTest(unittest.TestCase):
     def test_docs_link_workflow_and_phase_boundary(self):
         paths = (
             "chaos-engine/references/tdd.md",

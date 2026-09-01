@@ -1,12 +1,12 @@
 ---
-name: omniroot
+name: omniroute
 description: >-
   Use when an orchestrated workflow may dispatch bounded implementation through
   an optional local OmniRoute process.
 license: MIT
 ---
 
-# OmniRoot
+# OmniRoute
 
 Optional provider-neutral transport. It is not a workflow owner; select the
 canonical workflow in [execution workflows](../../references/execution-workflows.md)
@@ -48,7 +48,7 @@ dispatch:
 omniroute --output json models
 omniroute --output json usage quota
 omniroute --output json models <provider>
-python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability mechanical|default|most-intelligent
+python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability mechanical|default|most-intelligent
 ```
 
 Do not add `--json` after the `models` subcommand: that form prints a table, not JSON. Use `--output json` before `models`.
@@ -64,7 +64,7 @@ it returns HTTP 401.
 4. Gateway `/api/models` rows use `model` (native id), `name` (display), `provider`, and `available`. CLI `omniroute models` JSON sets `id` from `name` when `id` is missing, so prefer `model` over `id`/`name`.
 5. Quota is a JSON array of objects with `provider`, `remaining`, and `state`.
 6. Join on alphanumeric-lowercased provider ids (`glm-cn` matches `glmcn`).
-7. Drop `state == "exhausted"` or `remaining <= 0`. Do not drop `available: false`: that management flag hid models the completions live catalog still accepts. Drop `supportsVision: true` for implementation ranking.
+7. Drop `state == "exhausted"` or `remaining <= 0`. Do not drop `available: false`: that management flag hid models the completions live catalog still accepts. Do not drop `supportsVision: true` for implementation ranking.
 8. Whitespace display names become native ids by stripping parentheticals, lowercasing, and replacing spaces with hyphens. Already-slugged ids stay unchanged. Compose `--model` as `provider/model` when the native id has no provider prefix.
 
 ### Rank (dynamic, from the live ids)
@@ -156,12 +156,12 @@ permits native implementer fallback.
 Use only the standard-library [runner](scripts/runner.py):
 
 ```text
-python3 chaos-engine/skills/omniroot/scripts/runner.py probe
-python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability mechanical|default|most-intelligent
-python3 chaos-engine/skills/omniroot/scripts/runner.py dispatch --contract <private-state>/dispatch.json
-python3 chaos-engine/skills/omniroot/scripts/runner.py status ...
-python3 chaos-engine/skills/omniroot/scripts/runner.py cancel ...
-python3 chaos-engine/skills/omniroot/scripts/runner.py complete --contract <private-state>/complete.json
+python3 chaos-engine/skills/omniroute/scripts/runner.py probe
+python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability mechanical|default|most-intelligent
+python3 chaos-engine/skills/omniroute/scripts/runner.py dispatch --contract <private-state>/dispatch.json
+python3 chaos-engine/skills/omniroute/scripts/runner.py status ...
+python3 chaos-engine/skills/omniroute/scripts/runner.py cancel ...
+python3 chaos-engine/skills/omniroute/scripts/runner.py complete --contract <private-state>/complete.json
 ```
 
 The only automatic endpoint is `http://127.0.0.1:20128/`. The runner permits
@@ -187,7 +187,7 @@ scrubbed ambient environment, retaining only a healthy semantic-version
 group, non-public ancestry, descriptor identity, and pre/post-exec identity;
 the CLI response is hard-bounded. The child receives an isolated temporary
 `HOME`, data, and XDG directories, so it cannot migrate or alter operator
-files. OmniRoot never reads, passes, prints, or stores endpoint keys or CLI
+files. OmniRoute never reads, passes, prints, or stores endpoint keys or CLI
 token material; the verified CLI resolves its local machine-token proof.
 Missing, malformed, untrusted, changed, oversized, timed-out, unhealthy, or
 non-versioned CLI evidence remains `UNHEALTHY`.
@@ -219,7 +219,7 @@ KiB in a private diagnostic artifact. Redaction removes exact known credential
 values before persistence plus credential-shaped patterns. A timeout or cancel
 waits after `SIGTERM`, sends `SIGKILL` to survivors, and proves process-group
 death before releasing state. Unsupported durable process identity or process-tree
-termination fails closed before state mutation to native delegation; OmniRoot transport is not claimed
+termination fails closed before state mutation to native delegation; OmniRoute transport is not claimed
 on that platform. Its manifest
 freezes task/workflow/root/base/integration/qualification/delegate/process/
 cadence/deadline/timeout/HEAD/diagnostic/receipt facts; its terminal receipt freezes outcome,

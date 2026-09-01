@@ -8,13 +8,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNNER_PATH = ROOT / "chaos-engine/skills/omniroot/scripts/runner.py"
-SPEC = importlib.util.spec_from_file_location("omniroot_failover_runner", RUNNER_PATH)
+RUNNER_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/runner.py"
+SPEC = importlib.util.spec_from_file_location("omniroute_failover_runner", RUNNER_PATH)
 RUNNER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNNER)
 
 
-class OmniRootFailoverTest(unittest.TestCase):
+class OmniRouteFailoverTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.state = Path(self.temporary.name) / "state"
@@ -117,7 +117,7 @@ class OmniRootFailoverTest(unittest.TestCase):
     def test_runtime_exhaustion_is_terminal_not_a_delegate_continuity_retry(self):
         invalid = self.continuity()
         invalid["retryableExitCodes"] = [78]
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._continuity_contract(invalid)
         result = RUNNER._advance_continuity(
             self.manifest(), exit_code=78, group_dead=True,
@@ -159,18 +159,18 @@ class OmniRootFailoverTest(unittest.TestCase):
     def test_contract_rejects_raw_links_secrets_and_duplicate_candidates(self):
         invalid = self.continuity()
         invalid["trackerUrl"] = "https://github.example/secret"
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._continuity_contract(invalid)
         invalid = self.continuity()
         invalid["alternates"].append(dict(invalid["alternates"][1]))
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._continuity_contract(invalid)
 
     def test_contract_rejects_candidate_resumption_not_bound_to_frozen_hashes(self):
         invalid = self.continuity()
         invalid["alternates"][1]["resumption"] = dict(invalid["alternates"][1]["resumption"])
         invalid["alternates"][1]["resumption"]["checkpoint"] = "changed"
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._continuity_contract(invalid)
 
     def test_real_signal_status_can_trigger_failover_and_resumption_prevents_replay(self):
@@ -228,15 +228,15 @@ class OmniRootFailoverTest(unittest.TestCase):
     def test_contract_caps_total_attempts_and_writers_at_four(self):
         invalid = self.continuity()
         invalid["maxAttempts"] = 5
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._continuity_contract(invalid)
         invalid = self.continuity()
         invalid["alternates"] *= 2
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._continuity_contract(invalid)
         invalid = self.continuity()
         invalid["retryableExitCodes"] = [-65]
-        with self.assertRaises(RUNNER.OmniRootError):
+        with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._continuity_contract(invalid)
 
     def test_expired_overall_deadline_blocks_before_registration_or_launch(self):

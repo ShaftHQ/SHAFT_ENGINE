@@ -9,10 +9,10 @@
       "terms": ["SOLO", "ORCHESTRATOR + SINGLE IMPLEMENTER", "ORCHESTRATOR + PARALLEL IMPLEMENTERS"],
       "allowed": ["chaos-engine/skills/chaos-engine/SKILL.md", ".agents/skills/README.md", "chaos-engine/README.md"]
     },
-    "optional OmniRoot transport": {
-      "owner": "chaos-engine/skills/omniroot/SKILL.md",
+    "optional OmniRoute transport": {
+      "owner": "chaos-engine/skills/omniroute/SKILL.md",
       "terms": ["Optional provider-neutral transport", "Missing, stopped, unauthenticated"],
-      "allowed": ["chaos-engine/skills/omniroot/scripts/runner.py", "chaos-engine/guides/omniroute.md", "chaos-engine/README.md", "chaos-engine/INSTALL.md", ".agents/skills/README.md"]
+      "allowed": ["chaos-engine/skills/omniroute/scripts/runner.py", "chaos-engine/guides/omniroute.md", "chaos-engine/README.md", "chaos-engine/INSTALL.md", ".agents/skills/README.md"]
     },
     "lifecycle dispatch and protocol": {
       "owner": "chaos-engine/hooks/lifecycle.py",

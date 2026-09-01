@@ -659,42 +659,42 @@ class OutputAndWorkflowTest(unittest.TestCase):
             "  chaos-engine-cross-platform:", 1
         )[0]
         self.assertIn("tests.scripts.test_agent_harness_portability", deterministic)
-        omniroot_modules = (
-            "tests.scripts.test_omniroot",
-            "tests.scripts.test_omniroot_workflow_contract",
-            "tests.scripts.test_omniroot_orchestrator_docs",
-            "tests.scripts.test_omniroot_tdd_pdca",
-            "tests.scripts.test_omniroot_portability",
+        omniroute_modules = (
+            "tests.scripts.test_omniroute",
+            "tests.scripts.test_omniroute_workflow_contract",
+            "tests.scripts.test_omniroute_orchestrator_docs",
+            "tests.scripts.test_omniroute_tdd_pdca",
+            "tests.scripts.test_omniroute_portability",
         )
-        for module in omniroot_modules:
+        for module in omniroute_modules:
             self.assertIn(module, deterministic)
 
         platform = scheduled.split("  harness-platform-contracts:", 1)[1].split(
             "  agnix-conformance:", 1
         )[0]
-        for module in omniroot_modules:
+        for module in omniroute_modules:
             self.assertIn(module, platform)
         self.assertIn("tests.scripts.test_guard_lifecycle", deterministic)
         self.assertIn("tests.scripts.test_chaos_engine_generation_runtime", deterministic)
 
-    def test_omniroot_portability_is_registered_in_focused_path_gate(self) -> None:
-        plan = classify_paths(["tests/scripts/test_omniroot_portability.py"])
+    def test_omniroute_portability_is_registered_in_focused_path_gate(self) -> None:
+        plan = classify_paths(["tests/scripts/test_omniroute_portability.py"])
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
 
         self.assertIn("guidance", plan.surfaces)
-        self.assertIn("tests.scripts.test_omniroot_portability", plan.test_modules)
-        self.assertIn("'tests/scripts/test_omniroot_portability.py'", pr_gate)
+        self.assertIn("tests.scripts.test_omniroute_portability", plan.test_modules)
+        self.assertIn("'tests/scripts/test_omniroute_portability.py'", pr_gate)
 
-    def test_every_omniroot_module_and_its_owners_bind_to_behavioral_proof(self) -> None:
-        behavioral = "tests.scripts.test_omniroot"
+    def test_every_omniroute_module_and_its_owners_bind_to_behavioral_proof(self) -> None:
+        behavioral = "tests.scripts.test_omniroute"
         paths = (
-            "chaos-engine/skills/omniroot/SKILL.md",
-            "chaos-engine/skills/omniroot/scripts/runner.py",
-            "tests/scripts/test_omniroot.py",
-            "tests/scripts/test_omniroot_workflow_contract.py",
-            "tests/scripts/test_omniroot_orchestrator_docs.py",
-            "tests/scripts/test_omniroot_tdd_pdca.py",
-            "tests/scripts/test_omniroot_portability.py",
+            "chaos-engine/skills/omniroute/SKILL.md",
+            "chaos-engine/skills/omniroute/scripts/runner.py",
+            "tests/scripts/test_omniroute.py",
+            "tests/scripts/test_omniroute_workflow_contract.py",
+            "tests/scripts/test_omniroute_orchestrator_docs.py",
+            "tests/scripts/test_omniroute_tdd_pdca.py",
+            "tests/scripts/test_omniroute_portability.py",
         )
 
         for path in paths:
@@ -703,15 +703,15 @@ class OutputAndWorkflowTest(unittest.TestCase):
                 self.assertIn("guidance", plan.surfaces)
                 self.assertIn(behavioral, plan.test_modules)
 
-    def test_pr_filter_self_binds_every_omniroot_test_module(self) -> None:
+    def test_pr_filter_self_binds_every_omniroute_test_module(self) -> None:
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
 
         for name in (
-            "test_omniroot.py",
-            "test_omniroot_workflow_contract.py",
-            "test_omniroot_orchestrator_docs.py",
-            "test_omniroot_tdd_pdca.py",
-            "test_omniroot_portability.py",
+            "test_omniroute.py",
+            "test_omniroute_workflow_contract.py",
+            "test_omniroute_orchestrator_docs.py",
+            "test_omniroute_tdd_pdca.py",
+            "test_omniroute_portability.py",
         ):
             self.assertIn(f"'tests/scripts/{name}'", pr_gate)
 

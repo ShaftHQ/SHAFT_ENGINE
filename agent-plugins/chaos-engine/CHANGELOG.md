@@ -5,7 +5,7 @@
 - Breaking: rename the portable plugin, zipapp, and CLI from `act-as-mohab`
   to `chaos-engine`. Remove the discoverable compatibility-alias skill.
 - Isolate delivery and fresh-base fixtures without weakening production guards.
-- Add bounded OmniRoot delegate continuity with capability enforcement, private
+- Add bounded OmniRoute delegate continuity with capability enforcement, private
   per-candidate invocation selection, immutable deadlines, and redacted state.
 
 ## 10.3.20260820 - 2026-08-20

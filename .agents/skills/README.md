@@ -79,7 +79,7 @@ flowchart LR
     W --> OP["ORCHESTRATOR +<br/>PARALLEL IMPLEMENTERS"]
     O1 --> T["Qualified transport"]
     OP --> T
-    T --> OR["Optional OmniRoot"]
+    T --> OR["Optional OmniRoute"]
     T --> N["Native implementer"]
 ```
 
@@ -113,7 +113,7 @@ step with the first.
 | Skill | What it does |
 | --- | --- |
 | [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
-| [OmniRoot](../../chaos-engine/skills/omniroot/SKILL.md) | Optional local OmniRoute transport for a workflow already selected by the canonical execution-workflow owner. Missing service or qualification falls back without weakening normal workflows. |
+| [OmniRoute](../../chaos-engine/skills/omniroute/SKILL.md) | Optional local OmniRoute transport for a workflow already selected by the canonical execution-workflow owner. Missing service or qualification falls back without weakening normal workflows. |
 | [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) | Optional. Not always-loaded. A local coding loop the decider may use as a mechanical or default delegate after a hardware probe. |
 | [work-item](../../chaos-engine/skills/work-item/SKILL.md) | Optional. Not always-loaded. Open or rewrite a work item under the portable Spec Kit contract; SCM adapters are separate. |
 

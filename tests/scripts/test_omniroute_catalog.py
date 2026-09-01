@@ -1,4 +1,4 @@
-"""Live OmniRoot catalog selection: no cache files, rank from current CLI JSON."""
+"""Live OmniRoute catalog selection: no cache files, rank from current CLI JSON."""
 
 from __future__ import annotations
 
@@ -10,18 +10,18 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNNER_PATH = ROOT / "chaos-engine/skills/omniroot/scripts/runner.py"
-SKILL = ROOT / "chaos-engine/skills/omniroot/SKILL.md"
+RUNNER_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/runner.py"
+SKILL = ROOT / "chaos-engine/skills/omniroute/SKILL.md"
 WORKFLOWS = ROOT / "chaos-engine/references/execution-workflows.md"
 GUIDE = ROOT / "chaos-engine/guides/omniroute.md"
-SPEC = importlib.util.spec_from_file_location("omniroot_catalog_runner", RUNNER_PATH)
+SPEC = importlib.util.spec_from_file_location("omniroute_catalog_runner", RUNNER_PATH)
 if SPEC is None or SPEC.loader is None:
-    raise RuntimeError("OmniRoot runner could not be loaded")
+    raise RuntimeError("OmniRoute runner could not be loaded")
 RUNNER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNNER)
 
 
-class OmniRootCatalogTest(unittest.TestCase):
+class OmniRouteCatalogTest(unittest.TestCase):
     def test_decode_strips_ansi_logs_and_trailing_extra_json(self):
         raw = (
             "\x1b[2mLoaded env\x1b[0m\n"
@@ -52,6 +52,18 @@ class OmniRootCatalogTest(unittest.TestCase):
         )
         self.assertNotIn("Gone Low", [item["model"] for item in picked])
         self.assertNotIn("gone-low", [item["model"] for item in picked])
+
+    def test_select_keeps_supports_vision_models_for_implementation_ranking(self):
+        catalog = [
+            {"id": "Vision Pro", "provider": "alpha", "supportsVision": True},
+            {"id": "Tool Low", "provider": "alpha", "supportsVision": False},
+        ]
+        quota = [{"provider": "alpha", "remaining": 50, "state": "available"}]
+        picked = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
+        self.assertEqual(
+            ["alpha/vision-pro", "alpha/tool-low"],
+            [item["model"] for item in picked],
+        )
 
     def test_rate_limit_skips_the_failed_identity_and_picks_a_larger_class(self):
         catalog = [
@@ -109,7 +121,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("Use `--output json` before `models`", skill)
         self.assertIn("installed OmniRoute binary", guide)
         self.assertIn("Missing operator config is normal", guide)
-        self.assertIn("python3 chaos-engine/skills/omniroot/scripts/runner.py probe", guide)
+        self.assertIn("python3 chaos-engine/skills/omniroute/scripts/runner.py probe", guide)
         self.assertIn("candidates --capability", skill)
         self.assertIn("HTTP 429", skill)
         self.assertIn("not available in the active live catalog", skill)
@@ -118,6 +130,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("native id", skill)
         self.assertIn("prefer `model` over `id`/`name`", skill)
         self.assertIn("Do not drop `available: false`", skill)
+        self.assertIn("Do not drop `supportsVision: true`", skill)
         self.assertIn("Prefer `omniroute run` over `setup-*`", skill)
         self.assertIn("bin/cli/cli-manifest.mjs", skill)
         self.assertIn("ANTHROPIC_BASE_URL` is the gateway **root", skill)
@@ -186,7 +199,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertEqual("READY", result["state"])
         self.assertEqual("alpha/live-low", result["candidates"][0]["model"])
         self.assertFalse(any(Path.cwd().joinpath(name).exists()
-                             for name in (".omniroot-catalog.json", "catalog-cache.json")))
+                             for name in (".omniroute-catalog.json", "catalog-cache.json")))
 
 
     def test_display_names_launch_as_native_ids_and_catalog_miss_skips_identity(self):
