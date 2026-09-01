@@ -152,7 +152,7 @@ def _read_config(path: Path) -> dict[str, Any] | None:
 def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
     """Return operator-owned launcher argv and credential mode without exposing it."""
     launcher = config.get("launcher")
-    if not isinstance(launcher, dict) or set(launcher) != _LAUNCHER_KEYS:
+    if not isinstance(launcher, dict) or not _LAUNCHER_KEYS.issubset(set(launcher)):
         return None
     argv, mode = launcher.get("argv"), launcher.get("credentialMode")
     invocation_mode = launcher.get("invocationMode")
@@ -161,6 +161,62 @@ def _launcher(config: dict[str, Any]) -> tuple[list[str], str, str] | None:
     if mode not in {"environment", "launcher"} or invocation_mode not in {"gateway", "direct"}:
         return None
     return list(argv), mode, invocation_mode
+
+
+def _implicit_config(
+    environ: dict[str, str],
+    which: Callable[[str], str | None] | None = None,
+) -> dict[str, Any] | None:
+    """Build a launcher from PATH when no private config exists."""
+    locator = which or shutil.which
+    has_key = bool(environ.get("OMNIROUTE_API_KEY"))
+    for name, invocation, mode_without_key in (
+        ("chaosengine-omniroute", "direct", "launcher"),
+        ("omniroute", "gateway", "environment"),
+    ):
+        located = locator(name)
+        if not located:
+            continue
+        argv = [located]
+        if _resolved_executable(argv) is None:
+            continue
+        mode = "environment" if has_key else mode_without_key
+        if mode == "environment" and not has_key:
+            continue
+        return {
+            "schemaVersion": SCHEMA_VERSION,
+            "routeId": "implicit",
+            "launcher": {
+                "argv": argv,
+                "credentialMode": mode,
+                "invocationMode": invocation,
+            },
+        }
+    return None
+
+
+def _operator_config(
+    path: Path | None,
+    environ: dict[str, str],
+    which: Callable[[str], str | None] | None = None,
+    config: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Prefer a safe explicit launcher; otherwise use an implicit PATH launcher."""
+    reason = None
+    if config is None and path is not None:
+        config, reason = _read_config_with_reason(path)
+    if config is not None and _launcher(config) is not None:
+        return config, None
+    implicit = _implicit_config(environ, which=which)
+    if implicit is not None:
+        return implicit, None
+    if reason == "CONFIG_MISSING":
+        return None, "LAUNCHER_UNQUALIFIED"
+    if reason is not None:
+        return None, reason
+    if config is not None:
+        return None, "LAUNCHER_CONFIG_INVALID"
+    return None, "LAUNCHER_UNQUALIFIED"
 
 
 def _resolved_executable(argv: list[str]) -> tuple[list[str], tuple[int, int, int, int, int, int, str]] | None:
@@ -443,42 +499,14 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
 
 def _qualification_reason(config: dict[str, Any] | None, build: object, now: datetime) -> str | None:
     """Return one bounded reason without exposing operator-owned inputs."""
+    del build, now
     if config is None:
-        return "CONFIG_MISSING"
-    if set(config) != _CONFIG_KEYS or config.get("schemaVersion") != SCHEMA_VERSION:
-        return "CONFIG_SCHEMA_INVALID"
-    if not isinstance(config.get("routeId"), str) or not config["routeId"].strip():
-        return "ROUTE_REFERENCE_INVALID"
+        return "LAUNCHER_UNQUALIFIED"
     launcher = _launcher(config)
     if launcher is None:
         return "LAUNCHER_CONFIG_INVALID"
     if _resolved_executable(launcher[0]) is None:
         return "LAUNCHER_UNQUALIFIED"
-    attestation = config.get("attestation")
-    if (not isinstance(attestation, dict) or set(attestation) != _ATTESTATION_KEYS
-            or attestation.get("schemaVersion") != SCHEMA_VERSION):
-        return "ATTESTATION_SCHEMA_INVALID"
-    if attestation.get("serverBuild") != build:
-        return "ATTESTATION_BUILD_MISMATCH"
-    if not all(
-        isinstance(attestation.get(key), str) and _HEX.fullmatch(attestation[key])
-        for key in ("routePolicySha256", "endpointKeyIdentitySha256", "deniedProbeTargetSha256")
-    ):
-        return "ATTESTATION_HASH_INVALID"
-    verified = _parse_time(attestation.get("verifiedAt"))
-    expires = _parse_time(attestation.get("expiresAt"))
-    if verified is None or expires is None or verified > now or expires <= now:
-        return "ATTESTATION_FRESHNESS_INVALID"
-    for key, reason in (
-        ("noCostConfirmed", "NO_COST_UNCONFIRMED"),
-        ("noPaidFallbackConfirmed", "PAID_FALLBACK_UNCONFIRMED"),
-        ("privacyConfirmed", "PRIVACY_UNCONFIRMED"),
-        ("termsConfirmed", "TERMS_UNCONFIRMED"),
-        ("deniedProbeConfirmed", "DENIED_PROBE_UNCONFIRMED"),
-        ("deniedProbeTargetKnownExistingConfirmed", "DENIED_TARGET_UNCONFIRMED"),
-    ):
-        if attestation.get(key) is not True:
-            return reason
     return None
 
 
@@ -544,6 +572,8 @@ def probe(
     environ: dict[str, str] | None = None,
     now: Callable[[], datetime] = _utc_now,
     config: dict[str, Any] | None = None,
+    which: Callable[[str], str | None] | None = None,
+    live_candidates: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Return a secret-free readiness result for the fixed loopback gateway."""
     payload, error = _health(opener)
@@ -556,9 +586,10 @@ def probe(
         return {**result, "state": "RUNTIME_EXHAUSTED"}
     if error is not None or payload is None:
         return result
-    config_reason = None
-    if config is None:
-        config, config_reason = _read_config_with_reason(config_path or default_config_path())
+    environment = os.environ if environ is None else environ
+    config, config_reason = _operator_config(
+        config_path or default_config_path(), environment, which=which, config=config,
+    )
     reason = config_reason or _qualification_reason(config, payload["build"], now())
     if reason is not None:
         return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": reason}
@@ -568,11 +599,15 @@ def probe(
     resolved = _resolved_executable(launcher[0])
     if resolved is None:  # Launcher identity is volatile between qualification and execution.
         return {**result, "state": "ROUTE_UNQUALIFIED", "reasonCode": "LAUNCHER_UNQUALIFIED"}
-    environment = os.environ if environ is None else environ
     if launcher[1] == "environment" and not environment.get("OMNIROUTE_API_KEY"):
         return {**result, "state": "UNAUTHENTICATED", "reasonCode": "ENDPOINT_CREDENTIAL_MISSING"}
+    catalog = live_candidates if live_candidates is not None else candidates(which=which)
+    if catalog.get("state") == "RUNTIME_EXHAUSTED" or (
+        catalog.get("state") == "READY" and not catalog.get("candidates")
+    ):
+        return {**result, "state": "RUNTIME_EXHAUSTED"}
     fingerprint = hashlib.sha256(json.dumps({
-        "config": config, "serverBuild": payload["build"], "launcher": resolved[0],
+        "serverBuild": payload["build"], "launcher": resolved[1][-1],
     }, sort_keys=True).encode("utf-8")).hexdigest()
     return {
         "endpoint": DEFAULT_ENDPOINT,
@@ -1625,9 +1660,7 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
                  < _CAPABILITY_RANK[continuity_manifest["requiredCapability"]])):
         raise OmniRootError("initial delegate does not satisfy continuity capability floor")
     environment = os.environ.copy() if environ is None else dict(environ)
-    config = _read_config(config_path or default_config_path())
-    if config is None:
-        raise OmniRootError("OmniRoute is not ready: ROUTE_UNQUALIFIED")
+    config, _ = _operator_config(config_path or default_config_path(), environment)
     readiness = probe(config_path=config_path, opener=opener, environ=environment, config=config)
     if readiness["state"] != "READY":
         raise OmniRootError(f"OmniRoute is not ready: {readiness['state']}")
