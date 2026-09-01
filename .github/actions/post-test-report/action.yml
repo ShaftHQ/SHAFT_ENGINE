@@ -142,6 +142,10 @@ runs:
                 "duration" in document and "time" in document
             ):
                 raise ValueError("contains ambiguous mixed schemas")
+            if (has_flat_statistics and "time" in document) or (
+                not has_flat_statistics and "duration" in document
+            ):
+                raise ValueError("timing schema does not match statistics")
             if has_flat_statistics:
                 statistic = document
                 timing = document

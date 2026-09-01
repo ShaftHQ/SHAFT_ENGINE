@@ -120,6 +120,21 @@ class PostTestReportActionTest(unittest.TestCase):
         self.assertNotEqual(0, completed.returncode)
         self.assertIn("ambiguous mixed schemas", completed.stderr)
 
+    def test_rejects_timing_schema_that_does_not_match_statistics(self):
+        cases = (
+            ("nested-statistics-flat-duration", "nested", {"duration": 10}),
+            ("flat-statistics-nested-time", "flat", {"time": {"duration": 10}}),
+        )
+        for name, schema, document_updates in cases:
+            with self.subTest(name=name):
+                completed = self.run_summary(
+                    total=1, passed=1, failed=0, broken=0, skipped=0,
+                    schema=schema, document_updates=document_updates,
+                )
+
+                self.assertNotEqual(0, completed.returncode)
+                self.assertIn("timing schema does not match statistics", completed.stderr)
+
     def test_rejects_malformed_present_statistics(self):
         cases = (
             ("negative", {"passed": -1, "skipped": 1}),
