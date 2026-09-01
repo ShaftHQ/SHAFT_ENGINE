@@ -265,13 +265,31 @@ def _same_trusted_local_cli(path: str, identity: tuple[int, int, int, int, int, 
     return current is not None and current[0] == path and current[1] == identity
 
 
+def _terminate_local_cli_tree(process: subprocess.Popen[bytes]) -> None:
+    """Terminate the health command and descendants that inherited its pipe."""
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+            return
+        except ProcessLookupError:
+            return
+        except OSError:
+            pass
+    process.kill()
+
+
 def _bounded_local_cli_output(argv: list[str], *, cwd: str, environment: dict[str, str]) -> bytes | None:
     """Collect at most one bounded CLI response and terminate on overflow or timeout."""
     try:
-        process = subprocess.Popen(
-            argv, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-        )
+        options: dict[str, Any] = {
+            "cwd": cwd, "env": environment, "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.PIPE, "stderr": subprocess.DEVNULL,
+        }
+        if os.name == "posix":
+            options["start_new_session"] = True
+        elif hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        process = subprocess.Popen(argv, **options)
     except OSError:
         return None
     if process.stdout is None:
@@ -294,23 +312,23 @@ def _bounded_local_cli_output(argv: list[str], *, cwd: str, environment: dict[st
     deadline = time.monotonic() + HTTP_TIMEOUT_SECONDS
     try:
         if not complete.wait(HTTP_TIMEOUT_SECONDS) or len(response) > MAX_RESPONSE_BYTES:
-            process.kill()
+            _terminate_local_cli_tree(process)
             return None
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            process.kill()
+            _terminate_local_cli_tree(process)
             return None
         try:
             process.wait(timeout=remaining)
         except subprocess.TimeoutExpired:
-            process.kill()
+            _terminate_local_cli_tree(process)
             return None
         if len(response) > MAX_RESPONSE_BYTES or process.returncode != 0:
             return None
         return bytes(response)
     finally:
         if process.poll() is None:
-            process.kill()
+            _terminate_local_cli_tree(process)
         try:
             process.wait(timeout=1)
         except (OSError, subprocess.TimeoutExpired):

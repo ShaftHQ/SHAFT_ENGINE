@@ -428,11 +428,20 @@ class OmniRootProbeTest(unittest.TestCase):
                 self.killed = True
 
         process = OverflowingProcess()
-        with patch.object(RUNNER.subprocess, "Popen", return_value=process):
+        with patch.object(RUNNER.subprocess, "Popen", return_value=process), \
+                patch.object(RUNNER, "_terminate_local_cli_tree", side_effect=lambda value: value.kill()):
             self.assertIsNone(RUNNER._bounded_local_cli_output(
                 ["/trusted/node", "/trusted/omniroute"], cwd=str(self.root), environment={},
             ))
         self.assertTrue(process.killed)
+
+    @unittest.skipUnless(os.name == "posix", "process-group regression requires POSIX")
+    def test_local_cli_output_reader_terminates_descendants_holding_stdout_open(self):
+        started = time.monotonic()
+        self.assertIsNone(RUNNER._bounded_local_cli_output(
+            ["/bin/sh", "-c", "sleep 10 &"], cwd="/tmp", environment={"PATH": os.defpath},
+        ))
+        self.assertLess(time.monotonic() - started, RUNNER.HTTP_TIMEOUT_SECONDS + 1.5)
 
     def test_attest_writes_only_current_fully_qualified_operator_contract(self):
         self._config()
