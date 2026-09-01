@@ -81,7 +81,6 @@ jobs:
         working-directory: public
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          HARBOR_API_KEY: ${{ secrets.CHAOSGAUGE_HARBOR_TOKEN }}
           PRIVATE_CHECKOUT: ${{ github.workspace }}/private
           PUBLIC_SOURCE_REVISION: ${{ steps.public-source.outputs.revision }}
           CANARY_RAW: ${{ runner.temp }}/chaosgauge-canary-raw.json
@@ -89,7 +88,6 @@ jobs:
           CANARY_MAX_ACCOUNTED_TOKENS: "120000"
         run: |
           test -n "$OPENAI_API_KEY" || { echo 'provider credential unavailable'; exit 1; }
-          test -n "$HARBOR_API_KEY" || { echo 'Harbor credential unavailable'; exit 1; }
           python3 scripts/ci/chaos_gauge/canary.py \
             --private-checkout "$PRIVATE_CHECKOUT" \
             --public-source-revision "$PUBLIC_SOURCE_REVISION" \
