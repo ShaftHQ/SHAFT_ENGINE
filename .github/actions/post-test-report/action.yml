@@ -134,12 +134,28 @@ runs:
 
         try:
             document = json.loads(open(sys.argv[1], encoding="utf-8").read())
-            statistic = document.get("statistic", {})
-            timing = document.get("time", {})
+            if not isinstance(document, dict):
+                raise ValueError("root must be an object")
+            fields = ("total", "passed", "failed", "broken", "skipped", "unknown")
+            has_flat_statistics = any(field in document for field in fields)
+            if (has_flat_statistics and "statistic" in document) or (
+                "duration" in document and "time" in document
+            ):
+                raise ValueError("contains ambiguous mixed schemas")
+            if (has_flat_statistics and "time" in document) or (
+                not has_flat_statistics and "duration" in document
+            ):
+                raise ValueError("timing schema does not match statistics")
+            if has_flat_statistics:
+                statistic = document
+                timing = document
+            else:
+                statistic = document.get("statistic")
+                timing = document.get("time", {})
             if not isinstance(statistic, dict) or not isinstance(timing, dict):
                 raise ValueError("statistic and time must be objects")
             values = []
-            for field in ("total", "passed", "failed", "broken", "skipped", "unknown"):
+            for field in fields:
                 value = statistic.get(field, 0)
                 if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                     raise ValueError(f"statistic '{field}'")

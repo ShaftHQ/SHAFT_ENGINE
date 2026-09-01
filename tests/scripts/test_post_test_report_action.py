@@ -13,7 +13,8 @@ ACTION = ROOT / ".github/actions/post-test-report/action.yml"
 
 
 class PostTestReportActionTest(unittest.TestCase):
-    def run_summary(self, *, total, passed, failed, broken, skipped, unknown=None):
+    def run_summary(self, *, total, passed, failed, broken, skipped, unknown=None,
+                    schema="nested", duration=None, document_updates=None):
         action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
         step = next(step for step in action["runs"]["steps"]
                     if step.get("id") == "collect_results")
@@ -34,8 +35,18 @@ class PostTestReportActionTest(unittest.TestCase):
             }
             if unknown is not None:
                 statistic["unknown"] = unknown
+            if schema == "flat":
+                document = dict(statistic)
+                if duration is not None:
+                    document["duration"] = duration
+            else:
+                document = {"statistic": statistic}
+                if duration is not None:
+                    document["time"] = {"duration": duration}
+            if document_updates:
+                document.update(document_updates)
             (report / "summary.json").write_text(
-                json.dumps({"statistic": statistic}), encoding="utf-8"
+                json.dumps(document), encoding="utf-8"
             )
             script = step["run"].replace("${{ inputs.module-directory }}", str(module))
             script = script.replace("${{ inputs.job-name }}", "Safari shard 1")
@@ -64,6 +75,14 @@ class PostTestReportActionTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout)
 
+    def test_accepts_flat_allure3_statistics_with_unknown_entries(self):
+        completed = self.run_summary(
+            total=1434, passed=1408, failed=0, broken=0, skipped=12, unknown=14,
+            schema="flat", duration=123456
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stdout)
+
     def test_rejects_fewer_status_verdicts_than_total(self):
         completed = self.run_summary(total=14, passed=13, failed=0, broken=0, skipped=0)
 
@@ -81,6 +100,41 @@ class PostTestReportActionTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout)
 
+    def test_rejects_mixed_flat_and_nested_statistics(self):
+        completed = self.run_summary(
+            total=1, passed=1, failed=0, broken=0, skipped=0, schema="flat",
+            document_updates={
+                "statistic": {"total": 1, "passed": 0, "failed": 1, "broken": 0, "skipped": 0}
+            },
+        )
+
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("ambiguous mixed schemas", completed.stderr)
+
+    def test_rejects_mixed_nested_time_and_flat_duration(self):
+        completed = self.run_summary(
+            total=1, passed=1, failed=0, broken=0, skipped=0, duration=10,
+            document_updates={"duration": 10},
+        )
+
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("ambiguous mixed schemas", completed.stderr)
+
+    def test_rejects_timing_schema_that_does_not_match_statistics(self):
+        cases = (
+            ("nested-statistics-flat-duration", "nested", {"duration": 10}),
+            ("flat-statistics-nested-time", "flat", {"time": {"duration": 10}}),
+        )
+        for name, schema, document_updates in cases:
+            with self.subTest(name=name):
+                completed = self.run_summary(
+                    total=1, passed=1, failed=0, broken=0, skipped=0,
+                    schema=schema, document_updates=document_updates,
+                )
+
+                self.assertNotEqual(0, completed.returncode)
+                self.assertIn("timing schema does not match statistics", completed.stderr)
+
     def test_rejects_malformed_present_statistics(self):
         cases = (
             ("negative", {"passed": -1, "skipped": 1}),
@@ -88,14 +142,15 @@ class PostTestReportActionTest(unittest.TestCase):
             ("string", {"passed": "1", "skipped": 1}),
             ("boolean", {"passed": 1, "unknown": True}),
         )
-        for name, overrides in cases:
-            values = {"total": 1, "passed": 0, "failed": 0, "broken": 0, "skipped": 0}
-            values.update(overrides)
-            with self.subTest(name=name):
-                completed = self.run_summary(**values)
+        for schema in ("nested", "flat"):
+            for name, overrides in cases:
+                values = {"total": 1, "passed": 0, "failed": 0, "broken": 0, "skipped": 0}
+                values.update(overrides)
+                with self.subTest(schema=schema, name=name):
+                    completed = self.run_summary(**values, schema=schema)
 
-                self.assertNotEqual(0, completed.returncode)
-                self.assertIn("expected a non-negative integer", completed.stderr)
+                    self.assertNotEqual(0, completed.returncode)
+                    self.assertIn("expected a non-negative integer", completed.stderr)
 
     def test_preserves_failed_and_broken_verdict_failures(self):
         for failed, broken in ((1, 0), (0, 1)):
