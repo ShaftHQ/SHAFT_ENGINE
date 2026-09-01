@@ -679,8 +679,13 @@ def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -
             },
         )
     if exists:
+        recorded_ancestors = {
+            PurePosixPath(relative).parts[0]
+            for relative in after_files
+            if len(PurePosixPath(relative).parts) > 1
+        }
         for child in palace.iterdir():
-            if child.is_dir():
+            if child.is_dir() and child.name not in recorded_ancestors:
                 mismatches.append(
                     {
                         "path": _mempalace_state_relative(child.name),
@@ -704,6 +709,13 @@ def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -
     for relative in set(after_files) - set(before_files):
         (palace / relative).unlink()
     if not before_exists and after_exists:
+        for directory in sorted(
+            (item for item in palace.rglob("*") if item.is_dir()),
+            key=lambda item: len(item.parts),
+            reverse=True,
+        ):
+            if not any(directory.iterdir()):
+                directory.rmdir()
         palace.rmdir()
         state_root = palace.parent
         if state_root.exists() and not any(state_root.iterdir()):
@@ -1207,7 +1219,6 @@ def recover_account_rollback_journal(project: Path) -> None:
             _receipt, current_host = controller.read_receipt(project)
             if current_host != expected_host:
                 raise ValueError("account rollback host receipt changed during recovery")
-            validate_prior_host_receipt(project, controller, expected_host, desired_commit)
         _restore_account_receipt_from_journal(
             project, controller, pending["priorAccountReceipt"]
         )
@@ -1297,6 +1308,7 @@ def validate_prior_host_receipt(
         or receipt.get("coreCommit") != desired_commit
         or receipt.get("hosts") != controller.host_routes()
         or receipt.get("rollbackIntent") is not None
+        or controller.receipt_bytes(receipt, project) != raw
     ):
         raise ValueError("cross-resource rollback journal is invalid")
     controller.decode_images(receipt.get("before"), nullable=True)
