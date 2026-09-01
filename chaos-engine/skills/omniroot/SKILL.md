@@ -64,7 +64,7 @@ it returns HTTP 401.
 4. Gateway `/api/models` rows use `model` (native id), `name` (display), `provider`, and `available`. CLI `omniroute models` JSON sets `id` from `name` when `id` is missing, so prefer `model` over `id`/`name`.
 5. Quota is a JSON array of objects with `provider`, `remaining`, and `state`.
 6. Join on alphanumeric-lowercased provider ids (`glm-cn` matches `glmcn`).
-7. Drop `state == "exhausted"` or `remaining <= 0`, drop `available: false`, and drop `supportsVision: true` for implementation ranking.
+7. Drop `state == "exhausted"` or `remaining <= 0`. Do not drop `available: false`: that management flag hid models the completions live catalog still accepts. Drop `supportsVision: true` for implementation ranking.
 8. Whitespace display names become native ids by stripping parentheticals, lowercasing, and replacing spaces with hyphens. Already-slugged ids stay unchanged. Compose `--model` as `provider/model` when the native id has no provider prefix.
 
 ### Rank (dynamic, from the live ids)

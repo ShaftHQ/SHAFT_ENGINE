@@ -902,8 +902,6 @@ def select_live_candidates(
     for item in catalog if isinstance(catalog, list) else []:
         if not isinstance(item, dict):
             continue
-        if item.get("available") is False:
-            continue
         if item.get("supportsVision") is True:
             continue
         provider = item.get("provider")

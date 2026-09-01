@@ -117,7 +117,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("pass Codex `-c model='<provider>/<id>'`", skill)
         self.assertIn("native id", skill)
         self.assertIn("prefer `model` over `id`/`name`", skill)
-        self.assertIn("available: false", skill)
+        self.assertIn("Do not drop `available: false`", skill)
 
     def test_catalog_cli_does_not_forward_ambient_endpoint_key(self):
         seen = []
@@ -224,7 +224,7 @@ class OmniRootCatalogTest(unittest.TestCase):
             {"provider": "nvidia", "remaining": 100, "state": "available"},
         ]
         live = RUNNER.select_live_candidates(gateway, quota, required_capability="default")
-        self.assertEqual(["nvidia/z-ai/glm-5.2"], [item["model"] for item in live])
+        self.assertEqual(["glm/glm-4.5", "nvidia/z-ai/glm-5.2"], [item["model"] for item in live])
         self.assertTrue(RUNNER.diagnostic_is_stream_disconnected(
             "stream disconnected before completion: stream closed before response.completed"
         ))
