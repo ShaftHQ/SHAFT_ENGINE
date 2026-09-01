@@ -641,6 +641,27 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("gh workflow run", forensics)
         self.assertNotIn("Targeted dispatch", forensics)
 
+        for workflow_name in ("e2eTests.yml", "e2eLocalTests.yml"):
+            workflow_source = (
+                ROOT / ".github" / "workflows" / workflow_name
+            ).read_text(encoding="utf-8")
+            comment_blocks = re.findall(
+                r"(?:^[ \t]*#.*(?:\n|$))+", workflow_source, re.MULTILINE
+            )
+            for block_number, block in enumerate(comment_blocks):
+                guidance = " ".join(
+                    line.lstrip()[1:].strip() for line in block.splitlines()
+                )
+                with self.subTest(
+                    workflow=workflow_name, comment_block=block_number
+                ):
+                    self.assertNotRegex(
+                        guidance,
+                        r"(?i)(?:requires?|must|should|needs?)\b.{0,100}"
+                        r"\bworkflow_dispatch\b|\bworkflow_dispatch\b.{0,100}"
+                        r"\bverif(?:y|ying|ication)\b",
+                    )
+
     def test_shaft_user_facing_changes_require_companion_docs_prs(self):
         entry = (CORE / "profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
         playbook = (
