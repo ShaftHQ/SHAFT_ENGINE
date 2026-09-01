@@ -59,10 +59,11 @@ it returns HTTP 401.
 1. Strip ANSI with `\\x1b\\[[0-9;]*[A-Za-z]`.
 2. Find the first `{` or `[`.
 3. Parse with `json.JSONDecoder().raw_decode` so trailing extra JSON is ignored.
-4. Catalog is a JSON array of objects with `id` and `provider`.
+4. Catalog is a JSON array of objects with `id` and `provider`. The `id` may be a friendly display name (`GLM 4.5`); launch the native id (`glm-4.5`).
 5. Quota is a JSON array of objects with `provider`, `remaining`, and `state`.
 6. Join on alphanumeric-lowercased provider ids (`glm-cn` matches `glmcn`).
 7. Drop `state == "exhausted"` or `remaining <= 0`.
+8. Whitespace display names become native ids by stripping parentheticals, lowercasing, and replacing spaces with hyphens. Already-slugged ids stay unchanged.
 
 ### Rank (dynamic, from the live ids)
 
@@ -79,12 +80,16 @@ Retry is chosen from the failure, not from a pinned profile:
 - HTTP 429 / rate-limit / resource_exhausted: do not retry the same identity.
   Requery the catalog, skip that `identitySha256`, pick the next remaining
   model, and relaunch Codex with `--model` / `--provider`.
+- HTTP 400 live-catalog miss (`not available in the active live catalog`):
+  same as 429. Skip that identity, requery, launch the next remaining native id.
 - Timeout or a single network blip: retry the same catalog pick once.
 - HTTP 401/403 or invalid key: stop. Do not retry. Fix the endpoint credential.
 - Empty remaining catalog: `RUNTIME_EXHAUSTED`, then native host models.
 
 Never pin a model in a Codex profile. Fetch the live catalog, rank for the
-task, then launch `omniroute run --model '<id>' --provider '<provider>' codex`.
+task, map display names to native ids, then launch
+`omniroute run --model '<id>' --provider '<provider>' codex`.
+`omniroute run` injects the Codex overlay; do not add a second `-c model=`.
 
 ### Dispatch and follow-through
 

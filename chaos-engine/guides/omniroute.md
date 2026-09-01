@@ -305,9 +305,12 @@ python3 chaos-engine/skills/omniroot/scripts/runner.py candidates --capability d
 
 Rank remaining `default` models first for implementation, then most-intelligent,
 then mechanical. Do not pin `chaosengine-omniroute`'s Codex profile model
-(Gemini Flash-Lite). Dispatch with `omniroute run --model --provider` from the
-live catalog. On HTTP 429, skip that identity and pick the next remaining
-candidate. Native host models are last resort when the catalog is empty.
+(Gemini Flash-Lite). `omniroute --output json models` may list friendly names
+(`GLM 4.5`); dispatch the native id (`glm-4.5`) with
+`omniroute run --model --provider`. That launcher injects the Codex overlay;
+do not add a second `-c model=`. On HTTP 429 or HTTP 400 live-catalog miss,
+skip that identity and pick the next remaining candidate. Native host models
+are last resort when the catalog is empty.
 
 ## Codex configuration: optional separate session
 

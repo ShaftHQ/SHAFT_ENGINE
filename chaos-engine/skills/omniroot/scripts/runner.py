@@ -797,9 +797,21 @@ def _provider_key(value: object) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
+_PARENTHETICAL = re.compile(r"\s*\([^)]*\)\s*")
+
+
+def catalog_launch_id(model_id: object) -> str:
+    """Map CLI display names to the native ids `omniroute run --model` accepts."""
+    text = str(model_id or "").strip()
+    if not text or "/" in text or " " not in text:
+        return text
+    stripped = _PARENTHETICAL.sub(" ", text).strip()
+    return re.sub(r"\s+", "-", stripped.lower())
+
+
 def classify_capability(model_id: object) -> str:
     """Map a live model id to a capability class. This is a ranking method, not a stored catalog."""
-    tokens = set(re.findall(r"[a-z0-9]+", str(model_id).lower()))
+    tokens = set(re.findall(r"[a-z0-9]+", catalog_launch_id(model_id).lower()))
     if tokens & _HIGH_MARKERS:
         return "most-intelligent"
     if tokens & _MECHANICAL_MARKERS:
@@ -809,12 +821,19 @@ def classify_capability(model_id: object) -> str:
 
 _DEFAULT_TASK_ORDER = {"default": 0, "most-intelligent": 1, "mechanical": 2}
 _RATE_LIMIT_MARKERS = ("429", "too many requests", "resource_exhausted", "rate limit")
+_CATALOG_MISS_MARKERS = ("not available in the active live catalog",)
 
 
 def diagnostic_is_rate_limited(text: object) -> bool:
     """True when child output shows HTTP 429 / provider rate limit, not auth failure."""
     blob = str(text or "").casefold()
     return any(marker in blob for marker in _RATE_LIMIT_MARKERS)
+
+
+def diagnostic_is_catalog_mismatch(text: object) -> bool:
+    """True when OmniRoute rejects a display name or stale id that is not in the live catalog."""
+    blob = str(text or "").casefold()
+    return any(marker in blob for marker in _CATALOG_MISS_MARKERS)
 
 
 def select_live_candidates(
@@ -846,9 +865,12 @@ def select_live_candidates(
     for item in catalog if isinstance(catalog, list) else []:
         if not isinstance(item, dict):
             continue
-        model = item.get("id")
+        raw_model = item.get("id")
         provider = item.get("provider")
-        if not isinstance(model, str) or not model or not isinstance(provider, str) or not provider:
+        if not isinstance(raw_model, str) or not raw_model or not isinstance(provider, str) or not provider:
+            continue
+        model = catalog_launch_id(raw_model)
+        if not model:
             continue
         left = remaining.get(_provider_key(provider))
         if not left:

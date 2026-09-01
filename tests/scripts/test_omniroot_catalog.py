@@ -47,10 +47,11 @@ class OmniRootCatalogTest(unittest.TestCase):
         ]
         picked = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
         self.assertEqual(
-            ["Other Default", "Tool High", "Tool Low"],
+            ["other-default", "tool-high", "tool-low"],
             [item["model"] for item in picked],
         )
         self.assertNotIn("Gone Low", [item["model"] for item in picked])
+        self.assertNotIn("gone-low", [item["model"] for item in picked])
 
     def test_rate_limit_skips_the_failed_identity_and_picks_a_larger_class(self):
         catalog = [
@@ -62,14 +63,14 @@ class OmniRootCatalogTest(unittest.TestCase):
             {"provider": "beta", "remaining": 90, "state": "available"},
         ]
         first = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
-        self.assertEqual("Other Default", first[0]["model"])
+        self.assertEqual("other-default", first[0]["model"])
         self.assertTrue(RUNNER.diagnostic_is_rate_limited("exceeded retry limit, last status: 429 Too Many Requests"))
         self.assertFalse(RUNNER.diagnostic_is_rate_limited("401 Unauthorized: Invalid API key"))
         skipped = RUNNER.select_live_candidates(
             catalog, quota, required_capability="default",
             skip_identity_sha256s=[first[0]["identitySha256"]],
         )
-        self.assertEqual("Tool Low", skipped[0]["model"])
+        self.assertEqual("tool-low", skipped[0]["model"])
         self.assertNotEqual(first[0]["identitySha256"], skipped[0]["identitySha256"])
 
     def test_architecture_uses_only_high_class_then_empty_means_native_fallback(self):
@@ -81,7 +82,7 @@ class OmniRootCatalogTest(unittest.TestCase):
         picked = RUNNER.select_live_candidates(
             catalog, quota, required_capability="most-intelligent",
         )
-        self.assertEqual(["Tool High"], [item["model"] for item in picked])
+        self.assertEqual(["tool-high"], [item["model"] for item in picked])
         empty = RUNNER.select_live_candidates(
             [{"id": "Tool Low", "provider": "alpha"}],
             [{"provider": "alpha", "remaining": 12, "state": "available"}],
@@ -109,7 +110,10 @@ class OmniRootCatalogTest(unittest.TestCase):
         self.assertIn("python3 chaos-engine/skills/omniroot/scripts/runner.py probe", guide)
         self.assertIn("candidates --capability", skill)
         self.assertIn("HTTP 429", skill)
+        self.assertIn("not available in the active live catalog", skill)
         self.assertIn("Do not pin a Codex profile model", skill)
+        self.assertIn("do not add a second `-c model=`", skill)
+        self.assertIn("native id", skill)
 
     def test_catalog_cli_does_not_forward_ambient_endpoint_key(self):
         seen = []
@@ -169,9 +173,36 @@ class OmniRootCatalogTest(unittest.TestCase):
             calls,
         )
         self.assertEqual("READY", result["state"])
-        self.assertEqual("Live Low", result["candidates"][0]["model"])
+        self.assertEqual("live-low", result["candidates"][0]["model"])
         self.assertFalse(any(Path.cwd().joinpath(name).exists()
                              for name in (".omniroot-catalog.json", "catalog-cache.json")))
+
+
+    def test_display_names_launch_as_native_ids_and_catalog_miss_skips_identity(self):
+        self.assertEqual("glm-4.5", RUNNER.catalog_launch_id("GLM 4.5"))
+        self.assertEqual("glm-4.6v", RUNNER.catalog_launch_id("GLM 4.6V (Vision)"))
+        self.assertEqual("glm-4.5-air", RUNNER.catalog_launch_id("GLM 4.5 Air"))
+        self.assertEqual("gemini-3.1-flash-lite", RUNNER.catalog_launch_id("gemini-3.1-flash-lite"))
+        catalog = [
+            {"id": "GLM 4.5", "provider": "glm"},
+            {"id": "GLM 4.5 Air", "provider": "glm"},
+        ]
+        quota = [{"provider": "glm", "remaining": 100, "state": "available"}]
+        picked = RUNNER.select_live_candidates(catalog, quota, required_capability="default")
+        self.assertEqual(["glm-4.5", "glm-4.5-air"], [item["model"] for item in picked])
+        self.assertEqual("default", picked[0]["capability"])
+        self.assertEqual("mechanical", picked[1]["capability"])
+        miss = (
+            "ERROR: {\"error\":{\"message\":\"Model 'GLM 4.5' is not available "
+            "in the active live catalog for provider 'glm'.\",\"code\":\"bad_request\"}}"
+        )
+        self.assertTrue(RUNNER.diagnostic_is_catalog_mismatch(miss))
+        self.assertFalse(RUNNER.diagnostic_is_catalog_mismatch("401 Unauthorized: Invalid API key"))
+        skipped = RUNNER.select_live_candidates(
+            catalog, quota, required_capability="default",
+            skip_identity_sha256s=[picked[0]["identitySha256"]],
+        )
+        self.assertEqual("glm-4.5-air", skipped[0]["model"])
 
 
 if __name__ == "__main__":
