@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Allure;
 import io.qameta.allure.FileSystemResultsWriter;
@@ -122,16 +123,20 @@ public class AllureActionStepReportingTest extends Tests {
 
     @Test
     public void failedNavigateAgainstInvalidUrlBodyWritesExactlyOneFailedAllureStep() throws IOException {
-        String url = TestPageServer.url("navigationErrorFixture.html");
-        SHAFT.Properties.flags.set().forceCheckNavigationWasSuccessful(true);
+        driver.get().quit();
+        SHAFT.Properties.web.set().pageLoadStrategy("normal");
+        SHAFT.Properties.web.set().readinessState("complete");
+        driver.set(new SHAFT.GUI.WebDriver());
+        String url = "data:text/html;charset=utf-8,Invalid%20URL";
+        driver.get().getDriver().navigate().to(url);
         RuntimeException thrown = null;
         try {
-            driver.get().browser().navigateToURL(url);
+            new BrowserActionsHelper(false).confirmThatWebsiteIsNotDown(driver.get().getDriver(), url);
         } catch (RuntimeException exception) {
             thrown = exception;
         }
         Assert.assertNotNull(thrown,
-                "forceCheckNavigationWasSuccessful against navigationErrorFixture.html must fail navigateToURL.");
+                "confirmThatWebsiteIsNotDown against inline invalid URL HTML must fail.");
 
         JsonObject result = snapshotCurrentAllureResult();
         List<JsonObject> failedStepsForUrl = actionSteps(result, step ->
