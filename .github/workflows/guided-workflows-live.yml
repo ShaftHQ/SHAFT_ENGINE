@@ -72,7 +72,7 @@ jobs:
           source-id: guided-workflows-live
       - name: Upload live workflow evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: guided-workflows-live-evidence
           path: |
