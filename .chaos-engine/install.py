@@ -363,6 +363,9 @@ def is_origin_only(relative: Path) -> bool:
             "STANDALONE.md",
             "decision-quality-baseline.md",
             "decision-quality-rubric.md",
+            "decision-quality-calibration.md",
+            "decision-quality-calibration.aggregate.json",
+            "decision-quality-report.md",
         }
     )
 
@@ -499,6 +502,45 @@ def try_verify_install(target: Path) -> dict[str, object] | None:
         return None
 
 
+def missing_core_with_installed_hosts(project: Path) -> bool:
+    """True when host receipt claims installed but the portable core tree is absent."""
+    target = project / INSTALL_DIRECTORY
+    receipt = project / ".chaos-engine-hosts.json"
+    if target.exists() or is_link_or_reparse(target):
+        return False
+    if not receipt.is_file() or is_link_or_reparse(receipt):
+        return False
+    try:
+        payload = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return isinstance(payload, dict) and payload.get("phase") == "installed"
+
+
+def missing_core_recovery_status(project: Path) -> dict[str, object]:
+    del project  # project identity is implied by the caller lock scope
+    return {
+        "status": "recovery-required",
+        "diagnosticCode": "CE_CORE_MISSING",
+        "reason": (
+            "host receipt is installed but .chaos-engine core is missing; "
+            "restore .chaos-engine or uninstall/reinstall before provisioning"
+        ),
+        "remedy": (
+            "git restore .chaos-engine; "
+            "or python3 chaos-engine/install.py uninstall --project . "
+            "then python3 chaos-engine/install.py install --project ."
+        ),
+        "commit": "missing-core",
+        "distribution": "missing-core",
+        "policySha256": "0" * 64,
+        "kernel": {"status": "recovery-required"},
+        "hosts": {"status": "recovery-required"},
+        "dependencies": {"status": "recovery-required"},
+        "components": {"core": {"status": "recovery-required"}},
+    }
+
+
 def inspect_current_install(target: Path) -> dict[str, object] | None:
     reject_link_or_reparse(target)
     if not target.is_dir():
@@ -582,6 +624,63 @@ def mempalace_rollback_image(
     }
 
 
+def _mempalace_state_relative(relative: str = "") -> str:
+    path = PurePosixPath(MEMPALACE_STATE_OUTPUT)
+    if relative:
+        child = PurePosixPath(relative)
+        if child.is_absolute() or any(part in {"", ".", ".."} for part in child.parts):
+            raise ValueError("account rollback has invalid MemPalace state image")
+        path = path / child
+    return path.as_posix()
+
+
+def _mempalace_changed_error(
+    mismatches: list[dict[str, str | None]],
+) -> ValueError:
+    capability = legacy_capability_policy()["mempalace"]
+    evidence = [
+        {
+            "path": item["path"],
+            "expectedDigest": item.get("expectedDigest"),
+            "actualDigest": item.get("actualDigest"),
+            "owner": capability["owner"],
+            "action": "blocked",
+        }
+        for item in mismatches
+    ]
+    payload = evidence[0] if len(evidence) == 1 else {
+        "path": _mempalace_state_relative(),
+        "expectedDigest": None,
+        "actualDigest": None,
+        "owner": capability["owner"],
+        "action": "blocked",
+        "files": evidence,
+    }
+    return ValueError(
+        "candidate MemPalace state changed before rollback: "
+        + json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    )
+
+
+def _mempalace_file_mismatches(
+    expected_files: dict[str, str],
+    actual_files: dict[str, str],
+) -> list[dict[str, str | None]]:
+    mismatches: list[dict[str, str | None]] = []
+    for relative in sorted(set(expected_files) | set(actual_files)):
+        expected = expected_files.get(relative)
+        actual = actual_files.get(relative)
+        if expected != actual:
+            mismatches.append(
+                {
+                    "path": _mempalace_state_relative(relative),
+                    "expectedDigest": expected,
+                    "actualDigest": actual,
+                }
+            )
+    return mismatches
+
+
 def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -> None:
     """Restore a base palace by deleting only unchanged candidate-created files."""
     before = image.get("before")
@@ -613,15 +712,58 @@ def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -
         raise ValueError("account rollback has invalid MemPalace state image")
     palace = project / MEMPALACE_STATE_OUTPUT
     exists, current = project_setup_output_files(project, MEMPALACE_STATE_OUTPUT)
-    if exists != after_exists or current != after_files or (
-        exists and any(child.is_dir() for child in palace.iterdir())
-    ):
-        raise ValueError("candidate MemPalace state changed before rollback")
-    if any(after_files.get(relative) != digest for relative, digest in before_files.items()):
-        raise ValueError("candidate MemPalace state changed before rollback")
+    mismatches = _mempalace_file_mismatches(after_files, current)
+    if exists != after_exists:
+        mismatches.insert(
+            0,
+            {
+                "path": _mempalace_state_relative(),
+                "expectedDigest": None,
+                "actualDigest": None,
+            },
+        )
+    if exists:
+        recorded_ancestors: set[str] = set()
+        for relative in after_files:
+            parts = PurePosixPath(relative).parts
+            for depth in range(1, len(parts)):
+                recorded_ancestors.add(PurePosixPath(*parts[:depth]).as_posix())
+        for child in sorted(
+            (item for item in palace.rglob("*") if item.is_dir()),
+            key=lambda item: item.relative_to(palace).as_posix(),
+        ):
+            relative = child.relative_to(palace).as_posix()
+            if relative not in recorded_ancestors:
+                mismatches.append(
+                    {
+                        "path": _mempalace_state_relative(relative),
+                        "expectedDigest": None,
+                        "actualDigest": None,
+                    }
+                )
+    if mismatches:
+        raise _mempalace_changed_error(mismatches)
+    before_mismatches = [
+        {
+            "path": _mempalace_state_relative(relative),
+            "expectedDigest": digest,
+            "actualDigest": after_files.get(relative),
+        }
+        for relative, digest in sorted(before_files.items())
+        if after_files.get(relative) != digest
+    ]
+    if before_mismatches:
+        raise _mempalace_changed_error(before_mismatches)
     for relative in set(after_files) - set(before_files):
         (palace / relative).unlink()
     if not before_exists and after_exists:
+        for directory in sorted(
+            (item for item in palace.rglob("*") if item.is_dir()),
+            key=lambda item: len(item.parts),
+            reverse=True,
+        ):
+            if not any(directory.iterdir()):
+                directory.rmdir()
         palace.rmdir()
         state_root = palace.parent
         if state_root.exists() and not any(state_root.iterdir()):
@@ -629,8 +771,18 @@ def restore_candidate_mempalace_state(project: Path, image: dict[str, object]) -
     restored_exists, restored_files = project_setup_output_files(
         project, MEMPALACE_STATE_OUTPUT
     )
-    if restored_exists != before_exists or restored_files != before_files:
-        raise ValueError("candidate MemPalace state changed before rollback")
+    restored_mismatches = _mempalace_file_mismatches(before_files, restored_files)
+    if restored_exists != before_exists:
+        restored_mismatches.insert(
+            0,
+            {
+                "path": _mempalace_state_relative(),
+                "expectedDigest": None,
+                "actualDigest": None,
+            },
+        )
+    if restored_mismatches:
+        raise _mempalace_changed_error(restored_mismatches)
 
 
 def restore_project_setup_outputs(
@@ -1055,7 +1207,18 @@ def _account_upgrade_host_receipt_is_durable(
         else None
     )
     if actual_host != expected_host:
-        return False
+        normalize = getattr(controller, "rollback_base_receipt", None)
+        if (
+            not callable(normalize)
+            or not isinstance(actual_host, bytes)
+            or not isinstance(expected_host, bytes)
+        ):
+            return False
+        try:
+            if normalize(project, actual_host) != normalize(project, expected_host):
+                return False
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
+            return False
     expected_account = pending["priorAccountReceipt"]
     encoded_account = receipt.get(controller.ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT)
     actual_account = (
@@ -1104,7 +1267,6 @@ def recover_account_rollback_journal(project: Path) -> None:
             _receipt, current_host = controller.read_receipt(project)
             if current_host != expected_host:
                 raise ValueError("account rollback host receipt changed during recovery")
-            validate_prior_host_receipt(project, controller, expected_host, desired_commit)
         _restore_account_receipt_from_journal(
             project, controller, pending["priorAccountReceipt"]
         )
@@ -1788,9 +1950,13 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                     previous_hosts.reconcile(
                         project, prior_after, (current_images, prior_after)
                     )
-                    previous_hosts.write_receipt(
-                        project, prior_host_receipt_value, current_raw
-                    )
+                    if current_raw != prior_host_receipt:
+                        receipt_name = getattr(
+                            previous_hosts, "RECEIPT_NAME", ".chaos-engine-hosts.json"
+                        )
+                        previous_hosts.atomic_write(
+                            project, project / receipt_name, prior_host_receipt, current_raw
+                        )
                 else:
                     desired_manifest = verify_install(target)
                     previous_hosts.install(
@@ -2197,6 +2363,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     confirmer=None,
 ) -> Path:
     project = project.resolve()
+    if missing_core_with_installed_hosts(project):
+        raise ValueError(
+            "ChaosEngine host receipt is installed but .chaos-engine core is missing; "
+            "restore .chaos-engine or uninstall before provisioning dependencies"
+        )
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
@@ -2353,10 +2524,6 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     prior_host_receipt = (
                         host_snapshot.get("raw") if isinstance(host_snapshot, dict) else None
                     )
-                    if isinstance(prior_host_receipt, bytes):
-                        prior_host_receipt = host_controller.rollback_base_receipt(
-                            project, prior_host_receipt
-                        )
                     account_rollback_journal = write_account_rollback_journal(
                         project,
                         old_commit,
@@ -2661,6 +2828,8 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
     with project_lock(project):
         with dependency_runtime_lock(runtime):
             target = project / INSTALL_DIRECTORY
+            if missing_core_with_installed_hosts(project):
+                return missing_core_recovery_status(project)
             manifest = verify_install(target)
             state = (
                 "recovery-required"
@@ -2679,6 +2848,19 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             if result["kernel"]["status"] != "healthy":  # type: ignore[index]
                 result["status"] = "recovery-required"
             host_controller = load_installed_controller(target, "hosts")
+            if (project / ACCOUNT_ROLLBACK_JOURNAL_NAME).exists():
+                result["status"] = "recovery-required"
+                result["hosts"] = {"status": "recovery-required"}
+                result["dependencies"] = {"status": "recovery-required"}
+                attach_component_status(
+                    result,
+                    project,
+                    target,
+                    "recovery-required",
+                    host_controller,
+                    inspect_retrieval_state=False,
+                )
+                return result
             pending_rollback = read_cross_rollback_journal(project)
             if pending_rollback is not None:
                 result["hosts"] = host_controller.verify(project)
@@ -2792,6 +2974,9 @@ def doctor_with_dependencies(
 ) -> dict[str, object]:
     """Verify installed files and actively execute every dependency entrypoint probe."""
     result = status_with_dependencies(project, active_probes=True)
+    if (project.resolve() / ACCOUNT_ROLLBACK_JOURNAL_NAME).exists():
+        result["clients"] = {}
+        return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
     dependency = result.get("dependencies")
@@ -2870,10 +3055,12 @@ _DIAGNOSTIC_FIELDS = {
     "status": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components",
+        "diagnosticCode", "reason", "remedy",
     },
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
+        "diagnosticCode", "reason", "remedy",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
@@ -3263,6 +3450,13 @@ def main() -> int:
             result = {"status": "uninstalled"}
     except (OSError, RuntimeError, ValueError) as error:
         if getattr(args, "json", False):
+            message = str(error)
+            diagnostic_code = "CE_DIAGNOSTIC_UNAVAILABLE"
+            if "manifest is missing or invalid" in message or (
+                getattr(args, "project", None) is not None
+                and missing_core_with_installed_hosts(Path(args.project))
+            ):
+                diagnostic_code = "CE_CORE_MISSING"
             print(
                 json.dumps(
                     {
@@ -3270,8 +3464,9 @@ def main() -> int:
                         "identity": CANONICAL_IDENTITY,
                         "kind": args.command,
                         "status": "Blocked",
-                        "diagnosticCode": "CE_DIAGNOSTIC_UNAVAILABLE",
+                        "diagnosticCode": diagnostic_code,
                         "terminalReason": "blocked",
+                        "reason": message,
                     },
                     sort_keys=True,
                     separators=(",", ":"),

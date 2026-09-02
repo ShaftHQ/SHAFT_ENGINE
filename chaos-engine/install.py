@@ -502,6 +502,45 @@ def try_verify_install(target: Path) -> dict[str, object] | None:
         return None
 
 
+def missing_core_with_installed_hosts(project: Path) -> bool:
+    """True when host receipt claims installed but the portable core tree is absent."""
+    target = project / INSTALL_DIRECTORY
+    receipt = project / ".chaos-engine-hosts.json"
+    if target.exists() or is_link_or_reparse(target):
+        return False
+    if not receipt.is_file() or is_link_or_reparse(receipt):
+        return False
+    try:
+        payload = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return isinstance(payload, dict) and payload.get("phase") == "installed"
+
+
+def missing_core_recovery_status(project: Path) -> dict[str, object]:
+    del project  # project identity is implied by the caller lock scope
+    return {
+        "status": "recovery-required",
+        "diagnosticCode": "CE_CORE_MISSING",
+        "reason": (
+            "host receipt is installed but .chaos-engine core is missing; "
+            "restore .chaos-engine or uninstall/reinstall before provisioning"
+        ),
+        "remedy": (
+            "git restore .chaos-engine; "
+            "or python3 chaos-engine/install.py uninstall --project . "
+            "then python3 chaos-engine/install.py install --project ."
+        ),
+        "commit": "missing-core",
+        "distribution": "missing-core",
+        "policySha256": "0" * 64,
+        "kernel": {"status": "recovery-required"},
+        "hosts": {"status": "recovery-required"},
+        "dependencies": {"status": "recovery-required"},
+        "components": {"core": {"status": "recovery-required"}},
+    }
+
+
 def inspect_current_install(target: Path) -> dict[str, object] | None:
     reject_link_or_reparse(target)
     if not target.is_dir():
@@ -2324,6 +2363,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     confirmer=None,
 ) -> Path:
     project = project.resolve()
+    if missing_core_with_installed_hosts(project):
+        raise ValueError(
+            "ChaosEngine host receipt is installed but .chaos-engine core is missing; "
+            "restore .chaos-engine or uninstall before provisioning dependencies"
+        )
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
@@ -2784,6 +2828,8 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
     with project_lock(project):
         with dependency_runtime_lock(runtime):
             target = project / INSTALL_DIRECTORY
+            if missing_core_with_installed_hosts(project):
+                return missing_core_recovery_status(project)
             manifest = verify_install(target)
             state = (
                 "recovery-required"
@@ -3009,10 +3055,12 @@ _DIAGNOSTIC_FIELDS = {
     "status": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components",
+        "diagnosticCode", "reason", "remedy",
     },
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
+        "diagnosticCode", "reason", "remedy",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
@@ -3402,6 +3450,13 @@ def main() -> int:
             result = {"status": "uninstalled"}
     except (OSError, RuntimeError, ValueError) as error:
         if getattr(args, "json", False):
+            message = str(error)
+            diagnostic_code = "CE_DIAGNOSTIC_UNAVAILABLE"
+            if "manifest is missing or invalid" in message or (
+                getattr(args, "project", None) is not None
+                and missing_core_with_installed_hosts(Path(args.project))
+            ):
+                diagnostic_code = "CE_CORE_MISSING"
             print(
                 json.dumps(
                     {
@@ -3409,8 +3464,9 @@ def main() -> int:
                         "identity": CANONICAL_IDENTITY,
                         "kind": args.command,
                         "status": "Blocked",
-                        "diagnosticCode": "CE_DIAGNOSTIC_UNAVAILABLE",
+                        "diagnosticCode": diagnostic_code,
                         "terminalReason": "blocked",
+                        "reason": message,
                     },
                     sort_keys=True,
                     separators=(",", ":"),
