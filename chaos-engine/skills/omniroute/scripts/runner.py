@@ -843,6 +843,13 @@ def classify_capability(model_id: object) -> str:
 
 _DEFAULT_TASK_ORDER = {"default": 0, "most-intelligent": 1, "mechanical": 2}
 _RATE_LIMIT_MARKERS = ("429", "too many requests", "resource_exhausted", "rate limit")
+_QUOTA_RESET_MARKERS = ("quota reset", "quota-reset", "rate limit reset")
+_BALANCE_MARKERS = (
+    "insufficient balance",
+    "please recharge",
+    "no resource package",
+    "payment required",
+)
 _CATALOG_MISS_MARKERS = ("not available in the active live catalog",)
 
 
@@ -850,6 +857,18 @@ def diagnostic_is_rate_limited(text: object) -> bool:
     """True when child output shows HTTP 429 / provider rate limit, not auth failure."""
     blob = str(text or "").casefold()
     return any(marker in blob for marker in _RATE_LIMIT_MARKERS)
+
+
+def diagnostic_is_quota_reset(text: object) -> bool:
+    """True when child output shows quota-reset / retry-after cooldown text."""
+    blob = str(text or "").casefold()
+    return any(marker in blob for marker in _QUOTA_RESET_MARKERS)
+
+
+def diagnostic_is_insufficient_balance(text: object) -> bool:
+    """True when child output shows provider balance / payment exhaustion."""
+    blob = str(text or "").casefold()
+    return any(marker in blob for marker in _BALANCE_MARKERS)
 
 
 def diagnostic_is_catalog_mismatch(text: object) -> bool:
@@ -862,6 +881,17 @@ def diagnostic_is_stream_disconnected(text: object) -> bool:
     """True when Codex/OmniRoute closes the responses stream before completion."""
     blob = str(text or "").casefold()
     return "stream disconnected before completion" in blob or "stream closed before response.completed" in blob
+
+
+def diagnostic_signals_exhaustion(text: object) -> bool:
+    """True when diagnostics should update the user-local exhaustion backoff cache."""
+    return (
+        diagnostic_is_rate_limited(text)
+        or diagnostic_is_quota_reset(text)
+        or diagnostic_is_insufficient_balance(text)
+        or diagnostic_is_stream_disconnected(text)
+        or diagnostic_is_catalog_mismatch(text)
+    )
 
 
 def codex_model_overlay(provider: str, model: str) -> list[str]:
@@ -1011,6 +1041,46 @@ def update_exhaustion_cache_from_quota(
                 now=clock,
                 reason="quota exhausted",
             )
+
+
+def update_exhaustion_cache_from_diagnostic(
+    text: object,
+    *,
+    identity_sha256: str | None = None,
+    provider: str | None = None,
+    state_dir: Path | None = None,
+    now: datetime | None = None,
+    retry_after_seconds: int = _DEFAULT_EXHAUSTION_SECONDS,
+) -> bool:
+    """Update backoff cache from rate-limit / quota-reset / balance diagnostics."""
+    if not diagnostic_signals_exhaustion(text):
+        return False
+    clock = now or _utc_now()
+    until = clock + timedelta(seconds=max(1, int(retry_after_seconds)))
+    reason = str(text or "").strip()[:200]
+    recorded = False
+    block_provider = diagnostic_is_insufficient_balance(text) or (
+        provider is not None and identity_sha256 is None
+    )
+    if isinstance(identity_sha256, str) and _HEX.fullmatch(identity_sha256):
+        record_identity_exhaustion(
+            identity_sha256,
+            exhausted_until=until,
+            state_dir=state_dir,
+            now=clock,
+            reason=reason or "diagnostic exhaustion",
+        )
+        recorded = True
+    if block_provider and isinstance(provider, str) and provider:
+        record_provider_exhaustion(
+            provider,
+            exhausted_until=until,
+            state_dir=state_dir,
+            now=clock,
+            reason=reason or "diagnostic exhaustion",
+        )
+        recorded = True
+    return recorded
 
 
 def select_live_candidates(
@@ -1215,6 +1285,9 @@ def candidates(
     run: Callable[..., Any] | None = None,
     skip_identity_sha256s: object = (),
     state_dir: Path | None = None,
+    diagnostic: object = None,
+    failed_identity_sha256: str | None = None,
+    failed_provider: str | None = None,
 ) -> dict[str, Any]:
     """Query live catalog and quota every dispatch; overlay user-local exhaustion backoff only."""
     locator = which or shutil.which
@@ -1228,6 +1301,13 @@ def candidates(
     root = Path(state_dir) if state_dir is not None else default_state_path()
     try:
         update_exhaustion_cache_from_quota(quota, state_dir=root)
+        if diagnostic is not None:
+            update_exhaustion_cache_from_diagnostic(
+                diagnostic,
+                identity_sha256=failed_identity_sha256,
+                provider=failed_provider,
+                state_dir=root,
+            )
         cache = load_exhaustion_cache(root)
     except (OmniRouteError, OSError):
         cache = {"schemaVersion": 1, "providers": {}, "identities": {}}

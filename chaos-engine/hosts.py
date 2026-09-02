@@ -2921,27 +2921,55 @@ def managed_codex_block(content: str) -> str | None:
 
 
 _CODEX_ABSOLUTE_COMMAND = re.compile(
-    r'command(?:Windows)? = "(?:[A-Za-z]:[\\/]|/|\\\\)[^"\n]*"'
+    r'(command(?:Windows)?) = "((?:[A-Za-z]:[\\/]|/|\\\\)[^"\n]*)"'
 )
 _CODEX_MANAGED_WINDOWS_ARGS = re.compile(
     r'argsWindows = \[(?!("-3", ))'
 )
+_CODEX_MANAGED_INTERPRETER_NAMES = frozenset(
+    {"python", "python3", "python.exe", "python3.exe"}
+)
 
 
-def normalize_codex_interpreter_spelling(block: str) -> str:
-    """Map absolute managed interpreters to python3/py -3 spelling for equivalence."""
+def _codex_absolute_command_paths(block: str) -> frozenset[str]:
+    return frozenset(match.group(2) for match in _CODEX_ABSOLUTE_COMMAND.finditer(block))
+
+
+def _is_known_managed_codex_interpreter(path: str, known_absolutes: frozenset[str]) -> bool:
+    if path in known_absolutes:
+        return True
+    normalized = path.replace("\\", "/")
+    if normalized in known_absolutes:
+        return True
+    base = normalized.rsplit("/", 1)[-1].casefold()
+    if base not in _CODEX_MANAGED_INTERPRETER_NAMES:
+        return False
+    lower = normalized.casefold()
+    return "uv-tools/mempalace" in lower or "chaos-engine-runtime" in lower
+
+
+def normalize_codex_interpreter_spelling(
+    block: str, *, known_absolutes: frozenset[str] = frozenset()
+) -> str:
+    """Map known absolute managed interpreters to python3/py -3 spelling for equivalence."""
     normalized = block.replace("\r\n", "\n")
+    rewritten_windows = False
     for match in list(_CODEX_ABSOLUTE_COMMAND.finditer(normalized)):
+        key, path = match.group(1), match.group(2)
+        if not _is_known_managed_codex_interpreter(path, known_absolutes):
+            continue
         text = match.group(0)
-        if text.startswith("commandWindows"):
+        if key == "commandWindows":
             normalized = normalized.replace(text, 'commandWindows = "py"', 1)
+            rewritten_windows = True
         else:
             normalized = normalized.replace(text, 'command = "python3"', 1)
     # Managed absolute Windows args omit the py -3 prefix; restore it for compare.
-    def restore_windows_prefix(match: re.Match[str]) -> str:
-        return 'argsWindows = ["-3", '
+    if rewritten_windows or known_absolutes:
+        def restore_windows_prefix(match: re.Match[str]) -> str:
+            return 'argsWindows = ["-3", '
 
-    normalized = _CODEX_MANAGED_WINDOWS_ARGS.sub(restore_windows_prefix, normalized)
+        normalized = _CODEX_MANAGED_WINDOWS_ARGS.sub(restore_windows_prefix, normalized)
     return normalized
 
 
@@ -2968,9 +2996,18 @@ def strip_known_codex_ownership(
         *(legacy_codex_python_block(platform) for platform in ("nt", "posix")),
         legacy_portable_codex_block(),
     )
-    normalized = normalize_codex_interpreter_spelling(block)
+    known_absolutes = frozenset().union(
+        *(
+            _codex_absolute_command_paths(item)
+            for item in (before_block, recorded_block)
+            if item is not None
+        )
+    )
+    normalized = normalize_codex_interpreter_spelling(
+        block, known_absolutes=known_absolutes
+    )
     accepted = {
-        normalize_codex_interpreter_spelling(item)
+        normalize_codex_interpreter_spelling(item, known_absolutes=known_absolutes)
         for item in (*legacy, before_block, recorded_block)
         if item is not None
     }

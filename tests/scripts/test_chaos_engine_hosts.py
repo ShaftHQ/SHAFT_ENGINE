@@ -4118,6 +4118,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
             module.upgrade_before_images(Path("."), before, after, mutated)
 
+        foreign = dict(after)
+        foreign[".codex/config.toml"] = module.codex_content(
+            None, managed_python=Path("/tmp/evil-python")
+        )
+        with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
+            module.upgrade_before_images(Path("."), before, after, foreign)
+
+    def test_preflight_rejects_foreign_role_adapter_bytes(self):
+        module = load(HOSTS, "chaos_engine_hosts_foreign_role_adapter")
+        before = {path: None for path in module.managed_paths()}
+        after = dict(before)
+        after[".claude/agents/chaos-engine-implementer.md"] = b"stale implementer\n"
+        current = dict(after)
+        current[".claude/agents/chaos-engine-implementer.md"] = b"foreign-role-adapter\n"
+        with self.assertRaisesRegex(ValueError, "host adapter drift detected"):
+            module.upgrade_before_images(Path("."), before, after, current)
+
     def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")
         with tempfile.TemporaryDirectory() as temporary:

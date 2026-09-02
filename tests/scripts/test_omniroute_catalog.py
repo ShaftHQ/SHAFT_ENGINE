@@ -254,6 +254,7 @@ class OmniRouteCatalogTest(unittest.TestCase):
         self.assertTrue(RUNNER.diagnostic_is_stream_disconnected(
             "stream disconnected before completion: stream closed before response.completed"
         ))
+        self.assertFalse(RUNNER.diagnostic_is_stream_disconnected("401 Unauthorized: Invalid API key"))
 
 
 class OmniRouteExhaustionBackoffTest(unittest.TestCase):
@@ -359,7 +360,94 @@ class OmniRouteExhaustionBackoffTest(unittest.TestCase):
         cache = RUNNER.load_exhaustion_cache(self.state, now=now)
         self.assertIn("gamma", cache.get("providers", {}))
         self.assertNotIn("beta", cache.get("providers", {}))
-        self.assertFalse(RUNNER.diagnostic_is_stream_disconnected("401 Unauthorized: Invalid API key"))
+
+    def test_production_429_diagnostic_writes_cache_and_candidates_skips(self):
+        now = datetime(2030, 1, 1, tzinfo=UTC)
+        until = now + timedelta(hours=2)
+        diagnostic = "exceeded retry limit, last status: 429 Too Many Requests"
+
+        def fake_run(command, **_kwargs):
+            class Result:
+                stdout = ""
+                returncode = 0
+
+            if command[-2:] == ["usage", "quota"]:
+                Result.stdout = json.dumps(
+                    [
+                        {"provider": "alpha", "remaining": 7, "state": "available"},
+                        {"provider": "beta", "remaining": 9, "state": "available"},
+                    ]
+                )
+            elif "models" in command:
+                provider = command[-1]
+                Result.stdout = json.dumps(
+                    [{"id": f"{provider.title()} Low", "provider": provider}]
+                )
+            return Result()
+
+        with unittest.mock.patch.object(RUNNER.shutil, "which", return_value="/usr/bin/omniroute"):
+            with unittest.mock.patch.object(RUNNER.subprocess, "run", side_effect=fake_run):
+                with unittest.mock.patch.object(
+                    RUNNER, "default_state_path", return_value=self.state
+                ):
+                    with unittest.mock.patch.object(RUNNER, "_utc_now", return_value=now):
+                        first = RUNNER.candidates(required_capability="mechanical")
+                        failed = first["candidates"][0]
+                        second = RUNNER.candidates(
+                            required_capability="mechanical",
+                            diagnostic=diagnostic,
+                            failed_identity_sha256=failed["identitySha256"],
+                            failed_provider=failed["provider"],
+                        )
+        self.assertEqual("beta/beta-low", failed["model"])
+        cache = RUNNER.load_exhaustion_cache(self.state, now=now)
+        self.assertIn(failed["identitySha256"], cache.get("identities", {}))
+        self.assertEqual(["alpha/alpha-low"], [item["model"] for item in second["candidates"]])
+        self.assertNotEqual(failed["identitySha256"], second["candidates"][0]["identitySha256"])
+        still_blocked = RUNNER.select_live_candidates(
+            [
+                {"id": "Alpha Low", "provider": "alpha"},
+                {"id": "Beta Low", "provider": "beta"},
+            ],
+            [
+                {"provider": "alpha", "remaining": 7, "state": "available"},
+                {"provider": "beta", "remaining": 9, "state": "available"},
+            ],
+            required_capability="mechanical",
+            exhaustion_cache=RUNNER.load_exhaustion_cache(self.state, now=now),
+        )
+        self.assertEqual(["alpha/alpha-low"], [item["model"] for item in still_blocked])
+        expired = RUNNER.select_live_candidates(
+            [
+                {"id": "Alpha Low", "provider": "alpha"},
+                {"id": "Beta Low", "provider": "beta"},
+            ],
+            [
+                {"provider": "alpha", "remaining": 7, "state": "available"},
+                {"provider": "beta", "remaining": 9, "state": "available"},
+            ],
+            required_capability="mechanical",
+            exhaustion_cache=RUNNER.load_exhaustion_cache(
+                self.state, now=until + timedelta(seconds=1)
+            ),
+        )
+        self.assertEqual(
+            ["beta/beta-low", "alpha/alpha-low"],
+            [item["model"] for item in expired],
+        )
+
+    def test_insufficient_balance_diagnostic_blocks_provider(self):
+        now = datetime(2030, 1, 1, tzinfo=UTC)
+        recorded = RUNNER.update_exhaustion_cache_from_diagnostic(
+            "ERROR: insufficient balance for provider alpha",
+            provider="alpha",
+            state_dir=self.state,
+            now=now,
+            retry_after_seconds=1800,
+        )
+        self.assertTrue(recorded)
+        cache = RUNNER.load_exhaustion_cache(self.state, now=now)
+        self.assertIn("alpha", cache.get("providers", {}))
 
 
 if __name__ == "__main__":

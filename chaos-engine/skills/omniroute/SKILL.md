@@ -46,8 +46,9 @@ Remaining tokens change after each delegate, so query live `models` and
 provider-exhaustion backoff cache (XDG state, never committed) may store only
 negative `exhausted_until` / retry-after entries; it is not a positive catalog cache.
 Update it on exhaustion signals (`state==exhausted`, `remaining<=0`, HTTP 429,
-quota-reset text), skip still-exhausted providers before ranking, and expire
-entries when time passes.
+quota-reset / insufficient-balance / stream-disconnect text). Pass the failed
+identity through `candidates(..., diagnostic=..., failed_identity_sha256=...,
+failed_provider=...)` so the next ranking skips that entry until expiry.
 
 ```text
 omniroute --output json models
