@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from scripts.ci import dependency_review_changes
 
+
 class DependencyReviewChangesTest(unittest.TestCase):
     def test_release_version_only_pom_edit_skips_dependency_review(self):
         with patch("scripts.ci.dependency_review_changes.git", return_value="pom.xml\n"):
@@ -45,6 +46,76 @@ class DependencyReviewChangesTest(unittest.TestCase):
                 ],
             ):
                 self.assertTrue(dependency_review_changes.needs_review("base", "head"))
+
+    def test_property_backed_dependency_version_change_requires_review(self):
+        before = """
+        <project>
+          <properties><google.auth.library.version>1.0.0</google.auth.library.version></properties>
+          <dependencies>
+            <dependency>
+              <groupId>com.google.auth</groupId>
+              <artifactId>google-auth-library-oauth2-http</artifactId>
+              <version>${google.auth.library.version}</version>
+            </dependency>
+          </dependencies>
+        </project>
+        """
+        after = before.replace("1.0.0", "1.1.0")
+        with patch("scripts.ci.dependency_review_changes.git", return_value="pom.xml\n"):
+            with patch(
+                "scripts.ci.dependency_review_changes.content",
+                side_effect=[before, after],
+            ):
+                self.assertTrue(dependency_review_changes.needs_review("base", "head"))
+
+    def test_imported_bom_property_version_change_requires_review(self):
+        before = """
+        <project>
+          <properties><bom.version>1.0.0</bom.version></properties>
+          <dependencyManagement>
+            <dependencies>
+              <dependency>
+                <groupId>org.example</groupId>
+                <artifactId>bom</artifactId>
+                <version>${bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+              </dependency>
+            </dependencies>
+          </dependencyManagement>
+        </project>
+        """
+        after = before.replace("1.0.0", "2.0.0")
+        with patch("scripts.ci.dependency_review_changes.git", return_value="pom.xml\n"):
+            with patch(
+                "scripts.ci.dependency_review_changes.content",
+                side_effect=[before, after],
+            ):
+                self.assertTrue(dependency_review_changes.needs_review("base", "head"))
+
+    def test_unrelated_property_change_skips_dependency_review(self):
+        before = """
+        <project>
+          <properties>
+            <google.auth.library.version>1.0.0</google.auth.library.version>
+            <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+          </properties>
+          <dependencies>
+            <dependency>
+              <groupId>com.google.auth</groupId>
+              <artifactId>google-auth-library-oauth2-http</artifactId>
+              <version>${google.auth.library.version}</version>
+            </dependency>
+          </dependencies>
+        </project>
+        """
+        after = before.replace("UTF-8", "UTF-16")
+        with patch("scripts.ci.dependency_review_changes.git", return_value="pom.xml\n"):
+            with patch(
+                "scripts.ci.dependency_review_changes.content",
+                side_effect=[before, after],
+            ):
+                self.assertFalse(dependency_review_changes.needs_review("base", "head"))
 
     def test_changed_ci_python_requirements_requires_dependency_review(self):
         with patch(
