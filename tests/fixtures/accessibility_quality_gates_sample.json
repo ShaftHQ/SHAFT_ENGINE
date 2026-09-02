@@ -1,0 +1,28 @@
+{
+  "surfaces": [
+    {
+      "name": "intellij-status-success-dark",
+      "foreground": "#81C784",
+      "background": "#3C3F41",
+      "largeText": false,
+      "states": ["loading", "empty", "error", "recovery", "success"],
+      "minTargetPx": 24,
+      "keyboardAccessible": true,
+      "visibleFocus": true,
+      "reducedMotionEquivalent": true,
+      "motionGatesContent": false
+    },
+    {
+      "name": "docs-callout",
+      "foreground": "#1B1F23",
+      "background": "#F6F8FA",
+      "largeText": false,
+      "states": ["loading", "empty", "error", "recovery", "success"],
+      "minTargetPx": 24,
+      "keyboardAccessible": true,
+      "visibleFocus": true,
+      "reducedMotionEquivalent": true,
+      "motionGatesContent": false
+    }
+  ]
+}
