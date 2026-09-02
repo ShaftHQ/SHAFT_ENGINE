@@ -139,6 +139,8 @@ sends you there; the rest by
 - [process-owner / Scrum-master](../../chaos-engine/references/process-owner-scrum-master.md)
 - [decision-quality baseline](../../chaos-engine/decision-quality-baseline.md)
 - [decision-quality rubric](../../chaos-engine/decision-quality-rubric.md)
+- [decision-quality calibration](../../chaos-engine/decision-quality-calibration.md)
+- [decision-quality calibration aggregate](../../chaos-engine/decision-quality-calibration.aggregate.json)
 - [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)

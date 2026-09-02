@@ -12,9 +12,9 @@ CHAOS_GAUGE = ROOT / "scripts" / "ci" / "chaos_gauge"
 # additions update this complete inventory together with their task digests.
 # This covers the full public ChaosGauge tree, unlike representative anchors
 # that can remain after an executable or dataset member is lost.
-RECOVERED_PUBLIC_FILE_COUNT = 155
+RECOVERED_PUBLIC_FILE_COUNT = 156
 RECOVERED_PUBLIC_PATHS_SHA256 = (
-    "f78b7b36aa37371c1c8304054585417faece9b5dda3f92ade50737c51af402b8"
+    "94ae0e6906f7b51072dfda1ab868ade10020c420e4899d38e969538ac1d0d05c"
 )
 GENERATED_PUBLIC_PARTS = frozenset({"jobs", "reports", "private", "__pycache__"})
 

@@ -1,0 +1,87 @@
+{
+  "campaign": "omniroute-calibration",
+  "comparison": {
+    "correctnessDelta": 0.0,
+    "gateVerdict": {
+      "efficiencyWins": [],
+      "reason": "correctness did not beat control",
+      "verdict": "NO"
+    }
+  },
+  "failoverEvents": [
+    {
+      "from": "agy/gemini-3.7-flash-high",
+      "reason": "operator-pin-after-preferred-unavailable",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    }
+  ],
+  "identity": {
+    "arms": [
+      "control",
+      "chaos-engine"
+    ],
+    "attemptsPerTask": 2,
+    "campaign": "omniroute-calibration",
+    "implementationRevision": "0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
+    "parentCampaign": "calibration",
+    "preferredModel": "agy/gemini-3.7-flash-high",
+    "seed": 5450,
+    "taskCount": 3,
+    "tasks": [
+      {
+        "name": "diagnosis-failure-trace",
+        "sha256": "ec8bdd0cbb60badb2a7ff7db2d9e4b7189700ce34bce29c7ef475cfd08d162d6"
+      },
+      {
+        "name": "repair-regression-test",
+        "sha256": "0a60e91111c5d604f9d88b5c4b7c7a9bb0d60d81279411525aa80d50371a50ec"
+      },
+      {
+        "name": "delivery-focused-proof",
+        "sha256": "fa9d844431eb2541162bff2be0eb4344f542805349b15155188ac648a321cca5"
+      }
+    ],
+    "transport": "omniroute-loopback",
+    "trialCount": 12
+  },
+  "metrics": {
+    "chaos-engine": {
+      "actions": 1.0,
+      "correctness": 0.0,
+      "cost_usd": "UNAVAILABLE",
+      "external_run_minutes": "UNAVAILABLE",
+      "latency_seconds": 36.893572025665584,
+      "retries": 1.0,
+      "tokens": 371.1666666666667,
+      "variance": 0.0
+    },
+    "control": {
+      "actions": 1.0,
+      "correctness": 0.0,
+      "cost_usd": "UNAVAILABLE",
+      "external_run_minutes": "UNAVAILABLE",
+      "latency_seconds": 24.54195623733055,
+      "retries": 1.0,
+      "tokens": 351.6666666666667,
+      "variance": 0.0
+    }
+  },
+  "missingInputs": [],
+  "modelsUsed": [
+    "nvidia/nemotron-3-ultra-550b-a55b"
+  ],
+  "privacy": {
+    "modelIdsNamedByContract": true,
+    "privatePaths": false,
+    "prompts": false,
+    "providerRoutes": false,
+    "secrets": false,
+    "transcripts": false
+  },
+  "schemaVersion": 1,
+  "status": "complete",
+  "trialAccounting": {
+    "observed": 12,
+    "planned": 12
+  }
+}
