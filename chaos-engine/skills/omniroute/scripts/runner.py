@@ -2143,17 +2143,22 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     if invocation_mode == "direct":
         argv = [*launcher_argv, *delegate_args]
     elif invocation_mode == "gateway":
-        # Sealed launchers are content-hash basenames; key off invocationMode, not argv0 name.
+        # Sealed launchers are content-hash basenames. OmniRoute CLI configs keep
+        # `run` as argv[1]; other gateway launchers keep their profile argv.
         argv = list(launcher_argv)
-        if "run" not in argv[1:2]:
-            argv = [argv[0], "run", *argv[1:]]
-        argv.extend(["--model", pick["model"], "--provider", pick["provider"], "--port", "20128"])
-        if credential_mode == "environment":
-            argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
-        overlay = list(delegate_args)
-        if target == "codex":
-            overlay = [*codex_model_overlay(pick["provider"], pick["model"]), *overlay]
-        argv.extend([target, "--", *overlay])
+        if len(argv) >= 2 and argv[1] == "run":
+            argv.extend(["--model", pick["model"], "--provider", pick["provider"], "--port", "20128"])
+            if credential_mode == "environment":
+                argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+            overlay = list(delegate_args)
+            if target == "codex":
+                overlay = [*codex_model_overlay(pick["provider"], pick["model"]), *overlay]
+            argv.extend([target, "--", *overlay])
+        else:
+            argv = [*launcher_argv, target, "--port", "20128"]
+            if credential_mode == "environment":
+                argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+            argv.extend(["--", *delegate_args])
     else:
         argv = [*launcher_argv, target, "--port", "20128"]
         if credential_mode == "environment":
