@@ -158,6 +158,49 @@ never installs, configures, starts, or authenticates OmniRoute. An absent or
 unqualified gateway leaves every normal workflow valid through native
 implementers or `SOLO`.
 
+## OmniRoute decision-quality evidence
+
+Transparent side-by-side results from the free OmniRoute walking skeleton
+(#5522 / #5465). Values below are generated from the committed aggregate and
+are published regardless of positive, neutral, negative, or inconclusive
+outcome.
+
+<!-- evidence:omniroute-calibration:start -->
+This section is generated from
+[`chaos-engine/decision-quality-calibration.aggregate.json`](decision-quality-calibration.aggregate.json).
+Do not hand-edit the numbers; refresh with
+`python3 scripts/ci/validate_chaos_engine_readme.py --write`.
+
+Label: **directional walking skeleton** (n=12/12 observed/planned trials).
+This is not a Harbor 95% CI powered pilot.
+
+| Field | Value |
+| --- | --- |
+| Gate verdict | NO |
+| Gate reason | correctness did not beat control |
+| Correctness delta (treatment - control) | 0.0 |
+| Models used | nvidia/nemotron-3-ultra-550b-a55b |
+| Preferred model | agy/gemini-3.7-flash-high |
+| Tasks | diagnosis-failure-trace, repair-regression-test, delivery-focused-proof |
+| Status | complete |
+
+| Metric | control | chaos-engine |
+| --- | --- | --- |
+| `correctness` | 0.0 | 0.0 |
+| `tokens` | 351.6666666666667 | 371.1666666666667 |
+| `latency_seconds` | 24.54195623733055 | 36.893572025665584 |
+| `external_run_minutes` | UNAVAILABLE | UNAVAILABLE |
+| `actions` | 1.0 | 1.0 |
+| `retries` | 0.0 | 0.0 |
+| `cost_usd` | UNAVAILABLE | UNAVAILABLE |
+| `variance` | 0.0 | 0.0 |
+
+Methodology and final report:
+[decision-quality-calibration.md](decision-quality-calibration.md),
+[decision-quality-report.md](decision-quality-report.md).
+Missing telemetry remains the literal `UNAVAILABLE` (never `0`).
+<!-- evidence:omniroute-calibration:end -->
+
 ## What gets installed
 
 | Path | Responsibility |

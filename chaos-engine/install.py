@@ -363,6 +363,9 @@ def is_origin_only(relative: Path) -> bool:
             "STANDALONE.md",
             "decision-quality-baseline.md",
             "decision-quality-rubric.md",
+            "decision-quality-calibration.md",
+            "decision-quality-calibration.aggregate.json",
+            "decision-quality-report.md",
         }
     )
 
