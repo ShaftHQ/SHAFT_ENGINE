@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Install shaft-cli reactor dependencies
@@ -80,7 +80,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Set up JDK 25 (Gradle)
@@ -130,7 +130,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Set up JDK 25 (Gradle)
@@ -178,7 +178,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Set up JDK 25 (Gradle)
@@ -259,7 +259,7 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Build shaft-mcp live launcher jar
         if: env.GEMINI_API_KEY != ''
         uses: ./.github/actions/build-shaft-mcp-live-jar
@@ -325,7 +325,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

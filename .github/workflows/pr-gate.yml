@@ -45,7 +45,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Test and validate release-note governance
         run: |
           python3 -m unittest tests.scripts.test_validate_release_notes -v
@@ -72,7 +72,7 @@ jobs:
       chaos_gauge: ${{ steps.filter.outputs.chaos_gauge }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Filter changed paths
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -363,7 +363,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Validate documentation boundaries
         run: python3 scripts/ci/validate_documentation_boundaries.py
 
@@ -375,7 +375,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -410,7 +410,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: Set up Python 3.13
@@ -478,7 +478,7 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -508,7 +508,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Build IntelliJ plugin
         uses: ./.github/actions/intellij-verify
       - name: Upload IntelliJ coverage to Codecov
@@ -544,7 +544,7 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
         uses: actions/setup-java@v6.0.0
         with:
@@ -593,7 +593,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
         uses: actions/setup-java@v6.0.0
         with:
@@ -702,7 +702,7 @@ jobs:
         module: [ shaft-infrastructure, shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture, shaft-ocr ]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
         uses: actions/setup-java@v6.0.0
         with:
@@ -769,7 +769,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
         uses: actions/setup-java@v6.0.0
         with:
@@ -809,7 +809,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -842,7 +842,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -875,7 +875,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -921,7 +921,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: Set up Python 3.13
@@ -959,7 +959,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Dependency Review
         uses: actions/dependency-review-action@v5
         with:
@@ -976,7 +976,7 @@ jobs:
       review: ${{ steps.diff.outputs.review }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: Test dependency diff classifier
@@ -1009,7 +1009,7 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:

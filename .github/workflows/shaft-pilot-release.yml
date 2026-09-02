@@ -29,7 +29,7 @@ jobs:
       changed: ${{ steps.version-diff.outputs.changed }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
@@ -82,7 +82,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Verify IntelliJ plugin release candidate
         uses: ./.github/actions/intellij-verify
       - name: Upload IntelliJ coverage to Codecov
@@ -101,7 +101,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -116,7 +116,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -174,7 +174,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
         uses: actions/setup-java@v6.0.0
         with:
@@ -209,7 +209,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Set up Python 3.13
@@ -253,7 +253,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Build and smoke the release container

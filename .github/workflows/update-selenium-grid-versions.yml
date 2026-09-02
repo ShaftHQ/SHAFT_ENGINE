@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Fetch Latest Selenium Docker Compose Reference
         id: fetch-reference
@@ -192,7 +192,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

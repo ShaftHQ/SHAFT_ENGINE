@@ -56,7 +56,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Consolidate Test Results
         uses: ./.github/actions/consolidate-test-results
         with:
@@ -80,7 +80,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -121,7 +121,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -159,7 +159,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -201,7 +201,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -244,7 +244,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -314,7 +314,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -349,7 +349,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -463,7 +463,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -505,7 +505,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -566,7 +566,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -655,7 +655,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

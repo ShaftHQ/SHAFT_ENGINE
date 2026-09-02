@@ -114,7 +114,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Consolidate Test Results
         uses: ./.github/actions/consolidate-test-results
         with:
@@ -146,7 +146,7 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Connect to PostgreSQL
         run: |
             cd shaft-engine/src/main/resources/docker-compose/postgres/
@@ -184,7 +184,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -214,7 +214,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -245,7 +245,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -283,7 +283,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
       - name: Setup Test Environment
@@ -329,7 +329,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Setup Test Environment
@@ -375,7 +375,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
       - name: Setup Test Environment
@@ -421,7 +421,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -458,7 +458,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -495,7 +495,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -539,7 +539,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -578,7 +578,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -617,7 +617,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -664,7 +664,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -678,7 +678,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4.0.1
       - name: Checkout pinned appium-flutter-server demo-app
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           repository: AppiumTestDistribution/appium-flutter-server
           # Same pinned commit as Android_Flutter_Emulator_E2E -- never track a
@@ -722,7 +722,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Download freshly-built Flutter demo-app APK
         id: download_flutter_demo_apk
         # Tolerate a missing artifact: Flutter_Demo_App_Build runs with
@@ -800,7 +800,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -859,7 +859,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -926,7 +926,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -962,7 +962,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1006,7 +1006,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1042,7 +1042,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1086,7 +1086,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1116,7 +1116,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1165,7 +1165,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Enable KVM group perms
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -1184,7 +1184,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4.0.1
       - name: Checkout pinned appium-flutter-server demo-app
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           repository: AppiumTestDistribution/appium-flutter-server
           # Pinned commit, verified current HEAD of main at ticket time (issue #4197) --
@@ -1289,7 +1289,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1319,7 +1319,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Setup Test Environment
@@ -1353,7 +1353,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1421,7 +1421,7 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Create Kubernetes Kind Cluster
         uses: helm/kind-action@v1.14.0
@@ -1575,7 +1575,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:
