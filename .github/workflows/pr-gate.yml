@@ -377,7 +377,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
@@ -414,7 +414,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
@@ -480,7 +480,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Set up JDK 25
@@ -811,7 +811,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
@@ -844,7 +844,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Run pilot module boundary tests
@@ -877,7 +877,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Run orphaned suite file guard unit tests
@@ -925,7 +925,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Fetch PR commit messages
@@ -1011,7 +1011,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
       - name: Run installer UX contracts
