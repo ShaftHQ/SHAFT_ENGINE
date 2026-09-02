@@ -30,7 +30,7 @@ class MissingCoreRecoveryTest(unittest.TestCase):
             self.assertTrue(self.install.missing_core_with_installed_hosts(project))
             status = self.install.missing_core_recovery_status(project)
             self.assertEqual("recovery-required", status["status"])
-            self.assertEqual("CE_CORE_MISSING", status["diagnosticCode"])
+            self.assertEqual("CE_CORE_MISSING", status["components"]["core"]["code"])
 
     def test_absent_receipt_is_not_missing_core(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

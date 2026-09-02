@@ -521,23 +521,22 @@ def missing_core_recovery_status(project: Path) -> dict[str, object]:
     del project  # project identity is implied by the caller lock scope
     return {
         "status": "recovery-required",
-        "diagnosticCode": "CE_CORE_MISSING",
-        "reason": (
-            "host receipt is installed but .chaos-engine core is missing; "
-            "restore .chaos-engine or uninstall/reinstall before provisioning"
-        ),
-        "remedy": (
-            "git restore .chaos-engine; "
-            "or python3 chaos-engine/install.py uninstall --project . "
-            "then python3 chaos-engine/install.py install --project ."
-        ),
         "commit": "missing-core",
         "distribution": "missing-core",
         "policySha256": "0" * 64,
         "kernel": {"status": "recovery-required"},
         "hosts": {"status": "recovery-required"},
         "dependencies": {"status": "recovery-required"},
-        "components": {"core": {"status": "recovery-required"}},
+        "components": {
+            "core": {
+                "status": "recovery-required",
+                "code": "CE_CORE_MISSING",
+                "detail": (
+                    "host receipt is installed but .chaos-engine core is missing; "
+                    "restore .chaos-engine or uninstall/reinstall before provisioning"
+                ),
+            }
+        },
     }
 
 
@@ -3055,12 +3054,10 @@ _DIAGNOSTIC_FIELDS = {
     "status": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components",
-        "diagnosticCode", "reason", "remedy",
     },
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
-        "diagnosticCode", "reason", "remedy",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
