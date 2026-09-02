@@ -799,9 +799,27 @@ class InstallerUxTests(unittest.TestCase):
             if line.startswith("https://github.com/owner/repo/issues/new?")
         )
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
-        self.assertEqual(["failed at <path> token=<redacted>"], query["cause"])
+        self.assertEqual(["failed at [path] token=<redacted>"], query["cause"])
         self.assertNotIn("super-secret", output)
         self.assertNotIn(str(private_path), output)
+        self.assertNotIn("<path>", output)
+
+    def test_one_line_cause_redacts_media_user_mounts_without_html_tags(self):
+        cause = BOOTSTRAP.one_line_cause(
+            RuntimeError(
+                "ChaosEngine host adapter drift detected: "
+                "/media/x/OS/Users/y/proj/plugins/chaos-engine/hooks/guard.py"
+            )
+        )
+        self.assertIn("[path]", cause)
+        self.assertNotIn("<path>", cause)
+        self.assertNotIn("/media/x/OS", cause)
+        self.assertNotIn("/Users/y", cause)
+        windows = BOOTSTRAP.one_line_cause(
+            RuntimeError(r"failed at C:\Users\runner\work\project\state.json")
+        )
+        self.assertIn("[path]", windows)
+        self.assertNotIn(r"C:\Users", windows)
 
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")

@@ -1024,9 +1024,11 @@ def classify_install_error(error: BaseException) -> str:
 def one_line_cause(error: BaseException) -> str:
     text = str(error).strip() or error.__class__.__name__
     text = " ".join(text.split())
+    # Non-HTML [path] so GitHub issue forms cannot strip the marker and leave a
+    # mount prefix such as /media/.../OS after redacting /Users/...
     text = re.sub(
-        r"(?<!:)(?:[A-Za-z]:[\\/]|/(?:home|Users|tmp|var|private)/)\S+",
-        "<path>",
+        r"(?<!:)(?:[A-Za-z]:[\\/]|\\\\[^\s\\/]+[\\/]|/(?:(?:media|mnt|Volumes)(?:/\S+?)?/(?:Users|home)|home|Users|tmp|var|private)/)\S+",
+        "[path]",
         text,
     )
     return re.sub(

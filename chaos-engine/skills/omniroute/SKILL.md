@@ -40,9 +40,15 @@ Never bind a non-loopback address. Never use a remote `--base-url`.
 
 ## Live catalog on every dispatch
 
-Do not read cache files. Do not keep a session catalog file. Remaining tokens
-change after each delegate, so query both of these immediately before every
-dispatch:
+Do not keep a session catalog file and do not cache positive catalog rows.
+Remaining tokens change after each delegate, so query live `models` and
+`usage quota` immediately before every dispatch. A **user-local**
+provider-exhaustion backoff cache (XDG state, never committed) may store only
+negative `exhausted_until` / retry-after entries; it is not a positive catalog cache.
+Update it on exhaustion signals (`state==exhausted`, `remaining<=0`, HTTP 429,
+quota-reset / insufficient-balance / stream-disconnect text). Pass the failed
+identity through `candidates(..., diagnostic=..., failed_identity_sha256=...,
+failed_provider=...)` so the next ranking skips that entry until expiry.
 
 ```text
 omniroute --output json models
@@ -64,7 +70,7 @@ it returns HTTP 401.
 4. Gateway `/api/models` rows use `model` (native id), `name` (display), `provider`, and `available`. CLI `omniroute models` JSON sets `id` from `name` when `id` is missing, so prefer `model` over `id`/`name`.
 5. Quota is a JSON array of objects with `provider`, `remaining`, and `state`.
 6. Join on alphanumeric-lowercased provider ids (`glm-cn` matches `glmcn`).
-7. Drop `state == "exhausted"` or `remaining <= 0`. Do not drop `available: false`: that management flag hid models the completions live catalog still accepts. Do not drop `supportsVision: true` for implementation ranking.
+7. Drop `state == "exhausted"` or `remaining <= 0`. Also drop providers/identities still present in the user-local provider-exhaustion backoff cache before their `exhausted_until`. Do not drop `available: false`: that management flag hid models the completions live catalog still accepts. Do not drop `supportsVision: true` for implementation ranking.
 8. Whitespace display names become native ids by stripping parentheticals, lowercasing, and replacing spaces with hyphens. Already-slugged ids stay unchanged. Compose `--model` as `provider/model` when the native id has no provider prefix.
 
 ### Rank (dynamic, from the live ids)

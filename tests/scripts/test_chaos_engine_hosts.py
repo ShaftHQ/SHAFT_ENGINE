@@ -4039,6 +4039,102 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(b"new-foreign/\nexisting/\n", snapshot[".gitignore"])
 
+    def test_preflight_accepts_stale_receipt_when_plugin_hooks_match_package(self):
+        module = load(HOSTS, "chaos_engine_hosts_package_equal_hooks")
+        before = {path: None for path in module.managed_paths()}
+        after = dict(before)
+        current = dict(after)
+        for name in (
+            "guard.py",
+            "kernel.py",
+            "launch.js",
+            "lifecycle.py",
+            "matchers.json",
+            "reflection.py",
+        ):
+            relative = f"plugins/chaos-engine/hooks/{name}"
+            after[relative] = f"stale-{name}".encode()
+            current[relative] = (
+                Path(module.__file__).resolve().parent / "hooks" / name
+            ).read_bytes()
+        snapshot = module.upgrade_before_images(Path("."), before, after, current)
+        self.assertIsNone(snapshot["plugins/chaos-engine/hooks/guard.py"])
+        self.assertIsNone(snapshot["plugins/chaos-engine/hooks/launch.js"])
+
+    def test_preflight_rejects_foreign_plugin_hook_bytes(self):
+        module = load(HOSTS, "chaos_engine_hosts_foreign_plugin_hooks")
+        before = {path: None for path in module.managed_paths()}
+        after = dict(before)
+        current = dict(after)
+        current["plugins/chaos-engine/hooks/guard.py"] = b"foreign-guard-bytes\n"
+        with self.assertRaisesRegex(ValueError, "host adapter drift detected"):
+            module.upgrade_before_images(Path("."), before, after, current)
+
+    def test_preflight_accepts_orchestrator_adapters_matching_candidate_desired(self):
+        module = load(HOSTS, "chaos_engine_hosts_orchestrator_desired")
+        before = {path: None for path in module.managed_paths()}
+        after = dict(before)
+        after[".claude/agents/chaos-engine-orchestrator.md"] = b"stale orchestrator\n"
+        after[".codex/agents/chaos-engine-orchestrator.toml"] = b"stale = true\n"
+        desired = module.desired_content(before, maven_runtime=None, project_name="proj")
+        current = dict(after)
+        current[".claude/agents/chaos-engine-orchestrator.md"] = desired[
+            ".claude/agents/chaos-engine-orchestrator.md"
+        ]
+        current[".codex/agents/chaos-engine-orchestrator.toml"] = desired[
+            ".codex/agents/chaos-engine-orchestrator.toml"
+        ]
+        for relative in (
+            ".claude/agents/chaos-engine-orchestrator.md",
+            ".codex/agents/chaos-engine-orchestrator.toml",
+        ):
+            self.assertIn(
+                "process-owner-scrum-master.md",
+                desired[relative].decode("utf-8"),
+            )
+        snapshot = module.upgrade_before_images(Path("."), before, after, current)
+        self.assertIsNone(snapshot[".claude/agents/chaos-engine-orchestrator.md"])
+        self.assertIsNone(snapshot[".codex/agents/chaos-engine-orchestrator.toml"])
+
+    def test_preflight_codex_interpreter_spelling_equivalence(self):
+        module = load(HOSTS, "chaos_engine_hosts_codex_interpreter_equivalence")
+        before = {path: None for path in module.managed_paths()}
+        managed = Path(
+            "/home/user/.local/share/chaos-engine-runtime/uv-tools/mempalace/bin/python"
+        )
+        after = dict(before)
+        after[".codex/config.toml"] = module.codex_content(None)
+        current = dict(after)
+        current[".codex/config.toml"] = module.codex_content(
+            None, managed_python=managed
+        )
+        snapshot = module.upgrade_before_images(Path("."), before, after, current)
+        self.assertEqual(b"", snapshot[".codex/config.toml"])
+
+        mutated = dict(current)
+        mutated[".codex/config.toml"] = mutated[".codex/config.toml"].replace(
+            b'"memory-mcp"', b'"memory-mcp-foreign"', 1
+        )
+        with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
+            module.upgrade_before_images(Path("."), before, after, mutated)
+
+        foreign = dict(after)
+        foreign[".codex/config.toml"] = module.codex_content(
+            None, managed_python=Path("/tmp/evil-python")
+        )
+        with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
+            module.upgrade_before_images(Path("."), before, after, foreign)
+
+    def test_preflight_rejects_foreign_role_adapter_bytes(self):
+        module = load(HOSTS, "chaos_engine_hosts_foreign_role_adapter")
+        before = {path: None for path in module.managed_paths()}
+        after = dict(before)
+        after[".claude/agents/chaos-engine-implementer.md"] = b"stale implementer\n"
+        current = dict(after)
+        current[".claude/agents/chaos-engine-implementer.md"] = b"foreign-role-adapter\n"
+        with self.assertRaisesRegex(ValueError, "host adapter drift detected"):
+            module.upgrade_before_images(Path("."), before, after, current)
+
     def test_tool_launcher_rejects_legacy_flat_runtime_without_active_pointer(self):
         module = load(TOOL, "chaos_engine_tool")
         with tempfile.TemporaryDirectory() as temporary:
