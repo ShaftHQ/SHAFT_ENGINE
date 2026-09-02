@@ -1102,9 +1102,17 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             if "chaos_engine_live_installer_acceptance.py" in str(step.get("run", ""))
         )
         self.assertEqual("${{ github.token }}", acceptance["env"]["GITHUB_TOKEN"])
-        checkout = next(step for step in job["steps"] if step.get("uses") == "actions/checkout@v7")
+        checkout = next(
+            step
+            for step in job["steps"]
+            if str(step.get("uses", "")).startswith("actions/checkout@v7")
+        )
         self.assertEqual(2, checkout["with"]["fetch-depth"])
-        uploads = [step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7"]
+        uploads = [
+            step
+            for step in job["steps"]
+            if str(step.get("uses", "")).startswith("actions/upload-artifact@v7")
+        ]
         self.assertEqual(1, len(uploads))
         self.assertEqual("always()", uploads[0]["if"])
         self.assertEqual(4, uploads[0]["with"]["retention-days"])
