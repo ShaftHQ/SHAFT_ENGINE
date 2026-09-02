@@ -35,8 +35,12 @@ class DecisionQualityReadmeEvidenceTest(unittest.TestCase):
         self.assertIn("UNAVAILABLE", block)
         self.assertIn("decision-quality-calibration.aggregate.json", block)
         self.assertIn("decision-quality-report.md", block)
-        # Missing cost must stay literal UNAVAILABLE, never coerced to 0 in the table.
+        # Missing cost/external-run-minutes stay literal UNAVAILABLE, never coerced to 0.
         self.assertRegex(block, r"\|\s*`cost_usd`\s*\|\s*UNAVAILABLE\s*\|\s*UNAVAILABLE\s*\|")
+        self.assertRegex(
+            block,
+            r"\|\s*`external_run_minutes`\s*\|\s*UNAVAILABLE\s*\|\s*UNAVAILABLE\s*\|",
+        )
 
     def test_repository_readme_evidence_matches_renderer_and_write_is_idempotent(self):
         write_generated = getattr(readme_owner, "write_generated", None)

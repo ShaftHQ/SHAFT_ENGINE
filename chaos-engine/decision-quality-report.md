@@ -26,8 +26,9 @@ Harbor trials were required for this program slice.
    latency were higher on the chaos-engine arm than on control.
 4. `cost_usd` and `external_run_minutes` remain literal **`UNAVAILABLE`**
    (never coerced to `0`).
-5. Preferred free model `agy/gemini-3.7-flash-high` cooled (429); remaining
-   pairs used free most-intelligent failover
+5. Preferred free model `agy/gemini-3.7-flash-high` was unavailable; committed
+   `failoverEvents` reason is `operator-pin-after-preferred-unavailable`.
+   Remaining pairs used free most-intelligent pin
    `nvidia/nemotron-3-ultra-550b-a55b` with the same named model on both arms
    of each pair.
 6. The only global harness policy change shipped in this program is the
@@ -41,8 +42,9 @@ Harbor trials were required for this program slice.
 - Zero correctness on both arms means the skeleton measured transport and
   prompt packaging more than end-to-end repair quality. Treat the gate as a
   correct fail-closed signal, not as proof that ChaosEngine harms outcomes.
-- Failover and cooling behavior are first-class operational risks for free
-  OmniRoute campaigns; pin and document model identity per pair.
+- Preferred-model unavailability and operator pin/failover are first-class
+  operational risks for free OmniRoute campaigns; pin and document model
+  identity per pair from committed `failoverEvents` only.
 - Transparency still requires publishing the unfavorable result in the primary
   README (#5465), without reframing or suppressing dimensions.
 
@@ -72,8 +74,8 @@ needs a new evidence gate before those ideas are reconsidered.
   not a Harbor-powered 95% confidence-interval pilot.
 - Correctness stayed at 0.0 on both arms; the campaign cannot discriminate
   harness benefit on repair quality.
-- Local OmniRoute `requestQueue.maxWaitMs=15000` and model cooling/failover
-  bound external validity.
+- Local OmniRoute `requestQueue.maxWaitMs=15000` and preferred-model failover
+  (`operator-pin-after-preferred-unavailable`) bound external validity.
 - Token and latency means are descriptive only; do not over-claim efficiency
   regressions beyond the recorded gate.
 - Private prompts, transcripts, secrets, private paths, and provider routes
