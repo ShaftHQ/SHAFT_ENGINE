@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""OmniRoute 12-trial paired free-model decision-quality calibration.
+"""
+OmniRoute 12-trial paired free-model decision-quality calibration.
 
 Walking skeleton for #5522: three unchanged public ChaosGauge task identities,
 two arms, two attempts (12 trials). Transport is local OmniRoute loopback only.
@@ -89,6 +90,26 @@ def _object(value: object, label: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ValueError(f"{label} is invalid")
     return value
+
+
+def _resolve_executable(name: str) -> str:
+    resolved = shutil.which(name)
+    if resolved is None:
+        raise FileNotFoundError(f"{name} executable not found on PATH")
+    return resolved
+
+
+def _transient_transport_failure(message: str) -> bool:
+    lowered = message.lower()
+    return (
+        "429" in message
+        or "cooling" in lowered
+        or "rate_limit" in lowered
+        or "RATE_LIMIT_EXECUTION_TIMEOUT" in message
+        or "service_unavailable" in lowered
+        or "503" in message
+        or "exhausted" in lowered
+    )
 
 
 def load_manifest(path: Path | None = None) -> dict[str, object]:
@@ -299,7 +320,10 @@ def run_verifier(task: str, sandbox: Path) -> dict[str, object]:
             "CHAOS_GAUGE_LOG_ROOT": str(log_root),
         }
         completed = subprocess.run(  # nosec B603
-            ["bash", str(DATASET / task / "tests" / "test.sh")],
+            [
+                _resolve_executable("bash"),
+                str(DATASET / task / "tests" / "test.sh"),
+            ],
             check=False,
             capture_output=True,
             text=True,
@@ -494,14 +518,16 @@ def _walk_strings(value: object) -> list[str]:
     return []
 
 
-def validate_redacted_aggregate(value: object, manifest: object) -> None:
-    evidence = _object(value, "redacted aggregate")
+def _validate_identity(evidence: dict[str, object], manifest: object) -> None:
     identity = campaign_identity(manifest)
     # preferredModel may be overridden after failover documentation; compare core fields.
     observed_identity = _object(evidence.get("identity"), "identity")
     for key in ("seed", "campaign", "taskCount", "attemptsPerTask", "trialCount", "arms", "tasks", "transport"):
         if observed_identity.get(key) != identity.get(key):
             raise ValueError("redacted aggregate identity drifted from #5522 contracts")
+
+
+def _validate_accounting(evidence: dict[str, object]) -> tuple[str, int]:
     accounting = _object(evidence.get("trialAccounting"), "trial accounting")
     if accounting.get("planned") != TRIAL_COUNT:
         raise ValueError("redacted aggregate planned trial count is invalid")
@@ -513,24 +539,53 @@ def validate_redacted_aggregate(value: object, manifest: object) -> None:
         raise ValueError("redacted aggregate status is invalid")
     if status == "blocked" and observed != 0:
         raise ValueError("blocked evidence must not claim observed trials")
+    return str(status), observed
+
+
+def _require_nonneg_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} is invalid")
+    return value
+
+
+def _validate_complete_cover(
+    cover: dict[str, object],
+    per_arm: dict[str, object],
+    observed: int,
+) -> None:
+    if observed != TRIAL_COUNT or not cover.get("balanced"):
+        raise ValueError("complete evidence requires balanced cover")
+    expected = TRIAL_COUNT // len(ARMS)
+    for arm in ARMS:
+        if per_arm.get(arm) != expected:
+            raise ValueError("complete evidence requires balanced cover")
+
+
+def _validate_trial_cover(evidence: dict[str, object], status: str, observed: int) -> None:
     cover = _object(evidence.get("trialCover"), "trial cover")
-    if not isinstance(cover.get("uniqueCells"), int) or isinstance(cover.get("uniqueCells"), bool):
-        raise ValueError("trial cover uniqueCells is invalid")
+    _require_nonneg_int(cover.get("uniqueCells"), "trial cover uniqueCells")
     if not isinstance(cover.get("balanced"), bool):
         raise ValueError("trial cover balanced flag is invalid")
     per_arm = _object(cover.get("perArm"), "trial cover perArm")
     if set(per_arm) != set(ARMS):
         raise ValueError("trial cover perArm arms are invalid")
     for arm in ARMS:
-        count = per_arm.get(arm)
-        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
-            raise ValueError(f"trial cover perArm.{arm} is invalid")
+        _require_nonneg_int(per_arm.get(arm), f"trial cover perArm.{arm}")
     if status == "complete":
-        if observed != TRIAL_COUNT or not cover.get("balanced"):
-            raise ValueError("complete evidence requires balanced cover")
-        for arm in ARMS:
-            if per_arm.get(arm) != TRIAL_COUNT // len(ARMS):
-                raise ValueError("complete evidence requires balanced cover")
+        _validate_complete_cover(cover, per_arm, observed)
+
+
+def _validate_arm_metric_values(arm: str, arm_metrics: dict[str, object]) -> None:
+    if set(arm_metrics) != set(CALIBRATION_METRICS):
+        raise ValueError(f"{arm} metric set is invalid")
+    for name, item in arm_metrics.items():
+        if item is None:
+            raise ValueError(f"{arm}.{name} must use UNAVAILABLE rather than null")
+        if item != UNAVAILABLE and not isinstance(item, (int, float)):
+            raise ValueError(f"{arm}.{name} is invalid")
+
+
+def _validate_metrics(evidence: dict[str, object]) -> dict[str, object]:
     models_used = evidence.get("modelsUsed")
     if not isinstance(models_used, list) or not all(isinstance(item, str) and item for item in models_used):
         raise ValueError("modelsUsed must name every model")
@@ -538,24 +593,33 @@ def validate_redacted_aggregate(value: object, manifest: object) -> None:
     if set(metrics) != set(ARMS):
         raise ValueError("redacted aggregate arms are invalid")
     for arm in ARMS:
-        arm_metrics = _object(metrics[arm], f"{arm} metrics")
-        if set(arm_metrics) != set(CALIBRATION_METRICS):
-            raise ValueError(f"{arm} metric set is invalid")
-        for name, item in arm_metrics.items():
-            if item is None:
-                raise ValueError(f"{arm}.{name} must use UNAVAILABLE rather than null")
-            if item != UNAVAILABLE and not isinstance(item, (int, float)):
-                raise ValueError(f"{arm}.{name} is invalid")
+        _validate_arm_metric_values(arm, _object(metrics[arm], f"{arm} metrics"))
+    return metrics
+
+
+def _validate_comparison(evidence: dict[str, object], metrics: dict[str, object]) -> None:
     comparison = _object(evidence.get("comparison"), "comparison")
-    expected_gate = gate_verdict(metrics)
-    if comparison.get("gateVerdict") != expected_gate:
+    if comparison.get("gateVerdict") != gate_verdict(metrics):
         raise ValueError("gateVerdict does not match gate_verdict(metrics)")
     if comparison.get("correctnessDelta") != correctness_delta(metrics):
         raise ValueError("correctnessDelta does not match metrics")
+
+
+def _validate_privacy(evidence: dict[str, object]) -> None:
     for text in _walk_strings(evidence):
         for pattern in FORBIDDEN_PRIVACY:
             if pattern.search(text):
                 raise ValueError("redacted aggregate failed privacy scan")
+
+
+def validate_redacted_aggregate(value: object, manifest: object) -> None:
+    evidence = _object(value, "redacted aggregate")
+    _validate_identity(evidence, manifest)
+    status, observed = _validate_accounting(evidence)
+    _validate_trial_cover(evidence, status, observed)
+    metrics = _validate_metrics(evidence)
+    _validate_comparison(evidence, metrics)
+    _validate_privacy(evidence)
 
 def probe_runtime(
     run: Callable[[list[str]], str] | None = None,
@@ -563,14 +627,16 @@ def probe_runtime(
     """Probe OmniRoute loopback readiness and remaining most-intelligent catalog."""
 
     def _default_run(command: list[str]) -> str:
-        return subprocess.run(command, check=True, capture_output=True, text=True).stdout  # nosec B603
+        resolved = [_resolve_executable(command[0]), *command[1:]]
+        return subprocess.run(resolved, check=True, capture_output=True, text=True).stdout  # nosec B603
 
     runner = run or _default_run
     missing: list[str] = []
     details: dict[str, object] = {}
     script = REPO / "chaos-engine" / "skills" / "omniroute" / "scripts" / "runner.py"
+    python3 = "python3"
     try:
-        probe_raw = runner(["python3", str(script), "probe"])
+        probe_raw = runner([python3, str(script), "probe"])
         probe = json.loads(ANSI.sub("", probe_raw)[ANSI.sub("", probe_raw).find("{") :])
         details["omnirouteState"] = probe.get("state")
         if probe.get("state") != "READY":
@@ -580,7 +646,7 @@ def probe_runtime(
         missing.append("omniroute-loopback-READY")
     try:
         catalog_raw = runner(
-            ["python3", str(script), "candidates", "--capability", "most-intelligent"]
+            [python3, str(script), "candidates", "--capability", "most-intelligent"]
         )
         cleaned = ANSI.sub("", catalog_raw)
         catalog = json.loads(cleaned[cleaned.find("{") :])
@@ -628,7 +694,7 @@ def omniroute_chat(
         prompt_path = Path(temporary) / "prompt.txt"
         prompt_path.write_text(prompt, encoding="utf-8")
         command = [
-            "omniroute",
+            _resolve_executable("omniroute"),
             "--timeout",
             "180000",
             "--output",
@@ -715,7 +781,8 @@ def run_trial(
                     raise
                 time.sleep(2 * (_attempt + 1))
         if result is None:
-            assert last_error is not None
+            if last_error is None:
+                raise ValueError(f"trial failed without captured transport error for {task}/{arm}")
             raise last_error
         raw_content = str(result["content"] or "")
         correctness = 0
@@ -762,7 +829,13 @@ def run_trial(
 def _load_candidates() -> list[dict[str, object]]:
     script = REPO / "chaos-engine" / "skills" / "omniroute" / "scripts" / "runner.py"
     raw = subprocess.run(  # nosec B603
-        ["python3", str(script), "candidates", "--capability", "most-intelligent"],
+        [
+            _resolve_executable("python3"),
+            str(script),
+            "candidates",
+            "--capability",
+            "most-intelligent",
+        ],
         check=True,
         capture_output=True,
         text=True,
@@ -773,6 +846,168 @@ def _load_candidates() -> list[dict[str, object]]:
     if not isinstance(candidates, list):
         raise ValueError("candidates payload is invalid")
     return [row for row in candidates if isinstance(row, dict)]
+
+
+def _choose_campaign_model(
+    *,
+    pinned_model: str | None,
+    candidates: list[dict[str, object]],
+    skipped: set[str],
+    failover_events: list[dict[str, object]],
+) -> str:
+    if pinned_model:
+        names = {str(row.get("model")) for row in candidates}
+        if pinned_model not in names:
+            raise ValueError(f"pinned model not in remaining most-intelligent catalog: {pinned_model}")
+        if pinned_model != PREFERRED_MODEL:
+            failover_events.append(
+                {
+                    "from": PREFERRED_MODEL,
+                    "to": pinned_model,
+                    "reason": "operator-pin-after-preferred-unavailable",
+                }
+            )
+        return pinned_model
+    return select_model(candidates, preferred=PREFERRED_MODEL, skipped=skipped)
+
+
+def _preflight_model(
+    model: str,
+    *,
+    skipped: set[str],
+    failover_events: list[dict[str, object]],
+) -> str:
+    # Tiny readiness ping so cooled/exhausted identities fail before a pair starts.
+    while True:
+        print(f"preflight model={model}", flush=True)
+        try:
+            omniroute_chat(
+                model=model,
+                system="Reply JSON only.",
+                prompt='Return {"ok":true}',
+                max_tokens=16,
+            )
+            break
+        except PaidTransportError as error:
+            skipped.add(model)
+            previous = model
+            candidates = _load_candidates()
+            model = select_model(candidates, preferred=PREFERRED_MODEL, skipped=skipped)
+            failover_events.append(
+                {"from": previous, "to": model, "reason": f"skip-paid:{error}"}
+            )
+        except RuntimeError as error:
+            if not _transient_transport_failure(str(error)):
+                raise
+            skipped.add(model)
+            previous = model
+            candidates = _load_candidates()
+            model = select_model(candidates, preferred=PREFERRED_MODEL, skipped=skipped)
+            failover_events.append(
+                {"from": previous, "to": model, "reason": "429-or-exhaust-preflight"}
+            )
+    if model != PREFERRED_MODEL and not any(event.get("to") == model for event in failover_events):
+        failover_events.append(
+            {
+                "from": PREFERRED_MODEL,
+                "to": model,
+                "reason": "preferred-not-remaining-or-skipped-at-selection",
+            }
+        )
+    return model
+
+
+def _run_pair_arm(
+    *,
+    task: str,
+    attempt: int,
+    arm: str,
+    pair_model: str,
+    skipped: set[str],
+    failover_events: list[dict[str, object]],
+    models_used: list[str],
+    pair_trials: list[dict[str, object]],
+) -> str:
+    transport_retries = 0
+    while True:
+        try:
+            print(
+                f"trial start task={task} attempt={attempt} arm={arm} model={pair_model}",
+                flush=True,
+            )
+            trial = run_trial(task=task, arm=arm, model=pair_model, attempt=attempt)
+            print(
+                f"trial done task={task} attempt={attempt} arm={arm} "
+                f"correctness={trial['correctness']} tokens={trial['tokens']}",
+                flush=True,
+            )
+            # Per-trial transport retries only; failover stays in failoverEvents.
+            trial["retries"] = transport_retries
+            pair_trials.append(trial)
+            if pair_model not in models_used:
+                models_used.append(pair_model)
+            return pair_model
+        except (PaidTransportError, RuntimeError) as error:
+            message = str(error)
+            paid = isinstance(error, PaidTransportError)
+            if not (paid or _transient_transport_failure(message)):
+                raise
+            if pair_trials:
+                # Do not mix models inside a started pair.
+                raise RuntimeError(
+                    f"pair {task}__{attempt} failed after partial arm with model {pair_model}"
+                ) from error
+            skipped.add(pair_model)
+            candidates = _load_candidates()
+            next_model = select_model(candidates, preferred=PREFERRED_MODEL, skipped=skipped)
+            failover_events.append(
+                {
+                    "from": pair_model,
+                    "to": next_model,
+                    "reason": "skip-paid" if paid else "429-or-exhaust",
+                }
+            )
+            pair_model = next_model
+            transport_retries += 1
+
+
+def _run_campaign_trials(
+    *,
+    model: str,
+    skipped: set[str],
+    failover_events: list[dict[str, object]],
+    models_used: list[str],
+) -> list[dict[str, object]]:
+    completed_trials: list[dict[str, object]] = []
+    active_model = model
+    for task in SELECTED_TASKS:
+        for attempt in range(1, ATTEMPTS_PER_TASK + 1):
+            pair_trials: list[dict[str, object]] = []
+            pair_model = active_model
+            print(f"pair start {task}__{attempt} model={pair_model}", flush=True)
+            for arm in ARMS:
+                pair_model = _run_pair_arm(
+                    task=task,
+                    attempt=attempt,
+                    arm=arm,
+                    pair_model=pair_model,
+                    skipped=skipped,
+                    failover_events=failover_events,
+                    models_used=models_used,
+                    pair_trials=pair_trials,
+                )
+                active_model = pair_model
+            assert_pairing_invariant(
+                [
+                    {
+                        "pairId": f"{task}__{attempt}",
+                        "model": pair_model,
+                        "trials": pair_trials,
+                    }
+                ]
+            )
+            completed_trials.extend(pair_trials)
+    return completed_trials
 
 
 def run_campaign(*, pinned_model: str | None = None) -> dict[str, object]:
@@ -794,138 +1029,20 @@ def run_campaign(*, pinned_model: str | None = None) -> dict[str, object]:
     skipped: set[str] = set()
     failover_events: list[dict[str, object]] = []
     models_used: list[str] = []
-    completed_trials: list[dict[str, object]] = []
     candidates = _load_candidates()
-    if pinned_model:
-        names = {str(row.get("model")) for row in candidates}
-        if pinned_model not in names:
-            raise ValueError(f"pinned model not in remaining most-intelligent catalog: {pinned_model}")
-        model = pinned_model
-        if model != PREFERRED_MODEL:
-            failover_events.append(
-                {
-                    "from": PREFERRED_MODEL,
-                    "to": model,
-                    "reason": "operator-pin-after-preferred-unavailable",
-                }
-            )
-    else:
-        model = select_model(candidates, preferred=PREFERRED_MODEL, skipped=skipped)
-    # Tiny readiness ping so cooled/exhausted identities fail before a pair starts.
-    while True:
-        print(f"preflight model={model}", flush=True)
-        try:
-            omniroute_chat(
-                model=model,
-                system="Reply JSON only.",
-                prompt='Return {"ok":true}',
-                max_tokens=16,
-            )
-            break
-        except PaidTransportError as error:
-            skipped.add(model)
-            previous = model
-            candidates = _load_candidates()
-            model = select_model(candidates, preferred=PREFERRED_MODEL, skipped=skipped)
-            failover_events.append(
-                {"from": previous, "to": model, "reason": f"skip-paid:{error}"}
-            )
-        except RuntimeError as error:
-            message = str(error)
-            transient = (
-                "429" in message
-                or "cooling" in message.lower()
-                or "rate_limit" in message.lower()
-                or "RATE_LIMIT_EXECUTION_TIMEOUT" in message
-                or "service_unavailable" in message.lower()
-                or "503" in message
-                or "exhausted" in message.lower()
-            )
-            if not transient:
-                raise
-            skipped.add(model)
-            previous = model
-            candidates = _load_candidates()
-            model = select_model(candidates, preferred=PREFERRED_MODEL, skipped=skipped)
-            failover_events.append({"from": previous, "to": model, "reason": "429-or-exhaust-preflight"})
-    if model != PREFERRED_MODEL and not any(
-        event.get("to") == model for event in failover_events
-    ):
-        failover_events.append(
-            {
-                "from": PREFERRED_MODEL,
-                "to": model,
-                "reason": "preferred-not-remaining-or-skipped-at-selection",
-            }
-        )
-
-    for task in SELECTED_TASKS:
-        for attempt in range(1, ATTEMPTS_PER_TASK + 1):
-            pair_trials: list[dict[str, object]] = []
-            pair_model = model
-            print(f"pair start {task}__{attempt} model={pair_model}", flush=True)
-            for arm in ARMS:
-                transport_retries = 0
-                while True:
-                    try:
-                        print(f"trial start task={task} attempt={attempt} arm={arm} model={pair_model}", flush=True)
-                        trial = run_trial(task=task, arm=arm, model=pair_model, attempt=attempt)
-                        print(
-                            f"trial done task={task} attempt={attempt} arm={arm} "
-                            f"correctness={trial['correctness']} tokens={trial['tokens']}",
-                            flush=True,
-                        )
-                        # Per-trial transport retries only; failover stays in failoverEvents.
-                        trial["retries"] = transport_retries
-                        pair_trials.append(trial)
-                        if pair_model not in models_used:
-                            models_used.append(pair_model)
-                        break
-                    except (PaidTransportError, RuntimeError) as error:
-                        message = str(error)
-                        paid = isinstance(error, PaidTransportError)
-                        transient = paid or (
-                            "429" in message
-                            or "cooling" in message.lower()
-                            or "rate_limit" in message.lower()
-                            or "RATE_LIMIT_EXECUTION_TIMEOUT" in message
-                            or "service_unavailable" in message.lower()
-                            or "503" in message
-                            or "exhausted" in message.lower()
-                        )
-                        if not transient:
-                            raise
-                        if pair_trials:
-                            # Do not mix models inside a started pair.
-                            raise RuntimeError(
-                                f"pair {task}__{attempt} failed after partial arm with model {pair_model}"
-                            ) from error
-                        skipped.add(pair_model)
-                        candidates = _load_candidates()
-                        next_model = select_model(
-                            candidates, preferred=PREFERRED_MODEL, skipped=skipped
-                        )
-                        failover_events.append(
-                            {
-                                "from": pair_model,
-                                "to": next_model,
-                                "reason": "skip-paid" if paid else "429-or-exhaust",
-                            }
-                        )
-                        pair_model = next_model
-                        model = next_model
-                        transport_retries += 1
-            assert_pairing_invariant(
-                [
-                    {
-                        "pairId": f"{task}__{attempt}",
-                        "model": pair_model,
-                        "trials": pair_trials,
-                    }
-                ]
-            )
-            completed_trials.extend(pair_trials)
-
+    model = _choose_campaign_model(
+        pinned_model=pinned_model,
+        candidates=candidates,
+        skipped=skipped,
+        failover_events=failover_events,
+    )
+    model = _preflight_model(model, skipped=skipped, failover_events=failover_events)
+    completed_trials = _run_campaign_trials(
+        model=model,
+        skipped=skipped,
+        failover_events=failover_events,
+        models_used=models_used,
+    )
     evidence = build_redacted_aggregate(
         manifest,
         completed_trials,
