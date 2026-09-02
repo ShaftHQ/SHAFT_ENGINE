@@ -51,6 +51,7 @@ ALLOWED_EXACT = {
     "chaos-engine/RESEARCH.md",
     "chaos-engine/decision-quality-baseline.md",
     "chaos-engine/decision-quality-rubric.md",
+    "chaos-engine/decision-quality-calibration.md",
     "chaos-engine/STANDALONE.md",
     "chaos-engine/INSTALL.md",
     "chaos-engine/THIRD_PARTY_NOTICES.md",
