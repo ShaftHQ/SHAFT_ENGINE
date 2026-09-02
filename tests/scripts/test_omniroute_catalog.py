@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import tempfile
 import unittest
 import unittest.mock
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 
@@ -138,6 +140,10 @@ class OmniRouteCatalogTest(unittest.TestCase):
         self.assertIn("first installed implementer target: `claude`, then `opencode`, then", skill)
         self.assertIn("OMNIROUTE_ROTATE_ON_400=true", skill)
         self.assertIn("Thinking Budget on the OmniRoute host must be `passthrough`", skill)
+        self.assertIn("provider-exhaustion backoff", skill.casefold())
+        self.assertIn("exhausted_until", skill)
+        self.assertIn("user-local", skill.casefold())
+        self.assertIn("not a positive catalog cache", skill.casefold())
 
     def test_catalog_cli_does_not_forward_ambient_endpoint_key(self):
         seen = []
@@ -248,6 +254,111 @@ class OmniRouteCatalogTest(unittest.TestCase):
         self.assertTrue(RUNNER.diagnostic_is_stream_disconnected(
             "stream disconnected before completion: stream closed before response.completed"
         ))
+
+
+class OmniRouteExhaustionBackoffTest(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        self.root.chmod(0o700)
+        self.state = self.root / "state"
+        self.state.mkdir(mode=0o700)
+
+    def test_records_exhaustion_skips_until_retry_and_expires(self):
+        cache_path = RUNNER.exhaustion_cache_path(self.state)
+        now = datetime(2030, 1, 1, tzinfo=UTC)
+        until = now + timedelta(hours=2)
+        RUNNER.record_provider_exhaustion(
+            "glm",
+            exhausted_until=until,
+            state_dir=self.state,
+            now=now,
+            reason="state=exhausted",
+        )
+        self.assertTrue(cache_path.is_file())
+        if cache_path.stat().st_mode & 0o777:
+            self.assertEqual(0o600, cache_path.stat().st_mode & 0o777)
+        catalog = [
+            {"id": "Tool Low", "provider": "glm"},
+            {"id": "Other Default", "provider": "beta"},
+        ]
+        quota = [
+            {"provider": "glm", "remaining": 40, "state": "available"},
+            {"provider": "beta", "remaining": 90, "state": "available"},
+        ]
+        skipped = RUNNER.select_live_candidates(
+            catalog,
+            quota,
+            required_capability="default",
+            exhaustion_cache=RUNNER.load_exhaustion_cache(self.state, now=now),
+        )
+        self.assertEqual(["beta/other-default"], [item["model"] for item in skipped])
+        expired = RUNNER.select_live_candidates(
+            catalog,
+            quota,
+            required_capability="default",
+            exhaustion_cache=RUNNER.load_exhaustion_cache(
+                self.state, now=until + timedelta(seconds=1)
+            ),
+        )
+        self.assertEqual(
+            ["beta/other-default", "glm/tool-low"],
+            [item["model"] for item in expired],
+        )
+
+    def test_candidates_path_applies_user_local_exhaustion_overlay(self):
+        now = datetime(2030, 1, 1, tzinfo=UTC)
+        RUNNER.record_provider_exhaustion(
+            "alpha",
+            exhausted_until=now + timedelta(minutes=30),
+            state_dir=self.state,
+            now=now,
+            reason="HTTP 429",
+        )
+
+        def fake_run(command, **_kwargs):
+            class Result:
+                stdout = ""
+                returncode = 0
+
+            if command[-2:] == ["usage", "quota"]:
+                Result.stdout = json.dumps(
+                    [
+                        {"provider": "alpha", "remaining": 7, "state": "available"},
+                        {"provider": "beta", "remaining": 9, "state": "available"},
+                    ]
+                )
+            elif "models" in command:
+                provider = command[-1]
+                Result.stdout = json.dumps(
+                    [{"id": f"{provider.title()} Low", "provider": provider}]
+                )
+            return Result()
+
+        with unittest.mock.patch.object(RUNNER.shutil, "which", return_value="/usr/bin/omniroute"):
+            with unittest.mock.patch.object(RUNNER.subprocess, "run", side_effect=fake_run):
+                with unittest.mock.patch.object(
+                    RUNNER, "default_state_path", return_value=self.state
+                ):
+                    with unittest.mock.patch.object(RUNNER, "_utc_now", return_value=now):
+                        result = RUNNER.candidates(required_capability="mechanical")
+        self.assertEqual("READY", result["state"])
+        self.assertEqual(["beta/beta-low"], [item["model"] for item in result["candidates"]])
+        self.assertFalse((Path.cwd() / "provider-exhaustion.json").exists())
+
+    def test_quota_exhaustion_signal_updates_cache(self):
+        now = datetime(2030, 1, 1, tzinfo=UTC)
+        RUNNER.update_exhaustion_cache_from_quota(
+            [
+                {"provider": "gamma", "remaining": 0, "state": "exhausted"},
+                {"provider": "beta", "remaining": 12, "state": "available"},
+            ],
+            state_dir=self.state,
+            now=now,
+            retry_after_seconds=3600,
+        )
+        cache = RUNNER.load_exhaustion_cache(self.state, now=now)
+        self.assertIn("gamma", cache.get("providers", {}))
+        self.assertNotIn("beta", cache.get("providers", {}))
         self.assertFalse(RUNNER.diagnostic_is_stream_disconnected("401 Unauthorized: Invalid API key"))
 
 

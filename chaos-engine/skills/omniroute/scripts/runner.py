@@ -20,7 +20,7 @@ import sys
 import tempfile
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
@@ -873,9 +873,150 @@ def codex_model_overlay(provider: str, model: str) -> list[str]:
     return ["-c", f'model="{catalog_request_id(provider, model)}"']
 
 
+_DEFAULT_EXHAUSTION_SECONDS = 2 * 60 * 60
+_EXHAUSTION_CACHE_NAME = "provider-exhaustion.json"
+
+
+def exhaustion_cache_path(state_dir: Path | None = None) -> Path:
+    """User-local exhaustion backoff file under the OmniRoute state directory."""
+    root = Path(state_dir) if state_dir is not None else default_state_path()
+    return root / _EXHAUSTION_CACHE_NAME
+
+
+def _parse_exhausted_until(value: object) -> datetime | None:
+    parsed = _parse_time(value)
+    return parsed if parsed is not None and parsed.tzinfo is not None else None
+
+
+def load_exhaustion_cache(
+    state_dir: Path | None = None, *, now: datetime | None = None
+) -> dict[str, Any]:
+    """Load active provider/identity exhaustion entries; drop expired ones."""
+    path = exhaustion_cache_path(state_dir)
+    clock = now or _utc_now()
+    empty: dict[str, Any] = {"schemaVersion": 1, "providers": {}, "identities": {}}
+    if not path.is_file():
+        return empty
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return empty
+    if not isinstance(payload, dict):
+        return empty
+    providers: dict[str, Any] = {}
+    for key, row in (payload.get("providers") or {}).items() if isinstance(payload.get("providers"), dict) else ():
+        if not isinstance(key, str) or not isinstance(row, dict):
+            continue
+        until = _parse_exhausted_until(row.get("exhausted_until"))
+        if until is None or until <= clock:
+            continue
+        providers[key] = {
+            "exhausted_until": until.isoformat().replace("+00:00", "Z"),
+            "reason": row.get("reason") if isinstance(row.get("reason"), str) else "",
+        }
+    identities: dict[str, Any] = {}
+    for key, row in (payload.get("identities") or {}).items() if isinstance(payload.get("identities"), dict) else ():
+        if not isinstance(key, str) or not _HEX.fullmatch(key) or not isinstance(row, dict):
+            continue
+        until = _parse_exhausted_until(row.get("exhausted_until"))
+        if until is None or until <= clock:
+            continue
+        identities[key] = {
+            "exhausted_until": until.isoformat().replace("+00:00", "Z"),
+            "reason": row.get("reason") if isinstance(row.get("reason"), str) else "",
+        }
+    return {"schemaVersion": 1, "providers": providers, "identities": identities}
+
+
+def _write_exhaustion_cache(path: Path, payload: dict[str, Any]) -> None:
+    _write_json(path, payload)
+
+
+def record_provider_exhaustion(
+    provider: str,
+    *,
+    exhausted_until: datetime,
+    state_dir: Path | None = None,
+    now: datetime | None = None,
+    reason: str = "",
+) -> None:
+    """Record a negative backoff for one provider until exhausted_until."""
+    key = _provider_key(provider)
+    if not key:
+        return
+    clock = now or _utc_now()
+    if exhausted_until.tzinfo is None:
+        exhausted_until = exhausted_until.replace(tzinfo=UTC)
+    if exhausted_until <= clock:
+        return
+    path = exhaustion_cache_path(state_dir)
+    cache = load_exhaustion_cache(state_dir, now=clock)
+    cache.setdefault("providers", {})[key] = {
+        "exhausted_until": exhausted_until.isoformat().replace("+00:00", "Z"),
+        "reason": reason[:200],
+    }
+    _write_exhaustion_cache(path, cache)
+
+
+def record_identity_exhaustion(
+    identity_sha256: str,
+    *,
+    exhausted_until: datetime,
+    state_dir: Path | None = None,
+    now: datetime | None = None,
+    reason: str = "",
+) -> None:
+    """Record a negative backoff for one catalog identity until exhausted_until."""
+    if not isinstance(identity_sha256, str) or not _HEX.fullmatch(identity_sha256):
+        return
+    clock = now or _utc_now()
+    if exhausted_until.tzinfo is None:
+        exhausted_until = exhausted_until.replace(tzinfo=UTC)
+    if exhausted_until <= clock:
+        return
+    path = exhaustion_cache_path(state_dir)
+    cache = load_exhaustion_cache(state_dir, now=clock)
+    cache.setdefault("identities", {})[identity_sha256] = {
+        "exhausted_until": exhausted_until.isoformat().replace("+00:00", "Z"),
+        "reason": reason[:200],
+    }
+    _write_exhaustion_cache(path, cache)
+
+
+def update_exhaustion_cache_from_quota(
+    quota: object,
+    *,
+    state_dir: Path | None = None,
+    now: datetime | None = None,
+    retry_after_seconds: int = _DEFAULT_EXHAUSTION_SECONDS,
+) -> None:
+    """Update the user-local backoff cache from live quota exhaustion signals."""
+    clock = now or _utc_now()
+    until = clock + timedelta(seconds=max(1, int(retry_after_seconds)))
+    for row in quota if isinstance(quota, list) else []:
+        if not isinstance(row, dict):
+            continue
+        provider = row.get("provider")
+        if not isinstance(provider, str):
+            continue
+        left = row.get("remaining")
+        exhausted = row.get("state") == "exhausted" or (
+            isinstance(left, (int, float)) and left <= 0
+        )
+        if exhausted:
+            record_provider_exhaustion(
+                provider,
+                exhausted_until=until,
+                state_dir=state_dir,
+                now=clock,
+                reason="quota exhausted",
+            )
+
+
 def select_live_candidates(
     catalog: object, quota: object, *, required_capability: str,
     skip_identity_sha256s: object = (),
+    exhaustion_cache: object = None,
 ) -> list[dict[str, Any]]:
     """Join the current catalog to remaining quota and order the next usable model."""
     if required_capability not in _CAPABILITY_RANK:
@@ -884,6 +1025,15 @@ def select_live_candidates(
         item for item in skip_identity_sha256s or ()
         if isinstance(item, str) and _HEX.fullmatch(item)
     }
+    cache = exhaustion_cache if isinstance(exhaustion_cache, dict) else {}
+    blocked_providers = {
+        key for key in (cache.get("providers") or {})
+        if isinstance(key, str)
+    } if isinstance(cache.get("providers"), dict) else set()
+    blocked_identities = {
+        key for key in (cache.get("identities") or {})
+        if isinstance(key, str) and _HEX.fullmatch(key)
+    } if isinstance(cache.get("identities"), dict) else set()
     remaining: dict[str, int] = {}
     for row in quota if isinstance(quota, list) else []:
         if not isinstance(row, dict):
@@ -905,13 +1055,16 @@ def select_live_candidates(
         provider = item.get("provider")
         if not isinstance(provider, str) or not provider:
             continue
+        provider_key = _provider_key(provider)
+        if provider_key in blocked_providers:
+            continue
         native = catalog_native_id(item)
         if not native:
             continue
         model = catalog_request_id(provider, native)
         if not model:
             continue
-        left = remaining.get(_provider_key(provider))
+        left = remaining.get(provider_key)
         if not left:
             continue
         identity = (model, provider)
@@ -919,7 +1072,7 @@ def select_live_candidates(
             continue
         seen.add(identity)
         identity_sha = _sha256({"model": model, "provider": provider})
-        if identity_sha in skipped:
+        if identity_sha in skipped or identity_sha in blocked_identities:
             continue
         selected.append({
             "model": model,
@@ -1061,8 +1214,9 @@ def candidates(
     which: Callable[[str], str | None] | None = None,
     run: Callable[..., Any] | None = None,
     skip_identity_sha256s: object = (),
+    state_dir: Path | None = None,
 ) -> dict[str, Any]:
-    """Query the live local catalog and remaining quota on every dispatch. Never cache to disk."""
+    """Query live catalog and quota every dispatch; overlay user-local exhaustion backoff only."""
     locator = which or shutil.which
     if locator("omniroute") is None:
         return {"state": "ABSENT", "candidates": []}
@@ -1071,9 +1225,16 @@ def candidates(
         catalog = _live_catalog_rows(quota, run=run, which=locator)
     except OmniRouteError:
         return {"state": "UNHEALTHY", "candidates": []}
+    root = Path(state_dir) if state_dir is not None else default_state_path()
+    try:
+        update_exhaustion_cache_from_quota(quota, state_dir=root)
+        cache = load_exhaustion_cache(root)
+    except (OmniRouteError, OSError):
+        cache = {"schemaVersion": 1, "providers": {}, "identities": {}}
     picked = select_live_candidates(
         catalog, quota, required_capability=required_capability,
         skip_identity_sha256s=skip_identity_sha256s,
+        exhaustion_cache=cache,
     )
     return {"state": "READY" if picked else "RUNTIME_EXHAUSTED", "candidates": picked}
 

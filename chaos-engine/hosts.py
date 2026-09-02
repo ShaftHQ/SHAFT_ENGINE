@@ -2920,6 +2920,31 @@ def managed_codex_block(content: str) -> str | None:
     return content[start:finish]
 
 
+_CODEX_ABSOLUTE_COMMAND = re.compile(
+    r'command(?:Windows)? = "(?:[A-Za-z]:[\\/]|/|\\\\)[^"\n]*"'
+)
+_CODEX_MANAGED_WINDOWS_ARGS = re.compile(
+    r'argsWindows = \[(?!("-3", ))'
+)
+
+
+def normalize_codex_interpreter_spelling(block: str) -> str:
+    """Map absolute managed interpreters to python3/py -3 spelling for equivalence."""
+    normalized = block.replace("\r\n", "\n")
+    for match in list(_CODEX_ABSOLUTE_COMMAND.finditer(normalized)):
+        text = match.group(0)
+        if text.startswith("commandWindows"):
+            normalized = normalized.replace(text, 'commandWindows = "py"', 1)
+        else:
+            normalized = normalized.replace(text, 'command = "python3"', 1)
+    # Managed absolute Windows args omit the py -3 prefix; restore it for compare.
+    def restore_windows_prefix(match: re.Match[str]) -> str:
+        return 'argsWindows = ["-3", '
+
+    normalized = _CODEX_MANAGED_WINDOWS_ARGS.sub(restore_windows_prefix, normalized)
+    return normalized
+
+
 def strip_known_codex_ownership(
     current: bytes, before: bytes | None, after: bytes | None
 ) -> bytes:
@@ -2943,9 +2968,9 @@ def strip_known_codex_ownership(
         *(legacy_codex_python_block(platform) for platform in ("nt", "posix")),
         legacy_portable_codex_block(),
     )
-    normalized = block.replace("\r\n", "\n")
+    normalized = normalize_codex_interpreter_spelling(block)
     accepted = {
-        item.replace("\r\n", "\n")
+        normalize_codex_interpreter_spelling(item)
         for item in (*legacy, before_block, recorded_block)
         if item is not None
     }
@@ -3985,29 +4010,19 @@ def desired_content(
         commit=PONYTAIL_UPSTREAM_COMMIT,
         version=PONYTAIL_PLUGIN_VERSION,
     )
-    roles = {
-        "orchestrator": "Own planning, architecture, synthesis, and final verification.",
-        "implementer": "Implement one bounded specification before consolidated validation.",
-        "reviewer": "Perform an independent read-only adversarial review; never edit.",
-        "tester": "Reproduce behavior and produce regression and acceptance evidence.",
-        "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
-    }
-    for role, responsibility in roles.items():
-        slug = f"chaos-engine-{role}"
-        tools = "Read, Grep, Glob, Bash" if role == "reviewer" else "Read, Grep, Glob, Bash, Write, Edit"
-        after[f".claude/agents/{slug}.md"] = (
-            f"---\nname: {slug}\ndescription: {responsibility}\n"
-            f"tools: {tools}\n---\n\n"
-            f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow "
-            f"`.chaos-engine/references/roles.md#{role}`. {responsibility}\n"
-        ).encode()
-        sandbox = 'sandbox_mode = "read-only"\n' if role == "reviewer" else ""
-        after[f".codex/agents/{slug}.toml"] = (
-            f'name = "{slug}"\n'
-            f'description = {json.dumps(responsibility)}\n'
-            f'developer_instructions = {json.dumps(f"Load .chaos-engine/skills/chaos-engine/SKILL.md and follow .chaos-engine/references/roles.md#{role}. {responsibility}")}\n'
-            f"{sandbox}"
-        ).encode()
+    for role in (
+        "orchestrator",
+        "implementer",
+        "reviewer",
+        "tester",
+        "mechanical-helper",
+    ):
+        after[f".claude/agents/chaos-engine-{role}.md"] = role_adapter_desired(
+            f".claude/agents/chaos-engine-{role}.md"
+        )
+        after[f".codex/agents/chaos-engine-{role}.toml"] = role_adapter_desired(
+            f".codex/agents/chaos-engine-{role}.toml"
+        )
     memory_before = before[".memory/config.json"]
     if memory_before is None:
         normalized_name = re.sub(r"[^a-z0-9]+", "-", project_name.casefold()).strip("-") or "project"
@@ -4648,18 +4663,106 @@ def strip_known_json_ownership(
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
-def known_legacy_guard(project: Path, current: bytes) -> bool:
-    """Accept only an exact installed-core guard while replacing its plugin copy."""
-    for relative in (
-        ".chaos-engine/hooks/guard.py",
-        ".chaos-engine.backup/hooks/guard.py",
+PACKAGE_HOOK_FILES = (
+    "guard.py",
+    "kernel.py",
+    "launch.js",
+    "lifecycle.py",
+    "matchers.json",
+    "reflection.py",
+)
+PACKAGE_HOOK_PATHS = tuple(
+    f"plugins/chaos-engine/hooks/{name}" for name in PACKAGE_HOOK_FILES
+)
+ROLE_ADAPTER_PATHS = tuple(
+    f"{root}/chaos-engine-{role}{suffix}"
+    for root, suffix in ((".claude/agents", ".md"), (".codex/agents", ".toml"))
+    for role in (
+        "orchestrator",
+        "implementer",
+        "reviewer",
+        "tester",
+        "mechanical-helper",
+    )
+)
+
+
+def package_hook_bytes(name: str) -> bytes:
+    """Return the candidate package hook bytes shipped beside this module."""
+    return (Path(__file__).resolve().parent / "hooks" / name).read_bytes()
+
+
+def known_package_equal_hook(project: Path, relative: str, current: bytes) -> bool:
+    """Accept exact plugin hooks that match core, backup, or package copies."""
+    name = Path(relative).name
+    if name not in PACKAGE_HOOK_FILES:
+        return False
+    for candidate in (
+        project / ".chaos-engine/hooks" / name,
+        project / ".chaos-engine.backup/hooks" / name,
+        Path(__file__).resolve().parent / "hooks" / name,
     ):
         try:
-            if read_file(project, project / relative) == current:
+            if candidate.is_file() and candidate.read_bytes() == current:
                 return True
-        except ValueError:
+        except OSError:
             continue
     return False
+
+
+def known_legacy_guard(project: Path, current: bytes) -> bool:
+    """Accept only an exact installed-core or package-equal guard plugin copy."""
+    return known_package_equal_hook(
+        project, "plugins/chaos-engine/hooks/guard.py", current
+    )
+
+
+def role_adapter_desired(relative: str) -> bytes | None:
+    """Return the candidate fully-owned role adapter bytes for one managed path."""
+    roles = {
+        "orchestrator": "Own planning, architecture, synthesis, and final verification.",
+        "implementer": "Implement one bounded specification before consolidated validation.",
+        "reviewer": "Perform an independent read-only adversarial review; never edit.",
+        "tester": "Reproduce behavior and produce regression and acceptance evidence.",
+        "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
+    }
+    match = re.fullmatch(
+        r"\.(claude|codex)/agents/chaos-engine-([a-z-]+)\.(md|toml)", relative
+    )
+    if match is None:
+        return None
+    host, role, kind = match.groups()
+    responsibility = roles.get(role)
+    if responsibility is None:
+        return None
+    process_owner = (
+        " In orchestrated mode also load `.chaos-engine/references/process-owner-scrum-master.md`."
+        if role == "orchestrator"
+        else ""
+    )
+    body = (
+        f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow "
+        f"`.chaos-engine/references/roles.md#{role}`.{process_owner} {responsibility}"
+    )
+    if host == "claude" and kind == "md":
+        tools = (
+            "Read, Grep, Glob, Bash"
+            if role == "reviewer"
+            else "Read, Grep, Glob, Bash, Write, Edit"
+        )
+        return (
+            f"---\nname: chaos-engine-{role}\ndescription: {responsibility}\n"
+            f"tools: {tools}\n---\n\n{body}\n"
+        ).encode()
+    if host == "codex" and kind == "toml":
+        sandbox = 'sandbox_mode = "read-only"\n' if role == "reviewer" else ""
+        return (
+            f'name = "chaos-engine-{role}"\n'
+            f"description = {json.dumps(responsibility)}\n"
+            f"developer_instructions = {json.dumps(body)}\n"
+            f"{sandbox}"
+        ).encode()
+    return None
 
 
 def upgrade_before_images(
@@ -4707,10 +4810,21 @@ def upgrade_before_images(
         if relative == ".agents/skills/README.md":
             restored[relative] = observed
             continue
-        if relative == "plugins/chaos-engine/hooks/guard.py":
-            if not isinstance(observed, bytes) or not known_legacy_guard(project, observed):
-                raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+        if relative in PACKAGE_HOOK_PATHS:
+            if not isinstance(observed, bytes) or not known_package_equal_hook(
+                project, relative, observed
+            ):
+                raise ValueError(
+                    f"ChaosEngine host adapter drift detected: {project / relative}"
+                )
             continue
+        if relative in ROLE_ADAPTER_PATHS:
+            desired = role_adapter_desired(relative)
+            if isinstance(observed, bytes) and desired is not None and observed == desired:
+                continue
+            raise ValueError(
+                f"ChaosEngine host adapter drift detected: {project / relative}"
+            )
         if relative in {
             ".codex/hooks.json",
             ".grok/hooks/lifecycle.json",
