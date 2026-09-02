@@ -108,6 +108,10 @@ flowchart LR
             "chaos-engine/decision-quality-calibration.md",
             "# Decision-quality calibration\n",
         )
+        self.write(
+            "chaos-engine/decision-quality-report.md",
+            "# Decision-quality report\n",
+        )
         self.write("chaos-engine/STANDALONE.md", "# Spec\n")
         self.write("chaos-engine/INSTALL.md", "# Install\n")
         self.write("chaos-engine/THIRD_PARTY_NOTICES.md", "# Notices\n")

@@ -13,6 +13,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 README = Path("chaos-engine/README.md")
+AGGREGATE = Path("chaos-engine/decision-quality-calibration.aggregate.json")
+EVIDENCE_MARKERS = ("omniroute-calibration",)
+EVIDENCE_METRICS = (
+    "correctness",
+    "tokens",
+    "latency_seconds",
+    "external_run_minutes",
+    "actions",
+    "retries",
+    "cost_usd",
+    "variance",
+)
 FIELDS = ("Item", "Purpose", "Source of truth", "Status", "Platforms", "Provisioner", "Owner", "Failure behavior")
 REQUIRED_DIAGRAMS = {
     "Prerequisite and dependency topology",
@@ -240,6 +252,85 @@ def rendered_inventory(root: Path = ROOT) -> str:
     return "\n\n".join(parts)
 
 
+def _load_aggregate(root: Path) -> dict[str, object]:
+    path = root / AGGREGATE
+    if not path.is_file():
+        raise ValueError(f"missing committed aggregate: {AGGREGATE.as_posix()}")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("committed aggregate must be a JSON object")
+    return value
+
+
+def render_omniroute_evidence(root: Path = ROOT) -> str:
+    """Render the README evidence block from the committed #5522 aggregate only."""
+    evidence = _load_aggregate(root)
+    identity = evidence.get("identity")
+    metrics = evidence.get("metrics")
+    comparison = evidence.get("comparison")
+    accounting = evidence.get("trialAccounting")
+    if not isinstance(identity, dict) or not isinstance(metrics, dict):
+        raise ValueError("committed aggregate identity/metrics are invalid")
+    if not isinstance(comparison, dict) or not isinstance(accounting, dict):
+        raise ValueError("committed aggregate comparison/accounting are invalid")
+    gate = comparison.get("gateVerdict")
+    if not isinstance(gate, dict):
+        raise ValueError("committed aggregate gateVerdict is invalid")
+    control = metrics.get("control")
+    treatment = metrics.get("chaos-engine")
+    if not isinstance(control, dict) or not isinstance(treatment, dict):
+        raise ValueError("committed aggregate arm metrics are invalid")
+
+    task_names = []
+    for task in identity.get("tasks") or []:
+        if isinstance(task, dict) and isinstance(task.get("name"), str):
+            task_names.append(task["name"])
+    models = evidence.get("modelsUsed") or []
+    if not isinstance(models, list):
+        models = []
+    model_text = ", ".join(str(model) for model in models) or "UNAVAILABLE"
+
+    lines = [
+        "This section is generated from",
+        f"[`{AGGREGATE.as_posix()}`]({AGGREGATE.name}).",
+        "Do not hand-edit the numbers; refresh with",
+        "`python3 scripts/ci/validate_chaos_engine_readme.py --write`.",
+        "",
+        "Label: **directional walking skeleton** (n="
+        f"{accounting.get('observed')}/{accounting.get('planned')} observed/planned trials).",
+        "This is not a Harbor 95% CI powered pilot.",
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+        f"| Gate verdict | {gate.get('verdict')} |",
+        f"| Gate reason | {gate.get('reason')} |",
+        f"| Correctness delta (treatment - control) | {comparison.get('correctnessDelta')} |",
+        f"| Models used | {model_text} |",
+        f"| Preferred model | {identity.get('preferredModel')} |",
+        f"| Tasks | {', '.join(task_names)} |",
+        f"| Status | {evidence.get('status')} |",
+        "",
+        "| Metric | control | chaos-engine |",
+        "| --- | --- | --- |",
+    ]
+    for name in EVIDENCE_METRICS:
+        lines.append(f"| `{name}` | {control.get(name)} | {treatment.get(name)} |")
+    lines.extend(
+        [
+            "",
+            "Methodology and final report:",
+            "[decision-quality-calibration.md](decision-quality-calibration.md),",
+            "[decision-quality-report.md](decision-quality-report.md).",
+            "Missing telemetry remains the literal `UNAVAILABLE` (never `0`).",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def evidence_sections(root: Path = ROOT) -> dict[str, str]:
+    return {"omniroute-calibration": render_omniroute_evidence(root)}
+
+
 def _skip_spaces(value: str, position: int) -> int:
     while position < len(value) and value[position] in " \t":
         position += 1
@@ -328,6 +419,16 @@ def _parse_mermaid(readme: str) -> tuple[set[str], list[str]]:
     return set(titles), errors
 
 
+def _replace_marked_section(readme: str, kind: str, name: str, body: str) -> str:
+    start = f"<!-- {kind}:{name}:start -->"
+    end = f"<!-- {kind}:{name}:end -->"
+    if readme.count(start) != 1 or readme.count(end) != 1:
+        raise ValueError(f"{kind} marker count is invalid: {name}")
+    before, rest = readme.split(start, 1)
+    _, after = rest.split(end, 1)
+    return f"{before}{start}\n{body}\n{end}{after}"
+
+
 def validate(root: Path = ROOT) -> list[str]:
     readme = (root / README).read_text(encoding="utf-8")
     errors: list[str] = []
@@ -340,6 +441,23 @@ def validate(root: Path = ROOT) -> list[str]:
         actual = readme.split(start, 1)[1].split(end, 1)[0].strip()
         if actual != table:
             errors.append(f"source-derived inventory drift: {name}")
+    try:
+        sections = evidence_sections(root)
+    except ValueError as exc:
+        errors.append(str(exc))
+        sections = {}
+    for name in EVIDENCE_MARKERS:
+        start = f"<!-- evidence:{name}:start -->"
+        end = f"<!-- evidence:{name}:end -->"
+        if readme.count(start) != 1 or readme.count(end) != 1:
+            errors.append(f"evidence marker count is invalid: {name}")
+            continue
+        expected = sections.get(name)
+        if expected is None:
+            continue
+        actual = readme.split(start, 1)[1].split(end, 1)[0].strip()
+        if actual != expected:
+            errors.append(f"source-derived evidence drift: {name}")
     titles, mermaid_errors = _parse_mermaid(readme)
     errors.extend(mermaid_errors)
     missing_titles = REQUIRED_DIAGRAMS - titles
@@ -355,18 +473,14 @@ def validate(root: Path = ROOT) -> list[str]:
 
 
 def write_generated(root: Path = ROOT) -> None:
-    """Rewrite source-derived inventory sections between canonical markers."""
+    """Rewrite source-derived inventory and evidence sections between markers."""
     root = root.resolve()
     path = root / README
     readme = path.read_text(encoding="utf-8")
     for name, table in inventory_sections(root).items():
-        start = f"<!-- inventory:{name}:start -->"
-        end = f"<!-- inventory:{name}:end -->"
-        if readme.count(start) != 1 or readme.count(end) != 1:
-            raise ValueError(f"inventory marker count is invalid: {name}")
-        before, rest = readme.split(start, 1)
-        _, after = rest.split(end, 1)
-        readme = f"{before}{start}\n{table}\n{end}{after}"
+        readme = _replace_marked_section(readme, "inventory", name, table)
+    for name, body in evidence_sections(root).items():
+        readme = _replace_marked_section(readme, "evidence", name, body)
     path.write_text(readme, encoding="utf-8")
 
 
