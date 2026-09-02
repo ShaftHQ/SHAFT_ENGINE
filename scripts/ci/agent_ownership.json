@@ -92,7 +92,14 @@
     },
     "process owner scrum-master": {
       "owner": "chaos-engine/references/process-owner-scrum-master.md",
-      "terms": ["verify delegation deliverables before parent-slice completion", "recurring process-failure / impediment classes (2+)"],
+      "terms": [
+        "verify delegation deliverables before parent-slice completion",
+        "no Plan→Complete without red/green or automated verifier proof",
+        "Evidence-backed status",
+        "Impediment removal",
+        "consult on ambiguity",
+        "recurring process-failure / impediment classes (2+)"
+      ],
       "allowed": ["chaos-engine/skills/chaos-engine/SKILL.md", "chaos-engine/references/roles.md", "chaos-engine/references/orchestrator-follow-through.md", "chaos-engine/references/execution-workflows.md", ".agents/skills/README.md", "tests/scripts/test_process_owner_scrum_master.py"]
     }
 
