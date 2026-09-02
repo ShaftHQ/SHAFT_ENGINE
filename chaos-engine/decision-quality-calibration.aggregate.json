@@ -51,7 +51,7 @@
       "cost_usd": "UNAVAILABLE",
       "external_run_minutes": "UNAVAILABLE",
       "latency_seconds": 36.893572025665584,
-      "retries": 1.0,
+      "retries": 0.0,
       "tokens": 371.1666666666667,
       "variance": 0.0
     },
@@ -61,7 +61,7 @@
       "cost_usd": "UNAVAILABLE",
       "external_run_minutes": "UNAVAILABLE",
       "latency_seconds": 24.54195623733055,
-      "retries": 1.0,
+      "retries": 0.0,
       "tokens": 351.6666666666667,
       "variance": 0.0
     }
@@ -83,5 +83,13 @@
   "trialAccounting": {
     "observed": 12,
     "planned": 12
+  },
+  "trialCover": {
+    "balanced": true,
+    "perArm": {
+      "chaos-engine": 6,
+      "control": 6
+    },
+    "uniqueCells": 12
   }
 }

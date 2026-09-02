@@ -56,6 +56,30 @@ class IdentityAndPairingTest(unittest.TestCase):
             MODULE.assert_pairing_invariant(pairs)
 
 
+def _balanced_trials(*, correctness_by_arm=None, retries=0):
+    correctness_by_arm = correctness_by_arm or {"control": 0, "chaos-engine": 0}
+    trials = []
+    for task in MODULE.SELECTED_TASKS:
+        for attempt in (1, 2):
+            for arm in MODULE.ARMS:
+                trials.append(
+                    {
+                        "task": task,
+                        "attempt": attempt,
+                        "arm": arm,
+                        "model": "nvidia/nemotron-3-ultra-550b-a55b",
+                        "correctness": correctness_by_arm[arm],
+                        "tokens": 10,
+                        "latency_seconds": 1.0,
+                        "external_run_minutes": None,
+                        "actions": 1,
+                        "retries": retries,
+                        "cost_usd": None,
+                    }
+                )
+    return trials
+
+
 class UnavailableAndAggregateTest(unittest.TestCase):
     def test_metric_or_unavailable_never_coerces_absence_to_zero(self):
         self.assertEqual(MODULE.UNAVAILABLE, MODULE.metric_or_unavailable(None))
@@ -102,27 +126,77 @@ class UnavailableAndAggregateTest(unittest.TestCase):
         self.assertNotEqual(0, evidence["metrics"]["control"]["tokens"])
         self.assertEqual(0.0, evidence["metrics"]["control"]["correctness"])
         self.assertEqual(1.0, evidence["metrics"]["chaos-engine"]["correctness"])
+        self.assertEqual(0.0, evidence["metrics"]["control"]["retries"])
+        self.assertEqual(0.0, evidence["metrics"]["chaos-engine"]["retries"])
+        self.assertEqual(1, len(evidence["failoverEvents"]))
+        MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
+
+    def test_retries_mean_ignores_failover_event_count(self):
+        trials = _balanced_trials(retries=0)
+        evidence = MODULE.build_redacted_aggregate(
+            MODULE.load_manifest(),
+            trials,
+            models_used=["nvidia/nemotron-3-ultra-550b-a55b"],
+            preferred_model="agy/gemini-3.7-flash-high",
+            failover_events=[
+                {"from": "a", "to": "b", "reason": "429"},
+                {"from": "b", "to": "c", "reason": "429"},
+            ],
+        )
+        self.assertEqual(0.0, evidence["metrics"]["control"]["retries"])
+        self.assertEqual(0.0, evidence["metrics"]["chaos-engine"]["retries"])
+        self.assertEqual(2, len(evidence["failoverEvents"]))
+
+    def test_complete_requires_balanced_task_arm_attempt_cover(self):
+        trials = _balanced_trials()
+        # Twelve rows, but duplicate one cell and drop another arm cover.
+        trials[-1] = {
+            **trials[0],
+            "arm": "control",
+            "task": MODULE.SELECTED_TASKS[0],
+            "attempt": 1,
+        }
+        evidence = MODULE.build_redacted_aggregate(
+            MODULE.load_manifest(),
+            trials,
+            models_used=["nvidia/nemotron-3-ultra-550b-a55b"],
+            preferred_model="agy/gemini-3.7-flash-high",
+            failover_events=[],
+        )
+        self.assertEqual(12, evidence["trialAccounting"]["observed"])
+        self.assertEqual("incomplete", evidence["status"])
+        with self.assertRaisesRegex(ValueError, "balanced cover"):
+            evidence["status"] = "complete"
+            MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
+
+    def test_validate_rejects_forged_yes_gate(self):
+        trials = _balanced_trials(correctness_by_arm={"control": 0, "chaos-engine": 0})
+        evidence = MODULE.build_redacted_aggregate(
+            MODULE.load_manifest(),
+            trials,
+            models_used=["nvidia/nemotron-3-ultra-550b-a55b"],
+            preferred_model="agy/gemini-3.7-flash-high",
+            failover_events=[],
+        )
+        self.assertEqual("NO", evidence["comparison"]["gateVerdict"]["verdict"])
+        evidence["comparison"]["gateVerdict"] = {
+            "verdict": "YES",
+            "reason": "forged",
+            "efficiencyWins": ["tokens"],
+        }
+        with self.assertRaisesRegex(ValueError, "gateVerdict"):
+            MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
+
+    def test_committed_aggregate_gate_is_no(self):
+        path = ROOT / "chaos-engine" / "decision-quality-calibration.aggregate.json"
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+        recomputed = MODULE.gate_verdict(evidence["metrics"])
+        self.assertEqual("NO", recomputed["verdict"])
+        self.assertEqual(recomputed, evidence["comparison"]["gateVerdict"])
         MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
 
     def test_validate_rejects_null_metrics_and_privacy_leaks(self):
-        trials = [
-            {
-                "task": task,
-                "attempt": attempt,
-                "arm": arm,
-                "model": "nvidia/nemotron-3-ultra-550b-a55b",
-                "correctness": 0,
-                "tokens": 10,
-                "latency_seconds": 1.0,
-                "external_run_minutes": None,
-                "actions": 1,
-                "retries": 0,
-                "cost_usd": None,
-            }
-            for task in MODULE.SELECTED_TASKS
-            for attempt in (1, 2)
-            for arm in MODULE.ARMS
-        ]
+        trials = _balanced_trials()
         evidence = MODULE.build_redacted_aggregate(
             MODULE.load_manifest(),
             trials,

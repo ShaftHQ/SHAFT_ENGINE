@@ -328,6 +328,39 @@ def _variance_or_unavailable(values: list[object]) -> object:
     return statistics.pvariance(numbers)
 
 
+def expected_trial_cells() -> set[tuple[object, object, object]]:
+    return {
+        (task, arm, attempt)
+        for task in SELECTED_TASKS
+        for arm in ARMS
+        for attempt in range(1, ATTEMPTS_PER_TASK + 1)
+    }
+
+
+def trial_cover_summary(trials: list[dict[str, object]]) -> dict[str, object]:
+    cells = {
+        (trial.get("task"), trial.get("arm"), trial.get("attempt"))
+        for trial in trials
+    }
+    per_arm = {
+        arm: sum(1 for _task, cell_arm, _attempt in cells if cell_arm == arm)
+        for arm in ARMS
+    }
+    return {
+        "uniqueCells": len(cells),
+        "balanced": cells == expected_trial_cells(),
+        "perArm": per_arm,
+    }
+
+
+def correctness_delta(metrics: dict[str, dict[str, object]]) -> object:
+    left = metrics["control"]["correctness"]
+    right = metrics["chaos-engine"]["correctness"]
+    if left is UNAVAILABLE or right is UNAVAILABLE:
+        return UNAVAILABLE
+    return float(right) - float(left)
+
+
 def build_redacted_aggregate(
     manifest: object,
     trials: list[dict[str, object]],
@@ -340,7 +373,13 @@ def build_redacted_aggregate(
     identity = campaign_identity(manifest)
     identity = {**identity, "preferredModel": preferred_model}
     observed = len(trials)
-    status = "complete" if observed == TRIAL_COUNT else ("blocked" if observed == 0 else "incomplete")
+    cover = trial_cover_summary(trials)
+    if observed == 0:
+        status = "blocked"
+    elif cover["balanced"] and observed == TRIAL_COUNT:
+        status = "complete"
+    else:
+        status = "incomplete"
     metrics: dict[str, dict[str, object]] = {}
     for arm in ARMS:
         arm_trials = [trial for trial in trials if trial.get("arm") == arm]
@@ -367,18 +406,14 @@ def build_redacted_aggregate(
         "status": status,
         "identity": identity,
         "trialAccounting": {"planned": TRIAL_COUNT, "observed": observed},
+        "trialCover": cover,
         "missingInputs": list(missing_inputs or []),
         "modelsUsed": list(models_used),
         "failoverEvents": list(failover_events),
         "metrics": metrics,
         "comparison": {
             "gateVerdict": gate,
-            "correctnessDelta": (
-                UNAVAILABLE
-                if metrics["chaos-engine"]["correctness"] is UNAVAILABLE
-                or metrics["control"]["correctness"] is UNAVAILABLE
-                else float(metrics["chaos-engine"]["correctness"]) - float(metrics["control"]["correctness"])
-            ),
+            "correctnessDelta": correctness_delta(metrics),
         },
         "privacy": {
             "prompts": False,
@@ -391,7 +426,6 @@ def build_redacted_aggregate(
     }
     validate_redacted_aggregate(evidence, manifest)
     return evidence
-
 
 def gate_verdict(metrics: dict[str, dict[str, object]]) -> dict[str, object]:
     control = _object(metrics.get("control"), "control metrics")
@@ -479,6 +513,24 @@ def validate_redacted_aggregate(value: object, manifest: object) -> None:
         raise ValueError("redacted aggregate status is invalid")
     if status == "blocked" and observed != 0:
         raise ValueError("blocked evidence must not claim observed trials")
+    cover = _object(evidence.get("trialCover"), "trial cover")
+    if not isinstance(cover.get("uniqueCells"), int) or isinstance(cover.get("uniqueCells"), bool):
+        raise ValueError("trial cover uniqueCells is invalid")
+    if not isinstance(cover.get("balanced"), bool):
+        raise ValueError("trial cover balanced flag is invalid")
+    per_arm = _object(cover.get("perArm"), "trial cover perArm")
+    if set(per_arm) != set(ARMS):
+        raise ValueError("trial cover perArm arms are invalid")
+    for arm in ARMS:
+        count = per_arm.get(arm)
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ValueError(f"trial cover perArm.{arm} is invalid")
+    if status == "complete":
+        if observed != TRIAL_COUNT or not cover.get("balanced"):
+            raise ValueError("complete evidence requires balanced cover")
+        for arm in ARMS:
+            if per_arm.get(arm) != TRIAL_COUNT // len(ARMS):
+                raise ValueError("complete evidence requires balanced cover")
     models_used = evidence.get("modelsUsed")
     if not isinstance(models_used, list) or not all(isinstance(item, str) and item for item in models_used):
         raise ValueError("modelsUsed must name every model")
@@ -494,11 +546,16 @@ def validate_redacted_aggregate(value: object, manifest: object) -> None:
                 raise ValueError(f"{arm}.{name} must use UNAVAILABLE rather than null")
             if item != UNAVAILABLE and not isinstance(item, (int, float)):
                 raise ValueError(f"{arm}.{name} is invalid")
+    comparison = _object(evidence.get("comparison"), "comparison")
+    expected_gate = gate_verdict(metrics)
+    if comparison.get("gateVerdict") != expected_gate:
+        raise ValueError("gateVerdict does not match gate_verdict(metrics)")
+    if comparison.get("correctnessDelta") != correctness_delta(metrics):
+        raise ValueError("correctnessDelta does not match metrics")
     for text in _walk_strings(evidence):
         for pattern in FORBIDDEN_PRIVACY:
             if pattern.search(text):
                 raise ValueError("redacted aggregate failed privacy scan")
-
 
 def probe_runtime(
     run: Callable[[list[str]], str] | None = None,
@@ -808,6 +865,7 @@ def run_campaign(*, pinned_model: str | None = None) -> dict[str, object]:
             pair_model = model
             print(f"pair start {task}__{attempt} model={pair_model}", flush=True)
             for arm in ARMS:
+                transport_retries = 0
                 while True:
                     try:
                         print(f"trial start task={task} attempt={attempt} arm={arm} model={pair_model}", flush=True)
@@ -817,7 +875,8 @@ def run_campaign(*, pinned_model: str | None = None) -> dict[str, object]:
                             f"correctness={trial['correctness']} tokens={trial['tokens']}",
                             flush=True,
                         )
-                        trial["retries"] = len(failover_events)
+                        # Per-trial transport retries only; failover stays in failoverEvents.
+                        trial["retries"] = transport_retries
                         pair_trials.append(trial)
                         if pair_model not in models_used:
                             models_used.append(pair_model)
@@ -855,6 +914,7 @@ def run_campaign(*, pinned_model: str | None = None) -> dict[str, object]:
                         )
                         pair_model = next_model
                         model = next_model
+                        transport_retries += 1
             assert_pairing_invariant(
                 [
                     {
@@ -927,9 +987,9 @@ def render_scorecard(evidence: dict[str, object]) -> str:
             "  `provider/model` identical on both arms of each pair.",
             "- Preferred primary `agy/gemini-3.7-flash-high` was cooling (429); remaining pairs",
             "  used free most-intelligent failover `nvidia/nemotron-3-ultra-550b-a55b`.",
-            "- Local OmniRoute `requestQueue.maxWaitMs=15000` truncated long generations;",
-            "  trials still ran and recorded tokens/latency. Applyable patches were not",
-            "  emitted within that budget, so correctness stayed 0.0 on both arms.",
+            "- Local OmniRoute `requestQueue.maxWaitMs=15000` may bound queue wait; several",
+            "  observed latencies still exceeded 15s. Applyable patches were not emitted,",
+            "  so correctness stayed 0.0 on both arms.",
             "- Companion machine-readable aggregate:",
             "  `chaos-engine/decision-quality-calibration.aggregate.json`.",
             "",

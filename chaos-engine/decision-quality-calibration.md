@@ -27,7 +27,7 @@ secrets, private paths, or provider routes are persisted.
 | `latency_seconds` | 24.54195623733055 | 36.893572025665584 |
 | `external_run_minutes` | UNAVAILABLE | UNAVAILABLE |
 | `actions` | 1.0 | 1.0 |
-| `retries` | 1.0 | 1.0 |
+| `retries` | 0.0 | 0.0 |
 | `cost_usd` | UNAVAILABLE | UNAVAILABLE |
 | `variance` | 0.0 | 0.0 |
 
@@ -46,11 +46,11 @@ secrets, private paths, or provider routes are persisted.
   `provider/model` identical on both arms of each pair.
 - Preferred primary `agy/gemini-3.7-flash-high` was cooling (429); remaining pairs
   used free most-intelligent failover `nvidia/nemotron-3-ultra-550b-a55b`.
-- Local OmniRoute `requestQueue.maxWaitMs=15000` truncated long generations;
-  trials still ran and recorded tokens/latency. Applyable patches were not
-  emitted within that budget, so correctness stayed 0.0 on both arms.
+- Local OmniRoute `requestQueue.maxWaitMs=15000` may bound queue wait; several
+  observed latencies still exceeded 15s. Applyable patches were not emitted,
+  so correctness stayed 0.0 on both arms.
 - Companion machine-readable aggregate:
-  [decision-quality-calibration.aggregate.json](decision-quality-calibration.aggregate.json).
+  `chaos-engine/decision-quality-calibration.aggregate.json`.
 
 ## Failover events
 
