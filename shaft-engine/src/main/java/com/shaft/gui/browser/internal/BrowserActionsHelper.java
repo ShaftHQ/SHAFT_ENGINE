@@ -206,8 +206,16 @@ public class BrowserActionsHelper {
         CheckpointStatus status = Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
         if (!isSilent) {
             if (driver != null && !message.equals("Capture page snapshot.")) {
-                attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
+                // Log the action step before screenshot evidence so a timed-out
+                // capture cannot omit the primary navigate/type/click identity.
                 logWithProfiledAttachments(actionName, message, attachments, status);
+                try {
+                    new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus);
+                } catch (RuntimeException screenshotFailure) {
+                    ReportManager.logDiscrete(
+                            "Screenshot capture skipped during action reporting: "
+                                    + screenshotFailure.getClass().getSimpleName());
+                }
             } else if (!attachments.isEmpty()) {
                 logWithProfiledAttachments(actionName, message, attachments, status);
             } else {
