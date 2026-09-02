@@ -9,6 +9,8 @@ OWNERS = (
     ROOT / "chaos-engine/references/roles.md",
     ROOT / "chaos-engine/references/orchestrator-follow-through.md",
     ROOT / "chaos-engine/references/execution-workflows.md",
+    ROOT / ".claude/agents/chaos-engine-orchestrator.md",
+    ROOT / ".codex/agents/chaos-engine-orchestrator.toml",
 )
 
 # Long MUST / anti-pattern body that owners must link, not restate.
