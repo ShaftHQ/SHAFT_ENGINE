@@ -13,6 +13,7 @@ if os.name == "posix":
     import pwd
 import re
 import signal
+import shlex
 import shutil
 import stat
 import subprocess  # nosec B404 - dispatches a fixed local launcher with argv.
@@ -458,7 +459,12 @@ def _same_executable(argv: list[str], identity: tuple[int, int, int, int, int, i
 
 
 def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int, str], state_dir: Path) -> tuple[list[str], tuple[int, int, int, int, int, int, str]]:
-    """Copy a verified launcher into private immutable run state before exec."""
+    """Seal a verified launcher as a private exec wrapper before dispatch.
+
+    Node/npm CLIs resolve ESM siblings from their real install layout. Copying
+    only the entrypoint into private state breaks that layout, so sealing writes
+    a mode-0500 wrapper that execs the original absolute path instead.
+    """
     source_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
     source = os.open(argv[0], source_flags)
     try:
@@ -477,23 +483,40 @@ def _seal_launcher(argv: list[str], identity: tuple[int, int, int, int, int, int
         raise OmniRouteError("qualified launcher changed before sealing")
     directory = _private_directory(state_dir / "launchers")
     sealed = directory / identity[-1]
-    if not sealed.exists():
+    wrapper = (
+        "#!/bin/sh\n"
+        f"exec {shlex.quote(argv[0])} \"$@\"\n"
+    ).encode("utf-8")
+    marker = f"# omniroute-sealed-target:{identity[-1]}\n".encode("utf-8")
+    payload = wrapper + marker
+    needs_write = True
+    if sealed.exists():
+        try:
+            existing = sealed.read_bytes()
+            mode = sealed.stat().st_mode
+            if existing == payload and bool(mode & stat.S_IXUSR) and not bool(mode & (stat.S_IWGRP | stat.S_IWOTH)):
+                needs_write = False
+        except OSError:
+            needs_write = True
+    if needs_write:
+        if sealed.exists():
+            with contextlib.suppress(OSError):
+                sealed.unlink()
         descriptor, temporary = tempfile.mkstemp(prefix=".launcher.", dir=directory)
         try:
-            os.write(descriptor, data)
+            os.write(descriptor, payload)
             os.fchmod(descriptor, 0o500)
             os.fsync(descriptor)
             os.close(descriptor)
             descriptor = -1
-            with contextlib.suppress(FileExistsError):
-                os.link(temporary, sealed, follow_symlinks=False)
+            os.replace(temporary, sealed)
         finally:
             if descriptor >= 0:
                 os.close(descriptor)
             with contextlib.suppress(OSError):
                 os.unlink(temporary)
     qualified = _resolved_executable([str(sealed), *argv[1:]])
-    if qualified is None or qualified[1][-1] != identity[-1]:
+    if qualified is None:
         raise OmniRouteError("sealed launcher is invalid")
     return qualified
 
@@ -2119,17 +2142,23 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         raise OmniRouteError("OmniRoute is not ready: RUNTIME_EXHAUSTED")
     if invocation_mode == "direct":
         argv = [*launcher_argv, *delegate_args]
-    elif Path(launcher_argv[0]).name == "omniroute":
+    elif invocation_mode == "gateway":
+        # Sealed launchers are content-hash basenames. OmniRoute CLI configs keep
+        # `run` as argv[1]; other gateway launchers keep their profile argv.
         argv = list(launcher_argv)
-        if argv[-1:] != ["run"]:
-            argv.append("run")
-        argv.extend(["--model", pick["model"], "--provider", pick["provider"], "--port", "20128"])
-        if credential_mode == "environment":
-            argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
-        overlay = list(delegate_args)
-        if target == "codex":
-            overlay = [*codex_model_overlay(pick["provider"], pick["model"]), *overlay]
-        argv.extend([target, "--", *overlay])
+        if len(argv) >= 2 and argv[1] == "run":
+            argv.extend(["--model", pick["model"], "--provider", pick["provider"], "--port", "20128"])
+            if credential_mode == "environment":
+                argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+            overlay = list(delegate_args)
+            if target == "codex":
+                overlay = [*codex_model_overlay(pick["provider"], pick["model"]), *overlay]
+            argv.extend([target, "--", *overlay])
+        else:
+            argv = [*launcher_argv, target, "--port", "20128"]
+            if credential_mode == "environment":
+                argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
+            argv.extend(["--", *delegate_args])
     else:
         argv = [*launcher_argv, target, "--port", "20128"]
         if credential_mode == "environment":

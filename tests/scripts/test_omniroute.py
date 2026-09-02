@@ -1075,6 +1075,26 @@ class OmniRouteRunnerTest(unittest.TestCase):
         with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._seal_launcher(argv, identity, self.state)
 
+    def test_sealing_writes_exec_wrapper_to_original_path(self):
+        qualified = RUNNER._resolved_executable([str(self.launcher)])
+        self.assertIsNotNone(qualified)
+        argv, identity = qualified
+        sealed_argv, sealed_identity = RUNNER._seal_launcher(argv, identity, self.state)
+        sealed = Path(sealed_argv[0])
+        self.assertTrue(sealed.is_file())
+        body = sealed.read_text(encoding="utf-8")
+        self.assertIn("#!/bin/sh", body)
+        self.assertIn(f"exec {str(self.launcher.resolve())}", body)
+        self.assertIn(f"omniroute-sealed-target:{identity[-1]}", body)
+        self.assertNotEqual(sealed_identity[-1], identity[-1])
+        # Stale non-executable sealed copy is replaced.
+        sealed.chmod(0o700)
+        sealed.write_bytes(b"broken")
+        sealed.chmod(0o600)
+        sealed_argv2, _ = RUNNER._seal_launcher(argv, identity, self.state)
+        self.assertEqual(sealed_argv2[0], sealed_argv[0])
+        self.assertIn("#!/bin/sh", Path(sealed_argv2[0]).read_text(encoding="utf-8"))
+
     def test_dispatch_rejects_untracked_and_primary_worktrees(self):
         (self.worktree / "untracked.txt").write_text("x", encoding="utf-8")
         with self.assertRaises(RUNNER.OmniRouteError):
