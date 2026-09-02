@@ -215,12 +215,14 @@ writer limits. Use optional local transport only through the
 [OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens or
 disables the canonical workflows.
 
-When orchestrating, [delegation](../../references/delegation.md) owns dispatch,
-status, integration, and review. Apply
+When orchestrating, load
+[process-owner / Scrum-master](../../references/process-owner-scrum-master.md).
+[Delegation](../../references/delegation.md) owns dispatch, status, integration,
+and review. Apply
 [orchestrator follow-through](../../references/orchestrator-follow-through.md)
 automatically while work is live. [Roles](../../references/roles.md) owns role
-boundaries. The main orchestrator stays available, performs its implicit Scrum
-master duties, and owns the sole terminal Learning Session.
+boundaries. The main orchestrator stays available, enforces process-owner
+duties, and owns the sole terminal Learning Session.
 
 Implementation follows [TDD and its PDCA boundary](../../references/tdd.md#workflow).
 The selected project profile may link its concrete PDCA playbook without

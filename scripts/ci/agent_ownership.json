@@ -89,7 +89,13 @@
     "repository adapter": {
       "owner": "AGENTS.md",
       "terms": ["SHAFT_ENGINE Maven Java automation framework", "Repository safety", "Canonical policy"]
+    },
+    "process owner scrum-master": {
+      "owner": "chaos-engine/references/process-owner-scrum-master.md",
+      "terms": ["verify delegation deliverables before parent-slice completion", "recurring process-failure / impediment classes (2+)"],
+      "allowed": ["chaos-engine/skills/chaos-engine/SKILL.md", "chaos-engine/references/roles.md", "chaos-engine/references/orchestrator-follow-through.md", "chaos-engine/references/execution-workflows.md", ".agents/skills/README.md", "tests/scripts/test_process_owner_scrum_master.py"]
     }
+
   },
   "adapters": [
     "AGENTS.md",

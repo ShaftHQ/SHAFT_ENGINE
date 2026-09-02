@@ -1,7 +1,10 @@
 # Orchestrator follow-through
 
 Orchestrators inspect live writers and required checks, consult, remove
-impediments, and continue delivery. Assignment alone is not progress.
+impediments, and continue delivery. Assignment alone is not progress. Enforce
+[process-owner / Scrum-master](process-owner-scrum-master.md) MUST gates:
+evidence-backed progression only; no parent-slice completion without verified
+delegate deliverables and red/green or automated verifier proof.
 
 ## Cadence and inspection
 

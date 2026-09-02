@@ -1,23 +1,28 @@
 # Orchestrator follow-through
 
 Orchestrators inspect live writers and required checks, consult, remove
-impediments, and continue delivery. Assignment alone is not progress.
+impediments, and continue delivery. Assignment alone is not progress. Enforce
+[process-owner / Scrum-master](process-owner-scrum-master.md) MUST gates:
+evidence-backed progression only; no parent-slice completion without verified
+delegate deliverables and red/green or automated verifier proof.
 
 ## Cadence and inspection
 
-While any writer or required check is live, including a live subagent,
-automatically inspect on a five-minute cadence. Floor: inspect at least every
-five minutes, without the owner asking. Ceiling: do not inspect more often than
-every five minutes except on dispatch, completion, failure, or owner/delegate
-interrupt. First inspect as soon as dispatch yields a live handle. Use the host
-timer or scheduler when it has one; otherwise the next main-thread wake still
-owes the inspection.
+While any writer or required check is live, including a live subagent, choose
+one cadence from task scope: 5 minutes for short or high-risk work, 10 minutes
+for normal work, or 15 minutes for long stable jobs. Inspect automatically,
+without the owner asking. Do not inspect more often than the selected cadence
+except on dispatch, completion, failure, or owner/delegate interrupt. First
+inspect as soon as dispatch yields a live handle. Use the host timer or
+scheduler when available; otherwise the next main-thread wake still owes the
+inspection.
 No live writers or required checks: no scheduler.
 
-Each inspection is a scrum: establish blocked or unblocked state and evidence
-of progress, then keep / re-spec / upgrade / kill. Never a heartbeat. Validate
-errors and progress before the next handoff; bound retries and escalate instead
-of waiting indefinitely.
+Each inspection is a Scrum-master duty: establish blocked or unblocked state,
+report status with evidence, apply pressure when progress stalls, consult on
+ambiguity, and remove blockers within granted authority. Then keep, re-spec,
+upgrade, or kill. Never send a heartbeat. Validate errors and progress before
+the next handoff; bound retries and escalate instead of waiting indefinitely.
 
 ## Consult and impediments
 
