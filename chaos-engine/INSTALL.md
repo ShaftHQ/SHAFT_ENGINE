@@ -45,6 +45,18 @@ Everything below is optional on first run: agent install instruction, payload
 details, OmniRoute, identity/portability, interactive flags, Maven Tools,
 uninstall/rollback, and empty-project smoke.
 
+Origin identity masters under `assets/brand/`, the origin adoption matrix
+`RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
+into the adopter payload. The installer also merges receipt-bound LF attributes for canonical harness paths,
+so Windows Git checkouts retain the exact owned bytes while unrelated
+`.gitattributes` rules remain untouched.
+
+The canonical one-liners above use the official `ShaftHQ/SHAFT_ENGINE` upstream
+URLs. The scripts parse their invocation URL and do not copy that identity into
+the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file override when
+the invocation URL cannot be parsed (for example when you run `install.sh` from a
+checked-out tree). Change into the target project or folder first; both scripts
+install into the current working directory.
 
 Python is not required before either command. The wrapper bootstraps Python as
 needed. The installer then discovers the invoking account's tools, resolves

@@ -28,7 +28,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 
 | ID | Host(s) | Severity | Gap | Evidence / next |
 | --- | --- | --- | --- | --- |
-| GAP-EXIT2 | Grok, Copilot | high | Native exit-2 / hard-block semantics are thinner or host-gated vs Claude/Codex/Gemini; outcome relies on adapter + trust. | Tracked by #5579; kernel HOST_CAPABILITIES + hook configs. |
+| GAP-EXIT2 | Grok, Copilot | high | `HostCapability.process_exit2_honored=False`; ChaosEngine still returns deny exit 2 + native deny payload (`decision`/`permissionDecision`). Owner doctor surfaces `blockingGap`. | Proven by `tests/scripts/test_chaos_engine_exit2_fidelity.py`; fields on HOST_CAPABILITIES (#5579). |
 | GAP-SESSIONSTART | Grok, Copilot | medium | SessionStart locator-only / progressive disclosure is not proven equivalent; may inject more or less context. | Tracked by #5580. |
 | GAP-HOOK-TRUST | Grok | medium | Project hook trust (`/hooks-trust`, projectTrusted) can leave doctor recovery-required after install. | Host onboarding card + grok_runtime_status. |
 | GAP-MARKETPLACE-CLI | Claude, Codex | low | Marketplace/plugin auto-activation needs host CLI on PATH; absent CLI still installs adapters but activation is manual. | Onboarding cards. |

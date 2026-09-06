@@ -89,6 +89,14 @@ class HostCapability:
     strict_json_stdout: bool = True
     live_gate: bool = True
     static_surfaces: tuple[str, ...] = ()
+    # How a deny becomes a hard block on this host (parity with #5579).
+    hard_block_mechanism: str = "decision_json"
+    deny_exit_code: int = 2
+    # True when the host/process boundary reliably honors exit code 2 (or
+    # equivalent native deny). False hosts still emit deny payloads + exit 2
+    # from ChaosEngine; trust the adapter and surface blocking_gap to owners.
+    process_exit2_honored: bool = True
+    blocking_gap: str = ""
 
 
 def _aliases(supported: tuple[str, ...], **values: str) -> Mapping[str, str]:
@@ -108,11 +116,17 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             sessionEnd="SessionEnd",
         ),
         CODEX_EVENTS,
+        hard_block_mechanism="permission_decision",
+        deny_exit_code=2,
+        process_exit2_honored=True,
     ),
     "claude": HostCapability(
         ("CLAUDE.md", ".claude/skills/chaos-engine/SKILL.md"),
         _aliases(CLAUDE_EVENTS),
         CLAUDE_EVENTS,
+        hard_block_mechanism="exit_2",
+        deny_exit_code=2,
+        process_exit2_honored=True,
     ),
     "gemini": HostCapability(
         ("GEMINI.md", ".gemini/skills/chaos-engine/SKILL.md"),
@@ -125,6 +139,9 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             PreCompress="PreCompact",
         ),
         GEMINI_EVENTS,
+        hard_block_mechanism="decision_json",
+        deny_exit_code=2,
+        process_exit2_honored=True,
     ),
     "grok": HostCapability(
         ("AGENTS.md", ".grok/plugins/chaos-engine"),
@@ -144,6 +161,13 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             session_end="SessionEnd",
         ),
         GROK_EVENTS,
+        hard_block_mechanism="decision_json",
+        deny_exit_code=2,
+        process_exit2_honored=False,
+        blocking_gap=(
+            "GAP-EXIT2: Grok may not honor process exit-2 as a hard block; "
+            "ChaosEngine still emits decision=block and exit 2 — verify adapter trust."
+        ),
     ),
     "copilot": HostCapability(
         ("AGENTS.md", ".github/copilot-instructions.md", ".github/skills/chaos-engine/SKILL.md"),
@@ -161,6 +185,13 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
         ),
         COPILOT_EVENTS,
         static_surfaces=("cloud", "ide"),
+        hard_block_mechanism="permission_decision",
+        deny_exit_code=2,
+        process_exit2_honored=False,
+        blocking_gap=(
+            "GAP-EXIT2: Copilot cloud/ide surfaces may not honor process exit-2; "
+            "denies use permissionDecision — verify host trust and static surfaces."
+        ),
     ),
 }
 
