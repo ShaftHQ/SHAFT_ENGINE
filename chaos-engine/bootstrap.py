@@ -583,6 +583,12 @@ class InstallReporter:
         if client_names:
             self.stream.write(f"Clients: {', '.join(client_names)}\n")
         self.stream.write(format_first_session_brief(clients=clients if isinstance(clients, dict) else {}))
+        self.stream.write(
+            format_host_onboarding_cards(
+                detected=detect_install_hosts(),
+                activated=clients if isinstance(clients, dict) else {},
+            )
+        )
         self.stream.write(f"{installer_user_guide_url(repository)}\n")
         self.stream.write(f"Full install trace: {install_trace_path(project).as_posix()}\n")
         self.stream.flush()
@@ -655,6 +661,99 @@ HOST_NEXT_ACTIONS = {
     "gemini": "Open Gemini CLI in this project and ask it to use the chaos-engine skill.",
     "copilot": "Open this repo in an IDE with GitHub Copilot and ask Copilot to use chaos-engine.",
 }
+
+
+HOST_ONBOARDING_CARDS = {
+    "claude": {
+        "label": "Claude Code",
+        "path": "marketplace/plugin",
+        "how": (
+            "Install registers a path-unique local marketplace and installs the "
+            "`chaos-engine` (+ companions) plugins at project scope. Restart Claude "
+            "Code, then ask it to use the chaos-engine skill."
+        ),
+        "gap": "Requires the `claude` CLI on PATH for automatic marketplace activation.",
+    },
+    "codex": {
+        "label": "Codex",
+        "path": "marketplace/plugin",
+        "how": (
+            "Install registers a path-unique local marketplace and installs the "
+            "`chaos-engine` (+ companions) plugins. Restart Codex so it reloads the "
+            "plugin cache, then ask it to use chaos-engine."
+        ),
+        "gap": "Requires the `codex` CLI on PATH for automatic marketplace activation.",
+    },
+    "grok": {
+        "label": "Grok",
+        "path": "file/hook injection",
+        "how": (
+            "Install writes AGENTS.md guidance and project hooks under `.grok/`. "
+            "Open Grok in this project, run `grok inspect --json`, and if "
+            "`projectTrusted` is false run `/hooks-trust`, then reload hooks."
+        ),
+        "gap": (
+            "Hook trust is host-gated; doctor reports recovery-required until trusted "
+            "hooks load."
+        ),
+    },
+    "gemini": {
+        "label": "Gemini",
+        "path": "file/hook injection",
+        "how": (
+            "Install writes GEMINI.md / `.gemini/settings.json` and the Node "
+            "`hooks/launch.js` launcher. Open Gemini CLI in this project and ask it "
+            "to use the chaos-engine skill."
+        ),
+        "gap": (
+            "Needs Node.js for the Gemini hook launcher; unsupported native events "
+            "stay explicit capability gaps."
+        ),
+    },
+    "copilot": {
+        "label": "GitHub Copilot",
+        "path": "file/hook injection",
+        "how": (
+            "Install writes `.github/copilot-instructions.md` and "
+            "`.github/hooks/chaos-engine.json`. Open this repo in an IDE with "
+            "GitHub Copilot (or Copilot cloud agent) and ask Copilot to use chaos-engine."
+        ),
+        "gap": (
+            "Copilot is IDE/cloud hosted; CLI detection is soft (`gh` / `code` / `cursor`)."
+        ),
+    },
+}
+
+
+def format_host_onboarding_cards(
+    *,
+    detected: list[tuple[str, str, bool]] | None = None,
+    activated: dict[str, object] | None = None,
+) -> str:
+    """Render five host onboarding cards with enablement path and explicit gaps."""
+    detected_map = {
+        host_id: found for host_id, _label, found in (detected or [])
+    }
+    activated_names = {
+        str(name).casefold() for name in (activated or {})
+    }
+    lines = ["Host onboarding cards:"]
+    for host_id, _command, _label in HOST_DETECT_COMMANDS:
+        card = HOST_ONBOARDING_CARDS[host_id]
+        markers: list[str] = []
+        if detected_map.get(host_id):
+            markers.append("detected")
+        if host_id in activated_names or any(
+            name == host_id or name.startswith(f"{host_id}-")
+            for name in activated_names
+        ):
+            markers.append("activated")
+        marker_text = f" [{', '.join(markers)}]" if markers else ""
+        lines.append(f"  {card['label']}{marker_text} — {card['path']}")
+        lines.append(f"    how: {card['how']}")
+        lines.append(f"    gap: {card['gap']}")
+    return "\n".join(lines) + "\n"
+
 
 
 def detect_install_hosts(*, which=shutil.which) -> list[tuple[str, str, bool]]:

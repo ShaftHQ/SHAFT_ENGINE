@@ -44,7 +44,7 @@ user off-switches still win. When a detected client
 requires marketplace registration, the agent registers the project marketplace
 and installs `chaos-engine`, `caveman`, and `ponytail` at project local scope,
 then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
-remain untracked; canonical configuration and adapters remain trackable. A successful install prints a first-session brief naming what landed, what stayed untracked, and three next actions (open a host, load `chaos-engine`, run a sample task).
+remain untracked; canonical configuration and adapters remain trackable. A successful install prints a first-session brief naming what landed, what stayed untracked, and three next actions (open a host, load `chaos-engine`, run a sample task). Install success and human `doctor` also print five **host onboarding cards** (Claude Code/Codex marketplace+plugin vs Grok/Gemini/Copilot file/hook injection), each with an explicit gap line.
 Origin identity masters under `assets/brand/`, the origin adoption matrix
 `RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
 into the adopter payload. The installer also merges receipt-bound LF attributes for canonical harness paths,
