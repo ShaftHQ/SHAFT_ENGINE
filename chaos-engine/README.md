@@ -673,6 +673,9 @@ reports, caches, runtime indexes, or `graphify-out/`.
 
 ## Read next
 
+- [Host Parity Matrix v0](references/host-parity-matrix.md) — five-host outcome matrix and measured gaps.
+
+
 - [Install or upgrade ChaosEngine](INSTALL.md)
 - [Canonical ChaosEngine entrypoint](skills/chaos-engine/SKILL.md)
 - [Lifecycle hooks](references/lifecycle-hooks.md)
