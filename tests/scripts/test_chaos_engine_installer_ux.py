@@ -398,6 +398,12 @@ class InstallerUxTests(unittest.TestCase):
         )
         self.assertNotIn("Owned managed dependencies", output)
         self.assertNotIn("Continue working in", output)
+        self.assertIn("First-session brief:", output)
+        self.assertIn("Landed: portable core", output)
+        self.assertIn("Untracked: generated indexes", output)
+        self.assertIn("Open one activated host (claude, codex)", output)
+        self.assertIn("Ask the agent to load / use the `chaos-engine` skill.", output)
+        self.assertIn("Run a small sample task", output)
 
     def test_trace_persists_every_event_beyond_live_tty_limit(self):
         reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
@@ -1041,6 +1047,22 @@ class InstallerUxTests(unittest.TestCase):
         payload = json.loads(stdout.getvalue())
         self.assertEqual("doctor", payload["kind"])
         self.assertEqual("healthy", payload["status"])
+
+    def test_first_session_brief_lists_landed_untracked_and_three_next_actions(self):
+        with_clients = BOOTSTRAP.format_first_session_brief(
+            clients={"codex": {"status": "healthy"}}
+        )
+        self.assertIn("First-session brief:", with_clients)
+        self.assertIn("Landed:", with_clients)
+        self.assertIn("Untracked:", with_clients)
+        self.assertIn("Next:", with_clients)
+        self.assertIn("Open one activated host (codex)", with_clients)
+        self.assertIn("chaos-engine", with_clients)
+        self.assertIn("sample task", with_clients)
+        generic = BOOTSTRAP.format_first_session_brief(clients={})
+        self.assertIn("Open any supported host", generic)
+        # Brief must stay concise for first-time users.
+        self.assertLessEqual(len(with_clients.splitlines()), 12)
 
     def test_confirmation_callbacks_reach_dependencies_maven_and_activation(self):
         bootstrap = (ROOT / "chaos-engine/bootstrap.py").read_text(encoding="utf-8")

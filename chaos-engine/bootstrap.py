@@ -582,6 +582,7 @@ class InstallReporter:
             self.stream.write(f"Doctor: {doctor_status}\n")
         if client_names:
             self.stream.write(f"Clients: {', '.join(client_names)}\n")
+        self.stream.write(format_first_session_brief(clients=clients if isinstance(clients, dict) else {}))
         self.stream.write(f"{installer_user_guide_url(repository)}\n")
         self.stream.write(f"Full install trace: {install_trace_path(project).as_posix()}\n")
         self.stream.flush()
@@ -600,6 +601,36 @@ class InstallReporter:
             self.stream.write("\n")
             self.stream.flush()
         self._lines = 0
+
+
+
+def format_first_session_brief(*, clients: dict[str, object] | None = None) -> str:
+    """Return the post-install first-session brief (landed / untracked / next 3)."""
+    client_names = sorted(clients) if isinstance(clients, dict) else []
+    if client_names:
+        open_host = (
+            "Open one activated host ("
+            + ", ".join(client_names)
+            + ") in this project."
+        )
+    else:
+        open_host = (
+            "Open any supported host in this project "
+            "(Codex, Claude Code, Grok, Gemini, or GitHub Copilot)."
+        )
+    lines = [
+        "First-session brief:",
+        "  Landed: portable core (`.chaos-engine/`), lifecycle hooks, five host adapters,",
+        "    Caveman + Ponytail companions, Memory / MemPalace / Graphify store tooling.",
+        "  Untracked: generated indexes, caches, receipts, and runtimes",
+        "    (`.chaos-engine-runtime*`, dependency/host receipts, `graphify-out`, local tool caches).",
+        "    Canonical adapters and config stay trackable.",
+        "  Next:",
+        f"    1. {open_host}",
+        "    2. Ask the agent to load / use the `chaos-engine` skill.",
+        "    3. Run a small sample task (for example: ask doctor status, or a one-file reversible edit).",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def confirm_operation(operation: str, *, input_stream, output) -> None:

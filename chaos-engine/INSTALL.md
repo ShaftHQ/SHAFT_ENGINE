@@ -44,7 +44,7 @@ user off-switches still win. When a detected client
 requires marketplace registration, the agent registers the project marketplace
 and installs `chaos-engine`, `caveman`, and `ponytail` at project local scope,
 then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
-remain untracked; canonical configuration and adapters remain trackable.
+remain untracked; canonical configuration and adapters remain trackable. A successful install prints a first-session brief naming what landed, what stayed untracked, and three next actions (open a host, load `chaos-engine`, run a sample task).
 Origin identity masters under `assets/brand/`, the origin adoption matrix
 `RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
 into the adopter payload. The installer also merges receipt-bound LF attributes for canonical harness paths,
