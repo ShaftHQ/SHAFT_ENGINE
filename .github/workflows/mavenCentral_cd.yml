@@ -2,7 +2,8 @@ name: Maven Central Continuous Delivery
 # Executed automatically when a new PR is merged to main.
 # Already-published immutable Maven Central versions skip delivery cleanly (see check_release_needed)
 # instead of failing, since most pushes to main land between releases with nothing new to deliver.
-# build_release_and_deliver stays sequential so deploy cannot run after a failed test.
+# Parallel CD gates (#5588): IntelliJ verify + python validators overlap Maven validate;
+# build_release_and_deliver is the deploy gate and still cannot publish after a failed validation.
 # Named checks stay mirrored with shaft-pilot-release.yml's isolated jobs. Keep the
 # named checks in sync; do not re-serialize the PR gate to match this deploy path.
 # Marketplace publish and release announcement run in parallel after delivery and
@@ -83,22 +84,14 @@ jobs:
         id: guard
         run: python3 scripts/ci/check_maven_release_version.py --github-output "$GITHUB_OUTPUT"
 
-  build_release_and_deliver:
+  cd_intellij_verify:
+    name: CD — verify IntelliJ plugin
     needs: check_release_needed
-    # Nothing to deliver when this reactor version is already published; see check_release_needed.
     if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
-    env:
-      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
-      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     permissions:
-      contents: read  # only builds/tests/deploys to Maven Central; the GitHub Release is created by announce_release.
-    outputs:
-      release_version: ${{ steps.release_version.outputs.version }}
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
@@ -110,6 +103,54 @@ jobs:
           python-version: "3.13"
       - name: Verify IntelliJ plugin release candidate
         uses: ./.github/actions/intellij-verify
+
+  cd_python_validators:
+    name: CD — python contract validators
+    needs: check_release_needed
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Validate SHAFT Pilot release contract (no build outputs)
+        run: |
+          python3 scripts/ci/validate_modular_documentation.py
+          python3 scripts/ci/validate_documentation_boundaries.py
+          python3 scripts/ci/validate_shaft_mcp_configuration.py
+          python3 scripts/ci/validate_shaft_pilot_release.py
+
+  cd_maven_validate:
+    name: CD — Maven validate (pre-deploy)
+    needs: check_release_needed
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    env:
+      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      release_version: ${{ steps.release_version.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
       - name: Set up JDK 25
         uses: actions/setup-java@v6.0.0
         with:
@@ -137,12 +178,6 @@ jobs:
         run: |
           echo "RELEASE_VERSION=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
           echo "version=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_OUTPUT"
-      - name: Validate SHAFT Pilot release contract
-        run: |
-          python3 scripts/ci/validate_modular_documentation.py
-          python3 scripts/ci/validate_documentation_boundaries.py
-          python3 scripts/ci/validate_shaft_mcp_configuration.py
-          python3 scripts/ci/validate_shaft_pilot_release.py
       - name: Install SHAFT Pilot prerequisites without tests
         run: >-
           mvn --batch-mode
@@ -214,6 +249,48 @@ jobs:
           name: agent-plugin-release-assets
           path: agent-plugin-release-assets/*
           if-no-files-found: error
+
+  # Kept job id `build_release_and_deliver` so downstream needs/outputs stay stable.
+  # This job is now the publish gate: waits for parallel IntelliJ + python + Maven validate, then deploys.
+  build_release_and_deliver:
+    name: CD — deploy Maven Central
+    needs: [check_release_needed, cd_intellij_verify, cd_python_validators, cd_maven_validate]
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    env:
+      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_VERSION: ${{ needs.cd_maven_validate.outputs.release_version }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      release_version: ${{ needs.cd_maven_validate.outputs.release_version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6.0.0
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5.1
+        with:
+          maven-version: 3.9.12
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
@@ -405,7 +482,7 @@ jobs:
 
   notify_release_failure:
     name: Notify on release failure
-    needs: [ check_release_needed, build_release_and_deliver, verify_public_shaft_mcp_installer, announce_release ]
+    needs: [ check_release_needed, cd_intellij_verify, cd_python_validators, cd_maven_validate, build_release_and_deliver, verify_public_shaft_mcp_installer, announce_release ]
     # Runs regardless of upstream outcome so a failure anywhere in the pipeline is caught.
     # Most pushes to main land between releases with nothing new to deliver (see top-of-file
     # comment): build_release_and_deliver/verify_public_shaft_mcp_installer/announce_release
