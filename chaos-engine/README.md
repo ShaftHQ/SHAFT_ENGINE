@@ -73,9 +73,8 @@ flow resolves a configured upstream branch to an immutable commit, downloads
 only that commit's validated `chaos-engine/` subtree, and installs ChaosEngine
 inside the target project.
 
-The Windows example below uses an `owner/repository` placeholder; replace it
-with the upstream that hosts the wrapper. The macOS/Linux example uses the
-official SHAFT upstream. Source identity is not copied into the adopter payload.
+The canonical one-liners below use the official `ShaftHQ/SHAFT_ENGINE` upstream.
+Source identity is not copied into the adopter payload.
 `CHAOS_ENGINE_REPOSITORY` remains a local-file override when the invocation URL
 cannot be parsed. Change into the target project or folder first; both scripts
 install into the current working directory.

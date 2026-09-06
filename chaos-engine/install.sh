@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Install or upgrade ChaosEngine into the current directory.
 # Run this from the target project folder:
-#   curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
+#   curl -fsSL "https://raw.githubusercontent.com/<owner>/<repository>/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/<owner>/<repository>/main/chaos-engine/install.sh"
 set -eu
 
 # Brand and live progress belong to bootstrap.py so curl|bash cannot double-paint.
@@ -86,7 +86,7 @@ EOF
     printf '%s|%s|%s|%s\n' "$env_repository" "$ref" "chaos-engine" "https://raw.githubusercontent.com/${env_repository}/${ref}/chaos-engine/bootstrap.py"
     return 0
   fi
-  fail "Put owner/repository in the install URL (or set CHAOS_ENGINE_REPOSITORY for a local file run)."
+  fail "Could not derive owner/repository from the install URL. Pass the raw.githubusercontent.com/<owner>/<repository>/.../install.sh URL as $1 (see chaos-engine/INSTALL.md), or set CHAOS_ENGINE_REPOSITORY=<owner>/<repository> for a local file run."
 }
 
 with_maven_tools=
@@ -115,7 +115,7 @@ elif command -v wget >/dev/null 2>&1; then
     wget -q -O "$1" "$2"
   }
 else
-  fail "curl or wget is required to download the ChaosEngine bootstrap."
+  fail "curl or wget is required to download the ChaosEngine bootstrap. Install curl, then rerun the one-liner."
 fi
 
 source_record=$(resolve_source "${1:-}")

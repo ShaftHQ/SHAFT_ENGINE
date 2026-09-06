@@ -367,10 +367,18 @@ class InstallerUxTests(unittest.TestCase):
         reporter = BOOTSTRAP.InstallReporter(stream=stream)
         reporter.start("Activate clients")
         reporter.complete("Activate clients")
+        commit = "a" * 40
         reporter.success(
             Path("/project"),
-            {"components": {"memory": {"status": "healthy"}, "core": {"status": "healthy"}}},
-            {},
+            {
+                "commit": commit,
+                "status": "healthy",
+                "components": {
+                    "memory": {"status": "healthy"},
+                    "core": {"status": "healthy"},
+                },
+            },
+            {"codex": {"status": "healthy"}, "claude": {"status": "healthy"}},
             repository="ShaftHQ/SHAFT_ENGINE",
         )
         output = stream.getvalue()
@@ -379,6 +387,9 @@ class InstallerUxTests(unittest.TestCase):
             "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!",
             output,
         )
+        self.assertIn(f"Resolved commit: {commit}", output)
+        self.assertIn("Doctor: healthy (2/2 components healthy)", output)
+        self.assertIn("Clients: claude, codex", output)
         self.assertIn("https://shafthq.github.io/docs/agentic/chaos-engine", output)
         self.assertIn(
             f"Full install trace: {Path('/project/.chaos-engine-state/install-trace.json').as_posix()}",
@@ -771,9 +782,12 @@ class InstallerUxTests(unittest.TestCase):
         stderr = io.StringIO()
         with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
             BOOTSTRAP.emit_install_failure("CE-INSTALL-FAILED", error, "owner/repo")
+        output = stderr.getvalue()
+        self.assertIn("unhealthy: memory", output)
+        self.assertIn("Next fix: run doctor", output)
         report = [
             line
-            for line in stderr.getvalue().splitlines()
+            for line in output.splitlines()
             if line.startswith("https://github.com/owner/repo/issues/new?")
         ][0]
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
