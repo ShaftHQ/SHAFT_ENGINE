@@ -519,6 +519,36 @@ def missing_core_with_installed_hosts(project: Path) -> bool:
     return isinstance(payload, dict) and payload.get("phase") == "installed"
 
 
+
+def quarantine_orphaned_host_receipt(project: Path, reporter=None) -> Path | None:
+    """Move an installed host receipt aside when the portable core tree is gone.
+
+    A receipt with phase=installed makes hosts.install assume adapters/anchors
+    still exist. After a wiped `.chaos-engine`, that path fails; quarantining
+    lets curl|bash rematerialize core and reinstall hosts (#5606).
+    """
+    if not missing_core_with_installed_hosts(project):
+        return None
+    receipt = project / ".chaos-engine-hosts.json"
+    reject_link_or_reparse(receipt)
+    state = project / ".chaos-engine-state"
+    state.mkdir(parents=True, exist_ok=True)
+    destination = state / "orphaned-hosts-receipt.json"
+    if destination.exists() or is_link_or_reparse(destination):
+        destination = state / f"orphaned-hosts-receipt-{secrets.token_hex(4)}.json"
+        if destination.exists() or is_link_or_reparse(destination):
+            raise ValueError(
+                f"ChaosEngine cannot quarantine orphaned host receipt: {destination}"
+            )
+    destination.write_bytes(receipt.read_bytes())
+    receipt.unlink()
+    if reporter is not None:
+        reporter.trace(
+            "quarantined orphaned host receipt; rematerializing .chaos-engine core"
+        )
+    return destination
+
+
 def missing_core_recovery_status(project: Path) -> dict[str, object]:
     del project  # project identity is implied by the caller lock scope
     return {
@@ -535,7 +565,8 @@ def missing_core_recovery_status(project: Path) -> dict[str, object]:
                 "code": "CE_CORE_MISSING",
                 "detail": (
                     "host receipt is installed but .chaos-engine core is missing; "
-                    "restore .chaos-engine or uninstall/reinstall before provisioning"
+                    "rerun the ChaosEngine install one-liner to restore core "
+                    "(or uninstall, then install fresh)"
                 ),
             }
         },
@@ -2382,11 +2413,6 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     confirmer=None,
 ) -> Path:
     project = project.resolve()
-    if missing_core_with_installed_hosts(project):
-        raise ValueError(
-            "ChaosEngine host receipt is installed but .chaos-engine core is missing; "
-            "restore .chaos-engine or uninstall before provisioning dependencies"
-        )
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
@@ -2397,6 +2423,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     )
     generation_mode = provisioner is None and not account_mode
     with project_lock(project):
+        # Heal: orphaned host receipt with wiped .chaos-engine must not block
+        # curl|bash reinstall. Quarantine after source validates, then
+        # `install()` rematerializes core (#5606).
+        quarantine_orphaned_host_receipt(project, reporter=reporter)
         recover_account_rollback_journal(project)
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
@@ -3470,9 +3500,9 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
     )
     if code == "CE_CORE_MISSING" or name == "core":
         return (
-            "Restore the `.chaos-engine/` core tree or reinstall; if the runtime "
-            "was wiped while host receipts remain, uninstall/reinstall after "
-            "clearing orphaned host state. " + reinstall
+            "Rerun the ChaosEngine install one-liner to restore `.chaos-engine/` "
+            "under the existing project (orphaned host receipts are quarantined "
+            "automatically). Or uninstall, then install fresh. " + reinstall
         )
     if name == "mempalace" and status == "migration-required":
         return (

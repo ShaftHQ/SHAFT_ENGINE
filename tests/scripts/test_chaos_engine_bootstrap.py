@@ -535,6 +535,29 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             installer.rollback.assert_called_once_with(project.resolve())
 
+    
+    def test_install_failure_issue_query_includes_filesystem_diagnostics(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / ".chaos-engine-hosts.json").write_text("{}", encoding="utf-8")
+            stderr = io.StringIO()
+            with mock.patch.object(module.sys, "stderr", stderr):
+                module.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    ValueError(
+                        "ChaosEngine host receipt is installed but .chaos-engine core is missing"
+                    ),
+                    "Example/Project",
+                    project=project,
+                )
+            text = stderr.getvalue()
+            self.assertIn("hosts_receipt=present", text)
+            self.assertIn("core_dir=absent", text)
+            self.assertIn("install_py=absent", text)
+            self.assertIn("Next fix: rerun the same install one-liner", text)
+            self.assertIn("hosts_receipt=present", text.split("issues/new?", 1)[1])
+
     def test_upgrade_health_failure_issue_query_includes_sha_and_safe_components(self):
         module = load()
         error = module.InstallHealthError(

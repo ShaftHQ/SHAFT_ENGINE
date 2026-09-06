@@ -36,6 +36,30 @@ body:
     attributes:
       label: Platform
   - type: input
+    id: hosts_receipt
+    attributes:
+      label: Hosts receipt
+      description: present/absent for `.chaos-engine-hosts.json`
+  - type: input
+    id: core_dir
+    attributes:
+      label: Core dir
+      description: present/absent for `.chaos-engine/`
+  - type: input
+    id: install_py
+    attributes:
+      label: install.py
+      description: present/absent for `.chaos-engine/install.py`
+  - type: input
+    id: install_trace
+    attributes:
+      label: Install trace path
+  - type: textarea
+    id: install_trace_snippet
+    attributes:
+      label: Install trace snippet
+      description: Last lines from install-trace.json when present
+  - type: input
     id: status_command
     attributes:
       label: Status command

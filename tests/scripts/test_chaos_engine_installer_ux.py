@@ -974,7 +974,7 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("(advisory)", rendered)
         self.assertNotIn("[error] maven-tools-mcp", rendered)
         self.assertGreaterEqual(rendered.count("fix-next:"), 3)
-        self.assertIn("Restore the `.chaos-engine/` core tree", rendered)
+        self.assertIn("Rerun the ChaosEngine install one-liner to restore", rendered)
         self.assertIn("Reinstall ChaosEngine hooks", rendered)
 
     def test_doctor_human_includes_host_onboarding_cards(self):
