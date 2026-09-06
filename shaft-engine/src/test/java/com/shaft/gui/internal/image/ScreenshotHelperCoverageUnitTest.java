@@ -9,6 +9,7 @@ import org.mockito.Mockito;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chromium.HasCdp;
@@ -33,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 public class ScreenshotHelperCoverageUnitTest {
@@ -146,6 +148,18 @@ public class ScreenshotHelperCoverageUnitTest {
             ScreenshotHelper.takeViewportScreenshot(fatalDriver, 1);
 
             failureReporter.verify(() -> FailureReporter.fail(eq(ScreenshotHelper.class), anyString(), any(Throwable.class)));
+        }
+    }
+
+    @Test
+    public void takeViewportScreenshotShouldSoftFailOnHungDriverTimeout() {
+        WebDriver hungDriver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        when(((TakesScreenshot) hungDriver).getScreenshotAs(OutputType.BYTES))
+                .thenThrow(new TimeoutException("java.net.http.HttpTimeoutException: request timed out"));
+
+        try (MockedStatic<FailureReporter> failureReporter = mockStatic(FailureReporter.class)) {
+            Assert.assertNull(ScreenshotHelper.takeViewportScreenshot(hungDriver, 1));
+            failureReporter.verifyNoInteractions();
         }
     }
 

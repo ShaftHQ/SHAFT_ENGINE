@@ -133,11 +133,18 @@ public class ScreenshotHelper {
                 ReportManagerHelper.logDiscrete(exception, Level.WARN);
                 ReportManagerHelper.logDiscrete("Could not take a screenshot after 5 attempts.", Level.WARN);
                 return null;
+            } else if (isHungDriverScreenshotFailure(exception)) {
+                // Hung mid-navigation sessions (Safari after a never-completing load) time out
+                // the WebDriver HTTP client. Soft-degrade so action reporting can still write
+                // its Allure step instead of being replaced by a screenshot failure (#5528).
+                ReportManagerHelper.logDiscrete(exception, Level.WARN);
+                ReportManagerHelper.logDiscrete("Could not take a screenshot; continuing without evidence.", Level.WARN);
+                return null;
             } else
                 // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
-                if (exception.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
+                if (exception.getMessage() != null && (exception.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
                         || exception.getMessage().contains("not connected to DevTools")
-                        || exception.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")) {
+                        || exception.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}"))) {
                     // Ubuntu_Firefox_Grid
                     // org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object
                     // MacOSX_Chrome_Local
@@ -151,6 +158,21 @@ public class ScreenshotHelper {
                     return null;
                 }
         }
+    }
+
+    private static boolean isHungDriverScreenshotFailure(Throwable exception) {
+        for (Throwable cursor = exception; cursor != null; cursor = cursor.getCause()) {
+            if (cursor instanceof TimeoutException
+                    || cursor instanceof java.util.concurrent.TimeoutException
+                    || cursor instanceof java.net.http.HttpTimeoutException) {
+                return true;
+            }
+            String message = cursor.getMessage();
+            if (message != null && message.toLowerCase(java.util.Locale.ROOT).contains("request timed out")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")

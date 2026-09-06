@@ -95,12 +95,15 @@ public class AllureActionStepReportingTest extends Tests {
     public void failedNavigateStillWritesExactlyOneFailedOrBrokenAllureStep() throws IOException {
         // SHAFT defaults pageLoadStrategy=none and readinessState=none, so get()
         // returns before the document exists. Recreate a driver that waits, then
-        // hit a URL that never writes an HTTP response. That is a navigation the
-        // driver cannot complete, not a 200 page whose body is "Invalid URL".
+        // hit the local TestPageServer never-respond URL (no live network). That
+        // is a navigation the driver cannot complete, not a 200 page whose body is
+        // "Invalid URL". Bound the withheld response: Safari forever mid-load made
+        // failure screenshots mask the navigate Allure step (#5528).
         driver.get().quit();
         SHAFT.Properties.web.set().pageLoadStrategy("normal");
         SHAFT.Properties.web.set().readinessState("complete");
         SHAFT.Properties.timeouts.set().pageLoadTimeout(2);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
         driver.set(new SHAFT.GUI.WebDriver());
         driver.get().getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(2));
         String url = TestPageServer.neverRespondUrl();

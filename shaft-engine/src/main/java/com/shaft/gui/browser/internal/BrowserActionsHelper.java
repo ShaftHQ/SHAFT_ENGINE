@@ -206,7 +206,18 @@ public class BrowserActionsHelper {
         CheckpointStatus status = Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
         if (!isSilent) {
             if (driver != null && !message.equals("Capture page snapshot.")) {
-                attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
+                // Evidence capture must never suppress the action step itself. On Safari a
+                // hung mid-navigation page can make getScreenshotAs block until the HTTP
+                // client times out (~3m) and FailureReporter.fail would otherwise replace
+                // the navigate Allure step with "Failed to capture a screenshot" (#5528).
+                if (Boolean.FALSE.equals(passFailStatus)) {
+                    tryStopInFlightNavigation(driver);
+                }
+                try {
+                    attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
+                } catch (RuntimeException screenshotFailure) {
+                    ReportManagerHelper.logDiscrete(screenshotFailure);
+                }
                 logWithProfiledAttachments(actionName, message, attachments, status);
             } else if (!attachments.isEmpty()) {
                 logWithProfiledAttachments(actionName, message, attachments, status);
@@ -217,6 +228,14 @@ public class BrowserActionsHelper {
                     "", driver, message, firstThrowable(rootCauseException), Map.of(), summarizeAttachments(attachments));
         }
         return message;
+    }
+
+    private static void tryStopInFlightNavigation(WebDriver driver) {
+        try {
+            ((JavascriptExecutor) driver).executeScript("window.stop();");
+        } catch (RuntimeException ignored) {
+            ReportManagerHelper.logDiscrete(ignored);
+        }
     }
 
     private static Throwable firstThrowable(Exception[] exceptions) {
