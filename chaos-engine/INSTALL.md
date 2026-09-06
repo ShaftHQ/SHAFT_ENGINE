@@ -182,6 +182,28 @@ returns `recovery-required`. Maven Tools MCP is auto-installed when the project
 has a root `pom.xml`. On non-Maven projects it stays optional and absent does
 not make project health fail.
 
+
+## Empty-project smoke (< 5 minutes)
+
+Reference profile: brand-new empty directory on **Ubuntu 22.04** with Python 3.13
+and no prior ChaosEngine install.
+
+1. `mkdir /tmp/ce-empty-smoke && cd /tmp/ce-empty-smoke`
+2. Run the **same macOS/Linux one-liner** from the Install section above (do not
+   duplicate it here — keep a single documented URL).
+3. Time it (`time` / `/usr/bin/time`) and then run
+   `python3 .chaos-engine/install.py doctor --project .`
+
+Expect install + healthy human doctor within **300 seconds**. CI attaches the
+fresh-account phase stopwatch from
+`scripts/ci/chaos_engine_live_installer_acceptance.py` as evidence on that
+reference profile. Local/CI fixture helper:
+
+`python3 scripts/ci/chaos_engine_empty_project_smoke.py --output /tmp/ce-smoke.json`
+
+If doctor is not healthy, follow every `fix-next` line, then open a GitHub
+issue and paste the full doctor output (including fix-next lines).
+
 ## Optional native Maven Tools MCP
 
 Do not put `docker run -i --rm` in a default stdio MCP configuration. Each

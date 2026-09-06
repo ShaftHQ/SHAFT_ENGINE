@@ -1628,6 +1628,29 @@ def run_acceptance(
                 fresh_project, fresh_account_root, environment=fresh_environment
             ),
         )
+        fresh_phase = evidence["phases"][-1]
+        smoke_elapsed = float(fresh_phase.get("durationSeconds") or 0)
+        smoke_budget = 300
+        evidence["emptyProjectSmoke"] = {
+            "profile": "portable-empty-project",
+            "referencePlatform": "linux",
+            "budgetSeconds": smoke_budget,
+            "elapsedSeconds": smoke_elapsed,
+            "phase": "fresh-account-candidate-wrapper",
+            "status": (
+                "passed"
+                if smoke_elapsed <= smoke_budget
+                else "budget-exceeded"
+            ),
+        }
+        # Soft on CI: record stopwatch evidence always. Hard 300s SLA is the
+        # documented Ubuntu reference expectation; live runners can exceed it
+        # under load without failing the broader acceptance matrix.
+        if smoke_elapsed > smoke_budget:
+            evidence["emptyProjectSmoke"]["status"] = "budget-exceeded"
+            evidence["emptyProjectSmoke"]["note"] = (
+                "exceeded documented 300s reference SLA; see INSTALL.md empty-project smoke"
+            )
         if all(action == "reused" for action in first_fresh["actions"].values()):
             raise RuntimeError("fresh account candidate install did not install isolated tools")
         if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":
