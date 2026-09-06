@@ -9,61 +9,13 @@
 # Install or upgrade ChaosEngine
 
 ChaosEngine is a portable, provider-neutral working contract for software
-agents. It routes work through research, planning, focused playbooks, empirical
-verification, independent adversarial review, and a durable learning session.
+agents. This page is the installation reference. See [`README.md`](README.md) for purpose and operating loop, and [`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md) for the always-loaded contract.
 
-This page is the direct installation reference. Start with the human-facing
-[`README.md`](README.md) for the purpose, operating loop, trust boundaries, and
-portable layout. The canonical operating model lives in
-[`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md), and the reusable
-vector masters and application rules live in the [identity guide](assets/brand/BRAND.md).
+## Golden path (first run)
 
-Give the following instruction to a coding agent while its working directory is
-the project you want to manage:
-
-> Install or upgrade ChaosEngine in this project from the latest commit of the
-> official upstream. Change into the target project first. Run
-> `chaos-engine/install.ps1` on Windows (`irm ... | iex`) or
-> `chaos-engine/install.sh` on macOS/Linux (`curl -fsSL ... | bash -s -- <same-url>`).
-> Those wrappers read the upstream owner/name from the invocation URL, then download
-> `bootstrap.py` and run the full install: hooks, skills,
-> companions, Memory, MemPalace, Graphify CLI, and doctor. Do not stop until
-> the active doctor reports the resolved 40-character commit and every
-> required component healthy. Treat the installed ChaosEngine skill as the
-> canonical harness and route any existing agent guidance through it without
-> deleting unrelated user content.
-
-That agent instruction owns the complete flow: the bootstrap installs the
-neutral core, latest compatible stable account tools, Memory and isolated MemPalace MCP servers,
-Graphify CLI, skills, playbooks, five role adapters, ChaosEngine lifecycle
-hooks, the pinned Caveman and Ponytail companion skills and hooks, the MIT license
-and third-party notices, Codex and Claude plugin manifests/marketplaces for
-ChaosEngine plus those companions, retrieval configuration, and runtime ignore
-rules. Companion skills install with the core and load by default at runtime;
-user off-switches still win. When a detected client
-requires marketplace registration, the agent registers the project marketplace
-and installs `chaos-engine`, `caveman`, and `ponytail` at project local scope,
-then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
-remain untracked; canonical configuration and adapters remain trackable. A successful install prints a first-session brief naming what landed, what stayed untracked, and three next actions (open a host, load `chaos-engine`, run a sample task). Install success and human `doctor` also print five **host onboarding cards** (Claude Code/Codex marketplace+plugin vs Grok/Gemini/Copilot file/hook injection), each with an explicit gap line.
-Origin identity masters under `assets/brand/`, the origin adoption matrix
-`RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
-into the adopter payload. The installer also merges receipt-bound LF attributes for canonical harness paths,
-so Windows Git checkouts retain the exact owned bytes while unrelated
-`.gitattributes` rules remain untouched.
-
-The payload includes the optional
-[`omniroute` skill](skills/omniroute/SKILL.md) and its standard-library runner.
-This copies integration capability only: installation never installs, starts,
-configures, authenticates, or requires OmniRoute. Without a qualified local
-service, canonical [execution workflows](references/execution-workflows.md)
-continue through native implementers or `SOLO`.
-
-The canonical one-liners below use the official `ShaftHQ/SHAFT_ENGINE` upstream
-URLs. The scripts parse their invocation URL and do not copy that identity into
-the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file override when
-the invocation URL cannot be parsed (for example when you run `install.sh` from a
-checked-out tree). Change into the target project or folder first; both scripts
-install into the current working directory.
+1. Change into the project directory you want ChaosEngine to manage.
+2. Run exactly one of these one-liners (Python is not required beforehand).
+3. When it finishes, run human doctor and confirm it reports healthy.
 
 Windows PowerShell, using [install.ps1](install.ps1):
 
@@ -76,6 +28,23 @@ macOS or Linux, using [install.sh](install.sh):
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
+
+Verify:
+
+```text
+python3 .chaos-engine/install.py doctor --project .
+```
+
+On Windows use py -3 instead of python3. A successful install also prints a
+first-session brief and five host onboarding cards. You can stop reading here
+for a normal first install.
+
+## Advanced topics
+
+Everything below is optional on first run: agent install instruction, payload
+details, OmniRoute, identity/portability, interactive flags, Maven Tools,
+uninstall/rollback, and empty-project smoke.
+
 
 Python is not required before either command. The wrapper bootstraps Python as
 needed. The installer then discovers the invoking account's tools, resolves

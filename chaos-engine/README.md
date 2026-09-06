@@ -68,6 +68,8 @@ guidance out of the always-loaded context until it is needed.
 
 ## Install
 
+**First run:** change into your project, run the one-liner below, then `python3 .chaos-engine/install.py doctor --project .` (Windows: `py -3`). Stop there unless you need advanced flags — details live in [INSTALL.md § Golden path](INSTALL.md#golden-path-first-run).
+
 Start with the full [installation and upgrade guide](INSTALL.md). The safest
 flow resolves a configured upstream branch to an immutable commit, downloads
 only that commit's validated `chaos-engine/` subtree, and installs ChaosEngine
