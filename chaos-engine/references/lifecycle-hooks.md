@@ -34,6 +34,18 @@ SessionStart output still apply companions through entrypoint load.
 ChaosEngine selects ultra through every supported host adapter.
 
 
+
+## SessionStart locator-only budget
+
+SessionStart must inject compact locators (entrypoint activation, reflection
+token, companion intensity, Caveman/Ponytail paths) — never full skill bodies
+or retrieval store dumps. The portable builder is
+`hooks/lifecycle.py:session_start_context`; the byte budget is
+`SESSION_START_MAX_BYTES` (4096). Progressive disclosure: agents read skill
+files from those paths when needed. Hosts that ignore SessionStart still load
+companions through the entrypoint. See
+[Host Parity Matrix](host-parity-matrix.md).
+
 ## Blocking fidelity (exit 2)
 
 Security and policy denies must hard-block. ChaosEngine always returns process
