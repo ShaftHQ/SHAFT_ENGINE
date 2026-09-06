@@ -75,6 +75,23 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Dependabot/GHSA: Boot manages tomcat-embed-core below the fixed 11.0.25
+                 floor. Direct entries after the Boot BOM import outrank it on shaft-mcp. -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>11.0.25</version>
+            </dependency>
             <!-- GHSA alert #154: spring-boot-dependencies manages org.postgresql:postgresql at
                  42.7.11 (vulnerable, GHSA), which overrides shaft-engine's own direct 42.7.13 pin
                  (shaft-engine/pom.xml) once shaft-mcp imports the Boot BOM above. Direct entries
