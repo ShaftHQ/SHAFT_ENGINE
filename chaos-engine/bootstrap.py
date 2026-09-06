@@ -609,6 +609,76 @@ def confirm_operation(operation: str, *, input_stream, output) -> None:
         raise InstallCancelled(f"ChaosEngine installation cancelled before {operation}")
 
 
+HOST_DETECT_COMMANDS = (
+    ("claude", "claude", "Claude Code"),
+    ("codex", "codex", "Codex"),
+    ("grok", "grok", "Grok"),
+    ("gemini", "gemini", "Gemini"),
+    ("copilot", "gh", "GitHub Copilot"),
+)
+
+HOST_NEXT_ACTIONS = {
+    "claude": "Open Claude Code in this project and ask it to use the chaos-engine skill.",
+    "codex": "Start a Codex session in this project and ask it to use chaos-engine.",
+    "grok": "Open Grok in this project and ask it to follow AGENTS.md / chaos-engine.",
+    "gemini": "Open Gemini CLI in this project and ask it to use the chaos-engine skill.",
+    "copilot": "Open this repo in an IDE with GitHub Copilot and ask Copilot to use chaos-engine.",
+}
+
+
+def detect_install_hosts(*, which=shutil.which) -> list[tuple[str, str, bool]]:
+    """Return (id, label, detected) for the five supported hosts."""
+    detected: list[tuple[str, str, bool]] = []
+    for host_id, command, label in HOST_DETECT_COMMANDS:
+        found = which(command) is not None
+        if host_id == "copilot" and not found:
+            # Copilot is IDE-hosted; treat a present `code`/`cursor` CLI as a soft signal.
+            found = which("code") is not None or which("cursor") is not None
+        detected.append((host_id, label, found))
+    return detected
+
+
+def run_first_run_wizard(
+    *,
+    project: Path,
+    repository: str,
+    with_maven_tools: bool,
+    input_stream,
+    output,
+    which=shutil.which,
+) -> None:
+    """Guide a first-time interactive install before any network work."""
+    hosts = detect_install_hosts(which=which)
+    present = [label for _host_id, label, found in hosts if found]
+    absent = [label for _host_id, label, found in hosts if not found]
+    output.write("ChaosEngine first-run wizard\n")
+    output.write(f"Project: {project}\n")
+    output.write(f"Upstream: {repository}\n")
+    output.write(
+        "This install will add the portable ChaosEngine core, lifecycle hooks, "
+        "Memory, MemPalace, Graphify CLI, five host adapters, and the Caveman + "
+        "Ponytail companion skills (on by default; your off-switches still win).\n"
+    )
+    if with_maven_tools:
+        output.write("Maven Tools MCP will also be installed for this project.\n")
+    if present:
+        output.write("Detected host CLIs: " + ", ".join(present) + "\n")
+    else:
+        output.write(
+            "No host CLIs detected yet (Claude Code, Codex, Grok, Gemini, or IDE). "
+            "Adapters still install for all five hosts.\n"
+        )
+    if absent:
+        output.write("Not detected on PATH: " + ", ".join(absent) + "\n")
+    output.write("Next after install:\n")
+    for host_id, label, found in hosts:
+        marker = "*" if found else "-"
+        output.write(f"  {marker} {label}: {HOST_NEXT_ACTIONS[host_id]}\n")
+    output.flush()
+    confirm_operation("Install companions (Caveman + Ponytail) with the core", input_stream=input_stream, output=output)
+    confirm_operation("Continue ChaosEngine install", input_stream=input_stream, output=output)
+
+
 @contextmanager
 def interactive_terminal():
     path = "CONIN$" if os.name == "nt" else os.path.join(os.sep, "dev", "tty")
@@ -887,6 +957,14 @@ def install_latest(
             terminal_input = None
     except OSError as error:
         raise RuntimeError("interactive mode requires a usable controlling terminal") from error
+    if terminal_input is not None:
+        run_first_run_wizard(
+            project=project,
+            repository=repository,
+            with_maven_tools=with_maven_tools,
+            input_stream=terminal_input,
+            output=reporter.stream,
+        )
     def confirm(name: str) -> None:
         if terminal_input is not None:
             confirm_operation(name, input_stream=terminal_input, output=reporter.stream)

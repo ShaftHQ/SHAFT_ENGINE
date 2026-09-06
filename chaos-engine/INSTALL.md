@@ -114,6 +114,11 @@ an immutable commit and downloads only its validated `chaos-engine/` subtree;
 `portable` is already the default and need not be supplied. Restart any client
 that was open during installation so it loads its verified local plugin cache.
 
+Pass `--interactive` on macOS/Linux (PowerShell `-Interactive`) for the first-run
+wizard: it detects host CLIs, explains what will be installed (including Caveman +
+Ponytail companions), and prints a host-specific next-actions checklist before any
+download. The non-interactive one-liner path is unchanged.
+
 Set `CHAOS_ENGINE_BRANCH` to override the repository's configured default
 branch (otherwise `main`). The bootstrap resolves that mutable branch through
 the GitHub API, downloads the exact commit's declared harness files, rejects
