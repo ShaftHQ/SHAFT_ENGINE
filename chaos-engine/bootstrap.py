@@ -1346,6 +1346,7 @@ def emit_install_failure(
             if trace.is_file():
                 print(f"Install trace: {trace}", file=sys.stderr)
         except OSError:
+            # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
             pass
     print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
     prefix = installer_cli_prefix(project)
@@ -1430,6 +1431,7 @@ def emit_install_failure(
                             snippet,
                         )
             except OSError:
+                # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
                 pass
         body = "\n".join(
             (
