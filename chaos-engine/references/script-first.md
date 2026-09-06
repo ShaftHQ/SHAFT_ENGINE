@@ -1,5 +1,7 @@
 # Script first
 
+Catalog of shipped zero-LLM paths: [zero-llm-catalog.md](zero-llm-catalog.md).
+
 Load this when an investigation would otherwise become a long chain of
 overlapping tool calls. Prefer one deterministic program or focused test over
 fifteen hops that restate the same question.

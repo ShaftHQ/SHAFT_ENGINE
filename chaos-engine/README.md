@@ -673,6 +673,9 @@ reports, caches, runtime indexes, or `graphify-out/`.
 
 ## Read next
 
+- [Zero-LLM catalog](references/zero-llm-catalog.md) — deterministic doctor/install/repair paths.
+
+
 - [Token budget modes](references/token-budget-modes.md) — ultra-lean | balanced | deep.
 
 
