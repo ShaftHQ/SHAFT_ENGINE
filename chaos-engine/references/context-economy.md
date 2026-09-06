@@ -1,5 +1,7 @@
 # Context economy
 
+Owner-selectable budgets: [token budget modes](token-budget-modes.md) (`ultra-lean` | `balanced` | `deep`).
+
 Load this when a task will make many tool calls, return large outputs, or run
 long enough that context rot becomes the next failure mode. Host compaction is
 the host's job. This page teaches the agent how to stay under it.

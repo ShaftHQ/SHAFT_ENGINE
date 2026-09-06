@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import io
 import json
 import sys
@@ -13,6 +14,55 @@ from pathlib import Path
 COMPANION_NAMES = ("caveman", "ponytail")
 # Hard budget for SessionStart additionalContext (#5580). Locators only.
 SESSION_START_MAX_BYTES = 4096
+TOKEN_BUDGET_DEFAULT = "balanced"
+TOKEN_BUDGET_MODES = {
+    "ultra-lean": {
+        "read_line_budget": 80,
+        "guidance": (
+            "Token budget ultra-lean: ≤80-line excerpts; one search; script-first. "
+            "Details: chaos-engine/references/token-budget-modes.md"
+        ),
+    },
+    "balanced": {
+        "read_line_budget": 200,
+        "guidance": (
+            "Token budget balanced (default): ≤200-line excerpts; narrow once after "
+            "truncation; prefer path+excerpt over dumps; script-first when multi-hop. "
+            "Details: chaos-engine/references/token-budget-modes.md"
+        ),
+    },
+    "deep": {
+        "read_line_budget": 400,
+        "guidance": (
+            "Token budget deep: ≤400-line excerpts; allow a second discriminating pass "
+            "before deciding; spill large tool output to disk; still prefer script-first "
+            "for mechanical transforms; keep safety and negation intact. "
+            "Details: chaos-engine/references/token-budget-modes.md"
+        ),
+    },
+}
+
+
+def resolve_token_budget_mode(environ: Mapping[str, str] | None = None) -> str:
+    """Return the owner-selected token budget mode (default balanced)."""
+    env = environ if environ is not None else os.environ
+    raw = str(env.get("CHAOS_ENGINE_TOKEN_BUDGET") or TOKEN_BUDGET_DEFAULT).strip().casefold()
+    # Accept common aliases
+    aliases = {"lean": "ultra-lean", "ultra_lean": "ultra-lean", "default": "balanced"}
+    raw = aliases.get(raw, raw)
+    if raw not in TOKEN_BUDGET_MODES:
+        return TOKEN_BUDGET_DEFAULT
+    return raw
+
+
+def token_budget_guidance(mode: str | None = None) -> str:
+    """Return the compact guidance string for a mode (fixture + SessionStart)."""
+    selected = mode or TOKEN_BUDGET_DEFAULT
+    if selected not in TOKEN_BUDGET_MODES:
+        selected = TOKEN_BUDGET_DEFAULT
+    return str(TOKEN_BUDGET_MODES[selected]["guidance"])
+
+
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
     "Off only: stop caveman, stop ponytail, or normal mode."
@@ -87,6 +137,7 @@ def session_start_context(token: str | None, activation: str) -> str:
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
     parts.append(ULTRA_SELECTOR)
+    parts.append(token_budget_guidance(resolve_token_budget_mode()))
     for name in COMPANION_NAMES:
         for root in _search_roots():
             path = next(
