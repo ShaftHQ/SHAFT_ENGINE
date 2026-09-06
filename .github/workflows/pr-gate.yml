@@ -160,6 +160,9 @@ jobs:
               # moves, so a change to them has to run this gate.
               - 'scripts/ci/watch_pr_checks.py'
               - 'scripts/ci/local_gate.py'
+              - 'scripts/ci/accessibility_quality_gates.py'
+              - 'tests/fixtures/accessibility_quality_gates_sample.json'
+              - 'tests/scripts/test_accessibility_quality_gates.py'
               - 'scripts/ci/agent_guidance_budget.json'
               - 'scripts/ci/agent_harness_parity.json'
               - 'tests/scripts/test_agent_router_contract.py'

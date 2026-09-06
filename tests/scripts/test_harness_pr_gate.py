@@ -77,6 +77,13 @@ class ClassifierTest(unittest.TestCase):
         )
 
         self.assertEqual(("documentation", "identities"), documentation.surfaces)
+
+        accessibility = classify_paths(["scripts/ci/accessibility_quality_gates.py"])
+        self.assertIn("accessibility", accessibility.surfaces)
+        self.assertIn(
+            "accessibility-contract",
+            {check.id for check in accessibility.checks},
+        )
         self.assertEqual(
             {
                 "documentation-inventory-contract",
