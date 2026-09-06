@@ -188,12 +188,11 @@ not make project health fail.
 Reference profile: brand-new empty directory on **Ubuntu 22.04** with Python 3.13
 and no prior ChaosEngine install.
 
-```bash
-mkdir /tmp/ce-empty-smoke && cd /tmp/ce-empty-smoke
-/usr/bin/time -f 'elapsed_sec=%e' bash -lc \
-  'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
-python3 .chaos-engine/install.py doctor --project .
-```
+1. `mkdir /tmp/ce-empty-smoke && cd /tmp/ce-empty-smoke`
+2. Run the **same macOS/Linux one-liner** from the Install section above (do not
+   duplicate it here — keep a single documented URL).
+3. Time it (`time` / `/usr/bin/time`) and then run
+   `python3 .chaos-engine/install.py doctor --project .`
 
 Expect install + healthy human doctor within **300 seconds**. CI attaches the
 fresh-account phase stopwatch from
