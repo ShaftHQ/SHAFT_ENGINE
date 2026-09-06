@@ -3388,6 +3388,11 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--project", required=True, type=Path)
         if name in {"status", "doctor"}:
             command.add_argument("--json", action="store_true")
+            command.add_argument(
+                "--fix-next-only",
+                action="store_true",
+                help="Print only fix-next repair lines (zero-LLM / script-first).",
+            )
     explain = commands.add_parser("explain")
     explain.add_argument("event")
     explain.add_argument("--project", required=True, type=Path)
@@ -3563,6 +3568,30 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
     return lines
 
 
+
+def format_fix_next_only(document: dict[str, object]) -> str:
+    """Emit only actionable fix-next lines for unhealthy components (#5582)."""
+    components = document.get("components")
+    lines: list[str] = []
+    if isinstance(components, dict):
+        for name in sorted(str(item) for item in components):
+            item = components[name]
+            if not isinstance(item, dict):
+                continue
+            if _component_severity(item) == "ok":
+                continue
+            fix = component_fix_next(name, item)
+            if fix:
+                lines.append(f"{name}: {fix}")
+    lines.extend(
+        line.split("warning  ", 1)[-1]
+        if line.startswith("warning  ")
+        else line
+        for line in format_blocking_fidelity_warnings(document)
+    )
+    return ("\n".join(lines) + "\n") if lines else ""
+
+
 def format_health_report(document: dict[str, object], *, kind: str | None = None) -> str:
     """Render a short healthy summary or a scannable failure list with fix-next lines."""
     label = kind or str(document.get("kind") or "doctor")
@@ -3615,6 +3644,8 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
 def validate_install_options(args: argparse.Namespace) -> None:
     if getattr(args, "skip_tools", False) and getattr(args, "with_maven_tools", False):
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
+    if getattr(args, "json", False) and getattr(args, "fix_next_only", False):
+        raise ValueError("--fix-next-only cannot be combined with --json")
 
 
 def main() -> int:
@@ -3718,7 +3749,10 @@ def main() -> int:
     if args.command in {"status", "doctor"} and not getattr(args, "json", False):
         if not isinstance(result, dict):
             raise TypeError("doctor/status result must be an object")
-        print(format_health_report(result, kind=args.command), end="")
+        if getattr(args, "fix_next_only", False):
+            print(format_fix_next_only(result), end="")
+        else:
+            print(format_health_report(result, kind=args.command), end="")
         if args.command == "doctor":
             clients = result.get("clients")
             print(
