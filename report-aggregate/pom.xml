@@ -20,6 +20,29 @@
         <skipPublishing>true</skipPublishing>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <!-- Dependabot attributes tomcat-embed-core alerts to this module via shaft-mcp.
+                 Pin here so the report-aggregate graph resolves 11.0.25 without waiting on
+                 a published shaft-mcp POM. Keep in sync with shaft-mcp/pom.xml. -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
