@@ -183,6 +183,35 @@ has a root `pom.xml`. On non-Maven projects it stays optional and absent does
 not make project health fail.
 
 
+
+## Uninstall / rollback (first-time recovery)
+
+Use these when a first install goes wrong and you need a clean retry.
+
+### Commands
+
+- doctor: python3 .chaos-engine/install.py doctor --project .
+- rollback: python3 .chaos-engine/install.py rollback --project .
+- uninstall: python3 .chaos-engine/install.py uninstall --project .
+
+On Windows, use py -3 instead of python3. Prefer rollback for a bad upgrade; prefer uninstall then the one-liner for a wiped or drifted tree.
+
+### What is removed vs retained
+
+Removed (receipt-owned): portable core tree; CE-owned host adapters; CE-owned dependency/runtime generations; CE install journals/locks.
+
+Retained: user-account packages; project knowledge data; shared Maven Tools MCP cache; unrelated project files.
+
+Mixed or unknown ownership fails closed. Knowledge stores are never deleted by uninstall or rollback.
+
+### Clean reinstall after a bad first run
+
+1. Run human doctor and follow each fix-next line.
+2. If rollback is available, rollback then rerun the Install one-liner.
+3. Otherwise uninstall, confirm retained knowledge data if needed, then rerun the Install one-liner.
+4. Restart open hosts and re-run doctor.
+
+
 ## Empty-project smoke (< 5 minutes)
 
 Reference profile: brand-new empty directory on **Ubuntu 22.04** with Python 3.13
