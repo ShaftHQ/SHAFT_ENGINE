@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import importlib.util
 import json
 import os
@@ -123,7 +124,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "recovery-required"):
                     module.mempalace_mcp_arguments(core, [])
 
-    def test_tool_launcher_uses_primary_checkout_only_at_origin_main(self):
+    def test_tool_launcher_uses_primary_checkout_without_sync_gate(self):
         module = load_tool()
         with tempfile.TemporaryDirectory() as temporary:
             worktree = Path(temporary)
@@ -133,26 +134,101 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             with mock.patch.object(
                 module.subprocess,
                 "run",
-                side_effect=(
-                    SimpleNamespace(stdout="/repo/.git\n"),
-                    SimpleNamespace(stdout="a" * 40 + "\n" + "a" * 40 + "\n"),
-                ),
+                return_value=SimpleNamespace(stdout="/repo/.git\n"),
             ):
                 self.assertEqual(Path("/repo"), module.shared_project_root(worktree))
 
-            with mock.patch.object(
-                module.subprocess,
-                "run",
-                side_effect=(
-                    SimpleNamespace(stdout="/repo/.git\n"),
-                    SimpleNamespace(stdout="a" * 40 + "\n" + "b" * 40 + "\n"),
-                ),
-            ):
-                with self.assertRaisesRegex(ValueError, "not synchronized with origin/main"):
-                    module.shared_project_root(worktree)
-
             resolver.unlink()
             self.assertEqual(worktree.resolve(), module.shared_project_root(worktree))
+
+    def test_tool_origin_main_policy_hard_fails_memory_with_fix_next(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            worktree = Path(temporary)
+            resolver = worktree / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture\n", encoding="utf-8")
+            head = "a" * 40
+            origin = "b" * 40
+            with mock.patch.object(
+                module,
+                "shared_project_root",
+                return_value=Path("/repo"),
+            ), mock.patch.object(
+                module,
+                "origin_main_revisions",
+                return_value=(head, origin),
+            ):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    r"HEAD \(" + head + r"\) != origin/main \(" + origin + r"\).*"
+                    r"not synchronized with origin/main.*"
+                    r"fix-next: git fetch origin main && git merge --ff-only origin/main",
+                ):
+                    module.enforce_tool_origin_main_policy(worktree, "memory")
+                with self.assertRaisesRegex(ValueError, "fix-next: git fetch origin main"):
+                    module.enforce_tool_origin_main_policy(worktree, "memory-mcp")
+
+    def test_tool_origin_main_policy_soft_warns_advisory_tools(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            worktree = Path(temporary)
+            resolver = worktree / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture\n", encoding="utf-8")
+            head = "a" * 40
+            origin = "b" * 40
+            with mock.patch.object(
+                module,
+                "shared_project_root",
+                return_value=Path("/repo"),
+            ), mock.patch.object(
+                module,
+                "origin_main_revisions",
+                return_value=(head, origin),
+            ):
+                for tool in ("mempalace", "mempalace-mcp", "graphify"):
+                    with mock.patch.object(module.sys, "stderr", new_callable=io.StringIO) as stderr:
+                        module.enforce_tool_origin_main_policy(worktree, tool)
+                        warning = stderr.getvalue()
+                        self.assertIn("warning:", warning)
+                        self.assertIn(f"HEAD ({head}) != origin/main ({origin})", warning)
+                        self.assertIn("fix-next: git fetch origin main && git merge --ff-only origin/main", warning)
+                # uv is neither Memory nor advisory: stay silent and proceed
+                with mock.patch.object(module.sys, "stderr", new_callable=io.StringIO) as stderr:
+                    module.enforce_tool_origin_main_policy(worktree, "uv")
+                    self.assertEqual("", stderr.getvalue())
+
+    def test_tool_origin_main_policy_skips_non_shaft_projects(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            with mock.patch.object(module, "origin_main_revisions") as revisions:
+                module.enforce_tool_origin_main_policy(project, "memory")
+                revisions.assert_not_called()
+
+    def test_resolve_command_applies_origin_main_policy_before_dispatch(self):
+        module = load_tool()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine"
+            core.mkdir()
+            (core / "dependencies.py").write_text(
+                "def active_dispatch(project, tool, arguments):\n"
+                "    return [tool, *arguments]\n",
+                encoding="utf-8",
+            )
+            resolver = project / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture\n", encoding="utf-8")
+            with mock.patch.object(
+                module, "shared_project_root", return_value=project
+            ), mock.patch.object(
+                module, "enforce_tool_origin_main_policy"
+            ) as enforce:
+                command = module.resolve_command(core, "graphify", ["status"])
+            self.assertEqual(["graphify", "status"], command)
+            enforce.assert_called_once_with(project, "graphify")
 
     def test_tool_launcher_rejects_relative_resolver_output_before_resolve(self):
         module = load_tool()

@@ -11,10 +11,14 @@ from pathlib import Path
 
 
 TOOLS = {"uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}
+# Memory writes the shared origin/main store; advisory tools may still query when doctor-healthy.
+MEMORY_ORIGIN_MAIN_TOOLS = frozenset({"memory", "memory-mcp"})
+ADVISORY_ORIGIN_MAIN_TOOLS = frozenset({"mempalace", "mempalace-mcp", "graphify"})
+ORIGIN_MAIN_SYNC_FIX_NEXT = "git fetch origin main && git merge --ff-only origin/main"
 
 
 def shared_project_root(project: Path) -> Path:
-    """Resolve the primary checkout pinned to its current origin/main."""
+    """Resolve the primary checkout that owns shared MemPalace / Memory / Graphify state."""
     if not (project / "tools/repository-map/resolve_mempalace.py").is_file():
         return project.resolve()
     completed = subprocess.run(  # nosec B603 - fixed Git query, no shell.
@@ -27,7 +31,11 @@ def shared_project_root(project: Path) -> Path:
     common = Path(completed.stdout.strip())
     if not common.is_absolute():
         common = (project / common).resolve()
-    root = common.parent.resolve()
+    return common.parent.resolve()
+
+
+def origin_main_revisions(root: Path) -> tuple[str, str]:
+    """Return (HEAD, refs/remotes/origin/main) for the primary checkout."""
     revisions = subprocess.run(  # nosec B603 - fixed Git query, no shell.
         ["git", "rev-parse", "HEAD", "refs/remotes/origin/main"],
         cwd=root,
@@ -35,9 +43,35 @@ def shared_project_root(project: Path) -> Path:
         text=True,
         check=True,
     ).stdout.splitlines()
-    if len(revisions) != 2 or revisions[0] != revisions[1]:
-        raise ValueError("shared project Memory is not synchronized with origin/main")
-    return root
+    if len(revisions) != 2:
+        raise ValueError(
+            "primary checkout HEAD and origin/main could not both be resolved "
+            f"(not synchronized with origin/main). fix-next: {ORIGIN_MAIN_SYNC_FIX_NEXT}"
+        )
+    return revisions[0], revisions[1]
+
+
+def origin_main_desync_message(head: str, origin_main: str) -> str:
+    """Name HEAD != origin/main and print the fast-forward fix-next (#5591)."""
+    return (
+        f"primary checkout HEAD ({head}) != origin/main ({origin_main}) "
+        f"(not synchronized with origin/main). fix-next: {ORIGIN_MAIN_SYNC_FIX_NEXT}"
+    )
+
+
+def enforce_tool_origin_main_policy(project: Path, tool: str) -> None:
+    """Hard-fail Memory tools when HEAD != origin/main; soft-warn advisory tools."""
+    if not (project / "tools/repository-map/resolve_mempalace.py").is_file():
+        return
+    root = shared_project_root(project)
+    head, origin_main = origin_main_revisions(root)
+    if head == origin_main:
+        return
+    message = origin_main_desync_message(head, origin_main)
+    if tool in MEMORY_ORIGIN_MAIN_TOOLS:
+        raise ValueError(message)
+    if tool in ADVISORY_ORIGIN_MAIN_TOOLS:
+        print(f"warning: {message}", file=sys.stderr)
 
 
 def load_host_controller(installed_root: Path):
@@ -83,7 +117,9 @@ def resolve_command(
 ) -> list[str]:
     if tool not in TOOLS:
         raise ValueError(f"unsupported ChaosEngine tool: {tool}")
-    project = shared_project_root(installed_root.resolve().parent)
+    installed_project = installed_root.resolve().parent
+    project = shared_project_root(installed_project)
+    enforce_tool_origin_main_policy(installed_project, tool)
     path = installed_root / "dependencies.py"
     if not path.is_file():
         raise ValueError("ChaosEngine dependency controller could not be loaded")
