@@ -111,8 +111,9 @@ path-unique local marketplace registration and cached plugin.
   run the portable bootstrap. This deliberate reinstall prevents old
   repository-specific payloads from surviving in the rollback backup.
 - **Inspect:** run
-  `python .chaos-engine/install.py status --project . --json`. JSON schema v2
-  is deterministic and omits paths and credential-shaped fields.
+  `python .chaos-engine/install.py doctor --project .` for a short human health
+  summary (with `fix-next` on failures), or add `--json` / use `status` for the
+  deterministic schema v2 contract (omits paths and credential-shaped fields).
 - **Explain:** run
   `python .chaos-engine/install.py explain Stop --project . --host codex --json`
   to evaluate one event without reading ambient session state.

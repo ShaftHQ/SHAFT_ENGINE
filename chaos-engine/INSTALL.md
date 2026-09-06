@@ -173,7 +173,10 @@ non-Git directory. ChaosEngine installs project-locally and does not infer its
 upstream from the consumer repository.
 
 `status` and `doctor` report every component with its `owner`, `scope`,
-`lifecycle`, and `taskImpact`. Memory, MemPalace, and Graphify are advisory to
+`lifecycle`, and `taskImpact`. Without `--json`, `doctor` (and `status`) print a
+short human summary when healthy, or a scannable failure list with one
+`fix-next` action per unhealthy component. Pass `--json` for the stable
+schema v2 machine contract. Memory, MemPalace, and Graphify are advisory to
 ordinary tasks but remain strict in `doctor`; an unhealthy selected store still
 returns `recovery-required`. Maven Tools MCP is auto-installed when the project
 has a root `pom.xml`. On non-Maven projects it stays optional and absent does

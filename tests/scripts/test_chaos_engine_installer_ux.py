@@ -27,6 +27,7 @@ def load(name: str, path: Path):
 
 
 BOOTSTRAP = load("chaos_engine_bootstrap_ux", ROOT / "chaos-engine/bootstrap.py")
+INSTALL = load("chaos_engine_install_ux", ROOT / "chaos-engine/install.py")
 
 
 class InstallerUxTests(unittest.TestCase):
@@ -918,6 +919,128 @@ class InstallerUxTests(unittest.TestCase):
         self.assertNotIn("tests.scripts.test_chaos_engine_live_installer_acceptance", block)
         summary = workflow[workflow.index("  summary:"):]
         self.assertIn("- chaos-installer-acceptance", summary)
+
+    def test_doctor_human_healthy_report_stays_short(self):
+        document = {
+            "schemaVersion": 2,
+            "identity": "chaos-engine",
+            "kind": "doctor",
+            "status": "healthy",
+            "commit": "a" * 40,
+            "components": {
+                "core": {"status": "healthy", "taskImpact": "required"},
+                "hooks": {"status": "healthy", "taskImpact": "required"},
+                "maven-tools-mcp": {"status": "absent", "taskImpact": "optional"},
+            },
+        }
+        rendered = INSTALL.format_health_report(document)
+        self.assertIn("ChaosEngine doctor: healthy", rendered)
+        self.assertIn("components: 3/3 healthy", rendered)
+        self.assertNotIn("fix-next", rendered)
+        self.assertNotIn("[error]", rendered)
+        self.assertLessEqual(len(rendered.splitlines()), 4)
+
+    def test_doctor_human_broken_fixture_prints_fix_next(self):
+        document = {
+            "schemaVersion": 2,
+            "identity": "chaos-engine",
+            "kind": "doctor",
+            "status": "recovery-required",
+            "commit": "b" * 40,
+            "components": {
+                "core": {
+                    "status": "recovery-required",
+                    "taskImpact": "required",
+                    "code": "CE_CORE_MISSING",
+                },
+                "hooks": {"status": "recovery-required", "taskImpact": "required"},
+                "memory": {"status": "recovery-required", "taskImpact": "advisory"},
+                "maven-tools-mcp": {"status": "absent", "taskImpact": "optional"},
+            },
+        }
+        rendered = INSTALL.format_health_report(document)
+        self.assertIn("ChaosEngine doctor: recovery-required", rendered)
+        self.assertIn("components: 1/4 healthy", rendered)
+        self.assertIn("[error] core", rendered)
+        self.assertIn("code=CE_CORE_MISSING", rendered)
+        self.assertIn("[error] hooks", rendered)
+        self.assertIn("[warning] memory", rendered)
+        self.assertIn("(advisory)", rendered)
+        self.assertNotIn("[error] maven-tools-mcp", rendered)
+        self.assertGreaterEqual(rendered.count("fix-next:"), 3)
+        self.assertIn("Restore the `.chaos-engine/` core tree", rendered)
+        self.assertIn("Reinstall ChaosEngine hooks", rendered)
+
+    def test_doctor_cli_human_default_and_json_flag(self):
+        healthy = {
+            "schemaVersion": 2,
+            "identity": INSTALL.CANONICAL_IDENTITY,
+            "kind": "doctor",
+            "status": "healthy",
+            "commit": "c" * 40,
+            "distribution": "portable",
+            "policySha256": "0" * 64,
+            "kernel": {"status": "healthy"},
+            "hosts": {"status": "healthy"},
+            "dependencies": {"status": "healthy"},
+            "components": {"core": {"status": "healthy", "taskImpact": "required"}},
+            "clients": {},
+        }
+        broken = {
+            **healthy,
+            "status": "recovery-required",
+            "components": {
+                "hooks": {"status": "recovery-required", "taskImpact": "required"},
+            },
+        }
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(
+            INSTALL, "status_json", return_value=healthy
+        ), unittest.mock.patch.object(
+            INSTALL.sys, "stdout", stdout
+        ), unittest.mock.patch.object(
+            INSTALL.sys, "stderr", stderr
+        ), unittest.mock.patch.object(
+            INSTALL.sys,
+            "argv",
+            ["install.py", "doctor", "--project", "."],
+        ):
+            self.assertEqual(0, INSTALL.main())
+        human = stdout.getvalue()
+        self.assertIn("ChaosEngine doctor: healthy", human)
+        self.assertNotIn('"schemaVersion"', human)
+        self.assertEqual("", stderr.getvalue())
+
+        stdout = io.StringIO()
+        with unittest.mock.patch.object(
+            INSTALL, "status_json", return_value=broken
+        ), unittest.mock.patch.object(
+            INSTALL.sys, "stdout", stdout
+        ), unittest.mock.patch.object(
+            INSTALL.sys,
+            "argv",
+            ["install.py", "doctor", "--project", "."],
+        ):
+            self.assertEqual(0, INSTALL.main())
+        failing = stdout.getvalue()
+        self.assertIn("fix-next:", failing)
+        self.assertIn("[error] hooks", failing)
+
+        stdout = io.StringIO()
+        with unittest.mock.patch.object(
+            INSTALL, "status_json", return_value=healthy
+        ), unittest.mock.patch.object(
+            INSTALL.sys, "stdout", stdout
+        ), unittest.mock.patch.object(
+            INSTALL.sys,
+            "argv",
+            ["install.py", "doctor", "--project", ".", "--json"],
+        ):
+            self.assertEqual(0, INSTALL.main())
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual("doctor", payload["kind"])
+        self.assertEqual("healthy", payload["status"])
 
     def test_confirmation_callbacks_reach_dependencies_maven_and_activation(self):
         bootstrap = (ROOT / "chaos-engine/bootstrap.py").read_text(encoding="utf-8")

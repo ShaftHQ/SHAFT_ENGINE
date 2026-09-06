@@ -3390,6 +3390,172 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
+def _doctor_python_cli() -> str:
+    """Return the platform-local interpreter token used in fix-next commands."""
+    return "py -3" if os.name == "nt" else "python3"
+
+
+def _component_severity(item: dict[str, object]) -> str:
+    """Map one component record to a scannable severity for human doctor output."""
+    status = str(item.get("status") or "unknown")
+    impact = str(item.get("taskImpact") or "required")
+    if status == "healthy":
+        return "ok"
+    if status == "absent" and impact == "optional":
+        return "ok"
+    if status == "compatible-legacy":
+        return "info"
+    if status == "migration-required":
+        return "warning"
+    if impact == "advisory":
+        return "warning"
+    if impact == "optional":
+        return "info"
+    return "error"
+
+
+def _looks_like_fix_next(detail: object) -> bool:
+    if not isinstance(detail, str):
+        return False
+    lowered = detail.casefold()
+    return any(
+        token in lowered
+        for token in ("run ", "rerun ", "restore ", "reinstall", "install ", "`", "python")
+    ) and len(detail) <= 320
+
+
+def component_fix_next(name: str, item: dict[str, object]) -> str | None:
+    """Return one actionable fix-next string for an unhealthy component, else None."""
+    status = str(item.get("status") or "")
+    impact = str(item.get("taskImpact") or "required")
+    if status == "healthy" or (status == "absent" and impact == "optional"):
+        return None
+    detail = item.get("detail")
+    if _looks_like_fix_next(detail):
+        return str(detail).strip()
+    reason = item.get("reason")
+    if _looks_like_fix_next(reason):
+        return str(reason).strip()
+    code = item.get("code")
+    cli = _doctor_python_cli()
+    reinstall = (
+        f"Re-run the ChaosEngine install one-liner from INSTALL.md "
+        f"(or `{cli} .chaos-engine/bootstrap.py` from a source checkout), then "
+        f"`{cli} .chaos-engine/install.py doctor --project .`."
+    )
+    if code == "CE_CORE_MISSING" or name == "core":
+        return (
+            "Restore the `.chaos-engine/` core tree or reinstall; if the runtime "
+            "was wiped while host receipts remain, uninstall/reinstall after "
+            "clearing orphaned host state. " + reinstall
+        )
+    if name == "mempalace" and status == "migration-required":
+        return (
+            "Supply a fresh or valid SQLite-exact MemPalace palace "
+            "(operator-owned migration; ChaosEngine will not convert legacy "
+            "Chroma state). Then rerun doctor."
+        )
+    if name in {"tools", "memory", "mempalace", "graphify"} and status in {
+        "recovery-required",
+        "absent",
+        "broken",
+    }:
+        return (
+            f"Repair the `{name}` dependency/runtime (receipt + managed tools), "
+            f"then rerun `{cli} .chaos-engine/install.py doctor --project .`. "
+            + reinstall
+        )
+    if name == "hooks":
+        return (
+            "Reinstall ChaosEngine hooks, then reload/trust hooks in the active "
+            "host (for Grok: `grok inspect --json`, `/hooks-trust` if needed) "
+            f"and rerun `{cli} .chaos-engine/install.py doctor --project .`."
+        )
+    if name == "plugins" or name == "skills" or name == "roles":
+        return (
+            "Reinstall so project marketplace/plugins and skill adapters are "
+            f"republished, restart the client, then rerun "
+            f"`{cli} .chaos-engine/install.py doctor --project .`."
+        )
+    if name == "mcps":
+        return (
+            "Repair MCP launchers (`.mcp.json` / Codex config) via reinstall, "
+            f"then rerun `{cli} .chaos-engine/install.py doctor --project .`."
+        )
+    if name in {"retrieval-config", "projection-policy", "playbooks"}:
+        return (
+            f"Restore missing `{name}` files via reinstall, then rerun "
+            f"`{cli} .chaos-engine/install.py doctor --project .`."
+        )
+    if name == "maven-tools-mcp":
+        return (
+            "For Maven projects, rerun install with Maven Tools enabled "
+            "(`--with-maven-tools` or root `pom.xml`); otherwise optional absence "
+            "is fine."
+        )
+    if status == "migration-required":
+        return (
+            f"Complete the operator-owned migration for `{name}`, then rerun "
+            f"`{cli} .chaos-engine/install.py doctor --project .`."
+        )
+    if status == "compatible-legacy":
+        return (
+            f"`{name}` is compatible-legacy: uninstall then reinstall the portable "
+            "bootstrap when you are ready to leave the legacy payload."
+        )
+    return (
+        f"Inspect `{name}` (`status={status}`), repair or reinstall, then rerun "
+        f"`{cli} .chaos-engine/install.py doctor --project .`."
+    )
+
+
+def format_health_report(document: dict[str, object], *, kind: str | None = None) -> str:
+    """Render a short healthy summary or a scannable failure list with fix-next lines."""
+    label = kind or str(document.get("kind") or "doctor")
+    status = str(document.get("status") or "unknown")
+    commit = document.get("commit")
+    commit_text = commit if isinstance(commit, str) and commit else "unknown"
+    components = document.get("components")
+    rows: list[tuple[str, dict[str, object], str]] = []
+    if isinstance(components, dict):
+        for name in sorted(str(item) for item in components):
+            item = components[name]
+            if not isinstance(item, dict):
+                continue
+            rows.append((name, item, _component_severity(item)))
+    healthy = sum(1 for _n, _i, severity in rows if severity == "ok")
+    total = len(rows)
+    failures = [(name, item, severity) for name, item, severity in rows if severity != "ok"]
+    lines = [
+        f"ChaosEngine {label}: {status}",
+        f"commit: {commit_text}",
+    ]
+    if total:
+        lines.append(f"components: {healthy}/{total} healthy")
+    if not failures:
+        # Keep the happy path short for first-time users.
+        return "\n".join(lines) + "\n"
+    counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
+    for _name, _item, severity in failures:
+        counts[severity] = counts.get(severity, 0) + 1
+    summary = ", ".join(
+        f"{counts[key]} {key}" for key in ("error", "warning", "info") if counts.get(key)
+    )
+    lines.append(f"issues: {summary}")
+    lines.append("")
+    for name, item, severity in failures:
+        status_text = str(item.get("status") or "unknown")
+        impact = str(item.get("taskImpact") or "")
+        impact_suffix = f" ({impact})" if impact and impact != "required" else ""
+        code = item.get("code")
+        code_suffix = f" code={code}" if isinstance(code, str) and code else ""
+        lines.append(f"[{severity}] {name} — {status_text}{impact_suffix}{code_suffix}")
+        fix = component_fix_next(name, item)
+        if fix:
+            lines.append(f"  fix-next: {fix}")
+    return "\n".join(lines) + "\n"
+
+
 def validate_install_options(args: argparse.Namespace) -> None:
     if getattr(args, "skip_tools", False) and getattr(args, "with_maven_tools", False):
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
@@ -3446,14 +3612,14 @@ def main() -> int:
             uninstall_with_dependencies(args.project)
             result = {"status": "uninstalled"}
     except (OSError, RuntimeError, ValueError) as error:
+        message = str(error)
+        diagnostic_code = "CE_DIAGNOSTIC_UNAVAILABLE"
+        if "manifest is missing or invalid" in message or (
+            getattr(args, "project", None) is not None
+            and missing_core_with_installed_hosts(Path(args.project))
+        ):
+            diagnostic_code = "CE_CORE_MISSING"
         if getattr(args, "json", False):
-            message = str(error)
-            diagnostic_code = "CE_DIAGNOSTIC_UNAVAILABLE"
-            if "manifest is missing or invalid" in message or (
-                getattr(args, "project", None) is not None
-                and missing_core_with_installed_hosts(Path(args.project))
-            ):
-                diagnostic_code = "CE_CORE_MISSING"
             print(
                 json.dumps(
                     {
@@ -3470,8 +3636,34 @@ def main() -> int:
                 )
             )
         else:
-            print(str(error), file=sys.stderr)
+            print(f"ChaosEngine {args.command}: Blocked", file=sys.stderr)
+            print(f"reason: {message}", file=sys.stderr)
+            if diagnostic_code == "CE_CORE_MISSING":
+                print(
+                    "fix-next: "
+                    + component_fix_next(
+                        "core",
+                        {
+                            "status": "recovery-required",
+                            "code": "CE_CORE_MISSING",
+                            "taskImpact": "required",
+                        },
+                    ),
+                    file=sys.stderr,
+                )
+            elif args.command in {"status", "doctor"}:
+                cli = _doctor_python_cli()
+                print(
+                    f"fix-next: repair the install, then rerun "
+                    f"`{cli} .chaos-engine/install.py {args.command} --project .`.",
+                    file=sys.stderr,
+                )
         return 1
+    if args.command in {"status", "doctor"} and not getattr(args, "json", False):
+        if not isinstance(result, dict):
+            raise TypeError("doctor/status result must be an object")
+        print(format_health_report(result, kind=args.command), end="")
+        return 0
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return 0
 
