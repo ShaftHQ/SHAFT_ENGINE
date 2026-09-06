@@ -17,7 +17,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | Router skill (`chaos-engine`) | P | P | P | P | P |
 | Lifecycle hooks | A | A | A | A | A |
 | Exit-2 / blocking denial fidelity | A | A | G | A | G |
-| SessionStart locator-only / progressive disclosure | A | A | G | A | G |
+| SessionStart locator-only / progressive disclosure | A | A | A | A | A |
 | Skills discovery | A | A | A | A | A |
 | Companions (Caveman + Ponytail) | P | P | P | P | P |
 | Retrieval soft-degrade (Memory/MemPalace/Graphify) | P | P | P | P | P |
@@ -29,7 +29,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | ID | Host(s) | Severity | Gap | Evidence / next |
 | --- | --- | --- | --- | --- |
 | GAP-EXIT2 | Grok, Copilot | high | `HostCapability.process_exit2_honored=False`; ChaosEngine still returns deny exit 2 + native deny payload (`decision`/`permissionDecision`). Owner doctor surfaces `blockingGap`. | Proven by `tests/scripts/test_chaos_engine_exit2_fidelity.py`; fields on HOST_CAPABILITIES (#5579). |
-| GAP-SESSIONSTART | Grok, Copilot | medium | SessionStart locator-only / progressive disclosure is not proven equivalent; may inject more or less context. | Tracked by #5580. |
+| GAP-SESSIONSTART | — (cleared) | info | ChaosEngine emits identical locator-only SessionStart context (`SESSION_START_MAX_BYTES`=4096) on all five hosts; residual risk is a host ignoring SessionStart output (companions still load via entrypoint). | Proven by `tests/scripts/test_chaos_engine_sessionstart_locator_parity.py` (#5580). |
 | GAP-HOOK-TRUST | Grok | medium | Project hook trust (`/hooks-trust`, projectTrusted) can leave doctor recovery-required after install. | Host onboarding card + grok_runtime_status. |
 | GAP-MARKETPLACE-CLI | Claude, Codex | low | Marketplace/plugin auto-activation needs host CLI on PATH; absent CLI still installs adapters but activation is manual. | Onboarding cards. |
 | GAP-COPILOT-DETECT | Copilot | low | Detection is soft (`gh` / `code` / `cursor`); IDE/cloud hosting is outside install probes. | Onboarding card. |

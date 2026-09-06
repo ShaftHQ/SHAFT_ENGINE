@@ -11,6 +11,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 COMPANION_NAMES = ("caveman", "ponytail")
+# Hard budget for SessionStart additionalContext (#5580). Locators only.
+SESSION_START_MAX_BYTES = 4096
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
     "Off only: stop caveman, stop ponytail, or normal mode."
