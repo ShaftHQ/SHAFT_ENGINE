@@ -182,14 +182,27 @@ class InstallHealthError(RuntimeError):
 
     def __init__(self, phase: str, doctor: dict[str, object]):
         """Capture the failed phase and names of unhealthy components."""
-        super().__init__("ChaosEngine doctor did not report a healthy installation")
-        self.phase = phase
         components = doctor.get("components", {})
-        self.unhealthy = tuple(
+        unhealthy = tuple(
             name
             for name, value in components.items()
             if _component_blocks_health(value)
         ) if isinstance(components, dict) else ()
+        cli = "py -3" if os.name == "nt" else "python3"
+        if unhealthy:
+            detail = ", ".join(unhealthy)
+            super().__init__(
+                f"ChaosEngine doctor did not report a healthy installation "
+                f"(unhealthy: {detail}). Run: {cli} .chaos-engine/install.py doctor "
+                f"--project . --json"
+            )
+        else:
+            super().__init__(
+                "ChaosEngine doctor did not report a healthy installation. "
+                f"Run: {cli} .chaos-engine/install.py doctor --project . --json"
+            )
+        self.phase = phase
+        self.unhealthy = unhealthy
         commit = doctor.get("commit")
         self.observed_commit = commit if isinstance(commit, str) and COMMIT.fullmatch(commit) else None
         self.observed_components = observed_blocking_components(components)
@@ -537,12 +550,38 @@ class InstallReporter:
         *,
         repository: str,
     ) -> None:
-        del doctor, clients
+        commit = doctor.get("commit") if isinstance(doctor, dict) else None
+        if not isinstance(commit, str) or len(commit) != 40:
+            commit = None
+        doctor_status = doctor.get("status") if isinstance(doctor, dict) else None
+        if not isinstance(doctor_status, str) or not doctor_status:
+            doctor_status = "unknown"
+        components = doctor.get("components") if isinstance(doctor, dict) else None
+        healthy = 0
+        total = 0
+        if isinstance(components, dict):
+            for item in components.values():
+                if not isinstance(item, dict):
+                    continue
+                total += 1
+                if item.get("status") in {"healthy", "absent"}:
+                    healthy += 1
+        client_names = sorted(clients) if isinstance(clients, dict) else []
         self.close()
         self.stream.write(self._paint("  Summary", "36") + "\n")
         self.stream.write(
             "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!\n"
         )
+        if commit is not None:
+            self.stream.write(f"Resolved commit: {commit}\n")
+        if total:
+            self.stream.write(
+                f"Doctor: {doctor_status} ({healthy}/{total} components healthy)\n"
+            )
+        else:
+            self.stream.write(f"Doctor: {doctor_status}\n")
+        if client_names:
+            self.stream.write(f"Clients: {', '.join(client_names)}\n")
         self.stream.write(f"{installer_user_guide_url(repository)}\n")
         self.stream.write(f"Full install trace: {install_trace_path(project).as_posix()}\n")
         self.stream.flush()
@@ -1052,6 +1091,29 @@ def emit_install_failure(
         print("Rerun the same install command to continue.", file=sys.stderr)
     else:
         print(f"{code}: {one_line_cause(error)}", file=sys.stderr)
+        cause = one_line_cause(error).casefold()
+        if isinstance(error, InstallHealthError) or "doctor did not report" in cause:
+            print(
+                "Next fix: run doctor (below), repair the listed unhealthy components, "
+                "then rerun the same install one-liner.",
+                file=sys.stderr,
+            )
+        elif "checksum" in cause:
+            print(
+                "Next fix: check network/proxy interference, then rerun the same install one-liner.",
+                file=sys.stderr,
+            )
+        elif "timed out" in cause or "temporary failure" in cause or "network" in cause:
+            print(
+                "Next fix: restore network connectivity, then rerun the same install one-liner.",
+                file=sys.stderr,
+            )
+        elif "python" in cause and ("not found" in cause or "required" in cause):
+            print(
+                "Next fix: install Python 3 (or leave it absent so the wrapper bootstraps uv), "
+                "then rerun the same install one-liner.",
+                file=sys.stderr,
+            )
     print(file=sys.stderr)
     print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
     prefix = installer_cli_prefix(project)
