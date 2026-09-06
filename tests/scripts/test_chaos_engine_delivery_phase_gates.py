@@ -8,8 +8,8 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC = ROOT / "chaos-engine/references/delivery-phase-gates.md"
@@ -37,7 +37,7 @@ class DeliveryPhaseGatesTests(unittest.TestCase):
 
     def test_research_preflight_marker_round_trip(self):
         with tempfile.TemporaryDirectory() as temporary:
-            with mock.patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary}):
+            with unittest.mock.patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary}):
                 session = "research-gate-session"
                 self.assertFalse(self.reflection.has_research_preflight(session))
                 self.assertTrue(self.reflection.record_research_preflight(session))
@@ -60,7 +60,7 @@ class DeliveryPhaseGatesTests(unittest.TestCase):
                 "tool_name": "Bash",
                 "tool_input": {"command": "echo changed > out.txt"},
             }
-            with mock.patch.dict(os.environ, env, clear=False):
+            with unittest.mock.patch.dict(os.environ, env, clear=False):
                 code = guard._run_event(event, "claude")
                 self.assertEqual(2, code)
                 self.reflection.record_research_preflight("enforce-research")
