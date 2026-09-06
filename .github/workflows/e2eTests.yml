@@ -1424,7 +1424,7 @@ jobs:
         uses: actions/checkout@v7.0.1
 
       - name: Create Kubernetes Kind Cluster
-        uses: helm/kind-action@v1.14.0
+        uses: helm/kind-action@v1.15.0
         with:
           cluster_name: moon
           wait: 120s
