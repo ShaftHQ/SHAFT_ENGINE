@@ -122,7 +122,13 @@ def resolve_command(
     enforce_tool_origin_main_policy(installed_project, tool)
     path = installed_root / "dependencies.py"
     if not path.is_file():
-        raise ValueError("ChaosEngine dependency controller could not be loaded")
+        cli = "py -3" if os.name == "nt" else "python3"
+        raise ValueError(
+            "ChaosEngine dependency controller could not be loaded "
+            f"(wiped or incomplete `.chaos-engine` runtime). fix-next: run the "
+            f"ChaosEngine install one-liner from INSTALL.md, then "
+            f"`{cli} .chaos-engine/install.py doctor --project .`"
+        )
     controller = runpy.run_path(str(path), run_name="_chaos_engine_runtime_dependencies")
     return controller["active_dispatch"](project, tool, arguments or [])
 
