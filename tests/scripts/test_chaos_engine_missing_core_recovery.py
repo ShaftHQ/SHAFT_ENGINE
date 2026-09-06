@@ -15,7 +15,8 @@ class MissingCoreRecoveryTest(unittest.TestCase):
         import importlib.util
 
         spec = importlib.util.spec_from_file_location("chaos_engine_install", INSTALL)
-        assert spec is not None and spec.loader is not None
+        if spec is None or spec.loader is None:
+            raise AssertionError("failed to load chaos-engine install module")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         cls.install = module
