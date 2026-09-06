@@ -1,6 +1,6 @@
 # Install or upgrade ChaosEngine into the current directory.
 # Run this from the target project folder:
-#   irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex
+#   irm "https://raw.githubusercontent.com/<owner>/<repository>/main/chaos-engine/install.ps1" | iex
 [CmdletBinding()]
 param(
     [switch]$ParseOnly,
@@ -193,7 +193,7 @@ function Resolve-ChaosEngineSource {
             BootstrapUrl = "https://raw.githubusercontent.com/$envRepository/$ref/chaos-engine/bootstrap.py"
         }
     }
-    throw "Put owner/repository in the install URL (or set CHAOS_ENGINE_REPOSITORY for a local file run)."
+    throw "Could not derive owner/repository from the install URL. Pipe the raw.githubusercontent.com/<owner>/<repository>/.../install.ps1 URL through irm|iex (see chaos-engine/INSTALL.md), or set CHAOS_ENGINE_REPOSITORY=<owner>/<repository> for a local file run."
 }
 
 function Read-ChaosEngineUrl([string]$Url) {
@@ -233,7 +233,7 @@ function Read-ChaosEngineUrl([string]$Url) {
             Start-Sleep -Seconds $delay
         }
     }
-    throw "unable to download ChaosEngine bootstrap"
+    throw "Unable to download ChaosEngine bootstrap (network or URL). Check connectivity, then rerun the irm one-liner."
 }
 
 if ($ParseOnly) {

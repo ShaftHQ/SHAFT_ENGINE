@@ -24,8 +24,8 @@ the project you want to manage:
 > Install or upgrade ChaosEngine in this project from the latest commit of the
 > official upstream. Change into the target project first. Run
 > `chaos-engine/install.ps1` on Windows (`irm ... | iex`) or
-> `chaos-engine/install.sh` on macOS/Linux (`curl -fsSL ... | bash -s -- <url>`).
-> Those wrappers read owner/repository from the invocation URL, then download
+> `chaos-engine/install.sh` on macOS/Linux (`curl -fsSL ... | bash -s -- <same-url>`).
+> Those wrappers read the upstream owner/name from the invocation URL, then download
 > `bootstrap.py` and run the full install: hooks, skills,
 > companions, Memory, MemPalace, Graphify CLI, and doctor. Do not stop until
 > the active doctor reports the resolved 40-character commit and every
@@ -58,14 +58,12 @@ configures, authenticates, or requires OmniRoute. Without a qualified local
 service, canonical [execution workflows](references/execution-workflows.md)
 continue through native implementers or `SOLO`.
 
-The Windows example below uses an `owner/repository` placeholder; replace it
-with the upstream that hosts the wrapper. The macOS/Linux example constructs
-the official upstream URL without embedding source identity in the portable
-payload. The scripts parse their invocation URL and do not copy that identity
-into the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file
-override when the invocation URL cannot be parsed. Change into the target
-project or folder first; both scripts install into the current working
-directory.
+The canonical one-liners below use the official `ShaftHQ/SHAFT_ENGINE` upstream
+URLs. The scripts parse their invocation URL and do not copy that identity into
+the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file override when
+the invocation URL cannot be parsed (for example when you run `install.sh` from a
+checked-out tree). Change into the target project or folder first; both scripts
+install into the current working directory.
 
 Windows PowerShell, using [install.ps1](install.ps1):
 
@@ -101,13 +99,13 @@ cache purge removes only exact receipt-verified cache content.
 POSIX:
 
 ```bash
-url="https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"; curl -fsSL "$url" | bash -s -- "$url" --with-maven-tools
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"; curl -fsSL "$url" | bash -s -- "$url" --with-maven-tools
 ```
 
 PowerShell:
 
 ```powershell
-$installer = irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1"; & ([scriptblock]::Create($installer)) -WithMavenTools
+$installer = irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1"; & ([scriptblock]::Create($installer)) -WithMavenTools
 ```
 
 Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy

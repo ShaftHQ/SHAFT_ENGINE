@@ -158,8 +158,30 @@ class ChaosEngineInstallWrapperTest(unittest.TestCase):
             self.assertNotRegex(document, r"\bhaftHQ\b")
             self.assertNotRegex(document, r"(?<!S)HAFT_ENGINE")
             self.assertNotIn("$env:CHAOS_ENGINE_REPOSITORY/main", document)
+            self.assertNotIn(PLACEHOLDER, document)
+
+    def test_wrapper_errors_name_exact_next_fix_without_embedding_source_identity(self):
+        powershell = POWERSHELL.read_text(encoding="utf-8")
+        shell = SHELL.read_text(encoding="utf-8")
+        self.assertIn(
+            "Could not derive owner/repository from the install URL",
+            powershell,
+        )
+        self.assertIn(
+            "Could not derive owner/repository from the install URL",
+            shell,
+        )
+        self.assertIn("chaos-engine/INSTALL.md", powershell)
+        self.assertIn("chaos-engine/INSTALL.md", shell)
+        self.assertIn("Install curl, then rerun the one-liner", shell)
+        self.assertIn("Check connectivity, then rerun the irm one-liner", powershell)
+        self.assertNotIn("ShaftHQ", powershell)
+        self.assertNotIn("ShaftHQ", shell)
+        self.assertNotIn("shaft", powershell.casefold())
+        self.assertNotIn("shaft", shell.casefold())
 
     def test_shaft_profile_keeps_the_real_url_without_an_env_preamble(self):
+
         profile = (
             ROOT / "chaos-engine/profiles/shaft/entrypoint.md"
         ).read_text(encoding="utf-8")
