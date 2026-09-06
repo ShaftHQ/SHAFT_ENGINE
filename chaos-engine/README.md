@@ -124,6 +124,8 @@ path-unique local marketplace registration and cached plugin.
 
 Rollback and uninstall act only on receipt-owned ChaosEngine files. Mixed or
 unknown ownership fails closed instead of deleting unrelated project content.
+See [INSTALL.md — Uninstall / rollback](INSTALL.md#uninstall--rollback-first-time-recovery)
+for the removed-vs-retained table and clean-reinstall steps.
 
 ## Use it
 
