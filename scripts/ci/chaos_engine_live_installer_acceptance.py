@@ -1628,6 +1628,26 @@ def run_acceptance(
                 fresh_project, fresh_account_root, environment=fresh_environment
             ),
         )
+        fresh_phase = evidence["phases"][-1]
+        smoke_elapsed = float(fresh_phase.get("durationSeconds") or 0)
+        smoke_budget = 300
+        evidence["emptyProjectSmoke"] = {
+            "profile": "portable-empty-project",
+            "referencePlatform": "linux",
+            "budgetSeconds": smoke_budget,
+            "elapsedSeconds": smoke_elapsed,
+            "phase": "fresh-account-candidate-wrapper",
+            "status": (
+                "passed"
+                if smoke_elapsed <= smoke_budget
+                else "budget-exceeded"
+            ),
+        }
+        if sys.platform.startswith("linux") and smoke_elapsed > smoke_budget:
+            raise RuntimeError(
+                "empty-project smoke exceeded 300s on reference Linux profile: "
+                f"{smoke_elapsed}s"
+            )
         if all(action == "reused" for action in first_fresh["actions"].values()):
             raise RuntimeError("fresh account candidate install did not install isolated tools")
         if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":
