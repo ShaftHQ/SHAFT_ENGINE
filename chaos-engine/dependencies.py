@@ -2294,6 +2294,16 @@ def probe_active(
         execute(dispatch_command(generation, receipt, name, arguments), environment)
 
 
+def dependency_heal_fix_next() -> str:
+    """Actionable restore path when the dependency receipt/pointer is missing (#5586)."""
+    cli = "py -3" if os.name == "nt" else "python3"
+    return (
+        f"run the ChaosEngine install one-liner from INSTALL.md "
+        f"(or `{cli} chaos-engine/bootstrap.py` / `{cli} .chaos-engine/install.py install` "
+        f"from a source checkout), then `{cli} .chaos-engine/install.py doctor --project .`"
+    )
+
+
 def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]:
     """Resolve one account command, falling back to authenticated legacy generations."""
     project = project.absolute()
@@ -2308,14 +2318,28 @@ def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]
         if not resolved.is_file() or (os.name != "nt" and not os.access(resolved, os.X_OK)):
             raise ValueError(f"account dependency tool dispatch is unhealthy: {tool}")
         return [str(resolved), *arguments]
-    pointer = _read_pointer(project)
-    active = _validate_generation_record(pointer.get("active"))
-    generation, receipt = _authenticate_selected_generation(
-        project,
-        active,
-        active["specificationSha256"],
-        active["coreSha256"],
-    )
+    pointer_path = project / POINTER_NAME
+    if not (pointer_path.exists() or is_link_or_reparse(pointer_path)):
+        raise ValueError(
+            "dependency pointer is missing or invalid. "
+            f"fix-next: {dependency_heal_fix_next()}"
+        )
+    try:
+        pointer = _read_pointer(project)
+        active = _validate_generation_record(pointer.get("active"))
+        generation, receipt = _authenticate_selected_generation(
+            project,
+            active,
+            active["specificationSha256"],
+            active["coreSha256"],
+        )
+    except (OSError, ValueError) as error:
+        message = str(error)
+        if "fix-next:" in message.casefold():
+            raise
+        raise ValueError(
+            f"{message}. fix-next: {dependency_heal_fix_next()}"
+        ) from error
     return dispatch_command(generation, receipt, tool, arguments)
 
 

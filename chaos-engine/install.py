@@ -504,48 +504,132 @@ def try_verify_install(target: Path) -> dict[str, object] | None:
         return None
 
 
+def account_dependency_receipt_missing(project: Path) -> bool:
+    """True when the account dependency receipt is absent or unsafe to read."""
+    path = project / ".chaos-engine-dependencies.json"
+    if is_link_or_reparse(path):
+        return True
+    return not path.is_file()
+
+
+def _installed_hosts_receipt_payload(project: Path) -> dict[str, object] | None:
+    """Return the installed-phase host receipt payload, else None."""
+    receipt = project / ".chaos-engine-hosts.json"
+    if not receipt.is_file() or is_link_or_reparse(receipt):
+        return None
+    try:
+        payload = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if isinstance(payload, dict) and payload.get("phase") == "installed":
+        return payload
+    return None
+
+
 def missing_core_with_installed_hosts(project: Path) -> bool:
     """True when host receipt claims installed but the portable core tree is absent."""
     target = project / INSTALL_DIRECTORY
-    receipt = project / ".chaos-engine-hosts.json"
     if target.exists() or is_link_or_reparse(target):
         return False
-    if not receipt.is_file() or is_link_or_reparse(receipt):
-        return False
-    try:
-        payload = json.loads(receipt.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return False
-    return isinstance(payload, dict) and payload.get("phase") == "installed"
+    return _installed_hosts_receipt_payload(project) is not None
 
+
+def stale_host_state_after_wiped_runtime(project: Path) -> bool:
+    """True for rematerialized core with unbound host anchors (#5587).
+
+    Safe class requires a missing account dependency receipt. coreCommit mismatch
+    and live adapter drift alone are NOT enough (upgrade / fail-closed paths).
+    Quarantine when an active host anchor token does not match the installed
+    core hostToken — the wipe/rematerialize leftover that otherwise collides
+    after #5606 receipt-only quarantine.
+    """
+    if not account_dependency_receipt_missing(project):
+        return False
+    if missing_core_with_installed_hosts(project):
+        return True
+    target = project / INSTALL_DIRECTORY
+    if not target.exists() or is_link_or_reparse(target):
+        return False
+    if try_verify_install(target) is None:
+        return False
+    core_token = peek_host_token(target)
+    if core_token is None or not project.is_dir():
+        return False
+    for path in project.iterdir():
+        name = path.name
+        if not name.startswith(".chaos-engine-hosts.active-"):
+            continue
+        token = name[len(".chaos-engine-hosts.active-") :]
+        if re.fullmatch(r"[0-9a-f]{64}", token) is None:
+            return True
+        if token != core_token:
+            return True
+    return False
+
+
+def wiped_runtime_recovery_needed(project: Path) -> bool:
+    """Unified heal gate for missing-core and rematerialized-core stale hosts."""
+    return missing_core_with_installed_hosts(project) or stale_host_state_after_wiped_runtime(
+        project
+    )
+
+
+def _quarantine_state_path(state: Path, preferred: str) -> Path:
+    destination = state / preferred
+    if destination.exists() or is_link_or_reparse(destination):
+        stem = Path(preferred).stem
+        suffix = Path(preferred).suffix
+        destination = state / f"{stem}-{secrets.token_hex(4)}{suffix}"
+        if destination.exists() or is_link_or_reparse(destination):
+            raise ValueError(
+                f"ChaosEngine cannot quarantine orphaned host state: {destination}"
+            )
+    return destination
 
 
 def quarantine_orphaned_host_receipt(project: Path, reporter=None) -> Path | None:
-    """Move an installed host receipt aside when the portable core tree is gone.
+    """Move orphaned/stale host receipt (+ anchors) aside for safe reinstall.
 
-    A receipt with phase=installed makes hosts.install assume adapters/anchors
-    still exist. After a wiped `.chaos-engine`, that path fails; quarantining
-    lets curl|bash rematerialize core and reinstall hosts (#5606).
+    Covers (#5606): phase=installed host receipt with wiped `.chaos-engine`.
+    Extends (#5586/#5587): rematerialized core with missing dependency receipt and
+    stale host receipt/anchor (coreCommit or hostToken drift / verify failure).
+    Quarantining lets install rematerialize core and rebind hosts without
+    undocumented file surgery.
     """
-    if not missing_core_with_installed_hosts(project):
+    if not wiped_runtime_recovery_needed(project):
         return None
     receipt = project / ".chaos-engine-hosts.json"
-    reject_link_or_reparse(receipt)
     state = project / ".chaos-engine-state"
     state.mkdir(parents=True, exist_ok=True)
-    destination = state / "orphaned-hosts-receipt.json"
-    if destination.exists() or is_link_or_reparse(destination):
-        destination = state / f"orphaned-hosts-receipt-{secrets.token_hex(4)}.json"
-        if destination.exists() or is_link_or_reparse(destination):
-            raise ValueError(
-                f"ChaosEngine cannot quarantine orphaned host receipt: {destination}"
-            )
-    destination.write_bytes(receipt.read_bytes())
-    receipt.unlink()
+    destination: Path | None = None
+    if receipt.exists() or is_link_or_reparse(receipt):
+        reject_link_or_reparse(receipt)
+        destination = _quarantine_state_path(state, "orphaned-hosts-receipt.json")
+        destination.write_bytes(receipt.read_bytes())
+        receipt.unlink()
+    quarantined_anchors = 0
+    if project.is_dir():
+        for path in sorted(project.iterdir()):
+            name = path.name
+            if not (
+                name.startswith(".chaos-engine-hosts.active-")
+                or name.startswith(".chaos-engine-hosts.removing-")
+            ):
+                continue
+            reject_link_or_reparse(path)
+            moved = _quarantine_state_path(state, f"orphaned-{name}")
+            moved.write_bytes(path.read_bytes() if path.is_file() else b"")
+            if path.is_file():
+                path.unlink()
+            else:
+                remove_repairable_tree(path)
+            quarantined_anchors += 1
     if reporter is not None:
-        reporter.trace(
-            "quarantined orphaned host receipt; rematerializing .chaos-engine core"
-        )
+        detail = "quarantined orphaned host receipt"
+        if quarantined_anchors:
+            detail += f" and {quarantined_anchors} host anchor(s)"
+        detail += "; rematerializing/rebinding from current core"
+        reporter.trace(detail)
     return destination
 
 
@@ -569,6 +653,53 @@ def missing_core_recovery_status(project: Path) -> dict[str, object]:
                     "(or uninstall, then install fresh)"
                 ),
             }
+        },
+    }
+
+
+def wiped_runtime_recovery_status(project: Path) -> dict[str, object]:
+    """Doctor/status payload for rematerialized core + stale hosts (#5587)."""
+    target = project / INSTALL_DIRECTORY
+    commit = "wiped-runtime"
+    distribution = "wiped-runtime"
+    policy = "0" * 64
+    if target.exists() and not is_link_or_reparse(target):
+        manifest = try_verify_install(target)
+        if manifest is not None:
+            commit = str(manifest["source"]["commit"])  # type: ignore[index]
+            distribution = str(manifest["distribution"]["id"])  # type: ignore[index]
+            policy = str(manifest["distribution"]["policySha256"])  # type: ignore[index]
+    return {
+        "status": "recovery-required",
+        "commit": commit,
+        "distribution": distribution,
+        "policySha256": policy,
+        "kernel": {"status": "recovery-required"},
+        "hosts": {"status": "recovery-required"},
+        "dependencies": {"status": "recovery-required"},
+        "components": {
+            "hosts": {
+                "status": "recovery-required",
+                "code": "CE_WIPED_RUNTIME",
+                "taskImpact": "required",
+                "detail": (
+                    "wiped `.chaos-engine` / missing dependency receipt left a stale "
+                    "host receipt or anchor; rerun the ChaosEngine install one-liner "
+                    "to quarantine orphaned host state, restore the dependency "
+                    "receipt, and rebind hosts from the current core"
+                ),
+            },
+            "tools": {
+                "status": "recovery-required",
+                "code": "CE_DEPENDENCY_RECEIPT_MISSING",
+                "taskImpact": "required",
+                "detail": (
+                    "`.chaos-engine-dependencies.json` is missing; rerun the "
+                    "ChaosEngine install one-liner (or "
+                    "`python3 .chaos-engine/install.py install` from a source "
+                    "checkout) to restore the dependency receipt and runtime"
+                ),
+            },
         },
     }
 
@@ -1673,6 +1804,9 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         _recover_transaction(project)
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
+        # Heal wiped runtime leftovers before rematerializing core so a new
+        # hostToken is not published under a stale receipt/anchor (#5586/#5587).
+        quarantine_orphaned_host_receipt(project)
         current = inspect_current_install(target) if target.exists() else None
         if current is not None:
             current_commit = current["source"]["commit"]  # type: ignore[index]
@@ -2423,9 +2557,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     )
     generation_mode = provisioner is None and not account_mode
     with project_lock(project):
-        # Heal: orphaned host receipt with wiped .chaos-engine must not block
-        # curl|bash reinstall. Quarantine after source validates, then
-        # `install()` rematerializes core (#5606).
+        # Heal: wiped .chaos-engine and/or rematerialized core with a stale
+        # host receipt/anchor + missing dependency receipt must not block
+        # curl|bash reinstall (#5606/#5586/#5587). Quarantine after source
+        # validates, then rematerialize core and rebind hosts.
         quarantine_orphaned_host_receipt(project, reporter=reporter)
         recover_account_rollback_journal(project)
         if read_cross_rollback_journal(project) is not None:
@@ -2879,6 +3014,8 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             target = project / INSTALL_DIRECTORY
             if missing_core_with_installed_hosts(project):
                 return missing_core_recovery_status(project)
+            if stale_host_state_after_wiped_runtime(project):
+                return wiped_runtime_recovery_status(project)
             manifest = verify_install(target)
             state = (
                 "recovery-required"
@@ -3274,9 +3411,17 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
         prepared = False
         generation_prepared = False
         host_prepared = False
+        host_receipt_path = project / getattr(
+            host_controller, "RECEIPT_NAME", ".chaos-engine-hosts.json"
+        )
+        host_receipt_present = host_receipt_path.exists() or is_link_or_reparse(
+            host_receipt_path
+        )
         try:
-            host_controller.prepare_uninstall(project)
-            host_prepared = True
+            if host_receipt_present:
+                host_controller.prepare_uninstall(project)
+                host_prepared = True
+            # else: wiped-runtime quarantine already removed host state
             if generation_mode:
                 controller.prepare_generation_remove(
                     project,
@@ -3319,7 +3464,8 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
             controller.finalize_remove(runtime, specification)
         if generation_prepared:
             controller.finalize_generation_remove(project)
-        host_controller.finalize_uninstall(project)
+        if host_prepared:
+            host_controller.finalize_uninstall(project)
 
 
 def finalize_dependency_tombstone(removing: Path) -> None:
@@ -3503,6 +3649,13 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
             "Rerun the ChaosEngine install one-liner to restore `.chaos-engine/` "
             "under the existing project (orphaned host receipts are quarantined "
             "automatically). Or uninstall, then install fresh. " + reinstall
+        )
+    if code in {"CE_WIPED_RUNTIME", "CE_DEPENDENCY_RECEIPT_MISSING"}:
+        return (
+            "Rerun the ChaosEngine install one-liner to quarantine stale host "
+            "receipt/anchors, restore `.chaos-engine-dependencies.json`, and "
+            "rebind hosts from the current core (no manual receipt surgery). "
+            + reinstall
         )
     if name == "mempalace" and status == "migration-required":
         return (
@@ -3731,11 +3884,19 @@ def main() -> int:
     except (OSError, RuntimeError, ValueError) as error:
         message = str(error)
         diagnostic_code = "CE_DIAGNOSTIC_UNAVAILABLE"
+        project_arg = getattr(args, "project", None)
         if "manifest is missing or invalid" in message or (
-            getattr(args, "project", None) is not None
-            and missing_core_with_installed_hosts(Path(args.project))
+            project_arg is not None
+            and missing_core_with_installed_hosts(Path(project_arg))
         ):
             diagnostic_code = "CE_CORE_MISSING"
+        elif project_arg is not None and (
+            wiped_runtime_recovery_needed(Path(project_arg))
+            or "host receipt does not match the installed core" in message
+            or "receipt integrity drift" in message
+            or "host adapter drift" in message
+        ) and account_dependency_receipt_missing(Path(project_arg)):
+            diagnostic_code = "CE_WIPED_RUNTIME"
         if getattr(args, "json", False):
             print(
                 json.dumps(
@@ -3763,6 +3924,19 @@ def main() -> int:
                         {
                             "status": "recovery-required",
                             "code": "CE_CORE_MISSING",
+                            "taskImpact": "required",
+                        },
+                    ),
+                    file=sys.stderr,
+                )
+            elif diagnostic_code == "CE_WIPED_RUNTIME":
+                print(
+                    "fix-next: "
+                    + component_fix_next(
+                        "hosts",
+                        {
+                            "status": "recovery-required",
+                            "code": "CE_WIPED_RUNTIME",
                             "taskImpact": "required",
                         },
                     ),

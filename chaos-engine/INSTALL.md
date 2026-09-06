@@ -238,6 +238,33 @@ Then rerun the tool, or confirm with
 `python3 .chaos-engine/install.py doctor --project .`
 (and `--fix-next-only` when scripting).
 
+### Missing dependency receipt / wiped `.chaos-engine` runtime
+
+If `.chaos-engine/` was deleted or replaced, and/or
+`.chaos-engine-dependencies.json` is missing, tools fail closed:
+
+- `python3 chaos-engine/tool.py …` / `python3 .chaos-engine/tool.py …` prints
+  `dependency pointer is missing or invalid` (or a wiped-runtime controller
+  error) with a **fix-next** that names install/doctor, and exits **non-zero**.
+- `doctor` / `status` report `CE_CORE_MISSING` or `CE_WIPED_RUNTIME` when a
+  stale `.chaos-engine-hosts.json` (and/or `.chaos-engine-hosts.active-*`
+  anchor) no longer matches the installed core.
+
+**Heal (preferred):** rerun the official install one-liner from the Install
+section above. Install quarantines orphaned host receipt/anchors under
+`.chaos-engine-state/`, rematerializes `.chaos-engine/` from upstream or the
+local `chaos-engine/` source tree, recreates the dependency receipt, and
+rebinds hosts from the current core. No manual receipt surgery.
+
+Then confirm:
+
+```bash
+python3 .chaos-engine/install.py doctor --project .
+```
+
+Data directories (`mempalace.yaml`, `graphify-out`, `.memory`) are left in place
+when possible; heal restores tooling without requiring a full data rebuild.
+
 
 ## Optional native Maven Tools MCP
 
