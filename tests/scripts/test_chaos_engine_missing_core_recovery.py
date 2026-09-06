@@ -82,29 +82,27 @@ class MissingCoreRecoveryTest(unittest.TestCase):
                 encoding="utf-8",
             )
             reporter = mock.Mock()
+            # Source validates first; quarantine runs under the project lock,
+            # then install() rematerializes core. Stop at install() to prove
+            # the receipt was already moved aside.
             with mock.patch.object(
-                self.install, "install", return_value=project / ".chaos-engine"
+                self.install,
+                "install",
+                side_effect=RuntimeError("stop-after-quarantine"),
             ) as mocked_install:
-                # Stop after core install by raising from load path used next —
-                # quarantine must happen before install() is invoked.
-                with mock.patch.object(
-                    self.install,
-                    "load_dependency_controller",
-                    side_effect=RuntimeError("stop-after-quarantine"),
-                ):
-                    with self.assertRaisesRegex(RuntimeError, "stop-after-quarantine"):
-                        self.install.install_with_dependencies(
-                            project,
-                            SOURCE,
-                            TEST_COMMIT,
-                            reporter=reporter,
-                        )
+                with self.assertRaisesRegex(RuntimeError, "stop-after-quarantine"):
+                    self.install.install_with_dependencies(
+                        project,
+                        SOURCE,
+                        TEST_COMMIT,
+                        reporter=reporter,
+                    )
             self.assertFalse((project / ".chaos-engine-hosts.json").exists())
             quarantined = list(
                 (project / ".chaos-engine-state").glob("orphaned-hosts-receipt*.json")
             )
             self.assertEqual(1, len(quarantined))
-            mocked_install.assert_not_called()
+            mocked_install.assert_called_once()
             reporter.trace.assert_called()
 
 

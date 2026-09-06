@@ -1423,7 +1423,12 @@ def emit_install_failure(
                     raw = trace.read_text(encoding="utf-8")
                     lines = [line.strip() for line in raw.splitlines() if line.strip()]
                     snippet = " | ".join(lines[-6:])[:400]
-                    install_trace_snippet = redact_secrets(snippet) if snippet else "not available"
+                    if snippet:
+                        install_trace_snippet = re.sub(
+                            r"(?i)\b(token|secret|password|api_key)=\S+",
+                            lambda match: f"{match.group(1)}=<redacted>",
+                            snippet,
+                        )
             except OSError:
                 pass
         body = "\n".join(
