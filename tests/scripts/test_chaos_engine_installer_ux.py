@@ -569,7 +569,70 @@ class InstallerUxTests(unittest.TestCase):
             )
         self.assertEqual("failed", trace["result"]["status"])
 
+    def test_detect_install_hosts_marks_path_clis(self):
+        mapping = {"claude": "/bin/claude", "codex": "/bin/codex"}
+
+        def which(name):
+            return mapping.get(name)
+
+        hosts = BOOTSTRAP.detect_install_hosts(which=which)
+        by_id = {host_id: found for host_id, _label, found in hosts}
+        self.assertTrue(by_id["claude"])
+        self.assertTrue(by_id["codex"])
+        self.assertFalse(by_id["grok"])
+        self.assertFalse(by_id["gemini"])
+        self.assertFalse(by_id["copilot"])
+
+    def test_first_run_wizard_explains_hosts_companions_and_next_actions(self):
+        stream = io.StringIO()
+        answers = io.StringIO("y\ny\n")
+        BOOTSTRAP.run_first_run_wizard(
+            project=Path("/project"),
+            repository="owner/repo",
+            with_maven_tools=True,
+            input_stream=answers,
+            output=stream,
+            which=lambda name: "/bin/claude" if name == "claude" else None,
+        )
+        output = stream.getvalue()
+        self.assertIn("ChaosEngine first-run wizard", output)
+        self.assertIn("Detected host CLIs: Claude Code", output)
+        self.assertIn("Caveman + Ponytail", output)
+        self.assertIn("Maven Tools MCP", output)
+        self.assertIn("Claude Code:", output)
+        self.assertIn("Codex:", output)
+        self.assertIn("Grok:", output)
+        self.assertIn("Gemini:", output)
+        self.assertIn("GitHub Copilot:", output)
+
+    def test_first_run_wizard_cancel_before_network_leaves_path_unchanged(self):
+        called = False
+
+        def opener(*_args, **_kwargs):
+            nonlocal called
+            called = True
+            raise AssertionError("network must not run")
+
+        class Terminal:
+            def __enter__(self):
+                return io.StringIO("n\n")
+
+            def __exit__(self, *_exc):
+                return False
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaises(BOOTSTRAP.InstallCancelled):
+                BOOTSTRAP.install_latest(
+                    Path(temporary),
+                    repository="owner/repo",
+                    interactive=True,
+                    terminal_factory=Terminal,
+                    opener=opener,
+                )
+        self.assertFalse(called)
+
     def test_wrappers_expose_and_forward_interactive_mode(self):
+
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
         self.assertIn('"--interactive"', shell)
