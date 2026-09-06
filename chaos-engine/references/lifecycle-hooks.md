@@ -33,6 +33,24 @@ receipt. Do not pretend a README sentence is a substitute. Hosts that ignore
 SessionStart output still apply companions through entrypoint load.
 ChaosEngine selects ultra through every supported host adapter.
 
+
+## Blocking fidelity (exit 2)
+
+Security and policy denies must hard-block. ChaosEngine always returns process
+exit code `2` with a host-adapted deny payload from `hooks/guard.py` via
+`hooks/lifecycle.py` (`adapt_hook_output` in `hooks/kernel.py`):
+
+| Host | Mechanism | Process exit-2 honored |
+| --- | --- | --- |
+| Claude | `decision=block` on stderr when exit is 2 | yes |
+| Codex | `permissionDecision=deny` in hookSpecificOutput | yes |
+| Gemini | `decision=block` (+ `launch.js` exit 2) | yes |
+| Grok | `decision=block` | **no** — GAP-EXIT2; doctor warns |
+| Copilot | `permissionDecision=deny` | **no** — GAP-EXIT2 (cloud/ide); doctor warns |
+
+See [Host Parity Matrix](host-parity-matrix.md) and `HostCapability` in
+`hooks/kernel.py`. Do not treat a README sentence as a substitute for a deny.
+
 ## Registration
 
 `hosts.py` writes the same command groups into the source-controlled,

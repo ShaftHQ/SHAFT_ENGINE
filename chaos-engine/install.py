@@ -2342,6 +2342,24 @@ def installed_kernel_status(installed_root: Path) -> dict[str, object]:
                     "staticSurfaces": list(
                         getattr(kernel.HOST_CAPABILITIES[host], "static_surfaces", ())
                     ),
+                    "hardBlockMechanism": getattr(
+                        kernel.HOST_CAPABILITIES[host],
+                        "hard_block_mechanism",
+                        "decision_json",
+                    ),
+                    "denyExitCode": int(
+                        getattr(kernel.HOST_CAPABILITIES[host], "deny_exit_code", 2)
+                    ),
+                    "processExit2Honored": bool(
+                        getattr(
+                            kernel.HOST_CAPABILITIES[host],
+                            "process_exit2_honored",
+                            True,
+                        )
+                    ),
+                    "blockingGap": str(
+                        getattr(kernel.HOST_CAPABILITIES[host], "blocking_gap", "") or ""
+                    ),
                 }
                 for host in hosts
             },
@@ -3527,6 +3545,24 @@ def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> s
     )
 
 
+
+def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
+    """Owner-visible warnings when a host may not honor exit-2 hard blocks (#5579)."""
+    lines: list[str] = []
+    kernel = document.get("kernel") if isinstance(document.get("kernel"), dict) else {}
+    capabilities = kernel.get("capabilities") if isinstance(kernel, dict) else None
+    if not isinstance(capabilities, dict):
+        return lines
+    for host, meta in sorted(capabilities.items()):
+        if not isinstance(meta, dict):
+            continue
+        gap = str(meta.get("blockingGap") or "").strip()
+        honored = meta.get("processExit2Honored", True)
+        if gap and honored is False:
+            lines.append(f"warning  host/{host}: {gap}")
+    return lines
+
+
 def format_health_report(document: dict[str, object], *, kind: str | None = None) -> str:
     """Render a short healthy summary or a scannable failure list with fix-next lines."""
     label = kind or str(document.get("kind") or "doctor")
@@ -3552,6 +3588,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         lines.append(f"components: {healthy}/{total} healthy")
     if not failures:
         # Keep the happy path short for first-time users.
+        lines.extend(format_blocking_fidelity_warnings(document))
         return "\n".join(lines) + "\n"
     counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for _name, _item, severity in failures:
@@ -3571,6 +3608,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         fix = component_fix_next(name, item)
         if fix:
             lines.append(f"  fix-next: {fix}")
+    lines.extend(format_blocking_fidelity_warnings(document))
     return "\n".join(lines) + "\n"
 
 
