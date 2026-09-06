@@ -40,9 +40,9 @@ EXPECTED_INSTALLS = {
     ),
 }
 EXPECTED_SETUP_PYTHON = {
-    **{path: ("actions/setup-python@v7", "3.13") for path in EXPECTED_INSTALLS if path != ".github/workflows/chaos-gauge-public-canary.yml"},
+    **{path: ("actions/setup-python@v7.0.0", "3.13") for path in EXPECTED_INSTALLS if path != ".github/workflows/chaos-gauge-public-canary.yml"},
     ".github/workflows/chaos-gauge-public-canary.yml": (
-        "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "3.12",
+        "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "3.12",
     ),
 }
 EXPECTED_REQUIREMENTS = {
