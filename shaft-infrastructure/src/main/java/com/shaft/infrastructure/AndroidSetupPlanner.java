@@ -14,7 +14,7 @@ public final class AndroidSetupPlanner {
     public static final String INSPECTOR_PLUGIN_VERSION = "2026.7.1";
     public static final String UIAUTOMATOR2_VERSION = "8.2.2";
     public static final String APPIUM_LOCK_SHA256 =
-            "4da109a812861e2a1fc26792e04c3128242e5b17e4c2d97e26a20e91ef8fbe98";
+            "57dee17f037adc4e7eadcae53c25df3e1e27898821b07ca68b8d24ba0b4c782f";
     public static final String COMMAND_LINE_TOOLS_VERSION = "15859902";
     public static final String PLATFORM_TOOLS_VERSION = "37.0.1";
     public static final String EMULATOR_VERSION = "37.1.11";
