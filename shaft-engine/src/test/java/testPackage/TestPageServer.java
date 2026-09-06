@@ -31,8 +31,9 @@ public final class TestPageServer {
     }
 
     /**
-     * URL that accepts TCP and never writes an HTTP response, so a driver that
-     * actually waits for page load cannot complete navigation.
+     * URL that accepts TCP and withholds an HTTP response long enough for a driver
+     * with a short pageLoadTimeout to fail navigation, then drops the connection.
+     * Local-only fixture — no live network (#5528).
      */
     public static String neverRespondUrl() {
         ensureStarted();
@@ -89,7 +90,11 @@ public final class TestPageServer {
 
     private static void neverRespond(HttpExchange exchange) {
         try {
-            Thread.sleep(Long.MAX_VALUE);
+            // Hold past typical pageLoadTimeout used by failed-navigate proofs (2s) so
+            // Selenium raises TimeoutException on navigate, then drop the socket. A
+            // forever sleep left Safari mid-load; failure screenshots hung (~3m) and
+            // masked the navigate Allure step (#5528).
+            Thread.sleep(5_000L);
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
         } finally {
