@@ -147,6 +147,11 @@ CHECKS = {
         "documentation",
         ("tests.scripts.test_validate_chaos_engine_readme",),
     ),
+    "accessibility-contract": Check(
+        "accessibility-contract",
+        "accessibility",
+        ("tests.scripts.test_accessibility_quality_gates",),
+    ),
     "dependency-account-contract": Check(
         "dependency-account-contract",
         "installer",
@@ -239,6 +244,7 @@ SURFACE_CHECKS = {
     "ci": ("ci-contract", "setup-aggregator-contract"),
     "installer": ("protected-installer-acceptance", "protected-rollback"),
     "documentation": ("documentation-inventory-contract",),
+    "accessibility": ("accessibility-contract",),
     "identities": ("identity-contract", "identity-recovery-contract"),
     "promotion": ("promotion-contract",),
     "fallback": ("fallback-contract",),
@@ -339,6 +345,11 @@ SURFACE_PATTERNS = {
         "chaos-engine/README.md",
         "scripts/ci/validate_chaos_engine_readme.py",
         "tests/scripts/test_validate_chaos_engine_readme.py",
+    ),
+    "accessibility": (
+        "scripts/ci/accessibility_quality_gates.py",
+        "tests/fixtures/accessibility_quality_gates_sample.json",
+        "tests/scripts/test_accessibility_quality_gates.py",
     ),
     "identities": (
         "chaos-engine/**",

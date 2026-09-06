@@ -11,6 +11,28 @@ from pathlib import Path
 WCAG_AA_NORMAL_TEXT = 4.5
 WCAG_AA_LARGE_TEXT = 3.0
 MIN_TARGET_PX = 24.0
+MAX_LAYOUT_SHIFT = 0.1
+MAX_MOTION_DURATION_MS = 500.0
+REQUIRED_STATES = (
+    "loading",
+    "empty",
+    "partial",
+    "error",
+    "recovery",
+    "success",
+)
+REQUIRED_BOOLS = (
+    "keyboardAccessible",
+    "visibleFocus",
+    "labeledControls",
+    "statusMessages",
+    "narrowLayoutOk",
+    "reducedMotionEquivalent",
+    "avoidsLayoutShiftAnimation",
+    "actionLabelsConsistent",
+    "hasPerformanceEvidence",
+    "hasVisualRegressionEvidence",
+)
 
 
 def linearize(channel: float) -> float:
@@ -47,22 +69,39 @@ def evaluate_surface(surface: dict[str, object]) -> list[str]:
     if ratio < minimum:
         errors.append(f"{name}: contrast {ratio:.2f}:1 below WCAG AA {minimum}:1")
 
-    for state in ("loading", "empty", "error", "recovery", "success"):
-        if state not in surface.get("states", []):
+    states = surface.get("states", [])
+    if not isinstance(states, list):
+        errors.append(f"{name}: states must be a list")
+        states = []
+    for state in REQUIRED_STATES:
+        if state not in states:
             errors.append(f"{name}: missing required state '{state}'")
 
     target = surface.get("minTargetPx")
-    if target is not None and float(target) < MIN_TARGET_PX:
-        errors.append(f"{name}: target size {target}px below {MIN_TARGET_PX}px")
+    if target is None or float(target) < MIN_TARGET_PX:
+        errors.append(f"{name}: target size below {MIN_TARGET_PX}px")
 
-    if not bool(surface.get("keyboardAccessible", False)):
-        errors.append(f"{name}: keyboardAccessible must be true")
-    if not bool(surface.get("visibleFocus", False)):
-        errors.append(f"{name}: visibleFocus must be true")
-    if not bool(surface.get("reducedMotionEquivalent", False)):
-        errors.append(f"{name}: reducedMotionEquivalent must be true")
+    for field in REQUIRED_BOOLS:
+        if not bool(surface.get(field, False)):
+            errors.append(f"{name}: {field} must be true")
+
     if bool(surface.get("motionGatesContent", False)):
         errors.append(f"{name}: motion must not gate content")
+
+    purpose = str(surface.get("motionPurpose", "none"))
+    if purpose not in {"none", "state", "causality"}:
+        errors.append(f"{name}: motionPurpose must be none|state|causality")
+    elif purpose == "none" and float(surface.get("maxMotionDurationMs", 0) or 0) > 0:
+        errors.append(f"{name}: motionPurpose none forbids timed motion")
+
+    layout_shift = surface.get("maxLayoutShift")
+    if layout_shift is None or float(layout_shift) > MAX_LAYOUT_SHIFT:
+        errors.append(f"{name}: maxLayoutShift must be <= {MAX_LAYOUT_SHIFT}")
+
+    motion_ms = surface.get("maxMotionDurationMs")
+    if motion_ms is None or float(motion_ms) > MAX_MOTION_DURATION_MS:
+        errors.append(f"{name}: maxMotionDurationMs must be <= {MAX_MOTION_DURATION_MS}")
+
     return errors
 
 
