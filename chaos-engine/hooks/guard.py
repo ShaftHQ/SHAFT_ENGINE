@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import hashlib
 import importlib.util
 import posixpath
@@ -503,6 +504,23 @@ def _event_context(event_name: str, token: object) -> str:
     return context
 
 
+
+def _research_before_mutation_reason(event_name: str, mutation: bool, session_id: str) -> str | None:
+    """Opt-in hard gate: deny mutations until research-preflight is recorded (#5583)."""
+    if event_name != "PreToolUse" or not mutation:
+        return None
+    flag = str(os.environ.get("CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT") or "").strip().casefold()
+    if flag not in {"1", "true", "yes", "on"}:
+        return None
+    if not session_id or reflection.has_research_preflight(session_id):
+        return None
+    return (
+        "Research receipt required before mutation "
+        "(set CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT; "
+        "record via hooks/reflection.py research-preflight)."
+    )
+
+
 def _run_event(event: dict, _host: str) -> int:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
@@ -531,6 +549,14 @@ def _run_event(event: dict, _host: str) -> int:
         kernel_report = _kernel.evaluate_session(normalized_kernel_event, kernel_journal)
     if kernel_report.decision == "deny":
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
+        return 2
+    research_reason = _research_before_mutation_reason(
+        event_name,
+        bool(normalized_kernel_event.stateful_mutation),
+        session_id,
+    )
+    if research_reason:
+        print(json.dumps({"decision": "block", "reason": research_reason}))
         return 2
     if event_name == "SessionStart":
         token = reflection.record_session_start(session_id)

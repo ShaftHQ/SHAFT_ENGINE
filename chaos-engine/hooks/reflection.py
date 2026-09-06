@@ -523,6 +523,40 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
     return entry
 
 
+
+def has_research_preflight(session_id: str) -> bool:
+    """True when the session ledger already recorded research-preflight (#5583)."""
+    if not isinstance(session_id, str) or not session_id.strip():
+        return False
+    path = ledger_path(session_id)
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    for line in lines:
+        try:
+            entry = json.loads(line)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+        if isinstance(entry, dict) and entry.get("kind") == "research-preflight":
+            return True
+    return False
+
+
+def record_research_preflight(session_id: str, note: str = "research-receipt") -> bool:
+    """Append a minimal research-preflight marker (zero-LLM; #5583)."""
+    if not isinstance(session_id, str) or not session_id.strip():
+        return False
+    return append_entry(
+        session_id,
+        {
+            "kind": "research-preflight",
+            "note": str(note)[:120],
+            "schemaVersion": SCHEMA_VERSION,
+        },
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="operation", required=True)
@@ -543,8 +577,24 @@ def main(argv: list[str] | None = None) -> int:
     non_attempt.add_argument("--agent-id")
     non_attempt.add_argument("--failure-id", required=True)
     non_attempt.add_argument("--reason", required=True, choices=sorted(NON_ATTEMPT_REASONS))
+    research = commands.add_parser(
+        "research-preflight",
+        help="record research-before-mutation preflight (CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT)",
+    )
+    research.add_argument("--session-id", required=True)
+    research.add_argument("--agent-id")
+    research.add_argument("--note", default="research-receipt")
     arguments = parser.parse_args(argv)
     session_id = scope_session_id(arguments.session_id, arguments.agent_id)
+    if arguments.operation == "research-preflight":
+        recorded = record_research_preflight(session_id, arguments.note)
+        print(
+            json.dumps(
+                {"recorded": recorded, "kind": "research-preflight"},
+                separators=(",", ":"),
+            )
+        )
+        return 0 if recorded else 1
     if arguments.operation == "trigger":
         try:
             recorded = record_trigger(session_id, arguments.trigger, arguments.fingerprint)

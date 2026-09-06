@@ -24,3 +24,5 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 
 `--fix-next-only` is the shipped zero-LLM expansion: scripts and CI can scrape
 repair actions without parsing the full human doctor essay or invoking a model.
+| Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
+

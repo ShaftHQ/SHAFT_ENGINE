@@ -1,5 +1,7 @@
 # Research receipt
 
+Phase-gate map: [delivery-phase-gates.md](delivery-phase-gates.md).
+
 Load this before the first implementation mutation, except mechanical one-file
 reversible work: name the eight steps, then record store irrelevance without
 querying. Default and most-intelligent work query a store only when it can
