@@ -55,7 +55,7 @@ Retrieval depth reads off the same answer. Load
 [retrieve-first](../../references/retrieve-first.md) before broad manual discovery
 when a store can shorten the task, and at completion to keep the stores from
 drifting. Bound tool reads and prefer one script over a long tool chain:
-[context economy](../../references/context-economy.md) and
+[context economy](../../references/context-economy.md) / [token budget modes](../../references/token-budget-modes.md) and
 [script first](../../references/script-first.md).
 When this entrypoint was loaded through a role adapter, load
 [retrieve-first](../../references/retrieve-first.md) before task-specific discovery,
