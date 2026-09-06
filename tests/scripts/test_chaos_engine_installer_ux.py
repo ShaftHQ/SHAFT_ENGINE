@@ -977,6 +977,37 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("Restore the `.chaos-engine/` core tree", rendered)
         self.assertIn("Reinstall ChaosEngine hooks", rendered)
 
+    def test_doctor_human_includes_host_onboarding_cards(self):
+        healthy = {
+            "schemaVersion": 2,
+            "identity": INSTALL.CANONICAL_IDENTITY,
+            "kind": "doctor",
+            "status": "healthy",
+            "commit": "e" * 40,
+            "distribution": "portable",
+            "policySha256": "0" * 64,
+            "kernel": {"status": "healthy"},
+            "hosts": {"status": "healthy"},
+            "dependencies": {"status": "healthy"},
+            "components": {"core": {"status": "healthy", "taskImpact": "required"}},
+            "clients": {"codex": {"status": "healthy"}},
+        }
+        stdout = io.StringIO()
+        with unittest.mock.patch.object(
+            INSTALL, "status_json", return_value=healthy
+        ), unittest.mock.patch.object(
+            INSTALL.sys, "stdout", stdout
+        ), unittest.mock.patch.object(
+            INSTALL.sys,
+            "argv",
+            ["install.py", "doctor", "--project", "."],
+        ):
+            self.assertEqual(0, INSTALL.main())
+        out = stdout.getvalue()
+        self.assertIn("Host onboarding cards:", out)
+        self.assertIn("Codex", out)
+        self.assertIn("gap:", out)
+
     def test_doctor_cli_human_default_and_json_flag(self):
         healthy = {
             "schemaVersion": 2,
@@ -1047,6 +1078,50 @@ class InstallerUxTests(unittest.TestCase):
         payload = json.loads(stdout.getvalue())
         self.assertEqual("doctor", payload["kind"])
         self.assertEqual("healthy", payload["status"])
+
+    def test_host_onboarding_cards_cover_five_hosts_with_paths_and_gaps(self):
+        rendered = BOOTSTRAP.format_host_onboarding_cards(
+            detected=[("claude", "Claude Code", True), ("codex", "Codex", False),
+                      ("grok", "Grok", False), ("gemini", "Gemini", False),
+                      ("copilot", "GitHub Copilot", True)],
+            activated={"claude": {"status": "healthy"}},
+        )
+        self.assertIn("Host onboarding cards:", rendered)
+        for label in ("Claude Code", "Codex", "Grok", "Gemini", "GitHub Copilot"):
+            self.assertIn(label, rendered)
+        self.assertIn("marketplace/plugin", rendered)
+        self.assertIn("file/hook injection", rendered)
+        self.assertIn("gap:", rendered)
+        self.assertIn("[detected, activated]", rendered)
+        self.assertIn("Claude Code [detected, activated]", rendered)
+        # Exactly one card block per host (label line).
+        self.assertEqual(5, sum(1 for line in rendered.splitlines() if " — " in line))
+
+    def test_success_cta_includes_host_onboarding_cards(self):
+        stream = io.StringIO()
+        reporter = BOOTSTRAP.InstallReporter(stream=stream)
+        with unittest.mock.patch.object(
+            BOOTSTRAP,
+            "detect_install_hosts",
+            return_value=[
+                ("claude", "Claude Code", True),
+                ("codex", "Codex", False),
+                ("grok", "Grok", False),
+                ("gemini", "Gemini", False),
+                ("copilot", "GitHub Copilot", False),
+            ],
+        ):
+            reporter.success(
+                Path("/project"),
+                {"commit": "d" * 40, "status": "healthy", "components": {}},
+                {"claude": {"status": "healthy"}},
+                repository="owner/repo",
+            )
+        output = stream.getvalue()
+        self.assertIn("Host onboarding cards:", output)
+        self.assertIn("marketplace/plugin", output)
+        self.assertIn("file/hook injection", output)
+        self.assertIn("gap:", output)
 
     def test_first_session_brief_lists_landed_untracked_and_three_next_actions(self):
         with_clients = BOOTSTRAP.format_first_session_brief(

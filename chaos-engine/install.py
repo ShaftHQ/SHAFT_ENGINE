@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+
 import argparse
 import base64
 from contextlib import contextmanager, nullcontext
@@ -3509,6 +3511,22 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
     )
 
 
+def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> str:
+    """Load bootstrap host onboarding cards for human doctor output."""
+    bootstrap_path = Path(__file__).resolve().with_name("bootstrap.py")
+    spec = importlib.util.spec_from_file_location(
+        "chaos_engine_bootstrap_onboarding", bootstrap_path
+    )
+    if spec is None or spec.loader is None:
+        return ""
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.format_host_onboarding_cards(
+        detected=module.detect_install_hosts(),
+        activated=clients if isinstance(clients, dict) else {},
+    )
+
+
 def format_health_report(document: dict[str, object], *, kind: str | None = None) -> str:
     """Render a short healthy summary or a scannable failure list with fix-next lines."""
     label = kind or str(document.get("kind") or "doctor")
@@ -3663,6 +3681,14 @@ def main() -> int:
         if not isinstance(result, dict):
             raise TypeError("doctor/status result must be an object")
         print(format_health_report(result, kind=args.command), end="")
+        if args.command == "doctor":
+            clients = result.get("clients")
+            print(
+                format_doctor_host_onboarding(
+                    clients if isinstance(clients, dict) else {}
+                ),
+                end="",
+            )
         return 0
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return 0
