@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,7 +11,6 @@ from unittest import mock
 INSTALL = Path(__file__).resolve().parents[2] / "chaos-engine" / "install.py"
 SOURCE = INSTALL.parent
 DEPENDENCIES = SOURCE / "dependencies.py"
-TOOL = SOURCE / "tool.py"
 TEST_COMMIT = "1" * 40
 OTHER_COMMIT = "2" * 40
 
@@ -245,24 +242,10 @@ class MissingCoreRecoveryTest(unittest.TestCase):
             self.assertIn("doctor", message.casefold())
 
     def test_tool_py_exits_nonzero_with_heal_path(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "proj"
-            project.mkdir()
-            # Invoke source tool.py against an empty project (no receipt/pointer).
-            # tool.py resolves project as parent of installed_root for non-monorepo.
-            env = os.environ.copy()
-            env["PYTHONDONTWRITEBYTECODE"] = "1"
-            completed = subprocess.run(
-                [sys.executable, str(TOOL), "mempalace", "--version"],
-                cwd=project,
-                capture_output=True,
-                text=True,
-                env=env,
-                check=False,
-            )
-            # tool.py uses Path(__file__).parent as installed_root; project becomes
-            # shared_project_root(parent of chaos-engine) = repo root, not cwd.
-            # Instead call active_dispatch-style via a copy of tool in the temp tree.
+        import importlib.util
+        import io
+        from contextlib import redirect_stderr
+
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "proj"
             project.mkdir()
@@ -273,16 +256,23 @@ class MissingCoreRecoveryTest(unittest.TestCase):
                     (SOURCE / name).read_text(encoding="utf-8"),
                     encoding="utf-8",
                 )
-            completed = subprocess.run(
-                [sys.executable, str(runtime / "tool.py"), "mempalace", "--version"],
-                cwd=project,
-                capture_output=True,
-                text=True,
-                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-                check=False,
+            spec = importlib.util.spec_from_file_location(
+                "chaos_engine_tool_heal", runtime / "tool.py"
             )
-            self.assertNotEqual(0, completed.returncode)
-            combined = (completed.stdout + completed.stderr).casefold()
+            if spec is None or spec.loader is None:
+                raise AssertionError("failed to load tool.py under temp runtime")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            stderr = io.StringIO()
+            argv = sys.argv
+            try:
+                sys.argv = ["tool.py", "mempalace", "--version"]
+                with redirect_stderr(stderr):
+                    code = module.main()
+            finally:
+                sys.argv = argv
+            self.assertNotEqual(0, code)
+            combined = stderr.getvalue().casefold()
             self.assertIn("fix-next:", combined)
             self.assertTrue(
                 "dependency pointer is missing" in combined
@@ -299,7 +289,8 @@ class MissingCoreRecoveryTest(unittest.TestCase):
             },
         )
         self.assertIsNotNone(fix)
-        assert fix is not None
+        if fix is None:
+            raise AssertionError("expected wiped-runtime fix-next")
         lowered = fix.casefold()
         self.assertIn("install", lowered)
         self.assertIn("quarantine", lowered)
