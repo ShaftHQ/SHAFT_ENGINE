@@ -1322,7 +1322,31 @@ def emit_install_failure(
                 "then rerun the same install one-liner.",
                 file=sys.stderr,
             )
+        elif "core is missing" in cause or "ce_core_missing" in cause:
+            print(
+                "Next fix: rerun the same install one-liner so ChaosEngine can restore "
+                ".chaos-engine under the existing host receipt (or uninstall, then install).",
+                file=sys.stderr,
+            )
     print(file=sys.stderr)
+    if project is not None:
+        try:
+            root = Path(project).resolve()
+            receipt = root / ".chaos-engine-hosts.json"
+            core = root / ".chaos-engine"
+            install_py = core / "install.py"
+            print(
+                "Filesystem: "
+                f"hosts_receipt={'present' if receipt.is_file() else 'absent'}; "
+                f"core_dir={'present' if core.is_dir() else 'absent'}; "
+                f"install_py={'present' if install_py.is_file() else 'absent'}",
+                file=sys.stderr,
+            )
+            trace = root / ".chaos-engine-state" / "install-trace.json"
+            if trace.is_file():
+                print(f"Install trace: {trace}", file=sys.stderr)
+        except OSError:
+            pass
     print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
     prefix = installer_cli_prefix(project)
     status_command = f"{prefix} status --project . --json" if prefix else None
@@ -1376,6 +1400,32 @@ def emit_install_failure(
             ):
                 candidate_detail_labels.append(f"{name}:{detail}")
         candidate_component_details = ",".join(candidate_detail_labels)
+        hosts_receipt = "unknown"
+        core_dir = "unknown"
+        install_py = "unknown"
+        install_trace = "not available"
+        install_trace_snippet = "not available"
+        if project is not None:
+            try:
+                root = Path(project).resolve()
+                hosts_receipt = (
+                    "present" if (root / ".chaos-engine-hosts.json").is_file() else "absent"
+                )
+                core_dir = "present" if (root / ".chaos-engine").is_dir() else "absent"
+                install_py = (
+                    "present"
+                    if (root / ".chaos-engine" / "install.py").is_file()
+                    else "absent"
+                )
+                trace = install_trace_path(root)
+                if trace.is_file():
+                    install_trace = trace.as_posix()
+                    raw = trace.read_text(encoding="utf-8")
+                    lines = [line.strip() for line in raw.splitlines() if line.strip()]
+                    snippet = " | ".join(lines[-6:])[:400]
+                    install_trace_snippet = redact_secrets(snippet) if snippet else "not available"
+            except OSError:
+                pass
         body = "\n".join(
             (
                 f"Error code: {code}",
@@ -1398,6 +1448,11 @@ def emit_install_failure(
                     if reporter and reporter.history
                     else "none"
                 ),
+                f"Hosts receipt: {hosts_receipt}",
+                f"Core dir: {core_dir}",
+                f"install.py: {install_py}",
+                f"Install trace: {install_trace}",
+                f"Install trace snippet: {install_trace_snippet}",
                 f"Platform: {sys.platform}",
                 f"Status command: {status_command}",
                 f"Doctor command: {doctor_command}",
@@ -1416,6 +1471,11 @@ def emit_install_failure(
                 "candidate_components": candidate_components,
                 "candidate_component_details": candidate_component_details,
                 "platform": sys.platform,
+                "hosts_receipt": hosts_receipt,
+                "core_dir": core_dir,
+                "install_py": install_py,
+                "install_trace": install_trace,
+                "install_trace_snippet": install_trace_snippet,
                 "status_command": status_command or "",
                 "doctor_command": doctor_command or "",
             }
