@@ -214,6 +214,31 @@ reference profile. Local/CI fixture helper:
 If doctor is not healthy, follow every `fix-next` line, then open a GitHub
 issue and paste the full doctor output (including fix-next lines).
 
+## Troubleshooting
+
+### `tool.py` says primary checkout HEAD != origin/main
+
+On the SHAFT_ENGINE monorepo (or any checkout that ships
+`tools/repository-map/resolve_mempalace.py`), ChaosEngine pins the shared
+**Memory** store to the primary checkout's `origin/main` revision.
+
+- `memory` / `memory-mcp` **hard-fail** when primary `HEAD` is not exactly
+  `refs/remotes/origin/main`, and print a `fix-next` line.
+- `mempalace` / `mempalace-mcp` / `graphify` **soft-warn** and still run when
+  their own doctor status is healthy, so advisory stores stay queryable on a
+  behind-main primary checkout or worktree.
+
+Fix the primary checkout (not a task worktree):
+
+```bash
+git fetch origin main && git merge --ff-only origin/main
+```
+
+Then rerun the tool, or confirm with
+`python3 .chaos-engine/install.py doctor --project .`
+(and `--fix-next-only` when scripting).
+
+
 ## Optional native Maven Tools MCP
 
 Do not put `docker run -i --rm` in a default stdio MCP configuration. Each
