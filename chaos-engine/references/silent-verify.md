@@ -15,6 +15,9 @@ Companion pattern: doctor `--fix-next-only` (#5582).
 
 ## Portable helper
 
+Implementation: [`silent_verify.py`](../silent_verify.py).
+
+
 ```text
 python3 .chaos-engine/silent_verify.py session-start-budget
 python3 .chaos-engine/silent_verify.py learning-session-finalize --session-id <id>

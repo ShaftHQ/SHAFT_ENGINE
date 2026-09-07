@@ -28,10 +28,10 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Portable Learning Session | [`learning_session.py`](../learning_session.py) `finalize` | Issues-first; **no** auto draft PRs |
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
 | Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) |
-| Learning metrics | `python3 .chaos-engine/learning.py metrics` (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests (#5653) |
-| Silent verify | `python3 .chaos-engine/silent_verify.py …` / `finalize --silent` | Success silent exit 0; failure one stderr line (#5654) |
-| Heuristics retrieve | `python3 .chaos-engine/retrieve.py heuristics --top 3` | Once-per-task ERL heuristics; SessionStart locator only (#5656) |
-| Heuristics CLI | `python3 .chaos-engine/heuristics.py locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
+| Learning metrics | [`learning.py`](../learning.py) `metrics` + [`learning_counters.py`](../learning_counters.py) (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests (#5653) |
+| Silent verify | [`silent_verify.py`](../silent_verify.py) / `finalize --silent` | Success silent exit 0; failure one stderr line (#5654) |
+| Heuristics retrieve | [`retrieve.py`](../retrieve.py) `heuristics --top 3` | Once-per-task ERL heuristics; SessionStart locator only (#5656) |
+| Heuristics CLI | [`heuristics.py`](../heuristics.py) `locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
 
 ## Notes
 
