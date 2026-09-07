@@ -49,3 +49,17 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
    see [eval-parity-fixtures](eval-parity-fixtures.md)) after hook or adapter changes.
    Fixture failures ratchet into hooks, skills, or a documented matrix gap — never
    weaken the fixture to look green.
+
+
+## GAP-EXIT2 compensating UX checklist (Grok / Copilot)
+
+Do **not** pretend a hard process exit-2 block on these hosts. ChaosEngine still
+emits `decision=block` / `permissionDecision=deny` and exit 2; owners must
+verify trust and static surfaces.
+
+- [ ] Doctor human output shows `blockingGap` / GAP-EXIT2 warning for Grok and Copilot
+- [ ] Host parity row `GAP-EXIT2` stays documented with severity and proof test
+- [ ] After a deny, tell the owner to check project trust / hooks trust (Grok: `grok inspect --json`, `/hooks-trust`) and IDE Copilot trust — not “the tool was hard-blocked by exit code”
+- [ ] SessionStart / Heal locators remain available when marketplace plugins are absent
+- [ ] Exit-2 fidelity unit test remains green: `tests.scripts.test_chaos_engine_exit2_fidelity`
+

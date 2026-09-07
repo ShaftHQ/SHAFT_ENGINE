@@ -28,6 +28,22 @@ deeper guidance.
 Machine-readable labels live in `hooks/lifecycle.py` (`TOKEN_BUDGET_MODES`).
 
 
+
+
+## Triage → token budget defaults (#5621)
+
+When `CHAOS_ENGINE_TOKEN_BUDGET` is **unset**, pick the default from triage
+(blast radius). Env override always wins.
+
+| Triage (worse of blast radius / reversibility) | Default budget |
+| --- | --- |
+| One file, reversible | `ultra-lean` (Headroom `agent-90`) |
+| One module, reversible | `balanced` |
+| Public contract, many callers, or hard to reverse | `deep` |
+
+Machine map: `hooks/lifecycle.py` → `TRIAGE_TO_TOKEN_BUDGET` /
+`triage_token_budget()`.
+
 ## Headroom profile map
 
 | Token budget | `HEADROOM_SAVINGS_PROFILE` |

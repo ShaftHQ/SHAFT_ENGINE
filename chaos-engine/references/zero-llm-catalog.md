@@ -8,6 +8,9 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Install / upgrade | One-liners in [INSTALL.md](../INSTALL.md) | Fresh or upgraded payload + healthy doctor |
 | Human doctor | `python3 .chaos-engine/install.py doctor --project .` | Component health + fix-next lines |
 | Fix-next only | `python3 .chaos-engine/install.py doctor --project . --fix-next-only` | Prints only actionable repair lines (exit 0 if none) |
+| Component repair | `python3 .chaos-engine/install.py repair --project . --component <id>` | Targeted quarantine/republish without full wipe (#5620/#5621) |
+| Heal route | [`heal-route.md`](heal-route.md) | File-path Heal surface even if marketplace plugin absent |
+| Level-1 catalog | [`level-1-catalog.md`](level-1-catalog.md) | Progressive-disclosure secondary surfaces |
 | JSON doctor | `... doctor --project . --json` | Schema v2 machine contract |
 | Status (passive) | `... status --project .` | Receipt-bound status without active probes |
 | Empty-project smoke | `python3 scripts/ci/chaos_engine_empty_project_smoke.py` | Install→doctor budget evidence |
