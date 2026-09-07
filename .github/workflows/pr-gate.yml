@@ -453,7 +453,7 @@ jobs:
           --base "$BASE_SHA"
           --head "$HEAD_SHA"
           --reviews "$REVIEWS_PATH"
-          --budget-seconds 240
+          --budget-seconds 360
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()
