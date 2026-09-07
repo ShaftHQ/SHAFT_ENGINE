@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import os
 import subprocess  # nosec B404 - fixed list-args CLI invocations in tests only
+import sys
 import unittest
-from unittest import mock
+import unittest.mock
 
 from scripts.ci.epic_autoclose import (
     EPIC_LABEL,
@@ -106,7 +107,7 @@ class ParseTests(unittest.TestCase):
             "labels": {"nodes": [{"name": EPIC_LABEL}, {"name": "enhancement"}]},
         }
         parsed = issue_from_graphql_node(node)
-        assert parsed is not None
+        self.assertIsNotNone(parsed)
         self.assertEqual((EPIC_LABEL, "enhancement"), parsed.labels)
 
     def test_parse_sub_issues_skips_malformed(self):
@@ -222,9 +223,9 @@ class EvaluateIntegrationTests(unittest.TestCase):
             closed_children=(_issue(5585, "autoclose", "CLOSED"),),
             reason="all closed",
         )
-        with mock.patch(
+        with unittest.mock.patch(
             "scripts.ci.epic_autoclose.evaluate_closed_issue", return_value=decision_payload
-        ), mock.patch("scripts.ci.epic_autoclose.close_issue") as close_mock:
+        ), unittest.mock.patch("scripts.ci.epic_autoclose.close_issue") as close_mock:
             code = main(
                 ["--repository", "ShaftHQ/SHAFT_ENGINE", "--issue", "5585", "--dry-run"]
             )
@@ -235,7 +236,7 @@ class EvaluateIntegrationTests(unittest.TestCase):
 class CliSmokeTests(unittest.TestCase):
     def test_cli_help(self):
         completed = subprocess.run(  # nosec B603
-            ["python3", CLI, "--help"],
+            [sys.executable, CLI, "--help"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

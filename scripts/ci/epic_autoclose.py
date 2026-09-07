@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Auto-close CE program epics when every GitHub sub-issue is closed (#5585).
+"""
+Auto-close CE program epics when every GitHub sub-issue is closed (#5585).
 
 Convention (see chaos-engine/references/work-github-planning.md):
 - CE program epics use GitHub native sub-issues under the epic.
@@ -132,7 +133,8 @@ def is_eligible_epic(issue: IssueRef) -> bool:
 
 
 def decide(*, parent: IssueRef | None, children: Sequence[IssueRef]) -> Decision:
-    """Decide whether the parent epic should close given its sub-issues.
+    """
+    Decide whether the parent epic should close given its sub-issues.
 
     Never force-closes while any tracked child remains open. Epics with zero
     sub-issues are a no-op (avoids closing a mislabeled issue with no children).
@@ -394,7 +396,8 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps(payload, indent=2, sort_keys=True))
     if not decision.should_close:
         return 0
-    assert decision.epic is not None  # noqa: S101 - guarded by should_close
+    if decision.epic is None:
+        raise RuntimeError("close_epic decision missing epic payload")
     comment = close_comment(
         epic=decision.epic,
         children=decision.closed_children,
