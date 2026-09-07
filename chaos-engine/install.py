@@ -603,10 +603,33 @@ def stale_host_state_after_wiped_runtime(project: Path) -> bool:
     return False
 
 
+def orphan_host_anchors_without_core(project: Path) -> bool:
+    """True when active/removing host anchors exist but `.chaos-engine` is absent (#5630).
+
+    Extends wiped-runtime heal so orphan anchors alone (no phase=installed receipt)
+    are quarantined instead of colliding on reinstall. Healthy dependency receipt
+    with a matching live core is intentionally out of scope (live upgrade).
+    """
+    target = project / INSTALL_DIRECTORY
+    if target.exists() or is_link_or_reparse(target):
+        return False
+    if not project.is_dir():
+        return False
+    for path in project.iterdir():
+        name = path.name
+        if name.startswith(".chaos-engine-hosts.active-") or name.startswith(
+            ".chaos-engine-hosts.removing-"
+        ):
+            return True
+    return False
+
+
 def wiped_runtime_recovery_needed(project: Path) -> bool:
     """Unified heal gate for missing-core and rematerialized-core stale hosts."""
-    return missing_core_with_installed_hosts(project) or stale_host_state_after_wiped_runtime(
-        project
+    return (
+        missing_core_with_installed_hosts(project)
+        or stale_host_state_after_wiped_runtime(project)
+        or orphan_host_anchors_without_core(project)
     )
 
 
@@ -2474,8 +2497,20 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         ),
         None,
     )
+    if java is not None and not hosts.java_compiler_present(java):
+        # JRE-only Java 25 cannot compile Maven Tools; prefer managed Temurin JDK.
+        java = None
     if java is None:
-        raise ValueError("system Temurin Java 25 is required for Maven Tools MCP")
+        managed = hosts.ensure_managed_temurin_jdk(
+            specification, opener=opener, reporter=reporter, confirmer=confirmer,
+        )
+        if managed is not None:
+            java = managed
+    if java is None:
+        raise ValueError(
+            "Temurin JDK 25 with javac is required for Maven Tools MCP "
+            "(JRE-only Java is not enough); install Temurin 25 JDK or set CHAOSENGINE_JAVA"
+        )
     cache_root = hosts.maven_tools_cache_root()
     cache_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".maven-tools-source-") as source_name:
@@ -2916,6 +2951,14 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     backup_path = project / BACKUP_NAME
                     if old_commit is None and try_verify_install(backup_path) is not None:
                         rollback(project, _locked=True)
+                    elif old_commit is None and account_mode:
+                        # Keep portable core after first-install dependency/provision
+                        # failure so `.chaos-engine/install.py` remains for doctor/heal
+                        # (#5629/#5630). Hosts were not bound yet; re-run rematerializes.
+                        if reporter is not None:
+                            reporter.trace(
+                                "kept installed core after provision failure for self-heal"
+                            )
                     elif old_commit is None:
                         uninstall(project, expected_commit=commit, _locked=True)
                     elif core_changed and backup_path.exists():
@@ -3461,10 +3504,27 @@ def doctor_with_dependencies(
         host_controller.mcp_runtime_status(project.resolve(), managed_python, account_commands)
         if managed_python is not None else {"status": "recovery-required"}
     )
-    mcp_healthy = mcp_status.get("status") == "healthy"
-    if not mcp_healthy:
+    mcp_status_value = str(mcp_status.get("status") or "recovery-required")
+    components = result.get("components")
+    if mcp_status_value == "healthy":
+        pass
+    elif mcp_status_value in {"compatible-legacy", "degraded", "sync-advisory"}:
+        # Memory origin/main write gate during probe is advisory for required mcps
+        # (#5630); tool.py still hard-fails memory writes. Keep overall install
+        # verify from treating this alone as CE-INSTALL-FAILED recovery-required.
+        if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
+            components["mcps"]["status"] = "compatible-legacy"
+            fix_next = mcp_status.get("fixNext")
+            detail = mcp_status.get("detail")
+            if isinstance(fix_next, str) and fix_next.strip():
+                components["mcps"]["detail"] = fix_next.strip()
+            elif isinstance(detail, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail):
+                components["mcps"]["detail"] = detail
+            code = mcp_status.get("code")
+            if isinstance(code, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", code):
+                components["mcps"]["code"] = code
+    else:
         result["status"] = "recovery-required"
-        components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
             components["mcps"]["status"] = "recovery-required"
             detail = mcp_status.get("detail")
@@ -4084,6 +4144,17 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
             f"`{cli} .chaos-engine/install.py doctor --project .`."
         )
     if name == "mcps":
+        detail = item.get("detail")
+        if isinstance(detail, str) and "git fetch origin main" in detail:
+            return detail.strip()
+        if item.get("code") == "CE_MEMORY_ORIGIN_MAIN_DESYNC" or status == "compatible-legacy":
+            return (
+                "Primary checkout HEAD is not synchronized with origin/main "
+                "(Memory write gate). Fix-next: git fetch origin main && "
+                "git merge --ff-only origin/main — then rerun "
+                f"`{cli} .chaos-engine/install.py doctor --project .`. "
+                "Required mcps stay installable; memory/memory-mcp writes still hard-fail."
+            )
         return (
             "Repair MCP launchers (`.mcp.json` / Codex config) via reinstall, "
             f"then rerun `{cli} .chaos-engine/install.py doctor --project .`."

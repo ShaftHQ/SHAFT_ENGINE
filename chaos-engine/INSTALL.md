@@ -285,6 +285,48 @@ Then rerun the tool, or confirm with
 `python3 .chaos-engine/install.py doctor --project .`
 (and `--fix-next-only` when scripting).
 
+### Codex MCP collision / orphan `context7`
+
+Re-running install self-heals CE-owned Codex MCP sections (`context7`,
+`chaosengine-memory`, `chaosengine-mempalace`, `maven-tools-mcp`) that sit
+outside or inside a drifted `# CHAOSENGINE:START`…`END` block. Non-owned
+user MCP servers are left untouched. No need to empty `.codex/config.toml`
+manually.
+
+### Orphan `.chaos-engine-hosts.active-*` anchors
+
+Leftover active/removing host anchors when `.chaos-engine/` is missing are
+quarantined under `.chaos-engine-state/orphaned-*` on the next install
+(same wiped-runtime heal as a stale hosts receipt).
+
+### Install verify / doctor and `HEAD != origin/main`
+
+`memory` / `memory-mcp` **tools** still hard-fail writes when primary
+`HEAD` is not `origin/main`. Install verify and doctor treat that probe
+exit as **compatible-legacy** for required `mcps` (advisory + fix-next),
+while still probing `mempalace-mcp`. Sync when you need Memory writes:
+
+```bash
+git fetch origin main && git merge --ff-only origin/main
+```
+
+### JRE without `javac` (Maven Tools)
+
+If only a JRE is on `PATH`, install provisions a Temurin JDK into the
+ChaosEngine tools cache so Maven Tools can compile.
+
+### Windows `WinError 2` during Provision dependencies
+
+Install resolves `pwsh`/`powershell` and PATHEXT launchers before
+CreateProcess. A missing tool names the executable and prints fix-next
+instead of an opaque WinError 2; the portable core is kept so re-run can
+self-heal.
+
+### MemPalace `sqlite_exact` FTS5 malformed
+
+Doctor/heal attempts a bounded FTS rebuild and quarantines clearly-operator
+`*.bak` siblings when safe.
+
 ### Missing dependency receipt / wiped `.chaos-engine` runtime
 
 If `.chaos-engine/` was deleted or replaced, and/or

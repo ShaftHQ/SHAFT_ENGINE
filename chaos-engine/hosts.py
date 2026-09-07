@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import os
+import urllib.request
 import platform
 import queue
 import re
@@ -574,6 +575,70 @@ def resolved_central_palace(project: Path) -> Path | None:
     return path if path.is_absolute() else None
 
 
+
+_MEMPALACE_OPERATOR_BACKUP = re.compile(
+    r"^(?:.*\.(?:bak|backup|old|orig)(?:\..*)?|.*~|sqlite_exact\.sqlite3(?:-wal|-shm)?\.(?:bak|backup).*)$",
+    re.IGNORECASE,
+)
+
+
+def quarantine_mempalace_operator_backups(
+    palace: Path, children: list[Path] | None = None
+) -> list[Path]:
+    """Move clearly-operator bak/backup siblings outside the allowlist when safe (#5630)."""
+    if is_link_or_reparse(palace) or not palace.is_dir():
+        return []
+    try:
+        entries = list(children) if children is not None else list(palace.iterdir())
+    except OSError:
+        return []
+    quarantine_root = palace / ".chaos-engine-quarantine"
+    moved: list[Path] = []
+    for child in entries:
+        if is_link_or_reparse(child) or not child.is_file():
+            continue
+        if _MEMPALACE_OPERATOR_BACKUP.fullmatch(child.name) is None:
+            continue
+        try:
+            quarantine_root.mkdir(parents=True, exist_ok=True)
+            destination = quarantine_root / child.name
+            if destination.exists() or is_link_or_reparse(destination):
+                destination = quarantine_root / f"{child.name}.{secrets.token_hex(4)}"
+            child.replace(destination)
+            moved.append(destination)
+        except OSError:
+            continue
+    return moved
+
+
+def attempt_mempalace_sqlite_exact_heal(palace: Path) -> bool:
+    """Bounded FTS5 rebuild for malformed sqlite_exact inverted indexes (#5630)."""
+    exact = palace / "sqlite_exact.sqlite3"
+    if is_link_or_reparse(exact) or not exact.is_file():
+        return False
+    connection = None
+    try:
+        connection = sqlite3.connect(str(exact.resolve()))
+        connection.execute("PRAGMA trusted_schema=OFF")
+        # Prefer FTS rebuild when the docs_fts virtual table exists.
+        tables = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
+            )
+        }
+        if "docs_fts" in tables:
+            connection.execute("INSERT INTO docs_fts(docs_fts) VALUES('rebuild')")
+            connection.commit()
+        quick = connection.execute("PRAGMA quick_check(1)").fetchone()
+        return quick == ("ok",)
+    except (OSError, sqlite3.DatabaseError):
+        return False
+    finally:
+        if connection is not None:
+            connection.close()
+
+
 def mempalace_directory_status(palace: Path) -> dict[str, str]:
     """Classify one MemPalace directory without importing its native backend."""
     if is_link_or_reparse(palace):
@@ -656,11 +721,23 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             palace / "replica.json",
         )
     }
-    if any(child.name not in allowed_names for child in children):
-        return {
-            "status": "recovery-required",
-            "detail": "MemPalace state contains unrecognized recoverable data",
-        }
+    unrecognized = [child for child in children if child.name not in allowed_names]
+    if unrecognized:
+        quarantine_mempalace_operator_backups(palace, unrecognized)
+        try:
+            children = list(palace.iterdir())
+        except OSError:
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state is unreadable or contains a link or reparse point",
+            }
+        # Quarantine directory itself is operator-owned recovery state; allow it.
+        allowed_with_quarantine = set(allowed_names) | {".chaos-engine-quarantine"}
+        if any(child.name not in allowed_with_quarantine for child in children):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
     if sidecar.exists():
         if not sidecar.is_dir() or is_link_or_reparse(sidecar):
             return {
@@ -710,6 +787,14 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             required_indexes=SQLITE_EXACT_INDEXES,
             collection="mempalace_drawers",
         ):
+            if attempt_mempalace_sqlite_exact_heal(palace):
+                if _sqlite_runtime_valid(
+                    exact,
+                    required_schema=SQLITE_EXACT_SCHEMA,
+                    required_indexes=SQLITE_EXACT_INDEXES,
+                    collection="mempalace_drawers",
+                ):
+                    return {"status": "healthy", "backend": "sqlite_exact"}
             return {
                 "status": "recovery-required",
                 "detail": "SQLite-exact MemPalace state is unreadable or malformed",
@@ -911,6 +996,16 @@ def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
     return frames
 
 
+
+def _memory_origin_main_desync_output(stderr: str | None, stdout: str | None) -> bool:
+    """Fingerprint Memory tool origin/main hard-fail without treating other crashes as sync."""
+    text = f"{stderr or ''}\n{stdout or ''}"
+    return (
+        "not synchronized with origin/main" in text
+        and "fix-next:" in text.casefold()
+    )
+
+
 def mcp_runtime_status(
     project: Path,
     managed_python: Path | None = None,
@@ -967,6 +1062,7 @@ def mcp_runtime_status(
         [python, str(tool), "memory-mcp"],
         [python, str(tool), "mempalace-mcp"],
     )
+    memory_origin_main_desync = False
     for name, command in zip(("memory-mcp", "mempalace-mcp"), commands):
         try:
             result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
@@ -984,6 +1080,12 @@ def mcp_runtime_status(
         except OSError:
             return {"status": "recovery-required", "detail": f"{name}-unavailable"}
         if result.returncode != 0:
+            if name == "memory-mcp" and _memory_origin_main_desync_output(
+                result.stderr, result.stdout
+            ):
+                # Keep probing mempalace-mcp; required mcps stay non-blocking (#5630).
+                memory_origin_main_desync = True
+                continue
             return {"status": "recovery-required", "detail": f"{name}-exit"}
         try:
             responses = parse_mcp_stdout_frames(result.stdout)
@@ -1006,6 +1108,13 @@ def mcp_runtime_status(
             listed_result.get("tools"), list
         ):
             return {"status": "recovery-required", "detail": f"{name}-tools-list"}
+    if memory_origin_main_desync:
+        return {
+            "status": "compatible-legacy",
+            "detail": "memory-origin-main-desync",
+            "code": "CE_MEMORY_ORIGIN_MAIN_DESYNC",
+            "fixNext": "git fetch origin main && git merge --ff-only origin/main",
+        }
     return {"status": "healthy"}
 
 
@@ -1832,6 +1941,132 @@ def java_major(java: Path) -> int | None:
         return None
     match = re.search(r'version "(?P<major>\d+)', result.stderr + result.stdout)
     return int(match.group("major")) if match else None
+
+
+def java_compiler_present(java: Path) -> bool:
+    """True when the Java home that owns `java` also ships `javac` (JDK, not JRE)."""
+    try:
+        resolved = java.resolve(strict=True)
+    except OSError:
+        return False
+    javac = resolved.with_name("javac.exe" if os.name == "nt" else "javac")
+    return javac.is_file() and not is_link_or_reparse(javac)
+
+
+def managed_temurin_root(version: str = "25.0.4+7") -> Path:
+    system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    machine = platform.machine().lower()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    return (
+        maven_tools_cache_root().parent
+        / "temurin"
+        / version
+        / f"{system}-{architecture}"
+    )
+
+
+def ensure_managed_temurin_jdk(
+    specification: dict[str, object] | None = None,
+    *,
+    opener=None,
+    reporter=None,
+    confirmer=None,
+) -> Path | None:
+    """Provision checksum-verified Temurin JDK into the CE tools cache when needed (#5630)."""
+    version = "25.0.4+7"
+    system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    machine = platform.machine().lower()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    host_platform = f"{system}-{architecture}"
+    root = managed_temurin_root(version)
+    java = root / (
+        "bin/java.exe" if os.name == "nt" else
+        "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
+    )
+    verified = verified_managed_temurin(java, host_platform)
+    if verified is not None and java_compiler_present(verified):
+        return verified
+    if specification is None:
+        return None
+    runtimes = specification.get("runtimes")
+    temurin = runtimes.get("temurin") if isinstance(runtimes, dict) else None
+    artifacts = temurin.get("artifacts") if isinstance(temurin, dict) else None
+    artifact = artifacts.get(host_platform) if isinstance(artifacts, dict) else None
+    if not isinstance(artifact, dict):
+        return None
+    url, digest = artifact.get("url"), artifact.get("sha256")
+    if not isinstance(url, str) or not isinstance(digest, str):
+        return None
+    # Lazy-import download helpers from colocated dependencies controller.
+    dependencies_path = Path(__file__).resolve().with_name("dependencies.py")
+    if not dependencies_path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "chaos_engine_dependencies_temurin", dependencies_path
+    )
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    open_url = opener or urllib.request.urlopen
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    if confirmer is not None:
+        confirmer(f"Download Temurin JDK {version} from {url}")
+    if reporter is not None:
+        reporter.trace(f"provision managed Temurin JDK {version}")
+    suffix = ".zip" if str(url).endswith(".zip") else ".tar.gz"
+    transaction = parent / f".{version}-{architecture}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        if root.exists() or is_link_or_reparse(root):
+            # Incomplete prior attempt — refuse to clobber without a clean tree.
+            if verified_managed_temurin(java, host_platform) is None:
+                raise ValueError("existing managed Temurin JDK tree is invalid")
+            return java.resolve()
+        module._download_artifact(str(url), archive, str(digest), open_url, reporter=reporter)
+        module._extract_runtime_archive(archive, transaction)
+        # Write runtime receipt expected by verified_managed_temurin.
+        relative_java = (
+            "bin/java.exe" if os.name == "nt" else
+            "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
+        )
+        installed_java = transaction / relative_java
+        if not installed_java.is_file():
+            raise ValueError("Temurin JDK archive did not contain java")
+        javac = installed_java.with_name("javac.exe" if os.name == "nt" else "javac")
+        if not javac.is_file():
+            raise ValueError("Temurin JDK archive did not contain javac")
+        expected_architecture = (
+            "x64" if host_platform == "windows-arm64" else host_platform.split("-", 1)[1]
+        )
+        receipt = {
+            "schemaVersion": 1,
+            "runtime": "temurin",
+            "version": version,
+            "hostPlatform": host_platform,
+            "artifactArchitecture": expected_architecture,
+            "emulated": host_platform == "windows-arm64",
+            "java": relative_java,
+            "javaSha256": hashlib.sha256(installed_java.read_bytes()).hexdigest(),
+        }
+        (transaction / TEMURIN_RECEIPT).write_text(
+            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    verified = verified_managed_temurin(java, host_platform)
+    if verified is None or not java_compiler_present(verified):
+        raise ValueError("managed Temurin JDK provision did not produce a usable javac")
+    return verified
 
 
 def verified_maven_tools_jar(candidate: Path) -> Path | None:
@@ -3049,6 +3284,105 @@ def json_content(
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
+
+_OWNED_CODEX_MCP_SERVERS = frozenset(
+    {
+        "chaosengine-memory",
+        "chaosengine-mempalace",
+        "context7",
+        "maven-tools-mcp",
+    }
+)
+_CODEX_MCP_SERVER_HEADER = re.compile(
+    r'^\[mcp_servers\.(?:"(?P<quoted>[^"\n]+)"|(?P<plain>[^\].\s]+))'
+    r'(?P<rest>(?:\.[^\]]+)*)\]\s*$'
+)
+
+
+def strip_owned_codex_server_sections(
+    content: str, owned: frozenset[str] | None = None
+) -> str:
+    """Remove CE-owned `[mcp_servers.NAME]` tables (and nested tables); keep foreign servers."""
+    names = owned or _OWNED_CODEX_MCP_SERVERS
+    lines = content.splitlines(keepends=True)
+    kept: list[str] = []
+    skipping = False
+    owned_name: str | None = None
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        bare = line.splitlines()[0] if line else ""
+        match = _CODEX_MCP_SERVER_HEADER.match(bare)
+        if match is not None:
+            server = match.group("quoted") or match.group("plain")
+            if server in names:
+                skipping = True
+                owned_name = server
+                index += 1
+                continue
+            skipping = False
+            owned_name = None
+            kept.append(line)
+            index += 1
+            continue
+        if skipping:
+            if bare.startswith("[") and bare.rstrip().endswith("]"):
+                nested = _CODEX_MCP_SERVER_HEADER.match(bare)
+                if nested is not None:
+                    nested_name = nested.group("quoted") or nested.group("plain")
+                    if nested_name == owned_name:
+                        index += 1
+                        continue
+                skipping = False
+                owned_name = None
+                continue
+            index += 1
+            continue
+        kept.append(line)
+        index += 1
+    return "".join(kept)
+
+
+def _codex_non_owned_interior(managed_block: str) -> str:
+    """Return foreign mcp_servers tables that were wrapped inside CE markers."""
+    body = managed_block
+    for marker in (
+        "# CHAOSENGINE:START\r\n",
+        "# CHAOSENGINE:START\n",
+        "# CHAOSENGINE:END\r\n",
+        "# CHAOSENGINE:END\n",
+        "# CHAOSENGINE:START",
+        "# CHAOSENGINE:END",
+    ):
+        body = body.replace(marker, "")
+    preserved = strip_owned_codex_server_sections(body)
+    return preserved.strip()
+
+
+def heal_replace_codex_managed_block(existing: str, block: str) -> str:
+    """Replace a drifted CE managed Codex stanza; preserve non-owned keys outside it."""
+    managed = managed_codex_block(existing)
+    if managed is None:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    start = existing.find(managed)
+    if start < 0:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    finish = start + len(managed)
+    before = strip_owned_codex_server_sections(existing[:start])
+    after = strip_owned_codex_server_sections(existing[finish:])
+    preserved = _codex_non_owned_interior(managed)
+    pieces = [before.rstrip("\n\r")]
+    if preserved:
+        pieces.append(preserved)
+    pieces.append(block.rstrip("\n\r") + "\n")
+    if after.lstrip("\n\r"):
+        pieces.append(after.lstrip("\n\r"))
+    merged = "\n".join(part for part in pieces if part)
+    if not merged.endswith("\n"):
+        merged += "\n"
+    return merged
+
+
 def remove_known_codex_orphans(existing: str) -> str:
     """Remove exact residue emitted by the historical context7 migration."""
     for orphan in (
@@ -3198,14 +3532,10 @@ def codex_content(
         for candidate in (legacy, legacy.replace("\n", "\r\n")):
             if candidate in existing:
                 return existing.replace(candidate, block).encode()
-        raise ValueError("ChaosEngine Codex configuration collision")
-    for name in owned_servers(
-        maven_runtime=maven_runtime, managed_python=managed_python,
-        account_commands=account_commands,
-        maven_docker=maven_docker,
-    ):
-        if f'mcp_servers."{name}"' in existing or f"mcp_servers.{name}" in existing:
-            raise ValueError(f"ChaosEngine Codex server collision: {name}")
+        # Drifted managed block / markers wrapping non-owned keys: replace stanza (#5630).
+        return heal_replace_codex_managed_block(existing, block).encode()
+    # Orphan CE-owned sections outside markers (esp. context7): strip then append.
+    existing = strip_owned_codex_server_sections(existing)
     separator = "\n" if existing and not existing.endswith("\n") else ""
     return (existing + separator + block).encode()
 

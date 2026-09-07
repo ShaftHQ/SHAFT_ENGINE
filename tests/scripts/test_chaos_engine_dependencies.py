@@ -647,9 +647,13 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         )
         self.assertEqual([], macos["node"])
         windows = module.prerequisite_command_plan(
-            "windows", "winget", {"uv": "installed", "node": "installed", "java": "installed"}
+            "windows", "winget", {"uv": "installed", "node": "installed", "java": "installed"},
+            which=lambda name, path=None: {
+                "powershell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "powershell.exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            }.get(name),
         )
-        self.assertEqual("pwsh", windows["uv"][0][0])
+        self.assertTrue(str(windows["uv"][0][0]).lower().endswith("powershell.exe"))
         self.assertIn("/0.12.0/uv-installer.ps1", windows["uv"][0][-1])
         self.assertIn("UV_INSTALL_DIR", windows["uv"][0][-1])
         self.assertEqual([], windows["node"])
