@@ -3,6 +3,7 @@ package com.shaft.cucumber;
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import io.appium.java_client.AppiumBy;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
@@ -24,6 +25,16 @@ public class ElementSteps {
         this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
 
+    /**
+     * Resolves a Cucumber locator type string to a Selenium/Appium {@link By}.
+     * Supports web strategies plus mobile/Flutter aliases that mirror
+     * {@link com.shaft.driver.SHAFT.GUI.Locator}. Unknown types default to XPath
+     * (historical web behaviour).
+     *
+     * @param locatorType  type alias (id, xpath, accessibilityid, flutterkey, ...)
+     * @param locatorValue locator expression/value
+     * @return resolved {@link By}
+     */
     protected static By getLocatorFromTypeAndValue(String locatorType, String locatorValue) {
         switch (locatorType.toLowerCase()) {
             case "id" -> {
@@ -46,6 +57,33 @@ public class ElementSteps {
             }
             case "cssselector", "css", "selector", "css_selector", "css selector" -> {
                 return By.cssSelector(locatorValue);
+            }
+            case "accessibilityid", "accessibility_id", "accessibility id" -> {
+                return AppiumBy.accessibilityId(locatorValue);
+            }
+            case "androiduiautomator", "android_uiautomator", "android uiautomator" -> {
+                return AppiumBy.androidUIAutomator(locatorValue);
+            }
+            case "iospredicatestring", "ios_predicate_string", "ios predicate string" -> {
+                return AppiumBy.iOSNsPredicateString(locatorValue);
+            }
+            case "iosclasschain", "ios_class_chain", "ios class chain" -> {
+                return AppiumBy.iOSClassChain(locatorValue);
+            }
+            case "flutterkey", "flutter_key", "flutter key" -> {
+                return AppiumBy.flutterKey(locatorValue);
+            }
+            case "fluttertext", "flutter_text", "flutter text" -> {
+                return AppiumBy.flutterText(locatorValue);
+            }
+            case "fluttertextcontaining", "flutter_text_containing", "flutter text containing" -> {
+                return AppiumBy.flutterTextContaining(locatorValue);
+            }
+            case "fluttertype", "flutter_type", "flutter type" -> {
+                return AppiumBy.flutterType(locatorValue);
+            }
+            case "fluttersemanticslabel", "flutter_semantics_label", "flutter semantics label" -> {
+                return AppiumBy.flutterSemanticsLabel(locatorValue);
             }
             default -> {
                 return By.xpath(locatorValue);
@@ -246,7 +284,12 @@ public class ElementSteps {
     @SuppressWarnings("unused")
     protected enum LocatorType {
         ID("id"), TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), LINK_TEXT("linktext"),
-        PARTIAL_LINK_TEXT("partiallinktext"), CSS_SELECTOR("cssselector"), XPATH("xpath");
+        PARTIAL_LINK_TEXT("partiallinktext"), CSS_SELECTOR("cssselector"), XPATH("xpath"),
+        ACCESSIBILITY_ID("accessibilityid"), ANDROID_UIAUTOMATOR("androiduiautomator"),
+        IOS_PREDICATE_STRING("iospredicatestring"), IOS_CLASS_CHAIN("iosclasschain"),
+        FLUTTER_KEY("flutterkey"), FLUTTER_TEXT("fluttertext"),
+        FLUTTER_TEXT_CONTAINING("fluttertextcontaining"), FLUTTER_TYPE("fluttertype"),
+        FLUTTER_SEMANTICS_LABEL("fluttersemanticslabel");
 
         private final String value;
 

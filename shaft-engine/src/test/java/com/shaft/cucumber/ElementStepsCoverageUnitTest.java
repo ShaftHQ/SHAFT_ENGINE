@@ -1,6 +1,7 @@
 package com.shaft.cucumber;
 
 import com.shaft.driver.SHAFT;
+import io.appium.java_client.AppiumBy;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -60,6 +61,26 @@ public class ElementStepsCoverageUnitTest {
                 {"css_selector", By.cssSelector(LOCATOR_VALUE)},
                 {"css selector", By.cssSelector(LOCATOR_VALUE)},
                 {"xpath", By.xpath(LOCATOR_VALUE)},
+                {"accessibilityid", AppiumBy.accessibilityId(LOCATOR_VALUE)},
+                {"accessibility_id", AppiumBy.accessibilityId(LOCATOR_VALUE)},
+                {"accessibility id", AppiumBy.accessibilityId(LOCATOR_VALUE)},
+                {"androiduiautomator", AppiumBy.androidUIAutomator(LOCATOR_VALUE)},
+                {"android_uiautomator", AppiumBy.androidUIAutomator(LOCATOR_VALUE)},
+                {"iospredicatestring", AppiumBy.iOSNsPredicateString(LOCATOR_VALUE)},
+                {"ios_predicate_string", AppiumBy.iOSNsPredicateString(LOCATOR_VALUE)},
+                {"iosclasschain", AppiumBy.iOSClassChain(LOCATOR_VALUE)},
+                {"ios_class_chain", AppiumBy.iOSClassChain(LOCATOR_VALUE)},
+                {"flutterkey", AppiumBy.flutterKey(LOCATOR_VALUE)},
+                {"flutter_key", AppiumBy.flutterKey(LOCATOR_VALUE)},
+                {"flutter key", AppiumBy.flutterKey(LOCATOR_VALUE)},
+                {"fluttertext", AppiumBy.flutterText(LOCATOR_VALUE)},
+                {"flutter_text", AppiumBy.flutterText(LOCATOR_VALUE)},
+                {"fluttertextcontaining", AppiumBy.flutterTextContaining(LOCATOR_VALUE)},
+                {"flutter_text_containing", AppiumBy.flutterTextContaining(LOCATOR_VALUE)},
+                {"fluttertype", AppiumBy.flutterType(LOCATOR_VALUE)},
+                {"flutter_type", AppiumBy.flutterType(LOCATOR_VALUE)},
+                {"fluttersemanticslabel", AppiumBy.flutterSemanticsLabel(LOCATOR_VALUE)},
+                {"flutter_semantics_label", AppiumBy.flutterSemanticsLabel(LOCATOR_VALUE)},
                 {"unsupported", By.xpath(LOCATOR_VALUE)}
         };
     }

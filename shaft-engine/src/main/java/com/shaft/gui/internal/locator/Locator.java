@@ -108,6 +108,83 @@ public class Locator {
         return AppiumBy.iOSClassChain(classChain);
     }
 
+
+    /**
+     * Builds a Flutter ValueKey locator ({@code AppiumBy.flutterKey}).
+     * Available with Appium Flutter Integration Driver sessions.
+     *
+     * @param key Flutter ValueKey / Key string
+     * @return Flutter Appium locator
+     */
+    public static By flutterKey(@NonNull String key) {
+        return AppiumBy.flutterKey(key);
+    }
+
+    /**
+     * Builds a Flutter exact-text locator ({@code AppiumBy.flutterText}).
+     *
+     * @param text exact visible text on the widget
+     * @return Flutter Appium locator
+     */
+    public static By flutterText(@NonNull String text) {
+        return AppiumBy.flutterText(text);
+    }
+
+    /**
+     * Builds a Flutter partial-text locator ({@code AppiumBy.flutterTextContaining}).
+     *
+     * @param partialText substring of the visible text on the widget
+     * @return Flutter Appium locator
+     */
+    public static By flutterTextContaining(@NonNull String partialText) {
+        return AppiumBy.flutterTextContaining(partialText);
+    }
+
+    /**
+     * Builds a Flutter widget-type locator ({@code AppiumBy.flutterType}).
+     *
+     * @param widgetType Flutter widget type name (e.g. {@code TextField}, {@code ElevatedButton})
+     * @return Flutter Appium locator
+     */
+    public static By flutterType(@NonNull String widgetType) {
+        return AppiumBy.flutterType(widgetType);
+    }
+
+    /**
+     * Builds a Flutter semantics-label locator ({@code AppiumBy.flutterSemanticsLabel}).
+     * Also covers Tooltip messages exposed as semantics labels.
+     *
+     * @param semanticsLabel value of the Semantics label attribute
+     * @return Flutter Appium locator
+     */
+    public static By flutterSemanticsLabel(@NonNull String semanticsLabel) {
+        return AppiumBy.flutterSemanticsLabel(semanticsLabel);
+    }
+
+    /**
+     * Builds a Flutter descendant hierarchy locator ({@code AppiumBy.flutterDescendant}).
+     * Requires java-client Flutter Integration Driver support (1.4.0+ finder).
+     *
+     * @param of parent Flutter locator
+     * @param matching descendant Flutter locator
+     * @return Flutter Appium locator
+     */
+    public static By flutterDescendant(@NonNull AppiumBy.FlutterBy of, @NonNull AppiumBy.FlutterBy matching) {
+        return AppiumBy.flutterDescendant(of, matching);
+    }
+
+    /**
+     * Builds a Flutter ancestor hierarchy locator ({@code AppiumBy.flutterAncestor}).
+     * Requires java-client Flutter Integration Driver support (1.4.0+ finder).
+     *
+     * @param of child Flutter locator
+     * @param matching ancestor Flutter locator
+     * @return Flutter Appium locator
+     */
+    public static By flutterAncestor(@NonNull AppiumBy.FlutterBy of, @NonNull AppiumBy.FlutterBy matching) {
+        return AppiumBy.flutterAncestor(of, matching);
+    }
+
     public static LocatorBuilder hasTagName(@NonNull String tagName) {
         return LocatorBuilder.hasTagName(tagName);
     }
