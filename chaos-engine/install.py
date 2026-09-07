@@ -3417,6 +3417,7 @@ def doctor_with_dependencies(
     if (project.resolve() / ACCOUNT_ROLLBACK_JOURNAL_NAME).exists():
         result["clients"] = {}
         result["activationProof"] = {}
+        result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
         return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
@@ -3479,6 +3480,10 @@ def doctor_with_dependencies(
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
+        result.setdefault(
+            "phaseLedger",
+            {"schemaVersion": 1, "sessions": 0, "status": "absent"},
+        )
         return result
     apply_plugin_client_health(
         result,

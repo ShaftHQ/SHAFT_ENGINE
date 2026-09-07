@@ -124,10 +124,7 @@ def headroom_session_guidance(mode: str | None = None) -> str:
 
 def wake_pack_session_guidance() -> str:
     """Locator only — never dump wake-pack or Memory/MemPalace prose (#5624)."""
-    return (
-        "Wake pack: .chaos-engine-state/wake-pack.md "
-        "(owner-curated ≤~120 tokens; MemPalace drafts only; no prose dump)."
-    )
+    return "Wake pack: `.chaos-engine-state/wake-pack.md` (locator only)."
 
 
 def self_improve_session_guidance() -> str:
