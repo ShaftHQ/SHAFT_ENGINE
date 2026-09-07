@@ -1186,7 +1186,13 @@ def _download_artifact(
     url: str, destination: Path, expected: str, opener=urllib.request.urlopen, *, reporter=None
 ) -> None:
     if reporter is not None:
-        reporter.start("Provision dependencies", detail=url)
+        # Keep Provision as the sole running phase; refresh detail/trace only.
+        if getattr(reporter, "current_operation", None) != "Provision dependencies":
+            reporter.start("Provision dependencies", detail=url)
+        else:
+            reporter.trace(f"download {url}")
+            # Update detail via begin_download below.
+        reporter.trace(f"download artifact → {destination.name} ({url})")
     digest = hashlib.sha256()
     total = 0
     try:

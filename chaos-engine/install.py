@@ -625,6 +625,55 @@ def orphan_host_anchors_without_core(project: Path) -> bool:
     return False
 
 
+
+def orphan_core_without_hosts_receipt(project: Path) -> bool:
+    """True when portable core verifies but hosts receipt is absent (#5636)."""
+    target = project / INSTALL_DIRECTORY
+    if not target.exists() or is_link_or_reparse(target):
+        return False
+    if try_verify_install(target) is None:
+        return False
+    receipt = project / ".chaos-engine-hosts.json"
+    return not receipt.exists() and not is_link_or_reparse(receipt)
+
+
+def missing_hosts_receipt_recovery_status(project: Path) -> dict[str, object]:
+    """Doctor/status payload for keep-core without hosts receipt (#5636)."""
+    target = project / INSTALL_DIRECTORY
+    commit = "missing-hosts-receipt"
+    distribution = "missing-hosts-receipt"
+    policy = "0" * 64
+    if target.exists() and not is_link_or_reparse(target):
+        manifest = try_verify_install(target)
+        if manifest is not None:
+            commit = str(manifest["source"]["commit"])  # type: ignore[index]
+            distribution = str(manifest["distribution"]["id"])  # type: ignore[index]
+            policy = str(manifest["distribution"]["policySha256"])  # type: ignore[index]
+    return {
+        "status": "recovery-required",
+        "commit": commit,
+        "distribution": distribution,
+        "policySha256": policy,
+        "kernel": {"status": "healthy"},
+        "hosts": {"status": "recovery-required"},
+        "dependencies": {"status": "recovery-required"},
+        "components": {
+            "hosts": {
+                "status": "recovery-required",
+                "code": "CE_HOSTS_RECEIPT_MISSING",
+                "taskImpact": "required",
+                "detail": (
+                    "`.chaos-engine/` is present but `.chaos-engine-hosts.json` is "
+                    "missing (kept core after a provision failure); rerun the "
+                    "ChaosEngine install one-liner or "
+                    "`python3 .chaos-engine/install.py repair --project . --component hosts` "
+                    "to bind hosts from the current core"
+                ),
+            }
+        },
+    }
+
+
 def upgrade_host_receipt_drift_needed(project: Path) -> bool:
     """True when deps+core healthy but host receipt/anchors drifted (#5633).
 
@@ -1522,7 +1571,11 @@ def _restore_account_mempalace_from_journal(project: Path, pending: dict[str, ob
 def _account_upgrade_host_receipt_is_durable(
     project: Path, controller, pending: dict[str, object]
 ) -> bool:
-    receipt, _raw = controller.read_receipt(project)
+    try:
+        receipt, _raw = controller.read_receipt(project)
+    except ValueError:
+        # Missing/invalid hosts receipt: not durable (#5636 keep-core orphan).
+        return False
     if receipt.get("phase") != "installed" or receipt.get("coreCommit") != pending["priorCommit"]:
         return False
     expected_host = pending["priorHostReceipt"]
@@ -1571,6 +1624,13 @@ def recover_account_rollback_journal(project: Path) -> None:
         return
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
+    host_receipt = project / ".chaos-engine-hosts.json"
+    # #5636: post-#5631 keep-core can leave an account journal with no hosts
+    # receipt (provision failed before bind). recover must not fail-closed on
+    # read_receipt — drop the journal so install/repair can rematerialize/bind.
+    if not host_receipt.exists() and not is_link_or_reparse(host_receipt):
+        remove_account_rollback_journal(project)
+        return
     target_manifest = verify_install(target)
     target_commit = str(target_manifest["source"]["commit"])
     desired_commit = pending["desiredCommit"]
@@ -1581,6 +1641,10 @@ def recover_account_rollback_journal(project: Path) -> None:
     if target_commit == prior_commit and _account_upgrade_host_receipt_is_durable(
         project, controller, pending
     ):
+        remove_account_rollback_journal(project)
+        return
+    if not backup.exists() and not is_link_or_reparse(backup):
+        # Cannot pair-swap without a backup; clear journal and let install rebind.
         remove_account_rollback_journal(project)
         return
     backup_manifest = verify_install(backup)
@@ -2712,6 +2776,80 @@ def installed_kernel_status(installed_root: Path) -> dict[str, object]:
         return {"status": "recovery-required", "errors": [str(error)]}
 
 
+
+def _reporter_transition_to_provision(reporter, *, detail: str | None = None) -> None:
+    """Complete Install core (if active) then start Provision dependencies sequentially."""
+    if reporter is None:
+        return
+    in_flight = list(getattr(reporter, "_in_flight", []) or [])
+    remaining = tuple(getattr(reporter, "remaining_operations", ()) or ())
+    if (
+        getattr(reporter, "current_operation", None) == "Install core"
+        or "Install core" in in_flight
+    ):
+        next_remaining = tuple(
+            item for item in remaining if item not in {"Install core", "Provision dependencies"}
+        )
+        # Keep later stages; Provision becomes current via start().
+        if "Provision dependencies" not in next_remaining:
+            # Prefer original remaining order after Install core.
+            next_remaining = tuple(
+                item for item in remaining if item != "Install core"
+            )
+        reporter.complete("Install core", remaining=next_remaining)
+        remaining = tuple(getattr(reporter, "remaining_operations", ()) or ())
+    if (
+        getattr(reporter, "current_operation", None) != "Provision dependencies"
+        and "Provision dependencies" not in list(getattr(reporter, "_in_flight", []) or [])
+        and "Provision dependencies" not in list(getattr(reporter, "completed_operations", []) or [])
+    ):
+        prov_remaining = tuple(
+            item for item in remaining if item != "Provision dependencies"
+        )
+        reporter.start(
+            "Provision dependencies",
+            remaining=prov_remaining,
+            detail=detail,
+        )
+
+
+def _safe_command_trace_line(command: list[str] | tuple[str, ...]) -> str:
+    """Format argv for traces without leaking secret-looking values."""
+    secret = re.compile(
+        r"(?i)(token|secret|password|passwd|api[_-]?key|authorization|bearer)\s*[=:]\s*\S+"
+    )
+    hexish = re.compile(r"^[0-9a-fA-F]{32,}$")
+    parts: list[str] = []
+    for part in command:
+        value = str(part)
+        if secret.search(value):
+            value = secret.sub(
+                lambda match: match.group(0).split("=", 1)[0].split(":", 1)[0] + "=***",
+                value,
+            )
+        elif hexish.fullmatch(value):
+            value = "***"
+        parts.append(value)
+    return " ".join(parts)
+
+
+def _tracing_dependency_runner(reporter, runner):
+    """Wrap a dependency runner so each command is traced at info level."""
+    if reporter is None:
+        return runner
+
+    def traced(*args, **kwargs):
+        command = args[0] if args else kwargs.get("args")
+        if isinstance(command, (list, tuple)) and command:
+            try:
+                reporter.trace(f"run {_safe_command_trace_line(command)}")
+            except Exception:
+                pass
+        return runner(*args, **kwargs)
+
+    return traced
+
+
 def install_with_dependencies(  # noqa: MC0001 - owned resources share one compensation boundary.
     project: Path,
     source: Path,
@@ -2807,6 +2945,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 project, MEMPALACE_STATE_OUTPUT
             )
         try:
+            if reporter is not None:
+                reporter.trace(
+                    f"rematerialize core commit={commit} distribution={distribution}"
+                )
             target = install(
                 project,
                 source,
@@ -2820,6 +2962,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
             raise
         installed_manifest = verify_install(target)
+        # #5635: core and provision are sequential — never leave both "running".
+        _reporter_transition_to_provision(
+            reporter, detail=f"core={commit[:12]}… ready; provisioning tools"
+        )
         core_changed = old_manifest is None or {
             key: value
             for key, value in installed_manifest.items()
@@ -2910,9 +3056,18 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                                 mempalace_state_before, mempalace_state_before
                             ),
                         )
-                account_receipt = controller.install_account_dependencies(
-                    project, specification
-                )
+                if reporter is not None:
+                    reporter.trace("provision account dependencies (uv/python/node/java/tools)")
+                account_runner = _tracing_dependency_runner(reporter, subprocess.run)
+                try:
+                    account_receipt = controller.install_account_dependencies(
+                        project, specification, runner=account_runner
+                    )
+                except TypeError:
+                    # Older/test controllers may not accept runner=.
+                    account_receipt = controller.install_account_dependencies(
+                        project, specification
+                    )
                 account_receipt_after = (
                     account_receipt_path.read_bytes()
                     if account_receipt_path.is_file() else None
@@ -3430,6 +3585,8 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 return wiped_runtime_recovery_status(project)
             if upgrade_host_receipt_drift_needed(project):
                 return upgrade_host_receipt_drift_status(project)
+            if orphan_core_without_hosts_receipt(project):
+                return missing_hosts_receipt_recovery_status(project)
             manifest = verify_install(target)
             state = (
                 "recovery-required"
@@ -4064,6 +4221,8 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                     for key, value in account_payload["commands"].items()
                     if isinstance(key, str) and isinstance(value, str)
                 }
+        # Clear stale account journals that block bind when hosts receipt is gone (#5636).
+        recover_account_rollback_journal(project)
         if name == "plugins":
             # Republish marketplace/plugins via host install preflight path, then
             # activate detected clients — no full dependency wipe.
@@ -4277,6 +4436,14 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
             f"`{cli} .chaos-engine/install.py repair --project . --component hosts` "
             "to quarantine the drifted host receipt/anchors and rebind from the "
             "current core (foreign user MCP config is preserved). "
+            + reinstall
+        )
+    if code == "CE_HOSTS_RECEIPT_MISSING":
+        return (
+            "Rerun the ChaosEngine install one-liner or "
+            f"`{cli} .chaos-engine/install.py repair --project . --component hosts` "
+            "to bind hosts under the kept `.chaos-engine/` core (no manual "
+            "receipt surgery). "
             + reinstall
         )
     if name == "mempalace" and status == "migration-required":
@@ -4542,6 +4709,10 @@ def main() -> int:
             and missing_core_with_installed_hosts(Path(project_arg))
         ):
             diagnostic_code = "CE_CORE_MISSING"
+        elif project_arg is not None and orphan_core_without_hosts_receipt(
+            Path(project_arg)
+        ):
+            diagnostic_code = "CE_HOSTS_RECEIPT_MISSING"
         elif project_arg is not None and upgrade_host_receipt_drift_needed(
             Path(project_arg)
         ):
@@ -4612,6 +4783,19 @@ def main() -> int:
                         {
                             "status": "recovery-required",
                             "code": "CE_HOST_ADAPTER_DRIFT",
+                            "taskImpact": "required",
+                        },
+                    ),
+                    file=sys.stderr,
+                )
+            elif diagnostic_code == "CE_HOSTS_RECEIPT_MISSING":
+                print(
+                    "fix-next: "
+                    + component_fix_next(
+                        "hosts",
+                        {
+                            "status": "recovery-required",
+                            "code": "CE_HOSTS_RECEIPT_MISSING",
                             "taskImpact": "required",
                         },
                     ),

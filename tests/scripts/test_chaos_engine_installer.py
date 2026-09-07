@@ -76,7 +76,7 @@ class AccountDependencyController:
     def __getattr__(self, name):
         return getattr(self._controller, name)
 
-    def install_account_dependencies(self, project, _specification):
+    def install_account_dependencies(self, project, _specification, **_kwargs):
         receipt = {
             "schemaVersion": 2,
             "scope": "user",

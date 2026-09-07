@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import runpy
 import shutil
 import sys
@@ -59,7 +60,10 @@ BRAND_NARROW = (
     "  /C|*|E/",
     "  ChaosEngine",
 )
-TRACE_LIMIT = 12
+TRACE_LIMIT = 12 if (
+    os.environ.get("CI")
+    or os.environ.get("CHAOS_ENGINE_QUIET") == "1"
+) else 40
 STALL_SECONDS = 8.0
 
 
@@ -210,6 +214,27 @@ class InstallHealthError(RuntimeError):
         self.observed_commit = commit if isinstance(commit, str) and COMMIT.fullmatch(commit) else None
         self.observed_components = observed_blocking_components(components)
         self.observed_component_details = observed_blocking_component_details(components)
+
+
+
+def safe_command_trace(command: list[str] | tuple[str, ...]) -> str:
+    """Format a command for installer traces without leaking secret-looking values."""
+    redacted: list[str] = []
+    secret = re.compile(
+        r"(?i)(token|secret|password|passwd|api[_-]?key|authorization|bearer)\s*[=:]\s*\S+"
+    )
+    hexish = re.compile(r"^[0-9a-fA-F]{32,}$")
+    for part in command:
+        value = str(part)
+        if secret.search(value):
+            value = secret.sub(
+                lambda match: match.group(0).split("=", 1)[0].split(":", 1)[0] + "=***",
+                value,
+            )
+        elif hexish.fullmatch(value):
+            value = "***"
+        redacted.append(value)
+    return " ".join(shlex.quote(item) for item in redacted)
 
 
 class InstallReporter:
@@ -1141,13 +1166,16 @@ def install_latest(
             }
         confirm("Install core")
         reporter.start("Install core", remaining=remaining("Install core"))
+        reporter.trace(f"install core commit={commit} distribution={distribution}")
         if skip_tools:
             target = installer.install(
                 project, source, commit, source_record=provenance, distribution=distribution
             )
+            reporter.complete("Install core", remaining=remaining("Install core"))
         else:
+            # Core and provision are sequential: install_with_dependencies completes
+            # "Install core" then starts "Provision dependencies" before deps work.
             confirm("Provision dependencies")
-            reporter.start("Provision dependencies", remaining=remaining("Provision dependencies"))
             if with_maven_tools:
                 confirm("Install Maven Tools")
             target = installer.install_with_dependencies(
@@ -1163,12 +1191,23 @@ def install_latest(
                 confirmer=confirm,
                 bundle_options=bundle_options,
             )
-            if with_maven_tools:
+            if with_maven_tools and "Install Maven Tools" in getattr(
+                reporter, "_in_flight", ()
+            ):
                 reporter.complete(
                     "Install Maven Tools", remaining=remaining("Install Maven Tools")
                 )
-            reporter.complete("Provision dependencies", remaining=remaining("Provision dependencies"))
-        reporter.complete("Install core", remaining=remaining("Install core"))
+            if "Provision dependencies" in getattr(reporter, "_in_flight", ()) or (
+                reporter.current_operation == "Provision dependencies"
+            ):
+                reporter.complete(
+                    "Provision dependencies",
+                    remaining=remaining("Provision dependencies"),
+                )
+            if "Install core" in getattr(reporter, "_in_flight", ()) or (
+                reporter.current_operation == "Install core"
+            ):
+                reporter.complete("Install core", remaining=remaining("Install core"))
         temporary.cleanup()
     except BaseException:
         reporter.close()

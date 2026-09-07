@@ -36,7 +36,7 @@ class AccountDependencyController:
     def __getattr__(self, name):
         return getattr(self._controller, name)
 
-    def install_account_dependencies(self, project, _specification):
+    def install_account_dependencies(self, project, _specification, **_kwargs):
         receipt = {
             "schemaVersion": 2,
             "scope": "user",
@@ -339,6 +339,128 @@ class HostAdapterDrift5633Test(unittest.TestCase):
                 (project / ".chaos-engine-hosts.json").read_text(encoding="utf-8")
             )
             self.assertEqual("2" * 40, receipt.get("coreCommit"))
+
+
+
+
+class OrphanCoreMissingHosts5636Test(unittest.TestCase):
+    def test_recover_clears_account_journal_when_hosts_receipt_absent(self):
+        install = load(INSTALL, "chaos_engine_install_5636_journal")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine"
+            core.mkdir()
+            (core / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "source": {"commit": "b" * 40, "kind": "local"},
+                        "distribution": {"id": "portable", "policySha256": "0" * 64},
+                        "files": {},
+                        "hostToken": "c" * 64,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            journal_dir = project / ".chaos-engine-account-rollback"
+            journal_dir.mkdir()
+            (journal_dir / "journal.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "desiredCommit": "a" * 40,
+                        "priorCommit": "b" * 40,
+                        "priorHostReceipt": None,
+                        "priorAccountReceipt": None,
+                        "priorMempalaceState": {
+                            "before": {"exists": False, "files": {}},
+                            "after": {"exists": False, "files": {}},
+                        },
+                        "integritySha256": "0" * 64,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            # Bypass integrity of journal via patching read
+            pending = {
+                "desiredCommit": "a" * 40,
+                "priorCommit": "b" * 40,
+                "priorHostReceipt": None,
+                "priorAccountReceipt": None,
+                "priorMempalaceState": {
+                    "before": {"exists": False, "files": {}},
+                    "after": {"exists": False, "files": {}},
+                },
+            }
+            with mock.patch.object(
+                install, "read_account_rollback_journal", return_value=pending
+            ), mock.patch.object(
+                install, "remove_account_rollback_journal"
+            ) as removed, mock.patch.object(
+                install, "try_verify_install", return_value={
+                    "source": {"commit": "b" * 40},
+                    "distribution": {"id": "portable", "policySha256": "0" * 64},
+                }
+            ):
+                install.recover_account_rollback_journal(project)
+            removed.assert_called_once_with(project)
+
+    def test_orphan_core_gate_and_repair_writes_hosts_receipt(self):
+        install = load(INSTALL, "chaos_engine_install_5636_repair")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            project.mkdir()
+            source = root / "chaos-engine-source"
+            shutil.copytree(
+                SOURCE, source, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
+            )
+            load_controller = install.load_dependency_controller
+
+            def account_loader(installed_root: Path):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                install, "load_dependency_controller", side_effect=account_loader
+            ):
+                install.install_with_dependencies(project, source, "1" * 40)
+
+            # Simulate #5631 keep-core + lost hosts receipt + stale account journal.
+            hosts = project / ".chaos-engine-hosts.json"
+            self.assertTrue(hosts.is_file())
+            hosts.unlink()
+            for anchor in project.glob(".chaos-engine-hosts.active-*"):
+                anchor.unlink()
+            journal_dir = project / ".chaos-engine-account-rollback"
+            journal_dir.mkdir(exist_ok=True)
+            (journal_dir / "journal.json").write_text("{}", encoding="utf-8")
+            self.assertTrue(install.orphan_core_without_hosts_receipt(project))
+
+            with mock.patch.object(
+                install, "load_dependency_controller", side_effect=account_loader
+            ), mock.patch.object(
+                install,
+                "read_account_rollback_journal",
+                return_value={
+                    "desiredCommit": "2" * 40,
+                    "priorCommit": "1" * 40,
+                    "priorHostReceipt": None,
+                    "priorAccountReceipt": None,
+                    "priorMempalaceState": {
+                        "before": {"exists": False, "files": {}},
+                        "after": {"exists": False, "files": {}},
+                    },
+                },
+            ):
+                result = install.repair_component(project, "hosts")
+            self.assertEqual("repaired", result["status"])
+            self.assertTrue((project / ".chaos-engine-hosts.json").is_file())
+            self.assertFalse(install.orphan_core_without_hosts_receipt(project))
+            receipt = json.loads(
+                (project / ".chaos-engine-hosts.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("installed", receipt.get("phase"))
+            self.assertEqual("1" * 40, receipt.get("coreCommit"))
 
 
 if __name__ == "__main__":
