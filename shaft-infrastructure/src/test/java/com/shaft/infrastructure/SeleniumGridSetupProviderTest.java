@@ -19,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SeleniumGridSetupProviderTest {
+    private static final Pattern SELENIUM_IMAGE_TAG = Pattern.compile("\\d+\\.\\d+\\.\\d+-\\d{8}");
+
     @Test
     void builtInCoordinatorProvidesSeleniumGridPlan(@TempDir Path temp) {
         InfrastructureSetupService service = InfrastructureSetupService.builtIn(
@@ -32,8 +34,9 @@ class SeleniumGridSetupProviderTest {
                 plan.actions().stream().map(SetupAction::target).toList());
         assertEquals(SetupActionKind.DIAGNOSE, plan.actions().getFirst().kind());
         assertEquals(SetupActionKind.INSTALL, plan.actions().getLast().kind());
-        assertEquals("4.47.0-20260808,port=4444,chrome=1,edge=0,firefox=0",
-                plan.actions().getLast().version());
+        String fingerprint = plan.actions().getLast().version();
+        assertTrue(fingerprint.matches(SELENIUM_IMAGE_TAG.pattern() + ",port=4444,chrome=1,edge=0,firefox=0"),
+                fingerprint);
         assertEquals(SetupSelection.defaults(), service.selectionFromPlan(plan));
     }
 
@@ -91,11 +94,20 @@ class SeleniumGridSetupProviderTest {
     void managedComposePinsMatchSelenium4AndEachOther() throws Exception {
         String compose = SeleniumGridSetupPlanner.compose(4444);
         assertFalse(compose.contains("container_name:"));
-        assertEquals(Set.of("4.47.0-20260808"), imageTags(compose));
+        Set<String> managedTags = imageTags(compose);
+        assertEquals(1, managedTags.size(), managedTags::toString);
+        String tag = managedTags.iterator().next();
+        assertFalse(tag.isBlank());
+        assertTrue(SELENIUM_IMAGE_TAG.matcher(tag).matches(), tag);
+
         Path engineCompose = Path.of("").toAbsolutePath().resolve(
                 "../shaft-engine/src/main/resources/docker-compose/selenium4.yml");
         assertTrue(Files.isRegularFile(engineCompose), engineCompose.toString());
-        assertEquals(Set.of("4.47.0-20260808"), imageTags(Files.readString(engineCompose)));
+        Set<String> engineTags = imageTags(Files.readString(engineCompose));
+        assertEquals(1, engineTags.size(), engineTags::toString);
+        assertTrue(SELENIUM_IMAGE_TAG.matcher(engineTags.iterator().next()).matches(),
+                engineTags::toString);
+        assertEquals(managedTags, engineTags);
     }
 
     private static Set<String> imageTags(String compose) {

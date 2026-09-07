@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 /** Release-coupled plans for a SHAFT-owned Selenium Grid compose project. */
 final class SeleniumGridSetupPlanner {
-    static final String IMAGE_TAG = "4.47.0-20260808";
+    static final String IMAGE_TAG = "4.48.0-20260905";
     static final String PROJECT = "shaft-selenium-grid";
     static final int DEFAULT_PORT = 4444;
     static final int DEFAULT_CHROME = 1;
