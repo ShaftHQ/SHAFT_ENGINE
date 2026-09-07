@@ -25,6 +25,7 @@ Lean CE-native skill informed by Task Observer methodology
 Details: [references/observation-taxonomy.md](references/observation-taxonomy.md).
 Activation: [references/activation.md](references/activation.md).
 Adopt/reject research: [references/research-adopt-reject.md](references/research-adopt-reject.md).
+Roadmap: [../../references/self-improve-master-plan.md](../../references/self-improve-master-plan.md).
 
 ## How (wraps learning.py)
 
