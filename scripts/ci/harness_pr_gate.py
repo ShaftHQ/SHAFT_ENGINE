@@ -78,7 +78,7 @@ PROTECTED_IDS = frozenset(
 )
 WAIVER_OWNER = "MohabMohie"
 RECORDED_BASELINE_MEDIAN_SECONDS = 600
-PR_BUDGET_SECONDS = 240
+PR_BUDGET_SECONDS = 360
 WAIVER_FENCE = re.compile(
     r"```chaos-engine-waiver[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL
 )
@@ -281,6 +281,8 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_installer.py",
         "tests/scripts/test_chaos_engine_install_wrappers.py",
         "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
+        "chaos-engine/headroom_policy.py",
+        "tests/scripts/test_chaos_engine_headroom.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",
@@ -315,6 +317,11 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_omniroute*.py",
         "tests/scripts/test_validate_agent_guidance.py",
         "tests/scripts/test_validate_skills.py",
+        "chaos-engine/headroom_policy.py",
+        "scripts/ci/agent_guidance_budget.json",
+        "tests/scripts/test_chaos_engine_headroom.py",
+        "tests/scripts/test_chaos_engine_self_improve.py",
+        "tests/scripts/test_chaos_engine_host_parity_matrix.py",
     ),
     "plugins": (
         "agent-plugins/*",

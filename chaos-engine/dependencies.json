@@ -50,6 +50,7 @@
     "memory": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "advisory"},
     "mempalace": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "advisory"},
     "graphify": {"owner": "project", "scope": "repository", "lifecycle": "derived-single-writer", "taskImpact": "advisory"},
-    "maven-tools-mcp": {"owner": "installer", "scope": "user", "lifecycle": "receipt-owned", "taskImpact": "optional"}
+    "maven-tools-mcp": {"owner": "installer", "scope": "user", "lifecycle": "receipt-owned", "taskImpact": "optional"},
+    "headroom": {"owner": "installer", "scope": "user", "lifecycle": "receipt-owned", "taskImpact": "optional"}
   }
 }

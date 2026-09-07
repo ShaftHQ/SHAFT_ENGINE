@@ -365,3 +365,27 @@ printf '{"version":"%s","commit":"%s","jar":"%s","sha256":"%s"}\n' \
   > "$staging/install-receipt.json"
 python3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.chaos-engine/hosts.py'); api.get('publish_maven_tools_cache')(Path(sys.argv[1]), root=Path(sys.argv[2]))" "$staging" "$cache_root"
 ```
+
+
+## Headroom (optional max-savings companion)
+
+ChaosEngine pins `headroom-ai==0.37.0` (Apache-2.0) and defaults to
+`HEADROOM_SAVINGS_PROFILE=agent-90` for ultra-lean / max savings. MemPalace and
+Graphify remain the memory SoT; Headroom beacon and memory injection stay off.
+
+```bash
+uv tool install --python 3.13 "headroom-ai==0.37.0"
+eval "$(python3 .chaos-engine/headroom_policy.py export-env --token-budget ultra-lean)"
+headroom doctor
+HEADROOM_SAVINGS_PROFILE=agent-90 headroom wrap claude   # or proxy --port 8787
+```
+
+Ponytail XOR `HEADROOM_OUTPUT_SHAPER`: keep OUTPUT_SHAPER off while Ponytail is
+active. See [references/headroom.md](references/headroom.md).
+
+## Self-improve skill
+
+Post-delivery Learning Session loads
+[skills/self-improve/SKILL.md](skills/self-improve/SKILL.md) (CC BY 4.0
+attribution for Task Observer methodology). It wraps `learning.py` privacy gates
+for harness + product dual-track observations.

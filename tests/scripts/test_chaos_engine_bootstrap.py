@@ -772,6 +772,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     "mempalace",
                     "graphify",
                     "maven-tools-mcp",
+                    "headroom",
                     "retrieval-config",
                     "projection-policy",
                 },
@@ -779,10 +780,11 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             self.assertEqual("absent", status["components"]["maven-tools-mcp"]["status"])
             self.assertEqual("optional", status["components"]["maven-tools-mcp"]["taskImpact"])
+            self.assertEqual("optional", status["components"]["headroom"]["taskImpact"])
             self.assertTrue(all(
                 component["status"] == "healthy"
                 for name, component in status["components"].items()
-                if name != "maven-tools-mcp"
+                if name not in {"maven-tools-mcp", "headroom"}
             ))
             self.assertTrue(project.joinpath(".agents/skills/chaos-engine/SKILL.md").is_file())
             self.assertTrue(project.joinpath(".mcp.json").is_file())

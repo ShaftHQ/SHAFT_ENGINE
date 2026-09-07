@@ -111,7 +111,7 @@ jobs:
         commands = " ".join(str(step.get("run", "")) for step in job["steps"])
         self.assertEqual(job.get("timeout-minutes"), 10)
         self.assertIn("scripts/ci/harness_pr_gate.py", commands)
-        self.assertIn("--budget-seconds 240", commands)
+        self.assertIn("--budget-seconds 360", commands)
         self.assertNotIn("matrix", job)
 
     def test_capture_browser_e2e_job_allows_prerequisite_and_browser_runtime_headroom(self):

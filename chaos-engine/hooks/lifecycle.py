@@ -63,6 +63,27 @@ def token_budget_guidance(mode: str | None = None) -> str:
     return str(TOKEN_BUDGET_MODES[selected]["guidance"])
 
 
+HEADROOM_PROFILE_BY_BUDGET = {
+    "ultra-lean": "agent-90",
+    "balanced": "balanced",
+    "deep": "coding",
+}
+
+
+def headroom_session_guidance(mode: str | None = None) -> str:
+    """Compact SessionStart line for Headroom profile (locator-only)."""
+    selected = mode or TOKEN_BUDGET_DEFAULT
+    if selected not in HEADROOM_PROFILE_BY_BUDGET:
+        selected = TOKEN_BUDGET_DEFAULT
+    profile = HEADROOM_PROFILE_BY_BUDGET[selected]
+    return f"Headroom {profile}/{selected}; beacon=off."
+
+
+def self_improve_session_guidance() -> str:
+    """Cheap SessionStart locator — full protocol runs at Learning Session."""
+    return "Learning: skills/self-improve/SKILL.md."
+
+
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
     "Off only: stop caveman, stop ponytail, or normal mode."
@@ -137,7 +158,10 @@ def session_start_context(token: str | None, activation: str) -> str:
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
     parts.append(ULTRA_SELECTOR)
-    parts.append(token_budget_guidance(resolve_token_budget_mode()))
+    budget = resolve_token_budget_mode()
+    parts.append(token_budget_guidance(budget))
+    parts.append(headroom_session_guidance(budget))
+    parts.append(self_improve_session_guidance())
     for name in COMPANION_NAMES:
         for root in _search_roots():
             path = next(

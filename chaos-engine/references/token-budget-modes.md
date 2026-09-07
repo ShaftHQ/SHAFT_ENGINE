@@ -26,3 +26,14 @@ deeper guidance.
 3. Confirm the SessionStart line names the mode; if unset, ChaosEngine uses `balanced`.
 
 Machine-readable labels live in `hooks/lifecycle.py` (`TOKEN_BUDGET_MODES`).
+
+
+## Headroom profile map
+
+| Token budget | `HEADROOM_SAVINGS_PROFILE` |
+| --- | --- |
+| `ultra-lean` | `agent-90` (CE max savings) |
+| `balanced` | `balanced` |
+| `deep` | `coding` / passthrough |
+
+See [headroom.md](headroom.md). Beacon stays `off`; memory injection `disabled`.

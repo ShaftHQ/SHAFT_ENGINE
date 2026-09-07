@@ -55,7 +55,7 @@ CAPABILITY_ENUMS = {
 CAPABILITY_COMPONENTS = {
     "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
     "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
-    "graphify", "maven-tools-mcp",
+    "graphify", "maven-tools-mcp", "headroom",
 }
 PROJECT_SETUP_OUTPUTS = (
     ".agents/skills/graphify",
@@ -84,6 +84,9 @@ def legacy_capability_policy() -> dict[str, dict[str, str]]:
         owner="project", scope="repository", lifecycle="derived-single-writer", taskImpact="advisory"
     )
     result["maven-tools-mcp"].update(
+        owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
+    )
+    result["headroom"].update(
         owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
     )
     return _validated_capabilities(result)
@@ -457,11 +460,21 @@ def load_manifest(target: Path) -> dict[str, object]:
     if capabilities is not None:
         validated = _validated_capabilities(capabilities)
         encoded = json.dumps(validated, sort_keys=True, separators=(",", ":")).encode()
-        if (
-            set(validated) != CAPABILITY_COMPONENTS
-            or capability_digest != hashlib.sha256(encoded).hexdigest()
-        ):
+        known = set(validated)
+        if not known <= CAPABILITY_COMPONENTS:
             raise ValueError("ChaosEngine manifest has an invalid capability policy")
+        if capability_digest != hashlib.sha256(encoded).hexdigest():
+            raise ValueError("ChaosEngine manifest has an invalid capability policy")
+        # Forward-compatible read: older trees may omit newly added optional
+        # components (e.g. headroom). Required components must still be present so
+        # upgrade can keep a verifiable backup for rollback (#5613).
+        missing = CAPABILITY_COMPONENTS - known
+        if missing:
+            defaults = legacy_capability_policy()
+            if any(defaults[name]["taskImpact"] != "optional" for name in missing):
+                raise ValueError("ChaosEngine manifest has an invalid capability policy")
+            for name in sorted(missing):
+                validated[name] = dict(defaults[name])
         manifest["capabilities"] = validated
     manifest["source"] = normalized_source
     return manifest
@@ -2935,11 +2948,14 @@ def attach_component_status(
             target / "skills/chaos-engine/SKILL.md",
             target / "vendor/caveman/PIN.json",
             target / "vendor/ponytail/PIN.json",
+            target / "vendor/headroom/PIN.json",
         ],
         "skills": [
             project / ".agents/skills/chaos-engine/SKILL.md",
             project / "plugins/caveman/skills/caveman/SKILL.md",
             project / "plugins/ponytail/skills/ponytail/SKILL.md",
+            target / "vendor/headroom/skills/headroom/SKILL.md",
+            target / "skills/self-improve/SKILL.md",
         ],
         "playbooks": [target / "references/work-github-playbook.md"],
         "hooks": [
@@ -2989,6 +3005,36 @@ def attach_component_status(
         components[name] = {"status": "healthy" if healthy else "absent", **capabilities[name]}
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health, **capabilities[name]}
+    # Load from the installed tree only. Bootstrap runpy-loads install.py from a
+    # temporary download that is deleted before Verify installation; a bare import
+    # or Path(__file__) fallback would point at that cleaned-up source (#5613).
+    import importlib.util as _ilu
+
+    _hp = target / "headroom_policy.py"
+    if not _hp.is_file():
+        headroom_state = {
+            "status": "broken",
+            "detail": "Headroom policy module missing from installed core.",
+            "cliPresent": False,
+            "pin": "headroom-ai",
+        }
+    else:
+        _spec = _ilu.spec_from_file_location("chaos_engine_headroom_policy", _hp)
+        if _spec is None or _spec.loader is None:
+            headroom_state = {
+                "status": "broken",
+                "detail": "Headroom policy module could not be loaded.",
+                "cliPresent": False,
+                "pin": "headroom-ai",
+            }
+        else:
+            _headroom_policy = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_headroom_policy)
+            headroom_state = _headroom_policy.doctor_status()
+    components["headroom"] = {
+        **{k: v for k, v in headroom_state.items() if k in {"status", "detail", "cliPresent", "pin"}},
+        **capabilities["headroom"],
+    }
     if inspect_retrieval_state:
         mempalace_state = host_controller.mempalace_runtime_status(project)
         if mempalace_state.get("status") != "healthy":
@@ -3700,6 +3746,16 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
             "For Maven projects, rerun install with Maven Tools enabled "
             "(`--with-maven-tools` or root `pom.xml`); otherwise optional absence "
             "is fine."
+        )
+    if name == "headroom":
+        detail = item.get("detail")
+        if isinstance(detail, str) and detail.strip():
+            return detail.strip()
+        return (
+            'Install the managed pin: `uv tool install --python 3.13 '
+            '"headroom-ai==0.37.0"`, then `eval "$(python3 .chaos-engine/'
+            'headroom_policy.py export-env)"` and `headroom doctor`. '
+            "Optional absence is fine until wrap/proxy is needed."
         )
     if status == "migration-required":
         return (
