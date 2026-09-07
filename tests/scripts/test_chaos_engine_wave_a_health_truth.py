@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALL_PATH = ROOT / "chaos-engine/install.py"
@@ -92,7 +90,7 @@ class WaveAHealthTruthTests(unittest.TestCase):
                 "plugins": {"status": "healthy", "taskImpact": "required"},
             },
         }
-        host = mock.Mock()
+        host = unittest.mock.Mock()
         host.detected_plugin_status.return_value = {
             "codex": {
                 "status": "absent",
@@ -171,7 +169,7 @@ class WaveAHealthTruthTests(unittest.TestCase):
         self.assertIn("repair --project . --component plugins", fix)
 
     def test_headroom_ensure_installed_reuses_when_present(self):
-        with mock.patch.object(self.policy.shutil, "which", side_effect=lambda name: "/bin/headroom" if name == "headroom" else None):
+        with unittest.mock.patch.object(self.policy.shutil, "which", side_effect=lambda name: "/bin/headroom" if name == "headroom" else None):
             result = self.policy.ensure_installed()
         self.assertEqual("healthy", result["status"])
         self.assertEqual("reused", result["action"])
@@ -188,9 +186,9 @@ class WaveAHealthTruthTests(unittest.TestCase):
 
         def runner(command, **_kwargs):
             calls.append(command)
-            return mock.Mock(returncode=0, stdout="", stderr="")
+            return unittest.mock.Mock(returncode=0, stdout="", stderr="")
 
-        with mock.patch.object(self.policy.shutil, "which", side_effect=which):
+        with unittest.mock.patch.object(self.policy.shutil, "which", side_effect=which):
             result = self.policy.ensure_installed(runner=runner, which=which)
         self.assertEqual("healthy", result["status"])
         self.assertEqual("installed", result["action"])
