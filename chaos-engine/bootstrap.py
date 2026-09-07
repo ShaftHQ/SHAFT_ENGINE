@@ -1068,6 +1068,7 @@ def install_latest(
     interactive: bool = False,
     reporter: InstallReporter | None = None,
     terminal_factory=interactive_terminal,
+    bundle_options: dict[str, bool] | None = None,
 ) -> dict[str, object]:
     if skip_tools and with_maven_tools:
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
@@ -1157,6 +1158,7 @@ def install_latest(
                 maven_tools_mode=maven_tools_mode,
                 reporter=reporter,
                 confirmer=confirm,
+                bundle_options=bundle_options,
             )
             if with_maven_tools:
                 reporter.complete(
@@ -1228,6 +1230,19 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--maven-tools-mode", choices=("native", "docker"), default="native"
     )
+    for bundle_name in (
+        "memory",
+        "mempalace",
+        "graphify",
+        "ponytail",
+        "headroom",
+        "caveman",
+    ):
+        result.add_argument(
+            f"--without-{bundle_name}",
+            action="store_true",
+            help=f"Disable default-on {bundle_name} (Memory/MemPalace/Graphify/Ponytail/Headroom/Caveman).",
+        )
     result.add_argument("--interactive", action="store_true")
     return result
 
@@ -1500,6 +1515,17 @@ def main() -> int:
     reporter = InstallReporter()
     args = parser().parse_args()
     try:
+        bundle_options = {
+            name: not getattr(args, f"without_{name}", False)
+            for name in (
+                "memory",
+                "mempalace",
+                "graphify",
+                "ponytail",
+                "headroom",
+                "caveman",
+            )
+        }
         result = install_latest(
             args.project,
             repository=args.repository,
@@ -1510,6 +1536,7 @@ def main() -> int:
             distribution=args.distribution,
             interactive=args.interactive,
             reporter=reporter,
+            bundle_options=bundle_options,
         )
         write_install_trace(Path(args.project).resolve(), result, reporter.traces)
     except BaseException as error:

@@ -6,7 +6,13 @@ param(
     [switch]$ParseOnly,
     [switch]$WithMavenTools,
     [ValidateSet("native", "docker")][string]$MavenToolsMode = "native",
-    [switch]$Interactive
+    [switch]$Interactive,
+    [switch]$WithoutMemory,
+    [switch]$WithoutMempalace,
+    [switch]$WithoutGraphify,
+    [switch]$WithoutPonytail,
+    [switch]$WithoutHeadroom,
+    [switch]$WithoutCaveman
 )
 
 Set-StrictMode -Version Latest
@@ -303,6 +309,12 @@ try {
     if ($WithMavenTools) { $arguments += "--with-maven-tools" }
     if ($MavenToolsMode -eq "docker") { $arguments += @("--maven-tools-mode", "docker") }
     if ($interactiveRequested) { $arguments += "--interactive" }
+    if ($WithoutMemory) { $arguments += "--without-memory" }
+    if ($WithoutMempalace) { $arguments += "--without-mempalace" }
+    if ($WithoutGraphify) { $arguments += "--without-graphify" }
+    if ($WithoutPonytail) { $arguments += "--without-ponytail" }
+    if ($WithoutHeadroom) { $arguments += "--without-headroom" }
+    if ($WithoutCaveman) { $arguments += "--without-caveman" }
     if ($null -eq $python) {
         $uv = Install-ChaosEngineUv $work
         $env:UV_PYTHON_INSTALL_DIR = Join-Path $work "python"

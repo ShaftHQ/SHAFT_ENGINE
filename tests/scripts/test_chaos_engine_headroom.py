@@ -74,11 +74,16 @@ class HeadroomCompanionTests(unittest.TestCase):
         self.assertEqual("optional", status["taskImpact"])
         self.assertIn(status["status"], {"healthy", "absent", "broken"})
         self.assertIn("headroom-ai==0.37.0", status["pin"])
-        self.assertIn("uv tool install", status["detail"])
-        # Optional absence stays non-blocking (fix-next None), matching maven-tools-mcp.
+        self.assertIn("headroom-ai==0.37.0", status["detail"])
         if status["status"] == "absent":
+            self.assertIn("uv tool install", status["detail"])
+            # Optional absence stays non-blocking (fix-next None), matching maven-tools-mcp.
             self.assertIsNone(self.install.component_fix_next("headroom", status))
-        broken = {**status, "status": "broken", "detail": status["detail"]}
+        broken = {
+            **status,
+            "status": "broken",
+            "detail": 'Install the managed pin: `uv tool install --python 3.13 "headroom-ai==0.37.0"`.',
+        }
         fix = self.install.component_fix_next("headroom", broken)
         self.assertIsNotNone(fix)
         self.assertIn("uv tool install", fix)
