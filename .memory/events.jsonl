@@ -1205,3 +1205,9 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.graphify-extract-omits-path-segments-named-build","timestamp":"2026-08-20T01:11:57+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-setup-step-titles-wrap-html-so-raw-jlabel-contains-misses-ampersands","timestamp":"2026-08-20T03:53:17+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.unselected-intellij-combo-selecteditem-is-null-string-valueof-paints-literal-null","timestamp":"2026-08-20T04:40:49+03:00"}
+{"actor": "agent", "event": "memory.created", "id": "decision.harness-parity-lasting-policy-lives-in-chaosengine-overlay", "timestamp": "2026-09-08T00:00:42+03:00"}
+{"actor": "agent", "event": "memory.created", "id": "gotcha.chaos-engine-untouched-is-not-a-valid-learning-session-skip", "timestamp": "2026-09-08T00:00:42+03:00"}
+{"actor": "agent", "event": "memory.created", "id": "gotcha.prefer-lean-self-improve-over-always-on-task-observer", "timestamp": "2026-09-08T00:00:42+03:00"}
+{"actor": "agent", "event": "memory.created", "id": "gotcha.rebuild-flutter-integration-server-apk-before-browserstack-enablement", "timestamp": "2026-09-08T00:00:42+03:00"}
+{"actor": "agent", "event": "memory.created", "id": "fact.shaft-gui-locator-flutter-factories-and-docs-guide", "timestamp": "2026-09-08T00:00:42+03:00"}
+{"actor": "agent", "event": "memory.created", "id": "fact.android-flutter-emulator-and-browserstack-e2e-reenabled", "timestamp": "2026-09-08T00:00:42+03:00"}
