@@ -6,6 +6,7 @@ import importlib.util
 import sys
 import tempfile
 import unittest
+import unittest.mock as mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -90,7 +91,7 @@ class WaveAHealthTruthTests(unittest.TestCase):
                 "plugins": {"status": "healthy", "taskImpact": "required"},
             },
         }
-        host = unittest.mock.Mock()
+        host = mock.Mock()
         host.detected_plugin_status.return_value = {
             "codex": {
                 "status": "absent",
@@ -169,7 +170,7 @@ class WaveAHealthTruthTests(unittest.TestCase):
         self.assertIn("repair --project . --component plugins", fix)
 
     def test_headroom_ensure_installed_reuses_when_present(self):
-        with unittest.mock.patch.object(self.policy.shutil, "which", side_effect=lambda name: "/bin/headroom" if name == "headroom" else None):
+        with mock.patch.object(self.policy.shutil, "which", side_effect=lambda name: "/bin/headroom" if name == "headroom" else None):
             result = self.policy.ensure_installed()
         self.assertEqual("healthy", result["status"])
         self.assertEqual("reused", result["action"])
@@ -186,9 +187,9 @@ class WaveAHealthTruthTests(unittest.TestCase):
 
         def runner(command, **_kwargs):
             calls.append(command)
-            return unittest.mock.Mock(returncode=0, stdout="", stderr="")
+            return mock.Mock(returncode=0, stdout="", stderr="")
 
-        with unittest.mock.patch.object(self.policy.shutil, "which", side_effect=which):
+        with mock.patch.object(self.policy.shutil, "which", side_effect=which):
             result = self.policy.ensure_installed(runner=runner, which=which)
         self.assertEqual("healthy", result["status"])
         self.assertEqual("installed", result["action"])
