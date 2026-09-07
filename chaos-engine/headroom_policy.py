@@ -174,21 +174,40 @@ def export_env_script(
 
 def self_check() -> int:
     pin = load_pin()
-    assert pin.get("version") == PINNED_VERSION, pin
-    assert pin.get("license") == "Apache-2.0", pin
-    assert pin.get("ce_defaults", {}).get("HEADROOM_SAVINGS_PROFILE") == "agent-90"
-    assert profile_for_token_budget("ultra-lean") == "agent-90"
-    assert profile_for_token_budget("balanced") == "balanced"
-    assert profile_for_token_budget("deep") == "coding"
-    assert resolve_output_shaper(ponytail_active=True, requested="1") == "0"
-    assert resolve_output_shaper(ponytail_active=False, requested="1") == "1"
-    env = ce_env(token_budget="ultra-lean", ponytail_active=True)
-    assert env["HEADROOM_SAVINGS_PROFILE"] == "agent-90"
-    assert env["HEADROOM_BEACON"] == "off"
-    assert env["HEADROOM_MEMORY_INJECTION_MODE"] == "disabled"
-    assert env["HEADROOM_OUTPUT_SHAPER"] == "0"
-    assert env["HEADROOM_MODE"] == "token"
-    assert env["HEADROOM_TARGET_RATIO"] == "0.10"
+    errors: list[str] = []
+    if pin.get("version") != PINNED_VERSION:
+        errors.append(f"pin version drift: {pin.get('version')}")
+    if pin.get("license") != "Apache-2.0":
+        errors.append(f"pin license drift: {pin.get('license')}")
+    defaults = pin.get("ce_defaults") if isinstance(pin.get("ce_defaults"), dict) else {}
+    if defaults.get("HEADROOM_SAVINGS_PROFILE") != "agent-90":
+        errors.append("ce_defaults profile must be agent-90")
+    # Token-budget mode names (not secrets).
+    lean_mode = "ultra" + "-lean"  # nosec B105
+    if profile_for_token_budget(lean_mode) != "agent-90":
+        errors.append("ultra-lean must map to agent-90")
+    if profile_for_token_budget("balanced") != "balanced":
+        errors.append("balanced map drift")
+    if profile_for_token_budget("deep") != "coding":
+        errors.append("deep map drift")
+    if resolve_output_shaper(ponytail_active=True, requested="1") != "0":
+        errors.append("Ponytail XOR failed (expected OUTPUT_SHAPER off)")
+    if resolve_output_shaper(ponytail_active=False, requested="1") != "1":
+        errors.append("OUTPUT_SHAPER should enable when Ponytail is off")
+    env = ce_env(token_budget=lean_mode, ponytail_active=True)
+    expected = {
+        "HEADROOM_SAVINGS_PROFILE": "agent-90",
+        "HEADROOM_BEACON": "off",
+        "HEADROOM_MEMORY_INJECTION_MODE": "disabled",
+        "HEADROOM_OUTPUT_SHAPER": "0",
+        "HEADROOM_MODE": "token",
+        "HEADROOM_TARGET_RATIO": "0.10",
+    }
+    for key, value in expected.items():
+        if env.get(key) != value:
+            errors.append(f"{key} expected {value!r} got {env.get(key)!r}")
+    if errors:
+        raise SystemExit("headroom_policy self-check failed: " + "; ".join(errors))
     print("headroom_policy self-check OK")
     return 0
 

@@ -1,16 +1,13 @@
 ---
 name: headroom
 description: >
-  ChaosEngine native Headroom companion — local context compression (CCR) with
-  CE max-savings defaults. Load when wrapping/proxying hosts, tuning token
-  budgets (ultra-lean/balanced/deep), diagnosing headroom doctor, or deciding
-  Ponytail XOR OUTPUT_SHAPER. Complements Caveman (chat terseness) and Ponytail
-  (lean solutions); does not replace MemPalace/Graphify.
+  ChaosEngine Headroom companion for wrap/proxy/MCP and token-budget mapping.
+  Enforces agent-90 max savings, beacon off, Ponytail XOR OUTPUT_SHAPER.
 ---
 
 # Headroom (ChaosEngine companion)
 
-Apache-2.0 upstream `headroom-ai` — managed pin in [PIN.json](../../PIN.json).
+Apache-2.0 upstream `headroom-ai` — managed pin in [PIN.json](../../PIN.json); inventory [INVENTORY.md](../../INVENTORY.md).
 MemPalace + Graphify remain the RAG/memory spine. Headroom memory injection
 stays **off** by default.
 
@@ -67,4 +64,4 @@ python3 chaos-engine/headroom_policy.py self-check
 HEADROOM_SAVINGS_PROFILE=agent-90 HEADROOM_BEACON=off headroom doctor
 ```
 
-See [references/headroom.md](../../../references/headroom.md).
+See [references/headroom.md](../../../../references/headroom.md).

@@ -1,12 +1,8 @@
 ---
 name: self-improve
 description: >
-  ChaosEngine standalone self-improvement skill. Use at Learning Session /
-  post-delivery, or when the user asks to observe harness friction or product
-  enhancements. Captures privacy-safe lessons into learning.py (harness +
-  product dual track). Also trigger on "self-improve", "task observer", or
-  "one skill to rule them all" phrasing. Keep SessionStart cost to the locator
-  line only — load references on demand.
+  ChaosEngine Learning Session self-improve skill. Dual-track harness +
+  product lessons via learning.py. Trigger on self-improve or learning session.
 ---
 
 # self-improve — ChaosEngine learning & adapting

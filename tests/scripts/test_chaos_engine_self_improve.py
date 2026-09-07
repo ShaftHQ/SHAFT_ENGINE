@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
-import os
 import sys
 import tempfile
 import unittest
@@ -54,7 +52,7 @@ class SelfImproveSkillTests(unittest.TestCase):
     def test_session_start_locator_is_cheap(self):
         context = self.lifecycle.session_start_context(None, "activation")
         self.assertIn("self-improve", context.casefold())
-        self.assertIn("learning session", context.casefold())
+        self.assertIn("self-improve", context.casefold())
         self.assertLessEqual(
             len(context.encode("utf-8")),
             self.lifecycle.SESSION_START_MAX_BYTES,

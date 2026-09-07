@@ -5126,11 +5126,17 @@ def _session_start_payload(context: list[str]) -> dict[str, object]:
         rendered = json.dumps(
             payload, ensure_ascii=False, separators=(",", ":")
         ).encode("utf-8")
+        # print() adds one trailing newline after this object.
         overflow = len(rendered) + 1 - SESSION_START_MAX_BYTES
         if overflow <= 0:
             break
         raw = bounded.encode("utf-8")
-        bounded = raw[: max(0, len(raw) - overflow)].decode("utf-8", errors="ignore")
+        # Drop at least overflow bytes; add 3 for a possible mid-codepoint cut.
+        drop = overflow + 3
+        if drop >= len(raw):
+            bounded = ""
+        else:
+            bounded = raw[: len(raw) - drop].decode("utf-8", errors="ignore")
         payload["hookSpecificOutput"]["additionalContext"] = bounded
     return payload
 
