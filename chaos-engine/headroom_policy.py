@@ -128,6 +128,73 @@ def install_command() -> str:
     return f'uv tool install --python 3.13 "{PINNED_SPEC}"'
 
 
+def ensure_installed(*, runner=None, which=None) -> dict[str, object]:
+    """Provision the managed Headroom pin when the CLI is missing (default-on)."""
+    import subprocess
+
+    which = which or shutil.which
+    runner = runner or subprocess.run
+    if which("headroom") is not None:
+        return {"status": "healthy", "action": "reused", "pin": PINNED_SPEC}
+    # Fresh-installer CI already spends the budget on core tools; skip the
+    # network pin there unless CHAOS_ENGINE_PROVISION_HEADROOM=1. Real
+    # unattended one-liners outside CI still provision by default.
+    ci = str(os.environ.get("CI") or "").strip().casefold() in {"1", "true", "yes"}
+    forced = str(os.environ.get("CHAOS_ENGINE_PROVISION_HEADROOM") or "").strip() in {
+        "1", "true", "True", "yes"
+    }
+    if ci and not forced:
+        return {
+            "status": "absent",
+            "action": "skipped-ci",
+            "pin": PINNED_SPEC,
+            "detail": (
+                f"CI skip (set CHAOS_ENGINE_PROVISION_HEADROOM=1 to force). "
+                f"Fix-next: `{install_command()}`."
+            ),
+        }
+    uv = which("uv")
+    if uv is None:
+        return {
+            "status": "absent",
+            "action": "blocked",
+            "pin": PINNED_SPEC,
+            "detail": f"uv missing; cannot run `{install_command()}`.",
+        }
+    command = [uv, "tool", "install", "--python", "3.13", PINNED_SPEC]
+    try:
+        completed = runner(
+            command, check=False, capture_output=True, text=True, timeout=180
+        )
+    except TypeError:
+        # Test doubles may not accept timeout=.
+        completed = runner(command, check=False, capture_output=True, text=True)
+    except Exception as error:  # noqa: BLE001 - bounded provision must not hang install
+        return {
+            "status": "absent",
+            "action": "failed",
+            "pin": PINNED_SPEC,
+            "detail": f"Headroom provision timed out or failed: {error!s}"[:400],
+        }
+    if getattr(completed, "returncode", 1) != 0:
+        stderr = (getattr(completed, "stderr", None) or getattr(completed, "stdout", None) or "")
+        stderr = str(stderr).strip()[:400]
+        return {
+            "status": "absent",
+            "action": "failed",
+            "pin": PINNED_SPEC,
+            "detail": f"Headroom provision failed: {stderr or 'unknown error'}",
+        }
+    if which("headroom") is None:
+        return {
+            "status": "absent",
+            "action": "installed",
+            "pin": PINNED_SPEC,
+            "detail": f"Installed {PINNED_SPEC} but `headroom` not on PATH yet; restart shell.",
+        }
+    return {"status": "healthy", "action": "installed", "pin": PINNED_SPEC}
+
+
 def headroom_cli_present() -> bool:
     return shutil.which("headroom") is not None
 
@@ -227,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     export_p.add_argument("--ponytail-off", action="store_true")
     sub.add_parser("doctor-json")
     sub.add_parser("install-command")
+    sub.add_parser("ensure-installed")
     args = parser.parse_args(argv)
     if args.command == "self-check":
         return self_check()
@@ -245,6 +313,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "install-command":
         print(install_command())
         return 0
+    if args.command == "ensure-installed":
+        result = ensure_installed()
+        json.dump(result, sys.stdout, indent=2, sort_keys=True)
+        sys.stdout.write("\n")
+        return 0 if result.get("status") in {"healthy", "absent"} else 1
     return 2
 
 

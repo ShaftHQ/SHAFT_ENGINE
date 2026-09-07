@@ -62,6 +62,29 @@ PROJECT_SETUP_OUTPUTS = (
     "graphify-out",
 )
 MEMPALACE_STATE_OUTPUT = ".chaos-engine-state/mempalace"
+BUNDLE_OPTIONS_PATH = ".chaos-engine-state/bundle-options.json"
+DEFAULT_BUNDLE_COMPONENTS = (
+    "memory",
+    "mempalace",
+    "graphify",
+    "ponytail",
+    "headroom",
+    "caveman",
+)
+REPAIRABLE_COMPONENTS = frozenset({
+    "plugins",
+    "hosts",
+    "core",
+    "headroom",
+    "mempalace",
+    "graphify",
+    "memory",
+    "hooks",
+    "mcps",
+    "skills",
+    "roles",
+    "tools",
+})
 
 
 def legacy_capability_policy() -> dict[str, dict[str, str]]:
@@ -2558,12 +2581,15 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     maven_tools_mode: str = "native",
     reporter=None,
     confirmer=None,
+    bundle_options: dict[str, bool] | None = None,
 ) -> Path:
     project = project.resolve()
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
     with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
+    bundle = normalize_bundle_options(bundle_options)
+    write_bundle_options(project, bundle)
     source_dependencies = load_dependency_controller(source)
     account_mode = provisioner is None and hasattr(
         source_dependencies, "install_account_dependencies"
@@ -2776,7 +2802,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             host_created = not host_existed
             if not account_mode and not generation_mode:
                 provisioner(runtime, specification)
-            if not account_mode:
+            if not account_mode and bundle.get("mempalace", True):
                 host_controller.initialize_mempalace_runtime(project)
             if candidate is not None:
                 try:
@@ -2927,7 +2953,172 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         finally:
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
+        # Default-on Headroom pin+CLI (#5620). Disable only via --without-headroom.
+        # Best-effort: never abort a successful core install if the CLI pin fails.
+        if bundle.get("headroom", True) and provisioner is None:
+            policy_path = (project / INSTALL_DIRECTORY) / "headroom_policy.py"
+            if policy_path.is_file():
+                try:
+                    spec = importlib.util.spec_from_file_location(
+                        "chaos_engine_headroom_policy_install", policy_path
+                    )
+                    if spec is not None and spec.loader is not None:
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        module.ensure_installed()
+                except (OSError, RuntimeError, ValueError, TimeoutError):
+                    pass
         return target
+
+
+
+def default_bundle_options() -> dict[str, bool]:
+    """Return default-on bundle enablement (True = provisioned)."""
+    return {name: True for name in DEFAULT_BUNDLE_COMPONENTS}
+
+
+def normalize_bundle_options(raw: object | None = None) -> dict[str, bool]:
+    """Merge operator disable flags onto the default-on bundle."""
+    options = default_bundle_options()
+    if not isinstance(raw, dict):
+        return options
+    for name in DEFAULT_BUNDLE_COMPONENTS:
+        if name in raw:
+            options[name] = bool(raw[name])
+        without_key = f"without_{name}"
+        if without_key in raw and raw[without_key]:
+            options[name] = False
+    return options
+
+
+def write_bundle_options(project: Path, options: dict[str, bool]) -> Path:
+    """Persist operator bundle enablement under `.chaos-engine-state/`."""
+    project = project.resolve()
+    target = project / BUNDLE_OPTIONS_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schemaVersion": 1,
+        "identity": CANONICAL_IDENTITY,
+        "defaultOn": list(DEFAULT_BUNDLE_COMPONENTS),
+        "enabled": normalize_bundle_options(options),
+    }
+    target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return target
+
+
+def read_bundle_options(project: Path) -> dict[str, bool]:
+    """Load persisted bundle options; missing file means full default-on."""
+    path = project.resolve() / BUNDLE_OPTIONS_PATH
+    if not path.is_file():
+        return default_bundle_options()
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return default_bundle_options()
+    enabled = document.get("enabled") if isinstance(document, dict) else None
+    return normalize_bundle_options(enabled)
+
+
+def activation_proof_from_clients(clients: dict[str, object]) -> dict[str, object]:
+    """Build per-host activationProof for doctor JSON (no paths/secrets)."""
+    proof: dict[str, object] = {}
+    for host in sorted(str(name) for name in clients):
+        record = clients.get(host)
+        if not isinstance(record, dict):
+            continue
+        entry: dict[str, object] = {
+            "status": record.get("status"),
+            "marketplace": record.get("marketplace"),
+            "plugin": record.get("plugin"),
+        }
+        plugins = record.get("plugins")
+        if isinstance(plugins, dict):
+            entry["plugins"] = {
+                str(name): plugins[name]
+                for name in sorted(str(item) for item in plugins)
+                if isinstance(plugins.get(name), str)
+            }
+        proof[host] = entry
+    return proof
+
+
+def apply_plugin_client_health(
+    result: dict[str, object],
+    project: Path,
+    host_controller: object,
+    *,
+    attach_clients: bool = False,
+    attach_activation_proof: bool = False,
+) -> None:
+    """Reconcile required `plugins` with client activation so status ⊆ doctor.
+
+    File presence alone can look healthy while marketplace activation is stale or
+    absent for a detected Codex/Claude CLI. Both status and doctor must share this
+    identity for the required `plugins` component.
+    """
+    clients = host_controller.detected_plugin_status(project.resolve())
+    if attach_clients:
+        result["clients"] = clients
+    if attach_activation_proof:
+        result["activationProof"] = activation_proof_from_clients(
+            clients if isinstance(clients, dict) else {}
+        )
+    if not isinstance(clients, dict) or not clients:
+        return
+    if any(
+        isinstance(item, dict) and item.get("status") != "healthy"
+        for item in clients.values()
+    ):
+        result["status"] = "recovery-required"
+        components = result.get("components")
+        if isinstance(components, dict) and isinstance(components.get("plugins"), dict):
+            components["plugins"]["status"] = "recovery-required"
+            if "detail" not in components["plugins"]:
+                components["plugins"]["detail"] = (
+                    "Detected client marketplace/plugin activation is unhealthy. "
+                    "Run `python3 .chaos-engine/install.py repair --project . "
+                    "--component plugins`, restart the client, then rerun doctor."
+                )
+
+
+def required_component_statuses(document: dict[str, object]) -> dict[str, str]:
+    """Return required-component name→status map shared by verify/doctor/CE-INSTALL-FAILED."""
+    components = document.get("components")
+    if not isinstance(components, dict):
+        return {}
+    result: dict[str, str] = {}
+    for name, item in components.items():
+        if not isinstance(name, str) or not isinstance(item, dict):
+            continue
+        if item.get("taskImpact") != "required":
+            continue
+        status = item.get("status")
+        if isinstance(status, str):
+            result[name] = status
+    return result
+
+
+def status_subset_of_doctor(
+    status_doc: dict[str, object], doctor_doc: dict[str, object]
+) -> list[str]:
+    """Return required component ids where status is healthier than doctor (violations)."""
+    rank = {
+        "healthy": 3,
+        "compatible-legacy": 2,
+        "absent": 1,
+        "migration-required": 0,
+        "recovery-required": 0,
+        "broken": 0,
+        "unknown": 0,
+    }
+    status_map = required_component_statuses(status_doc)
+    doctor_map = required_component_statuses(doctor_doc)
+    violations: list[str] = []
+    for name, doctor_status in doctor_map.items():
+        status_value = status_map.get(name, "unknown")
+        if rank.get(status_value, 0) > rank.get(doctor_status, 0):
+            violations.append(name)
+    return sorted(violations)
 
 
 def attach_component_status(
@@ -3044,6 +3235,23 @@ def attach_component_status(
         **cache_state,
         **capabilities["maven-tools-mcp"],
     }
+    bundle = read_bundle_options(project)
+    for name in ("memory", "mempalace", "graphify"):
+        if not bundle.get(name, True) and name in components:
+            components[name] = {
+                **components[name],
+                "status": "absent",
+                "detail": f"Disabled via --without-{name} (default-on bundle opt-out).",
+                "taskImpact": "optional",
+            }
+    if not bundle.get("headroom", True) and "headroom" in components:
+        components["headroom"] = {
+            **components["headroom"],
+            "status": "absent",
+            "detail": "Disabled via --without-headroom (default-on bundle opt-out).",
+            "taskImpact": "optional",
+            "cliPresent": False,
+        }
     result["components"] = components
     if any(
         item["status"] != "healthy" and item["taskImpact"] != "optional"
@@ -3208,6 +3416,7 @@ def doctor_with_dependencies(
     result = status_with_dependencies(project, active_probes=True)
     if (project.resolve() / ACCOUNT_ROLLBACK_JOURNAL_NAME).exists():
         result["clients"] = {}
+        result["activationProof"] = {}
         return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
@@ -3268,14 +3477,16 @@ def doctor_with_dependencies(
         if isinstance(components, dict) and isinstance(components.get("hooks"), dict):
             components["hooks"]["status"] = "recovery-required"
     if not verify_clients:
+        # Still attach activationProof from receipt when available (no live CLI probe).
+        result.setdefault("activationProof", {})
         return result
-    clients = host_controller.detected_plugin_status(project.resolve())
-    result["clients"] = clients
-    if any(item.get("status") != "healthy" for item in clients.values()):
-        result["status"] = "recovery-required"
-        components = result.get("components")
-        if isinstance(components, dict) and isinstance(components.get("plugins"), dict):
-            components["plugins"]["status"] = "recovery-required"
+    apply_plugin_client_health(
+        result,
+        project,
+        host_controller,
+        attach_clients=True,
+        attach_activation_proof=True,
+    )
     return result
 
 
@@ -3291,6 +3502,7 @@ _DIAGNOSTIC_FIELDS = {
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
+        "activationProof",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
@@ -3349,17 +3561,27 @@ def validate_diagnostic_json(document: object) -> dict[str, object]:
 
 def status_json(project: Path, *, active_probes: bool = False) -> dict[str, object]:
     """Expose the stable secret-free status JSON v2 contract."""
-    state = (
-        doctor_with_dependencies(project)
-        if active_probes
-        else status_with_dependencies(project)
-    )
-    return validate_diagnostic_json({
+    if active_probes:
+        state = doctor_with_dependencies(project)
+    else:
+        state = status_with_dependencies(project)
+        # Required `plugins` must never look healthier than doctor when a native
+        # client CLI is present (#5619 status ⊆ doctor).
+        target = project.resolve() / INSTALL_DIRECTORY
+        if target.is_dir() and not (project.resolve() / ACCOUNT_ROLLBACK_JOURNAL_NAME).exists():
+            try:
+                host_controller = load_installed_controller(target, "hosts")
+                apply_plugin_client_health(state, project, host_controller)
+            except (OSError, RuntimeError, ValueError):
+                # Status stays fail-closed via existing component/file checks.
+                pass
+    payload = {
         "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
         "identity": CANONICAL_IDENTITY,
         "kind": "doctor" if active_probes else "status",
         **_diagnostic_value(state, project.resolve()),  # type: ignore[arg-type]
-    })
+    }
+    return validate_diagnostic_json(payload)
 
 
 def explain_json(
@@ -3592,6 +3814,102 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     removing.rmdir()
 
 
+
+def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
+    project: Path,
+    component: str,
+    *,
+    runner=None,
+) -> dict[str, object]:
+    """Zero-LLM targeted repair for one capability component (no full wipe)."""
+    import subprocess
+
+    project = project.resolve()
+    name = str(component).strip().casefold()
+    if name not in REPAIRABLE_COMPONENTS:
+        raise ValueError(
+            "unsupported repair component: "
+            + name
+            + "; choose one of "
+            + ", ".join(sorted(REPAIRABLE_COMPONENTS))
+        )
+    runner = runner or subprocess.run
+    with project_lock(project):
+        _recover_transaction(project)
+        target = project / INSTALL_DIRECTORY
+        if name == "core":
+            if not target.exists():
+                raise ValueError(
+                    "core is missing; rerun the ChaosEngine install one-liner "
+                    "(repair --component core cannot recreate an absent tree)"
+                )
+            verify_install(target)
+            return {"status": "repaired", "component": name, "action": "verified"}
+        if not target.exists():
+            raise ValueError(
+                "ChaosEngine core is missing; rerun the install one-liner before repair"
+            )
+        verify_install(target)
+        host_controller = load_installed_controller(target, "hosts")
+        if name == "plugins":
+            # Republish marketplace/plugins via host install preflight path, then
+            # activate detected clients — no full dependency wipe.
+            host_controller.install(project)
+            activation = host_controller.activate_detected_plugins(project, runner=runner)
+            clients = activation.get("clients", {}) if isinstance(activation, dict) else {}
+            return {
+                "status": "repaired",
+                "component": name,
+                "action": "republish-activate",
+                "clients": {
+                    str(k): (v.get("status") if isinstance(v, dict) else v)
+                    for k, v in (clients.items() if isinstance(clients, dict) else [])
+                },
+            }
+        if name == "hosts":
+            host_controller.install(project)
+            return {"status": "repaired", "component": name, "action": "rebind"}
+        if name in {"hooks", "skills", "roles", "mcps"}:
+            host_controller.install(project)
+            return {"status": "repaired", "component": name, "action": "rebind"}
+        if name == "headroom":
+            policy_path = target / "headroom_policy.py"
+            if not policy_path.is_file():
+                raise ValueError("Headroom policy missing from installed core")
+            spec = importlib.util.spec_from_file_location(
+                "chaos_engine_headroom_policy_repair", policy_path
+            )
+            if spec is None or spec.loader is None:
+                raise ValueError("Headroom policy could not be loaded")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            result = module.ensure_installed(runner=runner)
+            return {"status": "repaired", "component": name, **result}
+        if name in {"memory", "mempalace", "graphify", "tools"}:
+            controller = load_dependency_controller(target)
+            specification = controller.load_specification(target / "dependencies.json")
+            account_receipt = project / ".chaos-engine-dependencies.json"
+            if account_receipt.is_file() and hasattr(controller, "install_account_dependencies"):
+                controller.install_account_dependencies(project, specification, runner=runner)
+                return {
+                    "status": "repaired",
+                    "component": name,
+                    "action": "account-reinstall",
+                }
+            runtime = project / ".chaos-engine-runtime"
+            repair = getattr(controller, "repair", None)
+            if not callable(repair):
+                raise ValueError("dependency repair is unavailable in this distribution")
+            receipt = repair(runtime, specification, runner=runner, force=True)
+            return {
+                "status": "repaired",
+                "component": name,
+                "action": "runtime-repair",
+                "receiptStatus": receipt.get("status") if isinstance(receipt, dict) else None,
+            }
+        raise ValueError(f"repair not implemented for component: {name}")
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     commands = result.add_subparsers(dest="command", required=True)
@@ -3605,6 +3923,23 @@ def parser() -> argparse.ArgumentParser:
     install_command.add_argument(
         "--maven-tools-mode", choices=("native", "docker"), default="native"
     )
+    for bundle_name in DEFAULT_BUNDLE_COMPONENTS:
+        install_command.add_argument(
+            f"--without-{bundle_name}",
+            action="store_true",
+            help=f"Disable default-on {bundle_name} provisioning.",
+        )
+    repair_command = commands.add_parser(
+        "repair",
+        help="Targeted zero-LLM repair for one component (no full wipe).",
+    )
+    repair_command.add_argument("--project", required=True, type=Path)
+    repair_command.add_argument(
+        "--component",
+        required=True,
+        choices=sorted(REPAIRABLE_COMPONENTS),
+    )
+    repair_command.add_argument("--json", action="store_true")
     for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
         command.add_argument("--project", required=True, type=Path)
@@ -3727,8 +4062,8 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         )
     if name == "plugins" or name == "skills" or name == "roles":
         return (
-            "Reinstall so project marketplace/plugins and skill adapters are "
-            f"republished, restart the client, then rerun "
+            f"Run `{cli} .chaos-engine/install.py repair --project . "
+            f"--component {name}`, restart the client, then rerun "
             f"`{cli} .chaos-engine/install.py doctor --project .`."
         )
     if name == "mcps":
@@ -3752,10 +4087,11 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         if isinstance(detail, str) and detail.strip():
             return detail.strip()
         return (
-            'Install the managed pin: `uv tool install --python 3.13 '
-            '"headroom-ai==0.37.0"`, then `eval "$(python3 .chaos-engine/'
-            'headroom_policy.py export-env)"` and `headroom doctor`. '
-            "Optional absence is fine until wrap/proxy is needed."
+            f"Run `{cli} .chaos-engine/install.py repair --project . "
+            "--component headroom` (or `uv tool install --python 3.13 "
+            '"headroom-ai==0.37.0"`), then `eval "$('
+            f'{cli} .chaos-engine/headroom_policy.py export-env)"` and '
+            "`headroom doctor`. Pass `--without-headroom` to keep Headroom off."
         )
     if status == "migration-required":
         return (
@@ -3892,6 +4228,11 @@ def main() -> int:
     try:
         validate_install_options(args)
         if args.command == "install":
+            bundle = default_bundle_options()
+            for name in DEFAULT_BUNDLE_COMPONENTS:
+                if getattr(args, f"without_{name}", False):
+                    bundle[name] = False
+            write_bundle_options(args.project, bundle)
             target = (
                 install(
                     args.project,
@@ -3907,9 +4248,12 @@ def main() -> int:
                     distribution=args.distribution,
                     with_maven_tools=args.with_maven_tools,
                     maven_tools_mode=args.maven_tools_mode,
+                    bundle_options=bundle,
                 )
             )
-            result: object = {"status": "installed", "root": str(target)}
+            result: object = {"status": "installed", "root": str(target), "bundle": bundle}
+        elif args.command == "repair":
+            result = repair_component(args.project, args.component)
         elif args.command == "cache":
             controller = load_source_controller("hosts")
             result = (
@@ -4006,6 +4350,15 @@ def main() -> int:
                     file=sys.stderr,
                 )
         return 1
+    if args.command == "repair" and not getattr(args, "json", False):
+        if not isinstance(result, dict):
+            raise TypeError("repair result must be an object")
+        print(
+            f"ChaosEngine repair: {result.get('status')} "
+            f"component={result.get('component')} "
+            f"action={result.get('action')}"
+        )
+        return 0
     if args.command in {"status", "doctor"} and not getattr(args, "json", False):
         if not isinstance(result, dict):
             raise TypeError("doctor/status result must be an object")

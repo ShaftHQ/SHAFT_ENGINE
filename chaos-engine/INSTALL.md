@@ -157,11 +157,44 @@ upstream from the consumer repository.
 `lifecycle`, and `taskImpact`. Without `--json`, `doctor` (and `status`) print a
 short human summary when healthy, or a scannable failure list with one
 `fix-next` action per unhealthy component. Pass `--json` for the stable
-schema v2 machine contract. Memory, MemPalace, and Graphify are advisory to
-ordinary tasks but remain strict in `doctor`; an unhealthy selected store still
-returns `recovery-required`. Maven Tools MCP is auto-installed when the project
-has a root `pom.xml`. On non-Maven projects it stays optional and absent does
-not make project health fail.
+schema v2 machine contract. **Contract:** for every **required** component,
+`status` ⊆ `doctor` — status must never report healthier than doctor (the
+plugins false-healthy case is closed by reconciling marketplace activation in
+both commands). `doctor --json` also emits per-host `activationProof` and
+`clients`. CE-INSTALL-FAILED / Verify installation / doctor share the same
+component ids and fix-next vocabulary. Memory, MemPalace, and Graphify are
+advisory to ordinary tasks but remain strict in `doctor`; an unhealthy selected
+store still returns `recovery-required`. Maven Tools MCP is auto-installed when
+the project has a root `pom.xml`. On non-Maven projects it stays optional and
+absent does not make project health fail.
+
+### Default-on all-in-one bundle
+
+The unattended one-liner provisions **Memory + MemPalace + Graphify + Ponytail +
+Headroom** (pin + CLI, CE `agent-90` policy, beacon off) and keeps Caveman on.
+Disable only with flags (combinable):
+
+```bash
+--without-memory --without-mempalace --without-graphify \
+  --without-ponytail --without-headroom --without-caveman
+```
+
+Headroom CLI is auto-provisioned via `uv tool install --python 3.13
+"headroom-ai==0.37.0"` unless `--without-headroom` is set. Ponytail XOR
+`HEADROOM_OUTPUT_SHAPER` remains enforced.
+
+### Component repair (no full wipe)
+
+```bash
+python3 .chaos-engine/install.py repair --project . --component plugins
+python3 .chaos-engine/install.py repair --project . --component headroom
+python3 .chaos-engine/install.py repair --project . --component mempalace
+```
+
+Supported components: `plugins`, `hosts`, `core`, `headroom`, `mempalace`,
+`graphify`, `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`. One-command
+**update** is the same install one-liner (repair/reinstall semantics aligned with
+this health truth).
 
 
 
@@ -215,6 +248,20 @@ If doctor is not healthy, follow every `fix-next` line, then open a GitHub
 issue and paste the full doctor output (including fix-next lines).
 
 ## Troubleshooting
+
+### `status` healthy but `doctor` unhealthy (false-healthy)
+
+For **required** components this must not happen. If you still see it on an
+older install, upgrade ChaosEngine, then:
+
+```bash
+python3 .chaos-engine/install.py status --project .
+python3 .chaos-engine/install.py doctor --project .
+python3 .chaos-engine/install.py repair --project . --component plugins
+```
+
+`doctor --json` includes `activationProof` per detected host.
+
 
 ### `tool.py` says primary checkout HEAD != origin/main
 
@@ -367,14 +414,15 @@ python3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.cha
 ```
 
 
-## Headroom (optional max-savings companion)
+## Headroom (default-on max-savings companion)
 
-ChaosEngine pins `headroom-ai==0.37.0` (Apache-2.0) and defaults to
-`HEADROOM_SAVINGS_PROFILE=agent-90` for ultra-lean / max savings. MemPalace and
-Graphify remain the memory SoT; Headroom beacon and memory injection stay off.
+ChaosEngine pins `headroom-ai==0.37.0` (Apache-2.0) and **auto-provisions** the
+CLI on install (`uv tool install`). Defaults: `HEADROOM_SAVINGS_PROFILE=agent-90`,
+beacon off. MemPalace and Graphify remain the memory SoT. Pass
+`--without-headroom` to skip CLI provision. Repair with
+`python3 .chaos-engine/install.py repair --project . --component headroom`.
 
 ```bash
-uv tool install --python 3.13 "headroom-ai==0.37.0"
 eval "$(python3 .chaos-engine/headroom_policy.py export-env --token-budget ultra-lean)"
 headroom doctor
 HEADROOM_SAVINGS_PROFILE=agent-90 headroom wrap claude   # or proxy --port 8787

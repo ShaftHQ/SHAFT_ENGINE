@@ -1,5 +1,7 @@
 # Headroom (native companion)
 
+Install auto-provisions the managed pin via `uv tool install` unless `--without-headroom` is passed. Repair with `python3 .chaos-engine/install.py repair --project . --component headroom`.
+
 ChaosEngine provisions Headroom as a **managed pin** of Apache-2.0
 [`headroom-ai`](https://pypi.org/project/headroom-ai/) (upstream
 [chopratejas/headroom](https://github.com/chopratejas/headroom)), matching the
