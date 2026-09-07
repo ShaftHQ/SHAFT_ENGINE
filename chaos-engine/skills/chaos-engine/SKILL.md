@@ -267,15 +267,24 @@ third repeated fix without a receipt; terminal reflection after one hour.
 ## Learning Session
 
 After confirmed delivery and any terminal reflection, run exactly one root-owned
-Learning Session immediately before the final report. Load
+Learning Session immediately before the final report. Portable Stop /
+delivery-complete hooks enforce this on every supported host — including when
+`chaos-engine/` files were untouched. Load
 [self-improve](../self-improve/SKILL.md) for the dual-track harness + product
 protocol. Never start it from a
-commit, guard refusal, failed diagnostic, delegate stop, or intermediate push. Run the
+commit, guard refusal, failed diagnostic, delegate stop, or intermediate push.
+Unchanged ChaosEngine sources are not a valid skip. Report
+`harness queued N / product queued N / nothing durable`. Run the
 [learned-lessons workflow](../../references/work-github-playbook.md#learned-lessons-workflow).
 Scan the session for failures, traps, and guard blocks. Route each learning
 once: native Memory, MemPalace, Graphify, guidance, or a new GitHub issue after
-duplicate search via `learning.py`. Prefer a smaller discriminating observation. Self-development
+duplicate search via `learning.py` (submit confirmed candidates as issues, not
+queue-only). Prefer a smaller discriminating observation. Self-development
 has no cap. Nothing durable is a valid result. Search before writing.
+
+Harness parity: lasting behavior and policy must live in the portable
+ChaosEngine overlay (hooks, skills, installer/doctor, host guidance adapters),
+never only in one agent's memory or routines.
 
 Gambaru.
 

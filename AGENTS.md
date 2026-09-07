@@ -22,6 +22,12 @@ ownership is machine-readable in
 [agent_ownership.json](scripts/ci/agent_ownership.json). `CLAUDE.md`, host
 skills, and provider guidance remain thin pointers to the canonical router.
 
+Harness parity (permanent): lasting behavior and policy — including Learning
+Session after every delivery — must live in the portable ChaosEngine overlay
+(hooks, skills, installer/doctor, host guidance adapters), never only in one
+agent's memory or routines. Unchanged `chaos-engine/` files are not a valid
+Learning Session skip.
+
 ## Repository safety
 
 - Read live files first, preserve unrelated and pre-existing work, and keep

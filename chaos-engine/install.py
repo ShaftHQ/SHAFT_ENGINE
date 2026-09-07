@@ -3509,6 +3509,37 @@ def attach_component_status(
         if name == "retrieval-config" and healthy:
             healthy = bool(host_controller.retrieval_configs_healthy(project))
         components[name] = {"status": "healthy" if healthy else "absent", **capabilities[name]}
+    # Learning Session Stop-gate visibility (parity with companion doctor surfaces).
+    skill = target / "skills/self-improve/SKILL.md"
+    finalize = target / "learning_session.py"
+    guard = target / "hooks/guard.py"
+    gate_source = ""
+    try:
+        gate_source = guard.read_text(encoding="utf-8") if guard.is_file() else ""
+    except OSError:
+        gate_source = ""
+    gate_installed = (
+        "def learning_session_reason" in gate_source
+        and "def confirmed_delivery_command" in gate_source
+        and "delivery-complete" in gate_source
+    )
+    learning_status = (
+        "healthy"
+        if skill.is_file() and finalize.is_file() and gate_installed
+        else "absent"
+    )
+    if isinstance(components.get("hooks"), dict):
+        components["hooks"]["learningSession"] = {
+            "status": learning_status,
+            "enforcedBy": "Stop",
+            "skillPresent": skill.is_file(),
+            "finalizePresent": finalize.is_file(),
+            "gateInstalled": gate_installed,
+            "detail": (
+                "Stop requires Learning Session after delivery-complete "
+                "(delivery-status or gh pr merge); chaos-engine untouched is not a skip"
+            ),
+        }
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health, **capabilities[name]}
     # Load from the installed tree only. Bootstrap runpy-loads install.py from a

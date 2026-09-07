@@ -40,6 +40,10 @@ GAP-EXIT2).
 - Skills still own thoroughness of the eight-step receipt content.
 - Hooks only prove that a preflight marker exists before mutation when enforced.
 - Safety denials and session-identity rules remain higher priority than this gate.
+- Learning Session Stop gate fires after confirmed delivery even when
+  `chaos-engine/` was untouched; report harness queued N / product queued N /
+  nothing durable.
+- Harness parity: lasting policy lives in the portable overlay, not one agent.
 
 
 ## Triage-scaled research gate (#5623)
