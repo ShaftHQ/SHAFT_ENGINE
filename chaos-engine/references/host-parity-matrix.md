@@ -5,6 +5,15 @@ Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, G
 Parity means the same workflow *outcomes* on all five hosts (not UI chrome parity).
 Machine-checkable capability pins also live in `scripts/ci/agent_harness_parity.json`.
 
+## Harness parity (permanent)
+
+Any lasting behavior or policy — including Learning Session after every
+delivery — MUST live in the portable ChaosEngine overlay: hooks, skills,
+installer/doctor, and host guidance adapters (`AGENTS.md` / `CLAUDE.md` /
+`GEMINI.md` equivalents). Never leave lasting harness rules only in one
+agent's memory or routines. Unchanged `chaos-engine/` sources are not a
+valid Learning Session skip on any host.
+
 Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (see below), N = not applicable.
 
 

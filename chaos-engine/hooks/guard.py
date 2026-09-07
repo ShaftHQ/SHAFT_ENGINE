@@ -125,7 +125,10 @@ def learning_session_reason(session_id: str, event: dict) -> str | None:
         return None
     return (
         "Learning Session: delivery is complete. Run exactly one terminal Learning "
-        "Session immediately before the final report."
+        "Session immediately before the final report. Load skills/self-improve/"
+        "SKILL.md; queue harness and product lessons via learning.py; report "
+        "harness queued N / product queued N / nothing durable. Unchanged "
+        "chaos-engine files are not a valid skip. Hooks own this duty on every host."
     )
 
 
@@ -190,6 +193,24 @@ def delivery_command(command: str) -> bool:
 def terminal_delivery_command(command: str) -> bool:
     """True only for canonical final delivery-status verification."""
     return "delivery-status" in shell_tokens(command)
+
+
+def confirmed_delivery_command(command: str) -> bool:
+    """True for merge delivery that completes a PR without waiting on delivery-status.
+
+    Intermediate pushes and draft PR create/edit stay mutation-only so Learning
+    Session never starts early. A successful gh pr merge is confirmed delivery
+    even when chaos-engine files were untouched.
+    """
+    if terminal_delivery_command(command):
+        return True
+    parsed = shell_tokens(command)
+    if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    if head != "gh" or len(arguments) < 2:
+        return False
+    return arguments[0] == "pr" and arguments[1] == "merge"
 
 
 def learning_session_finalize_command(command: str) -> bool:
@@ -626,7 +647,7 @@ def _run_event(event: dict, _host: str) -> int:
         if any(learning_session_finalize_command(candidate) for candidate in commands):
             if learning_completion_artifact(session_id) is not None:
                 reflection.record_activity(session_id, "learning-session-complete")
-        elif any(terminal_delivery_command(candidate) for candidate in commands):
+        elif any(confirmed_delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "delivery-complete")
         elif mutation or any(delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "mutation")

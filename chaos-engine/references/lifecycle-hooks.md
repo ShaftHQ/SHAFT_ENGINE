@@ -152,10 +152,15 @@ prose, as those files already require.
 
 ## Learning Session
 
-Stop becomes the Learning Session gate only after delivery is complete. Commits,
-guard refusals, diagnostics, and recorded signals never start it early. The root
-session records one immutable completion after routing every assessed signal or
-attesting that nothing durable surfaced. Delegates never own this terminal phase.
+Stop becomes the Learning Session gate only after delivery is complete
+(`delivery-status` or confirmed `gh pr merge`). Commits, guard refusals,
+diagnostics, intermediate pushes, and recorded signals never start it early.
+Unchanged `chaos-engine/` files are not a valid skip — product-only
+deliveries still owe the gate. The root session records one immutable completion
+after routing every assessed signal or attesting that nothing durable surfaced,
+then reports harness queued N / product queued N / nothing durable. Delegates
+never own this terminal phase. Hooks own enforcement so every host shares the
+same outcome (harness parity); do not rely on agent-local routines.
 
 ## Checks
 
