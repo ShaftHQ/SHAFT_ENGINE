@@ -434,7 +434,8 @@ class InstallerUxTests(unittest.TestCase):
         self.assertTrue(reporter._stop.is_set())
         self.assertIn("Installation Successful!", stream.getvalue())
 
-    def test_nested_start_keeps_inflight_stage_visible_without_remaining_time(self):
+    def test_core_and_provision_are_sequential_not_both_running(self):
+        """#5635: Install core and Provision dependencies must not both show running."""
         class Tty(io.StringIO):
             def isatty(self):
                 return True
@@ -466,19 +467,67 @@ class InstallerUxTests(unittest.TestCase):
                     "Install core",
                     remaining=("Provision dependencies", "Verify installation"),
                 )
+                reporter._render_locked()
+                mid = stream.getvalue()
+                self.assertIn("Install core", mid)
+                running_lines = [line for line in mid.splitlines() if " running" in line]
+                self.assertTrue(any("Install core" in line for line in running_lines))
+                self.assertFalse(
+                    any("Provision dependencies" in line for line in running_lines),
+                    running_lines,
+                )
+                reporter.complete(
+                    "Install core",
+                    remaining=("Provision dependencies", "Verify installation"),
+                )
                 reporter.start("Provision dependencies", remaining=("Verify installation",))
+                reporter.trace("download https://example.test/tool.tgz")
+                reporter.trace("run uv python install 3.12 --no-progress")
+                stream.truncate(0)
+                stream.seek(0)
                 reporter._render_locked()
                 output = stream.getvalue()
-                self.assertIn("Install core", getattr(reporter, "_in_flight", ()))
+                running_lines = [line for line in output.splitlines() if " running" in line]
+                self.assertTrue(
+                    any("Provision dependencies" in line for line in running_lines)
+                )
+                self.assertFalse(
+                    any("Install core" in line for line in running_lines),
+                    running_lines,
+                )
                 self.assertIn("Verify installation", reporter.remaining_operations)
-                self.assertIn("Install core", output)
-                self.assertIn("Provision dependencies", output)
-                self.assertIn("Verify installation", output)
+                self.assertIn("download https://example.test/tool.tgz", output)
+                self.assertIn("run uv python install 3.12 --no-progress", output)
                 self.assertIn("Resolve source  00:04", output)
                 self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
             finally:
                 reporter._stop.set()
                 reporter._thread = None
+
+    def test_safe_command_trace_redacts_secret_looking_values(self):
+        line = BOOTSTRAP.safe_command_trace(
+            ["tool", "--token=abcd", "deadbeefdeadbeefdeadbeefdeadbeef", "ok"]
+        )
+        self.assertIn("ok", line)
+        self.assertNotIn("abcd", line)
+        self.assertNotIn("deadbeefdeadbeefdeadbeefdeadbeef", line)
+        self.assertIn("***", line)
+
+    def test_reporter_transition_helper_makes_core_and_provision_exclusive(self):
+        stream = io.StringIO()
+        reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+        reporter.start(
+            "Install core",
+            remaining=("Provision dependencies", "Verify installation"),
+        )
+        INSTALL._reporter_transition_to_provision(reporter, detail="uv/python/node")
+        self.assertNotIn("Install core", getattr(reporter, "_in_flight", ()))
+        self.assertIn("Install core", reporter.completed_operations)
+        self.assertEqual("Provision dependencies", reporter.current_operation)
+        self.assertIn("Provision dependencies", reporter._in_flight)
+        self.assertEqual(
+            1, len([x for x in reporter._in_flight if x == "Provision dependencies"])
+        )
 
     def test_non_tty_history_has_timestamp_result_duration_and_current_action(self):
         class Clock:
