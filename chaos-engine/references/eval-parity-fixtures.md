@@ -35,6 +35,10 @@ runner: identical CE policy, host-native deny/context payloads.
 | `allow-safe-echo` | non-mutation allow | exit 0 for `echo hello` |
 | `sessionstart-locator-budget` | SessionStart locator | ≤4096 bytes, companion paths, identical context |
 | `research-before-mutation-enforced` | research receipt gate | deny until preflight when env enforced |
+| `research-triage-public-contract-hard` | triage-scaled research | deny for public-contract without preflight |
+| `research-triage-one-file-soft` | triage-scaled research | allow one-file even when env enforced |
+| `sessionstart-no-memory-prose` | SessionStart locator | wake-pack locator; no Memory prose dump |
+| `learning-session-portable-finalize-allow` | portable Learning Session | PostToolUse allow for `.chaos-engine/learning_session.py` |
 
 ## Failure ratchet (hooks / skills / matrix)
 
@@ -61,3 +65,13 @@ exhaustive harness in `.github/workflows/agent-plugin-acceptance.yml`.
 - [Lifecycle hooks](lifecycle-hooks.md)
 - [Delivery phase gates](delivery-phase-gates.md)
 - [Zero-LLM catalog](zero-llm-catalog.md)
+
+
+## Wave C expansions (#5625)
+
+Additional fixtures cover triage-scaled research, SessionStart wake-pack
+(no Memory prose), and portable Learning Session finalize. Plugin activation /
+status⊆doctor / memory degrade remain covered by doctor/status unit tests and
+the Wave A health-truth suite; Learning Session Stop continues to require a
+terminal finalize (portable or monorepo) with **issues-first** disposition and
+**no** auto draft PRs.

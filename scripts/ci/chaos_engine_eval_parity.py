@@ -104,6 +104,29 @@ def _deny_reason(payload: dict[str, Any], host: str) -> str:
     return str(payload.get("reason") or "")
 
 
+
+
+def _apply_fixture_setup(fixture: dict[str, Any], project: Path) -> None:
+    """Apply zero-LLM setup hooks (phase ledger triage) before a fixture runs (#5623)."""
+    setup = fixture.get("setup")
+    if not isinstance(setup, dict):
+        return
+    ledger = setup.get("phase_ledger")
+    if not isinstance(ledger, dict):
+        return
+    session_id = str(ledger.get("session_id") or "")
+    if not session_id:
+        return
+    module = _load_module("ce_eval_parity_phase_ledger", "chaos-engine/phase_ledger.py")
+    module.record_phase(
+        session_id,
+        str(ledger.get("phase") or "triage"),
+        triage=ledger.get("triage"),
+        note=str(ledger.get("note") or "eval-parity"),
+        project=project,
+    )
+
+
 def _run_one(
     *,
     guard,
@@ -201,6 +224,9 @@ def _check_host_result(
             for needle in expect.get("context_must_include") or []:
                 if needle not in context:
                     failures.append(f"{host}: context missing {needle!r}")
+            for needle in expect.get("context_must_not_include") or []:
+                if needle in context:
+                    failures.append(f"{host}: context must not include {needle!r}")
             contexts[host] = context
     return failures
 
@@ -215,6 +241,7 @@ def evaluate_fixture(  # noqa: MC0001  # Host-loop assertions stay auditable tog
     temporary: str,
 ) -> dict[str, Any]:
     expect = fixture["expect"]
+    _apply_fixture_setup(fixture, ROOT)
     results = [
         _run_one(
             guard=guard,

@@ -61,8 +61,29 @@ def _learning_session_controller():
     return learning_session
 
 
+def _portable_learning_completion(session_id: str) -> dict | None:
+    """Load portable `.chaos-engine-state/learning-session/` completion (#5625)."""
+    if not isinstance(session_id, str) or not session_id.strip():
+        return None
+    safe = session_id.strip()[:64]
+    for root in (Path.cwd(), Path(__file__).resolve().parents[2]):
+        path = root / ".chaos-engine-state" / "learning-session" / f"{safe}.completion.json"
+        if not path.is_file():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeError):
+            continue
+        if isinstance(value, dict) and value.get("kind") == "learning-session-portable-finalize":
+            return value
+    return None
+
+
 def learning_completion_artifact(session_id: str) -> dict | None:
     """Return the immutable Learning Session completion for hooks, if present."""
+    portable = _portable_learning_completion(session_id)
+    if portable is not None:
+        return portable
     controller = _learning_session_controller()
     if controller is None or not isinstance(session_id, str) or not session_id.strip():
         return None
@@ -184,8 +205,15 @@ def learning_session_finalize_command(command: str) -> bool:
     if len(arguments) < 4:
         return False
     script = arguments[0].replace("\\", "/").casefold()
-    return bool(
+    portable = (
         script.endswith("scripts/agents/learning_session.py")
+        or script.endswith("chaos-engine/learning_session.py")
+        or script.endswith(".chaos-engine/learning_session.py")
+        or script.endswith("/learning_session.py")
+        and ("chaos-engine" in script or "scripts/agents" in script)
+    )
+    return bool(
+        portable
         and arguments[1] in {"finalize", "finalize-runtime"}
         and "--session-id" in arguments[2:]
     )
@@ -505,19 +533,41 @@ def _event_context(event_name: str, token: object) -> str:
 
 
 
+def _phase_ledger_triage(session_id: str) -> str | None:
+    """Read triage from zero-LLM phase ledger when present (#5623)."""
+    if not session_id:
+        return None
+    try:
+        path = Path(__file__).resolve().parents[1] / "phase_ledger.py"
+        if not path.is_file():
+            return None
+        spec = importlib.util.spec_from_file_location("chaos_engine_phase_ledger", path)
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.session_triage(session_id)
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        return None
+
+
 def _research_before_mutation_reason(event_name: str, mutation: bool, session_id: str) -> str | None:
-    """Opt-in hard gate: deny mutations until research-preflight is recorded (#5583)."""
+    """Triage-scaled research gate (#5623); hard for public-contract, soft for one-file."""
     if event_name != "PreToolUse" or not mutation:
         return None
+    triage = _phase_ledger_triage(session_id)
     flag = str(os.environ.get("CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT") or "").strip().casefold()
-    if flag not in {"1", "true", "yes", "on"}:
+    env_on = flag in {"1", "true", "yes", "on"}
+    hard = triage == "public-contract" or (env_on and triage != "one-file")
+    if not hard:
         return None
     if not session_id or reflection.has_research_preflight(session_id):
         return None
     return (
         "Research receipt required before mutation "
-        "(set CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT; "
-        "record via hooks/reflection.py research-preflight)."
+        f"(triage={triage or 'unset'}; "
+        "record via hooks/reflection.py research-preflight "
+        "or phase_ledger.py record --phase research)."
     )
 
 

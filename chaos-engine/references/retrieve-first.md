@@ -43,6 +43,21 @@ task scope nor the evidence needed to earn authority.
 Use a bounded `memory search`, then inspect only the selected records. Never
 compile or inject a whole-store context pack.
 
+## Retrieve orchestrator (#5624)
+
+One store, one bounded query, receipt status `used` | `skipped` | `degraded`:
+
+```text
+python3 .chaos-engine/tool.py retrieve "has this gotcha bitten us?"
+python3 .chaos-engine/tool.py retrieve --store graphify "what calls Foo?"
+python3 .chaos-engine/retrieve.py --dry-run "probe"
+```
+
+Owner-curated wake pack (≤~120 tokens) lives at
+`.chaos-engine-state/wake-pack.md`. MemPalace may write
+`wake-pack.mempalace-draft.md` only — never silent overwrite. SessionStart
+injects the wake-pack **locator**, never Memory/MemPalace prose.
+
 ## Bounded retrieval
 
 After a plan is approved, the MemPalace attempt in the research receipt is

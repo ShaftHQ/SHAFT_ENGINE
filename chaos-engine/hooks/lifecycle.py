@@ -121,6 +121,12 @@ def headroom_session_guidance(mode: str | None = None) -> str:
     return f"Headroom {profile}/{selected}; beacon=off."
 
 
+
+def wake_pack_session_guidance() -> str:
+    """Locator only — never dump wake-pack or Memory/MemPalace prose (#5624)."""
+    return "Wake pack: `.chaos-engine-state/wake-pack.md` (locator only)."
+
+
 def self_improve_session_guidance() -> str:
     """Cheap SessionStart locator — full protocol runs at Learning Session."""
     return "Learning: skills/self-improve/SKILL.md."
@@ -206,6 +212,7 @@ def session_start_context(token: str | None, activation: str) -> str:
     parts.append(zero_llm_session_guidance())
     parts.append(level1_catalog_guidance())
     parts.append(heal_route_guidance())
+    parts.append(wake_pack_session_guidance())
     parts.append(self_improve_session_guidance())
     for name in COMPANION_NAMES:
         for root in _search_roots():

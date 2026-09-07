@@ -3417,6 +3417,7 @@ def doctor_with_dependencies(
     if (project.resolve() / ACCOUNT_ROLLBACK_JOURNAL_NAME).exists():
         result["clients"] = {}
         result["activationProof"] = {}
+        result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
         return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
@@ -3479,6 +3480,10 @@ def doctor_with_dependencies(
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
+        result.setdefault(
+            "phaseLedger",
+            {"schemaVersion": 1, "sessions": 0, "status": "absent"},
+        )
         return result
     apply_plugin_client_health(
         result,
@@ -3487,6 +3492,18 @@ def doctor_with_dependencies(
         attach_clients=True,
         attach_activation_proof=True,
     )
+    try:
+        ledger_path = Path(__file__).resolve().with_name("phase_ledger.py")
+        if ledger_path.is_file():
+            import importlib.util as _ilu
+
+            _spec = _ilu.spec_from_file_location("chaos_engine_phase_ledger_doctor", ledger_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                result["phaseLedger"] = _mod.doctor_phase_ledger_summary(project)
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
     return result
 
 
@@ -3502,7 +3519,7 @@ _DIAGNOSTIC_FIELDS = {
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
-        "activationProof",
+        "activationProof", "phaseLedger",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",

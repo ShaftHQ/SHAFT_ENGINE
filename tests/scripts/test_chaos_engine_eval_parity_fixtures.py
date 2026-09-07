@@ -32,6 +32,10 @@ class EvalParityFixturesTests(unittest.TestCase):
             "allow-read-tool",
             "sessionstart-locator-budget",
             "research-before-mutation-enforced",
+            "research-triage-public-contract-hard",
+            "research-triage-one-file-soft",
+            "sessionstart-no-memory-prose",
+            "learning-session-portable-finalize-allow",
         ):
             self.assertIn(required, ids)
 
