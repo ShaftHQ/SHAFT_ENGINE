@@ -285,6 +285,8 @@ flowchart LR
     accDescr: One canonical skill and kernel project thin guidance and lifecycle adapters into five supported hosts.
     K["Canonical chaos-engine skill"] --> C["Caveman skill<br/>pinned 0.1.0"]
     K --> P["Ponytail skill<br/>pinned 0.1.0"]
+    K --> H["Headroom skill<br/>managed pin agent-90"]
+    K --> SI["self-improve skill"]
     K --> Profile["portable or selected project profile"]
     K --> Refs["on-demand references<br/>research, retrieval, isolation, roles,<br/>cleanup, reflection, GitHub delivery"]
     K --> Kernel["provider-neutral lifecycle kernel"]
@@ -486,6 +488,8 @@ flowchart LR
     accDescr: The canonical skill routes optional work skills and two pinned companions without duplicating policy.
     CE[chaos-engine] --> Caveman[caveman]
     CE --> Ponytail[ponytail]
+    CE --> Headroom[headroom]
+    CE --> SelfImprove[self-improve]
     CE --> Delegate[local-coding-delegate optional]
     CE --> WorkItem[work-item optional]
     CE --> Refs[On-demand references]

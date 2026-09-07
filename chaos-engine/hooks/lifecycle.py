@@ -11,7 +11,7 @@ import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
-COMPANION_NAMES = ("caveman", "ponytail")
+COMPANION_NAMES = ("caveman", "ponytail", "headroom")
 # Hard budget for SessionStart additionalContext (#5580). Locators only.
 SESSION_START_MAX_BYTES = 4096
 TOKEN_BUDGET_DEFAULT = "balanced"
@@ -61,6 +61,35 @@ def token_budget_guidance(mode: str | None = None) -> str:
     if selected not in TOKEN_BUDGET_MODES:
         selected = TOKEN_BUDGET_DEFAULT
     return str(TOKEN_BUDGET_MODES[selected]["guidance"])
+
+
+HEADROOM_PROFILE_BY_BUDGET = {
+    "ultra-lean": "agent-90",
+    "balanced": "balanced",
+    "deep": "coding",
+}
+
+
+def headroom_session_guidance(mode: str | None = None) -> str:
+    """Compact SessionStart line for Headroom profile (locator-only)."""
+    selected = mode or TOKEN_BUDGET_DEFAULT
+    if selected not in HEADROOM_PROFILE_BY_BUDGET:
+        selected = TOKEN_BUDGET_DEFAULT
+    profile = HEADROOM_PROFILE_BY_BUDGET[selected]
+    return (
+        f"Headroom profile {profile} (token-budget {selected}); "
+        "beacon=off; memory-injection=disabled; Ponytail XOR OUTPUT_SHAPER. "
+        "Details: chaos-engine/references/headroom.md"
+    )
+
+
+def self_improve_session_guidance() -> str:
+    """Cheap SessionStart locator — full protocol runs at Learning Session."""
+    return (
+        "Post-delivery self-improve: load "
+        "`chaos-engine/skills/self-improve/SKILL.md` during Learning Session "
+        "(harness + product dual track via learning.py)."
+    )
 
 
 ULTRA_SELECTOR = (
@@ -137,7 +166,10 @@ def session_start_context(token: str | None, activation: str) -> str:
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
     parts.append(ULTRA_SELECTOR)
-    parts.append(token_budget_guidance(resolve_token_budget_mode()))
+    budget = resolve_token_budget_mode()
+    parts.append(token_budget_guidance(budget))
+    parts.append(headroom_session_guidance(budget))
+    parts.append(self_improve_session_guidance())
     for name in COMPANION_NAMES:
         for root in _search_roots():
             path = next(
@@ -146,8 +178,23 @@ def session_start_context(token: str | None, activation: str) -> str:
             )
             if path is not None:
                 locator = _workspace_locator(path)
-                parts.append(f"Required companion: read and follow `{locator}` before responding.")
+                label = "Required companion" if name != "headroom" else "Headroom companion"
+                parts.append(f"{label}: read and follow `{locator}` before responding.")
                 break
+    # self-improve skill locator (not a companion plugin)
+    for root in _search_roots():
+        for relative in (
+            "skills/self-improve/SKILL.md",
+            "chaos-engine/skills/self-improve/SKILL.md",
+        ):
+            path = root / relative
+            if path.is_file():
+                locator = _workspace_locator(path)
+                parts.append(f"Self-improve skill locator: `{locator}`.")
+                break
+        else:
+            continue
+        break
     return "\n\n".join(parts)
 
 

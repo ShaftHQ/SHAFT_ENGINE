@@ -256,12 +256,14 @@ third repeated fix without a receipt; terminal reflection after one hour.
 ## Learning Session
 
 After confirmed delivery and any terminal reflection, run exactly one root-owned
-Learning Session immediately before the final report. Never start it from a
+Learning Session immediately before the final report. Load
+[self-improve](../self-improve/SKILL.md) for the dual-track harness + product
+protocol. Never start it from a
 commit, guard refusal, failed diagnostic, delegate stop, or intermediate push. Run the
 [learned-lessons workflow](../../references/work-github-playbook.md#learned-lessons-workflow).
 Scan the session for failures, traps, and guard blocks. Route each learning
 once: native Memory, MemPalace, Graphify, guidance, or a new GitHub issue after
-duplicate search. Prefer a smaller discriminating observation. Self-development
+duplicate search via `learning.py`. Prefer a smaller discriminating observation. Self-development
 has no cap. Nothing durable is a valid result. Search before writing.
 
 Gambaru.

@@ -26,6 +26,24 @@ included here.
 
 Skill and hook bodies in that pin are verbatim upstream.
 
+
+## Headroom
+
+- License: Apache-2.0
+- Upstream: https://github.com/chopratejas/headroom
+- PyPI: https://pypi.org/project/headroom-ai/ (managed pin; package bytes not vendored)
+- Local pin: [vendor/headroom/PIN.json](vendor/headroom/PIN.json)
+- Local license: [vendor/headroom/LICENSE](vendor/headroom/LICENSE)
+- CE skill/policy: [vendor/headroom/skills/headroom/SKILL.md](vendor/headroom/skills/headroom/SKILL.md), [headroom_policy.py](headroom_policy.py)
+
+## Task Observer methodology (self-improve skill)
+
+- License: CC BY 4.0
+- Copyright / credit: Eoghan Henn / rebelytics
+- Upstream: https://github.com/rebelytics/one-skill-to-rule-them-all
+- Local adaptation: [skills/self-improve/](skills/self-improve/) (lean CE-native rewrite; see UPSTREAM.md and references/research-adopt-reject.md)
+
+
 ## Test-driven development adaptation
 
 See [references/test-driven-development.LICENSE](references/test-driven-development.LICENSE).

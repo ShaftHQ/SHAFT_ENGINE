@@ -1,6 +1,7 @@
 # Context economy
 
 Owner-selectable budgets: [token budget modes](token-budget-modes.md) (`ultra-lean` | `balanced` | `deep`).
+Wire-level compression: [Headroom](headroom.md) (`agent-90` under ultra-lean).
 
 Load this when a task will make many tool calls, return large outputs, or run
 long enough that context rot becomes the next failure mode. Host compaction is

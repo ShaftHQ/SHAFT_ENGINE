@@ -55,7 +55,7 @@ CAPABILITY_ENUMS = {
 CAPABILITY_COMPONENTS = {
     "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
     "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
-    "graphify", "maven-tools-mcp",
+    "graphify", "maven-tools-mcp", "headroom",
 }
 PROJECT_SETUP_OUTPUTS = (
     ".agents/skills/graphify",
@@ -84,6 +84,9 @@ def legacy_capability_policy() -> dict[str, dict[str, str]]:
         owner="project", scope="repository", lifecycle="derived-single-writer", taskImpact="advisory"
     )
     result["maven-tools-mcp"].update(
+        owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
+    )
+    result["headroom"].update(
         owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
     )
     return _validated_capabilities(result)
@@ -2935,11 +2938,14 @@ def attach_component_status(
             target / "skills/chaos-engine/SKILL.md",
             target / "vendor/caveman/PIN.json",
             target / "vendor/ponytail/PIN.json",
+            target / "vendor/headroom/PIN.json",
         ],
         "skills": [
             project / ".agents/skills/chaos-engine/SKILL.md",
             project / "plugins/caveman/skills/caveman/SKILL.md",
             project / "plugins/ponytail/skills/ponytail/SKILL.md",
+            target / "vendor/headroom/skills/headroom/SKILL.md",
+            target / "skills/self-improve/SKILL.md",
         ],
         "playbooks": [target / "references/work-github-playbook.md"],
         "hooks": [
@@ -2989,6 +2995,21 @@ def attach_component_status(
         components[name] = {"status": "healthy" if healthy else "absent", **capabilities[name]}
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health, **capabilities[name]}
+    try:
+        import headroom_policy as _headroom_policy
+    except ImportError:
+        import importlib.util as _ilu
+
+        _hp = Path(__file__).resolve().with_name("headroom_policy.py")
+        _spec = _ilu.spec_from_file_location("chaos_engine_headroom_policy", _hp)
+        _headroom_policy = _ilu.module_from_spec(_spec)
+        assert _spec is not None and _spec.loader is not None
+        _spec.loader.exec_module(_headroom_policy)
+    headroom_state = _headroom_policy.doctor_status()
+    components["headroom"] = {
+        **{k: v for k, v in headroom_state.items() if k in {"status", "detail", "cliPresent", "pin"}},
+        **capabilities["headroom"],
+    }
     if inspect_retrieval_state:
         mempalace_state = host_controller.mempalace_runtime_status(project)
         if mempalace_state.get("status") != "healthy":
@@ -3700,6 +3721,16 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
             "For Maven projects, rerun install with Maven Tools enabled "
             "(`--with-maven-tools` or root `pom.xml`); otherwise optional absence "
             "is fine."
+        )
+    if name == "headroom":
+        detail = item.get("detail")
+        if isinstance(detail, str) and detail.strip():
+            return detail.strip()
+        return (
+            'Install the managed pin: `uv tool install --python 3.13 '
+            '"headroom-ai==0.37.0"`, then `eval "$(python3 .chaos-engine/'
+            'headroom_policy.py export-env)"` and `headroom doctor`. '
+            "Optional absence is fine until wrap/proxy is needed."
         )
     if status == "migration-required":
         return (

@@ -10,7 +10,7 @@ Maps the ChaosEngine delivery loop to **hooks** (machine-checkable) vs **skills*
 | Implement (Do) | Hook | PreToolUse session identity, catastrophic deny, worktree | playbooks / roles |
 | Check | Skill + tests | PostToolUse records outcomes | consolidated proof commands |
 | Optional adversarial | Skill | — | independent PR review |
-| Learning Session | Hook | Stop requires terminal Learning Session | [learning](../learning.py) |
+| Learning Session | Hook | Stop requires terminal Learning Session | [learning](../learning.py) + [self-improve](../skills/self-improve/SKILL.md) |
 
 ## Research-before-mutation (enforced path)
 

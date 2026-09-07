@@ -22,6 +22,8 @@ class HostParityMatrixTests(unittest.TestCase):
             "Exit-2",
             "SessionStart",
             "Companions",
+            "Headroom",
+            "Self-improve",
             "Retrieval soft-degrade",
             "Learning Session",
         ):

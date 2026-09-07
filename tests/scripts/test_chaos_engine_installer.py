@@ -1441,7 +1441,7 @@ module.install_with_dependencies(project, source, "3" * 40)
             expected = {
                 "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
                 "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
-                "graphify", "maven-tools-mcp",
+                "graphify", "maven-tools-mcp", "headroom",
             }
             self.assertEqual(expected, set(result["components"]))
             for component in result["components"].values():
@@ -1453,6 +1453,7 @@ module.install_with_dependencies(project, source, "3" * 40)
                 self.assertEqual("advisory", result["components"][name]["taskImpact"])
             self.assertEqual("optional", result["components"]["maven-tools-mcp"]["taskImpact"])
             self.assertEqual("receipt-owned", result["components"]["maven-tools-mcp"]["lifecycle"])
+            self.assertEqual("optional", result["components"]["headroom"]["taskImpact"])
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual(manifest["capabilityPolicySha256"], host_receipt["capabilityPolicySha256"])
             self.assertEqual(manifest["capabilities"], MODULE.legacy_capability_policy())
