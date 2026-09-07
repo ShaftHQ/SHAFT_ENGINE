@@ -50,6 +50,7 @@ jobs:
             tests.scripts.test_chaos_engine_generation_runtime
             tests.scripts.test_chaos_engine_hook
             tests.scripts.test_chaos_engine_eval_parity_fixtures
+            tests.scripts.test_epic_autoclose
             tests.scripts.test_chaos_engine_hosts
             tests.scripts.test_chaos_engine_installer
             tests.scripts.test_chaos_engine_kernel

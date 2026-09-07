@@ -49,6 +49,7 @@ changing that token silently breaks both distribution publishers.
 | `publish-shaft-mcp.yml` | published GitHub release, manual | Publishes MCP images and registry metadata. |
 | `deploy-shaft-mcp.yml` | successful MCP distribution workflow, manual | Deploys configured MCP services and records optional-provider handoffs. |
 | `codecoverage-failure-notifier.yml` | completed coverage-producing workflow on `main` | Consolidates coverage failure artifacts into one manually closed tracking issue. |
+| `epic-autoclose.yml` | issue closed, manual | Closes eligible CE program epics (#5569 or `ce-program-epic`) when every GitHub sub-issue is closed. |
 | `e2eTests.yml` | nightly, manual | Broad hosted database, API, browser, mobile, visual, video, Cucumber, and JUnit coverage. |
 | `e2eLocalTests.yml` | nightly, manual | Windows and macOS local browser and desktop coverage. |
 | `lambdatestTests.yml` | manual | Serial LambdaTest app upload plus native and desktop suites. |
