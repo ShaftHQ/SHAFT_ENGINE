@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
 import subprocess  # nosec B404 - fixed argv list only, never shell=True.
 import sys
 from collections.abc import Callable, Sequence
@@ -70,7 +69,7 @@ def _load(name: str):
 
 
 def verify_session_start_budget(project: Path | None = None) -> int:
-    """SessionStart locator budget check used on Check/Stop hot path."""
+    """Check the SessionStart locator byte budget used on Check/Stop."""
     hook_path = Path(__file__).resolve().parent / "hooks" / "lifecycle.py"
     spec = importlib.util.spec_from_file_location("ce_silent_lifecycle", hook_path)
     if spec is None or spec.loader is None:
@@ -86,11 +85,11 @@ def verify_session_start_budget(project: Path | None = None) -> int:
             failure_message=f"SessionStart budget exceeded: {len(encoded)}>{budget}",
         )
     # Record bytes for metrics (#5653) when project root is available.
-    try:
+    import contextlib
+
+    with contextlib.suppress(Exception):
         counters = _load("learning_counters.py")
         counters.record_session_start_bytes(len(encoded), project=project)
-    except Exception:  # noqa: BLE001 - metrics must never fail the verify
-        pass
     return SUCCESS_EXIT
 
 

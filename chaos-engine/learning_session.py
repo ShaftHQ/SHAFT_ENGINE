@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import importlib.util
 import json
@@ -95,11 +96,9 @@ def finalize(
         json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()[:16]
     receipt["digest"] = digest
-    try:
+    with contextlib.suppress(Exception):
         counters = _load_sibling("learning_counters.py")
         counters.record_learning_session_digest(digest, project=Path.cwd())
-    except Exception:  # noqa: BLE001 - metrics must not fail finalize
-        pass
     return receipt
 
 

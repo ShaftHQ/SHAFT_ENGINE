@@ -12,7 +12,6 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CATALOG = ROOT / "chaos-engine/references/zero-llm-catalog.md"

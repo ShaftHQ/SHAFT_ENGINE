@@ -433,32 +433,15 @@ def _count_learning_sessions(project: Path) -> dict[str, object]:
     return {"completions": completions, "dispositions": dispositions}
 
 
-def learning_metrics(
-    state: Path | None = None,
-    *,
-    project: Path | None = None,
-) -> dict[str, object]:
-    """Zero-LLM closed-loop metrics over queue + session ledgers (#5653)."""
-    root = (project or Path.cwd()).resolve()
-    for candidate in (root, *root.parents):
-        if (candidate / ".chaos-engine" / "install.py").is_file() or (
-            candidate / "chaos-engine" / "install.py"
-        ).is_file():
-            root = candidate
-            break
-    learning_state = Path(state) if state is not None else default_learning_state(root)
+def _queue_metric_counts(document: dict[str, object]) -> dict[str, object]:
     queued = 0
     submitted = 0
     estimated_tokens = 0
     categories: dict[str, int] = {}
-    try:
-        document = queue_document(learning_state) if learning_state.exists() or (learning_state / "queue.json").exists() else {"items": []}
-    except ValueError:
-        document = {"items": [], "status": "invalid"}
+    issue_numbers: list[int] = []
     items = document.get("items") if isinstance(document, dict) else []
     if not isinstance(items, list):
         items = []
-    issue_numbers: list[int] = []
     for item in items:
         if not isinstance(item, dict):
             continue
@@ -479,44 +462,61 @@ def learning_metrics(
             if match:
                 issue_numbers.append(int(match.group(1)))
     total = queued + submitted
-    submitted_rate = (submitted / total) if total else 0.0
-    sessions = _count_learning_sessions(root)
-    counters: dict[str, object] = {}
-    heuristics: dict[str, object] = {}
-    try:
-        counters_path = Path(__file__).resolve().with_name("learning_counters.py")
-        if counters_path.is_file():
-            import importlib.util as _ilu
-
-            spec = _ilu.spec_from_file_location("chaos_engine_learning_counters", counters_path)
-            if spec is not None and spec.loader is not None:
-                mod = _ilu.module_from_spec(spec)
-                spec.loader.exec_module(mod)
-                counters = mod.load_counters(root)
-    except (OSError, RuntimeError, ValueError, AttributeError):
-        counters = {}
-    try:
-        heuristics_path = Path(__file__).resolve().with_name("heuristics.py")
-        if heuristics_path.is_file():
-            import importlib.util as _ilu
-
-            spec = _ilu.spec_from_file_location("chaos_engine_heuristics_metrics", heuristics_path)
-            if spec is not None and spec.loader is not None:
-                mod = _ilu.module_from_spec(spec)
-                spec.loader.exec_module(mod)
-                heuristics = mod.doctor_heuristics_summary(root)
-    except (OSError, RuntimeError, ValueError, AttributeError):
-        heuristics = {}
     return {
-        "schemaVersion": 1,
-        "kind": "learning-metrics",
         "queued": queued,
         "submitted": submitted,
         "total": total,
-        "submittedRate": round(submitted_rate, 4),
+        "submittedRate": round((submitted / total) if total else 0.0, 4),
         "estimatedTokens": estimated_tokens,
         "categories": categories,
         "issueNumbers": issue_numbers[-32:],
+    }
+
+
+def _load_optional_summary(module_name: str, attribute: str, root: Path) -> dict[str, object]:
+    path = Path(__file__).resolve().with_name(module_name)
+    if not path.is_file():
+        return {}
+    try:
+        import importlib.util as _ilu
+
+        spec = _ilu.spec_from_file_location(f"chaos_engine_{module_name}_metrics", path)
+        if spec is None or spec.loader is None:
+            return {}
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        value = getattr(mod, attribute)(root)
+        return value if isinstance(value, dict) else {}
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        return {}
+
+
+def learning_metrics(
+    state: Path | None = None,
+    *,
+    project: Path | None = None,
+) -> dict[str, object]:
+    """Zero-LLM closed-loop metrics over queue + session ledgers (#5653)."""
+    root = (project or Path.cwd()).resolve()
+    for candidate in (root, *root.parents):
+        if (candidate / ".chaos-engine" / "install.py").is_file() or (
+            candidate / "chaos-engine" / "install.py"
+        ).is_file():
+            root = candidate
+            break
+    learning_state = Path(state) if state is not None else default_learning_state(root)
+    try:
+        document = queue_document(learning_state)
+    except ValueError:
+        document = {"items": []}
+    counts = _queue_metric_counts(document)
+    sessions = _count_learning_sessions(root)
+    counters = _load_optional_summary("learning_counters.py", "load_counters", root)
+    heuristics = _load_optional_summary("heuristics.py", "doctor_heuristics_summary", root)
+    return {
+        "schemaVersion": 1,
+        "kind": "learning-metrics",
+        **counts,
         "learningSessions": sessions,
         "sessionStartBytesLast": counters.get("sessionStartBytesLast", 0),
         "sessionStartBytesMax": counters.get("sessionStartBytesMax", 0),
@@ -525,7 +525,7 @@ def learning_metrics(
         "deliveryDigests": counters.get("deliveryDigests", []),
         "learningSessionDigests": counters.get("learningSessionDigests", []),
         "heuristics": heuristics,
-        "status": "healthy" if total or sessions.get("completions") else "absent",
+        "status": "healthy" if counts["total"] or sessions.get("completions") else "absent",
     }
 
 

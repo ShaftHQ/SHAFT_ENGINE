@@ -243,7 +243,7 @@ def session_start_context(token: str | None, activation: str) -> str:
                 parts.append(f"Required companion: read and follow `{locator}` before responding.")
                 break
     rendered = "\n\n".join(parts)
-    try:
+    with contextlib.suppress(Exception):
         counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
         if counters_path.is_file():
             import importlib.util as _ilu
@@ -253,8 +253,6 @@ def session_start_context(token: str | None, activation: str) -> str:
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
                 _mod.record_session_start_bytes(len(rendered.encode("utf-8")))
-    except Exception:  # noqa: BLE001 - metrics must never break SessionStart
-        pass
     return rendered
 
 

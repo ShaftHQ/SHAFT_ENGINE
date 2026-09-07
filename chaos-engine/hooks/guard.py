@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import json
 import os
 import hashlib
@@ -593,20 +595,16 @@ def _research_before_mutation_reason(event_name: str, mutation: bool, session_id
 
 
 def _record_denial_counter() -> None:
-    try:
+    with contextlib.suppress(Exception):
         counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
         if not counters_path.is_file():
             return
-        import importlib.util as _ilu
-
-        spec = _ilu.spec_from_file_location("ce_learning_counters_deny", counters_path)
+        spec = importlib.util.spec_from_file_location("ce_learning_counters_deny", counters_path)
         if spec is None or spec.loader is None:
             return
-        mod = _ilu.module_from_spec(spec)
+        mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         mod.record_denial()
-    except Exception:  # noqa: BLE001 - metrics must never break deny path
-        return
 
 
 
