@@ -2497,15 +2497,18 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         ),
         None,
     )
-    if java is not None and not hosts.java_compiler_present(java):
+    compiler_present = getattr(hosts, "java_compiler_present", None)
+    if java is not None and callable(compiler_present) and not compiler_present(java):
         # JRE-only Java 25 cannot compile Maven Tools; prefer managed Temurin JDK.
         java = None
     if java is None:
-        managed = hosts.ensure_managed_temurin_jdk(
-            specification, opener=opener, reporter=reporter, confirmer=confirmer,
-        )
-        if managed is not None:
-            java = managed
+        provision = getattr(hosts, "ensure_managed_temurin_jdk", None)
+        if callable(provision):
+            managed = provision(
+                specification, opener=opener, reporter=reporter, confirmer=confirmer,
+            )
+            if managed is not None:
+                java = managed
     if java is None:
         raise ValueError(
             "Temurin JDK 25 with javac is required for Maven Tools MCP "

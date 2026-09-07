@@ -280,10 +280,15 @@ def resolve_account_launcher(
     if not command:
         raise ValueError("dependency launcher is empty")
     path = Path(command)
-    if path.is_absolute() or (os.name == "nt" and len(command) >= 3 and command[1:3] in {":\\", ":/"}):
-        if path.is_file():
-            return str(path)
-        raise FileNotFoundError(command)
+    # Absolute or explicit path forms: pass through so mocked/account receipt
+    # paths are not re-resolved (and missing fixtures stay FileNotFound at exec).
+    if (
+        path.is_absolute()
+        or "/" in command
+        or "\\" in command
+        or (os.name == "nt" and len(command) >= 3 and command[1:3] in {":\\", ":/"})
+    ):
+        return command
     kwargs = {}
     if search_path is not None:
         kwargs["path"] = search_path

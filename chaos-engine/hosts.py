@@ -618,20 +618,29 @@ def attempt_mempalace_sqlite_exact_heal(palace: Path) -> bool:
         return False
     connection = None
     try:
+        # Read-only probe first — avoid writable opens (and WAL sidecars) unless
+        # quick_check specifically reports FTS corruption.
+        connection = sqlite3.connect(f"{exact.resolve().as_uri()}?mode=ro", uri=True)
+        connection.execute("PRAGMA trusted_schema=OFF")
+        quick = connection.execute("PRAGMA quick_check(1)").fetchone()
+        detail = " ".join(str(part) for part in (quick or ()))
+        if quick == ("ok",) or "fts" not in detail.casefold():
+            return False
+        connection.close()
+        connection = None
         connection = sqlite3.connect(str(exact.resolve()))
         connection.execute("PRAGMA trusted_schema=OFF")
-        # Prefer FTS rebuild when the docs_fts virtual table exists.
         tables = {
             str(row[0])
             for row in connection.execute(
                 "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
             )
         }
-        if "docs_fts" in tables:
-            connection.execute("INSERT INTO docs_fts(docs_fts) VALUES('rebuild')")
-            connection.commit()
-        quick = connection.execute("PRAGMA quick_check(1)").fetchone()
-        return quick == ("ok",)
+        if "docs_fts" not in tables:
+            return False
+        connection.execute("INSERT INTO docs_fts(docs_fts) VALUES('rebuild')")
+        connection.commit()
+        return connection.execute("PRAGMA quick_check(1)").fetchone() == ("ok",)
     except (OSError, sqlite3.DatabaseError):
         return False
     finally:
@@ -781,6 +790,13 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             "detail": "SQLite-exact MemPalace WAL state has no database",
         }
     if exact.exists():
+        # Never open the DB (even for FTS heal) when WAL/SHM pairing is broken —
+        # a probe connection can create a missing sidecar and hide the defect.
+        if wal_exists != shared_memory_exists:
+            return {
+                "status": "recovery-required",
+                "detail": "SQLite-exact MemPalace state is unreadable or malformed",
+            }
         if not _sqlite_runtime_valid(
             exact,
             required_schema=SQLITE_EXACT_SCHEMA,
