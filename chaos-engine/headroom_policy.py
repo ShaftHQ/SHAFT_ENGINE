@@ -145,11 +145,25 @@ def ensure_installed(*, runner=None, which=None) -> dict[str, object]:
             "detail": f"uv missing; cannot run `{install_command()}`.",
         }
     command = [uv, "tool", "install", "--python", "3.13", PINNED_SPEC]
-    completed = runner(command, check=False, capture_output=True, text=True)
-    if completed.returncode != 0:
-        stderr = (completed.stderr or completed.stdout or "").strip()[:400]
+    try:
+        completed = runner(
+            command, check=False, capture_output=True, text=True, timeout=180
+        )
+    except TypeError:
+        # Test doubles may not accept timeout=.
+        completed = runner(command, check=False, capture_output=True, text=True)
+    except Exception as error:  # noqa: BLE001 - bounded provision must not hang install
         return {
-            "status": "broken",
+            "status": "absent",
+            "action": "failed",
+            "pin": PINNED_SPEC,
+            "detail": f"Headroom provision timed out or failed: {error!s}"[:400],
+        }
+    if getattr(completed, "returncode", 1) != 0:
+        stderr = (getattr(completed, "stderr", None) or getattr(completed, "stdout", None) or "")
+        stderr = str(stderr).strip()[:400]
+        return {
+            "status": "absent",
             "action": "failed",
             "pin": PINNED_SPEC,
             "detail": f"Headroom provision failed: {stderr or 'unknown error'}",

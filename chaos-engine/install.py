@@ -2954,16 +2954,20 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
         # Default-on Headroom pin+CLI (#5620). Disable only via --without-headroom.
+        # Best-effort: never abort a successful core install if the CLI pin fails.
         if bundle.get("headroom", True) and provisioner is None:
             policy_path = (project / INSTALL_DIRECTORY) / "headroom_policy.py"
             if policy_path.is_file():
-                spec = importlib.util.spec_from_file_location(
-                    "chaos_engine_headroom_policy_install", policy_path
-                )
-                if spec is not None and spec.loader is not None:
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    module.ensure_installed()
+                try:
+                    spec = importlib.util.spec_from_file_location(
+                        "chaos_engine_headroom_policy_install", policy_path
+                    )
+                    if spec is not None and spec.loader is not None:
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        module.ensure_installed()
+                except (OSError, RuntimeError, ValueError, TimeoutError):
+                    pass
         return target
 
 
