@@ -404,6 +404,152 @@ def _submit_learning_locked(state: Path, learning_id: str, *, runner=subprocess.
     return item
 
 
+def default_learning_state(project: Path | None = None) -> Path:
+    here = (project or Path.cwd()).resolve()
+    for candidate in (here, *here.parents):
+        if (candidate / ".chaos-engine" / "install.py").is_file() or (
+            candidate / "chaos-engine" / "install.py"
+        ).is_file():
+            return candidate / ".chaos-engine-state" / "learning"
+    return here / ".chaos-engine-state" / "learning"
+
+
+def _count_learning_sessions(project: Path) -> dict[str, object]:
+    root = project / ".chaos-engine-state" / "learning-session"
+    if not root.is_dir():
+        return {"completions": 0, "dispositions": {}}
+    completions = 0
+    dispositions: dict[str, int] = {}
+    for path in sorted(root.glob("*.completion.json")):
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(document, dict):
+            continue
+        completions += 1
+        disposition = str(document.get("disposition") or "unknown")
+        dispositions[disposition] = dispositions.get(disposition, 0) + 1
+    return {"completions": completions, "dispositions": dispositions}
+
+
+def learning_metrics(
+    state: Path | None = None,
+    *,
+    project: Path | None = None,
+) -> dict[str, object]:
+    """Zero-LLM closed-loop metrics over queue + session ledgers (#5653)."""
+    root = (project or Path.cwd()).resolve()
+    for candidate in (root, *root.parents):
+        if (candidate / ".chaos-engine" / "install.py").is_file() or (
+            candidate / "chaos-engine" / "install.py"
+        ).is_file():
+            root = candidate
+            break
+    learning_state = Path(state) if state is not None else default_learning_state(root)
+    queued = 0
+    submitted = 0
+    estimated_tokens = 0
+    categories: dict[str, int] = {}
+    try:
+        document = queue_document(learning_state) if learning_state.exists() or (learning_state / "queue.json").exists() else {"items": []}
+    except ValueError:
+        document = {"items": [], "status": "invalid"}
+    items = document.get("items") if isinstance(document, dict) else []
+    if not isinstance(items, list):
+        items = []
+    issue_numbers: list[int] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        status = item.get("status")
+        if status == "queued":
+            queued += 1
+        elif status == "submitted":
+            submitted += 1
+        tokens = item.get("estimatedTokens")
+        if isinstance(tokens, int) and not isinstance(tokens, bool):
+            estimated_tokens += tokens
+        category = item.get("category")
+        if isinstance(category, str):
+            categories[category] = categories.get(category, 0) + 1
+        url = item.get("issueUrl")
+        if isinstance(url, str):
+            match = re.search(r"/issues/([1-9][0-9]*)$", url)
+            if match:
+                issue_numbers.append(int(match.group(1)))
+    total = queued + submitted
+    submitted_rate = (submitted / total) if total else 0.0
+    sessions = _count_learning_sessions(root)
+    counters: dict[str, object] = {}
+    heuristics: dict[str, object] = {}
+    try:
+        counters_path = Path(__file__).resolve().with_name("learning_counters.py")
+        if counters_path.is_file():
+            import importlib.util as _ilu
+
+            spec = _ilu.spec_from_file_location("chaos_engine_learning_counters", counters_path)
+            if spec is not None and spec.loader is not None:
+                mod = _ilu.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                counters = mod.load_counters(root)
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        counters = {}
+    try:
+        heuristics_path = Path(__file__).resolve().with_name("heuristics.py")
+        if heuristics_path.is_file():
+            import importlib.util as _ilu
+
+            spec = _ilu.spec_from_file_location("chaos_engine_heuristics_metrics", heuristics_path)
+            if spec is not None and spec.loader is not None:
+                mod = _ilu.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                heuristics = mod.doctor_heuristics_summary(root)
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        heuristics = {}
+    return {
+        "schemaVersion": 1,
+        "kind": "learning-metrics",
+        "queued": queued,
+        "submitted": submitted,
+        "total": total,
+        "submittedRate": round(submitted_rate, 4),
+        "estimatedTokens": estimated_tokens,
+        "categories": categories,
+        "issueNumbers": issue_numbers[-32:],
+        "learningSessions": sessions,
+        "sessionStartBytesLast": counters.get("sessionStartBytesLast", 0),
+        "sessionStartBytesMax": counters.get("sessionStartBytesMax", 0),
+        "sessionStartCount": counters.get("sessionStartCount", 0),
+        "denials": counters.get("denials", 0),
+        "deliveryDigests": counters.get("deliveryDigests", []),
+        "learningSessionDigests": counters.get("learningSessionDigests", []),
+        "heuristics": heuristics,
+        "status": "healthy" if total or sessions.get("completions") else "absent",
+    }
+
+
+def doctor_learning_metrics(project: Path | None = None) -> dict[str, object]:
+    """Bounded doctor --json learningMetrics surface (no secrets)."""
+    metrics = learning_metrics(project=project)
+    return {
+        "schemaVersion": metrics.get("schemaVersion", 1),
+        "status": metrics.get("status"),
+        "queued": metrics.get("queued"),
+        "submitted": metrics.get("submitted"),
+        "submittedRate": metrics.get("submittedRate"),
+        "estimatedTokens": metrics.get("estimatedTokens"),
+        "learningSessions": metrics.get("learningSessions"),
+        "sessionStartBytesLast": metrics.get("sessionStartBytesLast"),
+        "sessionStartBytesMax": metrics.get("sessionStartBytesMax"),
+        "denials": metrics.get("denials"),
+        "heuristics": metrics.get("heuristics"),
+        "deliveryDigestCount": len(metrics.get("deliveryDigests") or []),
+        "learningSessionDigestCount": len(metrics.get("learningSessionDigests") or []),
+    }
+
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     commands = result.add_subparsers(dest="command", required=True)
@@ -415,6 +561,9 @@ def parser() -> argparse.ArgumentParser:
     submit.add_argument("--state", required=True, type=Path)
     submit.add_argument("--id", required=True)
     submit.add_argument("--yes", action="store_true")
+    metrics = commands.add_parser("metrics", aliases=("summary",))
+    metrics.add_argument("--state", type=Path, default=None)
+    metrics.add_argument("--project", type=Path, default=None)
     return result
 
 
@@ -424,6 +573,8 @@ def main() -> int:
         if args.command == "queue":
             candidate = json.loads(args.candidate.read_text(encoding="utf-8"))
             result = queue_learning(args.state, candidate, args.upstream)
+        elif args.command in {"metrics", "summary"}:
+            result = learning_metrics(args.state, project=args.project)
         else:
             result = submit_learning(args.state, args.id, confirmed=args.yes)
     except (OSError, ValueError, json.JSONDecodeError) as error:

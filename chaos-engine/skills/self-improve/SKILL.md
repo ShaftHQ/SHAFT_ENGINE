@@ -55,6 +55,16 @@ python3 .chaos-engine/learning.py queue \
   --candidate /tmp/learning-candidate.json
 ```
 
+## Metrics / verify (zero-LLM)
+
+```bash
+python3 .chaos-engine/learning.py metrics
+python3 .chaos-engine/silent_verify.py session-start-budget
+python3 .chaos-engine/retrieve.py heuristics --top 3
+```
+
+SessionStart stays locator-only; prefer CLI over MCP for the same job.
+
 ## Local smoke
 
 ```bash

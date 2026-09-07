@@ -11,6 +11,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Token budget modes | Choose or override ultra-lean / balanced / deep context spend | [`token-budget-modes.md`](token-budget-modes.md) |
 | Host parity / GAP-EXIT2 | Host deny fidelity differs (Grok/Copilot); compensating UX checklist | [`host-parity-matrix.md`](host-parity-matrix.md) |
 | Script-first | Multi-hop mechanical transforms belong in a script, not a tool chain | [`script-first.md`](script-first.md) |
+| Silent verify | Check/Stop green must add zero context; fail with one line | [`silent-verify.md`](silent-verify.md) |
 | Context economy | Bound reads/searches; prefer path+excerpt over dumps | [`context-economy.md`](context-economy.md) |
 | Retrieve-first | A store can shorten discovery; one bounded attempt | [`retrieve-first.md`](retrieve-first.md) |
 | Research receipt | Before implementation mutation; triage scales depth | [`research-receipt.md`](research-receipt.md) |

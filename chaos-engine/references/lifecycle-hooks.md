@@ -39,6 +39,9 @@ ChaosEngine selects ultra through every supported host adapter.
 
 ## SessionStart locator-only budget
 
+Also injects locators for heuristics (`.chaos-engine-state/heuristics/`) and
+the CLI-over-MCP iron law — never heuristic prose, never MCP schema dumps.
+
 SessionStart must inject compact locators (entrypoint activation, reflection
 token, companion intensity, Caveman/Ponytail paths) — never full skill bodies
 or retrieval store dumps. The portable builder is

@@ -28,6 +28,10 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Portable Learning Session | [`learning_session.py`](../learning_session.py) `finalize` | Issues-first; **no** auto draft PRs |
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
 | Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) |
+| Learning metrics | `python3 .chaos-engine/learning.py metrics` (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests (#5653) |
+| Silent verify | `python3 .chaos-engine/silent_verify.py …` / `finalize --silent` | Success silent exit 0; failure one stderr line (#5654) |
+| Heuristics retrieve | `python3 .chaos-engine/retrieve.py heuristics --top 3` | Once-per-task ERL heuristics; SessionStart locator only (#5656) |
+| Heuristics CLI | `python3 .chaos-engine/heuristics.py locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
 
 ## Notes
 
@@ -36,3 +40,20 @@ full human doctor essay or invoking a model. The eval runner (#5584) exercises
 fixture tasks under simulated hook runners; failures ratchet into hooks/skills
 per [eval-parity-fixtures](eval-parity-fixtures.md).
 
+
+## CLI-over-MCP iron law (#5655)
+
+Prefer training-data CLIs over MCP schema tax when both can do the job:
+
+| Job | Prefer CLI | Avoid when CLI exists |
+| --- | --- | --- |
+| GitHub issues/PRs/checks | `gh` | GitHub MCP for the same call |
+| Learning queue/metrics | `learning.py` / `learning_session.py` | MCP wrappers around the same files |
+| Install health / repair | `install.py doctor|repair` / `--fix-next-only` | Chat discovery of doctor |
+| Delivery phase ledger | `phase_ledger.py` | MCP phase bookkeeping |
+| Store retrieve | `tool.py retrieve` / `retrieve.py` | Extra MCP hop for Memory/Graphify/MemPalace when CLI works |
+| Heuristics once/task | `retrieve.py heuristics` | Re-injecting heuristic prose every Pre/PostToolUse |
+
+MCP remains valid for Headroom compression/proxy and when **no** equivalent CLI
+exists. Encode lasting preference in this catalog + SessionStart locator, never
+agent-only memory.

@@ -592,6 +592,24 @@ def _research_before_mutation_reason(event_name: str, mutation: bool, session_id
     )
 
 
+def _record_denial_counter() -> None:
+    try:
+        counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
+        if not counters_path.is_file():
+            return
+        import importlib.util as _ilu
+
+        spec = _ilu.spec_from_file_location("ce_learning_counters_deny", counters_path)
+        if spec is None or spec.loader is None:
+            return
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.record_denial()
+    except Exception:  # noqa: BLE001 - metrics must never break deny path
+        return
+
+
+
 def _run_event(event: dict, _host: str) -> int:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
@@ -619,6 +637,7 @@ def _run_event(event: dict, _host: str) -> int:
         )
         kernel_report = _kernel.evaluate_session(normalized_kernel_event, kernel_journal)
     if kernel_report.decision == "deny":
+        _record_denial_counter()
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
         return 2
     research_reason = _research_before_mutation_reason(
@@ -627,6 +646,7 @@ def _run_event(event: dict, _host: str) -> int:
         session_id,
     )
     if research_reason:
+        _record_denial_counter()
         print(json.dumps({"decision": "block", "reason": research_reason}))
         return 2
     if event_name == "SessionStart":
@@ -641,6 +661,7 @@ def _run_event(event: dict, _host: str) -> int:
         event, event_name, commands, tool_name, tool_input, functions_source, functions_direct, session_id
     )
     if guard_reason:
+        _record_denial_counter()
         print(json.dumps({"decision": "block", "reason": guard_reason}))
         return 2
     if event_name == "PostToolUse" and not receipt_command:
@@ -654,6 +675,7 @@ def _run_event(event: dict, _host: str) -> int:
     if event_name in {"Stop", "SubagentStop"}:
         stop_reason = _stop_block_reason(event, session_id)
         if stop_reason:
+            _record_denial_counter()
             print(json.dumps({"decision": "block", "reason": stop_reason}))
             return 2
     if event_name == "SessionStart":

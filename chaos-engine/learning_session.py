@@ -4,30 +4,73 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import sys
 from pathlib import Path
 
 
-def _load_learning():
-    path = Path(__file__).resolve().with_name("learning.py")
-    spec = importlib.util.spec_from_file_location("chaos_engine_learning_portable", path)
+def _load_sibling(name: str):
+    path = Path(__file__).resolve().with_name(name)
+    spec = importlib.util.spec_from_file_location(f"chaos_engine_{name}", path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("learning.py missing from installed core")
+        raise RuntimeError(f"{name} missing from installed core")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def finalize(session_id: str, *, disposition: str = "issues-first") -> dict[str, object]:
+def _load_learning():
+    return _load_sibling("learning.py")
+
+
+def _extract_heuristics(session_id: str, limit: int = 3) -> list[dict]:
+    """Pull ≤N privacy-safe heuristics from recent queue lessons (#5656)."""
+    try:
+        heuristics = _load_sibling("heuristics.py")
+        learning = _load_learning()
+    except RuntimeError:
+        return []
+    state = Path.cwd() / ".chaos-engine-state" / "learning"
+    lessons: list[str] = []
+    try:
+        document = learning.queue_document(state)
+    except (OSError, ValueError):
+        document = {"items": []}
+    items = document.get("items") if isinstance(document, dict) else []
+    if isinstance(items, list):
+        for item in reversed(items):
+            if not isinstance(item, dict):
+                continue
+            lesson = item.get("lesson")
+            title = item.get("title")
+            if isinstance(lesson, str) and lesson.strip():
+                lessons.append(lesson.strip())
+            elif isinstance(title, str) and title.strip():
+                lessons.append(title.strip())
+            if len(lessons) >= limit:
+                break
+    return heuristics.extract_from_lessons(
+        lessons,
+        limit=limit,
+        project=Path.cwd(),
+        source=f"session-{session_id[:24]}",
+    )
+
+
+def finalize(
+    session_id: str,
+    *,
+    disposition: str = "issues-first",
+    extract_heuristics: bool = True,
+) -> dict[str, object]:
     """Record a portable completion receipt. Never auto-opens draft PRs."""
     if not isinstance(session_id, str) or not session_id.strip():
         raise ValueError("session id required")
     if disposition not in {"issues-first", "no-durable", "blocked"}:
         raise ValueError("unsupported disposition")
     learning = _load_learning()
-    # Privacy invariants unchanged — any queue payload must pass learning gates.
     receipt = {
         "schemaVersion": 1,
         "kind": "learning-session-portable-finalize",
@@ -37,14 +80,26 @@ def finalize(session_id: str, *, disposition: str = "issues-first") -> dict[str,
         "policy": "issues-first",
         "privacyModule": "learning.py",
     }
-    # Touch privacy module self-check surface without filing.
     if hasattr(learning, "PRIVACY_SCHEMA_VERSION") or hasattr(learning, "queue_learning"):
         receipt["privacyReady"] = True
+    heuristics_added: list[dict] = []
+    if extract_heuristics and disposition == "issues-first":
+        heuristics_added = _extract_heuristics(session_id.strip())
+        receipt["heuristicsExtracted"] = len(heuristics_added)
     state = Path.cwd() / ".chaos-engine-state" / "learning-session"
     state.mkdir(parents=True, exist_ok=True)
     out = state / f"{session_id.strip()[:64]}.completion.json"
     out.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     receipt["path"] = str(out)
+    digest = hashlib.sha256(
+        json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:16]
+    receipt["digest"] = digest
+    try:
+        counters = _load_sibling("learning_counters.py")
+        counters.record_learning_session_digest(digest, project=Path.cwd())
+    except Exception:  # noqa: BLE001 - metrics must not fail finalize
+        pass
     return receipt
 
 
@@ -58,7 +113,16 @@ def main(argv: list[str] | None = None) -> int:
         default="issues-first",
         choices=("issues-first", "no-durable", "blocked"),
     )
-    # Alias accepted by guard finalize-command matcher
+    final.add_argument(
+        "--silent",
+        action="store_true",
+        help="silent-on-success / errors-only (#5654)",
+    )
+    final.add_argument(
+        "--no-heuristics",
+        action="store_true",
+        help="skip ERL heuristic extract (#5656)",
+    )
     runtime = sub.add_parser("finalize-runtime")
     runtime.add_argument("--session-id", required=True)
     runtime.add_argument(
@@ -66,12 +130,23 @@ def main(argv: list[str] | None = None) -> int:
         default="issues-first",
         choices=("issues-first", "no-durable", "blocked"),
     )
+    runtime.add_argument("--silent", action="store_true")
+    runtime.add_argument("--no-heuristics", action="store_true")
     args = parser.parse_args(argv)
     try:
-        result = finalize(args.session_id, disposition=args.disposition)
+        result = finalize(
+            args.session_id,
+            disposition=args.disposition,
+            extract_heuristics=not args.no_heuristics,
+        )
     except (OSError, RuntimeError, ValueError) as error:
+        if getattr(args, "silent", False):
+            print(str(error), file=sys.stderr)
+            return 2
         print(str(error), file=sys.stderr)
         return 1
+    if getattr(args, "silent", False):
+        return 0
     print(json.dumps(result, sort_keys=True))
     return 0
 

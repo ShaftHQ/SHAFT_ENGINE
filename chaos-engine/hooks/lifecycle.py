@@ -132,6 +132,22 @@ def self_improve_session_guidance() -> str:
     return "Learning: skills/self-improve/SKILL.md."
 
 
+def heuristics_session_guidance() -> str:
+    """ERL heuristic store locator only — never inject heuristic prose (#5656)."""
+    return (
+        "Heuristics: `.chaos-engine-state/heuristics/` "
+        "(retrieve once/task via `retrieve.py heuristics --top 3`; no prose dump)."
+    )
+
+
+def cli_over_mcp_session_guidance() -> str:
+    """CLI-over-MCP iron law locator (#5655)."""
+    return (
+        "CLI-over-MCP: prefer gh / learning.py / doctor / phase_ledger / "
+        "tool.py retrieve over MCP for the same job (zero-llm-catalog)."
+    )
+
+
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
     "Off only: stop caveman, stop ponytail, or normal mode."
@@ -214,6 +230,8 @@ def session_start_context(token: str | None, activation: str) -> str:
     parts.append(heal_route_guidance())
     parts.append(wake_pack_session_guidance())
     parts.append(self_improve_session_guidance())
+    parts.append(heuristics_session_guidance())
+    parts.append(cli_over_mcp_session_guidance())
     for name in COMPANION_NAMES:
         for root in _search_roots():
             path = next(
@@ -224,7 +242,20 @@ def session_start_context(token: str | None, activation: str) -> str:
                 locator = _workspace_locator(path)
                 parts.append(f"Required companion: read and follow `{locator}` before responding.")
                 break
-    return "\n\n".join(parts)
+    rendered = "\n\n".join(parts)
+    try:
+        counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
+        if counters_path.is_file():
+            import importlib.util as _ilu
+
+            _spec = _ilu.spec_from_file_location("ce_learning_counters_ss", counters_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                _mod.record_session_start_bytes(len(rendered.encode("utf-8")))
+    except Exception:  # noqa: BLE001 - metrics must never break SessionStart
+        pass
+    return rendered
 
 
 def _reject_json_constant(value: str):

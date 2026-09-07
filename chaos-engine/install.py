@@ -3768,6 +3768,7 @@ def doctor_with_dependencies(
         result["clients"] = {}
         result["activationProof"] = {}
         result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
+        result["learningMetrics"] = {"schemaVersion": 1, "status": "absent"}
         return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
@@ -3851,6 +3852,10 @@ def doctor_with_dependencies(
             "phaseLedger",
             {"schemaVersion": 1, "sessions": 0, "status": "absent"},
         )
+        result.setdefault(
+            "learningMetrics",
+            {"schemaVersion": 1, "status": "absent"},
+        )
         return result
     apply_plugin_client_health(
         result,
@@ -3871,6 +3876,20 @@ def doctor_with_dependencies(
                 result["phaseLedger"] = _mod.doctor_phase_ledger_summary(project)
     except (OSError, RuntimeError, ValueError, AttributeError):
         result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
+    try:
+        metrics_path = Path(__file__).resolve().with_name("learning.py")
+        if metrics_path.is_file():
+            import importlib.util as _ilu
+
+            _spec = _ilu.spec_from_file_location(
+                "chaos_engine_learning_metrics_doctor", metrics_path
+            )
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                result["learningMetrics"] = _mod.doctor_learning_metrics(project)
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        result["learningMetrics"] = {"schemaVersion": 1, "status": "absent"}
     return result
 
 
@@ -3886,7 +3905,7 @@ _DIAGNOSTIC_FIELDS = {
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
-        "activationProof", "phaseLedger",
+        "activationProof", "phaseLedger", "learningMetrics",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
