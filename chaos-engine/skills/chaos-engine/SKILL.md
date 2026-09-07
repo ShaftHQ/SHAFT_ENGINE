@@ -195,10 +195,21 @@ surface that owns it. The entrypoint makes that choice; callers do not bypass it
 by invoking a playbook directly. Load one surface, finish its deliverable, then
 return here for the next.
 
+| Route | Use when | Load |
+| --- | --- | --- |
+| Zero-LLM first | Before chat discovery for install/doctor/repair | [zero-llm-catalog](../../references/zero-llm-catalog.md) |
+| Heal | Drifted install, wiped runtime, unhealthy doctor | [heal-route](../../references/heal-route.md) (file path; no plugin required) |
+| Level-1 catalog | Need a secondary skill/tool beyond this router | [level-1-catalog](../../references/level-1-catalog.md) |
+| Token budget | Triage or env selects ultra-lean / balanced / deep | [token-budget-modes](../../references/token-budget-modes.md) |
+| GAP-EXIT2 UX | Grok/Copilot may not honor exit-2 hard blocks | [host-parity-matrix](../../references/host-parity-matrix.md) checklist |
+
 Routing also orders applicable knowledge retrieval before broad manual
 discovery. One bounded attempt is enough; never retry, repair, refresh, mine,
 checkpoint, poll, or watch a store for an ordinary task, and never treat an
 index as authority over a live file.
+
+Prefer the Zero-LLM / Heal rows before opening host chat for recovery. Iron-law
+Route: doctor and `repair --component` catalog entries beat discovery chat.
 
 The repository skills map at `.agents/skills/README.md` inventories every
 harness surface, adapter, hook, script and check, including the lifecycle guard

@@ -69,6 +69,48 @@ HEADROOM_PROFILE_BY_BUDGET = {
     "deep": "coding",
 }
 
+# Triage (blast radius) → default token budget when env unset (#5621).
+# Env CHAOS_ENGINE_TOKEN_BUDGET remains the owner override.
+TRIAGE_TO_TOKEN_BUDGET = {
+    "one-file": "ultra-lean",
+    "one-module": "balanced",
+    "module": "balanced",
+    "public-contract": "deep",
+}
+
+
+
+def triage_token_budget(triage: str | None) -> str:
+    """Map triage blast-radius label to the default token budget mode."""
+    raw = str(triage or "").strip().casefold().replace("_", "-").replace(" ", "-")
+    aliases = {
+        "onefile": "one-file",
+        "file": "one-file",
+        "onemodule": "one-module",
+        "public": "public-contract",
+        "contract": "public-contract",
+        "hard-to-reverse": "public-contract",
+    }
+    raw = aliases.get(raw, raw)
+    return TRIAGE_TO_TOKEN_BUDGET.get(raw, TOKEN_BUDGET_DEFAULT)
+
+
+def zero_llm_session_guidance() -> str:
+    """Prefer doctor/repair catalog before chat discovery (locator-only)."""
+    return (
+        "Zero-LLM first: references/zero-llm-catalog.md "
+        "(doctor / repair --component / --fix-next-only) before chat discovery."
+    )
+
+
+def level1_catalog_guidance() -> str:
+    """Point at the Level-1 progressive-disclosure surface catalog."""
+    return "Level-1 catalog: references/level-1-catalog.md."
+
+
+def heal_route_guidance() -> str:
+    """Router Heal surface always reachable by file path."""
+    return "Heal: references/heal-route.md (install one-liner / repair --component)."
 
 def headroom_session_guidance(mode: str | None = None) -> str:
     """Compact SessionStart line for Headroom profile (locator-only)."""
@@ -161,6 +203,9 @@ def session_start_context(token: str | None, activation: str) -> str:
     budget = resolve_token_budget_mode()
     parts.append(token_budget_guidance(budget))
     parts.append(headroom_session_guidance(budget))
+    parts.append(zero_llm_session_guidance())
+    parts.append(level1_catalog_guidance())
+    parts.append(heal_route_guidance())
     parts.append(self_improve_session_guidance())
     for name in COMPANION_NAMES:
         for root in _search_roots():
