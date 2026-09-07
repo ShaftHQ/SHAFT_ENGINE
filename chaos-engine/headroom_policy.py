@@ -45,7 +45,10 @@ def pin_path() -> Path:
 
 
 def load_pin() -> dict[str, object]:
-    return json.loads(pin_path().read_text(encoding="utf-8"))
+    path = pin_path()
+    if not path.is_file():
+        raise FileNotFoundError(f"Headroom PIN missing: {path.name}")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def profile_for_token_budget(mode: str | None) -> str:
@@ -130,7 +133,10 @@ def headroom_cli_present() -> bool:
 
 
 def doctor_status() -> dict[str, object]:
-    pin = load_pin()
+    try:
+        pin = load_pin()
+    except (OSError, json.JSONDecodeError):
+        pin = {}
     version = str(pin.get("version") or "")
     cli = headroom_cli_present()
     healthy_pin = version == PINNED_VERSION and pin_path().is_file()

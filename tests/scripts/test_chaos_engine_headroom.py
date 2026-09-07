@@ -119,6 +119,54 @@ class HeadroomCompanionTests(unittest.TestCase):
         self.assertIn("agent-90", script)
         self.assertIn('headroom-ai==0.37.0', self.policy.install_command())
 
+    def test_doctor_loads_headroom_policy_from_installed_target_after_bootstrap_cleanup(self):
+        """Bootstrap deletes the download tree before Verify; doctor must use target (#5613)."""
+        import runpy
+        import shutil
+        import tempfile
+        import types
+
+        source = ROOT / "chaos-engine"
+        project = Path(tempfile.mkdtemp(prefix="ce-headroom-verify-"))
+        self.addCleanup(shutil.rmtree, project, ignore_errors=True)
+        target = self.install.install(project=project, source=source, commit="c" * 40)
+        temp = Path(tempfile.mkdtemp(prefix="chaos-engine-bootstrap-"))
+        shutil.copytree(
+            source,
+            temp / "chaos-engine",
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+        installer = types.SimpleNamespace(
+            **runpy.run_path(str(temp / "chaos-engine" / "install.py"))
+        )
+        shutil.rmtree(temp)
+
+        class _Hosts:
+            def retrieval_configs_healthy(self, _project):
+                return True
+
+            def mempalace_runtime_status(self, _project):
+                return {"status": "healthy"}
+
+            def maven_tools_cache_status(self):
+                return {"status": "absent"}
+
+        result = {"status": "healthy"}
+        installer.attach_component_status(
+            result,
+            project,
+            target,
+            "healthy",
+            _Hosts(),
+            inspect_retrieval_state=False,
+        )
+        headroom = result["components"]["headroom"]
+        self.assertEqual("optional", headroom["taskImpact"])
+        self.assertIn(headroom["status"], {"healthy", "absent"})
+        self.assertNotEqual("broken", headroom["status"])
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

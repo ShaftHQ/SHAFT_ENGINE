@@ -2995,17 +2995,32 @@ def attach_component_status(
         components[name] = {"status": "healthy" if healthy else "absent", **capabilities[name]}
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health, **capabilities[name]}
-    try:
-        import headroom_policy as _headroom_policy
-    except ImportError:
-        import importlib.util as _ilu
+    # Load from the installed tree only. Bootstrap runpy-loads install.py from a
+    # temporary download that is deleted before Verify installation; a bare import
+    # or Path(__file__) fallback would point at that cleaned-up source (#5613).
+    import importlib.util as _ilu
 
-        _hp = Path(__file__).resolve().with_name("headroom_policy.py")
+    _hp = target / "headroom_policy.py"
+    if not _hp.is_file():
+        headroom_state = {
+            "status": "broken",
+            "detail": "Headroom policy module missing from installed core.",
+            "cliPresent": False,
+            "pin": "headroom-ai",
+        }
+    else:
         _spec = _ilu.spec_from_file_location("chaos_engine_headroom_policy", _hp)
-        _headroom_policy = _ilu.module_from_spec(_spec)
-        assert _spec is not None and _spec.loader is not None
-        _spec.loader.exec_module(_headroom_policy)
-    headroom_state = _headroom_policy.doctor_status()
+        if _spec is None or _spec.loader is None:
+            headroom_state = {
+                "status": "broken",
+                "detail": "Headroom policy module could not be loaded.",
+                "cliPresent": False,
+                "pin": "headroom-ai",
+            }
+        else:
+            _headroom_policy = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_headroom_policy)
+            headroom_state = _headroom_policy.doctor_status()
     components["headroom"] = {
         **{k: v for k, v in headroom_state.items() if k in {"status", "detail", "cliPresent", "pin"}},
         **capabilities["headroom"],
