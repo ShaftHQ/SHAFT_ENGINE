@@ -12,7 +12,7 @@ ANDROID_TESTS = (Path(__file__).resolve().parents[2] / "shaft-engine" / "src" / 
 
 
 class VisualOcrWorkflowTest(unittest.TestCase):
-    def test_regular_android_nightly_excludes_manual_visual_ocr_acceptance(self):
+    def test_regular_android_nightly_excludes_dedicated_visual_ocr_acceptance(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["Android_Native_BrowserStack"]["steps"]
         test_command = next(step["run"] for step in steps if "-Dtest=" in step.get("run", ""))
@@ -35,7 +35,7 @@ class VisualOcrWorkflowTest(unittest.TestCase):
             self.assertIsNotNone(annotation_and_method, method)
             self.assertIn('"visual-ocr-mobile-acceptance"', annotation_and_method.group("groups"))
 
-    def test_jobs_forward_manual_test_selector_and_keep_defaults(self):
+    def test_jobs_forward_dispatch_test_selector_and_keep_defaults(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         expected_defaults = {
             "Android_Visual_Ocr_BrowserStack":
@@ -46,7 +46,13 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         }
 
         for job_name, expected_default in expected_defaults.items():
-            self.assertIn("github.event_name == 'workflow_dispatch'", workflow["jobs"][job_name]["if"])
+            self.assertEqual(
+                "github.event_name != 'workflow_dispatch' || "
+                "github.event.inputs.jobs == '' || "
+                "github.event.inputs.jobs == 'all' || "
+                f"contains(format(',{{0}},', github.event.inputs.jobs), ',{job_name},')",
+                workflow["jobs"][job_name]["if"],
+            )
             run_steps = [step["run"] for step in workflow["jobs"][job_name]["steps"] if "run" in step]
             test_command = next(command for command in run_steps if "-Dtest=" in command)
             self.assertIn("-DincludeVisualTestRuntime", test_command)

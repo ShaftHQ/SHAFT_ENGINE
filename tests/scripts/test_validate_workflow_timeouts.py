@@ -481,7 +481,9 @@ class MobileEvidenceAcceptanceWorkflowContractTest(unittest.TestCase):
         for job_name, (run_name, selector, guard_name, report, requires_ios_gate) in expected_jobs.items():
             job = workflow["jobs"][job_name]
             self.assertEqual(
-                "github.event_name == 'workflow_dispatch' && "
+                "github.event_name != 'workflow_dispatch' || "
+                "github.event.inputs.jobs == '' || "
+                "github.event.inputs.jobs == 'all' || "
                 f"contains(format(',{{0}},', github.event.inputs.jobs), ',{job_name},')",
                 job["if"],
             )
