@@ -93,6 +93,11 @@ CHECKS = {
         ("tests.scripts.test_chaos_engine_hook",),
         True,
     ),
+    "eval-parity-contract": Check(
+        "eval-parity-contract",
+        "lifecycle",
+        ("tests.scripts.test_chaos_engine_eval_parity_fixtures",),
+    ),
     "host-contract": Check(
         "host-contract", "hosts", ("tests.scripts.test_chaos_engine_hosts",), True
     ),
@@ -232,7 +237,7 @@ CHECKS = {
 
 SURFACE_CHECKS = {
     "kernel": ("kernel-contract",),
-    "lifecycle": ("lifecycle-contract", "protected-security"),
+    "lifecycle": ("lifecycle-contract", "eval-parity-contract", "protected-security"),
     "hosts": ("host-contract",),
     "guidance": (
         "guidance-contract",
@@ -286,8 +291,11 @@ SURFACE_PATTERNS = {
     ),
     "lifecycle": (
         "chaos-engine/hooks/*",
+        "chaos-engine/evals/*",
         "scripts/agents/guard.py",
+        "scripts/ci/chaos_engine_eval_parity.py",
         "tests/scripts/test_chaos_engine_hook.py",
+        "tests/scripts/test_chaos_engine_eval_parity_fixtures.py",
         "tests/scripts/test_guard*.py",
     ),
     "guidance": (

@@ -19,10 +19,13 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Token budget modes | `python3 -m unittest tests.scripts.test_chaos_engine_token_budget_modes -v` | ultra-lean < balanced < deep |
 | Cache status/purge | `... cache status|purge --component maven-tools-mcp ...` | Shared MCP cache without chat |
 | Rollback / uninstall | `... rollback|uninstall --project .` | Deterministic recovery |
-
-## New in this change (#5582)
-
-`--fix-next-only` is the shipped zero-LLM expansion: scripts and CI can scrape
-repair actions without parsing the full human doctor essay or invoking a model.
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
+| Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) |
+
+## Notes
+
+`--fix-next-only` (#5582) lets scripts scrape repair actions without parsing the
+full human doctor essay or invoking a model. The eval runner (#5584) exercises
+fixture tasks under simulated hook runners; failures ratchet into hooks/skills
+per [eval-parity-fixtures](eval-parity-fixtures.md).
 

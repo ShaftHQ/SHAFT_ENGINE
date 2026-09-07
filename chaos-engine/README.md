@@ -683,6 +683,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 
 
 - [Host Parity Matrix v0](references/host-parity-matrix.md) — five-host outcome matrix and measured gaps.
+- [Eval / parity fixtures](references/eval-parity-fixtures.md) — cross-host CE policy fixture suite + failure ratchet.
 
 
 - [Install or upgrade ChaosEngine](INSTALL.md)

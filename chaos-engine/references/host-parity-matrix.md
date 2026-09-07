@@ -41,3 +41,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 1. Update rows when adapter contracts or Host Parity Wave B issues land.
 2. Keep `scripts/ci/agent_harness_parity.json` as the machine-checked pin set.
 3. Prefer outcome language (P/A/G) over host UI chrome comparisons.
+4. Re-run the eval / parity fixture suite (`python3 scripts/ci/chaos_engine_eval_parity.py`;
+   see [eval-parity-fixtures](eval-parity-fixtures.md)) after hook or adapter changes.
+   Fixture failures ratchet into hooks, skills, or a documented matrix gap — never
+   weaken the fixture to look green.

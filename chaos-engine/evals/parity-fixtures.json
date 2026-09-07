@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "package": "chaos-engine",
+  "description": "Minimal CE policy parity fixtures exercised across hosts via simulated hook runners (#5584).",
+  "hosts": [
+    "claude",
+    "codex",
+    "gemini",
+    "grok",
+    "copilot"
+  ],
+  "thresholds": {
+    "case_pass_rate": 1.0
+  },
+  "fixtures": [
+    {
+      "id": "deny-catastrophic-rm-rf-root",
+      "policy": "catastrophic-deny",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "eval-deny-catastrophic",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "rm -rf /"
+        }
+      },
+      "expect": {
+        "exit_code": 2,
+        "decision": "deny",
+        "reason_substrings": [
+          "destructive broad scope"
+        ]
+      }
+    },
+    {
+      "id": "allow-read-tool",
+      "policy": "non-mutation-allow",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "eval-allow-read",
+        "tool_name": "Read",
+        "tool_input": {
+          "file_path": "README.md"
+        }
+      },
+      "expect": {
+        "exit_code": 0,
+        "decision": "allow"
+      }
+    },
+    {
+      "id": "sessionstart-locator-budget",
+      "policy": "sessionstart-locator",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "SessionStart",
+        "session_id": "eval-sessionstart"
+      },
+      "expect": {
+        "exit_code": 0,
+        "context_max_bytes": 4096,
+        "context_must_include": [
+          "chaos-engine/vendor/caveman/skills/caveman/SKILL.md",
+          "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
+        ],
+        "identical_context_across_hosts": true
+      }
+    },
+    {
+      "id": "research-before-mutation-enforced",
+      "policy": "research-receipt-gate",
+      "ratchet": "hooks",
+      "env": {
+        "CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT": "1"
+      },
+      "event": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "eval-research-gate",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "echo changed > out.txt"
+        }
+      },
+      "expect": {
+        "exit_code": 2,
+        "decision": "deny",
+        "reason_substrings": [
+          "Research receipt required"
+        ]
+      }
+    },
+    {
+      "id": "allow-safe-echo",
+      "policy": "non-mutation-allow",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "eval-allow-echo",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "echo hello"
+        }
+      },
+      "expect": {
+        "exit_code": 0,
+        "decision": "allow"
+      }
+    }
+  ]
+}
