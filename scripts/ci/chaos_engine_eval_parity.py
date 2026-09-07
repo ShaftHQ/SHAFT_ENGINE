@@ -155,7 +155,57 @@ def _run_one(
     }
 
 
-def evaluate_fixture(
+
+def _check_host_result(
+    *,
+    result: dict[str, Any],
+    expect: dict[str, Any],
+    kernel,
+    contexts: dict[str, str],
+) -> list[str]:
+    """Return failure strings for one host result against fixture expectations."""
+    failures: list[str] = []
+    host = result["host"]
+    if result["exit_code"] != expect.get("exit_code"):
+        failures.append(
+            f"{host}: exit_code={result['exit_code']} expected={expect.get('exit_code')}"
+        )
+        return failures
+    decision = expect.get("decision")
+    if decision == "deny":
+        if not _is_deny_payload(result["payload"], host):
+            failures.append(f"{host}: expected native deny payload, got {result['payload']!r}")
+        reason = _deny_reason(result["payload"], host)
+        for fragment in expect.get("reason_substrings") or []:
+            if fragment not in reason:
+                failures.append(f"{host}: reason missing {fragment!r} in {reason!r}")
+        capability = kernel.HOST_CAPABILITIES[host]
+        if result["exit_code"] != capability.deny_exit_code:
+            failures.append(
+                f"{host}: deny_exit_code mismatch capability={capability.deny_exit_code}"
+            )
+    elif decision == "allow":
+        if _is_deny_payload(result["payload"], host):
+            failures.append(f"{host}: unexpected deny payload {result['payload']!r}")
+    context = result["context"]
+    if expect.get("context_max_bytes") is not None:
+        if context is None:
+            failures.append(f"{host}: missing additionalContext")
+        else:
+            encoded = context.encode("utf-8")
+            if len(encoded) > int(expect["context_max_bytes"]):
+                failures.append(
+                    f"{host}: context {len(encoded)} bytes over budget "
+                    f"{expect['context_max_bytes']}"
+                )
+            for needle in expect.get("context_must_include") or []:
+                if needle not in context:
+                    failures.append(f"{host}: context missing {needle!r}")
+            contexts[host] = context
+    return failures
+
+
+def evaluate_fixture(  # noqa: MC0001  # Host-loop assertions stay auditable together.
     *,
     guard,
     lifecycle,
@@ -179,43 +229,11 @@ def evaluate_fixture(
     failures: list[str] = []
     contexts: dict[str, str] = {}
     for result in results:
-        host = result["host"]
-        if result["exit_code"] != expect.get("exit_code"):
-            failures.append(
-                f"{host}: exit_code={result['exit_code']} expected={expect.get('exit_code')}"
+        failures.extend(
+            _check_host_result(
+                result=result, expect=expect, kernel=kernel, contexts=contexts
             )
-            continue
-        decision = expect.get("decision")
-        if decision == "deny":
-            if not _is_deny_payload(result["payload"], host):
-                failures.append(f"{host}: expected native deny payload, got {result['payload']!r}")
-            reason = _deny_reason(result["payload"], host)
-            for fragment in expect.get("reason_substrings") or []:
-                if fragment not in reason:
-                    failures.append(f"{host}: reason missing {fragment!r} in {reason!r}")
-            capability = kernel.HOST_CAPABILITIES[host]
-            if result["exit_code"] != capability.deny_exit_code:
-                failures.append(
-                    f"{host}: deny_exit_code mismatch capability={capability.deny_exit_code}"
-                )
-        elif decision == "allow":
-            if _is_deny_payload(result["payload"], host):
-                failures.append(f"{host}: unexpected deny payload {result['payload']!r}")
-        context = result["context"]
-        if expect.get("context_max_bytes") is not None:
-            if context is None:
-                failures.append(f"{host}: missing additionalContext")
-            else:
-                encoded = context.encode("utf-8")
-                if len(encoded) > int(expect["context_max_bytes"]):
-                    failures.append(
-                        f"{host}: context {len(encoded)} bytes over budget "
-                        f"{expect['context_max_bytes']}"
-                    )
-                for needle in expect.get("context_must_include") or []:
-                    if needle not in context:
-                        failures.append(f"{host}: context missing {needle!r}")
-                contexts[host] = context
+        )
     if expect.get("identical_context_across_hosts") and contexts:
         unique = set(contexts.values())
         if len(unique) != 1:
@@ -243,7 +261,7 @@ def evaluate_suite(
             "passed": False,
             "defects": defects,
             "results": [],
-            "case_pass_rate": 0.0,
+            "case_pass_rate": 0.0,  # nosec B105 - pass-rate metric, not a credential.
         }
     guard = _load_module("ce_eval_parity_guard", "chaos-engine/hooks/guard.py")
     lifecycle = _load_module("ce_eval_parity_lifecycle", "chaos-engine/hooks/lifecycle.py")
@@ -268,7 +286,7 @@ def evaluate_suite(
         "passed": passed == total and total > 0,
         "defects": [],
         "results": results,
-        "case_pass_rate": (passed / total) if total else 0.0,
+        "case_pass_rate": (passed / total) if total else 0.0,  # nosec B105 - pass-rate metric, not a credential.
         "passed_count": passed,
         "total_count": total,
     }
