@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Portable Learning Session finalizer inside `.chaos-engine/` (#5625).
+"""
+Portable Learning Session finalizer inside `.chaos-engine/` (#5625).
 
 Issues-first. Does **not** open draft PRs (phase-2 opt-in is out of scope).
 Privacy gates remain those in colocated `learning.py`.

@@ -81,11 +81,15 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
                 "soft-sess", "triage", triage="one-file", project=project
             )
             # Point guard ledger lookup at this project via cwd.
-            with mock.patch.object(self.guard, "_phase_ledger_triage") as patched:
-                patched.side_effect = lambda sid: {
-                    "hard-sess": "public-contract",
-                    "soft-sess": "one-file",
-                }.get(sid)
+            triage_map = {
+                "hard-sess": "public-contract",
+                "soft-sess": "one-file",
+            }
+
+            def _triage_for(sid: str, mapping=triage_map):
+                return mapping.get(sid)
+
+            with mock.patch.object(self.guard, "_phase_ledger_triage", side_effect=_triage_for):
                 hard = self.guard._research_before_mutation_reason(
                     "PreToolUse", True, "hard-sess"
                 )
@@ -139,7 +143,7 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         self.assertEqual("memory", receipt["store"])
         graph = self.retrieve.retrieve("what calls FooBar?", dry_run=True)
         self.assertEqual("graphify", graph["store"])
-        completed = subprocess.run(
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(TOOL), "retrieve", "--dry-run", "has this bitten us?"],
             cwd=ROOT,
             capture_output=True,

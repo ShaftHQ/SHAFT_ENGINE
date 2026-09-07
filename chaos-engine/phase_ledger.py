@@ -5,9 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -106,7 +104,9 @@ def record_phase(
         raise ValueError(f"unsupported phase: {phase}")
     document = load_ledger(project)
     sessions = document.setdefault("sessions", {})
-    assert isinstance(sessions, dict)
+    if not isinstance(sessions, dict):
+        sessions = {}
+        document["sessions"] = sessions
     entry = sessions.get(session_id)
     if not isinstance(entry, dict):
         entry = {"phases": [], "triage": None}

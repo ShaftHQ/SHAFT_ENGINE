@@ -538,8 +538,6 @@ def _phase_ledger_triage(session_id: str) -> str | None:
     if not session_id:
         return None
     try:
-        import importlib.util
-
         path = Path(__file__).resolve().parents[1] / "phase_ledger.py"
         if not path.is_file():
             return None
@@ -554,7 +552,8 @@ def _phase_ledger_triage(session_id: str) -> str | None:
 
 
 def _research_before_mutation_reason(event_name: str, mutation: bool, session_id: str) -> str | None:
-    """Triage-scaled research gate (#5623): hard for public-contract; soft for one-file.
+    """
+    Triage-scaled research gate (#5623): hard for public-contract; soft for one-file.
 
     Soft (one-file): never blocks from triage alone, and also softens the env flag.
     Hard (public-contract / hard-to-reverse): auto-enforces even without the env flag.
