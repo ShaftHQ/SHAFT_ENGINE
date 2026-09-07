@@ -756,26 +756,16 @@ jobs:
       - name: Run tests
         continue-on-error: true
         timeout-minutes: 40
-        # -Dshaft.enableFlutterE2E=true is intentionally NOT passed here. #4303/#4294
-        # hardcoded it, unskipping FlutterTest.java's flutter-group tests
-        # (FlutterTest.java:24,31-36) on the assumption that the checked-in
-        # shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk already
-        # had the Appium Flutter Integration Driver server wired in -- that premise was
-        # never actually verified (no workflow_dispatch run against it before merge) and
-        # was proven false by the first real nightly run (issue #4308, run 30327817291):
-        # FlutterTest.setupFlutterDriver failed immediately with "Flutter server is not
-        # started", because flutter-demo.apk is a plain Flutter build with no such
-        # server embedded (confirmed via `unzip -l` -- no flutter_driver/integration
-        # markers). Reverted back to self-skip (the pre-#4303 default). Issue #4313 (this
-        # job's new Flutter_Demo_App_Build prerequisite above) now replaces flutter-demo.apk
-        # with one actually built via the same Ptarget=.../integration_test/appium.dart
-        # pipeline Android_Flutter_Emulator_E2E already uses. Re-enabling this flag must
-        # first pass the smallest directly affected local test and exact-head PR checks;
-        # the scheduled nightly then owns integrated remote E2E validation. That proof
-        # must not be skipped as it was in #4294.
-        # The -Dtest selector below still deliberately matches FlutterTest.* (harmless
-        # while self-skipping) so re-enabling later is a one-line change again.
-        run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dsurefire.excludedGroups=allure3-visual-demo,mobile-recording-compatible-provider,mobile-evidence-real-provider,visual-ocr-mobile-acceptance" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
+        # -Dshaft.enableFlutterE2E=true is ON here because Flutter_Demo_App_Build (needs:)
+        # supplies a freshly-built Integration-Server APK that this job copies over
+        # flutter-demo.apk before tests run (#4313/#5638/#5639). FlutterTest still
+        # SkipException-gates when the property is unset (local/PR unit paths).
+        # Historical note: #4303/#4294 briefly enabled this flag against an unwired
+        # checked-in APK and #4308 reverted it; that caveat no longer applies.
+        # Flutter remains excluded from GLOBAL_TESTING_SCOPE; this job selects
+        # FlutterTest.* explicitly. FlutterTest overrides automationName to
+        # FlutterIntegration in @BeforeMethod; UIAutomator2 below is for native Android.
+        run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dshaft.enableFlutterE2E=true" "-Dsurefire.excludedGroups=allure3-visual-demo,mobile-recording-compatible-provider,mobile-evidence-real-provider,visual-ocr-mobile-acceptance" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -1132,19 +1122,15 @@ jobs:
 
   # Issue #4197: proves a real Appium session can be opened against a Flutter
   # app built with the driver's own required server wiring, on a real CI
-  # runner. Issue #5638 now also runs FlutterTest after session-open.
-  # #4303/#4294 briefly enabled FlutterTest.java for real in the
-  # Android_Native_BrowserStack job against a BrowserStack-hosted prebuilt APK,
-  # but that APK (flutter-demo.apk) was never actually built with the driver's
-  # server wiring -- proven by the resulting nightly failure, issue #4308 --
-  # so that enablement was reverted back to self-skip pending issue #4313
-  # (build a correctly-wired demo app the same way THIS job already does).
-  # Issue #5638 extends this job beyond session-open: after building the
-  # Integration-Server demo APK it runs FlutterTest (tap/type/text) via
-  # SHAFT.GUI.Locator.flutter* against the local emulator. Runs on the
-  # scheduled nightly and on workflow_dispatch when selected (same if:
-  # pattern as sibling jobs). enableFlutterEmulatorE2E remains as a legacy
-  # dispatch input only. Flutter stays out of GLOBAL_TESTING_SCOPE.
+  # runner. Issue #5638/#5639 extend this job beyond session-open: after building
+  # the Integration-Server demo APK it runs FlutterTest (tap/type/text) via
+  # SHAFT.GUI.Locator.flutter* against the local emulator. Android_Native_BrowserStack
+  # also passes -Dshaft.enableFlutterE2E=true against the same freshly-built APK
+  # (copied from Flutter_Demo_App_Build). Historical caveat (#4303/#4294/#4308
+  # unwired checked-in APK) no longer applies. Runs on the scheduled nightly and
+  # on workflow_dispatch when selected (same if: pattern as sibling jobs).
+  # enableFlutterEmulatorE2E remains as a legacy dispatch input only.
+  # Flutter stays out of GLOBAL_TESTING_SCOPE.
   Android_Flutter_Emulator_E2E:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Flutter_Emulator_E2E,')
     runs-on: ubuntu-latest
