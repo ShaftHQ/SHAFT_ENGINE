@@ -1,0 +1,79 @@
+# Auto-close CE program epics when every GitHub sub-issue is closed (#5585).
+# Eligible epics: issue #5569, or any issue labeled `ce-program-epic`.
+# Convention: subtasks are GitHub sub-issues; delivery PRs use Fixes ##child.
+name: Epic Autoclose
+
+on:
+  issues:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Triggering (just-closed) issue number to evaluate
+        required: true
+        type: string
+      dry_run:
+        description: Print decision only; do not close the epic
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: epic-autoclose-${{ github.event.issue.number || inputs.issue_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  unit-tests:
+    name: Epic Autoclose Unit Tests
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Run epic autoclose unit tests
+        run: python3 -m unittest tests.scripts.test_epic_autoclose -v
+
+  autoclose:
+    name: Close eligible epic when children are done
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Normalize GitHub auth env
+        run: |
+          # shellcheck source=/dev/null
+          source scripts/ci/github-auth-env.sh
+      - name: Evaluate and optionally close parent epic
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ISSUE="${{ inputs.issue_number }}"
+            DRY_FLAG=""
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              DRY_FLAG="--dry-run"
+            fi
+          else
+            ISSUE="${{ github.event.issue.number }}"
+            DRY_FLAG=""
+          fi
+          python3 scripts/ci/epic_autoclose.py \
+            --repository "${{ github.repository }}" \
+            --issue "${ISSUE}" \
+            ${DRY_FLAG}

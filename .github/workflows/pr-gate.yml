@@ -357,6 +357,8 @@ jobs:
               # makes the omission an oversight rather than a decision.
               - 'scripts/ci/validate_workflow_timeouts.py'
               - 'tests/scripts/test_validate_workflow_timeouts.py'
+              - 'scripts/ci/epic_autoclose.py'
+              - 'tests/scripts/test_epic_autoclose.py'
 
   docs-boundary:
     name: Documentation Boundary Gate
@@ -823,6 +825,7 @@ jobs:
         run: >-
           python3 -m unittest
           tests.scripts.test_validate_workflow_timeouts
+          tests.scripts.test_epic_autoclose
           tests.scripts.test_intellij_verify_retry
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release

@@ -96,3 +96,21 @@ gh issue edit <tracker> --body-file updated-tracker-body.md
 gh issue comment <tracker> --body "Landed via PR #<pr>. Remaining: #<subtask>."
 gh issue close <tracker>
 ```
+
+
+## 3c. GitHub sub-issues + CE program epic auto-close
+
+CE program epics (currently #5569, or any issue labeled `ce-program-epic`) track
+delivery through **GitHub native sub-issues**, not checkbox prose alone.
+
+- File each subtask as a real issue and attach it as a sub-issue of the epic.
+- Delivery PRs close **children only**: one `Fixes #<child>` / `Closes #<child>`
+  line per completed subtask. Never put a closing keyword on the epic number.
+- Workflow `.github/workflows/epic-autoclose.yml` runs on `issues: closed`. It
+  no-ops unless the closed issue's parent is an eligible epic **and** every
+  tracked sub-issue is closed; then it closes the epic with a receipt comment.
+- Follow-ons that must keep the epic open must be attached as sub-issues. An
+  open issue that is only mentioned in prose (for example a later wave that is
+  not a formal sub-issue) does **not** block auto-close.
+- Manual dry-run: `python3 scripts/ci/epic_autoclose.py --issue <n> --dry-run`
+  or Actions → Epic Autoclose → workflow_dispatch with `dry_run=true`.
