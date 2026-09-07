@@ -354,6 +354,25 @@ python3 .chaos-engine/install.py doctor --project .
 Data directories (`mempalace.yaml`, `graphify-out`, `.memory`) are left in place
 when possible; heal restores tooling without requiring a full data rebuild.
 
+### Host adapter drift with deps + core still present
+
+After a git fast-forward (or `git restore`) of receipt-owned host overlays while
+`.chaos-engine/` and `.chaos-engine-dependencies.json` remain, doctor may report
+`CE_HOST_ADAPTER_DRIFT` / Blocked host receipt mismatch, and install can fail
+closed with `host adapter drift`. This is the post-#5631 upgrade gap: wiped-runtime
+quarantine does **not** fire when the dependency receipt is present.
+
+**Heal (preferred):** rerun the official install one-liner, or:
+
+```bash
+python3 .chaos-engine/install.py repair --project . --component hosts
+```
+
+Install/repair quarantines the drifted `.chaos-engine-hosts.json` (+ active
+anchors) under `.chaos-engine-state/`, then rebinds hosts from the current core.
+Foreign user MCP servers outside ChaosEngine ownership are preserved. Do not
+manually delete MCP config to clear the drift.
+
 
 ## Optional native Maven Tools MCP
 
