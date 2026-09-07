@@ -335,48 +335,62 @@ class ManagedRuntimeCliTest(TestCase):
         process.wait.return_value = 0
         self.assertFalse(HOSTS.probe_maven_tools_runtime(Path("/java"), Path("/tools.jar"), popen=lambda *_args, **_kwargs: process))
 
-    def test_maven_tools_archive_fallback_builds_and_publishes(self):
+    def test_maven_tools_native_build_uses_system_java_and_publishes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             java = root / "java"
             java.write_bytes(b"java")
+            git = root / "git"
+            git.write_bytes(b"git")
             cache = root / "cache"
-            final = (java, cache / "3.2.0/maven-tools-mcp-3.2.0.jar")
+            final = (java.resolve(), cache / "3.2.0/maven-tools-mcp-3.2.0.jar")
             hosts = SimpleNamespace(
-                discover_maven_tools_runtime=mock.Mock(side_effect=[None, final]),
+                discover_maven_tools_runtime=mock.Mock(return_value=final),
                 java_major=lambda _path: 25,
-                maven_tools_cache_status=lambda: {"status": "absent"},
+                java_compiler_present=lambda _path: True,
+                ensure_managed_temurin_jdk=lambda *_a, **_k: None,
+                maven_tools_cache_status=lambda *_a, **_k: {"status": "absent"},
                 maven_tools_cache_root=lambda: cache,
-                MAVEN_TOOLS_MCP_VERSION="3.2.0",
-                MAVEN_TOOLS_MCP_COMMIT="4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
                 MAVEN_TOOLS_MCP_RECEIPT="install-receipt.json",
                 publish_maven_tools_cache=mock.Mock(),
                 probe_maven_tools_runtime=mock.Mock(return_value=True),
             )
             dependencies = SimpleNamespace(
-                _download_artifact=lambda _url, path, _sha: path.write_bytes(b"archive"),
-                _extract_runtime_archive=lambda _archive, source: (
-                    source.mkdir(),
-                    (source / "mvnw").write_bytes(b"wrapper"),
-                ),
+                resolve_stable_version=lambda *_a, **_k: "3.2.0",
             )
-            specification = {"runtimes": {"maven-tools-source": {
-                "url": "https://example.invalid/source.zip", "sha256": "0" * 64,
-            }}}
+            specification = {
+                "dependencies": {
+                    "maven-tools-mcp": {"stableChannel": "https://example.invalid"}
+                }
+            }
 
             def runner(command, **kwargs):
+                if "clone" in command:
+                    source = Path(command[-1])
+                    source.mkdir(parents=True, exist_ok=True)
+                    (source / "mvnw").write_bytes(b"wrapper")
                 if Path(command[0]).name == "mvnw":
                     output = Path(kwargs["cwd"]) / "target/maven-tools-mcp-3.2.0.jar"
-                    output.parent.mkdir()
+                    output.parent.mkdir(parents=True, exist_ok=True)
                     output.write_bytes(b"jar")
-                return SimpleNamespace(returncode=0)
+                if "rev-parse" in command:
+                    return SimpleNamespace(returncode=0, stdout=("a" * 40) + "\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
 
             with mock.patch.dict("os.environ", {"CHAOSENGINE_JAVA": str(java)}, clear=False), \
                  mock.patch.object(INSTALLER, "load_installed_controller", return_value=hosts), \
                  mock.patch.object(INSTALLER, "load_dependency_controller", return_value=dependencies), \
-                 mock.patch.object(INSTALLER.shutil, "which", return_value=None):
-                self.assertEqual(final, INSTALLER.ensure_maven_tools(Path("/core"), specification, runner=runner))
+                 mock.patch.object(
+                     INSTALLER.shutil,
+                     "which",
+                     side_effect=lambda name: str(git if name == "git" else java if name == "java" else ""),
+                 ):
+                self.assertEqual(
+                    final,
+                    INSTALLER.ensure_maven_tools(Path("/core"), specification, runner=runner),
+                )
             hosts.publish_maven_tools_cache.assert_called_once()
+
 
 
 if __name__ == "__main__":

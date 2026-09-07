@@ -1295,6 +1295,8 @@ module.install_with_dependencies(project, source, "3" * 40)
             hosts = SimpleNamespace(
                 maven_tools_cache_status=lambda version: {"status": "absent", "version": version},
                 java_major=lambda path: 25 if path == java.resolve() else None,
+                java_compiler_present=lambda path: True,
+                ensure_managed_temurin_jdk=lambda *_a, **_k: None,
                 maven_tools_cache_root=lambda: cache,
                 MAVEN_TOOLS_MCP_RECEIPT="install-receipt.json",
                 publish_maven_tools_cache=lambda staging: published.append(staging),
@@ -2898,7 +2900,9 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertEqual(
                 "wing: generated\n", project.joinpath("mempalace.yaml").read_text(encoding="utf-8")
             )
-            self.assertFalse(project.joinpath(".chaos-engine").exists())
+            # First-install provision/host failure keeps portable core for self-heal (#5629/#5630).
+            self.assertTrue(project.joinpath(".chaos-engine").exists())
+            self.assertTrue(project.joinpath(".chaos-engine/install.py").is_file())
 
     def test_keyboard_interrupt_skips_install_compensation(self):
         with tempfile.TemporaryDirectory() as temporary:

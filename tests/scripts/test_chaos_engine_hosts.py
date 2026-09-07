@@ -3284,8 +3284,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertIn(str(new_jar), rendered)
         self.assertNotIn(str(old_jar), rendered)
         mutated = old.replace(b"docker,no-context7", b"docker,no-context7,custom")
-        with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
-            module.codex_content(mutated, maven_runtime=(java, new_jar))
+        healed = module.codex_content(mutated, maven_runtime=(java, new_jar)).decode()
+        self.assertIn(str(new_jar), healed)
+        self.assertNotIn("docker,no-context7,custom", healed)
+        self.assertIn("# CHAOSENGINE:START", healed)
 
     def test_legacy_context7_server_removal_does_not_leave_orphaned_fields(self):
         module = load(HOSTS, "chaos_engine_hosts_legacy_context7")
@@ -3327,7 +3329,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(collision, project.joinpath(".mcp.json").read_bytes())
             self.assertNotEqual(before, collision)
 
-    def test_late_host_collision_leaves_the_project_unchanged(self):
+    def test_late_orphan_owned_codex_section_self_heals_and_keeps_foreign(self):
         module = load(HOSTS, "chaos_engine_hosts")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
@@ -3335,24 +3337,18 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
             project.joinpath(".codex").mkdir()
             project.joinpath(".codex/config.toml").write_text(
-                '[mcp_servers."chaosengine-memory"]\ncommand = "mine"\n',
+                '[mcp_servers."chaosengine-memory"]\ncommand = "mine"\n'
+                '[mcp_servers.foreign-keep]\ncommand = "keep-me"\n',
                 encoding="utf-8",
             )
-            before = {
-                path.relative_to(project).as_posix(): path.read_bytes()
-                for path in project.rglob("*")
-                if path.is_file()
-            }
 
-            with self.assertRaisesRegex(ValueError, "collision"):
-                module.install(project)
+            module.install(project)
 
-            after = {
-                path.relative_to(project).as_posix(): path.read_bytes()
-                for path in project.rglob("*")
-                if path.is_file()
-            }
-            self.assertEqual(before, after)
+            codex = project.joinpath(".codex/config.toml").read_text(encoding="utf-8")
+            self.assertIn("# CHAOSENGINE:START", codex)
+            self.assertIn("foreign-keep", codex)
+            self.assertIn("keep-me", codex)
+            self.assertNotIn('command = "mine"', codex)
 
     def test_failed_install_never_deletes_a_concurrent_adapter_replacement(self):
         module = load(HOSTS, "chaos_engine_hosts")

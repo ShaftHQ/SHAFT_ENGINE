@@ -107,6 +107,9 @@ def _component_blocks_health(value: object) -> bool:
     status = value.get("status")
     if status == "healthy":
         return False
+    # Memory origin/main desync is advisory for required mcps during install verify (#5630).
+    if status in {"compatible-legacy", "degraded", "sync-advisory"}:
+        return False
     if value.get("taskImpact") == "optional" and status == "absent":
         return False
     return value.get("taskImpact") == "required"
@@ -1285,6 +1288,18 @@ def classify_install_error(error: BaseException) -> str:
 
 def one_line_cause(error: BaseException) -> str:
     text = str(error).strip() or error.__class__.__name__
+    if isinstance(error, FileNotFoundError) or getattr(error, "winerror", None) == 2:
+        missing = None
+        if getattr(error, "filename", None):
+            missing = Path(str(error.filename)).name
+        elif error.args:
+            missing = str(error.args[-1])
+        if missing and "dependency launcher not found" not in text:
+            text = (
+                f"dependency launcher not found: {missing} "
+                f"(WinError 2 / file not found). fix-next: install `{missing}` on PATH "
+                f"then rerun the ChaosEngine install one-liner"
+            )
     text = " ".join(text.split())
     # Non-HTML [path] so GitHub issue forms cannot strip the marker and leave a
     # mount prefix such as /media/.../OS after redacting /Users/...
