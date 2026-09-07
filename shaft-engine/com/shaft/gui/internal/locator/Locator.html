@@ -64,6 +64,13 @@
 <li><a href="#androidUiAutomator(java.lang.String)" tabindex="0">androidUiAutomator(String)</a></li>
 <li><a href="#iosPredicateString(java.lang.String)" tabindex="0">iosPredicateString(String)</a></li>
 <li><a href="#iosClassChain(java.lang.String)" tabindex="0">iosClassChain(String)</a></li>
+<li><a href="#flutterKey(java.lang.String)" tabindex="0">flutterKey(String)</a></li>
+<li><a href="#flutterText(java.lang.String)" tabindex="0">flutterText(String)</a></li>
+<li><a href="#flutterTextContaining(java.lang.String)" tabindex="0">flutterTextContaining(String)</a></li>
+<li><a href="#flutterType(java.lang.String)" tabindex="0">flutterType(String)</a></li>
+<li><a href="#flutterSemanticsLabel(java.lang.String)" tabindex="0">flutterSemanticsLabel(String)</a></li>
+<li><a href="#flutterDescendant(io.appium.java_client.AppiumBy.FlutterBy,io.appium.java_client.AppiumBy.FlutterBy)" tabindex="0">flutterDescendant(AppiumBy.FlutterBy, AppiumBy.FlutterBy)</a></li>
+<li><a href="#flutterAncestor(io.appium.java_client.AppiumBy.FlutterBy,io.appium.java_client.AppiumBy.FlutterBy)" tabindex="0">flutterAncestor(AppiumBy.FlutterBy, AppiumBy.FlutterBy)</a></li>
 <li><a href="#hasTagName(java.lang.String)" tabindex="0">hasTagName(String)</a></li>
 <li><a href="#hasAnyTagName()" tabindex="0">hasAnyTagName()</a></li>
 <li><a href="#hasRole(com.shaft.gui.internal.locator.Role)" tabindex="0">hasRole(Role)</a></li>
@@ -148,51 +155,88 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds a locator by CSS selector.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasAnyTagName()" class="member-name-link">hasAnyTagName</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasOcrText(java.lang.String)" class="member-name-link">hasOcrText</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#flutterAncestor(io.appium.java_client.AppiumBy.FlutterBy,io.appium.java_client.AppiumBy.FlutterBy)" class="member-name-link">flutterAncestor</a><wbr>(io.appium.java_client.AppiumBy.FlutterBy&nbsp;of,
+ io.appium.java_client.AppiumBy.FlutterBy&nbsp;matching)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a Flutter ancestor hierarchy locator (<code>AppiumBy.flutterAncestor</code>).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#flutterDescendant(io.appium.java_client.AppiumBy.FlutterBy,io.appium.java_client.AppiumBy.FlutterBy)" class="member-name-link">flutterDescendant</a><wbr>(io.appium.java_client.AppiumBy.FlutterBy&nbsp;of,
+ io.appium.java_client.AppiumBy.FlutterBy&nbsp;matching)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a Flutter descendant hierarchy locator (<code>AppiumBy.flutterDescendant</code>).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#flutterKey(java.lang.String)" class="member-name-link">flutterKey</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a Flutter ValueKey locator (<code>AppiumBy.flutterKey</code>).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#flutterSemanticsLabel(java.lang.String)" class="member-name-link">flutterSemanticsLabel</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;semanticsLabel)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a Flutter semantics-label locator (<code>AppiumBy.flutterSemanticsLabel</code>).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#flutterText(java.lang.String)" class="member-name-link">flutterText</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a Flutter exact-text locator (<code>AppiumBy.flutterText</code>).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#flutterTextContaining(java.lang.String)" class="member-name-link">flutterTextContaining</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;partialText)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a Flutter partial-text locator (<code>AppiumBy.flutterTextContaining</code>).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#flutterType(java.lang.String)" class="member-name-link">flutterType</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;widgetType)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a Flutter widget-type locator (<code>AppiumBy.flutterType</code>).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasAnyTagName()" class="member-name-link">hasAnyTagName</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasOcrText(java.lang.String)" class="member-name-link">hasOcrText</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds an OCR target that matches a complete recognized visible-text line.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasRole(com.shaft.gui.internal.locator.Role)" class="member-name-link">hasRole</a><wbr>(@NonNull <a href="Role.html" title="enum class in com.shaft.gui.internal.locator">Role</a>&nbsp;ariaRole)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasTagName(java.lang.String)" class="member-name-link">hasTagName</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tagName)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasRole(com.shaft.gui.internal.locator.Role)" class="member-name-link">hasRole</a><wbr>(@NonNull <a href="Role.html" title="enum class in com.shaft.gui.internal.locator">Role</a>&nbsp;ariaRole)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#id(java.lang.String)" class="member-name-link">id</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;id)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasTagName(java.lang.String)" class="member-name-link">hasTagName</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tagName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#id(java.lang.String)" class="member-name-link">id</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;id)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds a locator by element id.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#inputField(java.lang.String)" class="member-name-link">inputField</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#iosClassChain(java.lang.String)" class="member-name-link">iosClassChain</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;classChain)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#inputField(java.lang.String)" class="member-name-link">inputField</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#iosClassChain(java.lang.String)" class="member-name-link">iosClassChain</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;classChain)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds an iOS class chain locator.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#iosPredicateString(java.lang.String)" class="member-name-link">iosPredicateString</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;predicate)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#iosPredicateString(java.lang.String)" class="member-name-link">iosPredicateString</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;predicate)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds an iOS predicate string locator.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#name(java.lang.String)" class="member-name-link">name</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#name(java.lang.String)" class="member-name-link">name</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds a locator by element name.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tagName(java.lang.String)" class="member-name-link">tagName</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tagName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tagName(java.lang.String)" class="member-name-link">tagName</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tagName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds a locator by tag name.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#xpath(java.lang.String)" class="member-name-link">xpath</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;xpath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#xpath(java.lang.String)" class="member-name-link">xpath</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;xpath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds a locator by XPath.</div>
 </div>
 </div>
@@ -384,6 +428,128 @@
 <dd><code>classChain</code> - target iOS class chain</dd>
 <dt>Returns:</dt>
 <dd>Appium locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterKey(java.lang.String)">
+<h3>flutterKey</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">flutterKey</span><wbr><span class="parameters">(@NonNull
+ @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</span></div>
+<div class="block">Builds a Flutter ValueKey locator (<code>AppiumBy.flutterKey</code>).
+Available with Appium Flutter Integration Driver sessions.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>key</code> - Flutter ValueKey / Key string</dd>
+<dt>Returns:</dt>
+<dd>Flutter Appium locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterText(java.lang.String)">
+<h3>flutterText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">flutterText</span><wbr><span class="parameters">(@NonNull
+ @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</span></div>
+<div class="block">Builds a Flutter exact-text locator (<code>AppiumBy.flutterText</code>).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>text</code> - exact visible text on the widget</dd>
+<dt>Returns:</dt>
+<dd>Flutter Appium locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterTextContaining(java.lang.String)">
+<h3>flutterTextContaining</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">flutterTextContaining</span><wbr><span class="parameters">(@NonNull
+ @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;partialText)</span></div>
+<div class="block">Builds a Flutter partial-text locator (<code>AppiumBy.flutterTextContaining</code>).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>partialText</code> - substring of the visible text on the widget</dd>
+<dt>Returns:</dt>
+<dd>Flutter Appium locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterType(java.lang.String)">
+<h3>flutterType</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">flutterType</span><wbr><span class="parameters">(@NonNull
+ @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;widgetType)</span></div>
+<div class="block">Builds a Flutter widget-type locator (<code>AppiumBy.flutterType</code>).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>widgetType</code> - Flutter widget type name (e.g. <code>TextField</code>, <code>ElevatedButton</code>)</dd>
+<dt>Returns:</dt>
+<dd>Flutter Appium locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterSemanticsLabel(java.lang.String)">
+<h3>flutterSemanticsLabel</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">flutterSemanticsLabel</span><wbr><span class="parameters">(@NonNull
+ @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;semanticsLabel)</span></div>
+<div class="block">Builds a Flutter semantics-label locator (<code>AppiumBy.flutterSemanticsLabel</code>).
+Also covers Tooltip messages exposed as semantics labels.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>semanticsLabel</code> - value of the Semantics label attribute</dd>
+<dt>Returns:</dt>
+<dd>Flutter Appium locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterDescendant(io.appium.java_client.AppiumBy.FlutterBy,io.appium.java_client.AppiumBy.FlutterBy)">
+<h3>flutterDescendant</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">flutterDescendant</span><wbr><span class="parameters">(@NonNull
+ io.appium.java_client.AppiumBy.FlutterBy&nbsp;of,
+ @NonNull
+ io.appium.java_client.AppiumBy.FlutterBy&nbsp;matching)</span></div>
+<div class="block">Builds a Flutter descendant hierarchy locator (<code>AppiumBy.flutterDescendant</code>).
+Requires java-client Flutter Integration Driver support (1.4.0+ finder).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>of</code> - parent Flutter locator</dd>
+<dd><code>matching</code> - descendant Flutter locator</dd>
+<dt>Returns:</dt>
+<dd>Flutter Appium locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterAncestor(io.appium.java_client.AppiumBy.FlutterBy,io.appium.java_client.AppiumBy.FlutterBy)">
+<h3>flutterAncestor</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">flutterAncestor</span><wbr><span class="parameters">(@NonNull
+ io.appium.java_client.AppiumBy.FlutterBy&nbsp;of,
+ @NonNull
+ io.appium.java_client.AppiumBy.FlutterBy&nbsp;matching)</span></div>
+<div class="block">Builds a Flutter ancestor hierarchy locator (<code>AppiumBy.flutterAncestor</code>).
+Requires java-client Flutter Integration Driver support (1.4.0+ finder).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>of</code> - child Flutter locator</dd>
+<dd><code>matching</code> - ancestor Flutter locator</dd>
+<dt>Returns:</dt>
+<dd>Flutter Appium locator</dd>
 </dl>
 </div>
 </section>
