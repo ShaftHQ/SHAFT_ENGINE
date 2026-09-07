@@ -23,7 +23,7 @@ agents:
       reasoning_effort: medium
       harness_source: chaos-engine
       harness_commit: "0b148b6c14dd5ff4b5fdcd99169e2295ef56413c"
-      harness_sha256: "bb0d8160b7171581de88f73c882da8f0d37b07177aa44f531ea3a4a0ed6156a4"
+      harness_sha256: "9371c94271839041fbc95246c9d917770035f64b2f8fb2e76ee48b0f96468658"
       adapter_sha256: "3d081c632519b2fb9d6df271b198e4e1404cfd26bc68072e3104131c352db3bd"
 datasets:
   - path: scripts/ci/chaos_gauge/dataset

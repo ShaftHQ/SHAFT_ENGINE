@@ -332,7 +332,36 @@ process.stderr.write(result.stderr || '');
         payload = json.loads(completed.stdout or "{}")
         self.assertIsInstance(payload, dict)
 
+    def test_gh_pr_merge_marks_delivery_complete_for_learning_session(self):
+        """Confirmed gh pr merge arms Learning Session even without delivery-status."""
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr merge 5639 --merge"},
+                    "session_id": "learn-merge",
+                },
+                environment,
+            )
+            delivered = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "learn-merge",
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+            self.assertEqual(2, delivered.returncode)
+            payload = json.loads(delivered.stdout)
+            self.assertTrue(
+                payload["reason"].casefold().startswith("learning session:")
+            )
+            self.assertIn("not a valid skip", payload["reason"].casefold())
+
     def test_stop_learning_session_rule_fires_only_after_terminal_delivery(self):
+
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             readonly = self.run_hook(
