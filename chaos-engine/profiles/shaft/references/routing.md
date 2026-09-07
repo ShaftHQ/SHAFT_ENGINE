@@ -122,3 +122,10 @@ syntax, tool names, or CLI flags from this file.
 UI routes preserve native technology: desktop surfaces use IDE and JVM
 inspection with renderer evidence; web surfaces use browser evidence and an
 accessibility audit.
+
+
+## Self-improve roadmap (profile)
+
+When running a Learning Session or planning harness/product self-enhance work,
+load [self-improve master plan](self-improve-master-plan.md). Cited online
+research lives in [self-improve research synthesis](self-improve-research-synthesis.md).
