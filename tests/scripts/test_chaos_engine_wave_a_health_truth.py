@@ -169,6 +169,17 @@ class WaveAHealthTruthTests(unittest.TestCase):
         self.assertIsNotNone(fix)
         self.assertIn("repair --project . --component plugins", fix)
 
+
+    def test_headroom_ensure_installed_skips_network_under_ci(self):
+        def which(name, path=None):
+            return None
+
+        with mock.patch.dict(self.policy.os.environ, {"CI": "true"}, clear=False):
+            with mock.patch.object(self.policy.shutil, "which", side_effect=which):
+                result = self.policy.ensure_installed(which=which)
+        self.assertEqual("absent", result["status"])
+        self.assertEqual("skipped-ci", result["action"])
+
     def test_headroom_ensure_installed_reuses_when_present(self):
         with mock.patch.object(self.policy.shutil, "which", side_effect=lambda name: "/bin/headroom" if name == "headroom" else None):
             result = self.policy.ensure_installed()

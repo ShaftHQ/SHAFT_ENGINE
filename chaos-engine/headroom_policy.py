@@ -136,6 +136,23 @@ def ensure_installed(*, runner=None, which=None) -> dict[str, object]:
     runner = runner or subprocess.run
     if which("headroom") is not None:
         return {"status": "healthy", "action": "reused", "pin": PINNED_SPEC}
+    # Fresh-installer CI already spends the budget on core tools; skip the
+    # network pin there unless CHAOS_ENGINE_PROVISION_HEADROOM=1. Real
+    # unattended one-liners outside CI still provision by default.
+    ci = str(os.environ.get("CI") or "").strip().casefold() in {"1", "true", "yes"}
+    forced = str(os.environ.get("CHAOS_ENGINE_PROVISION_HEADROOM") or "").strip() in {
+        "1", "true", "True", "yes"
+    }
+    if ci and not forced:
+        return {
+            "status": "absent",
+            "action": "skipped-ci",
+            "pin": PINNED_SPEC,
+            "detail": (
+                f"CI skip (set CHAOS_ENGINE_PROVISION_HEADROOM=1 to force). "
+                f"Fix-next: `{install_command()}`."
+            ),
+        }
     uv = which("uv")
     if uv is None:
         return {
