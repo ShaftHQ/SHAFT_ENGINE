@@ -22,6 +22,10 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Token budget modes | `python3 -m unittest tests.scripts.test_chaos_engine_token_budget_modes -v` | ultra-lean < balanced < deep |
 | Cache status/purge | `... cache status|purge --component maven-tools-mcp ...` | Shared MCP cache without chat |
 | Rollback / uninstall | `... rollback|uninstall --project .` | Deterministic recovery |
+| Phase ledger | `python3 .chaos-engine/phase_ledger.py record / show / summary` | Triage-scaled research gate + doctor `phaseLedger` |
+| Retrieve orchestrator | `python3 .chaos-engine/tool.py retrieve "…"` | One store + used / skipped / degraded receipt |
+| Wake pack | `.chaos-engine-state/wake-pack.md` + `wake_pack.py` | Owner-curated ≤~120 tokens; draft-only MemPalace |
+| Portable Learning Session | `python3 .chaos-engine/learning_session.py finalize --session-id <id>` | Issues-first; **no** auto draft PRs |
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
 | Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) |
 

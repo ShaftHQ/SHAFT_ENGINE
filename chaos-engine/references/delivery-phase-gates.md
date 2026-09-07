@@ -40,3 +40,23 @@ GAP-EXIT2).
 - Skills still own thoroughness of the eight-step receipt content.
 - Hooks only prove that a preflight marker exists before mutation when enforced.
 - Safety denials and session-identity rules remain higher priority than this gate.
+
+
+## Triage-scaled research gate (#5623)
+
+The zero-LLM phase ledger (`.chaos-engine-state/phase-ledger.json`) records
+triage and phase markers without an LLM:
+
+```text
+python3 .chaos-engine/phase_ledger.py record --session-id "$SESSION" --phase triage --triage public-contract
+python3 .chaos-engine/phase_ledger.py show --session-id "$SESSION"
+python3 .chaos-engine/phase_ledger.py summary
+```
+
+| Triage | Research-before-mutation |
+| --- | --- |
+| `public-contract` / hard-to-reverse | **Hard** — auto-enforced (same deny as env flag) |
+| `one-file` (mechanical) | **Soft** — never blocks from triage; also softens env flag |
+| `one-module` / unset | Env flag `CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT=1` only |
+
+`doctor --json` includes a bounded `phaseLedger` summary (no secrets).

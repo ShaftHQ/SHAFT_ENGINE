@@ -135,12 +135,20 @@ def resolve_command(
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("usage: tool.py <tool> [args...]", file=sys.stderr)
+        print("usage: tool.py <tool|retrieve> [args...]", file=sys.stderr)
         return 2
     try:
         installed_root = Path(__file__).resolve().parent
         tool = sys.argv[1]
         arguments = sys.argv[2:]
+        if tool == "retrieve":
+            path = installed_root / "retrieve.py"
+            if not path.is_file():
+                print("retrieve.py missing from installed core", file=sys.stderr)
+                return 1
+            # Re-exec as retrieve CLI (argv[0] style via runpy is awkward; call main).
+            spec_mod = runpy.run_path(str(path), run_name="_chaos_engine_retrieve")
+            return int(spec_mod["main"](arguments))
         if tool == "mempalace-mcp":
             arguments = mempalace_mcp_arguments(installed_root, arguments)
         command = resolve_command(installed_root, tool, arguments)

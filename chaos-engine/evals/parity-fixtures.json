@@ -107,6 +107,100 @@
         "exit_code": 0,
         "decision": "allow"
       }
+    },
+    {
+      "id": "research-triage-public-contract-hard",
+      "policy": "triage-scaled-research-gate",
+      "ratchet": "hooks",
+      "setup": {
+        "phase_ledger": {
+          "session_id": "eval-triage-hard",
+          "triage": "public-contract",
+          "phase": "triage"
+        }
+      },
+      "event": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "eval-triage-hard",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "echo changed > out.txt"
+        }
+      },
+      "expect": {
+        "exit_code": 2,
+        "decision": "deny",
+        "reason_substrings": [
+          "Research receipt required",
+          "public-contract"
+        ]
+      }
+    },
+    {
+      "id": "research-triage-one-file-soft",
+      "policy": "triage-scaled-research-gate",
+      "ratchet": "hooks",
+      "env": {
+        "CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT": "1"
+      },
+      "setup": {
+        "phase_ledger": {
+          "session_id": "eval-triage-soft",
+          "triage": "one-file",
+          "phase": "triage"
+        }
+      },
+      "event": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "eval-triage-soft",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "echo changed > out.txt"
+        }
+      },
+      "expect": {
+        "exit_code": 0,
+        "decision": "allow"
+      }
+    },
+    {
+      "id": "sessionstart-no-memory-prose",
+      "policy": "sessionstart-locator",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "SessionStart",
+        "session_id": "eval-wake-pack"
+      },
+      "expect": {
+        "exit_code": 0,
+        "context_max_bytes": 4096,
+        "context_must_include": [
+          "wake-pack.md",
+          "zero-llm-catalog.md"
+        ],
+        "context_must_not_include": [
+          "memory remember",
+          "MemPalace palace dump"
+        ],
+        "identical_context_across_hosts": true
+      }
+    },
+    {
+      "id": "learning-session-portable-finalize-allow",
+      "policy": "learning-session-portable",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "PostToolUse",
+        "session_id": "eval-learn-portable",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "python3 .chaos-engine/learning_session.py finalize --session-id eval-learn-portable"
+        }
+      },
+      "expect": {
+        "exit_code": 0,
+        "decision": "allow"
+      }
     }
   ]
 }
