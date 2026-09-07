@@ -1,0 +1,1 @@
+Stale Flutter Integration Server APKs cause BrowserStack Flutter enablement paths to fail even when locator code is correct. Rebuild a fresh Integration Server APK before enabling Flutter E2E on BrowserStack. Issue #5644; related #5640.
