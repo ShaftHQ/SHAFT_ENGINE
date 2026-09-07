@@ -86,8 +86,8 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
                 "soft-sess": "one-file",
             }
 
-            def _triage_for(sid: str, mapping=triage_map):
-                return mapping.get(sid)
+            def _triage_for(sid: str):
+                return triage_map.get(sid)
 
             with mock.patch.object(self.guard, "_phase_ledger_triage", side_effect=_triage_for):
                 hard = self.guard._research_before_mutation_reason(

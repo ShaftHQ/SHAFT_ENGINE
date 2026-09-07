@@ -552,13 +552,7 @@ def _phase_ledger_triage(session_id: str) -> str | None:
 
 
 def _research_before_mutation_reason(event_name: str, mutation: bool, session_id: str) -> str | None:
-    """
-    Triage-scaled research gate (#5623): hard for public-contract; soft for one-file.
-
-    Soft (one-file): never blocks from triage alone, and also softens the env flag.
-    Hard (public-contract / hard-to-reverse): auto-enforces even without the env flag.
-    Env CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT remains the opt-in for unset/module triage.
-    """
+    """Triage-scaled research gate (#5623); hard for public-contract, soft for one-file."""
     if event_name != "PreToolUse" or not mutation:
         return None
     triage = _phase_ledger_triage(session_id)

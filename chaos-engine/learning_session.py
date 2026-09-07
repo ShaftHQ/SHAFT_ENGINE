@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-Portable Learning Session finalizer inside `.chaos-engine/` (#5625).
-
-Issues-first. Does **not** open draft PRs (phase-2 opt-in is out of scope).
-Privacy gates remain those in colocated `learning.py`.
-Works without monorepo `scripts/agents/learning_session.py`.
-"""
+"""Portable Learning Session finalizer (#5625); issues-first, no auto draft PRs."""
 
 from __future__ import annotations
 
