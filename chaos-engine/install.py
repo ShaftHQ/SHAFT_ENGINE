@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 
 import argparse
 import base64
@@ -3059,15 +3060,16 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 if reporter is not None:
                     reporter.trace("provision account dependencies (uv/python/node/java/tools)")
                 account_runner = _tracing_dependency_runner(reporter, subprocess.run)
+                install_account = controller.install_account_dependencies
+                kwargs = {}
                 try:
-                    account_receipt = controller.install_account_dependencies(
-                        project, specification, runner=account_runner
-                    )
-                except TypeError:
-                    # Older/test controllers may not accept runner=.
-                    account_receipt = controller.install_account_dependencies(
-                        project, specification
-                    )
+                    parameters = inspect.signature(install_account).parameters
+                except (TypeError, ValueError):
+                    parameters = {}
+                # Require an explicit runner parameter (not bare **kwargs mocks).
+                if "runner" in parameters:
+                    kwargs["runner"] = account_runner
+                account_receipt = install_account(project, specification, **kwargs)
                 account_receipt_after = (
                     account_receipt_path.read_bytes()
                     if account_receipt_path.is_file() else None
