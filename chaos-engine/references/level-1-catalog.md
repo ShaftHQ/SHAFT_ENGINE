@@ -18,7 +18,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Eval-parity fixtures | Cross-host CE policy fixture suite | [`eval-parity-fixtures.md`](eval-parity-fixtures.md) |
 | Headroom | Max-savings wrap/proxy; Ponytail XOR OUTPUT_SHAPER | [`headroom.md`](headroom.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
-| Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-#5641); supersedes 2026-09-07 opt top-10 | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
+| Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/omniroute/SKILL.md) |
 
 Load **one** row when the core router points here; return to the core skill after
