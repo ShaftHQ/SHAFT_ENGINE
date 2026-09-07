@@ -273,20 +273,80 @@ def account_tool_plan(
     }
 
 
+def resolve_account_launcher(
+    command: str, *, which=shutil.which, search_path: str | None = None
+) -> str:
+    """Resolve one CreateProcess-safe launcher (Windows PATHEXT / pwsh→powershell) (#5629)."""
+    if not command:
+        raise ValueError("dependency launcher is empty")
+    path = Path(command)
+    # Absolute or explicit path forms: pass through so mocked/account receipt
+    # paths are not re-resolved (and missing fixtures stay FileNotFound at exec).
+    if (
+        path.is_absolute()
+        or "/" in command
+        or "\\" in command
+        or (os.name == "nt" and len(command) >= 3 and command[1:3] in {":\\", ":/"})
+    ):
+        return command
+    kwargs = {}
+    if search_path is not None:
+        kwargs["path"] = search_path
+    if os.name == "nt" and command.casefold() in {"pwsh", "powershell"}:
+        for candidate in ("pwsh", "powershell", "pwsh.exe", "powershell.exe"):
+            selected = which(candidate, **kwargs)
+            if selected:
+                return selected
+        raise FileNotFoundError("pwsh")
+    selected = which(command, **kwargs)
+    if selected:
+        return selected
+    if os.name == "nt":
+        for suffix in (".exe", ".cmd", ".bat", ".com"):
+            selected = which(f"{command}{suffix}", **kwargs)
+            if selected:
+                return selected
+    raise FileNotFoundError(command)
+
+
+def missing_executable_diagnostic(command: str | Path, error: BaseException | None = None) -> str:
+    """CE diagnostic naming the missing executable + fix-next for WinError 2 / ENOENT."""
+    name = Path(str(command)).name or str(command)
+    winerror = getattr(error, "winerror", None) if error is not None else None
+    errno_value = getattr(error, "errno", None) if error is not None else None
+    suffix = ""
+    if winerror == 2 or errno_value == errno.ENOENT or isinstance(error, FileNotFoundError):
+        suffix = " (system could not find the executable)"
+    return (
+        f"dependency launcher not found: {name}{suffix}. "
+        f"fix-next: install `{name}` on PATH "
+        f"(Windows: ensure `.exe`/`.cmd` or the `py`/`powershell` launcher is available), "
+        f"then rerun the ChaosEngine install one-liner"
+    )
+
+
 def prerequisite_command_plan(
     system: str, provider: str, actions: dict[str, str], *, node_major: int = 22,
     node_version: str | None = None, python_version: str = "3.14.0",
-    uv_version: str = "0.12.0",
+    uv_version: str = "0.12.0", which=shutil.which,
 ) -> dict[str, list[list[str]]]:
     """Render dry platform prerequisite commands with tightly scoped elevation."""
     wanted = lambda name: actions.get(name) in {"installed", "upgraded", "repaired"}
     plan: dict[str, list[list[str]]] = {"uv": [], "python": [], "node": [], "java": []}
     if wanted("uv"):
-        plan["uv"] = (
-            [["pwsh", "-NoProfile", "-ExecutionPolicy", "ByPass", "-c", f"$ErrorActionPreference='Stop'; $env:UV_INSTALL_DIR=Join-Path $HOME '.local/bin'; $env:UV_NO_MODIFY_PATH='1'; irm https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.ps1 | iex"]]
-            if system == "windows"
-            else [["bash", "-o", "pipefail", "-c", f"curl -fsSL https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" UV_NO_MODIFY_PATH=1 sh"]]
-        )
+        if system == "windows":
+            shell = None
+            for candidate in ("pwsh", "powershell", "pwsh.exe", "powershell.exe"):
+                shell = which(candidate)
+                if shell:
+                    break
+            shell = shell or "powershell"
+            plan["uv"] = [[
+                shell, "-NoProfile", "-ExecutionPolicy", "ByPass", "-c",
+                f"$ErrorActionPreference='Stop'; $env:UV_INSTALL_DIR=Join-Path $HOME '.local/bin'; $env:UV_NO_MODIFY_PATH='1'; irm https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.ps1 | iex",
+            ]]
+        else:
+            plan["uv"] = [["bash", "-o", "pipefail", "-c", f"curl -fsSL https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" UV_NO_MODIFY_PATH=1 sh"]]
     if wanted("python"):
         plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
     return plan
@@ -712,25 +772,46 @@ def _run_account_command(
     runner=subprocess.run,
     extra_environment: dict[str, str] | None = None,
     timeout: float = ACCOUNT_COMMAND_TIMEOUT_SECONDS,
+    which=shutil.which,
 ) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
-    environment["PATH"] = _account_search_path()
+    search_path = _account_search_path()
+    environment["PATH"] = search_path
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     if extra_environment:
         environment.update(extra_environment)
-    result = runner(
-        command,
-        cwd=project,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=timeout,
-    )
+    if not command:
+        raise ValueError("dependency command is empty")
+    resolved = list(command)
+    try:
+        resolved[0] = resolve_account_launcher(
+            command[0], which=which, search_path=search_path
+        )
+    except FileNotFoundError as error:
+        raise RuntimeError(missing_executable_diagnostic(command[0], error)) from error
+    try:
+        result = runner(
+            resolved,
+            cwd=project,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+    except FileNotFoundError as error:
+        raise RuntimeError(missing_executable_diagnostic(resolved[0], error)) from error
+    except OSError as error:
+        if getattr(error, "winerror", None) == 2 or error.errno in {errno.ENOENT, None}:
+            if getattr(error, "winerror", None) == 2 or error.errno == errno.ENOENT:
+                raise RuntimeError(
+                    missing_executable_diagnostic(resolved[0], error)
+                ) from error
+        raise
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "no process output").strip()
         raise _AccountCommandError(
-            f"dependency command failed: {Path(command[0]).name}: {detail[:500]}",
+            f"dependency command failed: {Path(resolved[0]).name}: {detail[:500]}",
             stderr=str(result.stderr or ""),
             stdout=str(result.stdout or ""),
         )
@@ -830,6 +911,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             node_version=str(actions["node"].get("resolvedVersion") or ""),
             python_version=str(actions["python"].get("resolvedVersion") or ""),
             uv_version=str(actions["uv"].get("resolvedVersion") or ""),
+            which=which,
         )
         for name in ("uv", "python", "node", "java"):
             for command in prerequisite_commands[name]:
@@ -1104,7 +1186,13 @@ def _download_artifact(
     url: str, destination: Path, expected: str, opener=urllib.request.urlopen, *, reporter=None
 ) -> None:
     if reporter is not None:
-        reporter.start("Provision dependencies", detail=url)
+        # Keep Provision as the sole running phase; refresh detail/trace only.
+        if getattr(reporter, "current_operation", None) != "Provision dependencies":
+            reporter.start("Provision dependencies", detail=url)
+        else:
+            reporter.trace(f"download {url}")
+            # Update detail via begin_download below.
+        reporter.trace(f"download artifact → {destination.name} ({url})")
     digest = hashlib.sha256()
     total = 0
     try:

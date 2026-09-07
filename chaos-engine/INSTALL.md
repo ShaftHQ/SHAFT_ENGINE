@@ -285,6 +285,48 @@ Then rerun the tool, or confirm with
 `python3 .chaos-engine/install.py doctor --project .`
 (and `--fix-next-only` when scripting).
 
+### Codex MCP collision / orphan `context7`
+
+Re-running install self-heals CE-owned Codex MCP sections (`context7`,
+`chaosengine-memory`, `chaosengine-mempalace`, `maven-tools-mcp`) that sit
+outside or inside a drifted `# CHAOSENGINE:START`…`END` block. Non-owned
+user MCP servers are left untouched. No need to empty `.codex/config.toml`
+manually.
+
+### Orphan `.chaos-engine-hosts.active-*` anchors
+
+Leftover active/removing host anchors when `.chaos-engine/` is missing are
+quarantined under `.chaos-engine-state/orphaned-*` on the next install
+(same wiped-runtime heal as a stale hosts receipt).
+
+### Install verify / doctor and `HEAD != origin/main`
+
+`memory` / `memory-mcp` **tools** still hard-fail writes when primary
+`HEAD` is not `origin/main`. Install verify and doctor treat that probe
+exit as **compatible-legacy** for required `mcps` (advisory + fix-next),
+while still probing `mempalace-mcp`. Sync when you need Memory writes:
+
+```bash
+git fetch origin main && git merge --ff-only origin/main
+```
+
+### JRE without `javac` (Maven Tools)
+
+If only a JRE is on `PATH`, install provisions a Temurin JDK into the
+ChaosEngine tools cache so Maven Tools can compile.
+
+### Windows `WinError 2` during Provision dependencies
+
+Install resolves `pwsh`/`powershell` and PATHEXT launchers before
+CreateProcess. A missing tool names the executable and prints fix-next
+instead of an opaque WinError 2; the portable core is kept so re-run can
+self-heal.
+
+### MemPalace `sqlite_exact` FTS5 malformed
+
+Doctor/heal attempts a bounded FTS rebuild and quarantines clearly-operator
+`*.bak` siblings when safe.
+
 ### Missing dependency receipt / wiped `.chaos-engine` runtime
 
 If `.chaos-engine/` was deleted or replaced, and/or
@@ -311,6 +353,46 @@ python3 .chaos-engine/install.py doctor --project .
 
 Data directories (`mempalace.yaml`, `graphify-out`, `.memory`) are left in place
 when possible; heal restores tooling without requiring a full data rebuild.
+
+### Host adapter drift with deps + core still present
+
+After a git fast-forward (or `git restore`) of receipt-owned host overlays while
+`.chaos-engine/` and `.chaos-engine-dependencies.json` remain, doctor may report
+`CE_HOST_ADAPTER_DRIFT` / Blocked host receipt mismatch, and install can fail
+closed with `host adapter drift`. This is the post-#5631 upgrade gap: wiped-runtime
+quarantine does **not** fire when the dependency receipt is present.
+
+**Heal (preferred):** rerun the official install one-liner, or:
+
+```bash
+python3 .chaos-engine/install.py repair --project . --component hosts
+```
+
+Install/repair quarantines the drifted `.chaos-engine-hosts.json` (+ active
+anchors) under `.chaos-engine-state/`, then rebinds hosts from the current core.
+Foreign user MCP servers outside ChaosEngine ownership are preserved. Do not
+manually delete MCP config to clear the drift.
+
+### Kept core without hosts receipt
+
+If a prior install kept `.chaos-engine/` after a provision failure (#5631) but
+never wrote `.chaos-engine-hosts.json` (doctor/`CE_HOSTS_RECEIPT_MISSING`),
+rerun the one-liner or:
+
+```bash
+python3 .chaos-engine/install.py repair --project . --component hosts
+```
+
+Install clears a stale account-rollback journal that cannot authenticate host
+pairing, then binds hosts from the current core. No manual quarantine.
+
+### Install progress phases (core vs dependencies)
+
+Install core and Provision dependencies run **sequentially**. The TTY checklist
+shows only the active phase as running. Interactive installs default to a richer
+live trace (downloads, tool commands with secrets redacted); set
+`CHAOS_ENGINE_QUIET=1` or run under `CI=1` for the compact trace window.
+
 
 
 ## Optional native Maven Tools MCP
