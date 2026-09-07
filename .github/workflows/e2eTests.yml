@@ -36,8 +36,8 @@ on:
           sibling E2E jobs). On workflow_dispatch, leave jobs=all (or name
           the job explicitly) to run it; this flag is retained for backward
           compatibility and is no longer required to gate the nightly.
-          The job only proves an Appium session opens against the pinned
-          demo-app on an emulator -- it does not run FlutterTest.java.
+          The job builds the Integration-Server demo APK, opens an Appium
+          Flutter session on an emulator, and runs FlutterTest (tap/type/text).
         required: false
         default: 'false'
 
@@ -1132,20 +1132,19 @@ jobs:
 
   # Issue #4197: proves a real Appium session can be opened against a Flutter
   # app built with the driver's own required server wiring, on a real CI
-  # runner. This job deliberately does NOT touch FlutterTest.java or run it.
+  # runner. Issue #5638 now also runs FlutterTest after session-open.
   # #4303/#4294 briefly enabled FlutterTest.java for real in the
   # Android_Native_BrowserStack job against a BrowserStack-hosted prebuilt APK,
   # but that APK (flutter-demo.apk) was never actually built with the driver's
   # server wiring -- proven by the resulting nightly failure, issue #4308 --
   # so that enablement was reverted back to self-skip pending issue #4313
   # (build a correctly-wired demo app the same way THIS job already does).
-  # What this job proves: the demo-app/emulator/Appium pipeline boots and a
-  # session opens locally. What it does NOT prove: that any of the fluent
-  # API's calls behave correctly against a live Flutter widget tree -- wiring
-  # that is explicitly deferred to a fast-follow ticket once both this job
-  # and issue 4017 have landed. Runs on the scheduled nightly and on
-  # workflow_dispatch when selected (same if: pattern as sibling jobs).
-  # enableFlutterEmulatorE2E remains as a legacy dispatch input only.
+  # Issue #5638 extends this job beyond session-open: after building the
+  # Integration-Server demo APK it runs FlutterTest (tap/type/text) via
+  # SHAFT.GUI.Locator.flutter* against the local emulator. Runs on the
+  # scheduled nightly and on workflow_dispatch when selected (same if:
+  # pattern as sibling jobs). enableFlutterEmulatorE2E remains as a legacy
+  # dispatch input only. Flutter stays out of GLOBAL_TESTING_SCOPE.
   Android_Flutter_Emulator_E2E:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Flutter_Emulator_E2E,')
     runs-on: ubuntu-latest
@@ -1202,12 +1201,24 @@ jobs:
           dart pub global activate rps --version 0.8.0
           bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 flutter build apk --debug
           cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
+      - name: Copy freshly-built APK into FlutterTest path
+        run: |
+          set -euo pipefail
+          APK_PATH="$GITHUB_WORKSPACE/appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk"
+          ls -l "$APK_PATH"
+          cp "$APK_PATH" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
       - name: Install Appium and the Flutter Integration Driver
         run: |
           set -euo pipefail
           npm install -g appium@3.5.2
           appium driver install --source npm appium-flutter-integration-driver
-      - name: Boot emulator and assert an Appium Flutter session opens
+      - name: Install engine dependencies for FlutterTest
+        run: >
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-engine -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+      - name: Boot emulator, open Flutter session, run FlutterTest tap/type/text
+        id: flutter_e2e
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 30
@@ -1215,17 +1226,12 @@ jobs:
           arch: x86_64
           script: |
             set -euo pipefail
-            APK_PATH="$GITHUB_WORKSPACE/appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk"
+            APK_PATH="$GITHUB_WORKSPACE/shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk"
             ls -l "$APK_PATH"
             adb devices
 
-            # The Appium server and the session-open assertion MUST run in the same
-            # step/script: a server started via a background job in an earlier step
-            # gets torn down when that step's shell exits, so nothing is listening by
-            # the time a later step tries to connect (see e2eLocalTests.yml's
-            # Windows_Appium_Desktop_Local job comment, issue #3806, for the same
-            # gotcha discovered the hard way there). Co-locating start + assertion
-            # here keeps the server alive for the whole session-creation window.
+            # Appium server + Maven MUST share this step: a background server from an
+            # earlier step is torn down when that step's shell exits (issue #3806).
             appiumLog="$RUNNER_TEMP/appium-server.log"
             appium --address 127.0.0.1 --port 4723 --log-level info --log "$appiumLog" &
             APPIUM_PID=$!
@@ -1245,8 +1251,8 @@ jobs:
               exit 1
             fi
 
+            # Session-open smoke (keeps the historical #4197 proof) before Maven.
             SESSION_PAYLOAD=$(jq -n --arg app "$APK_PATH" '{capabilities: {alwaysMatch: {platformName: "Android", "appium:automationName": "FlutterIntegration", "appium:app": $app, "appium:noReset": true}}}')
-
             RESPONSE=$(curl --max-time 120 -fsS -X POST -H "Content-Type: application/json" -d "$SESSION_PAYLOAD" http://127.0.0.1:4723/session)
             echo "$RESPONSE"
             SESSION_ID=$(echo "$RESPONSE" | jq -r '.value.sessionId // empty')
@@ -1257,6 +1263,17 @@ jobs:
             fi
             echo "Appium Flutter session opened: $SESSION_ID"
             curl --max-time 30 -fsS -X DELETE "http://127.0.0.1:4723/session/$SESSION_ID" || true
+
+            # Issue #5638: real tap/type/text via SHAFT.GUI.Locator.flutter*.
+            mvn -pl shaft-engine -e test \
+              "-Dtest=testPackage.appium.FlutterTest" \
+              "-Dshaft.enableFlutterE2E=true" \
+              "-DexecutionAddress=127.0.0.1:4723" \
+              "-Dmobile_app=src/test/resources/testDataFiles/apps/flutter-demo.apk" \
+              "-Dmobile_automationName=FlutterIntegration" \
+              "-DtargetOperatingSystem=android" \
+              "-DdefaultElementIdentificationTimeout=60" \
+              "-DgenerateAllureReportArchive=true"
       - name: Upload Appium server log
         if: always()
         uses: actions/upload-artifact@v7.0.1
