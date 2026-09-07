@@ -460,11 +460,21 @@ def load_manifest(target: Path) -> dict[str, object]:
     if capabilities is not None:
         validated = _validated_capabilities(capabilities)
         encoded = json.dumps(validated, sort_keys=True, separators=(",", ":")).encode()
-        if (
-            set(validated) != CAPABILITY_COMPONENTS
-            or capability_digest != hashlib.sha256(encoded).hexdigest()
-        ):
+        known = set(validated)
+        if not known <= CAPABILITY_COMPONENTS:
             raise ValueError("ChaosEngine manifest has an invalid capability policy")
+        if capability_digest != hashlib.sha256(encoded).hexdigest():
+            raise ValueError("ChaosEngine manifest has an invalid capability policy")
+        # Forward-compatible read: older trees may omit newly added optional
+        # components (e.g. headroom). Required components must still be present so
+        # upgrade can keep a verifiable backup for rollback (#5613).
+        missing = CAPABILITY_COMPONENTS - known
+        if missing:
+            defaults = legacy_capability_policy()
+            if any(defaults[name]["taskImpact"] != "optional" for name in missing):
+                raise ValueError("ChaosEngine manifest has an invalid capability policy")
+            for name in sorted(missing):
+                validated[name] = dict(defaults[name])
         manifest["capabilities"] = validated
     manifest["source"] = normalized_source
     return manifest

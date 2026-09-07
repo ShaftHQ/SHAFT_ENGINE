@@ -168,5 +168,48 @@ class HeadroomCompanionTests(unittest.TestCase):
 
 
 
+
+    def test_upgrade_keeps_pre_headroom_backup_for_rollback(self):
+        """Older manifests omitting optional headroom must still verify as backups."""
+        import hashlib
+        import json
+        import shutil
+        import tempfile
+
+        source = ROOT / "chaos-engine"
+        project = Path(tempfile.mkdtemp(prefix="ce-headroom-rollback-"))
+        self.addCleanup(shutil.rmtree, project, ignore_errors=True)
+        target = self.install.install(project=project, source=source, commit="a" * 40)
+        # Downgrade the installed tree to a pre-headroom capability set.
+        manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+        capabilities = dict(manifest["capabilities"])
+        capabilities.pop("headroom", None)
+        encoded = json.dumps(
+            self.install._validated_capabilities(capabilities),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        manifest["capabilities"] = capabilities
+        manifest["capabilityPolicySha256"] = hashlib.sha256(encoded).hexdigest()
+        files = dict(manifest["files"])
+        for relative in list(files):
+            if "headroom" in relative:
+                path = target / relative
+                if path.is_file():
+                    path.unlink()
+                files.pop(relative)
+        manifest["files"] = files
+        (target / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        self.assertIsNotNone(self.install.try_verify_install(target))
+        self.install.install(project=project, source=source, commit="b" * 40)
+        backup = project / ".chaos-engine.backup"
+        self.assertTrue(backup.is_dir())
+        self.assertIsNotNone(self.install.try_verify_install(backup))
+        self.install.rollback(project)
+        self.assertTrue((project / ".chaos-engine" / "manifest.json").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()
