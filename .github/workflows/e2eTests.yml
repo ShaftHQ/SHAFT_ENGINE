@@ -1,7 +1,11 @@
 name: E2E Tests
 
 concurrency:
-  group: e2e-tests-${{ github.ref }}
+  # Isolate schedule from workflow_dispatch. The previous group
+  # e2e-tests-${{ github.ref }} let a manual dispatch on main cancel an
+  # in-flight nightly via cancel-in-progress. Nightly keeps a stable
+  # group; each manual run uses its own run_id.
+  group: e2e-tests-${{ github.event_name == 'schedule' && 'nightly' || format('manual-{0}', github.run_id) }}
   cancel-in-progress: true
 
 on:
@@ -25,21 +29,15 @@ on:
         default: ''
       enableFlutterEmulatorE2E:
         description: >-
-          Opt-in flag for the Android_Flutter_Emulator_E2E job (issue #4197).
-          Renamed from enableFlutterE2E (issue #4294) to stop colliding in
-          name with the unrelated -Dshaft.enableFlutterE2E Maven system
-          property that gates FlutterTest.java (FlutterTest.java:24,31-36).
-          #4303 briefly hardcoded that property true in Android_Native_BrowserStack;
-          reverted back to self-skip by the fix for issue #4308 (the checked-in
-          flutter-demo.apk was never actually built with the required Flutter
-          Integration Driver server -- see issue #4313 for the real fix). The
-          rename stands regardless, so this input still only ever means one
-          thing: opt in to THIS emulator smoke-check job. This job never runs
-          on the nightly schedule (schedule triggers can't supply inputs); set
-          to 'true' on a manual dispatch to run it. It only proves an Appium
-          session opens against the real, pinned demo-app on an emulator -- it
-          does not run FlutterTest.java and does not exercise the fluent
-          Flutter API (see job comment).
+          Legacy opt-in flag for Android_Flutter_Emulator_E2E on manual
+          workflow_dispatch (issue #4197). Renamed from enableFlutterE2E
+          (issue #4294) to stop colliding with -Dshaft.enableFlutterE2E.
+          The job now also runs on the scheduled nightly (same selector as
+          sibling E2E jobs). On workflow_dispatch, leave jobs=all (or name
+          the job explicitly) to run it; this flag is retained for backward
+          compatibility and is no longer required to gate the nightly.
+          The job only proves an Appium session opens against the pinned
+          demo-app on an emulator -- it does not run FlutterTest.java.
         required: false
         default: 'false'
 
@@ -787,7 +785,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Android_Visual_Ocr_BrowserStack:
-    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',Android_Visual_Ocr_BrowserStack,')
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Visual_Ocr_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -846,7 +844,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   iOS_Visual_Ocr_BrowserStack:
-    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',iOS_Visual_Ocr_BrowserStack,')
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',iOS_Visual_Ocr_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 50
     outputs:
@@ -913,7 +911,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Android_Recording_BrowserStack:
-    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',Android_Recording_BrowserStack,')
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Recording_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -949,7 +947,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   iOS_Recording_BrowserStack:
-    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',iOS_Recording_BrowserStack,')
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',iOS_Recording_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     outputs:
@@ -993,7 +991,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Android_Evidence_BrowserStack:
-    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',Android_Evidence_BrowserStack,')
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Evidence_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -1029,7 +1027,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   iOS_Evidence_BrowserStack:
-    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',iOS_Evidence_BrowserStack,')
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',iOS_Evidence_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     outputs:
@@ -1145,12 +1143,11 @@ jobs:
   # session opens locally. What it does NOT prove: that any of the fluent
   # API's calls behave correctly against a live Flutter widget tree -- wiring
   # that is explicitly deferred to a fast-follow ticket once both this job
-  # and issue 4017 have landed. Gated behind the enableFlutterEmulatorE2E
-  # workflow_dispatch input above (never runs on the nightly schedule) --
-  # see that input's description for the naming-collision history with
-  # -Dshaft.enableFlutterE2E.
+  # and issue 4017 have landed. Runs on the scheduled nightly and on
+  # workflow_dispatch when selected (same if: pattern as sibling jobs).
+  # enableFlutterEmulatorE2E remains as a legacy dispatch input only.
   Android_Flutter_Emulator_E2E:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.enableFlutterEmulatorE2E == 'true' && (github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Flutter_Emulator_E2E,'))
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Flutter_Emulator_E2E,')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -1308,7 +1305,11 @@ jobs:
   Ubuntu_Chrome_Cucumber_Grid:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Chrome_Cucumber_Grid,')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Was 10m (#4082). Nightly 34087761845 hit the ceiling mid-mvn ("The
+    # operation was canceled.") and marked the whole E2E run cancelled.
+    # Successful nights finish in ~3m; 25m leaves headroom for grid flake
+    # without restoring the unbounded default.
+    timeout-minutes: 25
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -1342,7 +1343,7 @@ jobs:
   MacOSX_Safari_Cucumber_BrowserStack:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Cucumber_BrowserStack,')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
