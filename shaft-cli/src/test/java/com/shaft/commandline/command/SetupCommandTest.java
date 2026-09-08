@@ -179,6 +179,15 @@ class SetupCommandTest {
         assertEquals(5, installWithoutRepeatedLanguages.exitCode());
         assertTrue(installWithoutRepeatedLanguages.stderr().contains("offline cache"),
                 installWithoutRepeatedLanguages.stderr());
+
+        CommandResult installBaselineWithoutLanguages = execute("setup", "install", "--plan",
+                planFile.toString(), "--approve", plan.get("digest").asText(),
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--offline");
+        assertEquals(5, installBaselineWithoutLanguages.exitCode(), installBaselineWithoutLanguages.stderr());
+        assertFalse(installBaselineWithoutLanguages.stderr().contains(
+                "Plan does not match the provider manifest shipped with this release."));
+        assertTrue(installBaselineWithoutLanguages.stderr().contains("offline cache"),
+                installBaselineWithoutLanguages.stderr());
     }
 
     @Test
