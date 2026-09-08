@@ -729,7 +729,6 @@ def upgrade_host_receipt_drift_needed(project: Path) -> bool:
             for token in (
                 "host adapter drift",
                 "host receipt does not match the installed core",
-                "receipt integrity drift",
                 "host receipt is missing or invalid",
                 "host anchor collision",
                 "MCP server collision",
@@ -773,7 +772,6 @@ def _is_healable_host_drift(error: BaseException) -> bool:
         token in blob
         for token in (
             "host adapter drift",
-            "receipt integrity drift",
             "host receipt does not match the installed core",
             "MCP server collision",
             "Codex configuration collision",
