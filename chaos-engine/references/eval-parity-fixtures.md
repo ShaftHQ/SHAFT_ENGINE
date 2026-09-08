@@ -75,3 +75,7 @@ status⊆doctor / memory degrade remain covered by doctor/status unit tests and
 the Wave A health-truth suite; Learning Session Stop continues to require a
 terminal finalize (portable or monorepo) with **issues-first** disposition and
 **no** auto draft PRs.
+
+## Skill compress apply gate (#5659)
+
+Propose-only audits live in [`skill_compress_audit.py`](../skill_compress_audit.py). Any future apply path (S4/#8) must keep this fixture suite green and remain opt-in — never auto-merge skill mutations.
