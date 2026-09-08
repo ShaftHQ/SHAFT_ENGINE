@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Periodic meta-optimize over shared CE logs (#5664 / Top 10 #9).
+"""Periodic meta-optimize over shared CE logs (#5664 / Top 10 #9).
 
 Offline/script aggregation of significance marks + learning queue metrics +
 skill_compress_audit proposals into a bounded review summary / issue candidates.

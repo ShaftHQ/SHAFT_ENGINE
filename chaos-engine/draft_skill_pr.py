@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Eval-gated draft skill PRs — opt-in phase 2 only (#5665 / Top 10 #8).
+"""Eval-gated draft skill PRs — opt-in phase 2 only (#5665 / Top 10 #8).
 
 Proposed skill patches from skill_compress_audit / meta_optimize become draft
 PRs ONLY when:
@@ -18,6 +17,7 @@ import argparse
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -257,8 +257,7 @@ def open_draft_pr(
     skip_tests: bool = False,
     gh_runner: Any | None = None,
 ) -> dict[str, Any]:
-    """
-    Create a *draft* PR only when opt-in + gates pass.
+    """Create a *draft* PR only when opt-in + gates pass.
 
     dry_run=True (default) never calls gh — returns the would-be payload.
     Never applies skill file mutations. Never enables auto-merge.
@@ -305,9 +304,18 @@ def open_draft_pr(
 
 
 def _default_gh_create(root: Path, *, title: str, body: str) -> dict[str, Any]:
+    gh_bin = shutil.which("gh")
+    if not gh_bin:
+        return {
+            "ok": False,
+            "exitCode": 127,
+            "stdout": "",
+            "stderr": "gh executable not found on PATH",
+            "autoMerge": False,
+        }
     completed = subprocess.run(  # nosec B603
         [
-            "gh",
+            gh_bin,
             "pr",
             "create",
             "--draft",
