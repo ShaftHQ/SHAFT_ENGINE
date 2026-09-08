@@ -156,12 +156,14 @@ class SetupCommandTest {
         Path planFile = temp.resolve("ocr-plan.json").toAbsolutePath();
         CommandResult planned = execute("setup", "plan", "--profile", "OCR", "--mode", "MANAGED",
                 "--output", planFile.toString(), "--cache-root", cache.toString(),
-                "--data-root", data.toString(), "--json");
+                "--data-root", data.toString(), "--offline", "--json");
         assertEquals(0, planned.exitCode(), planned.stderr());
         JsonNode plan = JSON.readTree(planned.stdout());
         assertEquals("OCR", plan.get("profile").asText());
         assertEquals(2, plan.get("actions").size());
         assertEquals("OCR_TESSDATA", plan.get("actions").get(0).get("target").asText());
+        assertTrue(plan.get("actions").get(0).get("version").asText().endsWith(":ara"));
+        assertTrue(plan.get("actions").get(1).get("version").asText().endsWith(":eng"));
 
         Path languagePlan = temp.resolve("ocr-language-plan.json").toAbsolutePath();
         CommandResult selected = execute("setup", "plan", "--profile", "OCR", "--mode", "MANAGED",
@@ -179,6 +181,15 @@ class SetupCommandTest {
         assertEquals(5, installWithoutRepeatedLanguages.exitCode());
         assertTrue(installWithoutRepeatedLanguages.stderr().contains("offline cache"),
                 installWithoutRepeatedLanguages.stderr());
+
+        CommandResult installBaselineWithoutLanguages = execute("setup", "install", "--plan",
+                planFile.toString(), "--approve", plan.get("digest").asText(),
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--offline");
+        assertEquals(5, installBaselineWithoutLanguages.exitCode(), installBaselineWithoutLanguages.stderr());
+        assertFalse(installBaselineWithoutLanguages.stderr().contains(
+                "Plan does not match the provider manifest shipped with this release."));
+        assertTrue(installBaselineWithoutLanguages.stderr().contains("offline cache"),
+                installBaselineWithoutLanguages.stderr());
     }
 
     @Test
