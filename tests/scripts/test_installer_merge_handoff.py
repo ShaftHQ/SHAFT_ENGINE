@@ -391,6 +391,50 @@ class InstallConflictHandoffTest(unittest.TestCase):
             body = handoff.read_text(encoding="utf-8")
             self.assertIn(".mcp.json", body)
             self.assertNotIn("## AGENTS.md", body)
+            bind_hosts(self.hosts, project)
+            self.assertEqual(colliding, (project / ".mcp.json").read_bytes())
+            self.assertTrue(handoff.is_file())
+            self.assertIn(".mcp.json", handoff.read_text(encoding="utf-8"))
+
+    def test_claude_plugin_collision_byte_preserves_and_hands_off(self) -> None:
+        settings = json.dumps(
+            {
+                "enabledPlugins": {"chaos-engine@chaos-engine-project": False},
+                "extraKnownMarketplaces": {},
+            },
+            indent=2,
+            sort_keys=True,
+        ).encode() + b"\n"
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw) / "claude-plugin"
+            project.mkdir()
+            claude = project / ".claude"
+            claude.mkdir()
+            (claude / "settings.json").write_bytes(settings)
+            seed_core(project, self.install)
+            bind_hosts(self.hosts, project)
+            self.assertEqual(settings, (claude / "settings.json").read_bytes())
+            handoff = project / ".chaos-engine-state/merge-handoff.md"
+            self.assertTrue(handoff.is_file())
+            self.assertIn(".claude/settings.json", handoff.read_text(encoding="utf-8"))
+
+    def test_edited_gitignore_interior_is_left_unchanged_and_handed_off(self) -> None:
+        original = (
+            f"{self.hosts.GITIGNORE_START}\n"
+            "secret.env\n"
+            f"{self.hosts.GITIGNORE_END}\n"
+        ).encode()
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw) / "ignore"
+            project.mkdir()
+            (project / ".gitignore").write_bytes(original)
+            seed_core(project, self.install)
+            bind_hosts(self.hosts, project)
+            self.assertEqual(original, (project / ".gitignore").read_bytes())
+            handoff = project / ".chaos-engine-state/merge-handoff.md"
+            self.assertTrue(handoff.is_file())
+            self.assertIn(".gitignore", handoff.read_text(encoding="utf-8"))
+            self.assertIn("secret.env", (project / ".gitignore").read_text(encoding="utf-8"))
 
     def test_symlink_instruction_file_fails_closed_without_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

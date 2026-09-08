@@ -1348,10 +1348,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
             path.parent.mkdir(parents=True)
             original = b'{"name":"user-marketplace","plugins":[{"name":"chaos-engine","source":"./foreign"}]}'
             path.write_bytes(original)
-            with self.assertRaisesRegex(ValueError, "Claude marketplace collision"):
-                module.install(project)
+            module.install(project)
             self.assertEqual(original, path.read_bytes())
-            self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
+            handoff = project / ".chaos-engine-state/merge-handoff.md"
+            self.assertTrue(handoff.is_file())
+            self.assertIn(".claude-plugin/marketplace.json", handoff.read_text(encoding="utf-8"))
 
     def test_gitignore_reincludes_tracked_memory_config_under_existing_parent_rule(self):
         module = load(HOSTS, "chaos_engine_gitignore_memory")

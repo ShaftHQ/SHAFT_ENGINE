@@ -3586,7 +3586,12 @@ def _merge_or_preserve(relative: str, original: bytes | None, builder):
             raise
         if "UTF-8" in detail or detail.startswith("invalid "):
             reason = "file is not valid UTF-8 or does not parse"
-        elif "MCP" in detail or "hook" in detail:
+        elif (
+            "MCP" in detail
+            or "hook" in detail
+            or "plugin" in detail
+            or "marketplace" in detail
+        ):
             reason = "same-name MCP server or hook exists with unknown ownership"
         else:
             reason = "marker count is not a single matching start and end"
@@ -4014,6 +4019,15 @@ def replace_owned_text_block(
             path, "marker count is not a single matching start and end", block
         )
         return preserved
+    interior = existing[begin:finish].replace("\r\n", "\n")
+    recognized = _normalized_owned_span(block, start, end)
+    if recognized is None or interior != recognized:
+        _note_merge_handoff(
+            path,
+            "markers exist but the interior is not the current or a recognized legacy owned block",
+            block,
+        )
+        return preserved
     if finish < len(existing) and existing[finish] == "\r":
         finish += 1
     if finish < len(existing) and existing[finish] == "\n":
@@ -4343,56 +4357,65 @@ def desired_content(
         ):
             existing_claude_plugin["version"] = plugin_version
         if existing_claude_plugin != claude_plugin_entry:
-            raise ValueError("ChaosEngine Claude marketplace collision")
-    if existing_claude_plugin is None:
+            _note_merge_handoff(
+                ".claude-plugin/marketplace.json",
+                "same-name MCP server or hook exists with unknown ownership",
+                json.dumps(claude_plugin_entry, indent=2, sort_keys=True) + "\n",
+            )
+            after[".claude-plugin/marketplace.json"] = (
+                b"" if claude_marketplace_before is None else claude_marketplace_before
+            )
+            claude_marketplace = None
+    if claude_marketplace is not None and existing_claude_plugin is None:
         claude_marketplace["plugins"].append(claude_plugin_entry)
-    caveman_claude_entry = {
-        "name": CAVEMAN_PLUGIN_NAME,
-        "source": "./plugins/caveman",
-        "description": "Ultra-compressed communication mode.",
-        "version": CAVEMAN_PLUGIN_VERSION,
-        "skills": ["./caveman"],
-    }
-    existing_caveman = next(
-        (
-            item
-            for item in claude_marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_caveman is not None and existing_caveman != caveman_claude_entry:
-        if existing_caveman.get("skills") in (None, []):
-            existing_caveman["skills"] = caveman_claude_entry["skills"]
-        if existing_caveman != caveman_claude_entry:
-            raise ValueError("Caveman Claude plugin collision")
-    if existing_caveman is None:
-        claude_marketplace["plugins"].append(caveman_claude_entry)
-    ponytail_claude_entry = {
-        "name": PONYTAIL_PLUGIN_NAME,
-        "source": "./plugins/ponytail",
-        "description": "Laziest solution that actually works.",
-        "version": PONYTAIL_PLUGIN_VERSION,
-        "skills": ["./ponytail"],
-    }
-    existing_ponytail = next(
-        (
-            item
-            for item in claude_marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
-        if existing_ponytail.get("skills") in (None, []):
-            existing_ponytail["skills"] = ponytail_claude_entry["skills"]
-        if existing_ponytail != ponytail_claude_entry:
-            raise ValueError("Ponytail Claude plugin collision")
-    if existing_ponytail is None:
-        claude_marketplace["plugins"].append(ponytail_claude_entry)
-    after[".claude-plugin/marketplace.json"] = (
-        json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    if claude_marketplace is not None:
+        caveman_claude_entry = {
+            "name": CAVEMAN_PLUGIN_NAME,
+            "source": "./plugins/caveman",
+            "description": "Ultra-compressed communication mode.",
+            "version": CAVEMAN_PLUGIN_VERSION,
+            "skills": ["./caveman"],
+        }
+        existing_caveman = next(
+            (
+                item
+                for item in claude_marketplace["plugins"]
+                if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
+            ),
+            None,
+        )
+        if existing_caveman is not None and existing_caveman != caveman_claude_entry:
+            if existing_caveman.get("skills") in (None, []):
+                existing_caveman["skills"] = caveman_claude_entry["skills"]
+            if existing_caveman != caveman_claude_entry:
+                raise ValueError("Caveman Claude plugin collision")
+        if existing_caveman is None:
+            claude_marketplace["plugins"].append(caveman_claude_entry)
+        ponytail_claude_entry = {
+            "name": PONYTAIL_PLUGIN_NAME,
+            "source": "./plugins/ponytail",
+            "description": "Laziest solution that actually works.",
+            "version": PONYTAIL_PLUGIN_VERSION,
+            "skills": ["./ponytail"],
+        }
+        existing_ponytail = next(
+            (
+                item
+                for item in claude_marketplace["plugins"]
+                if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
+            ),
+            None,
+        )
+        if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
+            if existing_ponytail.get("skills") in (None, []):
+                existing_ponytail["skills"] = ponytail_claude_entry["skills"]
+            if existing_ponytail != ponytail_claude_entry:
+                raise ValueError("Ponytail Claude plugin collision")
+        if existing_ponytail is None:
+            claude_marketplace["plugins"].append(ponytail_claude_entry)
+        after[".claude-plugin/marketplace.json"] = (
+            json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
+        ).encode()
     plugin_manifest = {
         "name": "chaos-engine",
         "version": plugin_version,
@@ -4499,25 +4522,44 @@ def desired_content(
         marketplaces = settings.setdefault("extraKnownMarketplaces", {})
         if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
             raise ValueError("invalid Claude settings")
-        claude_marketplace_name = claude_marketplace["name"]
+        claude_marketplace_name = (
+            claude_marketplace["name"]
+            if claude_marketplace is not None
+            else "chaos-engine-project"
+        )
         plugin_id = f"chaos-engine@{claude_marketplace_name}"
-        if plugin_id in enabled and enabled[plugin_id] is not True:
-            raise ValueError("ChaosEngine Claude plugin collision")
         desired_marketplace = {
             "source": {"source": "directory", "path": "."}
         }
-        if (
+        if plugin_id in enabled and enabled[plugin_id] is not True:
+            _note_merge_handoff(
+                ".claude/settings.json",
+                "same-name MCP server or hook exists with unknown ownership",
+                "",
+            )
+            after[".claude/settings.json"] = (
+                b"" if before[".claude/settings.json"] is None else before[".claude/settings.json"]
+            )
+        elif (
             claude_marketplace_name in marketplaces
             and marketplaces[claude_marketplace_name] != desired_marketplace
         ):
-            raise ValueError("ChaosEngine Claude marketplace collision")
-        enabled[plugin_id] = True
-        enabled[f"caveman@{claude_marketplace_name}"] = True
-        enabled[f"ponytail@{claude_marketplace_name}"] = True
-        marketplaces[claude_marketplace_name] = desired_marketplace
-        after[".claude/settings.json"] = (
-            json.dumps(settings, indent=2, sort_keys=True) + "\n"
-        ).encode()
+            _note_merge_handoff(
+                ".claude/settings.json",
+                "same-name MCP server or hook exists with unknown ownership",
+                "",
+            )
+            after[".claude/settings.json"] = (
+                b"" if before[".claude/settings.json"] is None else before[".claude/settings.json"]
+            )
+        else:
+            enabled[plugin_id] = True
+            enabled[f"caveman@{claude_marketplace_name}"] = True
+            enabled[f"ponytail@{claude_marketplace_name}"] = True
+            marketplaces[claude_marketplace_name] = desired_marketplace
+            after[".claude/settings.json"] = (
+                json.dumps(settings, indent=2, sort_keys=True) + "\n"
+            ).encode()
     caveman_manifest = {
         "name": CAVEMAN_PLUGIN_NAME,
         "version": CAVEMAN_PLUGIN_VERSION,
@@ -5273,10 +5315,27 @@ def strip_known_json_ownership(
             legacy_owned_python_server(name, "nt"),
             legacy_owned_python_server(name, "posix"),
         )
-        if servers[name] in expected or legacy_server or (
+        owned_shape = replaceable_owned_server(name, servers[name], {}) or legacy_server or (
             name == "maven-tools-mcp" and servers[name] == LEGACY_MAVEN_TOOLS_SERVER
-        ):
-            del servers[name]
+        )
+        if not owned_shape and isinstance(servers[name], dict):
+            args = servers[name].get("args")
+            if name == "chaosengine-memory" and isinstance(args, list):
+                owned_shape = args[:2] == [".chaos-engine/tool.py", "memory-mcp"]
+            elif name == "chaosengine-mempalace" and isinstance(args, list):
+                owned_shape = (
+                    ".chaos-engine/tool.py" in args and "mempalace-mcp" in args
+                )
+            elif name == "maven-tools-mcp" and isinstance(args, list):
+                owned_shape = bool(args) and args[0] == "-jar"
+        wrote_entry = (
+            name in recorded_servers
+            and recorded_servers[name] != original_servers.get(name)
+            and servers[name] == recorded_servers[name]
+        )
+        if servers[name] in expected:
+            if owned_shape or wrote_entry:
+                del servers[name]
             continue
         raise ValueError(f"ChaosEngine MCP server collision: {name}")
     for name in ("sha" + "ft-memory", "mempalace"):
