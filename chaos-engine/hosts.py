@@ -5440,7 +5440,7 @@ def upgrade_before_images(
                 project, relative, observed
             ):
                 raise ValueError(
-                    f"ChaosEngine host adapter drift detected: {project / relative}"
+                    f"ChaosEngine host adapter drift detected: {relative}"
                 )
             continue
         if relative in ROLE_ADAPTER_PATHS:
@@ -5448,7 +5448,7 @@ def upgrade_before_images(
             if isinstance(observed, bytes) and desired is not None and observed == desired:
                 continue
             raise ValueError(
-                f"ChaosEngine host adapter drift detected: {project / relative}"
+                f"ChaosEngine host adapter drift detected: {relative}"
             )
         if relative in {
             ".codex/hooks.json",
@@ -5462,7 +5462,7 @@ def upgrade_before_images(
             }[relative]
             restored[relative] = without_chaos_hooks(observed, label)
             continue
-        raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+        raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     return restored
 
 
@@ -5494,7 +5494,7 @@ def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for ev
         if relative in LIVE_PERSISTENT_PATHS:
             continue
         if not any(current == candidate[relative] for candidate in allowed):
-            raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     changed: list[tuple[str, bytes | None, bytes | None]] = []
     try:
         for relative in managed_paths():
@@ -5572,7 +5572,7 @@ def install(
                     snapshot = preflight(project)
                 except ValueError as error:
                     raise ValueError(
-                        f"ChaosEngine host adapter drift detected: {project}"
+                        "ChaosEngine host adapter drift detected"
                     ) from error
             else:
                 snapshot = upgrade_snapshot
@@ -5738,7 +5738,7 @@ def verify(
     validate_live_persistent_images(current)
     for relative in receipt_owned_paths():
         if current[relative] != after[relative]:
-            raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     return {
         "status": "healthy",
         "hookSourceCommit": receipt.get("coreCommit"),

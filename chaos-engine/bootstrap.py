@@ -1430,7 +1430,14 @@ def emit_install_failure(
             )
             trace = root / ".chaos-engine-state" / "install-trace.json"
             if trace.is_file():
-                print(f"Install trace: {trace}", file=sys.stderr)
+                print(
+                    "Install trace: .chaos-engine-state/install-trace.json",
+                    file=sys.stderr,
+                )
+                print(
+                    "Attach .chaos-engine-state/install-trace.json to the GitHub issue.",
+                    file=sys.stderr,
+                )
         except OSError:
             # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
             pass
@@ -1506,7 +1513,7 @@ def emit_install_failure(
                 )
                 trace = install_trace_path(root)
                 if trace.is_file():
-                    install_trace = trace.as_posix()
+                    install_trace = ".chaos-engine-state/install-trace.json"
                     raw = trace.read_text(encoding="utf-8")
                     lines = [line.strip() for line in raw.splitlines() if line.strip()]
                     snippet = " | ".join(lines[-6:])[:400]
@@ -1545,6 +1552,7 @@ def emit_install_failure(
                 f"Core dir: {core_dir}",
                 f"install.py: {install_py}",
                 f"Install trace: {install_trace}",
+                "Attach: .chaos-engine-state/install-trace.json (GitHub file attachment)",
                 f"Install trace snippet: {install_trace_snippet}",
                 f"Platform: {sys.platform}",
                 f"Status command: {status_command}",

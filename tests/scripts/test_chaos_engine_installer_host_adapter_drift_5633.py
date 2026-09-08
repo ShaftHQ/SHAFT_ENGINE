@@ -340,7 +340,62 @@ class HostAdapterDrift5633Test(unittest.TestCase):
             )
             self.assertEqual("2" * 40, receipt.get("coreCommit"))
 
+    def test_rematerialize_preflight_drift_self_heals_without_fail_close(self):
+        """#5685: provision-path preflight drift after core rematerialize must not CE-INSTALL-FAILED."""
+        install = load(INSTALL, "chaos_engine_install_5685_provision_drift")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            project.mkdir()
+            source = root / "chaos-engine-source"
+            shutil.copytree(
+                SOURCE, source, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
+            )
+            load_controller = install.load_dependency_controller
 
+            def account_loader(installed_root: Path):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                install, "load_dependency_controller", side_effect=account_loader
+            ):
+                install.install_with_dependencies(project, source, "1" * 40)
+
+            mcp_path = project / ".mcp.json"
+            payload = json.loads(mcp_path.read_text(encoding="utf-8"))
+            payload.setdefault("mcpServers", {})["user-foreign-5685"] = {
+                "command": "keep-me",
+                "args": ["--foreign"],
+            }
+            mcp_path.write_text(
+                json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            marketplace = project / ".claude-plugin" / "marketplace.json"
+            drifted = json.loads(marketplace.read_text(encoding="utf-8"))
+            drifted["name"] = "drifted-provision-5685"
+            marketplace.write_text(
+                json.dumps(drifted, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            self.assertTrue((project / ".chaos-engine-hosts.json").is_file())
+            self.assertTrue((project / ".chaos-engine").is_dir())
+
+            with mock.patch.object(
+                install, "upgrade_host_receipt_drift_needed", return_value=False
+            ), mock.patch.object(
+                install, "load_dependency_controller", side_effect=account_loader
+            ):
+                install.install_with_dependencies(project, source, "2" * 40)
+
+            receipt = json.loads(
+                (project / ".chaos-engine-hosts.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("2" * 40, receipt.get("coreCommit"))
+            healed_mcp = json.loads(mcp_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                "keep-me",
+                healed_mcp["mcpServers"]["user-foreign-5685"]["command"],
+            )
+            self.assertTrue((project / ".chaos-engine").is_dir())
 
 
 class OrphanCoreMissingHosts5636Test(unittest.TestCase):

@@ -8,6 +8,8 @@ body:
       value: |
         This form is opened by the ChaosEngine installer when install verification fails.
         Keep the prefilled fields and add anything that is missing.
+        Attach `.chaos-engine-state/install-trace.json` as a GitHub file attachment.
+        Do not paste a machine-local absolute path as the only evidence.
   - type: input
     id: error_code
     attributes:
@@ -53,12 +55,13 @@ body:
   - type: input
     id: install_trace
     attributes:
-      label: Install trace path
+      label: Install trace (repo-relative)
+      description: Use `.chaos-engine-state/install-trace.json`. Attach that file to this issue; a private absolute path is not useful.
   - type: textarea
     id: install_trace_snippet
     attributes:
       label: Install trace snippet
-      description: Last lines from install-trace.json when present
+      description: Short redacted excerpt only. Attach the full install-trace.json file.
   - type: input
     id: status_command
     attributes:
