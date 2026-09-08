@@ -1439,8 +1439,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertTrue(rendered.startswith(b"*.png binary\n"))
         self.assertEqual(rendered, module.gitattributes_content(rendered))
-        with self.assertRaisesRegex(ValueError, "gitattributes collision"):
-            module.gitattributes_content(b"# CHAOSENGINE-EOL:START\nchanged\n")
+        original = b"# CHAOSENGINE-EOL:START\nchanged\n"
+        self.assertEqual(original, module.gitattributes_content(original))
+        notes = module.consume_merge_handoffs()
+        self.assertTrue(notes)
+        self.assertIn("marker count", notes[0]["reason"])
 
     def test_gitattributes_preserves_core_bytes_in_autocrlf_clone(self):
         module = load(HOSTS, "chaos_engine_gitattributes_clone")

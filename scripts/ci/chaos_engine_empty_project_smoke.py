@@ -112,6 +112,8 @@ def main(argv: list[str] | None = None) -> int:
         evidence["doctorReport"] = doctor_text
         core_ok = (project / ".chaos-engine/skills/chaos-engine/SKILL.md").is_file()
         evidence["corePresent"] = core_ok
+        evidence["distribution"] = installer.detect_distribution(project, source)
+        evidence["mergeHandoff"] = (project / ".chaos-engine-state/merge-handoff.md").is_file()
         healthy = doctor.get("status") == "healthy"
         if args.skip_tools:
             if not core_ok:

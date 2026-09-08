@@ -3581,6 +3581,8 @@ def attach_component_status(
         **cache_state,
         **capabilities["maven-tools-mcp"],
     }
+    if result.get("distribution") == "repository":
+        components["maven-tools-mcp"]["taskImpact"] = "required"
     bundle = read_bundle_options(project)
     for name in ("memory", "mempalace", "graphify"):
         if not bundle.get(name, True) and name in components:
@@ -3599,6 +3601,7 @@ def attach_component_status(
             "cliPresent": False,
         }
     result["components"] = components
+    apply_merge_handoff_fix_next(project, components)
     if any(
         item["status"] != "healthy" and item["taskImpact"] != "optional"
         for item in components.values()
@@ -4023,6 +4026,7 @@ def doctor_with_dependencies(
         )
         if not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
             apply_hooks_probe_failure(result, components)
+    apply_merge_handoff_fix_next(project.resolve(), components)
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
@@ -4616,6 +4620,25 @@ def _component_severity(item: dict[str, object]) -> str:
     if impact == "optional":
         return "info"
     return "error"
+
+
+def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
+    """Point doctor fix-next at the merge handoff instead of a blind reinstall."""
+    if not isinstance(components, dict):
+        return
+    handoff = Path(project) / ".chaos-engine-state" / "merge-handoff.md"
+    if not handoff.is_file() or is_link_or_reparse(handoff):
+        return
+    message = (
+        "Complete the agent merge using .chaos-engine-state/merge-handoff.md, "
+        "then rerun doctor."
+    )
+    for item in components.values():
+        if not isinstance(item, dict):
+            continue
+        if _component_severity(item) == "ok":
+            continue
+        item["fixNext"] = message
 
 
 def _looks_like_fix_next(detail: object) -> bool:

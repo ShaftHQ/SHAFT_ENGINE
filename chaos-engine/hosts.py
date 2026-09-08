@@ -3391,16 +3391,27 @@ def json_content(
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    relative: str = ".mcp.json",
 ) -> bytes:
+    original = b"" if before is None else before
+    desired = owned_servers(
+        maven_runtime=maven_runtime, managed_python=managed_python,
+        account_commands=account_commands,
+        maven_docker=maven_docker,
+    )
+    snippet = json.dumps({"mcpServers": desired}, indent=2, sort_keys=True) + "\n"
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError("invalid host JSON configuration") from error
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     if not isinstance(value, dict):
-        raise ValueError("invalid host JSON configuration")
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     servers = value.setdefault("mcpServers", {})
     if not isinstance(servers, dict):
-        raise ValueError("invalid MCP server configuration")
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
         del servers["maven-tools-mcp"]
     for legacy_name in ("sha" + "ft-memory", "mempalace"):
@@ -3408,14 +3419,15 @@ def json_content(
             legacy_name, servers[legacy_name]
         ):
             del servers[legacy_name]
-    for name, desired in owned_servers(
-        maven_runtime=maven_runtime, managed_python=managed_python,
-        account_commands=account_commands,
-        maven_docker=maven_docker,
-    ).items():
-        if name in servers and not replaceable_owned_server(name, servers[name], desired):
-            raise ValueError(f"ChaosEngine MCP server collision: {name}")
-        servers[name] = desired
+    for name, server in desired.items():
+        if name in servers and not replaceable_owned_server(name, servers[name], server):
+            _note_merge_handoff(
+                relative,
+                "same-name MCP server exists with unknown ownership",
+                snippet,
+            )
+            return original
+        servers[name] = server
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
@@ -3559,6 +3571,29 @@ def remove_exact_legacy_native_maven_codex_block(existing: str) -> str:
     return existing[:match.start()] + existing[match.end():]
 
 
+def _path_handed_off(relative: str) -> bool:
+    return any(item["path"] == relative for item in _merge_handoffs)
+
+
+def _merge_or_preserve(relative: str, original: bytes | None, builder):
+    """Apply a host merge; impossible files stay byte-identical and record a handoff."""
+    preserved = b"" if original is None else original
+    try:
+        return builder()
+    except ValueError as error:
+        detail = str(error)
+        if "collision" not in detail and not detail.startswith("invalid "):
+            raise
+        if "UTF-8" in detail or detail.startswith("invalid "):
+            reason = "file is not valid UTF-8 or does not parse"
+        elif "MCP" in detail or "hook" in detail:
+            reason = "same-name MCP server or hook exists with unknown ownership"
+        else:
+            reason = "marker count is not a single matching start and end"
+        _note_merge_handoff(relative, reason, "")
+        return preserved
+
+
 def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
@@ -3567,10 +3602,16 @@ def codex_content(
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
 ) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid Codex configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        _note_merge_handoff(
+            ".codex/config.toml",
+            "file is not valid UTF-8 or does not parse",
+            "",
+        )
+        return original
     existing = remove_known_codex_orphans(existing)
     legacy_blocks = (
         '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
@@ -3668,7 +3709,17 @@ def codex_content(
             if candidate in existing:
                 return existing.replace(candidate, block).encode()
         # Drifted managed block / markers wrapping non-owned keys: replace stanza (#5630).
-        return heal_replace_codex_managed_block(existing, block).encode()
+        try:
+            return heal_replace_codex_managed_block(existing, block).encode()
+        except ValueError as error:
+            if "collision" not in str(error):
+                raise
+            _note_merge_handoff(
+                ".codex/config.toml",
+                "marker count is not a single matching start and end",
+                block,
+            )
+            return original
     # Orphan CE-owned sections outside markers (esp. context7): strip then append.
     existing = strip_owned_codex_server_sections(existing)
     separator = "\n" if existing and not existing.endswith("\n") else ""
@@ -3934,7 +3985,14 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
 
 
 def replace_owned_text_block(
-    existing: str, start: str, end: str, block: str, label: str
+    existing: str,
+    start: str,
+    end: str,
+    block: str,
+    label: str,
+    *,
+    relative: str | None = None,
+    original: bytes | None = None,
 ) -> bytes:
     """Upgrade one marker-owned block while preserving all foreign text."""
     start_count = existing.count(start)
@@ -3942,12 +4000,20 @@ def replace_owned_text_block(
     if start_count == end_count == 0:
         separator = "\n" if existing and not existing.endswith("\n") else ""
         return (existing + separator + block).encode()
+    preserved = original if original is not None else existing.encode()
+    path = relative or label
     if start_count != 1 or end_count != 1:
-        raise ValueError(f"ChaosEngine {label} collision")
+        _note_merge_handoff(
+            path, "marker count is not a single matching start and end", block
+        )
+        return preserved
     begin = existing.index(start)
     finish = existing.index(end, begin) + len(end)
     if finish < begin:
-        raise ValueError(f"ChaosEngine {label} collision")
+        _note_merge_handoff(
+            path, "marker count is not a single matching start and end", block
+        )
+        return preserved
     if finish < len(existing) and existing[finish] == "\r":
         finish += 1
     if finish < len(existing) and existing[finish] == "\n":
@@ -3996,10 +4062,11 @@ def strip_owned_text_block(
 
 
 def gitignore_content(before: bytes | None) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid gitignore configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        existing = None
     block = (
         f"{GITIGNORE_START}\n"
         ".chaos-engine-runtime/\n.chaos-engine-runtime.lock\n.chaos-engine-runtime.*\n.chaos-engine-state/\n"
@@ -4039,16 +4106,28 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
+    if existing is None:
+        _note_merge_handoff(
+            ".gitignore", "file is not valid UTF-8 or does not parse", block
+        )
+        return original
     return replace_owned_text_block(
-        existing, GITIGNORE_START, GITIGNORE_END, block, "gitignore"
+        existing,
+        GITIGNORE_START,
+        GITIGNORE_END,
+        block,
+        "gitignore",
+        relative=".gitignore",
+        original=original,
     )
 
 
 def gitattributes_content(before: bytes | None) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid gitattributes configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        existing = None
     repository_root_anchor = "/"
     block = (
         f"{GITATTRIBUTES_START}\n"
@@ -4075,8 +4154,19 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.gitattributes text eol=lf\n"
         f"{GITATTRIBUTES_END}\n"
     )
+    if existing is None:
+        _note_merge_handoff(
+            ".gitattributes", "file is not valid UTF-8 or does not parse", block
+        )
+        return original
     return replace_owned_text_block(
-        existing, GITATTRIBUTES_START, GITATTRIBUTES_END, block, "gitattributes"
+        existing,
+        GITATTRIBUTES_START,
+        GITATTRIBUTES_END,
+        block,
+        "gitattributes",
+        relative=".gitattributes",
+        original=original,
     )
 
 
@@ -4339,18 +4429,30 @@ def desired_content(
     after["plugins/chaos-engine/hooks/hooks.json"] = (
         json.dumps({"hooks": {}}, indent=2, sort_keys=True) + "\n"
     ).encode()
-    after[".codex/hooks.json"] = hook_content(
-        without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
-        desired_hooks,
-        "Codex",
+    after[".codex/hooks.json"] = _merge_or_preserve(
+        ".codex/hooks.json",
+        before[".codex/hooks.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
+            desired_hooks,
+            "Codex",
+        ),
     )
-    after[".grok/hooks/lifecycle.json"] = hook_content(
-        without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
-        lifecycle_hooks_document("grok", managed_python=managed_python),
-        "Grok",
+    after[".grok/hooks/lifecycle.json"] = _merge_or_preserve(
+        ".grok/hooks/lifecycle.json",
+        before[".grok/hooks/lifecycle.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
+            lifecycle_hooks_document("grok", managed_python=managed_python),
+            "Grok",
+        ),
     )
-    after[".github/hooks/chaos-engine.json"] = copilot_hook_content(
-        before[".github/hooks/chaos-engine.json"], managed_node
+    after[".github/hooks/chaos-engine.json"] = _merge_or_preserve(
+        ".github/hooks/chaos-engine.json",
+        before[".github/hooks/chaos-engine.json"],
+        lambda: copilot_hook_content(
+            before[".github/hooks/chaos-engine.json"], managed_node
+        ),
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
@@ -4375,37 +4477,47 @@ def desired_content(
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
         "That router decides whether to load the bundled Caveman and Ponytail companions.\n"
     ).encode()
-    claude_settings = hook_content(
-        without_chaos_hooks(before[".claude/settings.json"], "Claude"),
-        lifecycle_hooks_document("claude", managed_python=managed_python),
-        "Claude",
+    claude_settings = _merge_or_preserve(
+        ".claude/settings.json",
+        before[".claude/settings.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".claude/settings.json"], "Claude"),
+            lifecycle_hooks_document("claude", managed_python=managed_python),
+            "Claude",
+        ),
     )
-    try:
-        settings = json.loads(claude_settings) if claude_settings is not None else {}
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError("invalid Claude settings") from error
-    if not isinstance(settings, dict):
-        raise ValueError("invalid Claude settings")
-    enabled = settings.setdefault("enabledPlugins", {})
-    marketplaces = settings.setdefault("extraKnownMarketplaces", {})
-    if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
-        raise ValueError("invalid Claude settings")
-    claude_marketplace_name = claude_marketplace["name"]
-    plugin_id = f"chaos-engine@{claude_marketplace_name}"
-    if plugin_id in enabled and enabled[plugin_id] is not True:
-        raise ValueError("ChaosEngine Claude plugin collision")
-    desired_marketplace = {
-        "source": {"source": "directory", "path": "."}
-    }
-    if claude_marketplace_name in marketplaces and marketplaces[claude_marketplace_name] != desired_marketplace:
-        raise ValueError("ChaosEngine Claude marketplace collision")
-    enabled[plugin_id] = True
-    enabled[f"caveman@{claude_marketplace_name}"] = True
-    enabled[f"ponytail@{claude_marketplace_name}"] = True
-    marketplaces[claude_marketplace_name] = desired_marketplace
-    after[".claude/settings.json"] = (
-        json.dumps(settings, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    if _path_handed_off(".claude/settings.json"):
+        after[".claude/settings.json"] = claude_settings
+    else:
+        try:
+            settings = json.loads(claude_settings) if claude_settings is not None else {}
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Claude settings") from error
+        if not isinstance(settings, dict):
+            raise ValueError("invalid Claude settings")
+        enabled = settings.setdefault("enabledPlugins", {})
+        marketplaces = settings.setdefault("extraKnownMarketplaces", {})
+        if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
+            raise ValueError("invalid Claude settings")
+        claude_marketplace_name = claude_marketplace["name"]
+        plugin_id = f"chaos-engine@{claude_marketplace_name}"
+        if plugin_id in enabled and enabled[plugin_id] is not True:
+            raise ValueError("ChaosEngine Claude plugin collision")
+        desired_marketplace = {
+            "source": {"source": "directory", "path": "."}
+        }
+        if (
+            claude_marketplace_name in marketplaces
+            and marketplaces[claude_marketplace_name] != desired_marketplace
+        ):
+            raise ValueError("ChaosEngine Claude marketplace collision")
+        enabled[plugin_id] = True
+        enabled[f"caveman@{claude_marketplace_name}"] = True
+        enabled[f"ponytail@{claude_marketplace_name}"] = True
+        marketplaces[claude_marketplace_name] = desired_marketplace
+        after[".claude/settings.json"] = (
+            json.dumps(settings, indent=2, sort_keys=True) + "\n"
+        ).encode()
     caveman_manifest = {
         "name": CAVEMAN_PLUGIN_NAME,
         "version": CAVEMAN_PLUGIN_VERSION,
@@ -4586,18 +4698,25 @@ def desired_content(
     )
     after[".mcp.json"] = json_content(
         before[".mcp.json"], maven_runtime, managed_python, account_commands,
-        maven_docker,
+        maven_docker, relative=".mcp.json",
     )
     gemini_settings = json_content(
         before[".gemini/settings.json"], maven_runtime, managed_python,
         account_commands,
-        maven_docker,
+        maven_docker, relative=".gemini/settings.json",
     )
-    after[".gemini/settings.json"] = hook_content(
-        without_chaos_hooks(gemini_settings, "Gemini"),
-        gemini_hooks_document(managed_node),
-        "Gemini",
-    )
+    if _path_handed_off(".gemini/settings.json"):
+        after[".gemini/settings.json"] = gemini_settings
+    else:
+        after[".gemini/settings.json"] = _merge_or_preserve(
+            ".gemini/settings.json",
+            before[".gemini/settings.json"],
+            lambda: hook_content(
+                without_chaos_hooks(gemini_settings, "Gemini"),
+                gemini_hooks_document(managed_node),
+                "Gemini",
+            ),
+        )
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime,
         managed_python=managed_python, account_commands=account_commands,
