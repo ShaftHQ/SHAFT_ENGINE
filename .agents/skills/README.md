@@ -158,6 +158,8 @@ sends you there; the rest by
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
 - [context economy](../../chaos-engine/references/context-economy.md)
 - [context firewall](../../chaos-engine/references/context-firewall.md)
+- [meta-optimize](../../chaos-engine/references/meta-optimize.md) (periodic; not continuous)
+- [draft skill PRs](../../chaos-engine/references/draft-skill-pr.md) (opt-in; default OFF)
 - [script first](../../chaos-engine/references/script-first.md)
 - [LICENSE](../../chaos-engine/LICENSE)
 - [third-party notices](../../chaos-engine/THIRD_PARTY_NOTICES.md)

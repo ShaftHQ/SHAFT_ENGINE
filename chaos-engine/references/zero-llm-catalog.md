@@ -34,6 +34,8 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Heuristics CLI | [`heuristics.py`](../heuristics.py) `locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
 | Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer (#5658) |
 | Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply (#5659) |
+| Meta-optimize review | [`meta_optimize.py`](../meta_optimize.py) `review`/`cadence` | Periodic aggregation of significance + learning metrics + compress proposals; not continuous (#5664) |
+| Draft skill PR gate | [`draft_skill_pr.py`](../draft_skill_pr.py) `status`/`prepare`/`open` | Opt-in draft PRs only; default OFF; never auto-merge (#5665) |
 
 ## Notes
 

@@ -23,12 +23,17 @@ python3 .chaos-engine/skill_compress_audit.py audit --strict   # exit 1 if over 
 
 `--diff` embeds bounded unified-diff **stubs** in JSON only — files stay unchanged.
 
-## Apply gate (future / S4 #8)
+## Apply gate (S4 #8 / #5665) — opt-in draft PRs
 
-Any apply path must remain **opt-in** and pass:
+Propose-only remains the default. Draft PRs are available **only** via
+[`draft-skill-pr.md`](draft-skill-pr.md) / [`draft_skill_pr.py`](../draft_skill_pr.py):
 
-1. `python3 scripts/ci/chaos_engine_eval_parity.py` (fixtures green)
-2. Unit tests for the skill / compress invariants
-3. Human issues-first PR — never auto-merge
+1. Explicit `--opt-in` **and** `CHAOS_ENGINE_DRAFT_SKILL_PRS=1` (default OFF)
+2. `python3 scripts/ci/chaos_engine_eval_parity.py` green
+3. Focused unit tests green
+4. `gh pr create --draft` only (`--execute`); **never** auto-merge; never apply without gate
 
-Until then: propose-only.
+```bash
+python3 .chaos-engine/draft_skill_pr.py status
+CHAOS_ENGINE_DRAFT_SKILL_PRS=1 python3 .chaos-engine/draft_skill_pr.py open --opt-in
+```

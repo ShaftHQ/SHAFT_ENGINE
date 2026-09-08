@@ -28,3 +28,9 @@ Every Learning Session should attempt:
    (or explicit "nothing durable").
 
 Product filing playbook: [product-track.md](product-track.md).
+
+## Periodic review / opt-in mutate
+
+- [meta-optimize.md](../../../references/meta-optimize.md) — offline aggregation; reject Observer
+- [draft-skill-pr.md](../../../references/draft-skill-pr.md) — eval-gated draft PRs; default OFF
+

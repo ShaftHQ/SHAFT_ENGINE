@@ -66,12 +66,18 @@ python3 .chaos-engine/silent_verify.py session-start-budget
 python3 .chaos-engine/retrieve.py heuristics --top 3
 python3 .chaos-engine/significance.py list
 python3 .chaos-engine/skill_compress_audit.py audit --skill self-improve
+python3 .chaos-engine/meta_optimize.py review
+python3 .chaos-engine/draft_skill_pr.py status
 ```
 
 SessionStart stays locator-only; prefer CLI over MCP for the same job.
 Mid-session: mark **significant** friction only via `significance.py` (soft
 fail/deny hooks already write tiny state notes) — never Task Observer.
 Skill bodies: `skill_compress_audit.py` proposes compress diffs only; never auto-apply.
+Periodic: `meta_optimize.py review` (offline cadence — not continuous).
+Draft skill PRs: `draft_skill_pr.py` opt-in only (default OFF; never auto-merge).
+See [meta-optimize](../../references/meta-optimize.md) and
+[draft-skill-pr](../../references/draft-skill-pr.md).
 
 ## Local smoke
 
