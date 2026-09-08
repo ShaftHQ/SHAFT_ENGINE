@@ -10,7 +10,7 @@ points here; do not require plugin activation to heal.
 2. Fix-next only: `… doctor --project . --fix-next-only`
 3. Component repair (no full wipe):  
    `python3 .chaos-engine/install.py repair --project . --component <id>`  
-   Components: `plugins`, `hosts`, `core`, `headroom`, `mempalace`, `graphify`,
+   Components: `plugins`, `hosts`, `core`, `mempalace`, `graphify`,
    `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`
 4. Official install one-liner from [`INSTALL.md`](../INSTALL.md) for missing
    core, wiped runtime, or multi-component drift

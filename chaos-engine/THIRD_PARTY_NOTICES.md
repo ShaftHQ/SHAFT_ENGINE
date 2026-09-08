@@ -27,16 +27,6 @@ included here.
 Skill and hook bodies in that pin are verbatim upstream.
 
 
-## Headroom
-
-- License: Apache-2.0
-- Upstream: https://github.com/chopratejas/headroom
-- PyPI: https://pypi.org/project/headroom-ai/ (managed pin; package bytes not vendored)
-- Local pin: [vendor/headroom/PIN.json](vendor/headroom/PIN.json)
-- Inventory: [vendor/headroom/INVENTORY.md](vendor/headroom/INVENTORY.md)
-- Local license: [vendor/headroom/LICENSE](vendor/headroom/LICENSE)
-- CE skill/policy: [vendor/headroom/skills/headroom/SKILL.md](vendor/headroom/skills/headroom/SKILL.md), [headroom_policy.py](headroom_policy.py)
-
 ## Task Observer methodology (self-improve skill)
 
 - License: CC BY 4.0

@@ -37,19 +37,10 @@ When `CHAOS_ENGINE_TOKEN_BUDGET` is **unset**, pick the default from triage
 
 | Triage (worse of blast radius / reversibility) | Default budget |
 | --- | --- |
-| One file, reversible | `ultra-lean` (Headroom `agent-90`) |
+| One file, reversible | `ultra-lean` |
 | One module, reversible | `balanced` |
 | Public contract, many callers, or hard to reverse | `deep` |
 
 Machine map: `hooks/lifecycle.py` → `TRIAGE_TO_TOKEN_BUDGET` /
 `triage_token_budget()`.
 
-## Headroom profile map
-
-| Token budget | `HEADROOM_SAVINGS_PROFILE` |
-| --- | --- |
-| `ultra-lean` | `agent-90` (CE max savings) |
-| `balanced` | `balanced` |
-| `deep` | `coding` / passthrough |
-
-See [headroom.md](headroom.md). Beacon stays `off`; memory injection `disabled`.
