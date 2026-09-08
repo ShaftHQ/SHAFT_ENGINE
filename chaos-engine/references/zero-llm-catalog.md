@@ -58,6 +58,5 @@ Prefer training-data CLIs over MCP schema tax when both can do the job:
 | Store retrieve | `tool.py retrieve` / `retrieve.py` | Extra MCP hop for Memory/Graphify/MemPalace when CLI works |
 | Heuristics once/task | `retrieve.py heuristics` | Re-injecting heuristic prose every Pre/PostToolUse |
 
-MCP remains valid for Headroom compression/proxy and when **no** equivalent CLI
-exists. Encode lasting preference in this catalog + SessionStart locator, never
-agent-only memory.
+MCP remains valid when **no** equivalent CLI exists. Encode lasting preference
+in this catalog + SessionStart locator, never agent-only memory.
