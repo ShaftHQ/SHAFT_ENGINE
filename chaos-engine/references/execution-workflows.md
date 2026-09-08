@@ -28,9 +28,12 @@ After workflow selection, choose the first available transport permitted by
 the selected host and task boundary:
 
 1. A qualified optional local OmniRoute process through the
-   [OmniRoute skill](../skills/omniroute/SKILL.md).
-2. A qualified host-native lower-capability implementer.
-3. No qualified delegate: `SOLO`.
+   [OmniRoute skill](../skills/omniroute/SKILL.md) (cloud-quota gateway).
+2. A qualified optional local FreeToken process through the
+   [FreeToken skill](../skills/freetoken/SKILL.md) (local-weights server).
+   FreeToken does not replace OmniRoute and is not a workflow owner.
+3. A qualified host-native lower-capability implementer.
+4. No qualified delegate: `SOLO`.
 
 The transport does not change the selected workflow, role boundaries, tests,
 review, learning, or completion duties. Canonical orchestration must probe the
@@ -47,4 +50,10 @@ only. Receipts and repository files never persist route, model, or provider IDs.
 `RUNTIME_EXHAUSTED`, an empty remaining catalog, or sealed-launcher exit code
 `78` falls back to the current host session's native models or `SOLO`. OmniRoute is absent,
 unhealthy, unauthenticated, or unqualified does the same. This is
-normal fallback, not harness failure.
+normal fallback, not harness failure. FreeToken is the local-weights
+sibling, still not a workflow owner. Probe only
+`http://127.0.0.1:1919/v1/models` through the FreeToken skill. `READY` may
+set that loopback base URL for one bounded dispatch. `ABSENT` and
+`UNHEALTHY` are normal. Never install FreeToken, never run `ft launch` or
+`ft serve` from the harness, and never fail the selected workflow because
+FreeToken is missing.

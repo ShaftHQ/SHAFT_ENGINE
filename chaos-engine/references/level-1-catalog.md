@@ -26,6 +26,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/omniroute/SKILL.md) |
+| FreeToken | Optional local-weights server; never required; does not replace OmniRoute | [`../skills/freetoken/SKILL.md`](../skills/freetoken/SKILL.md) |
 
 Load **one** row when the core router points here; return to the core skill after
 the deliverable.

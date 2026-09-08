@@ -119,6 +119,7 @@
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/skills/local-coding-delegate/SKILL.md",
     "chaos-engine/skills/omniroute/SKILL.md",
+    "chaos-engine/skills/freetoken/SKILL.md",
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",
@@ -153,6 +154,7 @@
     ],
     "chaos-engine/skills": [
       "chaos-engine",
+      "freetoken",
       "local-coding-delegate",
       "omniroute",
       "self-improve",
@@ -258,6 +260,7 @@
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/skills/local-coding-delegate/SKILL.md",
     "chaos-engine/skills/omniroute/SKILL.md",
+    "chaos-engine/skills/freetoken/SKILL.md",
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",
