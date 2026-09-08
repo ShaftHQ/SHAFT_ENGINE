@@ -58,6 +58,19 @@ Owner-curated wake pack (≤~120 tokens) lives at
 `wake-pack.mempalace-draft.md` only — never silent overwrite. SessionStart
 injects the wake-pack **locator**, never Memory/MemPalace prose.
 
+## Heuristics once per task (#5656)
+
+Learning Session may extract ≤N privacy-safe heuristics into
+`.chaos-engine-state/heuristics/`. SessionStart injects the **locator
+only**. At triage / task start, retrieve once:
+
+```text
+python3 .chaos-engine/retrieve.py heuristics --top 3
+```
+
+Never re-inject full heuristic prose on every Pre/PostToolUse. Keep
+`SESSION_START_MAX_BYTES`.
+
 ## Bounded retrieval
 
 After a plan is approved, the MemPalace attempt in the research receipt is

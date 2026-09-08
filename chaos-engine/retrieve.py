@@ -152,13 +152,63 @@ def retrieve(
     return receipt
 
 
+
+def heuristics_retrieve(top: int = 3, project: Path | None = None) -> dict[str, Any]:
+    """Once-per-task ERL heuristic retrieve (#5656); never SessionStart prose."""
+    path = Path(__file__).resolve().with_name("heuristics.py")
+    if not path.is_file():
+        return {
+            "schemaVersion": 1,
+            "kind": "heuristics-retrieve",
+            "status": STATUS_DEGRADED,
+            "reason": "heuristics.py missing",
+            "items": [],
+        }
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location("chaos_engine_heuristics_retrieve", path)
+    if spec is None or spec.loader is None:
+        return {
+            "schemaVersion": 1,
+            "kind": "heuristics-retrieve",
+            "status": STATUS_DEGRADED,
+            "reason": "heuristics loader failed",
+            "items": [],
+        }
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    items = mod.retrieve_top(top, project)
+    return {
+        "schemaVersion": 1,
+        "kind": "heuristics-retrieve",
+        "status": STATUS_USED if items else STATUS_SKIPPED,
+        "store": "heuristics",
+        "top": top,
+        "items": items,
+        "policy": "once-per-task",
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if raw and raw[0] == "heuristics":
+        parser = argparse.ArgumentParser(description="ERL heuristic retrieve once per task")
+        parser.add_argument("--top", type=int, default=3)
+        parser.add_argument("--project", type=Path, default=None)
+        args = parser.parse_args(raw[1:])
+        try:
+            receipt = heuristics_retrieve(args.top, args.project)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        print(json.dumps(receipt, sort_keys=True))
+        return 0
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("query", nargs="?", default="")
     parser.add_argument("--store", choices=STORES, default=None)
     parser.add_argument("--project", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw)
     try:
         receipt = retrieve(
             args.query, store=args.store, project=args.project, dry_run=args.dry_run

@@ -30,6 +30,9 @@ class ZeroLlmCatalogTests(unittest.TestCase):
         self.assertIn("--fix-next-only", text)
         self.assertIn("doctor --project", text)
         self.assertIn("zero-llm", text.casefold())
+        self.assertIn("CLI-over-MCP iron law", text)
+        self.assertIn("silent_verify.py", text)
+        self.assertIn("heuristics --top", text)
 
     def test_format_fix_next_only_emits_component_lines(self):
         document = {
