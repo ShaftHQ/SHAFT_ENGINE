@@ -27,7 +27,7 @@ Session after every delivery — must live in the portable ChaosEngine overlay
 (hooks, skills, installer/doctor, host guidance adapters), never only in one
 agent's memory or routines. Unchanged `chaos-engine/` files are not a valid
 Learning Session skip. Research/explore isolation follows
-[context firewall](chaos-engine/references/context-firewall.md) (all hosts).
+[context firewall](chaos-engine/references/context-firewall.md) (all hosts); periodic [meta-optimize](chaos-engine/references/meta-optimize.md); opt-in [draft skill PRs](chaos-engine/references/draft-skill-pr.md) default OFF.
 
 ## Repository safety
 

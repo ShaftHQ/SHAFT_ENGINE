@@ -205,6 +205,8 @@ return here for the next.
 | Heal | Drifted install, wiped runtime, unhealthy doctor | [heal-route](../../references/heal-route.md) (file path; no plugin required) |
 | Level-1 catalog | Need a secondary skill/tool beyond this router | [level-1-catalog](../../references/level-1-catalog.md) |
 | Context firewall | Research / multi-file explore needs isolation | [context-firewall](../../references/context-firewall.md) |
+| Meta-optimize | Periodic offline shared-log review (not continuous) | [meta-optimize](../../references/meta-optimize.md) |
+| Draft skill PR | Opt-in eval-gated draft skill PRs; default OFF | [draft-skill-pr](../../references/draft-skill-pr.md) |
 | Token budget | Triage or env selects ultra-lean / balanced / deep | [token-budget-modes](../../references/token-budget-modes.md) |
 | GAP-EXIT2 UX | Grok/Copilot may not honor exit-2 hard blocks | [host-parity-matrix](../../references/host-parity-matrix.md) checklist |
 

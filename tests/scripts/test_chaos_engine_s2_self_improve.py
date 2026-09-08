@@ -159,7 +159,7 @@ class S2SelfImproveTests(unittest.TestCase):
         self.assertEqual("skill-compress-audit", report["kind"])
         self.assertFalse(report["mutate"])
         self.assertIn("propose-only", report["policy"])
-        self.assertIn("S4/#8", report["applyGate"])
+        self.assertIn("#5665/#8", report["applyGate"])
         self.assertEqual(self.compress.L2_LINE_BUDGET, 500)
         # self-improve should be under budget
         by_name = {item["name"]: item for item in report["skills"]}

@@ -131,3 +131,9 @@ load [self-improve master plan](self-improve-master-plan.md). Cited online
 research lives in [self-improve research synthesis](self-improve-research-synthesis.md).
 Product lessons → SHAFT issues/evals: [product-track playbook](product-track.md) (portable base: [self-improve product-track](../../../skills/self-improve/references/product-track.md)).
 Research/explore isolation: [context firewall](../../../references/context-firewall.md).
+
+## S4 self-improve (portable pointers)
+
+- Periodic [meta-optimize](../../../references/meta-optimize.md) — not continuous / no Observer
+- Opt-in [draft skill PRs](../../../references/draft-skill-pr.md) — default OFF; never auto-merge
+

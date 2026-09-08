@@ -4,7 +4,7 @@ SkillOpt-style SKILL.md compression audit — propose only, never apply (#5659 /
 
 Offline/script CLI that scores skill bodies for filler/bloat and emits a bounded
 propose-only report (optional unified-diff stubs). Never writes SKILL.md.
-Future apply remains S4/#8 opt-in and must pass eval-parity + unit tests.
+Apply path: draft_skill_pr.py opt-in (#5665/#8) — eval-parity + unit tests; default OFF.
 """
 
 from __future__ import annotations
@@ -162,7 +162,7 @@ def audit_skill(path: Path) -> dict[str, Any]:
         "fillerSamples": filler_hits[:8],
         "proposals": proposals,
         "mutate": False,
-        "applyGate": "eval-parity + unit tests; apply remains S4/#8 opt-in",
+        "applyGate": "draft_skill_pr opt-in (#5665/#8): eval-parity + unit tests; default OFF; never auto-merge",
     }
 
 
@@ -255,7 +255,7 @@ def audit_tree(
         "schemaVersion": SCHEMA_VERSION,
         "kind": "skill-compress-audit",
         "policy": "propose-only; never auto-apply / auto-merge",
-        "applyGate": "eval-parity + unit tests; apply remains S4/#8 opt-in",
+        "applyGate": "draft_skill_pr opt-in (#5665/#8): eval-parity + unit tests; default OFF; never auto-merge",
         "l2Budget": L2_LINE_BUDGET,
         "skillCount": len(skills),
         "overBudgetCount": over,
