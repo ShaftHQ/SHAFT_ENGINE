@@ -2919,17 +2919,136 @@ def read_file(project: Path, path: Path) -> bytes | None:
         return stream.read()
 
 
-def instruction_content(before: bytes | None, instruction: str) -> bytes:
+MERGE_HANDOFF_RELATIVE = ".chaos-engine-state/merge-handoff.md"
+_merge_handoffs: list[dict[str, str]] = []
+
+
+def consume_merge_handoffs() -> list[dict[str, str]]:
+    items = list(_merge_handoffs)
+    _merge_handoffs.clear()
+    return items
+
+
+def _note_merge_handoff(relative: str, reason: str, desired: str) -> None:
+    _merge_handoffs.append(
+        {"path": relative, "reason": reason, "desired": desired}
+    )
+
+
+def _normalized_owned_span(block: str, start: str, end: str) -> str | None:
+    if block.count(start) != 1 or block.count(end) != 1:
+        return None
+    begin = block.index(start)
+    finish = block.index(end, begin)
+    if finish < begin:
+        return None
+    return block[begin : finish + len(end)].replace("\r\n", "\n")
+
+
+def merge_instruction(
+    before: bytes | None, instruction: str, *, relative: str
+) -> bytes:
+    """Merge one marker-owned instruction file, or leave it and record a handoff."""
+    original = b"" if before is None else before
     try:
         existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid host instruction file") from error
-    if START in existing or END in existing:
-        if instruction not in existing:
-            raise ValueError("ChaosEngine instruction collision")
-        return before  # type: ignore[return-value]
-    separator = "\n" if existing and not existing.endswith("\n") else ""
-    return (existing + separator + instruction).encode()
+    except UnicodeDecodeError:
+        _note_merge_handoff(relative, "file is not valid UTF-8", instruction)
+        return original
+    start_count = existing.count(START)
+    end_count = existing.count(END)
+    if start_count == end_count == 0:
+        separator = "\n" if existing and not existing.endswith("\n") else ""
+        return (existing + separator + instruction).encode()
+    if start_count != 1 or end_count != 1:
+        _note_merge_handoff(
+            relative,
+            "marker count is not a single matching start and end",
+            instruction,
+        )
+        return original
+    begin = existing.index(START)
+    finish = existing.index(END, begin)
+    if finish < begin:
+        _note_merge_handoff(
+            relative,
+            "marker count is not a single matching start and end",
+            instruction,
+        )
+        return original
+    span_end = finish + len(END)
+    interior = existing[begin:span_end].replace("\r\n", "\n")
+    recognized = _normalized_owned_span(instruction, START, END)
+    if recognized is None or interior != recognized:
+        _note_merge_handoff(
+            relative,
+            "markers exist but the interior is not the current or a recognized legacy owned block",
+            instruction,
+        )
+        return original
+    if span_end < len(existing) and existing[span_end] == "\r":
+        span_end += 1
+    if span_end < len(existing) and existing[span_end] == "\n":
+        span_end += 1
+    block = instruction if instruction.endswith("\n") else instruction + "\n"
+    return (existing[:begin] + block + existing[span_end:]).encode()
+
+
+def instruction_content(before: bytes | None, instruction: str) -> bytes:
+    return merge_instruction(before, instruction, relative="instruction")
+
+
+
+def _handoff_doctor_command() -> str:
+    command = "py -3" if os.name == "nt" else "python3"
+    return f"{command} .chaos-engine/install.py doctor --project ."
+
+
+def write_merge_handoff(project: Path, doctor_command: str) -> Path | None:
+    """Overwrite the handoff markdown, or remove a stale one after a clean merge."""
+    target = project / MERGE_HANDOFF_RELATIVE
+    items = consume_merge_handoffs()
+    if not items:
+        if target.exists() and target.is_file() and not is_link_or_reparse(target):
+            target.unlink()
+        return None
+    lines = [
+        "# Merge handoff",
+        "",
+        "The portable core is installed. These files were left byte-identical",
+        "because deterministic merge was impossible.",
+        "",
+    ]
+    for item in items:
+        lines.extend(
+            [
+                f"## {item['path']}",
+                "",
+                f"Reason: {item['reason']}",
+                "",
+                "Desired owned block:",
+                "",
+                "```",
+                item["desired"].rstrip("\n"),
+                "```",
+                "",
+            ]
+        )
+    lines.extend(["Doctor:", "", f"`{doctor_command}`", ""])
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = ("\n".join(lines)).encode("utf-8")
+    target.write_bytes(payload)
+    return target
+
+
+def merge_handoff_prompt(doctor_command: str) -> str:
+    return (
+        "Merge ChaosEngine host configuration using "
+        ".chaos-engine-state/merge-handoff.md. Follow "
+        "chaos-engine/references/installer-program.md deterministic merge. "
+        "Preserve every foreign handler and MCP server. Apply only the listed "
+        f"owned blocks. Then run {doctor_command} and follow each fix-next."
+    )
 
 
 def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, object]:
@@ -4456,10 +4575,14 @@ def desired_content(
         after["mempalace.yaml"] = mempalace_before
     after[".gitignore"] = gitignore_content(before[".gitignore"])
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
-        after[relative] = instruction_content(before[relative], INSTRUCTION)
-    after[".github/copilot-instructions.md"] = instruction_content(
+        after[relative] = merge_instruction(
+            before[relative], INSTRUCTION, relative=relative
+        )
+    copilot_instruction = INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/")
+    after[".github/copilot-instructions.md"] = merge_instruction(
         before[".github/copilot-instructions.md"],
-        INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
+        copilot_instruction,
+        relative=".github/copilot-instructions.md",
     )
     after[".mcp.json"] = json_content(
         before[".mcp.json"], maven_runtime, managed_python, account_commands,
@@ -5308,6 +5431,7 @@ def install(
     upgrade_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
+    consume_merge_handoffs()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
         raise ValueError("ChaosEngine capability policy digest is invalid")
     receipt_path = project / RECEIPT_NAME
@@ -5372,6 +5496,7 @@ def install(
             ):
                 apply_hook_receipt(receipt, after, receipt_after)
                 write_receipt(project, receipt, raw)
+                write_merge_handoff(project, _handoff_doctor_command())
                 return receipt
             next_receipt = dict(receipt)
             next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
@@ -5414,6 +5539,7 @@ def install(
                 reconcile(project, wanted, (current, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
+                write_merge_handoff(project, _handoff_doctor_command())
                 return next_receipt
             except BaseException:
                 reconcile(project, current, (current, wanted))
@@ -5427,6 +5553,7 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        write_merge_handoff(project, _handoff_doctor_command())
         return receipt
 
     before = current_images(project)
@@ -5461,8 +5588,10 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        write_merge_handoff(project, _handoff_doctor_command())
         return receipt
     except BaseException:
+        consume_merge_handoffs()
         reconcile(project, before, (before, after))
         remove_created_directories(project, receipt)
         if read_file(project, receipt_path) is not None:

@@ -611,6 +611,23 @@ class InstallReporter:
         if client_names:
             self.stream.write(f"Clients: {', '.join(client_names)}\n")
         self.stream.write(format_first_session_brief(clients=clients if isinstance(clients, dict) else {}))
+        handoff = project / ".chaos-engine-state" / "merge-handoff.md"
+        if handoff.is_file() and not handoff.is_symlink():
+            doctor = "py -3" if os.name == "nt" else "python3"
+            doctor_command = f"{doctor} .chaos-engine/install.py doctor --project ."
+            prompt = (
+                "Merge ChaosEngine host configuration using "
+                ".chaos-engine-state/merge-handoff.md. Follow "
+                "chaos-engine/references/installer-program.md deterministic merge. "
+                "Preserve every foreign handler and MCP server. Apply only the listed "
+                f"owned blocks. Then run {doctor_command} and follow each fix-next."
+            )
+            self.stream.write(self._paint("  Merge handoff", "36") + "\n")
+            self.stream.write(
+                "Core is installed. Some host files were left unchanged. Details: "
+                f"{handoff.as_posix()}\n"
+            )
+            self.stream.write(f"`{prompt}`\n")
         self.stream.write(
             format_host_onboarding_cards(
                 detected=detect_install_hosts(),
