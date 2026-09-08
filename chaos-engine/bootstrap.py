@@ -672,7 +672,7 @@ def format_first_session_brief(*, clients: dict[str, object] | None = None) -> s
     lines = [
         "First-session brief:",
         "  Landed: portable core (`.chaos-engine/`), lifecycle hooks, five host adapters,",
-        "    Caveman + Ponytail + Headroom companions, self-improve skill, Memory / MemPalace / Graphify store tooling.",
+        "    Caveman + Ponytail companions, self-improve skill, Memory / MemPalace / Graphify store tooling.",
         "  Untracked: generated indexes, caches, receipts, and runtimes",
         "    (`.chaos-engine-runtime*`, dependency/host receipts, `graphify-out`, local tool caches).",
         "    Canonical adapters and config stay trackable.",
@@ -850,7 +850,7 @@ def run_first_run_wizard(
         marker = "*" if found else "-"
         output.write(f"  {marker} {label}: {HOST_NEXT_ACTIONS[host_id]}\n")
     output.flush()
-    confirm_operation("Install companions (Caveman + Ponytail + Headroom pin) with the core", input_stream=input_stream, output=output)
+    confirm_operation("Install companions (Caveman + Ponytail) with the core", input_stream=input_stream, output=output)
     confirm_operation("Continue ChaosEngine install", input_stream=input_stream, output=output)
 
 
@@ -1294,13 +1294,12 @@ def parser() -> argparse.ArgumentParser:
         "mempalace",
         "graphify",
         "ponytail",
-        "headroom",
         "caveman",
     ):
         result.add_argument(
             f"--without-{bundle_name}",
             action="store_true",
-            help=f"Disable default-on {bundle_name} (Memory/MemPalace/Graphify/Ponytail/Headroom/Caveman).",
+            help=f"Disable default-on {bundle_name} (Memory/MemPalace/Graphify/Ponytail/Caveman).",
         )
     result.add_argument("--interactive", action="store_true")
     return result
@@ -1601,7 +1600,6 @@ def main() -> int:
                 "mempalace",
                 "graphify",
                 "ponytail",
-                "headroom",
                 "caveman",
             )
         }

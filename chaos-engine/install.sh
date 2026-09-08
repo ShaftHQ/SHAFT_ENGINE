@@ -98,7 +98,7 @@ for argument in "$@"; do
   [ "$argument" = "--maven-tools-mode=docker" ] && maven_tools_mode=docker
   [ "$argument" = "--interactive" ] && interactive=1
   case "$argument" in
-    --without-memory|--without-mempalace|--without-graphify|--without-ponytail|--without-headroom|--without-caveman)
+    --without-memory|--without-mempalace|--without-graphify|--without-ponytail|--without-caveman)
       without_flags="$without_flags $argument"
       ;;
   esac

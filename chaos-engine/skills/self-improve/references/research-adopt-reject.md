@@ -28,5 +28,5 @@ workflows; delivery-phase Learning Session.
 
 ## Dual track (must)
 
-1. **Harness** — skills, hooks, MemPalace, Graphify, Headroom, installer/doctor UX.
+1. **Harness** — skills, hooks, MemPalace, Graphify, installer/doctor UX.
 2. **Product** — adopter product enhancements as privacy-safe queued learnings.

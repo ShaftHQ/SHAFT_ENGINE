@@ -489,7 +489,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Set up JDK 25
-        uses: actions/setup-java@v6.0.0
+        uses: actions/setup-java@v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -551,7 +551,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6.0.0
+        uses: actions/setup-java@v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -600,7 +600,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6.0.0
+        uses: actions/setup-java@v6
         with:
           java-version: "25"
           distribution: "zulu"
@@ -709,7 +709,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6.0.0
+        uses: actions/setup-java@v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -776,7 +776,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6.0.0
+        uses: actions/setup-java@v6
         with:
           java-version: '25'
           distribution: 'zulu'

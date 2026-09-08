@@ -11,7 +11,6 @@ param(
     [switch]$WithoutMempalace,
     [switch]$WithoutGraphify,
     [switch]$WithoutPonytail,
-    [switch]$WithoutHeadroom,
     [switch]$WithoutCaveman
 )
 
@@ -313,7 +312,6 @@ try {
     if ($WithoutMempalace) { $arguments += "--without-mempalace" }
     if ($WithoutGraphify) { $arguments += "--without-graphify" }
     if ($WithoutPonytail) { $arguments += "--without-ponytail" }
-    if ($WithoutHeadroom) { $arguments += "--without-headroom" }
     if ($WithoutCaveman) { $arguments += "--without-caveman" }
     if ($null -eq $python) {
         $uv = Install-ChaosEngineUv $work

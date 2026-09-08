@@ -63,10 +63,10 @@ class SelfImproveSkillTests(unittest.TestCase):
     def test_learning_queue_harness_and_product_candidates(self):
         harness = {
             "category": "tooling",
-            "title": "Headroom doctor fix-next gap",
-            "lesson": "Operators needed one install command after the pin landed",
-            "proposedChange": "Document uv tool install in doctor fix-next",
-            "benefit": "Faster optional Headroom provisioning",
+            "title": "Graphify doctor fix-next gap",
+            "lesson": "Operators needed one repair command after a store probe failed",
+            "proposedChange": "Document repair --component graphify in doctor fix-next",
+            "benefit": "Faster store repair on adopter hosts",
             "estimatedTokens": 100,
         }
         product = {
