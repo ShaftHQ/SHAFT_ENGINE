@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-import unittest
 from pathlib import Path
-from unittest import mock
+from unittest import TestCase, mock
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -19,7 +18,7 @@ def load(path: Path, name: str):
     return module
 
 
-class TokenMaxNoHeadroomTests(unittest.TestCase):
+class TokenMaxNoHeadroomTests(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.policy = load(ROOT / "chaos-engine/mcp_policy.py", "ce_mcp_policy_5689")
@@ -33,7 +32,6 @@ class TokenMaxNoHeadroomTests(unittest.TestCase):
         self.assertIn("disable extras", error)
 
     def test_user_and_project_ids_share_one_heal_prompt(self):
-        project = Path("/tmp/does-not-matter")
         text = (ROOT / "chaos-engine/hosts.py").read_text(encoding="utf-8")
         self.assertIn("disable extras in host MCP config", text)
         self.assertNotIn("headroom", self.hosts.instruction_block("chaos-engine").casefold())

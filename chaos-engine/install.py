@@ -4049,6 +4049,7 @@ def doctor_with_dependencies(
                             "Reinstall so .chaos-engine owned files match chaos-engine/."
                         )
     except (OSError, RuntimeError, ValueError, AttributeError):
+        # Optional #5689 probes; missing helpers must not crash doctor.
         pass
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
