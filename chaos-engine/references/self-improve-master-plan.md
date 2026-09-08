@@ -16,7 +16,7 @@ detail. This portable file stays free of product-locked tokens.
 | SessionStart locator-only; Learning Session on delivery Stop | Shipped |
 | Harness parity across supported hosts via portable overlay | Shipped policy |
 | One-command install/configure/update | Shipped north star |
-| Headroom max-savings default; Caveman + Ponytail | Shipped |
+| Caveman + Ponytail companions | Shipped |
 | Issues-first; eval-gated draft skill PRs opt-in later | Locked |
 | Merge commits only | Locked |
 

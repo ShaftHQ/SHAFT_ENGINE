@@ -63,12 +63,6 @@ def token_budget_guidance(mode: str | None = None) -> str:
     return str(TOKEN_BUDGET_MODES[selected]["guidance"])
 
 
-HEADROOM_PROFILE_BY_BUDGET = {
-    "ultra-lean": "agent-90",
-    "balanced": "balanced",
-    "deep": "coding",
-}
-
 # Triage (blast radius) → default token budget when env unset (#5621).
 # Env CHAOS_ENGINE_TOKEN_BUDGET remains the owner override.
 TRIAGE_TO_TOKEN_BUDGET = {
@@ -111,16 +105,6 @@ def level1_catalog_guidance() -> str:
 def heal_route_guidance() -> str:
     """Router Heal surface always reachable by file path."""
     return "Heal: references/heal-route.md (install one-liner / repair --component)."
-
-def headroom_session_guidance(mode: str | None = None) -> str:
-    """Compact SessionStart line for Headroom profile (locator-only)."""
-    selected = mode or TOKEN_BUDGET_DEFAULT
-    if selected not in HEADROOM_PROFILE_BY_BUDGET:
-        selected = TOKEN_BUDGET_DEFAULT
-    profile = HEADROOM_PROFILE_BY_BUDGET[selected]
-    return f"Headroom {profile}/{selected}; beacon=off."
-
-
 
 def wake_pack_session_guidance() -> str:
     """Locator only — never dump wake-pack or Memory/MemPalace prose (#5624)."""
@@ -232,7 +216,6 @@ def session_start_context(token: str | None, activation: str) -> str:
     parts.append(ULTRA_SELECTOR)
     budget = resolve_token_budget_mode()
     parts.append(token_budget_guidance(budget))
-    parts.append(headroom_session_guidance(budget))
     parts.append(zero_llm_session_guidance())
     parts.append(level1_catalog_guidance())
     parts.append(heal_route_guidance())

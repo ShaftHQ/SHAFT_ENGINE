@@ -19,7 +19,7 @@ Lean CE-native skill informed by Task Observer methodology
 
 ## Dual track
 
-1. **Harness** — skills, hooks, MemPalace, Graphify, Headroom, installer/doctor.
+1. **Harness** — skills, hooks, MemPalace, Graphify, installer/doctor.
 2. **Product** — enhancements for the product under development (queued issues).
 
 Details: [references/observation-taxonomy.md](references/observation-taxonomy.md).
@@ -45,10 +45,10 @@ Example:
 cat > /tmp/learning-candidate.json <<'EOF'
 {
   "category": "tooling",
-  "title": "Doctor headroom fix-next missing",
-  "lesson": "Operators lacked a single install command after pin landed",
-  "proposedChange": "Surface uv tool install pin in doctor fix-next",
-  "benefit": "Faster Headroom provisioning on adopter hosts",
+  "title": "Doctor fix-next missing for Graphify",
+  "lesson": "Operators lacked a single repair command after a store probe failed",
+  "proposedChange": "Surface repair --component graphify in doctor fix-next",
+  "benefit": "Faster store repair on adopter hosts",
   "estimatedTokens": 120
 }
 EOF
