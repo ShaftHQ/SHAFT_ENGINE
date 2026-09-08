@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Significance-filtered mid-session capture — soft marks, no Task Observer (#5658 / #4).
+"""
+Significance-filtered mid-session capture — soft marks, no Task Observer (#5658 / #4).
 
 Writes tiny structured notes under `.chaos-engine-state/significance/` only when
 friction is significant (corrections, repeated failures, missing skill coverage,
@@ -229,7 +230,8 @@ def soft_post_tool_capture(
     tool_name: str = "",
     project: Path | None = None,
 ) -> dict[str, Any] | None:
-    """Ultra-cheap soft PostToolUse/deny path — state file only, no refs load.
+    """
+    Ultra-cheap soft PostToolUse/deny path — state file only, no refs load.
 
     Default: only significant fail/deny. Opt-in broader capture via
     CHAOS_ENGINE_SIGNIFICANCE_CAPTURE=1 still requires the significance filter

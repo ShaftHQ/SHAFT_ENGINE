@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""SkillOpt-style SKILL.md compression audit — propose only, never apply (#5659 / #6).
+"""
+SkillOpt-style SKILL.md compression audit — propose only, never apply (#5659 / #6).
 
 Offline/script CLI that scores skill bodies for filler/bloat and emits a bounded
 propose-only report (optional unified-diff stubs). Never writes SKILL.md.
@@ -165,28 +166,57 @@ def audit_skill(path: Path) -> dict[str, Any]:
     }
 
 
+def _drop_lines_from_proposals(report: dict[str, Any]) -> set[int]:
+    drop_lines: set[int] = set()
+    for proposal in report.get("proposals") or []:
+        if not isinstance(proposal, dict):
+            continue
+        if proposal.get("action") != "drop-filler":
+            continue
+        for line_no in proposal.get("lines") or []:
+            if isinstance(line_no, int):
+                drop_lines.add(line_no)
+    return drop_lines
+
+
+def _trim_trailing_blanks(lines: list[str]) -> list[str]:
+    kept = list(lines)
+    while kept and not kept[-1].strip():
+        kept.pop()
+    return kept
+
+
+def _diff_body_lines(
+    original: list[str], drop_lines: set[int], *, max_lines: int
+) -> list[str]:
+    body: list[str] = []
+    for index, line in enumerate(original, start=1):
+        if index in drop_lines:
+            body.append(f"-{line}")
+            continue
+        if len(body) >= max_lines // 2:
+            continue
+        if any(abs(index - dropped) <= 1 for dropped in drop_lines):
+            body.append(f" {line}")
+    return body
+
+
 def propose_diff_stub(report: dict[str, Any], *, max_lines: int = MAX_DIFF_LINES) -> str:
-    """Build a bounded unified-diff *stub* of filler line removals (never written)."""
+    """
+    Build a bounded unified-diff *stub* of filler line removals (never written).
+    """
     path = Path(str(report.get("path") or "SKILL.md"))
     try:
         original = path.read_text(encoding="utf-8").splitlines()
     except OSError:
         return ""
-    drop_lines = set()
-    for proposal in report.get("proposals") or []:
-        if not isinstance(proposal, dict):
-            continue
-        if proposal.get("action") == "drop-filler":
-            for line_no in proposal.get("lines") or []:
-                if isinstance(line_no, int):
-                    drop_lines.add(line_no)
-    if not drop_lines and not (report.get("score") or {}).get("overBudget"):
+    drop_lines = _drop_lines_from_proposals(report)
+    over_budget = bool((report.get("score") or {}).get("overBudget"))
+    if not drop_lines and not over_budget:
         return ""
     kept = [line for index, line in enumerate(original, start=1) if index not in drop_lines]
-    # If over budget with no filler drops, propose trimming trailing blank/comment noise only.
-    if len(kept) == len(original) and (report.get("score") or {}).get("overBudget"):
-        while kept and not kept[-1].strip():
-            kept.pop()
+    if len(kept) == len(original) and over_budget:
+        kept = _trim_trailing_blanks(kept)
     if kept == original:
         return ""
     header = [
@@ -194,21 +224,14 @@ def propose_diff_stub(report: dict[str, Any], *, max_lines: int = MAX_DIFF_LINES
         f"+++ b/{path.name}  (PROPOSE ONLY — not applied)",
         f"@@ compress stub; gate: {report.get('applyGate')} @@",
     ]
-    body: list[str] = []
-    # Emit a compact removal-focused stub (bounded).
-    for index, line in enumerate(original, start=1):
-        if index in drop_lines:
-            body.append(f"-{line}")
-        elif len(body) < max_lines // 2:
-            # Keep sparse context markers only near removals.
-            if any(abs(index - dropped) <= 1 for dropped in drop_lines):
-                body.append(f" {line}")
+    body = _diff_body_lines(original, drop_lines, max_lines=max_lines)
     if not body and len(kept) < len(original):
         body.append(f"-# trimmed {len(original) - len(kept)} trailing blank line(s)")
     stub = "\n".join(header + body[:max_lines])
     if len(body) > max_lines:
         stub += f"\n# ... truncated ({len(body) - max_lines} more propose lines)"
     return stub + "\n"
+
 
 
 def audit_tree(
