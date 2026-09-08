@@ -396,6 +396,42 @@ class InstallConflictHandoffTest(unittest.TestCase):
             self.assertTrue(handoff.is_file())
             self.assertIn(".mcp.json", handoff.read_text(encoding="utf-8"))
 
+    def test_extra_args_mcp_collision_survives_second_bind(self) -> None:
+        colliding = json.dumps(
+            {
+                "mcpServers": {
+                    "chaosengine-memory": {
+                        "command": "python3",
+                        "args": [
+                            ".chaos-engine/tool.py",
+                            "memory-mcp",
+                            "--operator-flag",
+                        ],
+                        "cwd": ".",
+                    }
+                }
+            },
+            indent=2,
+            sort_keys=True,
+        ).encode() + b"\n"
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw) / "extra-args"
+            project.mkdir()
+            (project / ".mcp.json").write_bytes(colliding)
+            seed_core(project, self.install)
+            bind_hosts(self.hosts, project)
+            bind_hosts(self.hosts, project)
+            live = json.loads((project / ".mcp.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                [
+                    ".chaos-engine/tool.py",
+                    "memory-mcp",
+                    "--operator-flag",
+                ],
+                live["mcpServers"]["chaosengine-memory"]["args"],
+            )
+            self.assertEqual(colliding, (project / ".mcp.json").read_bytes())
+
     def test_claude_plugin_collision_byte_preserves_and_hands_off(self) -> None:
         settings = json.dumps(
             {
@@ -416,7 +452,76 @@ class InstallConflictHandoffTest(unittest.TestCase):
             self.assertEqual(settings, (claude / "settings.json").read_bytes())
             handoff = project / ".chaos-engine-state/merge-handoff.md"
             self.assertTrue(handoff.is_file())
-            self.assertIn(".claude/settings.json", handoff.read_text(encoding="utf-8"))
+            body = handoff.read_text(encoding="utf-8")
+            self.assertIn(".claude/settings.json", body)
+            self.assertNotIn("same-name MCP", body)
+            self.assertIn("plugin enablement", body)
+            fence = body.split("```", 2)
+            self.assertGreaterEqual(len(fence), 3)
+            self.assertTrue(fence[1].strip())
+
+    def test_companion_plugin_collisions_byte_preserve_and_hand_off(self) -> None:
+        claude_market = json.dumps(
+            {
+                "name": "chaos-engine-project",
+                "owner": {"name": "operator"},
+                "plugins": [
+                    {
+                        "name": "caveman",
+                        "source": "./foreign-caveman",
+                        "version": "0.0.1",
+                    },
+                    {
+                        "name": "ponytail",
+                        "source": "./foreign-ponytail",
+                        "version": "0.0.1",
+                    },
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        ).encode() + b"\n"
+        agents_market = json.dumps(
+            {
+                "name": "operator-market",
+                "plugins": [
+                    {
+                        "name": "caveman",
+                        "source": {"source": "local", "path": "./foreign-caveman"},
+                    },
+                    {
+                        "name": "ponytail",
+                        "source": {"source": "local", "path": "./foreign-ponytail"},
+                    },
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        ).encode() + b"\n"
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw) / "companions"
+            project.mkdir()
+            (project / ".claude-plugin").mkdir()
+            (project / ".agents/plugins").mkdir(parents=True)
+            (project / ".claude-plugin/marketplace.json").write_bytes(claude_market)
+            (project / ".agents/plugins/marketplace.json").write_bytes(agents_market)
+            seed_core(project, self.install)
+            bind_hosts(self.hosts, project)
+            self.assertEqual(
+                claude_market,
+                (project / ".claude-plugin/marketplace.json").read_bytes(),
+            )
+            self.assertEqual(
+                agents_market,
+                (project / ".agents/plugins/marketplace.json").read_bytes(),
+            )
+            handoff = project / ".chaos-engine-state/merge-handoff.md"
+            self.assertTrue(handoff.is_file())
+            body = handoff.read_text(encoding="utf-8")
+            self.assertIn(".claude-plugin/marketplace.json", body)
+            self.assertIn(".agents/plugins/marketplace.json", body)
+            self.assertIn("plugin marketplace", body)
+            self.assertNotIn("```\n```", body)
 
     def test_edited_gitignore_interior_is_left_unchanged_and_handed_off(self) -> None:
         original = (
@@ -433,7 +538,9 @@ class InstallConflictHandoffTest(unittest.TestCase):
             self.assertEqual(original, (project / ".gitignore").read_bytes())
             handoff = project / ".chaos-engine-state/merge-handoff.md"
             self.assertTrue(handoff.is_file())
-            self.assertIn(".gitignore", handoff.read_text(encoding="utf-8"))
+            body = handoff.read_text(encoding="utf-8")
+            self.assertIn(".gitignore", body)
+            self.assertNotIn("legacy", body)
             self.assertIn("secret.env", (project / ".gitignore").read_text(encoding="utf-8"))
 
     def test_symlink_instruction_file_fails_closed_without_handoff(self) -> None:

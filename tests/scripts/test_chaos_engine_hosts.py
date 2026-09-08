@@ -3934,17 +3934,32 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_preflight_inverts_exact_receipt_mcp_servers_and_legacy_aliases(self):
         module = load(HOSTS, "chaos_engine_hosts_receipt_mcp_reconciliation")
+        memory_args = [".chaos-engine/tool.py", "memory-mcp"]
+        palace_args = [
+            ".chaos-engine/tool.py",
+            "mempalace-mcp",
+            "--palace",
+            ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
+        ]
         candidate_servers = {
             "chaosengine-memory": {
-                "command": "python3", "args": [".chaos-engine/tool.py", "memory-mcp"], "cwd": ".",
+                "command": "python3",
+                "args": memory_args,
+                "commandWindows": "py",
+                "argsWindows": ["-3", *memory_args],
+                "cwd": ".",
             },
             "chaosengine-mempalace": {
-                "command": "python3", "args": [".chaos-engine/tool.py", "mempalace-mcp"], "cwd": ".",
+                "command": "python3",
+                "args": palace_args,
+                "commandWindows": "py",
+                "argsWindows": ["-3", *palace_args],
+                "cwd": ".",
+                "env": dict(module.MEMPALACE_MCP_ENV),
             },
-            "maven-tools-mcp": {
-                "command": "/usr/bin/java",
-                "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
-            },
+            "maven-tools-mcp": module.LEGACY_MAVEN_TOOLS_SERVER,
         }
         aliases = {
             "shaft-memory": {
