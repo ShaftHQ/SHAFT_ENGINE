@@ -108,9 +108,10 @@ class SessionStartLocatorParityTests(unittest.TestCase):
     def test_matrix_sessionstart_row_is_green(self):
         text = MATRIX.read_text(encoding="utf-8")
         self.assertIn(
-            "| SessionStart locator-only / progressive disclosure | A | A | A | A | A |",
+            "| SessionStart locator-only / progressive disclosure | A | A | G stdout ignored | A | A |",
             text,
         )
+        self.assertIn("GAP-SESSIONSTART-STDOUT", text)
         self.assertIn("test_chaos_engine_sessionstart_locator_parity.py", text)
         self.assertIn("SESSION_START_MAX_BYTES", text)
 

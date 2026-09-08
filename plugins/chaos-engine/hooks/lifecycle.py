@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import io
 import json
 import sys
@@ -11,10 +12,169 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 COMPANION_NAMES = ("caveman", "ponytail")
+# Hard budget for SessionStart additionalContext (#5580). Locators only.
+SESSION_START_MAX_BYTES = 4096
+TOKEN_BUDGET_DEFAULT = "ultra-lean"
+TOKEN_BUDGET_MODES = {
+    "ultra-lean": {
+        "read_line_budget": 80,
+        "guidance": (
+            "Token budget ultra-lean: ≤80-line excerpts; one search; script-first. "
+            "Details: chaos-engine/references/token-budget-modes.md"
+        ),
+    },
+    "balanced": {
+        "read_line_budget": 200,
+        "guidance": (
+            "Token budget balanced: ≤200-line excerpts; narrow once after "
+            "truncation; prefer path+excerpt over dumps; script-first when multi-hop. "
+            "Details: chaos-engine/references/token-budget-modes.md"
+        ),
+    },
+    "deep": {
+        "read_line_budget": 400,
+        "guidance": (
+            "Token budget deep: ≤400-line excerpts; allow a second discriminating pass "
+            "before deciding; spill large tool output to disk; still prefer script-first "
+            "for mechanical transforms; keep safety and negation intact. "
+            "Details: chaos-engine/references/token-budget-modes.md"
+        ),
+    },
+}
+
+
+def resolve_token_budget_mode(environ: Mapping[str, str] | None = None) -> str:
+    """Return the owner-selected token budget mode (default ultra-lean / max)."""
+    env = environ if environ is not None else os.environ
+    raw = str(env.get("CHAOS_ENGINE_TOKEN_BUDGET") or TOKEN_BUDGET_DEFAULT).strip().casefold()
+    # Accept common aliases
+    aliases = {"lean": "ultra-lean", "ultra_lean": "ultra-lean", "default": "ultra-lean", "max": "ultra-lean"}
+    raw = aliases.get(raw, raw)
+    if raw not in TOKEN_BUDGET_MODES:
+        return TOKEN_BUDGET_DEFAULT
+    return raw
+
+
+def token_budget_guidance(mode: str | None = None) -> str:
+    """Return the compact guidance string for a mode (fixture + SessionStart)."""
+    selected = mode or TOKEN_BUDGET_DEFAULT
+    if selected not in TOKEN_BUDGET_MODES:
+        selected = TOKEN_BUDGET_DEFAULT
+    return str(TOKEN_BUDGET_MODES[selected]["guidance"])
+
+
+HEADROOM_PROFILE_BY_BUDGET = {
+    "ultra-lean": "agent-90",
+    "balanced": "balanced",
+    "deep": "coding",
+}
+
+# Triage (blast radius) → default token budget when env unset (#5621).
+# Env CHAOS_ENGINE_TOKEN_BUDGET remains the owner override.
+TRIAGE_TO_TOKEN_BUDGET = {
+    "one-file": "ultra-lean",
+    "one-module": "ultra-lean",
+    "module": "ultra-lean",
+    "public-contract": "ultra-lean",
+}
+
+
+
+def triage_token_budget(triage: str | None) -> str:
+    """Map triage blast-radius label to the default token budget mode."""
+    raw = str(triage or "").strip().casefold().replace("_", "-").replace(" ", "-")
+    aliases = {
+        "onefile": "one-file",
+        "file": "one-file",
+        "onemodule": "one-module",
+        "public": "public-contract",
+        "contract": "public-contract",
+        "hard-to-reverse": "public-contract",
+    }
+    raw = aliases.get(raw, raw)
+    return TRIAGE_TO_TOKEN_BUDGET.get(raw, TOKEN_BUDGET_DEFAULT)
+
+
+def zero_llm_session_guidance() -> str:
+    """Prefer doctor/repair catalog before chat discovery (locator-only)."""
+    return (
+        "Zero-LLM first: references/zero-llm-catalog.md "
+        "(doctor / repair --component / --fix-next-only) before chat discovery."
+    )
+
+
+def level1_catalog_guidance() -> str:
+    """Point at the Level-1 progressive-disclosure surface catalog."""
+    return "Level-1 catalog: references/level-1-catalog.md."
+
+
+def heal_route_guidance() -> str:
+    """Router Heal surface always reachable by file path."""
+    return "Heal: references/heal-route.md (install one-liner / repair --component)."
+
+def headroom_session_guidance(mode: str | None = None) -> str:
+    """Compact SessionStart line for Headroom profile (locator-only)."""
+    selected = mode or TOKEN_BUDGET_DEFAULT
+    if selected not in HEADROOM_PROFILE_BY_BUDGET:
+        selected = TOKEN_BUDGET_DEFAULT
+    profile = HEADROOM_PROFILE_BY_BUDGET[selected]
+    return f"Headroom {profile}/{selected}; beacon=off."
+
+
+
+def wake_pack_session_guidance() -> str:
+    """Locator only — never dump wake-pack or Memory/MemPalace prose (#5624)."""
+    return "Wake pack: `.chaos-engine-state/wake-pack.md` (locator only)."
+
+
+def self_improve_session_guidance() -> str:
+    """Cheap SessionStart locator — full protocol runs at Learning Session."""
+    return "Learning: skills/self-improve/SKILL.md."
+
+
+def heuristics_session_guidance() -> str:
+    """ERL heuristic store locator only — never inject heuristic prose (#5656)."""
+    return (
+        "Heuristics: `.chaos-engine-state/heuristics/` "
+        "(retrieve once/task via `retrieve.py heuristics --top 3`; no prose dump)."
+    )
+
+
+def cli_over_mcp_session_guidance() -> str:
+    """CLI-over-MCP iron law locator (#5655)."""
+    return (
+        "CLI-over-MCP: prefer gh / learning.py / doctor / phase_ledger / "
+        "tool.py retrieve over MCP for the same job (zero-llm-catalog)."
+    )
+
+
+def significance_session_guidance() -> str:
+    """Significance-filtered capture locator only — never Observer (#5658)."""
+    return (
+        "Significance: `.chaos-engine-state/significance/` "
+        "(soft fail/deny marks; Learning Session drain; no Observer)."
+    )
+
+
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
+    "Chat follows Caveman ultra; artifacts follow Ponytail ultra. "
+    "Host complete-sentence / tool-narration rules yield to companions. "
     "Off only: stop caveman, stop ponytail, or normal mode."
 )
+
+
+def enforcement_card(*, origin_source: bool | None = None) -> str:
+    """Always-on locator card. Does not depend on SessionStart stdout."""
+    if origin_source is None:
+        origin_source = (Path.cwd() / "chaos-engine/skills/chaos-engine/SKILL.md").is_file()
+    root = "chaos-engine" if origin_source else ".chaos-engine"
+    return (
+        f"CE card: follow `{root}/skills/chaos-engine/SKILL.md`. "
+        "Caveman=ultra Ponytail=ultra budget=ultra-lean Headroom=agent-90. "
+        f"Before broad search: `python3 {root}/tool.py retrieve \"…\"` then `graphify query \"…\"`. "
+        "CLI over MCP. No duplicate GitHub MCP."
+    )
 LIFECYCLE_EVENTS = (
     "SessionStart",
     "UserPromptSubmit",
@@ -81,10 +241,21 @@ def _workspace_locator(path: Path) -> str:
 
 def session_start_context(token: str | None, activation: str) -> str:
     """Return compact activation; agents load canonical skills from owned paths."""
-    parts = [f"ChaosEngine: {activation}"]
+    parts = [f"ChaosEngine: {activation}", enforcement_card()]
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
     parts.append(ULTRA_SELECTOR)
+    budget = resolve_token_budget_mode()
+    parts.append(token_budget_guidance(budget))
+    parts.append(headroom_session_guidance(budget))
+    parts.append(zero_llm_session_guidance())
+    parts.append(level1_catalog_guidance())
+    parts.append(heal_route_guidance())
+    parts.append(wake_pack_session_guidance())
+    parts.append(self_improve_session_guidance())
+    parts.append(heuristics_session_guidance())
+    parts.append(cli_over_mcp_session_guidance())
+    parts.append(significance_session_guidance())
     for name in COMPANION_NAMES:
         for root in _search_roots():
             path = next(
@@ -95,7 +266,18 @@ def session_start_context(token: str | None, activation: str) -> str:
                 locator = _workspace_locator(path)
                 parts.append(f"Required companion: read and follow `{locator}` before responding.")
                 break
-    return "\n\n".join(parts)
+    rendered = "\n\n".join(parts)
+    with contextlib.suppress(Exception):
+        counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
+        if counters_path.is_file():
+            import importlib.util as _ilu
+
+            _spec = _ilu.spec_from_file_location("ce_learning_counters_ss", counters_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                _mod.record_session_start_bytes(len(rendered.encode("utf-8")))
+    return rendered
 
 
 def _reject_json_constant(value: str):
@@ -106,8 +288,9 @@ def _strict_json_loads(rendered: str):
     return json.loads(rendered, parse_constant=_reject_json_constant)
 
 
-def _write_json(output: dict) -> None:
-    sys.stdout.write(json.dumps(output, separators=(",", ":"), allow_nan=False) + "\n")
+def _write_json(output: dict, stream=None) -> None:
+    target = sys.stdout if stream is None else stream
+    target.write(json.dumps(output, separators=(",", ":"), allow_nan=False) + "\n")
 
 
 def run_hook_protocol(
@@ -171,5 +354,5 @@ def run_hook_protocol(
             print(f"Hook fallback error: {fallback_error}", file=sys.stderr)
             output = {}
         result = 0
-    _write_json(output)
+    _write_json(output, sys.stderr if host == "claude" and result == 2 else sys.stdout)
     return result

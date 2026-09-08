@@ -9,6 +9,7 @@ import ctypes
 import errno
 import hashlib
 import hmac
+import importlib.util
 import json
 import os
 import urllib.request
@@ -1028,6 +1029,26 @@ def mcp_runtime_status(
     account_commands: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Return one bounded MCP runtime result without retaining child output."""
+    try:
+        from pathlib import Path as _PolicyPath
+        _policy = Path(__file__).resolve().with_name("mcp_policy.py")
+        if _policy.is_file():
+            spec = importlib.util.spec_from_file_location("ce_mcp_policy", _policy)
+            if spec is not None and spec.loader is not None:
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                names: list[str] = []
+                mcp_json = project / ".mcp.json"
+                if mcp_json.is_file():
+                    parsed = json.loads(mcp_json.read_text(encoding="utf-8"))
+                    servers = parsed.get("mcpServers") or parsed.get("servers") or {}
+                    if isinstance(servers, dict):
+                        names.extend(servers)
+                error = mod.uniqueness_error(names)
+                if error:
+                    return {"status": "recovery-required", "detail": error}
+    except (OSError, json.JSONDecodeError, ValueError, AttributeError):
+        pass
     palace = (
         resolved_central_palace(project)
         if repository_map_resolver_present(project)
@@ -1920,12 +1941,29 @@ START = "<!-- CHAOSENGINE:START -->"
 END = "<!-- CHAOSENGINE:END -->"
 DIRECTORY_MARKER = ".chaos-engine-owned-directory"
 DIRECTORY_CLAIM_PREFIX = ".chaos-engine-directory-claim-"
-INSTRUCTION = (
-    f"{START}\nBefore every task, follow the canonical "
-    "[ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). "
-    "Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools.\n"
-    f"{END}\n"
-)
+def guidance_tree(project: Path | None = None) -> str:
+    """Origin checkout loads SOURCE; adopter installs load overlay."""
+    if project is None:
+        return ".chaos-engine"
+    if (project / "chaos-engine/skills/chaos-engine/SKILL.md").is_file():
+        return "chaos-engine"
+    return ".chaos-engine"
+
+
+def instruction_block(tree: str = ".chaos-engine") -> str:
+    skill = f"{tree}/skills/chaos-engine/SKILL.md"
+    tool = f"{tree}/tool.py"
+    return (
+        f"{START}\n"
+        f"Before every task, follow the canonical [ChaosEngine]({skill}). "
+        "Caveman ultra. Ponytail ultra. Token budget ultra-lean. Headroom agent-90. "
+        f"Use `{tool} retrieve` then `graphify query` before broad search. "
+        "Host chat formatting yields to Caveman. CLI over MCP. No duplicate GitHub MCP.\n"
+        f"{END}\n"
+    )
+
+
+INSTRUCTION = instruction_block(".chaos-engine")
 GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
 GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
 GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
@@ -4189,6 +4227,7 @@ def desired_content(
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    project: Path | None = None,
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -4206,9 +4245,10 @@ def desired_content(
         managed_python = Path(python)
         managed_node = Path(node)
     adapters = managed_paths()[:4]
+    tree = guidance_tree(project)
     skill = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
-        "Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).\n"
+        f"Follow the [canonical ChaosEngine](../../../{tree}/skills/chaos-engine/SKILL.md).\n"
     ).encode()
     after = {relative: skill for relative in adapters}
     stub_readme = (
@@ -4775,11 +4815,12 @@ def desired_content(
         validate_mempalace_config(mempalace_before)
         after["mempalace.yaml"] = mempalace_before
     after[".gitignore"] = gitignore_content(before[".gitignore"])
+    block = instruction_block(tree)
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
         after[relative] = merge_instruction(
-            before[relative], INSTRUCTION, relative=relative
+            before[relative], block, relative=relative
         )
-    copilot_instruction = INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/")
+    copilot_instruction = block.replace(f"{tree}/", f"../{tree}/")
     after[".github/copilot-instructions.md"] = merge_instruction(
         before[".github/copilot-instructions.md"],
         copilot_instruction,
@@ -5696,6 +5737,7 @@ def install(
                 dependency_runtime=dependency_runtime,
                 account_commands=account_commands,
                 maven_docker=maven_docker,
+                project=project,
             )
             for relative in LIVE_PERSISTENT_PATHS:
                 wanted[relative] = current[relative]
@@ -5780,6 +5822,7 @@ def install(
         dependency_runtime=dependency_runtime,
         account_commands=account_commands,
         maven_docker=maven_docker,
+        project=project,
     )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")

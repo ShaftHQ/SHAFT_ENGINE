@@ -72,7 +72,8 @@ class HeadroomCompanionTests(unittest.TestCase):
     def test_doctor_status_is_optional_with_fix_next(self):
         status = self.policy.doctor_status()
         self.assertEqual("optional", status["taskImpact"])
-        self.assertIn(status["status"], {"healthy", "absent", "broken"})
+        self.assertIn(status["status"], {"healthy", "absent", "broken", "recovery-required"})
+        self.assertIn("wrap", status)
         self.assertIn("headroom-ai==0.37.0", status["pin"])
         self.assertIn("headroom-ai==0.37.0", status["detail"])
         if status["status"] == "absent":
@@ -167,7 +168,7 @@ class HeadroomCompanionTests(unittest.TestCase):
         )
         headroom = result["components"]["headroom"]
         self.assertEqual("optional", headroom["taskImpact"])
-        self.assertIn(headroom["status"], {"healthy", "absent"})
+        self.assertIn(headroom["status"], {"healthy", "absent", "recovery-required"})
         self.assertNotEqual("broken", headroom["status"])
 
 

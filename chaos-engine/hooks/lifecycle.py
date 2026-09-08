@@ -14,7 +14,7 @@ from pathlib import Path
 COMPANION_NAMES = ("caveman", "ponytail")
 # Hard budget for SessionStart additionalContext (#5580). Locators only.
 SESSION_START_MAX_BYTES = 4096
-TOKEN_BUDGET_DEFAULT = "balanced"
+TOKEN_BUDGET_DEFAULT = "ultra-lean"
 TOKEN_BUDGET_MODES = {
     "ultra-lean": {
         "read_line_budget": 80,
@@ -26,7 +26,7 @@ TOKEN_BUDGET_MODES = {
     "balanced": {
         "read_line_budget": 200,
         "guidance": (
-            "Token budget balanced (default): ≤200-line excerpts; narrow once after "
+            "Token budget balanced: ≤200-line excerpts; narrow once after "
             "truncation; prefer path+excerpt over dumps; script-first when multi-hop. "
             "Details: chaos-engine/references/token-budget-modes.md"
         ),
@@ -44,11 +44,11 @@ TOKEN_BUDGET_MODES = {
 
 
 def resolve_token_budget_mode(environ: Mapping[str, str] | None = None) -> str:
-    """Return the owner-selected token budget mode (default balanced)."""
+    """Return the owner-selected token budget mode (default ultra-lean / max)."""
     env = environ if environ is not None else os.environ
     raw = str(env.get("CHAOS_ENGINE_TOKEN_BUDGET") or TOKEN_BUDGET_DEFAULT).strip().casefold()
     # Accept common aliases
-    aliases = {"lean": "ultra-lean", "ultra_lean": "ultra-lean", "default": "balanced"}
+    aliases = {"lean": "ultra-lean", "ultra_lean": "ultra-lean", "default": "ultra-lean", "max": "ultra-lean"}
     raw = aliases.get(raw, raw)
     if raw not in TOKEN_BUDGET_MODES:
         return TOKEN_BUDGET_DEFAULT
@@ -73,9 +73,9 @@ HEADROOM_PROFILE_BY_BUDGET = {
 # Env CHAOS_ENGINE_TOKEN_BUDGET remains the owner override.
 TRIAGE_TO_TOKEN_BUDGET = {
     "one-file": "ultra-lean",
-    "one-module": "balanced",
-    "module": "balanced",
-    "public-contract": "deep",
+    "one-module": "ultra-lean",
+    "module": "ultra-lean",
+    "public-contract": "ultra-lean",
 }
 
 
@@ -158,8 +158,23 @@ def significance_session_guidance() -> str:
 
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
+    "Chat follows Caveman ultra; artifacts follow Ponytail ultra. "
+    "Host complete-sentence / tool-narration rules yield to companions. "
     "Off only: stop caveman, stop ponytail, or normal mode."
 )
+
+
+def enforcement_card(*, origin_source: bool | None = None) -> str:
+    """Always-on locator card. Does not depend on SessionStart stdout."""
+    if origin_source is None:
+        origin_source = (Path.cwd() / "chaos-engine/skills/chaos-engine/SKILL.md").is_file()
+    root = "chaos-engine" if origin_source else ".chaos-engine"
+    return (
+        f"CE card: follow `{root}/skills/chaos-engine/SKILL.md`. "
+        "Caveman=ultra Ponytail=ultra budget=ultra-lean Headroom=agent-90. "
+        f"Before broad search: `python3 {root}/tool.py retrieve \"…\"` then `graphify query \"…\"`. "
+        "CLI over MCP. No duplicate GitHub MCP."
+    )
 LIFECYCLE_EVENTS = (
     "SessionStart",
     "UserPromptSubmit",
@@ -226,7 +241,7 @@ def _workspace_locator(path: Path) -> str:
 
 def session_start_context(token: str | None, activation: str) -> str:
     """Return compact activation; agents load canonical skills from owned paths."""
-    parts = [f"ChaosEngine: {activation}"]
+    parts = [f"ChaosEngine: {activation}", enforcement_card()]
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
     parts.append(ULTRA_SELECTOR)

@@ -32,12 +32,12 @@ class WaveBRouterCatalogTests(unittest.TestCase):
 
     def test_triage_maps_to_token_budget_defaults(self):
         self.assertEqual("ultra-lean", self.lifecycle.triage_token_budget("one-file"))
-        self.assertEqual("balanced", self.lifecycle.triage_token_budget("module"))
-        self.assertEqual("balanced", self.lifecycle.triage_token_budget("one-module"))
-        self.assertEqual("deep", self.lifecycle.triage_token_budget("public-contract"))
-        self.assertEqual("deep", self.lifecycle.triage_token_budget("hard-to-reverse"))
+        self.assertEqual("ultra-lean", self.lifecycle.triage_token_budget("module"))
+        self.assertEqual("ultra-lean", self.lifecycle.triage_token_budget("one-module"))
+        self.assertEqual("ultra-lean", self.lifecycle.triage_token_budget("public-contract"))
+        self.assertEqual("ultra-lean", self.lifecycle.triage_token_budget("hard-to-reverse"))
         self.assertEqual(
-            "balanced", self.lifecycle.triage_token_budget("unknown-triage")
+            "ultra-lean", self.lifecycle.triage_token_budget("unknown-triage")
         )
         text = TOKEN.read_text(encoding="utf-8")
         self.assertIn("Triage", text)

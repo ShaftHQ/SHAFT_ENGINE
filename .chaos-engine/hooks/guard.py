@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import json
+import os
 import hashlib
 import importlib.util
 import posixpath
@@ -60,8 +63,29 @@ def _learning_session_controller():
     return learning_session
 
 
+def _portable_learning_completion(session_id: str) -> dict | None:
+    """Load portable `.chaos-engine-state/learning-session/` completion (#5625)."""
+    if not isinstance(session_id, str) or not session_id.strip():
+        return None
+    safe = session_id.strip()[:64]
+    for root in (Path.cwd(), Path(__file__).resolve().parents[2]):
+        path = root / ".chaos-engine-state" / "learning-session" / f"{safe}.completion.json"
+        if not path.is_file():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeError):
+            continue
+        if isinstance(value, dict) and value.get("kind") == "learning-session-portable-finalize":
+            return value
+    return None
+
+
 def learning_completion_artifact(session_id: str) -> dict | None:
     """Return the immutable Learning Session completion for hooks, if present."""
+    portable = _portable_learning_completion(session_id)
+    if portable is not None:
+        return portable
     controller = _learning_session_controller()
     if controller is None or not isinstance(session_id, str) or not session_id.strip():
         return None
@@ -103,7 +127,10 @@ def learning_session_reason(session_id: str, event: dict) -> str | None:
         return None
     return (
         "Learning Session: delivery is complete. Run exactly one terminal Learning "
-        "Session immediately before the final report."
+        "Session immediately before the final report. Load skills/self-improve/"
+        "SKILL.md; queue harness and product lessons via learning.py; report "
+        "harness queued N / product queued N / nothing durable. Unchanged "
+        "chaos-engine files are not a valid skip. Hooks own this duty on every host."
     )
 
 
@@ -170,6 +197,24 @@ def terminal_delivery_command(command: str) -> bool:
     return "delivery-status" in shell_tokens(command)
 
 
+def confirmed_delivery_command(command: str) -> bool:
+    """True for merge delivery that completes a PR without waiting on delivery-status.
+
+    Intermediate pushes and draft PR create/edit stay mutation-only so Learning
+    Session never starts early. A successful gh pr merge is confirmed delivery
+    even when chaos-engine files were untouched.
+    """
+    if terminal_delivery_command(command):
+        return True
+    parsed = shell_tokens(command)
+    if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    if head != "gh" or len(arguments) < 2:
+        return False
+    return arguments[0] == "pr" and arguments[1] == "merge"
+
+
 def learning_session_finalize_command(command: str) -> bool:
     """True only for one direct terminal Learning Session finalizer."""
     parsed = shell_tokens(command)
@@ -183,8 +228,15 @@ def learning_session_finalize_command(command: str) -> bool:
     if len(arguments) < 4:
         return False
     script = arguments[0].replace("\\", "/").casefold()
-    return bool(
+    portable = (
         script.endswith("scripts/agents/learning_session.py")
+        or script.endswith("chaos-engine/learning_session.py")
+        or script.endswith(".chaos-engine/learning_session.py")
+        or script.endswith("/learning_session.py")
+        and ("chaos-engine" in script or "scripts/agents" in script)
+    )
+    return bool(
+        portable
         and arguments[1] in {"finalize", "finalize-runtime"}
         and "--session-id" in arguments[2:]
     )
@@ -436,6 +488,9 @@ def _record_failed_result(
         attempted=not read_only,
         observation_id=event.get("tool_use_id") or event.get("toolUseId"),
     )
+    _soft_significance_capture(
+        event, event_name, failed=True, denied=False, tool_name=tool_name
+    )
     checkpoint = reflection.pending_checkpoint(session_id)
     if checkpoint:
         print(json.dumps({"additionalContext": checkpoint_reason(checkpoint)}))
@@ -503,6 +558,95 @@ def _event_context(event_name: str, token: object) -> str:
     return context
 
 
+
+def _phase_ledger_triage(session_id: str) -> str | None:
+    """Read triage from zero-LLM phase ledger when present (#5623)."""
+    if not session_id:
+        return None
+    try:
+        path = Path(__file__).resolve().parents[1] / "phase_ledger.py"
+        if not path.is_file():
+            return None
+        spec = importlib.util.spec_from_file_location("chaos_engine_phase_ledger", path)
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.session_triage(session_id)
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        return None
+
+
+def _research_before_mutation_reason(event_name: str, mutation: bool, session_id: str) -> str | None:
+    """Triage-scaled research gate (#5623); hard for public-contract, soft for one-file."""
+    if event_name != "PreToolUse" or not mutation:
+        return None
+    triage = _phase_ledger_triage(session_id)
+    flag = str(os.environ.get("CHAOS_ENGINE_ENFORCE_RESEARCH_RECEIPT") or "").strip().casefold()
+    env_on = flag in {"1", "true", "yes", "on"}
+    hard = triage == "public-contract" or (env_on and triage != "one-file")
+    if not hard:
+        return None
+    if not session_id or reflection.has_research_preflight(session_id):
+        return None
+    return (
+        "Research receipt required before mutation "
+        f"(triage={triage or 'unset'}; "
+        "record via hooks/reflection.py research-preflight "
+        "or phase_ledger.py record --phase research)."
+    )
+
+
+
+def _soft_significance_capture(
+    event: dict,
+    event_name: str,
+    *,
+    failed: bool = False,
+    denied: bool = False,
+    tool_name: str = "",
+) -> None:
+    """Soft fail/deny marks only — never load self-improve refs mid-turn (#5658)."""
+    with contextlib.suppress(Exception):
+        sig_path = Path(__file__).resolve().parents[1] / "significance.py"
+        if not sig_path.is_file():
+            return
+        spec = importlib.util.spec_from_file_location("ce_significance_soft", sig_path)
+        if spec is None or spec.loader is None:
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.soft_post_tool_capture(
+            event if isinstance(event, dict) else {},
+            event_name=event_name,
+            failed=failed,
+            denied=denied,
+            tool_name=tool_name,
+        )
+
+
+def _record_denial_counter() -> None:
+    with contextlib.suppress(Exception):
+        counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
+        if not counters_path.is_file():
+            return
+        spec = importlib.util.spec_from_file_location("ce_learning_counters_deny", counters_path)
+        if spec is None or spec.loader is None:
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.record_denial()
+
+
+
+
+def _record_denial_with_significance(event: dict, event_name: str, tool_name: str = "") -> None:
+    _record_denial_counter()
+    _soft_significance_capture(
+        event, event_name, failed=False, denied=True, tool_name=tool_name
+    )
+
+
 def _run_event(event: dict, _host: str) -> int:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
@@ -530,7 +674,17 @@ def _run_event(event: dict, _host: str) -> int:
         )
         kernel_report = _kernel.evaluate_session(normalized_kernel_event, kernel_journal)
     if kernel_report.decision == "deny":
+        _record_denial_with_significance(event, event_name, tool_name)
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
+        return 2
+    research_reason = _research_before_mutation_reason(
+        event_name,
+        bool(normalized_kernel_event.stateful_mutation),
+        session_id,
+    )
+    if research_reason:
+        _record_denial_with_significance(event, event_name, tool_name)
+        print(json.dumps({"decision": "block", "reason": research_reason}))
         return 2
     if event_name == "SessionStart":
         token = reflection.record_session_start(session_id)
@@ -544,23 +698,51 @@ def _run_event(event: dict, _host: str) -> int:
         event, event_name, commands, tool_name, tool_input, functions_source, functions_direct, session_id
     )
     if guard_reason:
+        _record_denial_with_significance(event, event_name, tool_name)
         print(json.dumps({"decision": "block", "reason": guard_reason}))
         return 2
     if event_name == "PostToolUse" and not receipt_command:
         if any(learning_session_finalize_command(candidate) for candidate in commands):
             if learning_completion_artifact(session_id) is not None:
                 reflection.record_activity(session_id, "learning-session-complete")
-        elif any(terminal_delivery_command(candidate) for candidate in commands):
+        elif any(confirmed_delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "delivery-complete")
         elif mutation or any(delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "mutation")
     if event_name in {"Stop", "SubagentStop"}:
         stop_reason = _stop_block_reason(event, session_id)
         if stop_reason:
+            _record_denial_with_significance(event, event_name, tool_name)
             print(json.dumps({"decision": "block", "reason": stop_reason}))
             return 2
     if event_name == "SessionStart":
         print(json.dumps({"additionalContext": _event_context(event_name, token)}))
+        return 0
+    if event_name == "PreToolUse":
+        try:
+            from pathlib import Path as _P
+
+            _gate_path = _P(__file__).resolve().parents[1] / "discovery_gate.py"
+            if _gate_path.is_file():
+                _gspec = importlib.util.spec_from_file_location("ce_discovery_gate", _gate_path)
+                if _gspec is not None and _gspec.loader is not None:
+                    _gmod = importlib.util.module_from_spec(_gspec)
+                    _gspec.loader.exec_module(_gmod)
+                    joined = "\n".join(commands)
+                    _gmod.note_command(session_id, joined)
+                    deny = _gmod.deny_reason(
+                        event_name=event_name,
+                        tool_name=tool_name,
+                        commands=commands,
+                        session_id=session_id,
+                    )
+                    if deny:
+                        _record_denial_with_significance(event, event_name, tool_name)
+                        print(json.dumps({"decision": "block", "reason": deny}))
+                        return 2
+        except (OSError, RuntimeError, ValueError, AttributeError):
+            pass
+        print(json.dumps({"additionalContext": _lifecycle.enforcement_card()}))
     return 0
 
 

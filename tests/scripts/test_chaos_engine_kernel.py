@@ -145,7 +145,12 @@ class ChaosEngineKernelTest(TestCase):
             },
             "claude": {"additionalContext": "ready"},
             "gemini": {"hookSpecificOutput": {"additionalContext": "ready"}},
-            "grok": {"additionalContext": "ready"},
+            "grok": {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": "ready",
+                }
+            },
             "copilot": {"additionalContext": "ready"},
         }
         expected_deny = {

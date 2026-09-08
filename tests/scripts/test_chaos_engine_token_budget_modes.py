@@ -26,8 +26,8 @@ class TokenBudgetModesTests(unittest.TestCase):
     def setUpClass(cls):
         cls.lifecycle = load_lifecycle()
 
-    def test_default_is_balanced_and_modes_are_documented(self):
-        self.assertEqual("balanced", self.lifecycle.TOKEN_BUDGET_DEFAULT)
+    def test_default_is_ultra_lean_and_modes_are_documented(self):
+        self.assertEqual("ultra-lean", self.lifecycle.TOKEN_BUDGET_DEFAULT)
         self.assertEqual(
             {"ultra-lean", "balanced", "deep"},
             set(self.lifecycle.TOKEN_BUDGET_MODES),
@@ -71,13 +71,20 @@ class TokenBudgetModesTests(unittest.TestCase):
                     self.lifecycle.SESSION_START_MAX_BYTES,
                 )
 
-    def test_unknown_env_falls_back_to_balanced(self):
+    def test_unknown_env_falls_back_to_ultra_lean(self):
         self.assertEqual(
-            "balanced",
+            "ultra-lean",
             self.lifecycle.resolve_token_budget_mode(
                 {"CHAOS_ENGINE_TOKEN_BUDGET": "nope"}
             ),
         )
+
+    def test_enforcement_card_names_max_companions_and_retrieve(self):
+        card = self.lifecycle.enforcement_card(origin_source=True)
+        self.assertIn("caveman=ultra", card.casefold())
+        self.assertIn("retrieve", card.casefold())
+        self.assertIn("graphify", card.casefold())
+        self.assertIn("chaos-engine/skills", card)
 
 
 if __name__ == "__main__":

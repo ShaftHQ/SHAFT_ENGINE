@@ -717,6 +717,32 @@ def _run_event(event: dict, _host: str) -> int:
             return 2
     if event_name == "SessionStart":
         print(json.dumps({"additionalContext": _event_context(event_name, token)}))
+        return 0
+    if event_name == "PreToolUse":
+        try:
+            from pathlib import Path as _P
+
+            _gate_path = _P(__file__).resolve().parents[1] / "discovery_gate.py"
+            if _gate_path.is_file():
+                _gspec = importlib.util.spec_from_file_location("ce_discovery_gate", _gate_path)
+                if _gspec is not None and _gspec.loader is not None:
+                    _gmod = importlib.util.module_from_spec(_gspec)
+                    _gspec.loader.exec_module(_gmod)
+                    joined = "\n".join(commands)
+                    _gmod.note_command(session_id, joined)
+                    deny = _gmod.deny_reason(
+                        event_name=event_name,
+                        tool_name=tool_name,
+                        commands=commands,
+                        session_id=session_id,
+                    )
+                    if deny:
+                        _record_denial_with_significance(event, event_name, tool_name)
+                        print(json.dumps({"decision": "block", "reason": deny}))
+                        return 2
+        except (OSError, RuntimeError, ValueError, AttributeError):
+            pass
+        print(json.dumps({"additionalContext": _lifecycle.enforcement_card()}))
     return 0
 
 

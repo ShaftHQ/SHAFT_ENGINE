@@ -97,6 +97,9 @@ class HostCapability:
     # from ChaosEngine; trust the adapter and surface blocking_gap to owners.
     process_exit2_honored: bool = True
     blocking_gap: str = ""
+    # False: host runs SessionStart but ignores stdout (Grok). Use always-on
+    # instruction card + PreToolUse hookSpecificOutput.additionalContext.
+    session_start_stdout_honored: bool = True
 
 
 def _aliases(supported: tuple[str, ...], **values: str) -> Mapping[str, str]:
@@ -166,8 +169,11 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
         process_exit2_honored=False,
         blocking_gap=(
             "GAP-EXIT2: Grok may not honor process exit-2 as a hard block; "
-            "ChaosEngine still emits decision=block and exit 2 — verify adapter trust."
+            "ChaosEngine still emits decision=block and exit 2 — verify adapter trust. "
+            "GAP-SESSIONSTART-STDOUT: Grok ignores SessionStart stdout; "
+            "always-on AGENTS card + PreToolUse additionalContext."
         ),
+        session_start_stdout_honored=False,
     ),
     "copilot": HostCapability(
         ("AGENTS.md", ".github/copilot-instructions.md", ".github/skills/chaos-engine/SKILL.md"),
@@ -396,6 +402,12 @@ def adapt_hook_output(
     if host == "gemini" and "additionalContext" in adapted:
         context = adapted.pop("additionalContext")
         adapted["hookSpecificOutput"] = {"additionalContext": context}
+    if host == "grok" and "additionalContext" in adapted:
+        context = adapted.pop("additionalContext")
+        adapted["hookSpecificOutput"] = {
+            "hookEventName": event_name,
+            "additionalContext": context,
+        }
     if host == "copilot" and event_name == "PreToolUse":
         decision = adapted.pop("decision", None)
         reason = adapted.pop("reason", None)

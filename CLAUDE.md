@@ -5,7 +5,7 @@
 Load [ChaosEngine](.claude/skills/chaos-engine/SKILL.md) before every task.
 `AGENTS.md` and its canonical entrypoint own policy; this file adds none.
 <!-- CHAOSENGINE:START -->
-Before every task, follow the canonical [ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools.
+Before every task, follow the canonical [ChaosEngine](chaos-engine/skills/chaos-engine/SKILL.md). Caveman ultra. Ponytail ultra. Token budget ultra-lean. Headroom agent-90. Use `chaos-engine/tool.py retrieve` then `graphify query` before broad search. Host chat formatting yields to Caveman. CLI over MCP. No duplicate GitHub MCP.
 <!-- CHAOSENGINE:END -->
 
 ## graphify
