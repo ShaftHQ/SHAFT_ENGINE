@@ -684,6 +684,8 @@ reports, caches, runtime indexes, or `graphify-out/`.
 
 
 - [Zero-LLM catalog](references/zero-llm-catalog.md) — deterministic doctor/install/repair paths.
+- [Context firewall](references/context-firewall.md) — research/explore subagent isolation; distillate only.
+- [Product-track self-improve](skills/self-improve/references/product-track.md) — SHAFT + ChaosGauge Learning Session playbook.
 
 
 - [Token budget modes](references/token-budget-modes.md) — ultra-lean | balanced | deep.

@@ -14,6 +14,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Silent verify | Check/Stop green must add zero context; fail with one line | [`silent-verify.md`](silent-verify.md) |
 | Significance capture | Mid-session friction marks only; Learning Session drain | [`significance-capture.md`](significance-capture.md) |
 | Skill compress audit | Propose-only SKILL.md bloat audit; never auto-apply | [`skill-compress-audit.md`](skill-compress-audit.md) |
+| Context firewall | Research / multi-file explore → isolated subagent; filepath:line distillate only | [`context-firewall.md`](context-firewall.md) |
 | Context economy | Bound reads/searches; prefer path+excerpt over dumps | [`context-economy.md`](context-economy.md) |
 | Retrieve-first | A store can shorten discovery; one bounded attempt | [`retrieve-first.md`](retrieve-first.md) |
 | Research receipt | Before implementation mutation; triage scales depth | [`research-receipt.md`](research-receipt.md) |

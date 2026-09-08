@@ -1,6 +1,7 @@
 # Research receipt
 
 Phase-gate map: [delivery-phase-gates.md](delivery-phase-gates.md).
+Broad research / multi-file explore: [context firewall](context-firewall.md).
 
 Load this before the first implementation mutation, except mechanical one-file
 reversible work: name the eight steps, then record store irrelevance without
