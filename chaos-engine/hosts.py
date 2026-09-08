@@ -2919,17 +2919,136 @@ def read_file(project: Path, path: Path) -> bytes | None:
         return stream.read()
 
 
-def instruction_content(before: bytes | None, instruction: str) -> bytes:
+MERGE_HANDOFF_RELATIVE = ".chaos-engine-state/merge-handoff.md"
+_merge_handoffs: list[dict[str, str]] = []
+
+
+def consume_merge_handoffs() -> list[dict[str, str]]:
+    items = list(_merge_handoffs)
+    _merge_handoffs.clear()
+    return items
+
+
+def _note_merge_handoff(relative: str, reason: str, desired: str) -> None:
+    _merge_handoffs.append(
+        {"path": relative, "reason": reason, "desired": desired}
+    )
+
+
+def _normalized_owned_span(block: str, start: str, end: str) -> str | None:
+    if block.count(start) != 1 or block.count(end) != 1:
+        return None
+    begin = block.index(start)
+    finish = block.index(end, begin)
+    if finish < begin:
+        return None
+    return block[begin : finish + len(end)].replace("\r\n", "\n")
+
+
+def merge_instruction(
+    before: bytes | None, instruction: str, *, relative: str
+) -> bytes:
+    """Merge one marker-owned instruction file, or leave it and record a handoff."""
+    original = b"" if before is None else before
     try:
         existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid host instruction file") from error
-    if START in existing or END in existing:
-        if instruction not in existing:
-            raise ValueError("ChaosEngine instruction collision")
-        return before  # type: ignore[return-value]
-    separator = "\n" if existing and not existing.endswith("\n") else ""
-    return (existing + separator + instruction).encode()
+    except UnicodeDecodeError:
+        _note_merge_handoff(relative, "file is not valid UTF-8", instruction)
+        return original
+    start_count = existing.count(START)
+    end_count = existing.count(END)
+    if start_count == end_count == 0:
+        separator = "\n" if existing and not existing.endswith("\n") else ""
+        return (existing + separator + instruction).encode()
+    if start_count != 1 or end_count != 1:
+        _note_merge_handoff(
+            relative,
+            "marker count is not a single matching start and end",
+            instruction,
+        )
+        return original
+    begin = existing.index(START)
+    finish = existing.index(END, begin)
+    if finish < begin:
+        _note_merge_handoff(
+            relative,
+            "marker count is not a single matching start and end",
+            instruction,
+        )
+        return original
+    span_end = finish + len(END)
+    interior = existing[begin:span_end].replace("\r\n", "\n")
+    recognized = _normalized_owned_span(instruction, START, END)
+    if recognized is None or interior != recognized:
+        _note_merge_handoff(
+            relative,
+            "markers exist but the interior is not the current owned block",
+            instruction,
+        )
+        return original
+    if span_end < len(existing) and existing[span_end] == "\r":
+        span_end += 1
+    if span_end < len(existing) and existing[span_end] == "\n":
+        span_end += 1
+    block = instruction if instruction.endswith("\n") else instruction + "\n"
+    return (existing[:begin] + block + existing[span_end:]).encode()
+
+
+def instruction_content(before: bytes | None, instruction: str) -> bytes:
+    return merge_instruction(before, instruction, relative="instruction")
+
+
+
+def _handoff_doctor_command() -> str:
+    command = "py -3" if os.name == "nt" else "python3"
+    return f"{command} .chaos-engine/install.py doctor --project ."
+
+
+def write_merge_handoff(project: Path, doctor_command: str) -> Path | None:
+    """Overwrite the handoff markdown, or remove a stale one after a clean merge."""
+    target = project / MERGE_HANDOFF_RELATIVE
+    items = consume_merge_handoffs()
+    if not items:
+        if target.exists() and target.is_file() and not is_link_or_reparse(target):
+            target.unlink()
+        return None
+    lines = [
+        "# Merge handoff",
+        "",
+        "The portable core is installed. These files were left byte-identical",
+        "because deterministic merge was impossible.",
+        "",
+    ]
+    for item in items:
+        lines.extend(
+            [
+                f"## {item['path']}",
+                "",
+                f"Reason: {item['reason']}",
+                "",
+                "Desired owned block:",
+                "",
+                "```",
+                item["desired"].rstrip("\n"),
+                "```",
+                "",
+            ]
+        )
+    lines.extend(["Doctor:", "", f"`{doctor_command}`", ""])
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = ("\n".join(lines)).encode("utf-8")
+    target.write_bytes(payload)
+    return target
+
+
+def merge_handoff_prompt(doctor_command: str) -> str:
+    return (
+        "Merge ChaosEngine host configuration using "
+        ".chaos-engine-state/merge-handoff.md. Follow "
+        "chaos-engine/references/installer-program.md deterministic merge. "
+        "Preserve every foreign handler and MCP server. Apply only the listed "
+        f"owned blocks. Then run {doctor_command} and follow each fix-next."
+    )
 
 
 def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, object]:
@@ -3272,16 +3391,27 @@ def json_content(
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    relative: str = ".mcp.json",
 ) -> bytes:
+    original = b"" if before is None else before
+    desired = owned_servers(
+        maven_runtime=maven_runtime, managed_python=managed_python,
+        account_commands=account_commands,
+        maven_docker=maven_docker,
+    )
+    snippet = json.dumps({"mcpServers": desired}, indent=2, sort_keys=True) + "\n"
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError("invalid host JSON configuration") from error
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     if not isinstance(value, dict):
-        raise ValueError("invalid host JSON configuration")
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     servers = value.setdefault("mcpServers", {})
     if not isinstance(servers, dict):
-        raise ValueError("invalid MCP server configuration")
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
         del servers["maven-tools-mcp"]
     for legacy_name in ("sha" + "ft-memory", "mempalace"):
@@ -3289,14 +3419,15 @@ def json_content(
             legacy_name, servers[legacy_name]
         ):
             del servers[legacy_name]
-    for name, desired in owned_servers(
-        maven_runtime=maven_runtime, managed_python=managed_python,
-        account_commands=account_commands,
-        maven_docker=maven_docker,
-    ).items():
-        if name in servers and not replaceable_owned_server(name, servers[name], desired):
-            raise ValueError(f"ChaosEngine MCP server collision: {name}")
-        servers[name] = desired
+    for name, server in desired.items():
+        if name in servers and not replaceable_owned_server(name, servers[name], server):
+            _note_merge_handoff(
+                relative,
+                "same-name MCP server exists with unknown ownership",
+                snippet,
+            )
+            return original
+        servers[name] = server
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
@@ -3440,6 +3571,31 @@ def remove_exact_legacy_native_maven_codex_block(existing: str) -> str:
     return existing[:match.start()] + existing[match.end():]
 
 
+def _path_handed_off(relative: str) -> bool:
+    return any(item["path"] == relative for item in _merge_handoffs)
+
+
+def _merge_or_preserve(relative: str, original: bytes | None, builder):
+    """Apply a host merge; impossible files stay byte-identical and record a handoff."""
+    preserved = b"" if original is None else original
+    try:
+        return builder()
+    except ValueError as error:
+        detail = str(error)
+        if "collision" not in detail and not detail.startswith("invalid "):
+            raise
+        if "UTF-8" in detail or detail.startswith("invalid "):
+            reason = "file is not valid UTF-8 or does not parse"
+        elif "plugin" in detail or "marketplace" in detail:
+            reason = "plugin marketplace entry exists with unknown ownership"
+        elif "MCP" in detail or "hook" in detail:
+            reason = "same-name MCP server or hook exists with unknown ownership"
+        else:
+            reason = "marker count is not a single matching start and end"
+        _note_merge_handoff(relative, reason, "")
+        return preserved
+
+
 def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
@@ -3448,10 +3604,16 @@ def codex_content(
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
 ) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid Codex configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        _note_merge_handoff(
+            ".codex/config.toml",
+            "file is not valid UTF-8 or does not parse",
+            "",
+        )
+        return original
     existing = remove_known_codex_orphans(existing)
     legacy_blocks = (
         '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
@@ -3549,7 +3711,17 @@ def codex_content(
             if candidate in existing:
                 return existing.replace(candidate, block).encode()
         # Drifted managed block / markers wrapping non-owned keys: replace stanza (#5630).
-        return heal_replace_codex_managed_block(existing, block).encode()
+        try:
+            return heal_replace_codex_managed_block(existing, block).encode()
+        except ValueError as error:
+            if "collision" not in str(error):
+                raise
+            _note_merge_handoff(
+                ".codex/config.toml",
+                "marker count is not a single matching start and end",
+                block,
+            )
+            return original
     # Orphan CE-owned sections outside markers (esp. context7): strip then append.
     existing = strip_owned_codex_server_sections(existing)
     separator = "\n" if existing and not existing.endswith("\n") else ""
@@ -3815,7 +3987,14 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
 
 
 def replace_owned_text_block(
-    existing: str, start: str, end: str, block: str, label: str
+    existing: str,
+    start: str,
+    end: str,
+    block: str,
+    label: str,
+    *,
+    relative: str | None = None,
+    original: bytes | None = None,
 ) -> bytes:
     """Upgrade one marker-owned block while preserving all foreign text."""
     start_count = existing.count(start)
@@ -3823,12 +4002,29 @@ def replace_owned_text_block(
     if start_count == end_count == 0:
         separator = "\n" if existing and not existing.endswith("\n") else ""
         return (existing + separator + block).encode()
+    preserved = original if original is not None else existing.encode()
+    path = relative or label
     if start_count != 1 or end_count != 1:
-        raise ValueError(f"ChaosEngine {label} collision")
+        _note_merge_handoff(
+            path, "marker count is not a single matching start and end", block
+        )
+        return preserved
     begin = existing.index(start)
     finish = existing.index(end, begin) + len(end)
     if finish < begin:
-        raise ValueError(f"ChaosEngine {label} collision")
+        _note_merge_handoff(
+            path, "marker count is not a single matching start and end", block
+        )
+        return preserved
+    interior = existing[begin:finish].replace("\r\n", "\n")
+    recognized = _normalized_owned_span(block, start, end)
+    if recognized is None or interior != recognized:
+        _note_merge_handoff(
+            path,
+            "markers exist but the interior is not the current owned block",
+            block,
+        )
+        return preserved
     if finish < len(existing) and existing[finish] == "\r":
         finish += 1
     if finish < len(existing) and existing[finish] == "\n":
@@ -3877,10 +4073,11 @@ def strip_owned_text_block(
 
 
 def gitignore_content(before: bytes | None) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid gitignore configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        existing = None
     block = (
         f"{GITIGNORE_START}\n"
         ".chaos-engine-runtime/\n.chaos-engine-runtime.lock\n.chaos-engine-runtime.*\n.chaos-engine-state/\n"
@@ -3920,16 +4117,28 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
+    if existing is None:
+        _note_merge_handoff(
+            ".gitignore", "file is not valid UTF-8 or does not parse", block
+        )
+        return original
     return replace_owned_text_block(
-        existing, GITIGNORE_START, GITIGNORE_END, block, "gitignore"
+        existing,
+        GITIGNORE_START,
+        GITIGNORE_END,
+        block,
+        "gitignore",
+        relative=".gitignore",
+        original=original,
     )
 
 
 def gitattributes_content(before: bytes | None) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid gitattributes configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        existing = None
     repository_root_anchor = "/"
     block = (
         f"{GITATTRIBUTES_START}\n"
@@ -3956,8 +4165,19 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.gitattributes text eol=lf\n"
         f"{GITATTRIBUTES_END}\n"
     )
+    if existing is None:
+        _note_merge_handoff(
+            ".gitattributes", "file is not valid UTF-8 or does not parse", block
+        )
+        return original
     return replace_owned_text_block(
-        existing, GITATTRIBUTES_START, GITATTRIBUTES_END, block, "gitattributes"
+        existing,
+        GITATTRIBUTES_START,
+        GITATTRIBUTES_END,
+        block,
+        "gitattributes",
+        relative=".gitattributes",
+        original=original,
     )
 
 
@@ -4029,14 +4249,6 @@ def desired_content(
             raise ValueError("invalid plugin marketplace configuration") from error
         if not isinstance(marketplace, dict) or not isinstance(marketplace.get("plugins"), list):
             raise ValueError("invalid plugin marketplace configuration")
-    existing_plugin = next(
-        (item for item in marketplace["plugins"] if isinstance(item, dict) and item.get("name") == "chaos-engine"),
-        None,
-    )
-    if existing_plugin is not None and existing_plugin != plugin_entry:
-        raise ValueError("ChaosEngine plugin marketplace collision")
-    if existing_plugin is None:
-        marketplace["plugins"].append(plugin_entry)
     caveman_entry = {
         "name": CAVEMAN_PLUGIN_NAME,
         "source": {"source": "local", "path": "./plugins/caveman"},
@@ -4046,18 +4258,6 @@ def desired_content(
         },
         "category": "Productivity",
     }
-    existing_caveman = next(
-        (
-            item
-            for item in marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_caveman is not None and existing_caveman != caveman_entry:
-        raise ValueError("Caveman plugin marketplace collision")
-    if existing_caveman is None:
-        marketplace["plugins"].append(caveman_entry)
     ponytail_entry = {
         "name": PONYTAIL_PLUGIN_NAME,
         "source": {"source": "local", "path": "./plugins/ponytail"},
@@ -4067,6 +4267,18 @@ def desired_content(
         },
         "category": "Productivity",
     }
+    existing_plugin = next(
+        (item for item in marketplace["plugins"] if isinstance(item, dict) and item.get("name") == "chaos-engine"),
+        None,
+    )
+    existing_caveman = next(
+        (
+            item
+            for item in marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
+        ),
+        None,
+    )
     existing_ponytail = next(
         (
             item
@@ -4075,13 +4287,36 @@ def desired_content(
         ),
         None,
     )
-    if existing_ponytail is not None and existing_ponytail != ponytail_entry:
-        raise ValueError("Ponytail plugin marketplace collision")
-    if existing_ponytail is None:
-        marketplace["plugins"].append(ponytail_entry)
-    after[".agents/plugins/marketplace.json"] = (
-        json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    agents_collision = (
+        (existing_plugin is not None and existing_plugin != plugin_entry)
+        or (existing_caveman is not None and existing_caveman != caveman_entry)
+        or (existing_ponytail is not None and existing_ponytail != ponytail_entry)
+    )
+    desired_agents_marketplace = {
+        "name": marketplace.get("name", "chaos-engine-project"),
+        "plugins": [plugin_entry, caveman_entry, ponytail_entry],
+    }
+    if "interface" in marketplace:
+        desired_agents_marketplace["interface"] = marketplace["interface"]
+    if agents_collision:
+        _note_merge_handoff(
+            ".agents/plugins/marketplace.json",
+            "plugin marketplace entry exists with unknown ownership",
+            json.dumps(desired_agents_marketplace, indent=2, sort_keys=True) + "\n",
+        )
+        after[".agents/plugins/marketplace.json"] = (
+            b"" if marketplace_before is None else marketplace_before
+        )
+    else:
+        if existing_plugin is None:
+            marketplace["plugins"].append(plugin_entry)
+        if existing_caveman is None:
+            marketplace["plugins"].append(caveman_entry)
+        if existing_ponytail is None:
+            marketplace["plugins"].append(ponytail_entry)
+        after[".agents/plugins/marketplace.json"] = (
+            json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
+        ).encode()
     claude_plugin_entry = {
         "name": "chaos-engine",
         "source": "./plugins/chaos-engine",
@@ -4134,56 +4369,90 @@ def desired_content(
         ):
             existing_claude_plugin["version"] = plugin_version
         if existing_claude_plugin != claude_plugin_entry:
-            raise ValueError("ChaosEngine Claude marketplace collision")
-    if existing_claude_plugin is None:
+            _note_merge_handoff(
+                ".claude-plugin/marketplace.json",
+                "plugin marketplace entry exists with unknown ownership",
+                json.dumps(claude_plugin_entry, indent=2, sort_keys=True) + "\n",
+            )
+            after[".claude-plugin/marketplace.json"] = (
+                b"" if claude_marketplace_before is None else claude_marketplace_before
+            )
+            claude_marketplace = None
+    if claude_marketplace is not None and existing_claude_plugin is None:
         claude_marketplace["plugins"].append(claude_plugin_entry)
-    caveman_claude_entry = {
-        "name": CAVEMAN_PLUGIN_NAME,
-        "source": "./plugins/caveman",
-        "description": "Ultra-compressed communication mode.",
-        "version": CAVEMAN_PLUGIN_VERSION,
-        "skills": ["./caveman"],
-    }
-    existing_caveman = next(
-        (
-            item
-            for item in claude_marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_caveman is not None and existing_caveman != caveman_claude_entry:
-        if existing_caveman.get("skills") in (None, []):
-            existing_caveman["skills"] = caveman_claude_entry["skills"]
-        if existing_caveman != caveman_claude_entry:
-            raise ValueError("Caveman Claude plugin collision")
-    if existing_caveman is None:
-        claude_marketplace["plugins"].append(caveman_claude_entry)
-    ponytail_claude_entry = {
-        "name": PONYTAIL_PLUGIN_NAME,
-        "source": "./plugins/ponytail",
-        "description": "Laziest solution that actually works.",
-        "version": PONYTAIL_PLUGIN_VERSION,
-        "skills": ["./ponytail"],
-    }
-    existing_ponytail = next(
-        (
-            item
-            for item in claude_marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
-        if existing_ponytail.get("skills") in (None, []):
-            existing_ponytail["skills"] = ponytail_claude_entry["skills"]
-        if existing_ponytail != ponytail_claude_entry:
-            raise ValueError("Ponytail Claude plugin collision")
-    if existing_ponytail is None:
-        claude_marketplace["plugins"].append(ponytail_claude_entry)
-    after[".claude-plugin/marketplace.json"] = (
-        json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    if claude_marketplace is not None:
+        caveman_claude_entry = {
+            "name": CAVEMAN_PLUGIN_NAME,
+            "source": "./plugins/caveman",
+            "description": "Ultra-compressed communication mode.",
+            "version": CAVEMAN_PLUGIN_VERSION,
+            "skills": ["./caveman"],
+        }
+        existing_caveman = next(
+            (
+                item
+                for item in claude_marketplace["plugins"]
+                if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
+            ),
+            None,
+        )
+        if existing_caveman is not None and existing_caveman != caveman_claude_entry:
+            if existing_caveman.get("skills") in (None, []):
+                existing_caveman["skills"] = caveman_claude_entry["skills"]
+        ponytail_claude_entry = {
+            "name": PONYTAIL_PLUGIN_NAME,
+            "source": "./plugins/ponytail",
+            "description": "Laziest solution that actually works.",
+            "version": PONYTAIL_PLUGIN_VERSION,
+            "skills": ["./ponytail"],
+        }
+        existing_ponytail = next(
+            (
+                item
+                for item in claude_marketplace["plugins"]
+                if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
+            ),
+            None,
+        )
+        if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
+            if existing_ponytail.get("skills") in (None, []):
+                existing_ponytail["skills"] = ponytail_claude_entry["skills"]
+        companion_collision = (
+            (existing_caveman is not None and existing_caveman != caveman_claude_entry)
+            or (
+                existing_ponytail is not None
+                and existing_ponytail != ponytail_claude_entry
+            )
+        )
+        if companion_collision:
+            _note_merge_handoff(
+                ".claude-plugin/marketplace.json",
+                "plugin marketplace entry exists with unknown ownership",
+                json.dumps(
+                    {
+                        "plugins": [
+                            claude_plugin_entry,
+                            caveman_claude_entry,
+                            ponytail_claude_entry,
+                        ]
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+            )
+            after[".claude-plugin/marketplace.json"] = (
+                b"" if claude_marketplace_before is None else claude_marketplace_before
+            )
+            claude_marketplace = None
+        else:
+            if existing_caveman is None:
+                claude_marketplace["plugins"].append(caveman_claude_entry)
+            if existing_ponytail is None:
+                claude_marketplace["plugins"].append(ponytail_claude_entry)
+            after[".claude-plugin/marketplace.json"] = (
+                json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
+            ).encode()
     plugin_manifest = {
         "name": "chaos-engine",
         "version": plugin_version,
@@ -4220,18 +4489,30 @@ def desired_content(
     after["plugins/chaos-engine/hooks/hooks.json"] = (
         json.dumps({"hooks": {}}, indent=2, sort_keys=True) + "\n"
     ).encode()
-    after[".codex/hooks.json"] = hook_content(
-        without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
-        desired_hooks,
-        "Codex",
+    after[".codex/hooks.json"] = _merge_or_preserve(
+        ".codex/hooks.json",
+        before[".codex/hooks.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
+            desired_hooks,
+            "Codex",
+        ),
     )
-    after[".grok/hooks/lifecycle.json"] = hook_content(
-        without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
-        lifecycle_hooks_document("grok", managed_python=managed_python),
-        "Grok",
+    after[".grok/hooks/lifecycle.json"] = _merge_or_preserve(
+        ".grok/hooks/lifecycle.json",
+        before[".grok/hooks/lifecycle.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
+            lifecycle_hooks_document("grok", managed_python=managed_python),
+            "Grok",
+        ),
     )
-    after[".github/hooks/chaos-engine.json"] = copilot_hook_content(
-        before[".github/hooks/chaos-engine.json"], managed_node
+    after[".github/hooks/chaos-engine.json"] = _merge_or_preserve(
+        ".github/hooks/chaos-engine.json",
+        before[".github/hooks/chaos-engine.json"],
+        lambda: copilot_hook_content(
+            before[".github/hooks/chaos-engine.json"], managed_node
+        ),
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
@@ -4256,37 +4537,76 @@ def desired_content(
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
         "That router decides whether to load the bundled Caveman and Ponytail companions.\n"
     ).encode()
-    claude_settings = hook_content(
-        without_chaos_hooks(before[".claude/settings.json"], "Claude"),
-        lifecycle_hooks_document("claude", managed_python=managed_python),
-        "Claude",
+    claude_settings = _merge_or_preserve(
+        ".claude/settings.json",
+        before[".claude/settings.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".claude/settings.json"], "Claude"),
+            lifecycle_hooks_document("claude", managed_python=managed_python),
+            "Claude",
+        ),
     )
-    try:
-        settings = json.loads(claude_settings) if claude_settings is not None else {}
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError("invalid Claude settings") from error
-    if not isinstance(settings, dict):
-        raise ValueError("invalid Claude settings")
-    enabled = settings.setdefault("enabledPlugins", {})
-    marketplaces = settings.setdefault("extraKnownMarketplaces", {})
-    if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
-        raise ValueError("invalid Claude settings")
-    claude_marketplace_name = claude_marketplace["name"]
-    plugin_id = f"chaos-engine@{claude_marketplace_name}"
-    if plugin_id in enabled and enabled[plugin_id] is not True:
-        raise ValueError("ChaosEngine Claude plugin collision")
-    desired_marketplace = {
-        "source": {"source": "directory", "path": "."}
-    }
-    if claude_marketplace_name in marketplaces and marketplaces[claude_marketplace_name] != desired_marketplace:
-        raise ValueError("ChaosEngine Claude marketplace collision")
-    enabled[plugin_id] = True
-    enabled[f"caveman@{claude_marketplace_name}"] = True
-    enabled[f"ponytail@{claude_marketplace_name}"] = True
-    marketplaces[claude_marketplace_name] = desired_marketplace
-    after[".claude/settings.json"] = (
-        json.dumps(settings, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    if _path_handed_off(".claude/settings.json"):
+        after[".claude/settings.json"] = claude_settings
+    else:
+        try:
+            settings = json.loads(claude_settings) if claude_settings is not None else {}
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Claude settings") from error
+        if not isinstance(settings, dict):
+            raise ValueError("invalid Claude settings")
+        enabled = settings.setdefault("enabledPlugins", {})
+        marketplaces = settings.setdefault("extraKnownMarketplaces", {})
+        if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
+            raise ValueError("invalid Claude settings")
+        claude_marketplace_name = (
+            claude_marketplace["name"]
+            if claude_marketplace is not None
+            else "chaos-engine-project"
+        )
+        plugin_id = f"chaos-engine@{claude_marketplace_name}"
+        desired_marketplace = {
+            "source": {"source": "directory", "path": "."}
+        }
+        desired_settings = json.dumps(
+            {
+                **settings,
+                "enabledPlugins": {
+                    **enabled,
+                    plugin_id: True,
+                    f"caveman@{claude_marketplace_name}": True,
+                    f"ponytail@{claude_marketplace_name}": True,
+                },
+                "extraKnownMarketplaces": {
+                    **marketplaces,
+                    claude_marketplace_name: desired_marketplace,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+        settings_collision = plugin_id in enabled and enabled[plugin_id] is not True
+        marketplace_collision = (
+            claude_marketplace_name in marketplaces
+            and marketplaces[claude_marketplace_name] != desired_marketplace
+        )
+        if settings_collision or marketplace_collision:
+            _note_merge_handoff(
+                ".claude/settings.json",
+                "Claude plugin enablement is not the current owned state",
+                desired_settings,
+            )
+            after[".claude/settings.json"] = (
+                b"" if before[".claude/settings.json"] is None else before[".claude/settings.json"]
+            )
+        else:
+            enabled[plugin_id] = True
+            enabled[f"caveman@{claude_marketplace_name}"] = True
+            enabled[f"ponytail@{claude_marketplace_name}"] = True
+            marketplaces[claude_marketplace_name] = desired_marketplace
+            after[".claude/settings.json"] = (
+                json.dumps(settings, indent=2, sort_keys=True) + "\n"
+            ).encode()
     caveman_manifest = {
         "name": CAVEMAN_PLUGIN_NAME,
         "version": CAVEMAN_PLUGIN_VERSION,
@@ -4456,25 +4776,36 @@ def desired_content(
         after["mempalace.yaml"] = mempalace_before
     after[".gitignore"] = gitignore_content(before[".gitignore"])
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
-        after[relative] = instruction_content(before[relative], INSTRUCTION)
-    after[".github/copilot-instructions.md"] = instruction_content(
+        after[relative] = merge_instruction(
+            before[relative], INSTRUCTION, relative=relative
+        )
+    copilot_instruction = INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/")
+    after[".github/copilot-instructions.md"] = merge_instruction(
         before[".github/copilot-instructions.md"],
-        INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
+        copilot_instruction,
+        relative=".github/copilot-instructions.md",
     )
     after[".mcp.json"] = json_content(
         before[".mcp.json"], maven_runtime, managed_python, account_commands,
-        maven_docker,
+        maven_docker, relative=".mcp.json",
     )
     gemini_settings = json_content(
         before[".gemini/settings.json"], maven_runtime, managed_python,
         account_commands,
-        maven_docker,
+        maven_docker, relative=".gemini/settings.json",
     )
-    after[".gemini/settings.json"] = hook_content(
-        without_chaos_hooks(gemini_settings, "Gemini"),
-        gemini_hooks_document(managed_node),
-        "Gemini",
-    )
+    if _path_handed_off(".gemini/settings.json"):
+        after[".gemini/settings.json"] = gemini_settings
+    else:
+        after[".gemini/settings.json"] = _merge_or_preserve(
+            ".gemini/settings.json",
+            before[".gemini/settings.json"],
+            lambda: hook_content(
+                without_chaos_hooks(gemini_settings, "Gemini"),
+                gemini_hooks_document(managed_node),
+                "Gemini",
+            ),
+        )
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime,
         managed_python=managed_python, account_commands=account_commands,
@@ -5031,10 +5362,17 @@ def strip_known_json_ownership(
             legacy_owned_python_server(name, "nt"),
             legacy_owned_python_server(name, "posix"),
         )
-        if servers[name] in expected or legacy_server or (
+        owned_shape = replaceable_owned_server(name, servers[name], {}) or legacy_server or (
             name == "maven-tools-mcp" and servers[name] == LEGACY_MAVEN_TOOLS_SERVER
-        ):
-            del servers[name]
+        )
+        wrote_entry = (
+            name in recorded_servers
+            and recorded_servers[name] != original_servers.get(name)
+            and servers[name] == recorded_servers[name]
+        )
+        if servers[name] in expected:
+            if owned_shape or wrote_entry:
+                del servers[name]
             continue
         raise ValueError(f"ChaosEngine MCP server collision: {name}")
     for name in ("sha" + "ft-memory", "mempalace"):
@@ -5198,7 +5536,7 @@ def upgrade_before_images(
                 project, relative, observed
             ):
                 raise ValueError(
-                    f"ChaosEngine host adapter drift detected: {project / relative}"
+                    f"ChaosEngine host adapter drift detected: {relative}"
                 )
             continue
         if relative in ROLE_ADAPTER_PATHS:
@@ -5206,7 +5544,7 @@ def upgrade_before_images(
             if isinstance(observed, bytes) and desired is not None and observed == desired:
                 continue
             raise ValueError(
-                f"ChaosEngine host adapter drift detected: {project / relative}"
+                f"ChaosEngine host adapter drift detected: {relative}"
             )
         if relative in {
             ".codex/hooks.json",
@@ -5220,7 +5558,7 @@ def upgrade_before_images(
             }[relative]
             restored[relative] = without_chaos_hooks(observed, label)
             continue
-        raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+        raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     return restored
 
 
@@ -5252,7 +5590,7 @@ def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for ev
         if relative in LIVE_PERSISTENT_PATHS:
             continue
         if not any(current == candidate[relative] for candidate in allowed):
-            raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     changed: list[tuple[str, bytes | None, bytes | None]] = []
     try:
         for relative in managed_paths():
@@ -5308,6 +5646,7 @@ def install(
     upgrade_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
+    consume_merge_handoffs()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
         raise ValueError("ChaosEngine capability policy digest is invalid")
     receipt_path = project / RECEIPT_NAME
@@ -5329,7 +5668,7 @@ def install(
                     snapshot = preflight(project)
                 except ValueError as error:
                     raise ValueError(
-                        f"ChaosEngine host adapter drift detected: {project}"
+                        "ChaosEngine host adapter drift detected"
                     ) from error
             else:
                 snapshot = upgrade_snapshot
@@ -5372,6 +5711,7 @@ def install(
             ):
                 apply_hook_receipt(receipt, after, receipt_after)
                 write_receipt(project, receipt, raw)
+                write_merge_handoff(project, _handoff_doctor_command())
                 return receipt
             next_receipt = dict(receipt)
             next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
@@ -5414,6 +5754,7 @@ def install(
                 reconcile(project, wanted, (current, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
+                write_merge_handoff(project, _handoff_doctor_command())
                 return next_receipt
             except BaseException:
                 reconcile(project, current, (current, wanted))
@@ -5427,6 +5768,7 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        write_merge_handoff(project, _handoff_doctor_command())
         return receipt
 
     before = current_images(project)
@@ -5461,8 +5803,10 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        write_merge_handoff(project, _handoff_doctor_command())
         return receipt
     except BaseException:
+        consume_merge_handoffs()
         reconcile(project, before, (before, after))
         remove_created_directories(project, receipt)
         if read_file(project, receipt_path) is not None:
@@ -5490,7 +5834,7 @@ def verify(
     validate_live_persistent_images(current)
     for relative in receipt_owned_paths():
         if current[relative] != after[relative]:
-            raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     return {
         "status": "healthy",
         "hookSourceCommit": receipt.get("coreCommit"),

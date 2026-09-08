@@ -611,6 +611,23 @@ class InstallReporter:
         if client_names:
             self.stream.write(f"Clients: {', '.join(client_names)}\n")
         self.stream.write(format_first_session_brief(clients=clients if isinstance(clients, dict) else {}))
+        handoff = project / ".chaos-engine-state" / "merge-handoff.md"
+        if handoff.is_file() and not handoff.is_symlink():
+            doctor = "py -3" if os.name == "nt" else "python3"
+            doctor_command = f"{doctor} .chaos-engine/install.py doctor --project ."
+            prompt = (
+                "Merge ChaosEngine host configuration using "
+                ".chaos-engine-state/merge-handoff.md. Follow "
+                "chaos-engine/references/installer-program.md deterministic merge. "
+                "Preserve every foreign handler and MCP server. Apply only the listed "
+                f"owned blocks. Then run {doctor_command} and follow each fix-next."
+            )
+            self.stream.write(self._paint("  Merge handoff", "36") + "\n")
+            self.stream.write(
+                "Core is installed. Some host files were left unchanged. Details: "
+                f"{handoff.as_posix()}\n"
+            )
+            self.stream.write(f"`{prompt}`\n")
         self.stream.write(
             format_host_onboarding_cards(
                 detected=detect_install_hosts(),
@@ -1413,7 +1430,14 @@ def emit_install_failure(
             )
             trace = root / ".chaos-engine-state" / "install-trace.json"
             if trace.is_file():
-                print(f"Install trace: {trace}", file=sys.stderr)
+                print(
+                    "Install trace: .chaos-engine-state/install-trace.json",
+                    file=sys.stderr,
+                )
+                print(
+                    "Attach .chaos-engine-state/install-trace.json to the GitHub issue.",
+                    file=sys.stderr,
+                )
         except OSError:
             # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
             pass
@@ -1489,7 +1513,7 @@ def emit_install_failure(
                 )
                 trace = install_trace_path(root)
                 if trace.is_file():
-                    install_trace = trace.as_posix()
+                    install_trace = ".chaos-engine-state/install-trace.json"
                     raw = trace.read_text(encoding="utf-8")
                     lines = [line.strip() for line in raw.splitlines() if line.strip()]
                     snippet = " | ".join(lines[-6:])[:400]
@@ -1528,6 +1552,7 @@ def emit_install_failure(
                 f"Core dir: {core_dir}",
                 f"install.py: {install_py}",
                 f"Install trace: {install_trace}",
+                "Attach: .chaos-engine-state/install-trace.json (GitHub file attachment)",
                 f"Install trace snippet: {install_trace_snippet}",
                 f"Platform: {sys.platform}",
                 f"Status command: {status_command}",

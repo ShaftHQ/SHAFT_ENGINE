@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -90,6 +91,75 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
                 )
             }
             self.assertEqual(first, second)
+
+    def test_harness_digest_ignores_untracked_runtime_junk(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dest = root / "chaos-engine"
+            shutil.copytree(
+                ROOT / "chaos-engine",
+                dest,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "add", "chaos-engine"], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=ChaosGauge",
+                    "-c",
+                    "user.email=chaos-gauge@example.invalid",
+                    "commit",
+                    "-qm",
+                    "fixture",
+                ],
+                cwd=root,
+                check=True,
+            )
+            baseline = MODULE._tree_sha256(dest)
+            (dest / "__pycache__").mkdir(exist_ok=True)
+            (dest / "__pycache__" / "install.cpython-313.pyc").write_bytes(b"pyc")
+            (dest / "untracked-ci.txt").write_text("ci-only\n", encoding="utf-8")
+            self.assertEqual(baseline, MODULE._tree_sha256(dest))
+            tracked = dest / "install.py"
+            original = tracked.read_bytes()
+            tracked.write_bytes(original + b"\n# worktree-only\n")
+            self.assertEqual(baseline, MODULE._tree_sha256(dest))
+            tracked.write_bytes(original)
+            subprocess.run(["git", "add", "chaos-engine/install.py"], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=ChaosGauge",
+                    "-c",
+                    "user.email=chaos-gauge@example.invalid",
+                    "commit",
+                    "-qm",
+                    "change-blob",
+                    "--allow-empty",
+                ],
+                cwd=root,
+                check=True,
+            )
+            tracked.write_bytes(original + b"\n# committed\n")
+            subprocess.run(["git", "add", "chaos-engine/install.py"], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=ChaosGauge",
+                    "-c",
+                    "user.email=chaos-gauge@example.invalid",
+                    "commit",
+                    "-qm",
+                    "change-blob",
+                ],
+                cwd=root,
+                check=True,
+            )
+            self.assertNotEqual(baseline, MODULE._tree_sha256(dest))
 
     def test_canonical_manifest_is_pinned_comparable_and_reproducible(self):
         manifest = self.manifest()

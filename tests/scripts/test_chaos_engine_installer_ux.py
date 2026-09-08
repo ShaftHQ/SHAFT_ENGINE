@@ -954,6 +954,51 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("[path]", windows)
         self.assertNotIn(r"C:\Users", windows)
 
+    def test_installer_issue_template_asks_to_attach_trace_not_private_path(self):
+        template = (
+            ROOT / ".github/ISSUE_TEMPLATE/chaos-engine-installer.yml"
+        ).read_text(encoding="utf-8")
+        lowered = template.casefold()
+        self.assertIn("attach", lowered)
+        self.assertIn("install-trace.json", template)
+        self.assertIn(".chaos-engine-state/install-trace.json", template)
+        self.assertNotIn("Install trace path", template)
+        self.assertNotIn("/Users/", template)
+        self.assertNotIn("/home/", template)
+
+    def test_failure_prefill_uses_relative_trace_and_asks_for_attachment(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            (project / ".chaos-engine-state").mkdir(parents=True)
+            (project / ".chaos-engine-state" / "install-trace.json").write_text(
+                '{"status":"failed"}\n', encoding="utf-8"
+            )
+            stderr = io.StringIO()
+            with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                BOOTSTRAP.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    RuntimeError(
+                        "ChaosEngine host adapter drift detected: "
+                        f"{project / 'plugins/chaos-engine/hooks/guard.py'}"
+                    ),
+                    "owner/repo",
+                    project=project,
+                )
+            output = stderr.getvalue()
+            report = next(
+                line
+                for line in output.splitlines()
+                if line.startswith("https://github.com/owner/repo/issues/new?")
+            )
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
+            self.assertEqual(
+                [".chaos-engine-state/install-trace.json"], query["install_trace"]
+            )
+            self.assertIn("attach", output.casefold())
+            self.assertNotIn(str(project), query["install_trace"][0])
+            self.assertIn("[path]", query["cause"][0])
+            self.assertNotIn("/private/", query["cause"][0])
+
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         self.assertIn("chaos_installer: ${{ steps.filter.outputs.chaos_installer }}", workflow)

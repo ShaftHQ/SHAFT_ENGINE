@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -42,13 +43,106 @@ def _file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+_SKIP_TREE_PARTS = frozenset({"__pycache__", ".pytest_cache"})
+_SKIP_TREE_SUFFIXES = frozenset({".pyc", ".pyo", ".so"})
+
+
+def _skip_tree_path(path: Path, root: Path) -> bool:
+    relative = path.relative_to(root)
+    if any(part in _SKIP_TREE_PARTS or part.endswith(".egg-info") for part in relative.parts):
+        return True
+    return path.suffix in _SKIP_TREE_SUFFIXES
+
+
+def _git_head_blobs(root: Path) -> list[tuple[str, bytes]] | None:
+    """Return HEAD blob bytes under root, independent of worktree smudge/EOL."""
+    root = root.resolve()
+    try:
+        top = subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    top_path = Path(top).resolve()
+    try:
+        prefix = root.relative_to(top_path).as_posix()
+    except ValueError:
+        return None
+    spec = prefix if prefix != "." else "."
+    try:
+        raw = subprocess.check_output(
+            ["git", "-C", str(top_path), "ls-tree", "-r", "-z", "HEAD", "--", spec],
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    entries: list[tuple[str, str]] = []
+    for item in raw.split(b"\0"):
+        if not item or b"\t" not in item:
+            continue
+        meta, path_b = item.split(b"\t", 1)
+        parts = meta.split(b" ")
+        if len(parts) != 3 or parts[1] != b"blob":
+            continue
+        posix = path_b.decode()
+        if prefix != "." and posix.startswith(prefix + "/"):
+            rel = posix[len(prefix) + 1 :]
+        else:
+            rel = posix
+        entries.append((rel, parts[2].decode()))
+    if not entries:
+        return []
+    payload = b"".join(f"{sha}\n".encode() for _rel, sha in entries)
+    try:
+        dumped = subprocess.check_output(
+            ["git", "-C", str(top_path), "cat-file", "--batch"],
+            input=payload,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    blobs: list[tuple[str, bytes]] = []
+    offset = 0
+    for rel, _sha in entries:
+        newline = dumped.find(b"\n", offset)
+        if newline < 0:
+            return None
+        header = dumped[offset:newline].decode()
+        fields = header.split(" ")
+        if len(fields) < 3 or fields[1] != "blob":
+            return None
+        size = int(fields[2])
+        start = newline + 1
+        finish = start + size
+        blobs.append((rel, dumped[start:finish]))
+        offset = finish + 1
+    return blobs
+
+
 def _tree_sha256(root: Path, *, task_package: bool = False) -> str:
     digest = hashlib.sha256()
-    files = [path for path in root.rglob("*") if path.is_file()]
+    root = root.resolve()
+    blobs = _git_head_blobs(root)
+    if blobs is not None:
+        items = blobs
+        if task_package:
+            items = [
+                (rel, data)
+                for rel, data in items
+                if Path(rel).name not in {"README.md", "trajectory.json"}
+            ]
+        for rel, data in sorted(items, key=lambda item: item[0]):
+            if _skip_tree_path(root / rel, root):
+                continue
+            digest.update(f"{rel}\0{hashlib.sha256(data).hexdigest()}\n".encode())
+        return digest.hexdigest()
+    files = [path for path in root.rglob("*") if path.is_file() and not path.is_symlink()]
     if task_package:
         files = [path for path in files if path.name not in {"README.md", "trajectory.json"}]
     for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
-        if "__pycache__" in path.parts or path.suffix == ".pyc":
+        if _skip_tree_path(path, root):
             continue
         digest.update(
             f"{path.relative_to(root).as_posix()}\0{_file_sha256(path)}\n".encode()
@@ -87,7 +181,10 @@ def validate_live_evidence(
     lock = _file_sha256(gauge / "requirements.lock")
     candidate_kwargs = jobs["chaos-engine"]["agents"][0]["kwargs"]
     if candidate_kwargs.get("harness_sha256") != harness:
-        raise ValueError("live harness tree digest mismatch")
+        raise ValueError(
+            "live harness tree digest mismatch "
+            f"(live {harness} != job {candidate_kwargs.get('harness_sha256')})"
+        )
     if manifest["arms"][1].get("harnessSha256") != harness:
         raise ValueError("manifest harness source digest mismatch")
     if candidate_kwargs.get("adapter_sha256") != adapter:

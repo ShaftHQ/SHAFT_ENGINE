@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import re
 import shlex
 from pathlib import Path
@@ -16,13 +17,15 @@ _COMMIT = re.compile(r"[0-9a-f]{40}")
 
 
 def _tree_sha256(root: Path) -> str:
-    digest = hashlib.sha256()
-    for path in sorted(item for item in root.rglob("*") if item.is_file()):
-        relative = path.relative_to(root).as_posix()
-        if "__pycache__" in path.parts or path.suffix == ".pyc":
-            continue
-        digest.update(f"{relative}\0{hashlib.sha256(path.read_bytes()).hexdigest()}\n".encode())
-    return digest.hexdigest()
+    spec = importlib.util.spec_from_file_location(
+        "chaos_gauge_validate_experiment_tree",
+        Path(__file__).resolve().with_name("validate_experiment.py"),
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("ChaosGauge validator could not be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module._tree_sha256(root)
 
 
 class ChaosEngineCodex(Codex):

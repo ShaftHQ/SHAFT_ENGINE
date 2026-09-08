@@ -45,6 +45,8 @@ class EmptyProjectSmokeTests(unittest.TestCase):
             evidence = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual("core-fixture-passed", evidence["status"])
             self.assertTrue(evidence["corePresent"])
+            self.assertEqual("portable", evidence["distribution"])
+            self.assertFalse(evidence["mergeHandoff"])
             self.assertLessEqual(evidence["elapsedSeconds"], 300)
 
     def test_budget_exceeded_returns_nonzero_and_writes_evidence(self):

@@ -717,16 +717,22 @@ def upgrade_host_receipt_drift_needed(project: Path) -> bool:
     try:
         host_controller = load_installed_controller(target, "hosts")
         host_controller.verify(project, core_commit=core_commit)
+        preflight = getattr(host_controller, "preflight", None)
+        if callable(preflight):
+            preflight(project)
     except (OSError, RuntimeError, ValueError) as error:
         message = str(error)
+        if error.__cause__ is not None:
+            message = f"{message} {error.__cause__}"
         return any(
             token in message
             for token in (
                 "host adapter drift",
                 "host receipt does not match the installed core",
-                "receipt integrity drift",
                 "host receipt is missing or invalid",
                 "host anchor collision",
+                "MCP server collision",
+                "Codex configuration collision",
             )
         )
     return False
@@ -755,7 +761,27 @@ def _quarantine_state_path(state: Path, preferred: str) -> Path:
     return destination
 
 
-def quarantine_orphaned_host_receipt(project: Path, reporter=None) -> Path | None:
+def _is_healable_host_drift(error: BaseException) -> bool:
+    """True when host preflight/verify drift should quarantine and rebind (#5685)."""
+    texts = [str(error)]
+    cause = error.__cause__
+    if cause is not None:
+        texts.append(str(cause))
+    blob = " ".join(texts)
+    return any(
+        token in blob
+        for token in (
+            "host adapter drift",
+            "host receipt does not match the installed core",
+            "MCP server collision",
+            "Codex configuration collision",
+        )
+    )
+
+
+def quarantine_orphaned_host_receipt(
+    project: Path, reporter=None, *, force: bool = False
+) -> Path | None:
     """Move orphaned/stale host receipt (+ anchors) aside for safe reinstall.
 
     Covers (#5606): phase=installed host receipt with wiped `.chaos-engine`.
@@ -763,10 +789,12 @@ def quarantine_orphaned_host_receipt(project: Path, reporter=None) -> Path | Non
     stale host receipt/anchor (coreCommit or hostToken drift / verify failure).
     Extends (#5633): deps+core present with drifted receipt/adapters (upgrade
     host-adapter drift); quarantine then rebind preserves foreign user MCP.
+    Extends (#5685): force=True after a live preflight drift so rematerialize+
+    provision can rebind instead of CE-INSTALL-FAILED.
     Quarantining lets install rematerialize core and rebind hosts without
     undocumented file surgery.
     """
-    if not wiped_runtime_recovery_needed(project):
+    if not force and not wiped_runtime_recovery_needed(project):
         return None
     receipt = project / ".chaos-engine-hosts.json"
     state = project / ".chaos-engine-state"
@@ -2917,9 +2945,15 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                         try:
                             host_snapshot = candidate_host_controller.preflight(project)
                         except ValueError as error:
-                            raise ValueError(
-                                f"ChaosEngine host adapter drift detected (receipt integrity drift): {project}"
-                            ) from error
+                            if not _is_healable_host_drift(error):
+                                raise ValueError(
+                                    "ChaosEngine host adapter drift detected "
+                                    "(receipt integrity drift)"
+                                ) from error
+                            quarantine_orphaned_host_receipt(
+                                project, reporter=reporter, force=True
+                            )
+                            host_snapshot = None
                 if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
@@ -3083,24 +3117,28 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     rollback_mempalace_state = mempalace_rollback_image(
                         mempalace_state_before, mempalace_state_after
                     )
-            host_controller.install(
-                project,
-                core_commit=commit,
-                capability_policy_digest=installed_manifest.get("capabilityPolicySha256"),
-                dependency_runtime=dependency_generation,
-                account_commands=account_commands,
-                maven_docker=maven_docker,
-                **(
-                    {"rollback_account_receipt": account_receipt_before}
-                    if account_mode and account_receipt_before is not None
-                    else {}
-                ),
-                **(
-                    {"rollback_mempalace_state": rollback_mempalace_state}
-                    if rollback_mempalace_state is not None else {}
-                ),
-                **({"upgrade_snapshot": host_snapshot} if host_snapshot is not None else {}),
-            )
+            host_bind = {
+                "core_commit": commit,
+                "capability_policy_digest": installed_manifest.get("capabilityPolicySha256"),
+                "dependency_runtime": dependency_generation,
+                "account_commands": account_commands,
+                "maven_docker": maven_docker,
+            }
+            if account_mode and account_receipt_before is not None:
+                host_bind["rollback_account_receipt"] = account_receipt_before
+            if rollback_mempalace_state is not None:
+                host_bind["rollback_mempalace_state"] = rollback_mempalace_state
+            try:
+                host_controller.install(
+                    project,
+                    **host_bind,
+                    **({"upgrade_snapshot": host_snapshot} if host_snapshot is not None else {}),
+                )
+            except ValueError as error:
+                if not _is_healable_host_drift(error):
+                    raise
+                quarantine_orphaned_host_receipt(project, reporter=reporter, force=True)
+                host_controller.install(project, **host_bind)
             if account_rollback_journal is not None:
                 recover_account_rollback_journal(project)
                 if account_rollback_journal.exists():
@@ -3581,6 +3619,8 @@ def attach_component_status(
         **cache_state,
         **capabilities["maven-tools-mcp"],
     }
+    if result.get("distribution") == "repository":
+        components["maven-tools-mcp"]["taskImpact"] = "required"
     bundle = read_bundle_options(project)
     for name in ("memory", "mempalace", "graphify"):
         if not bundle.get(name, True) and name in components:
@@ -3599,6 +3639,7 @@ def attach_component_status(
             "cliPresent": False,
         }
     result["components"] = components
+    apply_merge_handoff_fix_next(project, components)
     if any(
         item["status"] != "healthy" and item["taskImpact"] != "optional"
         for item in components.values()
@@ -4023,6 +4064,7 @@ def doctor_with_dependencies(
         )
         if not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
             apply_hooks_probe_failure(result, components)
+    apply_merge_handoff_fix_next(project.resolve(), components)
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
@@ -4616,6 +4658,25 @@ def _component_severity(item: dict[str, object]) -> str:
     if impact == "optional":
         return "info"
     return "error"
+
+
+def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
+    """Point doctor fix-next at the merge handoff instead of a blind reinstall."""
+    if not isinstance(components, dict):
+        return
+    handoff = Path(project) / ".chaos-engine-state" / "merge-handoff.md"
+    if not handoff.is_file() or is_link_or_reparse(handoff):
+        return
+    message = (
+        "Complete the agent merge using .chaos-engine-state/merge-handoff.md, "
+        "then rerun doctor."
+    )
+    for item in components.values():
+        if not isinstance(item, dict):
+            continue
+        if _component_severity(item) == "ok":
+            continue
+        item["fixNext"] = message
 
 
 def _looks_like_fix_next(detail: object) -> bool:

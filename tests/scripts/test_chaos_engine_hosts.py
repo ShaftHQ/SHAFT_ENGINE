@@ -1348,10 +1348,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
             path.parent.mkdir(parents=True)
             original = b'{"name":"user-marketplace","plugins":[{"name":"chaos-engine","source":"./foreign"}]}'
             path.write_bytes(original)
-            with self.assertRaisesRegex(ValueError, "Claude marketplace collision"):
-                module.install(project)
+            module.install(project)
             self.assertEqual(original, path.read_bytes())
-            self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
+            handoff = project / ".chaos-engine-state/merge-handoff.md"
+            self.assertTrue(handoff.is_file())
+            self.assertIn(".claude-plugin/marketplace.json", handoff.read_text(encoding="utf-8"))
 
     def test_gitignore_reincludes_tracked_memory_config_under_existing_parent_rule(self):
         module = load(HOSTS, "chaos_engine_gitignore_memory")
@@ -1439,8 +1440,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertTrue(rendered.startswith(b"*.png binary\n"))
         self.assertEqual(rendered, module.gitattributes_content(rendered))
-        with self.assertRaisesRegex(ValueError, "gitattributes collision"):
-            module.gitattributes_content(b"# CHAOSENGINE-EOL:START\nchanged\n")
+        original = b"# CHAOSENGINE-EOL:START\nchanged\n"
+        self.assertEqual(original, module.gitattributes_content(original))
+        notes = module.consume_merge_handoffs()
+        self.assertTrue(notes)
+        self.assertIn("marker count", notes[0]["reason"])
 
     def test_gitattributes_preserves_core_bytes_in_autocrlf_clone(self):
         module = load(HOSTS, "chaos_engine_gitattributes_clone")
@@ -3930,17 +3934,32 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_preflight_inverts_exact_receipt_mcp_servers_and_legacy_aliases(self):
         module = load(HOSTS, "chaos_engine_hosts_receipt_mcp_reconciliation")
+        memory_args = [".chaos-engine/tool.py", "memory-mcp"]
+        palace_args = [
+            ".chaos-engine/tool.py",
+            "mempalace-mcp",
+            "--palace",
+            ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
+        ]
         candidate_servers = {
             "chaosengine-memory": {
-                "command": "python3", "args": [".chaos-engine/tool.py", "memory-mcp"], "cwd": ".",
+                "command": "python3",
+                "args": memory_args,
+                "commandWindows": "py",
+                "argsWindows": ["-3", *memory_args],
+                "cwd": ".",
             },
             "chaosengine-mempalace": {
-                "command": "python3", "args": [".chaos-engine/tool.py", "mempalace-mcp"], "cwd": ".",
+                "command": "python3",
+                "args": palace_args,
+                "commandWindows": "py",
+                "argsWindows": ["-3", *palace_args],
+                "cwd": ".",
+                "env": dict(module.MEMPALACE_MCP_ENV),
             },
-            "maven-tools-mcp": {
-                "command": "/usr/bin/java",
-                "args": ["-jar", "/user/cache/maven-tools-mcp-3.2.0.jar", "--legacy"],
-            },
+            "maven-tools-mcp": module.LEGACY_MAVEN_TOOLS_SERVER,
         }
         aliases = {
             "shaft-memory": {
