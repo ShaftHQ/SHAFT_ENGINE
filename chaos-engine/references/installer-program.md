@@ -3,18 +3,20 @@
 Spec-only contract for the installer rewrite. This file does not implement
 `install.py`, `hosts.py`, or the wrappers. Delivery PRs for the children
 implement it. Live operator steps today remain in [`INSTALL.md`](../INSTALL.md).
+Caller matrices and acceptance proof live in
+[`installer-program-executable-spec.md`](installer-program-executable-spec.md).
 
-Triggered by Windows verify failure
-[#5667](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5667)
-(`CE-INSTALL-FAILED`, unhealthy `hooks` + `mcps`, `win32`,
-`distribution=repository`, core rematerialized). Related closed reports of the
-same template: #5636, #5630, #5606, #5556. Those closed items repaired other
-failure classes; they do not cover this program.
+Triggered by Windows verify failure #5667 (`CE-INSTALL-FAILED`, unhealthy
+`hooks` + `mcps`, `win32`, `distribution=repository`, core rematerialized).
+Related closed reports of the same template: #5636, #5630, #5606, #5556.
+Those closed items repaired other failure classes; they do not cover this
+program.
 
 ## Goal
 
 One official one-liner installs or upgrades ChaosEngine in three project
-shapes (empty, Java/SHAFT Maven, non-Java) and leaves the operator with either:
+shapes (empty, Java/Maven matching the repository profile, non-Java) and
+leaves the operator with either:
 
 1. **Healthy doctor**, or
 2. **Success with an agent merge prompt** when a deterministic merge of
@@ -27,8 +29,8 @@ Unmergeable foreign agent configuration is not an install failure.
 | Profile | Target shape | Distribution | Maven Tools MCP |
 | --- | --- | --- | --- |
 | Empty | New directory, no `pom.xml`, no prior ChaosEngine or host files | `portable` | Absent; optional, not required for health |
-| Java | Root `pom.xml` whose project, module, or dependency artifact ids include a profile `installWhen.mavenArtifactIds` value (today `shaft-engine`) | `repository` (SHAFT profile) | Required when a root `pom.xml` exists |
-| Non-Java | Existing project files, no matching Maven artifact id (Python, Node, mixed, or a Java POM that is not SHAFT) | `portable` | Optional; absence is not unhealthy |
+| Java | Root `pom.xml` whose project, module, or dependency artifact ids include a profile `installWhen.mavenArtifactIds` value | `repository` | Required when a root `pom.xml` exists |
+| Non-Java | Existing project files, no matching Maven artifact id (Python, Node, mixed, or a Java POM that does not match) | `portable` | Optional; absence is not unhealthy |
 
 Upgrade of a profile is the same one-liner on a tree that already has a verified
 `.chaos-engine/` from that profile.
@@ -72,7 +74,7 @@ Same inputs, same outputs, no LLM, no interactive prompt during the one-liner.
 | --- | --- | --- |
 | Marker-owned text | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.gitignore` runtime block, `.gitattributes` EOL block | Replace the single `START`/`END` span with the current owned block. Append the block when markers are absent. Keep all bytes outside the span. |
 | Marker-owned JSON/TOML sections | `.codex/config.toml` `# CHAOSENGINE:START`…`END`, Claude/Grok/Gemini/Copilot hook documents | Same span rule. Foreign keys, handlers, and MCP servers outside the span stay. |
-| Named owned records | CE MCP servers `chaosengine-memory`, `chaosengine-mempalace`, `context7`, `maven-tools-mcp`; CE hook commands that `chaos_hook_command` recognizes | Upsert exact owned records. Delete only exact recognized legacy names already covered by tests (`shaft-memory`, bare `mempalace`, local-npx Context7, covered Docker/JAR shapes). |
+| Named owned records | CE MCP servers `chaosengine-memory`, `chaosengine-mempalace`, `context7`, `maven-tools-mcp`; CE hook commands that `chaos_hook_command` recognizes | Upsert exact owned records. Delete only exact recognized legacy names already covered by tests (legacy Memory server id, bare `mempalace`, local-npx Context7, covered Docker/JAR shapes). |
 | Receipt-owned whole files | `.chaos-engine/**`, plugin manifests ChaosEngine publishes, role adapters it writes | Replace from the verified payload. |
 | Persistent data | `.memory/**` (except installer-owned schema/config), `mempalace.yaml` palace data, `graphify-out` | Never delete or convert on install/upgrade. |
 | Foreign | Anything else in those files | Byte-preserve. |
@@ -155,21 +157,11 @@ Human path. Python is not required before the wrapper.
 
 ### First install
 
-1. `cd` into the target directory (empty, Java/SHAFT, or non-Java).
-2. Run exactly one:
-
-   Windows PowerShell:
-
-   ```powershell
-   irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
-   ```
-
-   macOS or Linux:
-
-   ```bash
-   curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
-   ```
-
+1. `cd` into the target directory (empty, Java/Maven repository-profile, or
+   non-Java).
+2. Run exactly one official one-liner from [`INSTALL.md`](../INSTALL.md)
+   (Windows PowerShell `install.ps1`, or macOS/Linux `install.sh`). Do not
+   substitute a different upstream URL.
 3. If the TTY shows styled success without `Merge handoff`, run:
 
    ```text
@@ -181,7 +173,9 @@ Human path. Python is not required before the wrapper.
 4. If the TTY shows `Merge handoff`, paste the backtick prompt into an agent.
    Do not rerun the one-liner to "force" the merge.
 
-5. Restart any host that was open during install.
+5. Restart any host that was open during install. After the agent heals
+   unmerged items, close that chat and start a new session so hosts reload
+   managed guidance.
 
 ### Upgrade
 
@@ -208,9 +202,9 @@ non-Java). It is the agent-facing equivalent of the human one-liner.
 Install or upgrade ChaosEngine in this project.
 
 1. cd to the project root. Run the official one-liner from chaos-engine/INSTALL.md for this OS (install.ps1 on Windows, install.sh on macOS/Linux). Do not substitute a different repository URL.
-2. If the installer prints a Merge handoff panel, execute the backtick prompt it printed. Read .chaos-engine-state/merge-handoff.md. Merge only using chaos-engine/references/installer-program.md deterministic merge. Never overwrite foreign handlers, MCP servers, or instruction text outside CHAOSENGINE markers.
+2. Parse the installer output. If it prints a Merge handoff panel, execute the backtick prompt it printed. Read .chaos-engine-state/merge-handoff.md. Merge only using chaos-engine/references/installer-program.md deterministic merge. Never overwrite foreign handlers, MCP servers, or instruction text outside CHAOSENGINE markers.
 3. If there is no handoff, run: python3 .chaos-engine/install.py doctor --project .  (Windows: py -3 .chaos-engine/install.py doctor --project .)
-4. Follow every fix-next line. Restart open hosts. Do not implement a new installer. Do not treat an unmergeable foreign config as a failed install.
+4. Follow every fix-next line. Heal unmerged items from the handoff details. Then tell the user to close this chat and start a new session so hosts reload managed guidance. Do not implement a new installer. Do not treat an unmergeable foreign config as a failed install.
 ```
 
 ## Child work streams
@@ -221,73 +215,32 @@ children only (`Fixes #<child>`). Never put a closing keyword on the epic.
 
 | Order | Stream | Proof |
 | --- | --- | --- |
-| 1 | [#5680](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5680) Fix #5667 hooks/mcps verify on Windows | Focused doctor/probe tests plus a win32 fixture where core is present and managed Python / MCP probes no longer emit a bare dual `recovery-required` |
-| 2 | [#5676](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5676) First install empty | `scripts/ci/chaos_engine_empty_project_smoke.py` + doctor healthy, `portable` |
-| 3 | [#5673](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5673) First install Java | Fixture root POM with `shaft-engine` artifact; `repository` distribution; Maven Tools present; doctor healthy |
-| 4 | [#5677](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5677) First install non-Java | Fixture with files but no matching Maven id; `portable`; Maven Tools absent does not fail health |
-| 5 | [#5671](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5671) Upgrade empty | Second one-liner on the empty fixture; foreign bytes preserved; doctor healthy or handoff |
-| 6 | [#5672](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5672) Upgrade Java | Second one-liner on the Java fixture; POM bytes unchanged; `repository` stays |
-| 7 | [#5678](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5678) Upgrade non-Java | Second one-liner on the non-Java fixture; `portable` stays |
-| 8 | [#5679](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5679) Conflict with existing agent configs | Fixtures for mergeable foreign + each impossible class; mergeable stays silent; impossible is exit 0 + handoff md + backtick prompt; no `CE-INSTALL-FAILED` |
+| 1 | #5680 Fix #5667 hooks/mcps verify on Windows | Focused doctor/probe tests plus a win32 fixture where core is present and managed Python / MCP probes no longer emit a bare dual `recovery-required` |
+| 2 | #5676 First install empty | `scripts/ci/chaos_engine_empty_project_smoke.py` + doctor healthy, `portable` |
+| 3 | #5673 First install Java | Fixture root POM with matching `installWhen.mavenArtifactIds`; `repository` distribution; Maven Tools present; doctor healthy |
+| 4 | #5677 First install non-Java | Fixture with files but no matching Maven id; `portable`; Maven Tools absent does not fail health |
+| 5 | #5671 Upgrade empty | Second one-liner on the empty fixture; foreign bytes preserved; doctor healthy or handoff |
+| 6 | #5672 Upgrade Java | Second one-liner on the Java fixture; POM bytes unchanged; `repository` stays |
+| 7 | #5678 Upgrade non-Java | Second one-liner on the non-Java fixture; `portable` stays |
+| 8 | #5679 Conflict with existing agent configs | Fixtures for mergeable foreign + each impossible class; mergeable stays silent; impossible is exit 0 + handoff md + backtick prompt; no `CE-INSTALL-FAILED` |
 
 Implement #5667 first: it is a live adopter failure and unblocks Windows
 verify. First-install empty next (golden path). Conflict last; it depends on
 success-with-agent-prompt plumbing.
-
-## Executable specification
-
-Required before the first implementing commit on any child. Re-copy onto that
-child if a cell changes.
-
-### Resolved caller matrix
-
-| Site | Effective cwd/path | Runtime/version/platform | Permissions/trust | Configuration precedence | Input existence |
-| --- | --- | --- | --- | --- | --- |
-| Empty first install | Operator cwd is the empty directory; wrappers install into cwd | POSIX `install.sh` / Windows `install.ps1`; Python bootstrapped | User-scoped uv/npm; no sudo | Official SHAFT_ENGINE URL unless `CHAOS_ENGINE_REPOSITORY` | Directory exists and is writable |
-| Java first install | Operator cwd is the Maven project root that contains `pom.xml` | Same wrappers; Temurin 25 for Maven Tools | Same | `installWhen.mavenArtifactIds` selects `repository` | Root `pom.xml` readable, not a reparse point |
-| Non-Java first install | Operator cwd is the existing project root | Same wrappers | Same | No matching Maven id → `portable` | Project files may already include host configs |
-| Upgrade of each profile | Same cwd as the original install | Same wrappers; existing `.chaos-engine/` verified or rematerialized | Receipt-owned replace; persistent data retained | Existing bundle-options + current payload | `.chaos-engine/` present; hosts receipt may be drifted |
-| Conflict merge | Same project cwd | Deterministic `hosts.py` merge, no LLM | Foreign bytes are operator-owned | Owned markers/records lose to fail-closed when ambiguous | Pre-existing `AGENTS.md` / hooks / `.mcp.json` / Codex TOML |
-| #5667 verify | `D:/Automation-Shaft/UsingChaosEngine` class: win32, hosts receipt present, core present | `py -3`; `Scripts\python.exe` layout | Doctor probes must not require origin/main for required `mcps` | Doctor `status` ⊆ `doctor` for required components | Core rematerialized at commit `887facff34…` |
-
-### State/failure matrix
-
-| State | Immutable ownership | Preflight | Mutation order | Mixed state | Atomicity | Concurrency | Idempotency | Recovery | Fail-closed |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Fresh empty | N/A | Writable cwd, not a link | Resolve → download → deps → core → hosts → verify | Not allowed | Existing journal/lock | Install lock | Second run is upgrade | Uninstall then retry | Link/reparse, unsigned payload |
-| Fresh Java | Operator POM bytes | POM parse for ids | Same, plus Maven Tools cache publish | POM never rewritten | Cache rename-publish already atomic | User-cache lock | Re-run rediscovers JAR | Repair `--component` hosts/mcps | Missing Temurin 25 on Maven project |
-| Fresh non-Java | Operator project files | Detect no matching id | Same as empty; skip required Maven Tools | Foreign files preserved | Host file writes stay staged then published | Install lock | Second run is upgrade | Handoff if merge impossible | Unknown same-name MCP |
-| Upgrade | Receipt-owned vs persistent split | Drift/wiped-runtime gates (#5633/#5587/#5636) | Quarantine stale receipt if needed, rematerialize core, rebind hosts | Persistent data + new core is required | Backup/journal already in `install.py` | Install lock | No-op when already at commit | rollback then one-liner | Broken tree not used as backup |
-| Mergeable foreign | Foreign bytes | Parse + marker count | Merge after core verify | Owned span new, foreign old | Per-file stage + replace | Single writer | Exact second merge is no-op | Re-run | None if mergeable |
-| Impossible foreign | Entire foreign file | Detect impossible **before** write | Skip file, write handoff | Core new, that file old | Handoff write after core commit | Single writer | Re-run refreshes handoff only | Agent prompt then doctor | Do not guess-edit |
-| #5667 probes | Core + receipts | Resolve managed Python on win32 | Probe after core; missing interpreter is a named component failure, not a silent dual fail | Core healthy, probes advisory or detailed recovery | Probes are read-only | Timeout 30s | Doctor repeatable | `repair --component hooks` / `mcps` with named `fix-next` | Symlink guard; never `{}` allow on missing guard |
-
-### Acceptance-to-proof map
-
-| Criterion or invariant | Positive proof | Negative or mutation proof | Command |
-| --- | --- | --- | --- |
-| Empty first install reaches healthy doctor | Smoke fixture doctor `status` healthy, distribution `portable` | Delete `hooks/guard.py` after install → doctor unhealthy `hooks` | `python3 scripts/ci/chaos_engine_empty_project_smoke.py --output /tmp/ce-smoke.json` plus focused unittest |
-| Java first install selects repository | Manifest `distribution.id` is `repository`; Maven Tools component present | POM without `shaft-engine` must not select repository | Focused installer distribution tests |
-| Non-Java first install stays portable | Manifest `portable`; missing Maven Tools does not fail required health | Inject matching artifact id → flips to repository | Same tests, non-Java fixture |
-| Upgrade preserves foreign bytes | Pre-seed `AGENTS.md` prose; after upgrade file contains that prose plus current owned block | Pre-seed colliding markers → no overwrite of foreign file | Hosts merge tests |
-| Impossible merge is success + handoff | Collision fixture: exit 0, `merge-handoff.md` exists, stdout has styled success and one backtick prompt, no `CE-INSTALL-FAILED` | Mutation: omit handoff write → test fails | New installer UX + hosts tests |
-| Foreign MCP server survives | Unknown server in `.mcp.json` remains after install | Same-name unknown `chaosengine-memory` → impossible, not overwrite | Existing MCP migration tests + new collision-handoff test |
-| #5667 no bare dual fail | When managed Python is missing on nt, `hooks` and `mcps` include `code` + `detail` + `fix-next`; verify does not fail solely because Memory origin/main is desynced | Mutation: drop detail → test fails | `tests.scripts.test_chaos_engine_installer` / hosts doctor tests on win32 layout |
-| Doctor status ⊆ doctor for required components | Existing contract tests | Status healthy / doctor unhealthy still forbidden | `python3 -m unittest tests.scripts.test_chaos_engine_installer -v` (focused) |
-| Sibling omission | Merge AGENTS.md but skip `.mcp.json` in a fixture → MCP test fails | — | Hosts publish atomicity tests already required by #5368 |
 
 ## Out of scope
 
 - Rewriting the installer in this spec PR.
 - Standalone ChaosEngine product split (`STANDALONE.md` remains later).
 - Migrating MemPalace Chroma palaces.
-- Changing companion intensity, host event table, or public SHAFT APIs.
+- Changing companion intensity, host event table, or public product APIs.
 - Companion documentation site PR until a child ships user-visible installer
   behavior.
 
 ## Proof for this spec PR
 
-- File exists at `chaos-engine/references/installer-program.md`.
+- File exists at `chaos-engine/references/installer-program.md` and links
+  [`installer-program-executable-spec.md`](installer-program-executable-spec.md).
 - Epic + children filed and linked.
 - No `install.py` / `hosts.py` behavior change in the spec PR.
 - `python3 scripts/ci/chaos_gauge/validate_experiment.py --write scripts/ci/chaos_gauge/experiment.json` after adding this file (harness tree digest).
