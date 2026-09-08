@@ -1195,7 +1195,7 @@ jobs:
           npm install -g appium@3.5.2
           appium driver install --source npm appium-flutter-integration-driver
       - name: Set up JDK 25 for Maven
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '25'
           distribution: 'zulu'
