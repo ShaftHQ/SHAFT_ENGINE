@@ -4,19 +4,16 @@ import com.shaft.ai.agentic.AgenticProposal;
 import com.shaft.ai.agentic.AgenticSeed;
 import com.shaft.ai.agentic.GovernedAgenticWorkflow;
 import com.shaft.ai.agentic.UntrustedModelAdvice;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
- * MCP entrypoint for the governed agentic test workflow fixture (issue #5452).
+ * In-process entrypoint for the governed agentic test workflow fixture (issue #5452).
  *
- * <p>Deterministic, review-first, fail-closed. Model/provider choice is out of scope.
- * Model output is never test or cleanup authority.</p>
+ * <p>Not a lean MCP {@code @Tool}: the fixture stays unit/test-facing so the public lean catalog
+ * remains 101 tools. Deterministic, review-first, fail-closed. Model output is never test or
+ * cleanup authority.</p>
  */
-@Service
 public class GovernedAgenticWorkflowService {
     private final GovernedAgenticWorkflow workflow;
 
@@ -45,20 +42,16 @@ public class GovernedAgenticWorkflowService {
      * @param alternateDiagnosis optional disagreeing model diagnosis (fail-closed when it conflicts)
      * @return reproducible proposal with provenance; always requires human review
      */
-    @Tool(name = "agentic_workflow_run_fixture",
-            description = "runs the governed agentic test workflow fixture (plan, generate, run, diagnose, propose) "
-                    + "with deterministic seed bindings, scoped tools/permissions/budgets, provenance, and "
-                    + "fail-closed trust boundaries; returns a review-only proposal (never applies tests or cleanup)")
     public McpAgenticWorkflowResult runFixture(
             String journeyId,
             String journeyText,
-            @ToolParam(required = false) String pageContent,
-            @ToolParam(required = false) Integer simulatedRunnerExitCode,
-            @ToolParam(required = false) String suggestTestMutation,
-            @ToolParam(required = false) Boolean suggestCleanup,
-            @ToolParam(required = false) Boolean suggestDestructiveBrowser,
-            @ToolParam(required = false) Boolean suggestCredentialRead,
-            @ToolParam(required = false) String alternateDiagnosis) {
+            String pageContent,
+            Integer simulatedRunnerExitCode,
+            String suggestTestMutation,
+            Boolean suggestCleanup,
+            Boolean suggestDestructiveBrowser,
+            Boolean suggestCredentialRead,
+            String alternateDiagnosis) {
         AgenticSeed seed = AgenticSeed.of(journeyId, journeyText, pageContent);
         UntrustedModelAdvice advice = new UntrustedModelAdvice(
                 suggestTestMutation,

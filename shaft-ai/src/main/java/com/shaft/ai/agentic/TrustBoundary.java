@@ -80,12 +80,9 @@ public final class TrustBoundary {
         if (advice.suggestedDestructiveBrowser()) {
             denials.add(deny(phase, "destructive browser action denied"));
         }
-        if (advice.suggestedCredentialRead() || permissions.mayReadCredentials()) {
-            // mayReadCredentials is always false in PhasePermissions constructors for bindings,
-            // but still deny any credential read attempt from advice.
-            if (advice.suggestedCredentialRead()) {
-                denials.add(deny(phase, "credential read denied"));
-            }
+        // mayReadCredentials stays false in PhasePermissions bindings; still deny advice that asks.
+        if (advice.suggestedCredentialRead()) {
+            denials.add(deny(phase, "credential read denied"));
         }
         // FR-4: permissions.mayApplyModelAuthority is forced false; restate if somehow true.
         if (permissions.mayApplyModelAuthority()) {

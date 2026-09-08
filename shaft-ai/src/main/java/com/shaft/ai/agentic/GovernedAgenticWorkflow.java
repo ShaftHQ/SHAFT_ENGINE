@@ -59,9 +59,20 @@ public final class GovernedAgenticWorkflow {
         List<ProvenanceRecord> provenance = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
 
+        SeedAdmission admission = admitSeed(seed, provenance, warnings);
+        if (admission.stop() != null) {
+            return admission.stop();
+        }
+        return executePhases(seed, modelAdvice, simulatedRunnerExitCode, admission.sanitizedPage(), provenance, warnings);
+    }
+
+    private SeedAdmission admitSeed(
+            AgenticSeed seed,
+            List<ProvenanceRecord> provenance,
+            List<String> warnings) {
         if (!seed.isConsistent()) {
-            return stopped(seed, AgenticProposal.Status.STOPPED_INCONSISTENT_SEED, provenance, warnings,
-                    "Inconsistent seed hash");
+            return SeedAdmission.stopped(stopped(seed, AgenticProposal.Status.STOPPED_INCONSISTENT_SEED, provenance,
+                    warnings, "Inconsistent seed hash"));
         }
 
         TrustBoundary.SanitizedContent sanitized = TrustBoundary.sanitizePage(seed.pageContent());
@@ -76,8 +87,8 @@ public final class GovernedAgenticWorkflow {
                     List.of(),
                     List.of("sanitized-page"),
                     List.of(AgenticPhase.PLANNER + ": prompt injection denied")));
-            return stopped(seed, AgenticProposal.Status.STOPPED_PROMPT_INJECTION, provenance, warnings,
-                    "Prompt injection in untrusted page content");
+            return SeedAdmission.stopped(stopped(seed, AgenticProposal.Status.STOPPED_PROMPT_INJECTION, provenance,
+                    warnings, "Prompt injection in untrusted page content"));
         }
         if (TrustBoundary.looksLikePromptInjection(seed.journeyText())) {
             provenance.add(record(
@@ -87,11 +98,20 @@ public final class GovernedAgenticWorkflow {
                     List.of(),
                     List.of(),
                     List.of(AgenticPhase.PLANNER + ": prompt injection denied")));
-            return stopped(seed, AgenticProposal.Status.STOPPED_PROMPT_INJECTION, provenance, warnings,
-                    "Prompt injection in journey text");
+            return SeedAdmission.stopped(stopped(seed, AgenticProposal.Status.STOPPED_PROMPT_INJECTION, provenance,
+                    warnings, "Prompt injection in journey text"));
         }
+        return SeedAdmission.ok(sanitized.text());
+    }
 
-        PhaseOutcome planner = runPlanner(seed, sanitized.text(), provenance, warnings);
+    private AgenticProposal executePhases(
+            AgenticSeed seed,
+            UntrustedModelAdvice modelAdvice,
+            int simulatedRunnerExitCode,
+            String sanitizedPage,
+            List<ProvenanceRecord> provenance,
+            List<String> warnings) {
+        PhaseOutcome planner = runPlanner(seed, sanitizedPage, provenance);
         if (planner.stopStatus() != null) {
             return stopped(seed, planner.stopStatus(), provenance, warnings, planner.stopReason());
         }
@@ -117,8 +137,7 @@ public final class GovernedAgenticWorkflow {
     private PhaseOutcome runPlanner(
             AgenticSeed seed,
             String sanitizedPage,
-            List<ProvenanceRecord> provenance,
-            List<String> warnings) {
+            List<ProvenanceRecord> provenance) {
         PhaseBinding binding = binding(AgenticPhase.PLANNER, seed);
         List<String> denials = new ArrayList<>();
         List<String> commands = new ArrayList<>();
@@ -490,6 +509,16 @@ public final class GovernedAgenticWorkflow {
 
         static PhaseOutcome stop(AgenticProposal.Status status, String reason) {
             return new PhaseOutcome("", status, reason);
+        }
+    }
+
+    private record SeedAdmission(String sanitizedPage, AgenticProposal stop) {
+        static SeedAdmission ok(String sanitizedPage) {
+            return new SeedAdmission(sanitizedPage, null);
+        }
+
+        static SeedAdmission stopped(AgenticProposal stop) {
+            return new SeedAdmission("", stop);
         }
     }
 

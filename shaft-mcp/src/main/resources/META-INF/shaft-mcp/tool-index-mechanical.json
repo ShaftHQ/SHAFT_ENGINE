@@ -1,56 +1,6 @@
 {
   "schemaVersion" : "1.0",
   "tools" : [ {
-    "name" : "agentic_workflow_run_fixture",
-    "service" : "GovernedAgenticWorkflowService",
-    "description" : "runs the governed agentic test workflow fixture (plan, generate, run, diagnose, propose) with deterministic seed bindings, scoped tools/permissions/budgets, provenance, and fail-closed trust boundaries; returns a review-only proposal (never applies tests or cleanup)",
-    "params" : [ {
-      "name" : "alternateDiagnosis",
-      "type" : "string",
-      "required" : false,
-      "description" : null
-    }, {
-      "name" : "journeyId",
-      "type" : "string",
-      "required" : true,
-      "description" : null
-    }, {
-      "name" : "journeyText",
-      "type" : "string",
-      "required" : true,
-      "description" : null
-    }, {
-      "name" : "pageContent",
-      "type" : "string",
-      "required" : false,
-      "description" : null
-    }, {
-      "name" : "simulatedRunnerExitCode",
-      "type" : "integer",
-      "required" : false,
-      "description" : null
-    }, {
-      "name" : "suggestCleanup",
-      "type" : "boolean",
-      "required" : false,
-      "description" : null
-    }, {
-      "name" : "suggestCredentialRead",
-      "type" : "boolean",
-      "required" : false,
-      "description" : null
-    }, {
-      "name" : "suggestDestructiveBrowser",
-      "type" : "boolean",
-      "required" : false,
-      "description" : null
-    }, {
-      "name" : "suggestTestMutation",
-      "type" : "string",
-      "required" : false,
-      "description" : null
-    } ]
-  }, {
     "name" : "autobot_local_agent_clients",
     "service" : "AutobotService",
     "description" : "lists local SHAFT Autobot CLI clients that do not require SHAFT cloud API keys",

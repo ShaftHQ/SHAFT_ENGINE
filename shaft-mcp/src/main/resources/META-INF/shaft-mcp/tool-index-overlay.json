@@ -1,30 +1,6 @@
 {
   "schemaVersion": "1.0",
   "tools": {
-    "agentic_workflow_run_fixture": {
-      "mutation": false,
-      "sensitive": true,
-      "intentKeywords": [
-        "agentic",
-        "governed workflow",
-        "proposal",
-        "provenance"
-      ],
-      "example": {
-        "request": {
-          "journeyId": "login-happy-path",
-          "journeyText": "Log in with valid user and open account menu",
-          "pageContent": "",
-          "simulatedRunnerExitCode": 0,
-          "suggestTestMutation": "",
-          "suggestCleanup": false,
-          "suggestDestructiveBrowser": false,
-          "suggestCredentialRead": false,
-          "alternateDiagnosis": ""
-        },
-        "response": "review-only proposal with provenance; never applies tests or cleanup"
-      }
-    },
     "autobot_local_agent_clients": {
       "mutation": false,
       "sensitive": false,
