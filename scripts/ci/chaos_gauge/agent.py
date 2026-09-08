@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import re
 import shlex
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -17,37 +17,15 @@ _COMMIT = re.compile(r"[0-9a-f]{40}")
 
 
 def _tree_sha256(root: Path) -> str:
-    digest = hashlib.sha256()
-    root = root.resolve()
-    files = None
-    try:
-        top = subprocess.check_output(
-            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-        prefix = root.relative_to(Path(top).resolve()).as_posix()
-        spec = prefix if prefix != "." else "."
-        raw = subprocess.check_output(
-            ["git", "-C", top, "ls-files", "-z", "--", spec],
-            stderr=subprocess.DEVNULL,
-        )
-        files = [
-            Path(top) / item.decode()
-            for item in raw.split(b"\0")
-            if item
-        ]
-        files = [path for path in files if path.is_file() and not path.is_symlink()]
-    except (OSError, subprocess.CalledProcessError, ValueError):
-        files = None
-    if files is None:
-        files = [item for item in root.rglob("*") if item.is_file() and not item.is_symlink()]
-    for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
-        relative = path.relative_to(root).as_posix()
-        if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo", ".so"}:
-            continue
-        digest.update(f"{relative}\0{hashlib.sha256(path.read_bytes()).hexdigest()}\n".encode())
-    return digest.hexdigest()
+    spec = importlib.util.spec_from_file_location(
+        "chaos_gauge_validate_experiment_tree",
+        Path(__file__).resolve().with_name("validate_experiment.py"),
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("ChaosGauge validator could not be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module._tree_sha256(root)
 
 
 class ChaosEngineCodex(Codex):
