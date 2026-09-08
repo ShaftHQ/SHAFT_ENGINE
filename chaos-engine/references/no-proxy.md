@@ -7,3 +7,5 @@ Do not install, pin, wrap, vendor, or doctor-require a traffic proxy or host-inv
 A local model server is allowed only as an optional loopback probe. It must not wrap the host and must not rewrite host configs. Never `ft launch`. Never enforce a proxy as doctor-healthy.
 
 Checked-in memory: `.memory/memory/constraints/never-use-or-enforce-a-headroom-style-proxy.md`.
+
+Doctor uniqueness lives in [`mcp_policy.py`](../mcp_policy.py). Overlay hash lives in [`overlay_match.py`](../overlay_match.py).
