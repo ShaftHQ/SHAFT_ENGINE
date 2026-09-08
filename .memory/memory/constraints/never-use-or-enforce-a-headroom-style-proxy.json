@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/never-use-or-enforce-a-headroom-style-proxy.md",
-  "content_hash": "sha256:cec37ac6efd6e289b22b4d3850150496fe9efb59a7351b3710aa247cfd553a8c",
+  "content_hash": "sha256:62eada3d0e06521f3048532fac1a1ae2a2adec5a549bde96fcb298f18556d09e",
   "created_at": "2026-09-09T01:13:49+03:00",
   "evidence": [
     "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5693",
