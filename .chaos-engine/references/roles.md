@@ -22,7 +22,8 @@ related work into the fewest PRs, and keeps working until in-scope work is
 delivered. Follow [orchestrator follow-through](orchestrator-follow-through.md).
 Load [process-owner / Scrum-master](process-owner-scrum-master.md) in
 orchestrated mode. Its standing Scrum-master duty is to automatically inspect
-and adapt live work on that policy's scope-selected cadence.
+and adapt live work on that policy's scope-selected cadence. Status reports
+use the [status report format](process-owner-scrum-master.md#status-report-format).
 
 ## Implementer
 

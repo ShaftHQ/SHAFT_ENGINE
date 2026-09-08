@@ -42,6 +42,18 @@ MUST publish Evidence-backed status using artifacts, exit codes, logs, or
 diff observations. Status tables and handoffs reject narrative-only progress.
 Assignment alone is not progress.
 
+### Status report format
+
+When asked for a status report, keep it to one screen and use this shape:
+
+1. **RAG line** — `green` / `amber` / `red`, program name, and time.
+2. **Where we are** — one paragraph on current position.
+3. **Checklist** — sections `Done`, `In progress`, and `To do`.
+4. **Risks and Decisions** — close with open risks and decisions needed.
+
+Evidence still binds every claim. Do not invent scheduled routines for status;
+publish on ask or on the existing follow-through inspection cadence.
+
 ## Targeted research triggers
 
 Online research to optimize orchestrator or Scrum practice is allowed only for
