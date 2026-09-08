@@ -26,3 +26,5 @@ Every Learning Session should attempt:
 1. At least one **harness** observation (or explicit "nothing durable").
 2. At least one **product** enhancement candidate when product work occurred
    (or explicit "nothing durable").
+
+Product filing playbook: [product-track.md](product-track.md).

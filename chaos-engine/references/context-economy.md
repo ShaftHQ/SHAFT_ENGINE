@@ -36,7 +36,8 @@ transcript unless the user asked for the raw body.
 ## Distill, then continue
 
 - A subagent returns a distillate: what changed, what was proved, what remains.
-  It does not return its transcript.
+  It does not return its transcript. Research / multi-file explore follows the
+  [context firewall](context-firewall.md) (`filepath:line` + distillate only).
 - Structured notes belong at session end or after repeated failure, through the
   existing learning session. They are not a running diary.
 - On failure, change the premise or the discriminating observation. Do not

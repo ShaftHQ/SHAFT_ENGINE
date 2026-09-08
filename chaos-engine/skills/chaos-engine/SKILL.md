@@ -65,7 +65,11 @@ including one-file reversible work.
 
 Load the [research receipt](../../references/research-receipt.md) before the
 first implementation mutation. Mechanical one-file reversible work names its
-eight steps, then records store irrelevance without querying.
+eight steps, then records store irrelevance without querying. For research or
+multi-file explore, apply the [context firewall](../../references/context-firewall.md):
+spawn an isolated subagent/Task when the host supports it; return
+`filepath:line` citations and a distillate only — never raw transcripts.
+**Reject** always-on Task Observer.
 
 ## Red flags
 
@@ -200,6 +204,7 @@ return here for the next.
 | Zero-LLM first | Before chat discovery for install/doctor/repair | [zero-llm-catalog](../../references/zero-llm-catalog.md) |
 | Heal | Drifted install, wiped runtime, unhealthy doctor | [heal-route](../../references/heal-route.md) (file path; no plugin required) |
 | Level-1 catalog | Need a secondary skill/tool beyond this router | [level-1-catalog](../../references/level-1-catalog.md) |
+| Context firewall | Research / multi-file explore needs isolation | [context-firewall](../../references/context-firewall.md) |
 | Token budget | Triage or env selects ultra-lean / balanced / deep | [token-budget-modes](../../references/token-budget-modes.md) |
 | GAP-EXIT2 UX | Grok/Copilot may not honor exit-2 hard blocks | [host-parity-matrix](../../references/host-parity-matrix.md) checklist |
 

@@ -27,6 +27,16 @@ Spec-exact repetitive edits, inventory, formatting, deterministic
 transformation, and log or result triage. The `helper` adapters carry the
 mechanical-helper role from [roles](roles.md) to both subagent hosts.
 
+
+## Research / explore firewall
+
+For research or multi-file explore, prefer an isolated subagent (or host Task)
+over dumping explore noise into the parent. Return contract and when-to-spawn
+rules live in [context firewall](context-firewall.md). Isolation is for context
+economy (HumanLayer), not org-chart role-play. Hosts without subagents distill
+in-place under the same return contract. Never treat this as always-on
+observation.
+
 ## Main-thread duties
 
 Orchestrator retains decomposition, architecture, consultation, assignment,
