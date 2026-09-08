@@ -60,6 +60,17 @@ def _extract_heuristics(session_id: str, limit: int = 3) -> list[dict]:
     )
 
 
+
+def _drain_significance(session_id: str) -> list[dict]:
+    """Deferred Learning Session path for significance marks (#5658)."""
+    try:
+        significance = _load_sibling("significance.py")
+    except RuntimeError:
+        return []
+    drained = significance.drain_marks(project=Path.cwd())
+    return drained if isinstance(drained, list) else []
+
+
 def finalize(
     session_id: str,
     *,
@@ -87,6 +98,16 @@ def finalize(
     if extract_heuristics and disposition == "issues-first":
         heuristics_added = _extract_heuristics(session_id.strip())
         receipt["heuristicsExtracted"] = len(heuristics_added)
+    significance_drained = _drain_significance(session_id.strip())
+    receipt["significanceDrained"] = len(significance_drained)
+    if significance_drained:
+        receipt["significanceKinds"] = sorted(
+            {
+                str(item.get("kind"))
+                for item in significance_drained
+                if isinstance(item, dict) and item.get("kind")
+            }
+        )
     state = Path.cwd() / ".chaos-engine-state" / "learning-session"
     state.mkdir(parents=True, exist_ok=True)
     out = state / f"{session_id.strip()[:64]}.completion.json"

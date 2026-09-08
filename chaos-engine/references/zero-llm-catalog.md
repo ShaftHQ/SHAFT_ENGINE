@@ -32,6 +32,8 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Silent verify | [`silent_verify.py`](../silent_verify.py) / `finalize --silent` | Success silent exit 0; failure one stderr line (#5654) |
 | Heuristics retrieve | [`retrieve.py`](../retrieve.py) `heuristics --top 3` | Once-per-task ERL heuristics; SessionStart locator only (#5656) |
 | Heuristics CLI | [`heuristics.py`](../heuristics.py) `locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
+| Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer (#5658) |
+| Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply (#5659) |
 
 ## Notes
 

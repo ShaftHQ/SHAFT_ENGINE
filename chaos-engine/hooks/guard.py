@@ -488,6 +488,9 @@ def _record_failed_result(
         attempted=not read_only,
         observation_id=event.get("tool_use_id") or event.get("toolUseId"),
     )
+    _soft_significance_capture(
+        event, event_name, failed=True, denied=False, tool_name=tool_name
+    )
     checkpoint = reflection.pending_checkpoint(session_id)
     if checkpoint:
         print(json.dumps({"additionalContext": checkpoint_reason(checkpoint)}))
@@ -594,6 +597,34 @@ def _research_before_mutation_reason(event_name: str, mutation: bool, session_id
     )
 
 
+
+def _soft_significance_capture(
+    event: dict,
+    event_name: str,
+    *,
+    failed: bool = False,
+    denied: bool = False,
+    tool_name: str = "",
+) -> None:
+    """Soft fail/deny marks only — never load self-improve refs mid-turn (#5658)."""
+    with contextlib.suppress(Exception):
+        sig_path = Path(__file__).resolve().parents[1] / "significance.py"
+        if not sig_path.is_file():
+            return
+        spec = importlib.util.spec_from_file_location("ce_significance_soft", sig_path)
+        if spec is None or spec.loader is None:
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.soft_post_tool_capture(
+            event if isinstance(event, dict) else {},
+            event_name=event_name,
+            failed=failed,
+            denied=denied,
+            tool_name=tool_name,
+        )
+
+
 def _record_denial_counter() -> None:
     with contextlib.suppress(Exception):
         counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
@@ -606,6 +637,14 @@ def _record_denial_counter() -> None:
         spec.loader.exec_module(mod)
         mod.record_denial()
 
+
+
+
+def _record_denial_with_significance(event: dict, event_name: str, tool_name: str = "") -> None:
+    _record_denial_counter()
+    _soft_significance_capture(
+        event, event_name, failed=False, denied=True, tool_name=tool_name
+    )
 
 
 def _run_event(event: dict, _host: str) -> int:
@@ -635,7 +674,7 @@ def _run_event(event: dict, _host: str) -> int:
         )
         kernel_report = _kernel.evaluate_session(normalized_kernel_event, kernel_journal)
     if kernel_report.decision == "deny":
-        _record_denial_counter()
+        _record_denial_with_significance(event, event_name, tool_name)
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
         return 2
     research_reason = _research_before_mutation_reason(
@@ -644,7 +683,7 @@ def _run_event(event: dict, _host: str) -> int:
         session_id,
     )
     if research_reason:
-        _record_denial_counter()
+        _record_denial_with_significance(event, event_name, tool_name)
         print(json.dumps({"decision": "block", "reason": research_reason}))
         return 2
     if event_name == "SessionStart":
@@ -659,7 +698,7 @@ def _run_event(event: dict, _host: str) -> int:
         event, event_name, commands, tool_name, tool_input, functions_source, functions_direct, session_id
     )
     if guard_reason:
-        _record_denial_counter()
+        _record_denial_with_significance(event, event_name, tool_name)
         print(json.dumps({"decision": "block", "reason": guard_reason}))
         return 2
     if event_name == "PostToolUse" and not receipt_command:
@@ -673,7 +712,7 @@ def _run_event(event: dict, _host: str) -> int:
     if event_name in {"Stop", "SubagentStop"}:
         stop_reason = _stop_block_reason(event, session_id)
         if stop_reason:
-            _record_denial_counter()
+            _record_denial_with_significance(event, event_name, tool_name)
             print(json.dumps({"decision": "block", "reason": stop_reason}))
             return 2
     if event_name == "SessionStart":

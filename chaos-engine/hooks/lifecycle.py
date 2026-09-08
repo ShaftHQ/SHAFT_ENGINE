@@ -148,6 +148,14 @@ def cli_over_mcp_session_guidance() -> str:
     )
 
 
+def significance_session_guidance() -> str:
+    """Significance-filtered capture locator only — never Observer (#5658)."""
+    return (
+        "Significance: `.chaos-engine-state/significance/` "
+        "(soft fail/deny marks; Learning Session drain; no Observer)."
+    )
+
+
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
     "Off only: stop caveman, stop ponytail, or normal mode."
@@ -232,6 +240,7 @@ def session_start_context(token: str | None, activation: str) -> str:
     parts.append(self_improve_session_guidance())
     parts.append(heuristics_session_guidance())
     parts.append(cli_over_mcp_session_guidance())
+    parts.append(significance_session_guidance())
     for name in COMPANION_NAMES:
         for root in _search_roots():
             path = next(

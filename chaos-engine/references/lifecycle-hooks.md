@@ -24,8 +24,8 @@ events and point them at the installed ChaosEngine guard:
 | `SessionStart` | Inject entrypoint path, reflection token, companion intensity, and compact Caveman/Ponytail file locators. Record session for reflection. Once per session_id, fetch the configured upstream, reset the primary default branch to that tip when it is already on the default (discarding uncommitted files there), halt without discarding when a leftover task branch is dirty, then create or reuse one sibling detached session worktree. |
 | `UserPromptSubmit` | Keep companion mode tracking if host supports it. |
 | `PreToolUse` | Deny catastrophic or out-of-contract tool use. Hold work that owes a reflection receipt. When a session worktree manifest exists, deny mutations of the primary checkout. |
-| `PostToolUse` | Record mutation, delivery, and outcome for reflection. |
-| `PostToolUseFailure` | Record the failure and inject a pending reflection checkpoint when one is owed. |
+| `PostToolUse` | Record mutation, delivery, and outcome for reflection. Soft significance marks on fail only (no Observer). |
+| `PostToolUseFailure` | Record the failure, soft significance mark, and inject a pending reflection checkpoint when one is owed. |
 | `Stop` | Collect incomplete delivery duties once without manufacturing work. Never create or delete worktrees; Stop is per-turn. Plan Mode stays read-only: it may finish in a pre-dirty or unverifiable checkout without inheriting unrelated delivery, synchronization, tracking, cleanup, or Learning Session duties; confirmed NUL corruption still blocks with preservation guidance. Normal completion ownership applies to task-created mutation. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. `stop_hook_active` lets the retry proceed. |
 | `SubagentStop` | Apply delegate-owned completion duties only. Never start or inherit the root terminal Learning Session. Never create or delete the root session worktree. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
 | `SessionEnd` | Remove this session's worktree only after merge is recorded locally and the tree is clean. Keep the local branch. Codex and Grok cap this handler at 3 seconds. Hosts without SessionEnd rely on the next SessionStart to reap merged leftovers. |
@@ -39,8 +39,9 @@ ChaosEngine selects ultra through every supported host adapter.
 
 ## SessionStart locator-only budget
 
-Also injects locators for heuristics (`.chaos-engine-state/heuristics/`) and
-the CLI-over-MCP iron law — never heuristic prose, never MCP schema dumps.
+Also injects locators for heuristics (`.chaos-engine-state/heuristics/`),
+significance marks (`.chaos-engine-state/significance/`), and the CLI-over-MCP
+iron law — never heuristic/significance prose, never MCP schema dumps.
 
 SessionStart must inject compact locators (entrypoint activation, reflection
 token, companion intensity, Caveman/Ponytail paths) — never full skill bodies
