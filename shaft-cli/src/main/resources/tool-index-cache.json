@@ -2,6 +2,100 @@
   "schemaVersion": "1.0",
   "tools": [
     {
+      "name": "agentic_workflow_run_fixture",
+      "service": "GovernedAgenticWorkflowService",
+      "description": "runs the governed agentic test workflow fixture (plan, generate, run, diagnose, propose) with deterministic seed bindings, scoped tools/permissions/budgets, provenance, and fail-closed trust boundaries; returns a review-only proposal (never applies tests or cleanup)",
+      "params": [
+        {
+          "name": "alternateDiagnosis",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "journeyId",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "journeyText",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "pageContent",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "simulatedRunnerExitCode",
+          "type": "integer",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "suggestCleanup",
+          "type": "boolean",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "suggestCredentialRead",
+          "type": "boolean",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "suggestDestructiveBrowser",
+          "type": "boolean",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "suggestTestMutation",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": true,
+      "intentKeywords": [
+        "agentic",
+        "governed workflow",
+        "proposal",
+        "provenance"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": {
+        "request": {
+          "journeyId": "login-happy-path",
+          "journeyText": "Log in with valid user and open account menu",
+          "pageContent": "",
+          "simulatedRunnerExitCode": 0,
+          "suggestTestMutation": "",
+          "suggestCleanup": false,
+          "suggestDestructiveBrowser": false,
+          "suggestCredentialRead": false,
+          "alternateDiagnosis": ""
+        },
+        "response": "review-only proposal with provenance; never applies tests or cleanup"
+      }
+    },
+    {
       "name": "autobot_local_agent_clients",
       "service": "AutobotService",
       "description": "lists local SHAFT Autobot CLI clients that do not require SHAFT cloud API keys",

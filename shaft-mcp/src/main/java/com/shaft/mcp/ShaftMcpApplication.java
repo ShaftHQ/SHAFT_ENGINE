@@ -74,7 +74,8 @@ public class ShaftMcpApplication {
             CodingPartnerService codingPartnerService,
             AutobotService autobotService,
             PlannerService plannerService,
-            InfrastructureMcpService infrastructureMcpService) {
+            InfrastructureMcpService infrastructureMcpService,
+            GovernedAgenticWorkflowService governedAgenticWorkflowService) {
         var engineServiceList = List.of(ToolCallbacks.from(engineService));
         var browserServiceList = List.of(ToolCallbacks.from(browserService));
         var elementServiceList = List.of(ToolCallbacks.from(elementService));
@@ -90,6 +91,7 @@ public class ShaftMcpApplication {
         var autobotServiceList = List.of(ToolCallbacks.from(autobotService));
         var plannerServiceList = List.of(ToolCallbacks.from(plannerService));
         var infrastructureMcpServiceList = List.of(ToolCallbacks.from(infrastructureMcpService));
+        var governedAgenticWorkflowServiceList = List.of(ToolCallbacks.from(governedAgenticWorkflowService));
 
         var serviceList = new java.util.ArrayList<ToolCallback>();
         serviceList.addAll(engineServiceList);
@@ -107,6 +109,7 @@ public class ShaftMcpApplication {
         serviceList.addAll(autobotServiceList);
         serviceList.addAll(plannerServiceList);
         serviceList.addAll(infrastructureMcpServiceList);
+        serviceList.addAll(governedAgenticWorkflowServiceList);
         return serviceList;
 	}
 
