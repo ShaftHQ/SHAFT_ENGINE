@@ -70,8 +70,8 @@
       "harness": "chaos-engine",
       "harnessSha256": "1e99853bd499b617d12b20c535de08d3f80a7aac99e3f2390cebc7db659d62db",
       "treatmentSha256": {
-        "calibration": "ebd1224a842d176fc16bede548f482b556c73d1ca7202ee28275d2762e794ade",
-        "full-pilot": "0db0eedbb4385b68b48b4cf3489e3a77993635cbf381f88943cc0609b6323a99"
+        "calibration": "e2dc49bbebe7d309e908815a19950c26f58e52b5ef3832c17dbae754265089df",
+        "full-pilot": "cf2e60b2d164fa1ceee084b219effc3465ae78fb54763d336ab1c62b6327f2db"
       },
       "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
       "timeoutSeconds": 1800,

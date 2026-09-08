@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -42,13 +43,61 @@ def _file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+_SKIP_TREE_PARTS = frozenset({"__pycache__", ".pytest_cache"})
+_SKIP_TREE_SUFFIXES = frozenset({".pyc", ".pyo", ".so"})
+
+
+def _skip_tree_path(path: Path, root: Path) -> bool:
+    relative = path.relative_to(root)
+    if any(part in _SKIP_TREE_PARTS or part.endswith(".egg-info") for part in relative.parts):
+        return True
+    return path.suffix in _SKIP_TREE_SUFFIXES
+
+
+def _git_tracked_files(root: Path) -> list[Path] | None:
+    """Return tracked files under root, or None when root is not this git worktree."""
+    root = root.resolve()
+    try:
+        top = subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    top_path = Path(top).resolve()
+    try:
+        prefix = root.relative_to(top_path).as_posix()
+    except ValueError:
+        return None
+    spec = prefix if prefix != "." else "."
+    try:
+        raw = subprocess.check_output(
+            ["git", "-C", str(top_path), "ls-files", "-z", "--", spec],
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    files: list[Path] = []
+    for item in raw.split(b"\0"):
+        if not item:
+            continue
+        path = top_path / item.decode()
+        if path.is_file() and not path.is_symlink():
+            files.append(path)
+    return files
+
+
 def _tree_sha256(root: Path, *, task_package: bool = False) -> str:
     digest = hashlib.sha256()
-    files = [path for path in root.rglob("*") if path.is_file()]
+    root = root.resolve()
+    files = _git_tracked_files(root)
+    if files is None:
+        files = [path for path in root.rglob("*") if path.is_file() and not path.is_symlink()]
     if task_package:
         files = [path for path in files if path.name not in {"README.md", "trajectory.json"}]
     for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
-        if "__pycache__" in path.parts or path.suffix == ".pyc":
+        if _skip_tree_path(path, root):
             continue
         digest.update(
             f"{path.relative_to(root).as_posix()}\0{_file_sha256(path)}\n".encode()
@@ -87,7 +136,10 @@ def validate_live_evidence(
     lock = _file_sha256(gauge / "requirements.lock")
     candidate_kwargs = jobs["chaos-engine"]["agents"][0]["kwargs"]
     if candidate_kwargs.get("harness_sha256") != harness:
-        raise ValueError("live harness tree digest mismatch")
+        raise ValueError(
+            "live harness tree digest mismatch "
+            f"(live {harness} != job {candidate_kwargs.get('harness_sha256')})"
+        )
     if manifest["arms"][1].get("harnessSha256") != harness:
         raise ValueError("manifest harness source digest mismatch")
     if candidate_kwargs.get("adapter_sha256") != adapter:
