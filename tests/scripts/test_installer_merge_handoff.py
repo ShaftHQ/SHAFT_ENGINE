@@ -86,3 +86,33 @@ class InstructionMergeHandoffTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InstallProfileSelectionTest(unittest.TestCase):
+    def setUp(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "ce_profile_install", ROOT / "chaos-engine" / "install.py"
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeError("cannot load install.py")
+        self.install = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.install)
+
+    def test_empty_and_non_java_stay_portable_java_shaft_selects_repository(self) -> None:
+        source = ROOT / "chaos-engine"
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            empty = root / "empty"
+            empty.mkdir()
+            non_java = root / "node"
+            non_java.mkdir()
+            (non_java / "package.json").write_text("{}", encoding="utf-8")
+            java = root / "shaft"
+            java.mkdir()
+            (java / "pom.xml").write_text(
+                "<project><artifactId>shaft-engine</artifactId></project>\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(self.install.detect_distribution(empty, source), "portable")
+            self.assertEqual(self.install.detect_distribution(non_java, source), "portable")
+            self.assertEqual(self.install.detect_distribution(java, source), "repository")
