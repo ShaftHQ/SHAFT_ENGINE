@@ -44,7 +44,7 @@ class TokenMaxNoHeadroomTests(TestCase):
         self.assertIn(self.policy.HEAL_PROMPT, self.policy.HEAL_PROMPT)
 
     def test_overlay_match_ignores_adopter_and_reports_repository_drift(self):
-        self.assertTrue(self.overlay.core_matches_source(Path("/tmp"))["coreMatchesSource"])
+        self.assertTrue(self.overlay.core_matches_source(Path("/opt/not-a-shaft-checkout"))["coreMatchesSource"])
         matched = self.overlay.core_matches_source(ROOT)
         self.assertEqual("repository", matched["scope"])
         self.assertIn("coreMatchesSource", matched)
