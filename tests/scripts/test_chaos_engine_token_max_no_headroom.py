@@ -72,6 +72,13 @@ class TokenMaxNoHeadroomTests(TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertNotIn("caveman=ultra", agents)
 
+    def test_headroom_proxy_is_not_reintroduced(self):
+        self.assertFalse((ROOT / "chaos-engine/headroom_policy.py").exists())
+        for path in (ROOT / "chaos-engine").rglob("*.py"):
+            if path.name == "headroom_policy.py":
+                self.fail(str(path))
+        rule = (ROOT / "chaos-engine/references/no-proxy.md").read_text(encoding="utf-8")
+        self.assertIn("Never `ft launch`", rule)
+        self.assertIn("Do not treat wrap/proxy as install health", rule)
 
-if __name__ == "__main__":
-    unittest.main()
+
