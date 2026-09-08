@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 FIREWALL = ROOT / "chaos-engine/references/context-firewall.md"
 PRODUCT = ROOT / "chaos-engine/skills/self-improve/references/product-track.md"
+PROFILE_PRODUCT = ROOT / "chaos-engine/profiles/shaft/references/product-track.md"
 LEVEL1 = ROOT / "chaos-engine/references/level-1-catalog.md"
 CE_SKILL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 SI_SKILL = ROOT / "chaos-engine/skills/self-improve/SKILL.md"
@@ -50,9 +51,13 @@ class S3SelfImproveTests(unittest.TestCase):
             "gh issue create",
         ):
             self.assertIn(needle, body)
-        # Prefer CLI economics over MCP essay tickets
         self.assertIn("essay", body.lower())
         self.assertIn("MCP", body)
+        self.assertNotIn("shaft", body.casefold())
+        self.assertTrue(PROFILE_PRODUCT.is_file())
+        profile = PROFILE_PRODUCT.read_text(encoding="utf-8")
+        self.assertIn("SHAFT", profile)
+        self.assertIn("ChaosGauge", profile)
 
     def test_overlay_wiring_all_hosts(self):
         level1 = LEVEL1.read_text(encoding="utf-8")

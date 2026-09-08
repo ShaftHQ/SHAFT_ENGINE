@@ -24,7 +24,7 @@ Lean CE-native skill informed by Task Observer methodology
 
 Details: [references/observation-taxonomy.md](references/observation-taxonomy.md).
 Product track: [references/product-track.md](references/product-track.md)
-(SHAFT issues/evals + ChaosGauge link; CLI/doctor/silent-verify over essay tickets).
+(product issues/evals + ChaosGauge link; CLI/doctor/silent-verify over essay tickets).
 Activation: [references/activation.md](references/activation.md).
 Adopt/reject research: [references/research-adopt-reject.md](references/research-adopt-reject.md).
 Roadmap: [../../references/self-improve-master-plan.md](../../references/self-improve-master-plan.md).
