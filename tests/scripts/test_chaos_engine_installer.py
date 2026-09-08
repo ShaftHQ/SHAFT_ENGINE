@@ -1921,6 +1921,283 @@ module.install_with_dependencies(project, source, "3" * 40)
                 str(retrieval_probe.call_args.args[1]["python3"]),
             )
 
+    def test_doctor_names_missing_managed_python_on_hooks_and_mcps(self):
+        """#5680 / #5667: never emit bare dual recovery-required without detail."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            with mock.patch.object(
+                hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    hosts if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual("recovery-required", result["status"])
+            for name in ("hooks", "mcps"):
+                item = result["components"][name]
+                self.assertEqual("recovery-required", item["status"], name)
+                self.assertEqual("managed-python-missing", item.get("detail"), name)
+                self.assertEqual("CE_MANAGED_PYTHON_MISSING", item.get("code"), name)
+                fix = item.get("fixNext") or MODULE.component_fix_next(name, item)
+                self.assertIsInstance(fix, str, name)
+                self.assertTrue(fix.strip(), name)
+                self.assertIn("repair", fix.casefold())
+
+    def test_resolve_managed_python_falls_back_to_account_when_scripts_missing(self):
+        """Generation path alone must not skip account python when Scripts\\python.exe is gone."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generation = root / "generation"
+            scripts = generation / "uv-tools/mempalace/Scripts"
+            scripts.mkdir(parents=True)
+            account_python = root / "account/python.exe"
+            account_python.parent.mkdir(parents=True)
+            account_python.write_text("fixture", encoding="utf-8")
+            resolved = MODULE.resolve_managed_python(
+                str(generation),
+                {"python3": str(account_python)},
+                windows=True,
+            )
+            self.assertEqual(account_python.resolve(), resolved)
+
+    def test_resolve_managed_python_prefers_existing_scripts_python_exe(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generation = root / "generation"
+            scripts = generation / "uv-tools/mempalace/Scripts"
+            scripts.mkdir(parents=True)
+            interpreter = scripts / "python.exe"
+            interpreter.write_text("fixture", encoding="utf-8")
+            resolved = MODULE.resolve_managed_python(
+                str(generation),
+                {"python3": str(root / "other/python.exe")},
+                windows=True,
+            )
+            self.assertEqual(interpreter.resolve(), resolved)
+
+    def test_doctor_uses_account_python_when_generation_interpreter_missing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            account_python = root / "account/bin/python3"
+            account_python.parent.mkdir(parents=True)
+            account_python.write_text("fixture", encoding="utf-8")
+            generation = root / "generation"
+            (generation / "uv-tools/mempalace/bin").mkdir(parents=True)
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_account_python(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    receipt["commands"]["python3"] = str(account_python.resolve())
+                    args[0].joinpath(".chaos-engine-dependencies.json").write_text(
+                        json.dumps(receipt), encoding="utf-8"
+                    )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_account_python
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT)
+
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            with mock.patch.object(
+                hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
+            ), mock.patch.object(
+                hosts,
+                "mcp_runtime_status",
+                return_value={"status": "healthy"},
+            ) as mcp_probe, mock.patch.object(
+                hosts, "hook_runtime_healthy", return_value=True
+            ) as hook_probe, mock.patch.object(
+                MODULE,
+                "resolve_managed_python",
+                wraps=MODULE.resolve_managed_python,
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    hosts if name == "hosts" else original_load(root, name)
+                ),
+            ), mock.patch.object(
+                MODULE,
+                "status_with_dependencies",
+                return_value={
+                    "status": "healthy",
+                    "commit": TEST_COMMIT,
+                    "distribution": "repository",
+                    "policySha256": "a" * 64,
+                    "kernel": {"status": "healthy"},
+                    "hosts": {"status": "healthy"},
+                    "dependencies": {
+                        "status": "healthy",
+                        "path": str(generation),
+                    },
+                    "components": {
+                        "hooks": {"status": "healthy", "taskImpact": "required"},
+                        "mcps": {"status": "healthy", "taskImpact": "required"},
+                        "memory": {"status": "healthy", "taskImpact": "required"},
+                    },
+                },
+            ):
+                # Re-read account commands from receipt written during install.
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertNotEqual(
+                "managed-python-missing",
+                (result.get("components") or {}).get("hooks", {}).get("detail"),
+            )
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(mcp_probe.call_args.args[1]),
+            )
+            self.assertEqual(
+                str(account_python.resolve()),
+                str(hook_probe.call_args.args[1]),
+            )
+
+    def test_doctor_keeps_memory_origin_main_desync_as_compatible_legacy_mcps(self):
+        """#5630 remains: Memory HEAD desync alone must not fail verify via mcps."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            account_python = Path(temporary) / "account/bin/python3"
+            account_python.parent.mkdir(parents=True)
+            account_python.write_text("fixture", encoding="utf-8")
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                controller = AccountDependencyController(load_controller(installed_root))
+                install_account = controller.install_account_dependencies
+
+                def install_with_account_python(*args, **kwargs):
+                    receipt = install_account(*args, **kwargs)
+                    receipt["commands"]["python3"] = str(account_python.resolve())
+                    args[0].joinpath(".chaos-engine-dependencies.json").write_text(
+                        json.dumps(receipt), encoding="utf-8"
+                    )
+                    return receipt
+
+                controller.install_account_dependencies = install_with_account_python
+                return controller
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT)
+
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            with mock.patch.object(
+                hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
+            ), mock.patch.object(
+                hosts,
+                "mcp_runtime_status",
+                return_value={
+                    "status": "compatible-legacy",
+                    "detail": "memory-origin-main-desync",
+                    "code": "CE_MEMORY_ORIGIN_MAIN_DESYNC",
+                    "fixNext": "git fetch origin main && git merge --ff-only origin/main",
+                },
+            ), mock.patch.object(
+                hosts, "hook_runtime_healthy", return_value=True
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    hosts if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual(
+                "compatible-legacy", result["components"]["mcps"]["status"]
+            )
+            self.assertEqual(
+                "CE_MEMORY_ORIGIN_MAIN_DESYNC", result["components"]["mcps"].get("code")
+            )
+            self.assertNotEqual("recovery-required", result["components"]["mcps"]["status"])
+            self.assertNotEqual(
+                "recovery-required",
+                result["components"]["hooks"].get("status"),
+            )
+
+    def test_doctor_heal_restores_managed_python_before_naming_failure(self):
+        """Prefer one deterministic heal when the interpreter is missing (#5680)."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            healed = Path(temporary) / "healed/python"
+            healed.parent.mkdir(parents=True)
+            healed.write_text("fixture", encoding="utf-8")
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = MODULE.load_installed_controller
+            resolve_calls = {"n": 0}
+
+            def resolve_side_effect(*_args, **_kwargs):
+                resolve_calls["n"] += 1
+                if resolve_calls["n"] == 1:
+                    return None
+                return healed.resolve()
+
+            with mock.patch.object(
+                hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
+            ), mock.patch.object(
+                hosts,
+                "mcp_runtime_status",
+                return_value={"status": "healthy"},
+            ) as mcp_probe, mock.patch.object(
+                hosts, "hook_runtime_healthy", return_value=True
+            ) as hook_probe, mock.patch.object(
+                MODULE, "resolve_managed_python", side_effect=resolve_side_effect
+            ), mock.patch.object(
+                MODULE,
+                "heal_managed_python",
+                return_value=healed.resolve(),
+            ) as heal, mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    hosts if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            heal.assert_called_once()
+            self.assertNotEqual(
+                "managed-python-missing",
+                result["components"]["hooks"].get("detail"),
+            )
+            self.assertEqual(str(healed.resolve()), str(mcp_probe.call_args.args[1]))
+            self.assertEqual(str(healed.resolve()), str(hook_probe.call_args.args[1]))
+
     def test_status_maps_legacy_mempalace_classifier_without_launching(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary).resolve() / "consumer"

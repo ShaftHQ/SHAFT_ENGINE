@@ -3759,6 +3759,213 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             return result
 
 
+MANAGED_PYTHON_MISSING_DETAIL = "managed-python-missing"
+MANAGED_PYTHON_MISSING_CODE = "CE_MANAGED_PYTHON_MISSING"
+HOOKS_PROBE_FAILED_DETAIL = "hooks-probe-failed"
+HOOKS_PROBE_FAILED_CODE = "CE_HOOKS_PROBE_FAILED"
+
+
+def resolve_managed_python(
+    generation_path: str | None,
+    account_commands: dict[str, str] | None,
+    *,
+    windows: bool | None = None,
+) -> Path | None:
+    """Resolve a live MemPalace/account interpreter for hooks and MCP probes (#5680)."""
+    nt = os.name == "nt" if windows is None else bool(windows)
+    scripts = "Scripts" if nt else "bin"
+    names = (
+        ("python.exe", "python", "python3.exe", "python3")
+        if nt
+        else ("python", "python3")
+    )
+    if isinstance(generation_path, str) and generation_path.strip():
+        root = Path(generation_path) / "uv-tools" / "mempalace" / scripts
+        candidates: list[Path] = [root / name for name in names]
+        if nt:
+            for stem in ("python", "python3"):
+                for suffix in os.environ.get("PATHEXT", ".EXE;.CMD;.BAT;.COM").split(";"):
+                    if not suffix:
+                        continue
+                    candidates.append(root / f"{stem}{suffix}")
+                    candidates.append(root / f"{stem}{suffix.lower()}")
+        seen: set[str] = set()
+        for candidate in candidates:
+            key = str(candidate)
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                resolved = candidate.resolve(strict=True)
+            except (OSError, RuntimeError):
+                continue
+            if resolved.is_file():
+                return resolved
+    if isinstance(account_commands, dict):
+        account_python = account_commands.get("python3")
+        if isinstance(account_python, str) and account_python.strip():
+            try:
+                candidate_python = Path(account_python).resolve(strict=True)
+            except (OSError, RuntimeError):
+                candidate_python = None
+            if candidate_python is not None and candidate_python.is_file():
+                return candidate_python
+    return None
+
+
+def managed_python_missing_fix_next() -> str:
+    """Operator fix-next when the managed probe interpreter is absent."""
+    cli = _doctor_python_cli()
+    return (
+        f"Restore the managed MemPalace Python interpreter via "
+        f"`{cli} .chaos-engine/install.py repair --project . --component tools` "
+        f"(or re-run the ChaosEngine install one-liner), then "
+        f"`{cli} .chaos-engine/install.py doctor --project .`."
+    )
+
+
+def apply_managed_python_missing(components: object) -> None:
+    """Name both hooks and mcps when the shared interpreter is missing (#5667)."""
+    if not isinstance(components, dict):
+        return
+    fix = managed_python_missing_fix_next()
+    for name in ("hooks", "mcps"):
+        item = components.get(name)
+        if not isinstance(item, dict):
+            continue
+        item["status"] = "recovery-required"
+        item["detail"] = MANAGED_PYTHON_MISSING_DETAIL
+        item["code"] = MANAGED_PYTHON_MISSING_CODE
+        item["fixNext"] = fix
+
+
+def heal_managed_python(
+    project: Path,
+    *,
+    generation_path: str | None,
+    account_commands: dict[str, str] | None,
+) -> Path | None:
+    """One deterministic attempt to restore the probe interpreter (#5680)."""
+    project = project.resolve()
+    refreshed = account_commands
+    account_receipt = project / ".chaos-engine-dependencies.json"
+    if account_receipt.is_file() and not is_link_or_reparse(account_receipt):
+        try:
+            payload = json.loads(account_receipt.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            payload = None
+        if isinstance(payload, dict) and isinstance(payload.get("commands"), dict):
+            refreshed = {
+                str(key): str(value)
+                for key, value in payload["commands"].items()
+                if isinstance(key, str) and isinstance(value, str)
+            }
+    resolved = resolve_managed_python(generation_path, refreshed)
+    if resolved is not None:
+        return resolved
+    if not (project / INSTALL_DIRECTORY).is_dir():
+        return None
+    pointer = project / ".chaos-engine-runtime-current.json"
+    runtime = project / ".chaos-engine-runtime"
+    has_repair_surface = (
+        (isinstance(generation_path, str) and Path(generation_path).is_dir())
+        or (refreshed is not None and bool(refreshed.get("python3")))
+        or pointer.is_file()
+        or runtime.is_dir()
+    )
+    if not has_repair_surface:
+        return None
+    try:
+        repair_component(project, "tools")
+    except Exception:
+        return resolve_managed_python(generation_path, refreshed)
+    refreshed_after = refreshed
+    if account_receipt.is_file() and not is_link_or_reparse(account_receipt):
+        try:
+            payload = json.loads(account_receipt.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            payload = None
+        if isinstance(payload, dict) and isinstance(payload.get("commands"), dict):
+            refreshed_after = {
+                str(key): str(value)
+                for key, value in payload["commands"].items()
+                if isinstance(key, str) and isinstance(value, str)
+            }
+    generation_after = generation_path
+    if pointer.is_file() and not is_link_or_reparse(pointer):
+        try:
+            pointer_payload = json.loads(pointer.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            pointer_payload = None
+        active = (
+            pointer_payload.get("active")
+            if isinstance(pointer_payload, dict)
+            else None
+        )
+        generation_id = active.get("generationId") if isinstance(active, dict) else None
+        if isinstance(generation_id, str) and generation_id.strip():
+            candidate = project / ".chaos-engine-runtime-generations" / generation_id
+            if candidate.is_dir():
+                generation_after = str(candidate)
+    return resolve_managed_python(generation_after, refreshed_after)
+
+
+def _attach_probe_fields(item: dict[str, object], probe: dict[str, object]) -> None:
+    """Copy bounded detail/code/fixNext from a probe result onto a component."""
+    fix_next = probe.get("fixNext")
+    detail = probe.get("detail")
+    if isinstance(fix_next, str) and fix_next.strip():
+        item["detail"] = fix_next.strip()
+        item["fixNext"] = fix_next.strip()
+    elif isinstance(detail, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail):
+        item["detail"] = detail
+    code = probe.get("code")
+    if isinstance(code, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", code):
+        item["code"] = code
+
+
+def apply_mcp_doctor_status(
+    result: dict[str, object],
+    components: object,
+    mcp_status: dict[str, object],
+) -> None:
+    """Map one MCP probe onto required mcps + overall doctor status (#5630/#5680)."""
+    mcp_status_value = str(mcp_status.get("status") or "recovery-required")
+    if not isinstance(components, dict) or not isinstance(components.get("mcps"), dict):
+        if mcp_status_value not in {"healthy", "compatible-legacy", "degraded", "sync-advisory"}:
+            result["status"] = "recovery-required"
+        return
+    mcps = components["mcps"]
+    if mcp_status_value == "healthy":
+        return
+    if mcp_status_value in {"compatible-legacy", "degraded", "sync-advisory"}:
+        # Memory origin/main write gate is advisory for required mcps (#5630).
+        mcps["status"] = "compatible-legacy"
+        _attach_probe_fields(mcps, mcp_status)
+        return
+    result["status"] = "recovery-required"
+    mcps["status"] = "recovery-required"
+    _attach_probe_fields(mcps, mcp_status)
+    if not mcps.get("fixNext"):
+        named = component_fix_next("mcps", mcps)
+        if named:
+            mcps["fixNext"] = named
+
+
+def apply_hooks_probe_failure(result: dict[str, object], components: object) -> None:
+    """Name a failed hook runtime probe (#5680)."""
+    result["status"] = "recovery-required"
+    if not isinstance(components, dict) or not isinstance(components.get("hooks"), dict):
+        return
+    hooks = components["hooks"]
+    hooks["status"] = "recovery-required"
+    hooks["detail"] = HOOKS_PROBE_FAILED_DETAIL
+    hooks["code"] = HOOKS_PROBE_FAILED_CODE
+    named = component_fix_next("hooks", hooks)
+    if named:
+        hooks["fixNext"] = named
+
+
 def doctor_with_dependencies(
     project: Path, *, verify_clients: bool = True
 ) -> dict[str, object]:
@@ -3774,6 +3981,8 @@ def doctor_with_dependencies(
     host_controller = load_installed_controller(target, "hosts")
     dependency = result.get("dependencies")
     generation_path = dependency.get("path") if isinstance(dependency, dict) else None
+    if not isinstance(generation_path, str):
+        generation_path = None
     account_commands = None
     account_receipt = project.resolve() / ".chaos-engine-dependencies.json"
     if account_receipt.is_file() and not is_link_or_reparse(account_receipt):
@@ -3793,58 +4002,27 @@ def doctor_with_dependencies(
             code = retrieval.get("code")
             if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", code):
                 components["memory"]["code"] = code
-    scripts = "Scripts" if os.name == "nt" else "bin"
-    python_name = "python.exe" if os.name == "nt" else "python"
-    managed_python = (
-        Path(generation_path) / "uv-tools/mempalace" / scripts / python_name
-        if isinstance(generation_path, str) else None
-    )
-    if managed_python is None and account_commands is not None:
-        account_python = account_commands.get("python3")
-        if isinstance(account_python, str):
-            try:
-                candidate_python = Path(account_python).resolve(strict=True)
-            except (OSError, RuntimeError):
-                candidate_python = None
-            if candidate_python is not None and candidate_python.is_file():
-                managed_python = candidate_python
-    mcp_status = (
-        host_controller.mcp_runtime_status(project.resolve(), managed_python, account_commands)
-        if managed_python is not None else {"status": "recovery-required"}
-    )
-    mcp_status_value = str(mcp_status.get("status") or "recovery-required")
+    managed_python = resolve_managed_python(generation_path, account_commands)
+    if managed_python is None:
+        managed_python = heal_managed_python(
+            project.resolve(),
+            generation_path=generation_path,
+            account_commands=account_commands,
+        )
     components = result.get("components")
-    if mcp_status_value == "healthy":
-        pass
-    elif mcp_status_value in {"compatible-legacy", "degraded", "sync-advisory"}:
-        # Memory origin/main write gate during probe is advisory for required mcps
-        # (#5630); tool.py still hard-fails memory writes. Keep overall install
-        # verify from treating this alone as CE-INSTALL-FAILED recovery-required.
-        if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
-            components["mcps"]["status"] = "compatible-legacy"
-            fix_next = mcp_status.get("fixNext")
-            detail = mcp_status.get("detail")
-            if isinstance(fix_next, str) and fix_next.strip():
-                components["mcps"]["detail"] = fix_next.strip()
-            elif isinstance(detail, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail):
-                components["mcps"]["detail"] = detail
-            code = mcp_status.get("code")
-            if isinstance(code, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", code):
-                components["mcps"]["code"] = code
+    if managed_python is None:
+        result["status"] = "recovery-required"
+        apply_managed_python_missing(components)
     else:
-        result["status"] = "recovery-required"
-        if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
-            components["mcps"]["status"] = "recovery-required"
-            detail = mcp_status.get("detail")
-            if isinstance(detail, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail):
-                components["mcps"]["detail"] = detail
-    if managed_python is None or not host_controller.hook_runtime_healthy(
-        project.resolve(), managed_python
-    ):
-        result["status"] = "recovery-required"
-        components = result.get("components")
-        if isinstance(components, dict) and isinstance(components.get("hooks"), dict):
-            components["hooks"]["status"] = "recovery-required"
+        apply_mcp_doctor_status(
+            result,
+            components,
+            host_controller.mcp_runtime_status(
+                project.resolve(), managed_python, account_commands
+            ),
+        )
+        if not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
+            apply_hooks_probe_failure(result, components)
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
@@ -4456,6 +4634,9 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
     impact = str(item.get("taskImpact") or "required")
     if status == "healthy" or (status == "absent" and impact == "optional"):
         return None
+    fix_next = item.get("fixNext")
+    if isinstance(fix_next, str) and fix_next.strip():
+        return fix_next.strip()
     detail = item.get("detail")
     if _looks_like_fix_next(detail):
         return str(detail).strip()
@@ -4469,6 +4650,14 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         f"(or `{cli} .chaos-engine/bootstrap.py` from a source checkout), then "
         f"`{cli} .chaos-engine/install.py doctor --project .`."
     )
+    if code == MANAGED_PYTHON_MISSING_CODE or detail == MANAGED_PYTHON_MISSING_DETAIL:
+        return managed_python_missing_fix_next()
+    if code == HOOKS_PROBE_FAILED_CODE or detail == HOOKS_PROBE_FAILED_DETAIL:
+        return (
+            f"Run `{cli} .chaos-engine/install.py repair --project . --component hooks`, "
+            "reload/trust hooks in the active host, then "
+            f"`{cli} .chaos-engine/install.py doctor --project .`."
+        )
     if code == "CE_CORE_MISSING" or name == "core":
         return (
             "Rerun the ChaosEngine install one-liner to restore `.chaos-engine/` "
