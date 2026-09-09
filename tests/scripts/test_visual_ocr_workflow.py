@@ -149,7 +149,8 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIn("tab12Screenshot", body)
         self.assertIn("ImageTarget.fromBytes(tab12Screenshot)", body)
         self.assertNotIn('OcrTarget.exact("TAB 12")', body)
-        self.assertIn('OcrTarget.containing("TAB 1")', body)
+        self.assertNotIn('OcrTarget.containing("TAB 1")', body)
+        self.assertIn('OcrTarget.exact("TAB 1")', body)
 
     def test_windows_appium_desktop_pins_winappdriver_without_releases_api(self):
         local_workflow = LOCAL_WORKFLOW.read_text(encoding="utf-8")

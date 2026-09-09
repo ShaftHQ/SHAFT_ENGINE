@@ -264,7 +264,8 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 TouchActions.SwipeDirection.RIGHT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
 
-        driver.get().touch().swipeElementIntoView(tabs, OcrTarget.containing("TAB 1"), TouchActions.SwipeDirection.LEFT);
+        // Exact "TAB 1" — containing("TAB 1") also matches TAB 10–13.
+        driver.get().touch().swipeElementIntoView(tabs, OcrTarget.exact("TAB 1"), TouchActions.SwipeDirection.LEFT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab1).isDisplayed());
     }
 
