@@ -4733,6 +4733,19 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
     """Point doctor fix-next at the merge handoff instead of a blind reinstall."""
     if not isinstance(components, dict):
         return
+    heal = Path(project) / ".chaos-engine-state" / "heal-handoff.md"
+    if heal.is_file() and not is_link_or_reparse(heal):
+        message = (
+            "Complete the agent heal using .chaos-engine-state/heal-handoff.md, "
+            "then rerun doctor. Do not rerun the install one-liner."
+        )
+        for item in components.values():
+            if not isinstance(item, dict):
+                continue
+            if _component_severity(item) == "ok":
+                continue
+            item["fixNext"] = message
+        return
     handoff = Path(project) / ".chaos-engine-state" / "merge-handoff.md"
     if not handoff.is_file() or is_link_or_reparse(handoff):
         return
