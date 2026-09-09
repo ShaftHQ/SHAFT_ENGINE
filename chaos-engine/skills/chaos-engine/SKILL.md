@@ -208,6 +208,8 @@ return here for the next.
 | Meta-optimize | Periodic offline shared-log review (not continuous) | [meta-optimize](../../references/meta-optimize.md) |
 | Draft skill PR | Opt-in eval-gated draft skill PRs; default OFF | [draft-skill-pr](../../references/draft-skill-pr.md) |
 | Token budget | Triage or env selects ultra-lean / balanced / deep | [token-budget-modes](../../references/token-budget-modes.md) |
+| Eliminate waste | Token optimization: drop hops that do not change the next decision | [eliminate-waste](../../references/eliminate-waste.md) |
+| No proxy | Never install a traffic proxy | [no-proxy](../../references/no-proxy.md) |
 | GAP-EXIT2 UX | Grok/Copilot may not honor exit-2 hard blocks | [host-parity-matrix](../../references/host-parity-matrix.md) checklist |
 
 Routing also orders applicable knowledge retrieval before broad manual

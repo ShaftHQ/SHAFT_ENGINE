@@ -1311,7 +1311,7 @@ jobs:
     runs-on: ubuntu-latest
     # Was 10m (#4082). Nightly 34087761845 hit the ceiling mid-mvn ("The
     # operation was canceled.") and marked the whole E2E run cancelled.
-    # Successful nights finish in ~3m; 25m leaves headroom for grid flake
+    # Successful nights finish in ~3m; 25m leaves spare time for grid flake
     # without restoring the unbounded default.
     timeout-minutes: 25
     outputs:

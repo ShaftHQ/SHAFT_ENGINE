@@ -4012,6 +4012,45 @@ def doctor_with_dependencies(
         if not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
             apply_hooks_probe_failure(result, components)
     apply_merge_handoff_fix_next(project.resolve(), components)
+    try:
+        import importlib.util as _ilu
+
+        policy_path = Path(__file__).resolve().with_name("mcp_policy.py")
+        if policy_path.is_file() and isinstance(components, dict):
+            _spec = _ilu.spec_from_file_location("ce_mcp_policy_doctor", policy_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                error = _mod.uniqueness_error(
+                    _mod.collect_server_ids(project.resolve())
+                )
+                if error and isinstance(components.get("mcps"), dict):
+                    result["status"] = "recovery-required"
+                    components["mcps"]["status"] = "recovery-required"
+                    components["mcps"]["detail"] = error
+                    components["mcps"]["fixNext"] = _mod.HEAL_PROMPT
+        match_path = Path(__file__).resolve().with_name("overlay_match.py")
+        if match_path.is_file() and isinstance(components, dict):
+            _spec = _ilu.spec_from_file_location("ce_overlay_match_doctor", match_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                matched = _mod.core_matches_source(project.resolve())
+                core = components.get("core")
+                if isinstance(core, dict):
+                    core["coreMatchesSource"] = bool(matched.get("coreMatchesSource"))
+                    if matched.get("scope") == "repository" and not matched.get(
+                        "coreMatchesSource"
+                    ):
+                        # Record mismatch. Do not flip overall doctor status:
+                        # origin overlay already drifts from SOURCE on main.
+                        core["detail"] = "overlay-source-mismatch"
+                        core["fixNext"] = (
+                            "Reinstall so .chaos-engine owned files match chaos-engine/."
+                        )
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        # Optional #5689 probes; missing helpers must not crash doctor.
+        pass
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})

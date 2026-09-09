@@ -102,7 +102,7 @@ jobs:
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(validate_repository(repository_root), [])
 
-    def test_agent_guidance_job_keeps_bounded_setup_headroom_around_fast_gate(self):
+    def test_agent_guidance_job_keeps_bounded_setup_margin_around_fast_gate(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
             (repository_root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
@@ -114,7 +114,7 @@ jobs:
         self.assertIn("--budget-seconds 360", commands)
         self.assertNotIn("matrix", job)
 
-    def test_capture_browser_e2e_job_allows_prerequisite_and_browser_runtime_headroom(self):
+    def test_capture_browser_e2e_job_allows_prerequisite_and_browser_runtime_margin(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
             (repository_root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
@@ -122,7 +122,7 @@ jobs:
         timeout = workflow["jobs"]["capture-e2e"].get("timeout-minutes", 0)
         self.assertGreaterEqual(timeout, 15)
 
-    def test_ios_web_safari_job_allows_observed_nightly_runtime_headroom(self):
+    def test_ios_web_safari_job_allows_observed_nightly_runtime_margin(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
             (repository_root / ".github/workflows/e2eTests.yml").read_text(encoding="utf-8")

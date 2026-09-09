@@ -29,7 +29,7 @@ public final class CaptureManager implements AutoCloseable {
     // Bounds every invoke() wait (#4066): an unbounded executor.submit(...).get() turned any
     // recorder-side hang (a wedged CDP/BiDi round trip, a stuck WebDriver.quit()) into an
     // unbounded, undiagnosable MCP tool hang. A real browser session start observed ~18s; this
-    // gives ~5x headroom for a slow machine while still failing well before the MCP client's own
+    // gives ~5x margin for a slow machine while still failing well before the MCP client's own
     // 240s SESSION_START_TIMEOUT (ShaftMcpStdioClient), so the server reports a named, diagnosable
     // error before the client gives up. checkpoint() is in-memory only and stop()/close() share
     // start()'s browser-teardown I/O profile, so one bound honestly covers every invoke() call site.

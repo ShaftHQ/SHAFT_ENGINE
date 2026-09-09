@@ -1920,12 +1920,26 @@ START = "<!-- CHAOSENGINE:START -->"
 END = "<!-- CHAOSENGINE:END -->"
 DIRECTORY_MARKER = ".chaos-engine-owned-directory"
 DIRECTORY_CLAIM_PREFIX = ".chaos-engine-directory-claim-"
-INSTRUCTION = (
-    f"{START}\nBefore every task, follow the canonical "
-    "[ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). "
-    "Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools.\n"
-    f"{END}\n"
-)
+def guidance_tree(project: Path | None = None) -> str:
+    """Origin names SOURCE. Adopters name the overlay only."""
+    if project is not None and (project / "chaos-engine/skills/chaos-engine/SKILL.md").is_file():
+        return "chaos-engine"
+    return ".chaos-engine"
+
+
+def instruction_block(tree: str = ".chaos-engine") -> str:
+    skill = f"{tree}/skills/chaos-engine/SKILL.md"
+    tool = f"{tree}/tool.py"
+    return (
+        f"{START}\nBefore every task, follow the canonical "
+        f"[ChaosEngine]({skill}). "
+        f"Use `{tool}` for the project-local Memory, MemPalace, and Graphify tools. "
+        "No duplicate GitHub MCP. Repair: disable extras in host MCP config.\n"
+        f"{END}\n"
+    )
+
+
+INSTRUCTION = instruction_block(".chaos-engine")
 GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
 GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
 GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
@@ -4189,6 +4203,7 @@ def desired_content(
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    project: Path | None = None,
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -4206,9 +4221,10 @@ def desired_content(
         managed_python = Path(python)
         managed_node = Path(node)
     adapters = managed_paths()[:4]
+    tree = guidance_tree(project)
     skill = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
-        "Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).\n"
+        f"Follow the [canonical ChaosEngine](../../../{tree}/skills/chaos-engine/SKILL.md).\n"
     ).encode()
     after = {relative: skill for relative in adapters}
     stub_readme = (
@@ -4775,11 +4791,12 @@ def desired_content(
         validate_mempalace_config(mempalace_before)
         after["mempalace.yaml"] = mempalace_before
     after[".gitignore"] = gitignore_content(before[".gitignore"])
+    block = instruction_block(tree)
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
         after[relative] = merge_instruction(
-            before[relative], INSTRUCTION, relative=relative
+            before[relative], block, relative=relative
         )
-    copilot_instruction = INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/")
+    copilot_instruction = block.replace(f"{tree}/", f"../{tree}/")
     after[".github/copilot-instructions.md"] = merge_instruction(
         before[".github/copilot-instructions.md"],
         copilot_instruction,
@@ -5696,6 +5713,7 @@ def install(
                 dependency_runtime=dependency_runtime,
                 account_commands=account_commands,
                 maven_docker=maven_docker,
+                project=project,
             )
             for relative in LIVE_PERSISTENT_PATHS:
                 wanted[relative] = current[relative]
@@ -5780,6 +5798,7 @@ def install(
         dependency_runtime=dependency_runtime,
         account_commands=account_commands,
         maven_docker=maven_docker,
+        project=project,
     )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")

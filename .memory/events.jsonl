@@ -1211,3 +1211,4 @@
 {"actor": "agent", "event": "memory.created", "id": "gotcha.rebuild-flutter-integration-server-apk-before-browserstack-enablement", "timestamp": "2026-09-08T00:00:42+03:00"}
 {"actor": "agent", "event": "memory.created", "id": "fact.shaft-gui-locator-flutter-factories-and-docs-guide", "timestamp": "2026-09-08T00:00:42+03:00"}
 {"actor": "agent", "event": "memory.created", "id": "fact.android-flutter-emulator-and-browserstack-e2e-reenabled", "timestamp": "2026-09-08T00:00:42+03:00"}
+{"actor":"agent","event":"memory.updated","id":"constraint.never-use-or-enforce-a-headroom-style-proxy","timestamp":"2026-09-09T12:00:00+03:00"}

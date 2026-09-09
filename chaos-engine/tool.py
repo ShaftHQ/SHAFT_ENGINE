@@ -68,9 +68,10 @@ def enforce_tool_origin_main_policy(project: Path, tool: str) -> None:
     if head == origin_main:
         return
     message = origin_main_desync_message(head, origin_main)
-    if tool in MEMORY_ORIGIN_MAIN_TOOLS:
+    retrieve = os.environ.get("CHAOS_ENGINE_RETRIEVE") == "1"
+    if tool in MEMORY_ORIGIN_MAIN_TOOLS and not retrieve:
         raise ValueError(message)
-    if tool in ADVISORY_ORIGIN_MAIN_TOOLS:
+    if tool in ADVISORY_ORIGIN_MAIN_TOOLS or retrieve:
         print(f"warning: {message}", file=sys.stderr)
 
 

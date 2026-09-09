@@ -73,7 +73,7 @@ class DecideTests(unittest.TestCase):
         children = (
             _issue(5584, "eval", "CLOSED"),
             _issue(5585, "autoclose", "CLOSED"),
-            _issue(5613, "headroom", "OPEN"),  # must block autoclose if tracked
+            _issue(5613, "open-child", "OPEN"),  # must block autoclose if tracked
         )
         decision = decide(parent=parent, children=children)
         self.assertEqual("noop_open_children", decision.action)
@@ -185,7 +185,7 @@ class EvaluateIntegrationTests(unittest.TestCase):
                         "subIssues": {
                             "nodes": [
                                 {"number": 5585, "title": "autoclose", "state": "CLOSED"},
-                                {"number": 5613, "title": "headroom", "state": "OPEN"},
+                                {"number": 5613, "title": "proxy-ban", "state": "OPEN"},
                             ]
                         },
                     }
