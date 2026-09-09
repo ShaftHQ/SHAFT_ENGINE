@@ -225,6 +225,16 @@ Mixed or unknown ownership fails closed. Knowledge stores are never deleted by u
 3. Otherwise uninstall, confirm retained knowledge data if needed, then rerun the Install one-liner.
 4. Restart open hosts and re-run doctor.
 
+## One-shot install and heal handoff
+
+The one-liner is meant to run once. If doctor is still recovery-required after
+core is on disk, the installer writes `.chaos-engine-state/heal-handoff.md`,
+prints a GitHub issue URL with every required form field filled, prints one
+agent prompt, and exits 0. Paste that prompt into any supported host in the
+same folder. Do not rerun the one-liner unless `.chaos-engine/install.py` is
+missing. Console log and doctor JSON are optional on the GitHub form because
+a URL cannot attach files.
+
 
 ## Empty-project smoke (< 5 minutes)
 

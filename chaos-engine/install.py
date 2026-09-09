@@ -3778,7 +3778,7 @@ def resolve_managed_python(
     *,
     windows: bool | None = None,
 ) -> Path | None:
-    """Resolve a live MemPalace/account interpreter for hooks and MCP probes (#5680)."""
+    """Resolve generation, account, then installer Python for hooks/MCP probes (#5680/#5703)."""
     nt = os.name == "nt" if windows is None else bool(windows)
     scripts = "Scripts" if nt else "bin"
     names = (
@@ -3817,6 +3817,12 @@ def resolve_managed_python(
                 candidate_python = None
             if candidate_python is not None and candidate_python.is_file():
                 return candidate_python
+    try:
+        installer_python = Path(sys.executable).resolve(strict=True)
+    except (OSError, RuntimeError):
+        installer_python = None
+    if installer_python is not None and installer_python.is_file():
+        return installer_python
     return None
 
 
@@ -4726,6 +4732,19 @@ def _component_severity(item: dict[str, object]) -> str:
 def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
     """Point doctor fix-next at the merge handoff instead of a blind reinstall."""
     if not isinstance(components, dict):
+        return
+    heal = Path(project) / ".chaos-engine-state" / "heal-handoff.md"
+    if heal.is_file() and not is_link_or_reparse(heal):
+        message = (
+            "Complete the agent heal using .chaos-engine-state/heal-handoff.md, "
+            "then rerun doctor. Do not rerun the install one-liner."
+        )
+        for item in components.values():
+            if not isinstance(item, dict):
+                continue
+            if _component_severity(item) == "ok":
+                continue
+            item["fixNext"] = message
         return
     handoff = Path(project) / ".chaos-engine-state" / "merge-handoff.md"
     if not handoff.is_file() or is_link_or_reparse(handoff):

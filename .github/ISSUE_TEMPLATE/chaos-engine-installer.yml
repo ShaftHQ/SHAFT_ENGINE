@@ -6,10 +6,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        This form is opened by the ChaosEngine installer when install verification fails.
-        Keep the prefilled fields and add anything that is missing.
-        Attach `.chaos-engine-state/install-trace.json` as a GitHub file attachment.
-        Do not paste a machine-local absolute path as the only evidence.
+        The ChaosEngine installer fills every required field. Click Submit.
+        Console log and doctor JSON are optional because GitHub cannot attach
+        files from a form URL. Full copies stay in `.chaos-engine-state/`
+        (`install-trace.json`, `install-console.log`, `doctor-failure.json`).
+        Paste those into a comment after Submit, or let the heal prompt's agent do it.
   - type: input
     id: error_code
     attributes:
@@ -33,43 +34,110 @@ body:
     id: unhealthy
     attributes:
       label: Unhealthy components
+    validations:
+      required: true
   - type: input
     id: platform
     attributes:
       label: Platform
+      description: Python sys.platform (win32, linux, darwin).
+    validations:
+      required: true
+  - type: input
+    id: os_name
+    attributes:
+      label: OS name
+      description: Windows, Linux, Darwin, or equivalent.
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+    validations:
+      required: true
+  - type: input
+    id: architecture
+    attributes:
+      label: Architecture
+      description: AMD64, arm64, x86_64, and similar.
+    validations:
+      required: true
+  - type: input
+    id: python_version
+    attributes:
+      label: Python version
+    validations:
+      required: true
+  - type: input
+    id: machine
+    attributes:
+      label: Machine
+      description: Terse platform string (no hostname or home path).
+    validations:
+      required: true
+  - type: input
+    id: doctor_details
+    attributes:
+      label: Doctor details
+      description: Bounded component:code pairs from doctor-failure.json.
+    validations:
+      required: true
   - type: input
     id: hosts_receipt
     attributes:
       label: Hosts receipt
       description: present/absent for `.chaos-engine-hosts.json`
+    validations:
+      required: true
   - type: input
     id: core_dir
     attributes:
       label: Core dir
       description: present/absent for `.chaos-engine/`
+    validations:
+      required: true
   - type: input
     id: install_py
     attributes:
       label: install.py
       description: present/absent for `.chaos-engine/install.py`
+    validations:
+      required: true
   - type: input
     id: install_trace
     attributes:
       label: Install trace (repo-relative)
-      description: Use `.chaos-engine-state/install-trace.json`. Attach that file to this issue; a private absolute path is not useful.
+      description: Use `.chaos-engine-state/install-trace.json`. A private absolute path is not useful.
+    validations:
+      required: true
   - type: textarea
     id: install_trace_snippet
     attributes:
       label: Install trace snippet
-      description: Short redacted excerpt only. Attach the full install-trace.json file.
+      description: Optional short excerpt. Full file is local; GitHub cannot attach it from a URL.
+  - type: textarea
+    id: console_log
+    attributes:
+      label: Full console log
+      description: Optional. GitHub cannot attach files from a form URL. Prefer `.chaos-engine-state/install-console.log` in a later comment.
+  - type: textarea
+    id: doctor_json
+    attributes:
+      label: Full doctor JSON
+      description: Optional. GitHub cannot attach files from a form URL. Prefer `.chaos-engine-state/doctor-failure.json` in a later comment.
   - type: input
     id: status_command
     attributes:
       label: Status command
+    validations:
+      required: true
   - type: input
     id: doctor_command
     attributes:
       label: Doctor command
+    validations:
+      required: true
   - type: textarea
     id: additional
     attributes:

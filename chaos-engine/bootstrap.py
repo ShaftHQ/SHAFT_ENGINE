@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 import email.utils
 import hashlib
 import json
 import os
+import platform
 import re
 import shlex
 import runpy
@@ -33,6 +35,7 @@ MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_FILES = 2000
+DOWNLOAD_WORKERS = 8
 MAX_READ_ATTEMPTS = 4
 MAX_RETRY_AFTER_SECONDS = 60.0
 RETRY_BASE_SECONDS = 1.0
@@ -65,6 +68,80 @@ TRACE_LIMIT = 12 if (
     or os.environ.get("CHAOS_ENGINE_QUIET") == "1"
 ) else 40
 STALL_SECONDS = 8.0
+MAX_ISSUE_URL_CHARS = 7800
+MAX_ISSUE_BODY_CHARS = 60000
+HEAL_HANDOFF_RELATIVE = ".chaos-engine-state/heal-handoff.md"
+ISSUE_FORM_FIELD_IDS = (
+    "error_code",
+    "cause",
+    "failed_phase",
+    "unhealthy",
+    "platform",
+    "os_name",
+    "os_version",
+    "architecture",
+    "python_version",
+    "machine",
+    "doctor_details",
+    "hosts_receipt",
+    "core_dir",
+    "install_py",
+    "install_trace",
+    "install_trace_snippet",
+    "console_log",
+    "doctor_json",
+    "status_command",
+    "doctor_command",
+    "additional",
+)
+REQUIRED_ISSUE_FORM_FIELDS = (
+    "error_code",
+    "cause",
+    "failed_phase",
+    "unhealthy",
+    "platform",
+    "os_name",
+    "os_version",
+    "architecture",
+    "python_version",
+    "machine",
+    "doctor_details",
+    "hosts_receipt",
+    "core_dir",
+    "install_py",
+    "install_trace",
+    "status_command",
+    "doctor_command",
+)
+OPTIONAL_ISSUE_FORM_FIELDS = (
+    "install_trace_snippet",
+    "console_log",
+    "doctor_json",
+    "additional",
+)
+ISSUE_FORM_LABELS = {
+    "error_code": "Error code",
+    "cause": "Cause",
+    "failed_phase": "Failed phase",
+    "unhealthy": "Unhealthy components",
+    "platform": "Platform",
+    "os_name": "OS name",
+    "os_version": "OS version",
+    "architecture": "Architecture",
+    "python_version": "Python version",
+    "machine": "Machine",
+    "doctor_details": "Doctor details",
+    "hosts_receipt": "Hosts receipt",
+    "core_dir": "Core dir",
+    "install_py": "install.py",
+    "install_trace": "Install trace (repo-relative)",
+    "install_trace_snippet": "Install trace snippet",
+    "console_log": "Full console log",
+    "doctor_json": "Full doctor JSON",
+    "status_command": "Status command",
+    "doctor_command": "Doctor command",
+    "additional": "Additional context",
+}
 
 
 def install_trace_path(project: Path) -> Path:
@@ -79,6 +156,291 @@ def write_install_trace(project: Path, result: dict[str, object], traces: list[t
         encoding="utf-8",
     )
     return path
+
+
+def runtime_environment() -> dict[str, str]:
+    """Bounded OS/Python facts for installer failure reports (#5703)."""
+    return {
+        "os_name": platform.system()[:40],
+        "os_version": platform.release()[:40],
+        "architecture": platform.machine()[:40] or "unknown",
+        "python_version": sys.version.split()[0][:32],
+        "machine": platform.platform(terse=True)[:80],
+    }
+
+
+def doctor_failure_payload(error: BaseException) -> dict[str, object]:
+    """Keep status/code/detail/fix-next only; never persist paths or secrets."""
+    doctor = getattr(error, "doctor", None)
+    if not isinstance(doctor, dict):
+        return {}
+    components: dict[str, object] = {}
+    raw = doctor.get("components")
+    if isinstance(raw, dict):
+        for name, item in raw.items():
+            if not isinstance(name, str) or not isinstance(item, dict):
+                continue
+            trimmed = {
+                key: item[key]
+                for key in ("status", "taskImpact", "detail", "code", "fixNext")
+                if isinstance(item.get(key), str)
+            }
+            if trimmed:
+                components[name] = trimmed
+    commit = doctor.get("commit")
+    return {
+        "status": doctor.get("status") if isinstance(doctor.get("status"), str) else "unknown",
+        "commit": commit if isinstance(commit, str) else None,
+        "components": components,
+    }
+
+
+def write_failure_artifacts(
+    project: Path,
+    reporter: InstallReporter | None,
+    error: BaseException,
+) -> tuple[str, str]:
+    """Write attachable console and doctor artifacts under .chaos-engine-state/."""
+    state = Path(project) / ".chaos-engine-state"
+    state.mkdir(parents=True, exist_ok=True)
+    traces: list[str] = []
+    if reporter is not None:
+        traces = [f"[+{ended:.3f}] {message}" for ended, message in reporter.traces]
+    (state / "install-console.log").write_text(
+        ("\n".join(traces) + "\n") if traces else "no installer console traces\n",
+        encoding="utf-8",
+    )
+    payload = doctor_failure_payload(error)
+    doctor_rel = "not available"
+    if payload:
+        (state / "doctor-failure.json").write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        doctor_rel = ".chaos-engine-state/doctor-failure.json"
+    return ".chaos-engine-state/install-console.log", doctor_rel
+
+
+def redact_report_text(text: str) -> str:
+    """Redact paths and secret assignments from multi-line installer reports."""
+    text = re.sub(
+        r"(?<!:)(?:[A-Za-z]:[\\/]|\\\\[^\s\\/]+[\\/]|/(?:(?:media|mnt|Volumes)(?:/\S+?)?/(?:Users|home)|home|Users|tmp|var|private)/)\S+",
+        "[path]",
+        text,
+    )
+    return re.sub(
+        r"(?i)\b(token|secret|password|api_key)=\S+",
+        lambda match: f"{match.group(1)}=<redacted>",
+        text,
+    )
+
+
+def github_auth_token() -> str | None:
+    for key in ("GH_TOKEN", "GITHUB_TOKEN"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def resolve_issue_token(explicit: str | None) -> str | None:
+    """API filing is opt-in and never uses GitHub Actions GITHUB_TOKEN."""
+    if explicit is not None:
+        return explicit.strip() or None
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return None
+    if os.environ.get("CHAOS_ENGINE_FILE_ISSUE") != "1":
+        return None
+    return github_auth_token()
+
+
+def upgrade_query_extras(error: BaseException) -> dict[str, str]:
+    extras: dict[str, str] = {}
+    commit = getattr(error, "observed_upgrade_commit", None)
+    if isinstance(commit, str) and COMMIT.fullmatch(commit):
+        extras["observed_commit"] = commit
+    components = getattr(error, "observed_upgrade_components", ())
+    labels: list[str] = []
+    if isinstance(components, tuple):
+        for component in components[:32]:
+            if not isinstance(component, tuple) or len(component) != 2:
+                continue
+            name, status = component
+            if (
+                isinstance(name, str)
+                and isinstance(status, str)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", status)
+            ):
+                labels.append(f"{name}:{status}")
+    if labels:
+        extras["candidate_components"] = ",".join(labels)
+    details = getattr(error, "observed_upgrade_component_details", ())
+    detail_labels: list[str] = []
+    if isinstance(details, tuple):
+        for component in details[:32]:
+            if not isinstance(component, tuple) or len(component) != 2:
+                continue
+            name, detail = component
+            if (
+                isinstance(name, str)
+                and isinstance(detail, str)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name)
+                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail)
+            ):
+                detail_labels.append(f"{name}:{detail}")
+    if detail_labels:
+        extras["candidate_component_details"] = ",".join(detail_labels)
+    return extras
+
+
+def encode_issue_form_url(
+    repository: str,
+    title: str,
+    fields: dict[str, str],
+    extra: dict[str, str] | None = None,
+) -> str:
+    """Pack required fields first; optional logs only while under the URL cap."""
+    packed = {
+        key: fields[key]
+        for key in REQUIRED_ISSUE_FORM_FIELDS
+        if isinstance(fields.get(key), str) and fields[key]
+    }
+    if extra:
+        packed.update({key: value for key, value in extra.items() if value})
+    optional = {
+        key: fields[key]
+        for key in OPTIONAL_ISSUE_FORM_FIELDS
+        if isinstance(fields.get(key), str) and fields[key]
+    }
+
+    def render(current: dict[str, str]) -> str:
+        query = {"template": "chaos-engine-installer.yml", "title": title, **current}
+        return f"https://github.com/{repository}/issues/new?{urllib.parse.urlencode(query)}"
+
+    url = render(packed)
+    for key, value in optional.items():
+        candidate = dict(packed)
+        candidate[key] = value
+        encoded = render(candidate)
+        if len(encoded) <= MAX_ISSUE_URL_CHARS:
+            packed = candidate
+            url = encoded
+            continue
+        shrink = value
+        while len(shrink) > 64:
+            shrink = shrink[: len(shrink) // 2] + "\n…truncated…"
+            candidate[key] = shrink
+            encoded = render(candidate)
+            if len(encoded) <= MAX_ISSUE_URL_CHARS:
+                packed = candidate
+                url = encoded
+                break
+    return url
+
+
+def issue_form_markdown(fields: dict[str, str]) -> str:
+    sections: list[str] = []
+    for key in ISSUE_FORM_FIELD_IDS:
+        value = fields.get(key, "")
+        if not isinstance(value, str) or not value.strip():
+            continue
+        label = ISSUE_FORM_LABELS.get(key, key)
+        fence = "json" if key == "doctor_json" else ""
+        if key in {"console_log", "doctor_json", "install_trace_snippet"}:
+            sections.append(f"### {label}\n\n```{fence}\n{value.rstrip()}\n```\n")
+        else:
+            sections.append(f"### {label}\n\n{value.strip()}\n")
+    body = "\n".join(sections).strip() + "\n"
+    if len(body) > MAX_ISSUE_BODY_CHARS:
+        body = body[: MAX_ISSUE_BODY_CHARS - 20] + "\n…truncated…\n"
+    return body
+
+
+def create_installer_github_issue(
+    repository: str,
+    title: str,
+    body: str,
+    token: str,
+    opener=urllib.request.urlopen,
+) -> str | None:
+    payload = json.dumps({"title": title, "body": body}).encode("utf-8")
+    request_obj = urllib.request.Request(
+        f"https://api.github.com/repos/{repository}/issues",
+        data=payload,
+        method="POST",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "ChaosEngine-bootstrap",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with opener(request_obj, timeout=30) as response:
+            document = response.read(MAX_RESPONSE_BYTES)
+    except (OSError, TimeoutError, urllib.error.URLError, urllib.error.HTTPError):
+        return None
+    try:
+        value = json.loads(document.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    html = value.get("html_url") if isinstance(value, dict) else None
+    if isinstance(html, str) and html.startswith("https://github.com/"):
+        return html
+    return None
+
+
+def core_install_py(project: Path) -> bool:
+    return (Path(project) / ".chaos-engine" / "install.py").is_file()
+
+
+def heal_handoff_prompt(doctor_command: str, issue_url: str) -> str:
+    cli = "py -3" if os.name == "nt" else "python3"
+    if doctor_command == "not available":
+        return (
+            "Load ChaosEngine if present. Restore the portable core with the documented "
+            "ChaosEngine install one-liner, then read .chaos-engine-state/heal-handoff.md. "
+            f"Comment investigation and outcome on {issue_url}."
+        )
+    return (
+        "Load ChaosEngine in this project. Read .chaos-engine-state/heal-handoff.md "
+        "and the local install-trace.json, install-console.log, and doctor-failure.json. "
+        "Do not rerun the install one-liner unless the portable core is missing. "
+        "Repair the named unhealthy components with "
+        f"`{cli} .chaos-engine/install.py repair --project . --component <name>` "
+        f"and `{doctor_command}` until required components are healthy. "
+        f"Then comment investigation, commands, doctor excerpt, and outcome on {issue_url}."
+    )
+
+
+def write_heal_handoff(project: Path, fields: dict[str, str], issue_url: str) -> Path:
+    target = Path(project) / HEAL_HANDOFF_RELATIVE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Heal handoff",
+        "",
+        "The portable core is installed. One agent step remains.",
+        "",
+        f"Issue: {issue_url}",
+        "",
+        f"Error code: {fields.get('error_code', '')}",
+        f"Failed phase: {fields.get('failed_phase', '')}",
+        f"Unhealthy: {fields.get('unhealthy', '')}",
+        f"Doctor details: {fields.get('doctor_details', '')}",
+        f"Doctor: `{fields.get('doctor_command', '')}`",
+        "",
+        "Local artifacts:",
+        "",
+        "- `.chaos-engine-state/install-trace.json`",
+        "- `.chaos-engine-state/install-console.log`",
+        "- `.chaos-engine-state/doctor-failure.json`",
+        "",
+        "Do not rerun the install one-liner unless `.chaos-engine/install.py` is missing.",
+        "",
+    ]
+    target.write_text("\n".join(lines), encoding="utf-8")
+    return target
 
 
 def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) -> list[str]:
@@ -214,6 +576,7 @@ class InstallHealthError(RuntimeError):
         self.observed_commit = commit if isinstance(commit, str) and COMMIT.fullmatch(commit) else None
         self.observed_components = observed_blocking_components(components)
         self.observed_component_details = observed_blocking_component_details(components)
+        self.doctor = doctor if isinstance(doctor, dict) else {}
 
 
 
@@ -627,6 +990,33 @@ class InstallReporter:
                 "Core is installed. Some host files were left unchanged. Details: "
                 f"{handoff.as_posix()}\n"
             )
+            self.stream.write(f"`{prompt}`\n")
+        heal = project / HEAL_HANDOFF_RELATIVE
+        if heal.is_file() and not heal.is_symlink():
+            issue_url = "the GitHub issue linked in .chaos-engine-state/heal-handoff.md"
+            try:
+                for line in heal.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("Issue: "):
+                        issue_url = line.split("Issue: ", 1)[1].strip()
+                        break
+            except OSError:
+                # Keep the fallback issue locator when the handoff file cannot be read.
+                pass
+            doctor_cli = "py -3" if os.name == "nt" else "python3"
+            doctor_command = f"{doctor_cli} .chaos-engine/install.py doctor --project ."
+            prompt = heal_handoff_prompt(doctor_command, issue_url)
+            self.stream.write(self._paint("  Heal handoff", "36") + "\n")
+            self.stream.write(
+                "Core is installed. One agent step remains. Details: "
+                f"{HEAL_HANDOFF_RELATIVE}\n"
+            )
+            if "issues/new?" in issue_url:
+                self.stream.write(
+                    "Open this GitHub issue (required fields are filled), then paste the prompt:\n"
+                )
+            else:
+                self.stream.write("GitHub issue:\n")
+            self.stream.write(f"{issue_url}\n")
             self.stream.write(f"`{prompt}`\n")
         self.stream.write(
             format_host_onboarding_cards(
@@ -1065,7 +1455,10 @@ def download_source(
 
     source = destination / "chaos-engine"
     source.mkdir()
-    for relative, expected_size in selected:
+    mkdir_lock = threading.Lock()
+
+    def fetch_blob(item: tuple[PurePosixPath, int]) -> None:
+        relative, expected_size = item
         encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in relative.parts)
         content = read_response(
             opener,
@@ -1076,8 +1469,15 @@ def download_source(
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
         target = source.joinpath(*relative.parts)
-        target.parent.mkdir(parents=True, exist_ok=True)
+        with mkdir_lock:
+            target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
+
+    workers = max(1, min(DOWNLOAD_WORKERS, len(selected)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(fetch_blob, item) for item in selected]
+        for future in as_completed(futures):
+            future.result()
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
         raise ValueError("ChaosEngine source tree is incomplete")
     return source
@@ -1243,8 +1643,54 @@ def install_latest(
         reporter.start("Verify installation", remaining=remaining("Verify installation"))
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
         if _required_install_unhealthy(doctor):
-            raise InstallHealthError("Verify installation", doctor)
-        reporter.complete("Verify installation", remaining=remaining("Verify installation"))
+            health_error = InstallHealthError("Verify installation", doctor)
+            if not prior_install and core_install_py(project):
+                reporter.complete(
+                    "Verify installation", remaining=remaining("Verify installation")
+                )
+                try:
+                    confirm("Activate clients")
+                    reporter.start(
+                        "Activate clients", remaining=remaining("Activate clients")
+                    )
+                    if interactive:
+                        clients = host_controller.activate_detected_plugins(
+                            project, confirmer=confirm
+                        )
+                    else:
+                        clients = host_controller.activate_detected_plugins(project)
+                    reporter.complete("Activate clients", remaining=())
+                except Exception:
+                    clients = {"clients": {}}
+                prefix = installer_cli_prefix(project) or "python3 .chaos-engine/install.py"
+                fields = installer_issue_fields(
+                    "CE-INSTALL-FAILED",
+                    health_error,
+                    reporter,
+                    project,
+                    f"{prefix} status --project . --json",
+                    f"{prefix} doctor --project . --json",
+                )
+                issue_url = publish_installer_issue(
+                    repository, "CE-INSTALL-FAILED", fields
+                )
+                write_heal_handoff(project, fields, issue_url)
+                doctor["clients"] = clients.get("clients", {})
+                if terminal_context is not None:
+                    terminal_context.__exit__(None, None, None)
+                reporter.success(
+                    project, doctor, doctor["clients"], repository=repository
+                )
+                reporter.close()
+                return {
+                    "status": "heal-handoff",
+                    "root": str(target),
+                    "commit": commit,
+                    "clients": clients,
+                    "doctor": doctor,
+                    "issueUrl": issue_url,
+                }
+            raise health_error
         confirm("Activate clients")
         reporter.start("Activate clients", remaining=remaining("Activate clients"))
         if interactive:
@@ -1370,13 +1816,120 @@ def one_line_cause(error: BaseException) -> str:
     )
 
 
+def installer_issue_fields(
+    code: str,
+    error: BaseException,
+    reporter: InstallReporter | None,
+    project: Path | None,
+    status_command: str,
+    doctor_command: str,
+) -> dict[str, str]:
+    """Build every installer issue-form field from local, redacted evidence."""
+    runtime = runtime_environment()
+    payload = doctor_failure_payload(error)
+    doctor_details = "not reported"
+    if payload.get("components"):
+        labels: list[str] = []
+        components = payload["components"]
+        if isinstance(components, dict):
+            for name, item in components.items():
+                if not isinstance(item, dict):
+                    continue
+                mark = item.get("code") or item.get("detail") or item.get("status")
+                if isinstance(mark, str):
+                    labels.append(f"{name}:{mark}")
+        if labels:
+            doctor_details = ",".join(labels)[:240]
+    hosts_receipt = "unknown"
+    core_dir = "unknown"
+    install_py = "unknown"
+    install_trace = "not available"
+    install_trace_snippet = ""
+    console_log = ""
+    doctor_json = ""
+    if project is not None:
+        try:
+            root = Path(project).resolve()
+            hosts_receipt = (
+                "present" if (root / ".chaos-engine-hosts.json").is_file() else "absent"
+            )
+            core_dir = "present" if (root / ".chaos-engine").is_dir() else "absent"
+            install_py = (
+                "present" if (root / ".chaos-engine" / "install.py").is_file() else "absent"
+            )
+            trace = install_trace_path(root)
+            if trace.is_file():
+                install_trace = ".chaos-engine-state/install-trace.json"
+                raw = redact_report_text(trace.read_text(encoding="utf-8"))
+                lines = [line.strip() for line in raw.splitlines() if line.strip()]
+                install_trace_snippet = " | ".join(lines[-6:])[:400]
+            console_rel, doctor_rel = write_failure_artifacts(root, reporter, error)
+            console_path = root / console_rel
+            if console_path.is_file():
+                console_log = redact_report_text(console_path.read_text(encoding="utf-8"))
+            if doctor_rel != "not available":
+                doctor_path = root / doctor_rel
+                if doctor_path.is_file():
+                    doctor_json = redact_report_text(doctor_path.read_text(encoding="utf-8"))
+        except OSError:
+            # Keep default field values when install artifacts cannot be read.
+            pass
+    return {
+        "error_code": code,
+        "cause": one_line_cause(error)[:240],
+        "failed_phase": getattr(error, "phase", None)
+        or (reporter.current_operation if reporter else "unknown")
+        or "unknown",
+        "unhealthy": ", ".join(getattr(error, "unhealthy", ())) or "not reported",
+        "platform": sys.platform,
+        "os_name": runtime["os_name"] or "unknown",
+        "os_version": runtime["os_version"] or "unknown",
+        "architecture": runtime["architecture"] or "unknown",
+        "python_version": runtime["python_version"] or "unknown",
+        "machine": runtime["machine"] or "unknown",
+        "doctor_details": doctor_details or "not reported",
+        "hosts_receipt": hosts_receipt,
+        "core_dir": core_dir,
+        "install_py": install_py,
+        "install_trace": install_trace,
+        "install_trace_snippet": install_trace_snippet,
+        "console_log": console_log,
+        "doctor_json": doctor_json,
+        "status_command": status_command,
+        "doctor_command": doctor_command,
+        "additional": "Auto-filled by the ChaosEngine installer.",
+    }
+
+
+def publish_installer_issue(
+    repository: str,
+    code: str,
+    fields: dict[str, str],
+    *,
+    opener=urllib.request.urlopen,
+    token: str | None = None,
+    extra: dict[str, str] | None = None,
+) -> str:
+    title = f"[ChaosEngine installer] {code}"
+    resolved = resolve_issue_token(token)
+    if resolved:
+        created = create_installer_github_issue(
+            repository, title, issue_form_markdown(fields), resolved, opener=opener
+        )
+        if created:
+            return created
+    return encode_issue_form_url(repository, title, fields, extra=extra)
+
+
 def emit_install_failure(
     code: str,
     error: BaseException,
     repository: str,
     reporter: InstallReporter | None = None,
     project: Path | None = None,
-) -> None:
+    opener=urllib.request.urlopen,
+    token: str | None = None,
+) -> str | None:
     print(file=sys.stderr)
     if code == "CE-INSTALL-CANCELLED":
         print(f"{code}: installation interrupted", file=sys.stderr)
@@ -1387,8 +1940,7 @@ def emit_install_failure(
         cause = one_line_cause(error).casefold()
         if isinstance(error, InstallHealthError) or "doctor did not report" in cause:
             print(
-                "Next fix: run doctor (below), repair the listed unhealthy components, "
-                "then rerun the same install one-liner.",
+                "Next fix: paste the heal prompt below into any supported host in this folder.",
                 file=sys.stderr,
             )
         elif "checksum" in cause:
@@ -1437,6 +1989,11 @@ def emit_install_failure(
                     "Attach .chaos-engine-state/install-trace.json to the GitHub issue.",
                     file=sys.stderr,
                 )
+            print(
+                "Attach .chaos-engine-state/install-console.log and "
+                ".chaos-engine-state/doctor-failure.json when present.",
+                file=sys.stderr,
+            )
         except OSError:
             # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
             pass
@@ -1450,143 +2007,42 @@ def emit_install_failure(
     else:
         print("Installer CLI is not on disk.", file=sys.stderr)
         print("Rerun the same install command to continue.", file=sys.stderr)
-        status_command = "not available; .chaos-engine/install.py is not on disk"
-        doctor_command = status_command
+        status_command = "not available"
+        doctor_command = "not available"
     if code != "CE-INSTALL-CANCELLED":
-        observed_upgrade_commit = getattr(error, "observed_upgrade_commit", None)
-        if (
-            not isinstance(observed_upgrade_commit, str)
-            or COMMIT.fullmatch(observed_upgrade_commit) is None
-        ):
-            observed_upgrade_commit = None
-        observed_upgrade_components = getattr(error, "observed_upgrade_components", ())
-        if not isinstance(observed_upgrade_components, tuple):
-            observed_upgrade_components = ()
-        candidate_component_labels: list[str] = []
-        for component in observed_upgrade_components[:32]:
-            if not isinstance(component, tuple) or len(component) != 2:
-                continue
-            name, status = component
-            if (
-                isinstance(name, str)
-                and isinstance(status, str)
-                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name)
-                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", status)
-            ):
-                candidate_component_labels.append(f"{name}:{status}")
-        candidate_components = ",".join(candidate_component_labels)
-        observed_upgrade_component_details = getattr(
-            error, "observed_upgrade_component_details", ()
+        fields = installer_issue_fields(
+            code,
+            error,
+            reporter,
+            project,
+            status_command or "not available",
+            doctor_command or "not available",
         )
-        if not isinstance(observed_upgrade_component_details, tuple):
-            observed_upgrade_component_details = ()
-        candidate_detail_labels: list[str] = []
-        for component in observed_upgrade_component_details[:32]:
-            if not isinstance(component, tuple) or len(component) != 2:
-                continue
-            name, detail = component
-            if (
-                isinstance(name, str)
-                and isinstance(detail, str)
-                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name)
-                and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", detail)
-            ):
-                candidate_detail_labels.append(f"{name}:{detail}")
-        candidate_component_details = ",".join(candidate_detail_labels)
-        hosts_receipt = "unknown"
-        core_dir = "unknown"
-        install_py = "unknown"
-        install_trace = "not available"
-        install_trace_snippet = "not available"
-        if project is not None:
-            try:
-                root = Path(project).resolve()
-                hosts_receipt = (
-                    "present" if (root / ".chaos-engine-hosts.json").is_file() else "absent"
-                )
-                core_dir = "present" if (root / ".chaos-engine").is_dir() else "absent"
-                install_py = (
-                    "present"
-                    if (root / ".chaos-engine" / "install.py").is_file()
-                    else "absent"
-                )
-                trace = install_trace_path(root)
-                if trace.is_file():
-                    install_trace = ".chaos-engine-state/install-trace.json"
-                    raw = trace.read_text(encoding="utf-8")
-                    lines = [line.strip() for line in raw.splitlines() if line.strip()]
-                    snippet = " | ".join(lines[-6:])[:400]
-                    if snippet:
-                        install_trace_snippet = re.sub(
-                            r"(?i)\b(token|secret|password|api_key)=\S+",
-                            lambda match: f"{match.group(1)}=<redacted>",
-                            snippet,
-                        )
-            except OSError:
-                # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
-                pass
-        body = "\n".join(
-            (
-                f"Error code: {code}",
-                f"Cause: {one_line_cause(error)[:240]}",
-                f"Failed phase: {getattr(error, 'phase', None) or (reporter.current_operation if reporter else 'unknown')}",
-                "Unhealthy components: "
-                + (", ".join(getattr(error, "unhealthy", ())) or "not reported"),
-                "Observed candidate commit: " + (observed_upgrade_commit or "not available"),
-                "Observed candidate components: " + (candidate_components or "not available"),
-                "Observed candidate component details: "
-                + (candidate_component_details or "not available"),
-                "Current action: "
-                + ((reporter.current_operation if reporter else None) or "none"),
-                "History: "
-                + (
-                    "; ".join(
-                        f"{result} {operation} ({reporter._duration(duration)})"
-                        for _, result, operation, duration in reporter.history[-5:]
-                    )
-                    if reporter and reporter.history
-                    else "none"
-                ),
-                f"Hosts receipt: {hosts_receipt}",
-                f"Core dir: {core_dir}",
-                f"install.py: {install_py}",
-                f"Install trace: {install_trace}",
-                "Attach: .chaos-engine-state/install-trace.json (GitHub file attachment)",
-                f"Install trace snippet: {install_trace_snippet}",
-                f"Platform: {sys.platform}",
-                f"Status command: {status_command}",
-                f"Doctor command: {doctor_command}",
+        issue_url = publish_installer_issue(
+            repository,
+            code,
+            fields,
+            opener=opener,
+            token=token,
+            extra=upgrade_query_extras(error),
+        )
+        prompt = heal_handoff_prompt(fields["doctor_command"], issue_url)
+        if "issues/new?" in issue_url:
+            print(
+                "Next step: click this link to open a GitHub issue with this report:",
+                file=sys.stderr,
             )
-        )
-        query = urllib.parse.urlencode(
-            {
-                "template": "chaos-engine-installer.yml",
-                "title": f"[ChaosEngine installer] {code}",
-                "error_code": code,
-                "cause": one_line_cause(error)[:240],
-                "failed_phase": getattr(error, "phase", None)
-                or (reporter.current_operation if reporter else "unknown"),
-                "unhealthy": ", ".join(getattr(error, "unhealthy", ())) or "not reported",
-                "observed_commit": observed_upgrade_commit or "",
-                "candidate_components": candidate_components,
-                "candidate_component_details": candidate_component_details,
-                "platform": sys.platform,
-                "hosts_receipt": hosts_receipt,
-                "core_dir": core_dir,
-                "install_py": install_py,
-                "install_trace": install_trace,
-                "install_trace_snippet": install_trace_snippet,
-                "status_command": status_command or "",
-                "doctor_command": doctor_command or "",
-            }
-        )
-        print(
-            "Next step: click this link to open a GitHub issue with this report:",
-            file=sys.stderr,
-        )
-        print(f"https://github.com/{repository}/issues/new?{query}", file=sys.stderr)
+        else:
+            print("Next step: review the filed GitHub issue:", file=sys.stderr)
+        print(issue_url, file=sys.stderr)
+        print("Give this prompt to your agent in this folder:", file=sys.stderr)
+        print(f"`{prompt}`", file=sys.stderr)
+        if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
+            traceback.print_exc()
+        return issue_url
     if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
         traceback.print_exc()
+    return None
 
 
 def main() -> int:

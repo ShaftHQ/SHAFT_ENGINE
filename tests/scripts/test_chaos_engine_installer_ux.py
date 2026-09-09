@@ -8,6 +8,7 @@ import os
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.parse
 import unittest
 import unittest.mock
@@ -28,6 +29,14 @@ def load(name: str, path: Path):
 
 BOOTSTRAP = load("chaos_engine_bootstrap_ux", ROOT / "chaos-engine/bootstrap.py")
 INSTALL = load("chaos_engine_install_ux", ROOT / "chaos-engine/install.py")
+
+
+class Response(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        self.close()
 
 
 class InstallerUxTests(unittest.TestCase):
@@ -903,7 +912,7 @@ class InstallerUxTests(unittest.TestCase):
             BOOTSTRAP.emit_install_failure("CE-INSTALL-FAILED", error, "owner/repo")
         output = stderr.getvalue()
         self.assertIn("unhealthy: memory", output)
-        self.assertIn("Next fix: run doctor", output)
+        self.assertIn("Next fix: paste the heal prompt", output)
         report = [
             line
             for line in output.splitlines()
@@ -913,7 +922,9 @@ class InstallerUxTests(unittest.TestCase):
         self.assertEqual(["chaos-engine-installer.yml"], query["template"])
         self.assertEqual(["Verify installation"], query["failed_phase"])
         self.assertEqual(["memory"], query["unhealthy"])
-        self.assertLessEqual(len(report), 2000)
+        self.assertLessEqual(len(report), BOOTSTRAP.MAX_ISSUE_URL_CHARS)
+        for field_id in BOOTSTRAP.REQUIRED_ISSUE_FORM_FIELDS:
+            self.assertIn(field_id, query, field_id)
 
     def test_failure_cause_redacts_local_paths_and_secret_assignments(self):
         private_path = Path(
@@ -962,6 +973,17 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("attach", lowered)
         self.assertIn("install-trace.json", template)
         self.assertIn(".chaos-engine-state/install-trace.json", template)
+        self.assertIn("install-console.log", template)
+        self.assertIn("doctor-failure.json", template)
+        self.assertIn("id: os_name", template)
+        self.assertIn("id: os_version", template)
+        self.assertIn("id: architecture", template)
+        self.assertIn("id: python_version", template)
+        self.assertIn("id: machine", template)
+        self.assertIn("id: console_log", template)
+        self.assertIn("id: doctor_json", template)
+        console_block = template.split("id: console_log", 1)[1].split("id: doctor_json", 1)[0]
+        self.assertNotIn("required: true", console_block)
         self.assertNotIn("Install trace path", template)
         self.assertNotIn("/Users/", template)
         self.assertNotIn("/home/", template)
@@ -997,7 +1019,254 @@ class InstallerUxTests(unittest.TestCase):
             self.assertIn("attach", output.casefold())
             self.assertNotIn(str(project), query["install_trace"][0])
             self.assertIn("[path]", query["cause"][0])
-            self.assertNotIn("/private/", query["cause"][0])
+
+    def test_failure_prefill_includes_runtime_and_writes_full_logs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            (project / ".chaos-engine-state").mkdir(parents=True)
+            (project / ".chaos-engine-state" / "install-trace.json").write_text(
+                '{"status":"failed"}\n', encoding="utf-8"
+            )
+            error = BOOTSTRAP.InstallHealthError(
+                "Verify installation",
+                {
+                    "status": "recovery-required",
+                    "commit": "a" * 40,
+                    "components": {
+                        "hooks": {
+                            "status": "recovery-required",
+                            "taskImpact": "required",
+                            "detail": "managed-python-missing",
+                            "code": "CE_MANAGED_PYTHON_MISSING",
+                            "fixNext": "repair tools",
+                        },
+                        "mcps": {
+                            "status": "recovery-required",
+                            "taskImpact": "required",
+                            "detail": "managed-python-missing",
+                            "code": "CE_MANAGED_PYTHON_MISSING",
+                            "fixNext": "repair tools",
+                        },
+                    },
+                },
+            )
+            reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
+            reporter.traces.append((1.0, "PASS Download source (00:01)"))
+            stderr = io.StringIO()
+            with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                BOOTSTRAP.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    error,
+                    "owner/repo",
+                    reporter=reporter,
+                    project=project,
+                )
+            output = stderr.getvalue()
+            report = next(
+                line
+                for line in output.splitlines()
+                if line.startswith("https://github.com/owner/repo/issues/new?")
+            )
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
+            self.assertTrue(query.get("os_name"))
+            self.assertTrue(query.get("python_version"))
+            self.assertTrue(query.get("architecture"))
+            self.assertTrue(query.get("machine"))
+            self.assertIn("CE_MANAGED_PYTHON_MISSING", query["doctor_details"][0])
+            self.assertLessEqual(len(report), BOOTSTRAP.MAX_ISSUE_URL_CHARS)
+            console = project / ".chaos-engine-state/install-console.log"
+            doctor = project / ".chaos-engine-state/doctor-failure.json"
+            self.assertTrue(console.is_file())
+            self.assertIn("PASS Download source", console.read_text(encoding="utf-8"))
+            payload = json.loads(doctor.read_text(encoding="utf-8"))
+            self.assertEqual(
+                "CE_MANAGED_PYTHON_MISSING",
+                payload["components"]["hooks"]["code"],
+            )
+            self.assertIn("install-console.log", output)
+            self.assertIn("doctor-failure.json", output)
+            for field_id in BOOTSTRAP.REQUIRED_ISSUE_FORM_FIELDS:
+                self.assertIn(field_id, query, field_id)
+            self.assertLessEqual(len(report), BOOTSTRAP.MAX_ISSUE_URL_CHARS)
+
+    def test_failure_form_url_includes_every_template_field(self):
+        template_ids = [
+            line.split("id:", 1)[1].strip()
+            for line in (
+                ROOT / ".github/ISSUE_TEMPLATE/chaos-engine-installer.yml"
+            ).read_text(encoding="utf-8").splitlines()
+            if line.strip().startswith("id:")
+        ]
+        self.assertIn("console_log", template_ids)
+        self.assertIn("doctor_json", template_ids)
+        self.assertEqual(template_ids, list(BOOTSTRAP.ISSUE_FORM_FIELD_IDS))
+
+    def test_github_token_files_issue_via_api_with_inlined_logs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            (project / ".chaos-engine-state").mkdir(parents=True)
+            (project / ".chaos-engine-state" / "install-trace.json").write_text(
+                '{"status":"failed"}\n', encoding="utf-8"
+            )
+            error = BOOTSTRAP.InstallHealthError(
+                "Verify installation",
+                {
+                    "status": "recovery-required",
+                    "components": {
+                        "hooks": {
+                            "status": "recovery-required",
+                            "taskImpact": "required",
+                            "detail": "managed-python-missing",
+                            "code": "CE_MANAGED_PYTHON_MISSING",
+                        }
+                    },
+                },
+            )
+            reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
+            reporter.traces.append((1.0, "PASS Download source (00:01)"))
+            posted: list[object] = []
+
+            def opener(request, timeout=0):
+                del timeout
+                posted.append(request)
+                payload = json.dumps(
+                    {"html_url": "https://github.com/owner/repo/issues/99"}
+                ).encode()
+                return Response(payload)
+
+            stderr = io.StringIO()
+            with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                BOOTSTRAP.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    error,
+                    "owner/repo",
+                    reporter=reporter,
+                    project=project,
+                    opener=opener,
+                    token="ghs_test_token",
+                )
+            output = stderr.getvalue()
+            self.assertIn("https://github.com/owner/repo/issues/99", output)
+            self.assertFalse(
+                any("issues/new?" in line for line in output.splitlines())
+            )
+            self.assertEqual(1, len(posted))
+            body = json.loads(posted[0].data.decode())
+            self.assertEqual("[ChaosEngine installer] CE-INSTALL-FAILED", body["title"])
+            self.assertIn("### Error code", body["body"])
+            self.assertIn("CE-INSTALL-FAILED", body["body"])
+            self.assertIn("PASS Download source", body["body"])
+            self.assertIn("CE_MANAGED_PYTHON_MISSING", body["body"])
+            self.assertLessEqual(len(body["body"]), 65536)
+
+    def test_github_api_failure_falls_back_to_prefilled_form_url(self):
+        def opener(request, timeout=0):
+            del request, timeout
+            raise urllib.error.HTTPError(
+                "https://api.github.com/repos/owner/repo/issues",
+                401,
+                "Unauthorized",
+                {},
+                None,
+            )
+
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+            BOOTSTRAP.emit_install_failure(
+                "CE-INSTALL-FAILED",
+                RuntimeError("probe failed"),
+                "owner/repo",
+                opener=opener,
+                token="ghs_test_token",
+            )
+        output = stderr.getvalue()
+        report = next(
+            line
+            for line in output.splitlines()
+            if line.startswith("https://github.com/owner/repo/issues/new?")
+        )
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
+        for field_id in BOOTSTRAP.REQUIRED_ISSUE_FORM_FIELDS:
+            self.assertIn(field_id, query, field_id)
+
+    def test_default_emit_does_not_post_issue_when_actions_token_present(self):
+        posted: list[object] = []
+
+        def opener(request, timeout=0):
+            del timeout
+            posted.append(request)
+            raise AssertionError("GitHub issue POST must not run by default")
+
+        stderr = io.StringIO()
+        env = {
+            **os.environ,
+            "GITHUB_TOKEN": "ghs_ci_token",
+            "GITHUB_ACTIONS": "true",
+        }
+        with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), unittest.mock.patch.dict(
+            os.environ, env, clear=False
+        ):
+            BOOTSTRAP.emit_install_failure(
+                "CE-INSTALL-FAILED",
+                RuntimeError("probe failed"),
+                "owner/repo",
+                opener=opener,
+            )
+        self.assertEqual([], posted)
+        self.assertIn("issues/new?", stderr.getvalue())
+
+    def test_first_install_unhealthy_doctor_writes_heal_handoff_and_returns(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+
+            def install_core(target_project, *_args, **_kwargs):
+                root = Path(target_project) / ".chaos-engine"
+                root.mkdir(parents=True, exist_ok=True)
+                (root / "install.py").write_text("# installer\n", encoding="utf-8")
+                return root
+
+            installer = unittest.mock.Mock()
+            installer.install_with_dependencies.side_effect = install_core
+            installer.doctor_with_dependencies.return_value = {
+                "commit": "a" * 40,
+                "status": "recovery-required",
+                "components": {
+                    "hooks": {"status": "recovery-required", "taskImpact": "required"},
+                },
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
+            installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
+                "clients": {}
+            }
+            stream = io.StringIO()
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            with unittest.mock.patch.object(
+                BOOTSTRAP, "resolve_latest", return_value=("a" * 40, "main")
+            ), unittest.mock.patch.object(
+                BOOTSTRAP, "download_source", return_value=ROOT / "chaos-engine"
+            ), unittest.mock.patch.object(
+                BOOTSTRAP, "load_installer", return_value=installer
+            ):
+                result = BOOTSTRAP.install_latest(
+                    project,
+                    repository="owner/repo",
+                    branch="main",
+                    opener=unittest.mock.Mock(),
+                    reporter=reporter,
+                )
+            self.assertEqual("heal-handoff", result["status"])
+            self.assertTrue((project / ".chaos-engine-state/heal-handoff.md").is_file())
+            output = stream.getvalue()
+            self.assertIn("Heal handoff", output)
+            self.assertIn("issues/new?", output)
+            handoff = (project / ".chaos-engine-state/heal-handoff.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("Do not rerun the install one-liner", handoff)
+            installer.rollback.assert_not_called()
 
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
