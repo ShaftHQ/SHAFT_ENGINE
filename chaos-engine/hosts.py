@@ -2027,16 +2027,116 @@ def java_compiler_present(java: Path) -> bool:
     return javac.is_file() and not is_link_or_reparse(javac)
 
 
-def managed_temurin_root(version: str = "25.0.4+7") -> Path:
+def _tools_host_platform() -> tuple[str, str, str]:
     system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
     machine = platform.machine().lower()
     architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    return system, architecture, f"{system}-{architecture}"
+
+
+def _load_dependencies_controller():
+    dependencies_path = Path(__file__).resolve().with_name("dependencies.py")
+    if not dependencies_path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "chaos_engine_dependencies_managed_runtimes", dependencies_path
+    )
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _runtime_contract(
+    specification: dict[str, object] | None, name: str
+) -> dict[str, object] | None:
+    if not isinstance(specification, dict):
+        return None
+    runtimes = specification.get("runtimes")
+    selected = runtimes.get(name) if isinstance(runtimes, dict) else None
+    return selected if isinstance(selected, dict) else None
+
+
+def managed_temurin_root(version: str = "25.0.4+7") -> Path:
+    system, architecture, _host = _tools_host_platform()
     return (
         maven_tools_cache_root().parent
         / "temurin"
         / version
         / f"{system}-{architecture}"
     )
+
+
+def managed_maven_root(version: str = "3.9.12") -> Path:
+    system, architecture, _host = _tools_host_platform()
+    return (
+        maven_tools_cache_root().parent
+        / "maven"
+        / version
+        / f"{system}-{architecture}"
+    )
+
+
+def maven_version(mvn: Path) -> str | None:
+    """Parse a stable Apache Maven version from `mvn -v` output."""
+    try:
+        result = subprocess.run(  # nosec B603 - executable is resolved before use.
+            [str(mvn), "-v"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    match = re.search(
+        r"Apache Maven (?P<version>\d+(?:\.\d+){1,3})",
+        result.stdout + result.stderr,
+    )
+    return match.group("version") if match else None
+
+
+def verified_managed_maven(candidate: Path, host_platform: str, *, version: str) -> Path | None:
+    if not candidate.is_file() or is_link_or_reparse(candidate):
+        return None
+    receipt_path = candidate.parents[1] / TEMURIN_RECEIPT
+    if not receipt_path.is_file() or is_link_or_reparse(receipt_path):
+        return None
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    expected_architecture = (
+        "x64" if host_platform == "windows-arm64" else host_platform.split("-", 1)[1]
+    )
+    expected = {
+        "schemaVersion": 1,
+        "runtime": "maven",
+        "version": version,
+        "hostPlatform": host_platform,
+        "artifactArchitecture": expected_architecture,
+        "emulated": host_platform == "windows-arm64",
+        "mvn": candidate.relative_to(receipt_path.parent).as_posix(),
+        "mvnSha256": digest,
+    }
+    if receipt != expected:
+        return None
+    observed = maven_version(candidate)
+    if observed is None:
+        return None
+    module = _load_dependencies_controller()
+    if module is None:
+        return None
+    try:
+        if not module.version_at_least(observed, version):
+            return None
+    except ValueError:
+        return None
+    return candidate.resolve()
 
 
 def ensure_managed_temurin_jdk(
@@ -2047,43 +2147,33 @@ def ensure_managed_temurin_jdk(
     confirmer=None,
 ) -> Path | None:
     """Provision checksum-verified Temurin JDK into the CE tools cache when needed (#5630)."""
-    version = "25.0.4+7"
-    system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
-    machine = platform.machine().lower()
-    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
-    host_platform = f"{system}-{architecture}"
+    system, architecture, host_platform = _tools_host_platform()
+    temurin = _runtime_contract(specification, "temurin")
+    version = (
+        str(temurin["version"])
+        if isinstance(temurin, dict) and isinstance(temurin.get("version"), str)
+        else "25.0.4+7"
+    )
     root = managed_temurin_root(version)
     java = root / (
         "bin/java.exe" if os.name == "nt" else
         "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
     )
-    verified = verified_managed_temurin(java, host_platform)
+    verified = verified_managed_temurin(java, host_platform, version=version)
     if verified is not None and java_compiler_present(verified):
         return verified
-    if specification is None:
+    if specification is None or temurin is None:
         return None
-    runtimes = specification.get("runtimes")
-    temurin = runtimes.get("temurin") if isinstance(runtimes, dict) else None
-    artifacts = temurin.get("artifacts") if isinstance(temurin, dict) else None
+    artifacts = temurin.get("artifacts")
     artifact = artifacts.get(host_platform) if isinstance(artifacts, dict) else None
     if not isinstance(artifact, dict):
         return None
     url, digest = artifact.get("url"), artifact.get("sha256")
     if not isinstance(url, str) or not isinstance(digest, str):
         return None
-    # Lazy-import download helpers from colocated dependencies controller.
-    dependencies_path = Path(__file__).resolve().with_name("dependencies.py")
-    if not dependencies_path.is_file():
+    module = _load_dependencies_controller()
+    if module is None:
         return None
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location(
-        "chaos_engine_dependencies_temurin", dependencies_path
-    )
-    if spec is None or spec.loader is None:
-        return None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
     open_url = opener or urllib.request.urlopen
     parent = root.parent
     parent.mkdir(parents=True, exist_ok=True)
@@ -2097,7 +2187,7 @@ def ensure_managed_temurin_jdk(
     try:
         if root.exists() or is_link_or_reparse(root):
             # Incomplete prior attempt — refuse to clobber without a clean tree.
-            if verified_managed_temurin(java, host_platform) is None:
+            if verified_managed_temurin(java, host_platform, version=version) is None:
                 raise ValueError("existing managed Temurin JDK tree is invalid")
             return java.resolve()
         module._download_artifact(str(url), archive, str(digest), open_url, reporter=reporter)
@@ -2137,9 +2227,105 @@ def ensure_managed_temurin_jdk(
         raise
     finally:
         archive.unlink(missing_ok=True)
-    verified = verified_managed_temurin(java, host_platform)
+    verified = verified_managed_temurin(java, host_platform, version=version)
     if verified is None or not java_compiler_present(verified):
         raise ValueError("managed Temurin JDK provision did not produce a usable javac")
+    return verified
+
+
+def ensure_managed_maven(
+    specification: dict[str, object] | None = None,
+    *,
+    opener=None,
+    reporter=None,
+    confirmer=None,
+    which=shutil.which,
+) -> Path | None:
+    """Provision checksum-verified Apache Maven into the CE tools cache when needed."""
+    module = _load_dependencies_controller()
+    maven = _runtime_contract(specification, "maven")
+    minimum = (
+        str(maven["minimumVersion"])
+        if isinstance(maven, dict) and isinstance(maven.get("minimumVersion"), str)
+        else "3.9.0"
+    )
+    ambient = which("mvn")
+    if ambient:
+        observed = maven_version(Path(ambient))
+        if (
+            observed is not None
+            and module is not None
+            and module.version_at_least(observed, minimum)
+        ):
+            return Path(ambient).resolve()
+    if specification is None or maven is None or module is None:
+        return None
+    version = str(maven.get("version") or "")
+    if not version:
+        return None
+    system, architecture, host_platform = _tools_host_platform()
+    root = managed_maven_root(version)
+    mvn = root / ("bin/mvn.cmd" if os.name == "nt" else "bin/mvn")
+    verified = verified_managed_maven(mvn, host_platform, version=version)
+    if verified is not None:
+        return verified
+    artifacts = maven.get("artifacts")
+    artifact = artifacts.get(host_platform) if isinstance(artifacts, dict) else None
+    if not isinstance(artifact, dict):
+        return None
+    url, digest = artifact.get("url"), artifact.get("sha256")
+    if not isinstance(url, str) or not isinstance(digest, str):
+        return None
+    open_url = opener or urllib.request.urlopen
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    if confirmer is not None:
+        confirmer(f"Download Apache Maven {version} from {url}")
+    if reporter is not None:
+        reporter.trace(f"provision managed Apache Maven {version}")
+    suffix = ".zip" if str(url).endswith(".zip") else ".tar.gz"
+    transaction = parent / f".maven-{version}-{architecture}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        if root.exists() or is_link_or_reparse(root):
+            if verified_managed_maven(mvn, host_platform, version=version) is None:
+                raise ValueError("existing managed Maven tree is invalid")
+            return mvn.resolve()
+        module._download_artifact(str(url), archive, str(digest), open_url, reporter=reporter)
+        module._extract_runtime_archive(archive, transaction)
+        relative_mvn = "bin/mvn.cmd" if os.name == "nt" else "bin/mvn"
+        installed = transaction / relative_mvn
+        if not installed.is_file():
+            raise ValueError("Maven archive did not contain mvn")
+        if os.name != "nt":
+            installed.chmod(installed.stat().st_mode | stat.S_IXUSR)
+        expected_architecture = (
+            "x64" if host_platform == "windows-arm64" else host_platform.split("-", 1)[1]
+        )
+        receipt = {
+            "schemaVersion": 1,
+            "runtime": "maven",
+            "version": version,
+            "hostPlatform": host_platform,
+            "artifactArchitecture": expected_architecture,
+            "emulated": host_platform == "windows-arm64",
+            "mvn": relative_mvn,
+            "mvnSha256": hashlib.sha256(installed.read_bytes()).hexdigest(),
+        }
+        (transaction / TEMURIN_RECEIPT).write_text(
+            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    verified = verified_managed_maven(mvn, host_platform, version=version)
+    if verified is None:
+        raise ValueError("managed Maven provision did not produce a usable mvn")
     return verified
 
 
@@ -2431,6 +2617,105 @@ def purge_maven_tools_cache(
         return {**observed, "status": "purged"}
 
 
+def _path_is_under(path: Path, root: Path) -> bool:
+    try:
+        path.absolute().relative_to(root.absolute())
+    except ValueError:
+        return False
+    return True
+
+
+def _discard_tree_nofollow(path: Path, cache_root: Path) -> None:
+    """Remove a cache subtree without following links out of the cache root."""
+    path = path.absolute()
+    cache_root = cache_root.absolute()
+    if not _path_is_under(path, cache_root):
+        raise ValueError("Maven Tools MCP discard path escapes cache root")
+    if is_link_or_reparse(path):
+        path.unlink()
+        return
+    if path.is_file() or path.is_symlink():
+        path.unlink()
+        return
+    if not path.is_dir():
+        return
+    for child in list(path.iterdir()):
+        if not _path_is_under(child, cache_root):
+            raise ValueError("Maven Tools MCP discard path escapes cache root")
+        if is_link_or_reparse(child):
+            child.unlink()
+        elif child.is_dir():
+            _discard_tree_nofollow(child, cache_root)
+        else:
+            child.unlink()
+    path.rmdir()
+
+
+def discard_invalid_maven_tools_cache(
+    version: str, *, root: Path | None = None
+) -> dict[str, str]:
+    """Discard an invalid Maven Tools version tree so install can rebuild it.
+
+    Healthy trees stay purge-only via purge_maven_tools_cache. Never follows
+    links out of the cache root: linked leaves are unlinked in place.
+    """
+    cache_root = (root or maven_tools_cache_root()).absolute()
+    anchor = _cache_anchor(cache_root)
+    version_root = _maven_tools_version_directory(cache_root, version)
+    result = {
+        "component": "maven-tools-mcp",
+        "version": version,
+        "path": str(version_root),
+    }
+    if not cache_root.exists() and not is_link_or_reparse(cache_root):
+        return {**result, "status": "absent"}
+    with maven_tools_cache_lock(cache_root, anchor=anchor):
+        _validate_cache_path(cache_root, anchor)
+        try:
+            observed = _maven_tools_cache_status_unlocked(
+                cache_root, version, anchor=anchor
+            )
+        except ValueError:
+            # Linked version leaves fail path validation; still discardable in place.
+            if is_link_or_reparse(version_root) and _path_is_under(
+                version_root, cache_root
+            ):
+                observed = {
+                    **result,
+                    "status": "invalid",
+                    "reason": "cache path is linked or invalid",
+                }
+            else:
+                raise
+        if observed["status"] == "absent":
+            return observed
+        if observed["status"] == "healthy":
+            raise ValueError(
+                "Maven Tools MCP cache discard refused: healthy cache requires purge"
+            )
+        if observed["status"] != "invalid":
+            raise ValueError(
+                f"Maven Tools MCP cache discard refused: {observed.get('status', 'unknown')}"
+            )
+        tombstone = cache_root / f".purging-{version}"
+        for marker in (tombstone, *sorted(cache_root.glob(f".purged-{version}-*"))):
+            if is_link_or_reparse(marker):
+                if not _path_is_under(marker, cache_root):
+                    raise ValueError("Maven Tools MCP discard path escapes cache root")
+                marker.unlink()
+            elif marker.exists():
+                _discard_tree_nofollow(marker, cache_root)
+        if is_link_or_reparse(version_root):
+            if not _path_is_under(version_root, cache_root):
+                raise ValueError("Maven Tools MCP discard path escapes cache root")
+            version_root.unlink()
+        elif version_root.exists():
+            claim = cache_root / f".discarding-{version}-{secrets.token_hex(16)}"
+            _rename_no_replace(version_root, claim)
+            _discard_tree_nofollow(claim, cache_root)
+        return {**observed, "status": "discarded"}
+
+
 def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Path:
     staging = staging.absolute()
     cache_root = (root or maven_tools_cache_root()).absolute()
@@ -2503,11 +2788,8 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     configured_java = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")
     path_java = shutil.which("java")
-    system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
-    machine = platform.machine().lower()
-    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
-    managed_root = maven_tools_cache_root().parent / "temurin" / "25.0.4+7" / f"{system}-{architecture}"
-    managed_java = managed_root / (
+    _system, _architecture, host_platform = _tools_host_platform()
+    managed_java = managed_temurin_root() / (
         "bin/java.exe" if os.name == "nt" else
         "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
     )
@@ -2517,7 +2799,7 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
         if java_home
         else None,
         Path(path_java) if path_java else None,
-        verified_managed_temurin(managed_java, f"{system}-{architecture}"),
+        verified_managed_temurin(managed_java, host_platform),
     ]
     for candidate in java_candidates:
         if candidate is None or not candidate.is_file():
@@ -2533,7 +2815,9 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     return None
 
 
-def verified_managed_temurin(candidate: Path, host_platform: str) -> Path | None:
+def verified_managed_temurin(
+    candidate: Path, host_platform: str, *, version: str = "25.0.4+7"
+) -> Path | None:
     if not candidate.is_file() or is_link_or_reparse(candidate):
         return None
     receipt_path = candidate.parents[3 if sys.platform == "darwin" else 1] / TEMURIN_RECEIPT
@@ -2548,14 +2832,18 @@ def verified_managed_temurin(candidate: Path, host_platform: str) -> Path | None
     expected = {
         "schemaVersion": 1,
         "runtime": "temurin",
-        "version": "25.0.4+7",
+        "version": version,
         "hostPlatform": host_platform,
         "artifactArchitecture": expected_architecture,
         "emulated": host_platform == "windows-arm64",
         "java": candidate.relative_to(receipt_path.parent).as_posix(),
         "javaSha256": digest,
     }
-    return candidate.resolve() if receipt == expected and java_major(candidate) == 25 else None
+    major = java_major(candidate)
+    if receipt != expected or major is None:
+        return None
+    # Floor only: installed major must meet the Java 25+ contract, not an exact build pin.
+    return candidate.resolve() if major >= 25 else None
 
 
 def probe_maven_tools_runtime(

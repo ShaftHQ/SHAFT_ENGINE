@@ -30,13 +30,21 @@
       "macos-arm64": {"url": "https://nodejs.org/download/release/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz", "sha256": "8294b7aa9b03997481c06babf1e8b270c859358f27da57a11509afe537ac381d"}
     }},
     "maven-tools-source": {"version": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36", "url": "https://github.com/arvindand/maven-tools-mcp/archive/4475ff6c61f23ea9a93cb6d5665a63235ef2ef36.zip", "sha256": "ceba276c3bf90bafbb4d7f109006d0cffa640466f0146826ce749c77a033bef8"},
-    "temurin": {"version": "25.0.4+7", "artifacts": {
+    "temurin": {"version": "25.0.4+7", "minimumVersion": "25.0.0", "artifacts": {
       "windows-x64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4_7.zip", "sha256": "7caab7db43bf4b94a2e6252c699e70d90084f9aa7c943cd3414761fd540937ae"},
       "windows-arm64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4_7.zip", "sha256": "7caab7db43bf4b94a2e6252c699e70d90084f9aa7c943cd3414761fd540937ae", "artifactArchitecture": "x64", "emulated": true},
       "linux-x64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_x64_linux_hotspot_25.0.4_7.tar.gz", "sha256": "e58fcdcd637b25c03ca84cbbcefc70d11efb8f4b4cbd05decc9f661769d77f94"},
       "linux-arm64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_aarch64_linux_hotspot_25.0.4_7.tar.gz", "sha256": "621f7196f0b682fb557da58bec89bd7dfe5419811fe1c0ba75c9cc8432f084c7"},
       "macos-x64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_x64_mac_hotspot_25.0.4_7.tar.gz", "sha256": "a5ac9c46dad47ac06df35e36d096913195d8da1f3f71918828bcc2cfe33869b7"},
       "macos-arm64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_aarch64_mac_hotspot_25.0.4_7.tar.gz", "sha256": "5a101c54abf5a9f16c0f70d8c38ba99e6567c1ba213378f0bb04497284f051bd"}
+    }},
+    "maven": {"version": "3.9.12", "minimumVersion": "3.9.0", "artifacts": {
+      "windows-x64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip", "sha256": "305773a68d6ddfd413df58c82b3f8050e89778e777f3a745c8e5b8cbea4018ef"},
+      "windows-arm64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip", "sha256": "305773a68d6ddfd413df58c82b3f8050e89778e777f3a745c8e5b8cbea4018ef", "artifactArchitecture": "x64", "emulated": true},
+      "linux-x64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz", "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"},
+      "linux-arm64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz", "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"},
+      "macos-x64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz", "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"},
+      "macos-arm64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz", "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"}
     }}
   },
   "tools": {

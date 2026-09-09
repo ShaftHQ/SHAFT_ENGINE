@@ -200,6 +200,27 @@ class ClassifierTest(unittest.TestCase):
                 self.assertIn("protected-installer-acceptance", protected)
                 self.assertIn("protected-rollback", protected)
 
+    def test_installer_ux_and_managed_runtime_tests_stay_on_installer_surface(self) -> None:
+        plan = classify_paths(
+            [
+                "tests/scripts/test_chaos_engine_installer_ux.py",
+                "tests/scripts/test_chaos_engine_managed_runtimes.py",
+            ]
+        )
+        check_ids = {check.id for check in plan.checks}
+        self.assertIn("installer", plan.surfaces)
+        self.assertNotIn("fallback", plan.surfaces)
+        self.assertEqual((), plan.unknown_paths)
+        self.assertIn("installer-ux-contract", check_ids)
+        self.assertIn(
+            "tests.scripts.test_chaos_engine_installer_ux",
+            plan.test_modules,
+        )
+        self.assertIn(
+            "tests.scripts.test_chaos_engine_managed_runtimes",
+            plan.test_modules,
+        )
+
     def test_guard_owner_change_runs_non_waivable_security_check(self) -> None:
         plan = classify_paths(["scripts/agents/guard.py"])
 
@@ -637,7 +658,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         )
 
         self.assertIn("scripts/ci/harness_pr_gate.py", agent_job)
-        self.assertIn("--budget-seconds 360", agent_job)
+        self.assertIn("--budget-seconds 540", agent_job)
         self.assertNotIn("npm install --global", agent_job)
         self.assertNotIn("tests.scripts.test_agent_plugin_client_smoke", agent_job)
         self.assertNotIn("matrix:", agent_job)

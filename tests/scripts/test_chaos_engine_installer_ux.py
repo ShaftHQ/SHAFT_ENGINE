@@ -753,9 +753,12 @@ class InstallerUxTests(unittest.TestCase):
                     self.assertIn("#installer-errors", stderr.getvalue())
                     self.assertIn("Installer CLI is not on disk", stderr.getvalue())
                     if code == "CE-INSTALL-FAILED":
-                        self.assertIn("Next step: click this link to open a GitHub issue", stderr.getvalue())
+                        err = stderr.getvalue()
+                        self.assertIn("Open issue:", err)
+                        self.assertIn("Agent prompt (copy the backtick block):", err)
+                        self.assertIn("Continue ChaosEngine install in this folder.", err)
                         report = [
-                            line for line in stderr.getvalue().splitlines()
+                            line for line in err.splitlines()
                             if line.startswith("https://github.com/owner/repo/issues/new?")
                         ][0]
                         self.assertIn("template=chaos-engine-installer.yml", report)
@@ -839,7 +842,9 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("CE-INSTALL-FAILED", err)
         self.assertIn("sealed walk exploded", err)
         self.assertIn("https://github.com/owner/repo/issues/new", err)
-        self.assertIn("Next step: click this link to open a GitHub issue", err)
+        self.assertIn("Open issue:", err)
+        self.assertIn("Agent prompt (copy the backtick block):", err)
+        self.assertIn("Continue ChaosEngine install in this folder.", err)
         self.assertNotIn("Traceback", err)
 
     def test_install_health_error_ignores_optional_absent_components(self):
@@ -913,6 +918,21 @@ class InstallerUxTests(unittest.TestCase):
         output = stderr.getvalue()
         self.assertIn("unhealthy: memory", output)
         self.assertIn("Next fix: paste the heal prompt", output)
+        self.assertIn("Open issue:", output)
+        self.assertIn("Agent prompt (copy the backtick block):", output)
+        self.assertIn("Continue ChaosEngine install in this folder.", output)
+        self.assertIn("comment findings, solutions, and troubleshooting steps", output)
+        self.assertIn(
+            "Ask the user whether they want to attempt a fix by opening an upstream PR",
+            output,
+        )
+        self.assertIn("the GitHub issue URL printed above", output)
+        self.assertNotIn("Repair the named", output)
+        self.assertNotIn("Give this prompt", output)
+        prompt_line = next(
+            line for line in output.splitlines() if line.startswith("`Continue ChaosEngine")
+        )
+        self.assertNotIn("issues/new?", prompt_line)
         report = [
             line
             for line in output.splitlines()
@@ -925,6 +945,26 @@ class InstallerUxTests(unittest.TestCase):
         self.assertLessEqual(len(report), BOOTSTRAP.MAX_ISSUE_URL_CHARS)
         for field_id in BOOTSTRAP.REQUIRED_ISSUE_FORM_FIELDS:
             self.assertIn(field_id, query, field_id)
+
+    def test_heal_handoff_prompt_continues_and_avoids_compose_url_blob(self):
+        compose = (
+            "https://github.com/owner/repo/issues/new?template=chaos-engine-installer.yml"
+            "&title=long&body=" + ("x" * 200)
+        )
+        prompt = BOOTSTRAP.heal_handoff_prompt(
+            "python3 .chaos-engine/install.py doctor --project . --json",
+            compose,
+        )
+        self.assertTrue(prompt.startswith("Continue ChaosEngine install in this folder."))
+        self.assertIn("the GitHub issue URL printed above", prompt)
+        self.assertNotIn("issues/new?", prompt)
+        self.assertNotIn("Repair the named", prompt)
+        filed = BOOTSTRAP.heal_handoff_prompt(
+            "python3 .chaos-engine/install.py doctor --project . --json",
+            "https://github.com/owner/repo/issues/99",
+        )
+        self.assertIn("https://github.com/owner/repo/issues/99", filed)
+        self.assertIn("upstream PR", filed)
 
     def test_failure_cause_redacts_local_paths_and_secret_assignments(self):
         private_path = Path(
@@ -1147,6 +1187,10 @@ class InstallerUxTests(unittest.TestCase):
                 )
             output = stderr.getvalue()
             self.assertIn("https://github.com/owner/repo/issues/99", output)
+            self.assertIn("GitHub issue:", output)
+            self.assertIn("Agent prompt (copy the backtick block):", output)
+            self.assertIn("https://github.com/owner/repo/issues/99", output)
+            self.assertIn("Continue ChaosEngine install in this folder.", output)
             self.assertFalse(
                 any("issues/new?" in line for line in output.splitlines())
             )
@@ -1262,10 +1306,15 @@ class InstallerUxTests(unittest.TestCase):
             output = stream.getvalue()
             self.assertIn("Heal handoff", output)
             self.assertIn("issues/new?", output)
+            self.assertIn("Agent prompt (copy the backtick block):", output)
+            self.assertIn("Continue ChaosEngine install in this folder.", output)
+            self.assertNotIn("Repair the named", output)
+            self.assertNotIn("Give this prompt", output)
             handoff = (project / ".chaos-engine-state/heal-handoff.md").read_text(
                 encoding="utf-8"
             )
             self.assertIn("Do not rerun the install one-liner", handoff)
+            self.assertIn("Continue with one agent step", handoff)
             installer.rollback.assert_not_called()
 
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):

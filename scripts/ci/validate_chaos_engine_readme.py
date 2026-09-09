@@ -212,7 +212,7 @@ def inventory_sections(root: Path = ROOT) -> dict[str, str]:
             ("curl or wget", "Download immutable source on POSIX.", "install.sh", "required on POSIX", "Linux, macOS", "operator", "consumer environment", "download fails closed"),
             ("Node.js, npm, and npx", "Provision Memory, Context7 CLI, and plugin MCP runtimes.", "dependencies.json; hooks/launch.js", "managed", "Windows, Linux, macOS", "platform standard provider", "user account", "install stops before activation"),
             ("network", "Resolve source and provision a fresh or upgraded generation.", "bootstrap.py; dependencies.py", "required for fresh install or upgrade", "Windows, Linux, macOS", "operator", "prior verified generation remains active"),
-            ("Git and Temurin Java 25", "Build optional Maven Tools MCP cache.", "dependencies.json; install.py; hosts.py", "optional and managed with `--with-maven-tools`", "Windows, Linux, macOS", "platform provider plus upstream Maven wrapper", "receipt-owned shared cache", "optional component reports absent"),
+            ("Git, managed Temurin JDK 25+, and managed Apache Maven", "Build optional Maven Tools MCP cache when ambient JDK/Maven are missing.", "dependencies.json; install.py; hosts.py", "optional and managed with `--with-maven-tools`", "Windows, Linux, macOS", "managed Temurin/Maven cache plus upstream Maven wrapper", "receipt-owned shared cache", "optional component reports absent"),
         ],
         "external-services": [
             ("GitHub API and raw content", "Resolve immutable source and deliver pull requests.", "bootstrap.py; work-github-playbook.md", "required for remote install and delivery", "network", "operator credentials", "GitHub and repository owner", "install or delivery blocks"),

@@ -413,11 +413,16 @@ creates one container per client and keeps Docker Desktop and its VM resident.
 
 A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow:
 
-1. Resolve system Temurin 25 from `CHAOSENGINE_JAVA`, `JAVA_HOME`, or `PATH`.
-2. Resolve the latest compatible stable GitHub release, clone its tag with
-   `--depth 1`, record the tag's immutable commit, and run
-   `./mvnw -B clean package -Pci`. Git and Java are required; no private archive
-   fallback exists.
+1. Resolve Temurin JDK 25+ (with `javac`) from `CHAOSENGINE_JAVA`, `JAVA_HOME`,
+   or `PATH`. When no suitable ambient JDK exists, provision the checksum-verified
+   managed Temurin JDK from `dependencies.json` into the CE tools cache.
+2. When ambient `mvn` is missing or below the declared Maven minimum, provision a
+   checksum-verified managed Apache Maven distribution into the CE tools cache.
+   Resolve the latest compatible stable GitHub release, clone its tag with
+   `--depth 1`, record the tag's immutable commit, ensure `./mvnw` is executable,
+   set `JAVA_HOME` to the managed/ambient JDK, and run
+   `./mvnw -B clean package -Pci`. Git is required; the upstream wrapper remains
+   the build entrypoint.
 3. Stage `maven-tools-mcp-<resolved-version>.jar` under a fresh unique directory on the same
    filesystem as the current user's data directory, then publish that directory
    with a no-overwrite rename to

@@ -16,6 +16,7 @@ import re
 import runpy
 import secrets
 import shutil
+import stat
 import subprocess  # nosec B404 - fixed list-form Maven build commands.
 import sys
 import tempfile
@@ -2676,8 +2677,23 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         existing = hosts.discover_maven_tools_runtime()
         if existing is not None and hosts.probe_maven_tools_runtime(*existing):
             return existing
+    elif cache_status["status"] == "busy":
+        raise RuntimeError("Maven Tools MCP cache is busy")
     elif cache_status["status"] != "absent":
-        raise ValueError("Maven Tools MCP cache is invalid")
+        discard = getattr(hosts, "discard_invalid_maven_tools_cache", None)
+        if not callable(discard):
+            raise ValueError("Maven Tools MCP cache is invalid")
+        discard(version)
+    java_minimum = "25.0.0"
+    java_contract = specification.get("dependencies", {}).get("java") if isinstance(
+        specification.get("dependencies"), dict
+    ) else None
+    if isinstance(java_contract, dict) and isinstance(java_contract.get("minimumVersion"), str):
+        java_minimum = str(java_contract["minimumVersion"])
+    try:
+        java_minimum_major = int(str(java_minimum).split(".", 1)[0])
+    except ValueError:
+        java_minimum_major = 25
     java_candidates = []
     configured = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")
@@ -2692,13 +2708,14 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         (
             item.resolve()
             for item in java_candidates
-            if item.is_file() and hosts.java_major(item.resolve()) == 25
+            if item.is_file()
+            and (hosts.java_major(item.resolve()) or 0) >= java_minimum_major
         ),
         None,
     )
     compiler_present = getattr(hosts, "java_compiler_present", None)
     if java is not None and callable(compiler_present) and not compiler_present(java):
-        # JRE-only Java 25 cannot compile Maven Tools; prefer managed Temurin JDK.
+        # JRE-only Java cannot compile Maven Tools; prefer managed Temurin JDK.
         java = None
     if java is None:
         provision = getattr(hosts, "ensure_managed_temurin_jdk", None)
@@ -2712,6 +2729,14 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         raise ValueError(
             "Temurin JDK 25 with javac is required for Maven Tools MCP "
             "(JRE-only Java is not enough); install Temurin 25 JDK or set CHAOSENGINE_JAVA"
+        )
+    # Ensure a Maven CLI exists for operators when ambient mvn is missing/too old.
+    # Upstream build still prefers mvnw below; managed Maven is provisioned into the
+    # CE tools cache during this dependencies phase rather than after a failure.
+    ensure_maven = getattr(hosts, "ensure_managed_maven", None)
+    if callable(ensure_maven):
+        ensure_maven(
+            specification, opener=opener, reporter=reporter, confirmer=confirmer,
         )
     cache_root = hosts.maven_tools_cache_root()
     cache_root.mkdir(parents=True, exist_ok=True)
@@ -2737,6 +2762,8 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
         if not wrapper.is_file():
             raise ValueError("Maven Tools upstream wrapper is missing")
+        if os.name != "nt":
+            wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         environment = os.environ.copy()
         environment["JAVA_HOME"] = str(java.parent.parent)
         if confirmer is not None:

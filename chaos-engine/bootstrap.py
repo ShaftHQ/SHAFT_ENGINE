@@ -395,22 +395,36 @@ def core_install_py(project: Path) -> bool:
     return (Path(project) / ".chaos-engine" / "install.py").is_file()
 
 
+def heal_issue_reference(issue_url: str) -> str:
+    """Prefer a short issue locator inside copy-paste agent prompts."""
+    if not issue_url or "issues/new?" in issue_url:
+        return "the GitHub issue URL printed above"
+    return issue_url
+
+
 def heal_handoff_prompt(doctor_command: str, issue_url: str) -> str:
     cli = "py -3" if os.name == "nt" else "python3"
+    issue_ref = heal_issue_reference(issue_url)
     if doctor_command == "not available":
         return (
-            "Load ChaosEngine if present. Restore the portable core with the documented "
-            "ChaosEngine install one-liner, then read .chaos-engine-state/heal-handoff.md. "
-            f"Comment investigation and outcome on {issue_url}."
+            "Continue ChaosEngine install in this folder. Load ChaosEngine if present. "
+            "Restore the portable core with the documented ChaosEngine install one-liner, "
+            "then read .chaos-engine-state/heal-handoff.md. "
+            f"Open {issue_ref} and comment findings, solutions, and troubleshooting steps. "
+            "Ask the user whether they want to attempt a fix by opening an upstream PR "
+            "linked to that issue."
         )
     return (
-        "Load ChaosEngine in this project. Read .chaos-engine-state/heal-handoff.md "
-        "and the local install-trace.json, install-console.log, and doctor-failure.json. "
+        "Continue ChaosEngine install in this folder. Load ChaosEngine. "
+        "Read .chaos-engine-state/heal-handoff.md and the local install-trace.json, "
+        "install-console.log, and doctor-failure.json. "
         "Do not rerun the install one-liner unless the portable core is missing. "
-        "Repair the named unhealthy components with "
-        f"`{cli} .chaos-engine/install.py repair --project . --component <name>` "
-        f"and `{doctor_command}` until required components are healthy. "
-        f"Then comment investigation, commands, doctor excerpt, and outcome on {issue_url}."
+        "Continue unhealthy components with "
+        f"{cli} .chaos-engine/install.py repair --project . --component <name> "
+        f"and {doctor_command} until required components are healthy. "
+        f"Open {issue_ref} and comment findings, solutions, and troubleshooting steps. "
+        "Ask the user whether they want to attempt a fix by opening an upstream PR "
+        "linked to that issue."
     )
 
 
@@ -420,7 +434,7 @@ def write_heal_handoff(project: Path, fields: dict[str, str], issue_url: str) ->
     lines = [
         "# Heal handoff",
         "",
-        "The portable core is installed. One agent step remains.",
+        "The portable core is installed. Continue with one agent step.",
         "",
         f"Issue: {issue_url}",
         "",
@@ -1007,16 +1021,15 @@ class InstallReporter:
             prompt = heal_handoff_prompt(doctor_command, issue_url)
             self.stream.write(self._paint("  Heal handoff", "36") + "\n")
             self.stream.write(
-                "Core is installed. One agent step remains. Details: "
+                "Core is installed. Continue with one agent step. Details: "
                 f"{HEAL_HANDOFF_RELATIVE}\n"
             )
             if "issues/new?" in issue_url:
-                self.stream.write(
-                    "Open this GitHub issue (required fields are filled), then paste the prompt:\n"
-                )
+                self.stream.write("Open issue:\n")
             else:
                 self.stream.write("GitHub issue:\n")
             self.stream.write(f"{issue_url}\n")
+            self.stream.write("Agent prompt (copy the backtick block):\n")
             self.stream.write(f"`{prompt}`\n")
         self.stream.write(
             format_host_onboarding_cards(
@@ -2028,14 +2041,12 @@ def emit_install_failure(
         )
         prompt = heal_handoff_prompt(fields["doctor_command"], issue_url)
         if "issues/new?" in issue_url:
-            print(
-                "Next step: click this link to open a GitHub issue with this report:",
-                file=sys.stderr,
-            )
+            print("Open issue:", file=sys.stderr)
         else:
-            print("Next step: review the filed GitHub issue:", file=sys.stderr)
+            print("GitHub issue:", file=sys.stderr)
         print(issue_url, file=sys.stderr)
-        print("Give this prompt to your agent in this folder:", file=sys.stderr)
+        print(file=sys.stderr)
+        print("Agent prompt (copy the backtick block):", file=sys.stderr)
         print(f"`{prompt}`", file=sys.stderr)
         if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
             traceback.print_exc()

@@ -2918,6 +2918,74 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("purged", module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)["status"])
             self.assertEqual("absent", module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)["status"])
 
+    def test_discard_invalid_maven_tools_cache_removes_bad_receipt_tree(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_discard")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            version = root / module.MAVEN_TOOLS_MCP_VERSION
+            version.mkdir(parents=True)
+            jar = version / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            (version / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(
+                json.dumps({
+                    "version": module.MAVEN_TOOLS_MCP_VERSION,
+                    "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                    "jar": jar.name,
+                    "sha256": "0" * 64,
+                }),
+                encoding="utf-8",
+            )
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=root)["status"])
+            self.assertEqual(
+                "discarded",
+                module.discard_invalid_maven_tools_cache(
+                    module.MAVEN_TOOLS_MCP_VERSION, root=root
+                )["status"],
+            )
+            self.assertEqual("absent", module.maven_tools_cache_status(root=root)["status"])
+            self.assertFalse(version.exists())
+            version.mkdir(parents=True)
+            jar.write_bytes(b"jar")
+            (version / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(
+                json.dumps({
+                    "version": module.MAVEN_TOOLS_MCP_VERSION,
+                    "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                    "jar": jar.name,
+                    "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                }),
+                encoding="utf-8",
+            )
+            self.assertEqual("healthy", module.maven_tools_cache_status(root=root)["status"])
+            with self.assertRaisesRegex(ValueError, "healthy cache requires purge"):
+                module.discard_invalid_maven_tools_cache(
+                    module.MAVEN_TOOLS_MCP_VERSION, root=root
+                )
+
+    def test_discard_invalid_maven_tools_cache_unlinks_version_without_following(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_discard_link")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            outside = Path(temporary) / "outside"
+            root.mkdir()
+            outside.mkdir()
+            marker = outside / "keep-me.txt"
+            marker.write_text("safe\n", encoding="utf-8")
+            version = root / module.MAVEN_TOOLS_MCP_VERSION
+            try:
+                version.symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory links unavailable: {error}")
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=root)["status"])
+            self.assertEqual(
+                "discarded",
+                module.discard_invalid_maven_tools_cache(
+                    module.MAVEN_TOOLS_MCP_VERSION, root=root
+                )["status"],
+            )
+            self.assertFalse(version.exists())
+            self.assertTrue(marker.exists())
+            self.assertTrue(outside.exists())
+
     def test_maven_tools_cache_reports_nonwaiting_lock_contention(self):
         module = load(HOSTS, "chaos_engine_hosts_maven_cache_lock")
         with tempfile.TemporaryDirectory() as temporary:
@@ -2927,6 +2995,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 self.assertEqual("busy", module.maven_tools_cache_status(root=root)["status"])
                 with self.assertRaisesRegex(RuntimeError, "already running"):
                     module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)
+                with self.assertRaisesRegex(RuntimeError, "already running"):
+                    module.discard_invalid_maven_tools_cache(
+                        module.MAVEN_TOOLS_MCP_VERSION, root=root
+                    )
 
     def test_maven_tools_cache_status_maps_inaccessible_lock_to_invalid(self):
         module = load(HOSTS, "chaos_engine_hosts_maven_cache_inaccessible")

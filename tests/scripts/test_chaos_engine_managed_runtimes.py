@@ -35,23 +35,46 @@ class ManagedRuntimeManifestTest(TestCase):
         )
 
     def test_manifest_pins_all_supported_runtime_artifacts(self):
-        self.assertEqual(2, self.specification["schemaVersion"])
-        self.assertEqual("0.11.29", self.specification["runtimes"]["uv"]["version"])
-        self.assertEqual("3.11", self.specification["runtimes"]["python"]["version"])
-        self.assertEqual("24.19.0", self.specification["runtimes"]["node"]["version"])
-        self.assertEqual("25.0.4+7", self.specification["runtimes"]["temurin"]["version"])
-        for runtime in ("uv", "node"):
+        # Version tests only enforce the supported minimum floor, never exact pins.
+        self.assertTrue(
+            DEPENDENCIES.version_at_least(self.specification["schemaVersion"], 3)
+        )
+        dependencies = self.specification["dependencies"]
+        runtimes = self.specification["runtimes"]
+        self.assertTrue(
+            DEPENDENCIES.version_at_least(
+                runtimes["uv"]["version"], dependencies["uv"]["minimumVersion"]
+            )
+        )
+        # Bootstrap uv-managed Python floor is the declared runtime family (3.11+).
+        self.assertTrue(DEPENDENCIES.version_at_least(runtimes["python"]["version"], "3.11"))
+        self.assertTrue(
+            DEPENDENCIES.version_at_least(
+                runtimes["node"]["version"], dependencies["node"]["minimumVersion"]
+            )
+        )
+        temurin_minimum = runtimes["temurin"].get("minimumVersion") or dependencies["java"][
+            "minimumVersion"
+        ]
+        self.assertTrue(
+            DEPENDENCIES.version_at_least(runtimes["temurin"]["version"], temurin_minimum)
+        )
+        maven_minimum = runtimes["maven"]["minimumVersion"]
+        self.assertTrue(
+            DEPENDENCIES.version_at_least(runtimes["maven"]["version"], maven_minimum)
+        )
+        for runtime in ("uv", "node", "temurin", "maven"):
             self.assertEqual(
                 set(DEPENDENCIES.SUPPORTED_PLATFORMS),
-                set(self.specification["runtimes"][runtime]["artifacts"]),
+                set(runtimes[runtime]["artifacts"]),
             )
-        for runtime in ("uv", "node", "temurin"):
-            for artifact in self.specification["runtimes"][runtime]["artifacts"].values():
+            for artifact in runtimes[runtime]["artifacts"].values():
                 self.assertRegex(artifact["sha256"], r"^[0-9a-f]{64}$")
                 self.assertTrue(artifact["url"].startswith("https://"))
-        emulated = self.specification["runtimes"]["temurin"]["artifacts"]["windows-arm64"]
+        emulated = runtimes["temurin"]["artifacts"]["windows-arm64"]
         self.assertTrue(emulated["emulated"])
         self.assertEqual("x64", emulated["artifactArchitecture"])
+        self.assertTrue(runtimes["maven"]["artifacts"]["windows-arm64"].get("emulated"))
 
     def test_platform_selector_rejects_unsupported_before_returning_artifact(self):
         with self.assertRaisesRegex(ValueError, "unsupported platform"):
@@ -244,11 +267,25 @@ class ManagedRuntimeManifestTest(TestCase):
 
 class ManagedRuntimeCliTest(TestCase):
     def test_wrappers_bootstrap_uv_and_forward_maven_tools(self):
+        import re
+
         shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
         powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
+        specification = json.loads(
+            (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+        )
+        minimum = specification["dependencies"]["uv"]["minimumVersion"]
         for document in (shell, powershell):
-            self.assertIn("0.11.29", document)
-            self.assertIn("3.11", document)
+            match = re.search(
+                r"astral-sh/uv/releases/download/(?P<version>\d+\.\d+\.\d+)/",
+                document,
+            )
+            self.assertIsNotNone(match, msg="uv bootstrap download URL missing")
+            self.assertTrue(
+                DEPENDENCIES.version_at_least(match.group("version"), minimum)
+            )
+            self.assertIn("python install", document)
+            self.assertIn("managed-python", document)
         self.assertIn("--with-maven-tools", shell)
         self.assertIn("WithMavenTools", powershell)
 
@@ -286,11 +323,104 @@ class ManagedRuntimeCliTest(TestCase):
     def test_maven_tools_reuses_verified_existing_runtime(self):
         expected = (Path("/java25"), Path("/maven-tools.jar"))
         hosts = mock.Mock()
+        hosts.maven_tools_cache_status.return_value = {"status": "healthy", "version": "3.2.0"}
         hosts.discover_maven_tools_runtime.return_value = expected
         hosts.probe_maven_tools_runtime.return_value = True
-        with mock.patch.object(INSTALLER, "load_installed_controller", return_value=hosts):
-            self.assertEqual(expected, INSTALLER.ensure_maven_tools(Path("/core"), {}))
+        dependencies = SimpleNamespace(
+            resolve_stable_version=lambda *_a, **_k: "3.2.0",
+        )
+        specification = {
+            "dependencies": {
+                "maven-tools-mcp": {"stableChannel": "https://example.invalid"}
+            }
+        }
+        with mock.patch.object(INSTALLER, "load_installed_controller", return_value=hosts), \
+             mock.patch.object(INSTALLER, "load_dependency_controller", return_value=dependencies):
+            self.assertEqual(
+                expected, INSTALLER.ensure_maven_tools(Path("/core"), specification)
+            )
         hosts.discover_maven_tools_runtime.assert_called_once_with()
+        hosts.discard_invalid_maven_tools_cache.assert_not_called()
+
+    def test_maven_tools_invalid_cache_discards_then_rebuilds(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            java = root / "java"
+            java.write_bytes(b"java")
+            git = root / "git"
+            git.write_bytes(b"git")
+            cache = root / "cache"
+            final = (java.resolve(), cache / "3.2.0/maven-tools-mcp-3.2.0.jar")
+            discarded = []
+            hosts = SimpleNamespace(
+                maven_tools_cache_status=lambda *_a, **_k: {
+                    "status": "invalid",
+                    "reason": "JAR receipt validation failed",
+                },
+                discard_invalid_maven_tools_cache=lambda version: discarded.append(version)
+                or {"status": "discarded", "version": version},
+                discover_maven_tools_runtime=mock.Mock(return_value=final),
+                java_major=lambda _path: 25,
+                java_compiler_present=lambda _path: True,
+                ensure_managed_temurin_jdk=lambda *_a, **_k: None,
+                maven_tools_cache_root=lambda: cache,
+                MAVEN_TOOLS_MCP_RECEIPT="install-receipt.json",
+                publish_maven_tools_cache=mock.Mock(),
+                probe_maven_tools_runtime=mock.Mock(return_value=True),
+            )
+            dependencies = SimpleNamespace(
+                resolve_stable_version=lambda *_a, **_k: "3.2.0",
+            )
+            specification = {
+                "dependencies": {
+                    "maven-tools-mcp": {"stableChannel": "https://example.invalid"}
+                }
+            }
+
+            def runner(command, **kwargs):
+                if "clone" in command:
+                    source = Path(command[-1])
+                    source.mkdir(parents=True, exist_ok=True)
+                    (source / "mvnw").write_bytes(b"wrapper")
+                if Path(command[0]).name == "mvnw":
+                    output = Path(kwargs["cwd"]) / "target/maven-tools-mcp-3.2.0.jar"
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(b"jar")
+                if "rev-parse" in command:
+                    return SimpleNamespace(returncode=0, stdout=("a" * 40) + "\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with mock.patch.dict("os.environ", {"CHAOSENGINE_JAVA": str(java)}, clear=False), \
+                 mock.patch.object(INSTALLER, "load_installed_controller", return_value=hosts), \
+                 mock.patch.object(INSTALLER, "load_dependency_controller", return_value=dependencies), \
+                 mock.patch.object(
+                     INSTALLER.shutil,
+                     "which",
+                     side_effect=lambda name: str(git if name == "git" else java if name == "java" else ""),
+                 ):
+                self.assertEqual(
+                    final,
+                    INSTALLER.ensure_maven_tools(Path("/core"), specification, runner=runner),
+                )
+            self.assertEqual(["3.2.0"], discarded)
+            hosts.publish_maven_tools_cache.assert_called_once()
+
+    def test_maven_tools_busy_cache_hard_fails(self):
+        hosts = mock.Mock()
+        hosts.maven_tools_cache_status.return_value = {"status": "busy", "version": "3.2.0"}
+        dependencies = SimpleNamespace(
+            resolve_stable_version=lambda *_a, **_k: "3.2.0",
+        )
+        specification = {
+            "dependencies": {
+                "maven-tools-mcp": {"stableChannel": "https://example.invalid"}
+            }
+        }
+        with mock.patch.object(INSTALLER, "load_installed_controller", return_value=hosts), \
+             mock.patch.object(INSTALLER, "load_dependency_controller", return_value=dependencies):
+            with self.assertRaisesRegex(RuntimeError, "busy"):
+                INSTALLER.ensure_maven_tools(Path("/core"), specification)
+        hosts.discard_invalid_maven_tools_cache.assert_not_called()
 
     def test_maven_tools_discovers_owned_temurin_without_ambient_java(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -391,6 +521,203 @@ class ManagedRuntimeCliTest(TestCase):
                 )
             hosts.publish_maven_tools_cache.assert_called_once()
 
+    def test_maven_tools_provisions_managed_jdk_when_ambient_java_missing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            managed_java = root / "managed" / "java"
+            managed_java.parent.mkdir(parents=True)
+            managed_java.write_bytes(b"java")
+            git = root / "git"
+            git.write_bytes(b"git")
+            cache = root / "cache"
+            final = (managed_java.resolve(), cache / "3.2.0/maven-tools-mcp-3.2.0.jar")
+            provisioned = []
+            hosts = SimpleNamespace(
+                discover_maven_tools_runtime=mock.Mock(return_value=final),
+                java_major=lambda _path: None,
+                java_compiler_present=lambda _path: True,
+                ensure_managed_temurin_jdk=lambda *_a, **_k: (
+                    provisioned.append("jdk") or managed_java.resolve()
+                ),
+                ensure_managed_maven=lambda *_a, **_k: (provisioned.append("maven") or None),
+                maven_tools_cache_status=lambda *_a, **_k: {"status": "absent"},
+                maven_tools_cache_root=lambda: cache,
+                MAVEN_TOOLS_MCP_RECEIPT="install-receipt.json",
+                publish_maven_tools_cache=mock.Mock(),
+                probe_maven_tools_runtime=mock.Mock(return_value=True),
+            )
+            dependencies = SimpleNamespace(
+                resolve_stable_version=lambda *_a, **_k: "3.2.0",
+            )
+            specification = {
+                "dependencies": {
+                    "maven-tools-mcp": {"stableChannel": "https://example.invalid"},
+                    "java": {"minimumVersion": "25.0.0"},
+                },
+                "runtimes": json.loads(
+                    (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+                )["runtimes"],
+            }
+
+            def runner(command, **kwargs):
+                if "clone" in command:
+                    source = Path(command[-1])
+                    source.mkdir(parents=True, exist_ok=True)
+                    wrapper = source / "mvnw"
+                    wrapper.write_bytes(b"#!/bin/sh\n")
+                if Path(command[0]).name == "mvnw":
+                    self.assertEqual(
+                        str(managed_java.parent.parent),
+                        kwargs["env"]["JAVA_HOME"],
+                    )
+                    output = Path(kwargs["cwd"]) / "target/maven-tools-mcp-3.2.0.jar"
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(b"jar")
+                if "rev-parse" in command:
+                    return SimpleNamespace(returncode=0, stdout=("a" * 40) + "\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with mock.patch.dict("os.environ", {}, clear=False), \
+                 mock.patch.object(INSTALLER, "load_installed_controller", return_value=hosts), \
+                 mock.patch.object(INSTALLER, "load_dependency_controller", return_value=dependencies), \
+                 mock.patch.object(
+                     INSTALLER.shutil,
+                     "which",
+                     side_effect=lambda name: str(git) if name == "git" else None,
+                 ):
+                self.assertEqual(
+                    final,
+                    INSTALLER.ensure_maven_tools(Path("/core"), specification, runner=runner),
+                )
+            self.assertEqual(["jdk", "maven"], provisioned)
+            hosts.publish_maven_tools_cache.assert_called_once()
+
+    def test_maven_tools_reuses_ambient_jdk_and_maven_when_above_minimum(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            java = root / "java"
+            java.write_bytes(b"java")
+            git = root / "git"
+            git.write_bytes(b"git")
+            cache = root / "cache"
+            final = (java.resolve(), cache / "3.2.0/maven-tools-mcp-3.2.0.jar")
+            provisioned = []
+            hosts = SimpleNamespace(
+                discover_maven_tools_runtime=mock.Mock(return_value=final),
+                java_major=lambda _path: 25,
+                java_compiler_present=lambda _path: True,
+                ensure_managed_temurin_jdk=lambda *_a, **_k: provisioned.append("jdk"),
+                ensure_managed_maven=lambda *_a, **_k: (provisioned.append("maven") or Path("/mvn")),
+                maven_tools_cache_status=lambda *_a, **_k: {"status": "absent"},
+                maven_tools_cache_root=lambda: cache,
+                MAVEN_TOOLS_MCP_RECEIPT="install-receipt.json",
+                publish_maven_tools_cache=mock.Mock(),
+                probe_maven_tools_runtime=mock.Mock(return_value=True),
+            )
+            dependencies = SimpleNamespace(
+                resolve_stable_version=lambda *_a, **_k: "3.2.0",
+            )
+            specification = {
+                "dependencies": {
+                    "maven-tools-mcp": {"stableChannel": "https://example.invalid"},
+                    "java": {"minimumVersion": "25.0.0"},
+                }
+            }
+
+            def runner(command, **kwargs):
+                if "clone" in command:
+                    source = Path(command[-1])
+                    source.mkdir(parents=True, exist_ok=True)
+                    (source / "mvnw").write_bytes(b"wrapper")
+                if Path(command[0]).name == "mvnw":
+                    output = Path(kwargs["cwd"]) / "target/maven-tools-mcp-3.2.0.jar"
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(b"jar")
+                if "rev-parse" in command:
+                    return SimpleNamespace(returncode=0, stdout=("b" * 40) + "\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with mock.patch.dict("os.environ", {"CHAOSENGINE_JAVA": str(java)}, clear=False), \
+                 mock.patch.object(INSTALLER, "load_installed_controller", return_value=hosts), \
+                 mock.patch.object(INSTALLER, "load_dependency_controller", return_value=dependencies), \
+                 mock.patch.object(
+                     INSTALLER.shutil,
+                     "which",
+                     side_effect=lambda name: str(git if name == "git" else java if name == "java" else ""),
+                 ):
+                self.assertEqual(
+                    final,
+                    INSTALLER.ensure_maven_tools(Path("/core"), specification, runner=runner),
+                )
+            # Ambient JDK reused; ensure_managed_maven still consulted (may reuse ambient mvn).
+            self.assertNotIn("jdk", provisioned)
+            self.assertEqual(["maven"], provisioned)
+
+    def test_ensure_managed_maven_reuses_ambient_mvn_at_minimum_floor(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            ambient = Path(temporary) / "mvn"
+            ambient.write_bytes(b"mvn")
+            with mock.patch.object(HOSTS, "maven_version", return_value="3.9.0"), \
+                 mock.patch.object(HOSTS, "_load_dependencies_controller", return_value=DEPENDENCIES):
+                result = HOSTS.ensure_managed_maven(
+                    {"runtimes": {"maven": {"version": "3.9.12", "minimumVersion": "3.9.0"}}},
+                    which=lambda name: str(ambient) if name == "mvn" else None,
+                )
+            self.assertEqual(ambient.resolve(), result)
+
+    def test_ensure_managed_maven_provisions_when_ambient_missing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            version = "3.9.12"
+            host_platform = "linux-x64"
+            destination = root / "maven" / version / host_platform
+            mvn = destination / "bin/mvn"
+            archive_bytes = b"maven-archive"
+            digest = DEPENDENCIES.hashlib.sha256(archive_bytes).hexdigest()
+            specification = {
+                "runtimes": {
+                    "maven": {
+                        "version": version,
+                        "minimumVersion": "3.9.0",
+                        "artifacts": {
+                            host_platform: {
+                                "url": "https://example.invalid/maven.tgz",
+                                "sha256": digest,
+                            }
+                        },
+                    }
+                }
+            }
+
+            class Response(io.BytesIO):
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_args):
+                    self.close()
+
+            def opener(url, **_kwargs):
+                return Response(archive_bytes)
+
+            def fake_extract(_archive, transaction):
+                (transaction / "bin").mkdir(parents=True)
+                (transaction / "bin/mvn").write_bytes(b"#!/bin/sh\n")
+
+            def fake_verified(candidate, _platform, version="3.9.12"):
+                return candidate.resolve() if candidate.is_file() else None
+
+            with mock.patch.object(HOSTS, "managed_maven_root", return_value=destination), \
+                 mock.patch.object(HOSTS, "maven_tools_cache_root", return_value=root / "cache"), \
+                 mock.patch.object(HOSTS.sys, "platform", "linux"), \
+                 mock.patch.object(HOSTS, "_tools_host_platform", return_value=("linux", "x64", host_platform)), \
+                 mock.patch.object(HOSTS, "verified_managed_maven", side_effect=fake_verified), \
+                 mock.patch.object(DEPENDENCIES, "_extract_runtime_archive", side_effect=fake_extract), \
+                 mock.patch.object(HOSTS, "_load_dependencies_controller", return_value=DEPENDENCIES):
+                result = HOSTS.ensure_managed_maven(
+                    specification, opener=opener, which=lambda *_a, **_k: None
+                )
+            self.assertEqual(mvn.resolve(), result)
+            self.assertTrue(mvn.is_file())
 
 
 if __name__ == "__main__":

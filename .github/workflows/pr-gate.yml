@@ -409,7 +409,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: read
@@ -453,7 +453,7 @@ jobs:
           --base "$BASE_SHA"
           --head "$HEAD_SHA"
           --reviews "$REVIEWS_PATH"
-          --budget-seconds 360
+          --budget-seconds 540
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()
