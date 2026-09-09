@@ -118,7 +118,7 @@ class GeminiProviderTest {
     void buildPayloadCapsThinkingLevelForGemini3ModelsToPreserveAnswerTokenBudget() {
         // Gemini 3.x models spend thinking tokens from the same output budget as the answer
         // (AutobotService.java:164-166); thinkingConfig.thinkingLevel bounds that spend so a
-        // fixed output budget leaves real headroom for the answer JSON (issue #4113's targeted
+        // fixed output budget leaves real margin for the answer JSON (issue #4113's targeted
         // "partition" fix).
         ObjectNode payload = provider.buildPayload(request(8_000), configuration("gemini-3.5-flash"));
 

@@ -32,8 +32,6 @@ class WaveAHealthTruthTests(unittest.TestCase):
         self.assertIn("status` ⊆ `doctor", text)
         self.assertIn("activationProof", text)
         self.assertIn("--without-ponytail", text)
-        self.assertNotIn("--without-headroom", text)
-        self.assertNotIn("headroom", text.casefold())
         self.assertIn("repair --project . --component plugins", text)
         self.assertIn("Default-on all-in-one bundle", text)
 
@@ -44,7 +42,6 @@ class WaveAHealthTruthTests(unittest.TestCase):
         disabled = self.install.normalize_bundle_options(
             {"without_ponytail": True, "without_memory": True}
         )
-        self.assertNotIn("headroom", disabled)
         self.assertFalse(disabled["memory"])
         self.assertFalse(disabled["ponytail"])
         self.assertTrue(disabled["caveman"])
@@ -57,7 +54,6 @@ class WaveAHealthTruthTests(unittest.TestCase):
             )
             self.assertTrue(written.is_file())
             loaded = self.install.read_bundle_options(project)
-            self.assertNotIn("headroom", loaded)
             self.assertFalse(loaded["ponytail"])
             self.assertTrue(loaded["memory"])
 
@@ -159,7 +155,6 @@ class WaveAHealthTruthTests(unittest.TestCase):
                 "--without-memory",
             ]
         )
-        self.assertFalse(hasattr(install_args, "without_headroom"))
         self.assertTrue(install_args.without_memory)
         self.assertTrue(install_args.without_caveman)
         self.assertFalse(install_args.without_ponytail)

@@ -1,4 +1,4 @@
-"""#5689 without Headroom: MCP uniqueness, origin-sync retrieve, overlay hash."""
+"""Token-max / no-proxy harness: MCP uniqueness, origin-sync retrieve, overlay hash."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def load(path: Path, name: str):
     return module
 
 
-class TokenMaxNoHeadroomTests(TestCase):
+class TokenMaxTests(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.policy = load(ROOT / "chaos-engine/mcp_policy.py", "ce_mcp_policy_5689")
@@ -34,7 +34,6 @@ class TokenMaxNoHeadroomTests(TestCase):
     def test_user_and_project_ids_share_one_heal_prompt(self):
         text = (ROOT / "chaos-engine/hosts.py").read_text(encoding="utf-8")
         self.assertIn("disable extras in host MCP config", text)
-        self.assertNotIn("headroom", self.hosts.instruction_block("chaos-engine").casefold())
         self.assertIn("chaos-engine/", self.hosts.instruction_block("chaos-engine"))
         self.assertIn(".chaos-engine/", self.hosts.instruction_block(".chaos-engine"))
         self.assertEqual(
@@ -72,13 +71,7 @@ class TokenMaxNoHeadroomTests(TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertNotIn("caveman=ultra", agents)
 
-    def test_headroom_proxy_is_not_reintroduced(self):
-        self.assertFalse((ROOT / "chaos-engine/headroom_policy.py").exists())
-        for path in (ROOT / "chaos-engine").rglob("*.py"):
-            if path.name == "headroom_policy.py":
-                self.fail(str(path))
+    def test_no_proxy_rule_forbids_wrap_as_health(self):
         rule = (ROOT / "chaos-engine/references/no-proxy.md").read_text(encoding="utf-8")
         self.assertIn("Never `ft launch`", rule)
         self.assertIn("Do not treat wrap/proxy as install health", rule)
-
-

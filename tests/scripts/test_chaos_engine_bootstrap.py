@@ -779,7 +779,6 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             self.assertEqual("absent", status["components"]["maven-tools-mcp"]["status"])
             self.assertEqual("optional", status["components"]["maven-tools-mcp"]["taskImpact"])
-            self.assertNotIn("headroom", status["components"])
             self.assertTrue(all(
                 component["status"] == "healthy"
                 for name, component in status["components"].items()

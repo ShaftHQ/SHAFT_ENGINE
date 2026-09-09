@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/token-optimization-is-eliminate-waste.md",
-  "content_hash": "sha256:19b8846081d9ddf281befe808822f421c5f665d77cae637157c815fe75c7682f",
+  "content_hash": "sha256:9f96aa6dce4f31f8c61f8bec08441b561abb7e917336c8299980db2fd8d5b7b7",
   "created_at": "2026-09-09T01:14:57+03:00",
   "evidence": [
     "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5689",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Owned MCP uniqueness across project and user/host layers. No Headroom."""
+"""Owned MCP uniqueness across project and user/host layers. No proxy."""
 
 from __future__ import annotations
 
