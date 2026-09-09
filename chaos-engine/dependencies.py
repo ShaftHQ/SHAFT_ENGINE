@@ -117,6 +117,13 @@ def version_key(value: str) -> tuple[int, ...]:
     return tuple(int(part) for part in parts)
 
 
+def version_at_least(actual: str | int, minimum: str | int) -> bool:
+    """True when actual is higher than or equal to the supported minimum floor."""
+    if isinstance(actual, int) and isinstance(minimum, int):
+        return actual >= minimum
+    return version_key(str(actual)) >= version_key(str(minimum))
+
+
 def latest_compatible_stable(
     candidates: list[dict[str, object]], *, minimum: str
 ) -> str:

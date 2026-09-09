@@ -313,7 +313,8 @@ Tracked prerequisites and optional boundaries:
 - Installed automatically when required: uv/uvx; active LTS Node 22+ with
   npm/npx; Temurin 25; latest stable Graphify, MemPalace, Memory, and ctx7.
 - Optional: `--with-maven-tools` builds latest stable upstream source with Git,
-  system Java 25, and the Maven wrapper.
+  Temurin JDK 25+ (ambient or managed), and the Maven wrapper (plus managed
+  Apache Maven when ambient `mvn` is missing or below minimum).
 - Generated and never tracked: dependency generations, receipts, caches,
   Graphify output, MemPalace indexes, Memory runtime indexes, reports, secrets.
 - Canonical skills: `chaos-engine`, `caveman`, `ponytail`; project profiles and
@@ -335,7 +336,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | curl or wget | Download immutable source on POSIX. | install.sh | required on POSIX | Linux, macOS | operator | consumer environment | download fails closed |
 | Node.js, npm, and npx | Provision Memory, Context7 CLI, and plugin MCP runtimes. | dependencies.json; hooks/launch.js | managed | Windows, Linux, macOS | platform standard provider | user account | install stops before activation |
 | network | Resolve source and provision a fresh or upgraded generation. | bootstrap.py; dependencies.py | required for fresh install or upgrade | Windows, Linux, macOS | operator | prior verified generation remains active |
-| Git and Temurin Java 25 | Build optional Maven Tools MCP cache. | dependencies.json; install.py; hosts.py | optional and managed with `--with-maven-tools` | Windows, Linux, macOS | platform provider plus upstream Maven wrapper | receipt-owned shared cache | optional component reports absent |
+| Git, managed Temurin JDK 25+, and managed Apache Maven | Build optional Maven Tools MCP cache when ambient JDK/Maven are missing. | dependencies.json; install.py; hosts.py | optional and managed with `--with-maven-tools` | Windows, Linux, macOS | managed Temurin/Maven cache plus upstream Maven wrapper | receipt-owned shared cache | optional component reports absent |
 <!-- inventory:prerequisites:end -->
 
 ### Python Libraries
@@ -375,7 +376,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | shutil | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/draft_skill_pr.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/skills/freetoken/scripts/probe.py, chaos-engine/skills/omniroute/scripts/runner.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | signal | Portable runtime standard-library dependency. | chaos-engine/skills/omniroute/scripts/runner.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | sqlite3 | Portable runtime standard-library dependency. | chaos-engine/hosts.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
-| stat | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/skills/omniroute/scripts/runner.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
+| stat | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/skills/omniroute/scripts/runner.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | subprocess | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/draft_skill_pr.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/retrieve.py, chaos-engine/silent_verify.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/skills/omniroute/scripts/runner.py, chaos-engine/tool.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | sys | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/draft_skill_pr.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/learning_session.py, chaos-engine/overlay_match.py, chaos-engine/retrieve.py, chaos-engine/silent_verify.py, chaos-engine/skills/freetoken/scripts/probe.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/skills/omniroute/scripts/runner.py, chaos-engine/tool.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | tarfile | Portable runtime standard-library dependency. | chaos-engine/dependencies.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |

@@ -276,7 +276,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
             )
 
-        self.assertEqual(3, specification["schemaVersion"])
+        self.assertTrue(module.version_at_least(specification["schemaVersion"], 3))
         self.assertEqual(
             [["/user/bin/uv", "tool", "install", "--with", "chromadb==1.5.9", "mempalace==3.8.0"]],
             plan["mempalace"],
@@ -528,6 +528,16 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             module.latest_compatible_stable(
                 [{"version": "4.0.0-beta.1", "yanked": False}], minimum="3.7.0"
             )
+
+    def test_version_at_least_enforces_minimum_floor_only(self):
+        module = load_controller()
+        self.assertTrue(module.version_at_least(3, 3))
+        self.assertTrue(module.version_at_least(4, 3))
+        self.assertFalse(module.version_at_least(2, 3))
+        self.assertTrue(module.version_at_least("0.11.29", "0.11.0"))
+        self.assertTrue(module.version_at_least("25.0.4+7", "25.0.0"))
+        self.assertTrue(module.version_at_least("3.9.0", "3.9.0"))
+        self.assertFalse(module.version_at_least("3.8.9", "3.9.0"))
 
     def test_dependency_action_uses_health_version_and_lookup_state(self):
         module = load_controller()
