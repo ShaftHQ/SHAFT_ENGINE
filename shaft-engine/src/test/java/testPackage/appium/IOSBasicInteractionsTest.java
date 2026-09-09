@@ -9,6 +9,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.ios.IOSDriver;
+import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriverException;
@@ -27,13 +28,19 @@ import java.util.zip.ZipFile;
 public class IOSBasicInteractionsTest {
     private static final String ENABLE_NATIVE_IOS_E2E_PROPERTY = "shaft.enableNativeIosE2E";
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+    /** BrowserStack Sample-iOS home control that opens the text screen. */
+    private static final By TEXT_BUTTON = AppiumBy.accessibilityId("Text Button");
+    /** BrowserStack Sample-iOS text field on the secondary text screen. */
+    private static final By TEXT_INPUT = AppiumBy.accessibilityId("Text Input");
+    /** BrowserStack Sample-iOS label that echoes typed text. */
+    private static final By TEXT_OUTPUT = AppiumBy.accessibilityId("Text Output");
 
     @Test
     public void test() {
-        new ElementActions(driver.get().getDriver()).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        new ElementActions(driver.get().getDriver()).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        new ElementActions(driver.get().getDriver()).performTouchAction().tap(TEXT_BUTTON);
+        new ElementActions(driver.get().getDriver()).type(TEXT_INPUT, "hello@browserstack.com" + "\n");
         Validations.assertThat()
-                .element(driver.get().getDriver(), AppiumBy.accessibilityId("Text Output"))
+                .element(driver.get().getDriver(), TEXT_OUTPUT)
                 .text()
                 .isEqualTo("hello@browserstack.com")
                 .perform();
@@ -42,7 +49,10 @@ public class IOSBasicInteractionsTest {
     /** Opt-in real-device proof that iOS can interact through device screenshots and OCR text. */
     @Test(groups = {"visual-ocr-mobile-acceptance"})
     public void visualAndOcrTargetsShouldInteractWithNativeControls() {
-        byte[] inputScreenshot = driver.get().getDriver().findElement(AppiumBy.accessibilityId("Text Input"))
+        // Text Input lives on the secondary screen opened by Text Button.
+        new ElementActions(driver.get().getDriver()).performTouchAction().tap(TEXT_BUTTON);
+
+        byte[] inputScreenshot = driver.get().getDriver().findElement(TEXT_INPUT)
                 .getScreenshotAs(OutputType.BYTES);
 
         driver.get().touch()
@@ -53,10 +63,10 @@ public class IOSBasicInteractionsTest {
         Assert.assertNotEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
         driver.get().touch().tap(OcrTarget.exact("Text Input"));
         Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
-        driver.get().element().type(AppiumBy.accessibilityId("Text Input"), "visual ocr ios" + "\n");
+        driver.get().element().type(TEXT_INPUT, "visual ocr ios" + "\n");
 
         Validations.assertThat()
-                .element(driver.get().getDriver(), AppiumBy.accessibilityId("Text Output"))
+                .element(driver.get().getDriver(), TEXT_OUTPUT)
                 .text()
                 .isEqualTo("visual ocr ios")
                 .perform();

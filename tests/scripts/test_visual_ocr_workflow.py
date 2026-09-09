@@ -6,9 +6,14 @@ import unittest
 import yaml
 
 
-WORKFLOW = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "e2eTests.yml"
-ANDROID_TESTS = (Path(__file__).resolve().parents[2] / "shaft-engine" / "src" / "test" / "java" /
+ROOT = Path(__file__).resolve().parents[2]
+WORKFLOW = ROOT / ".github" / "workflows" / "e2eTests.yml"
+LOCAL_WORKFLOW = ROOT / ".github" / "workflows" / "e2eLocalTests.yml"
+ANDROID_TESTS = (ROOT / "shaft-engine" / "src" / "test" / "java" /
                  "testPackage" / "appium" / "AndroidBasicInteractionsTests.java")
+IOS_TESTS = (ROOT / "shaft-engine" / "src" / "test" / "java" /
+             "testPackage" / "appium" / "IOSBasicInteractionsTest.java")
+WINAPPDRIVER_INSTALLER = ROOT / "scripts" / "ci" / "install_winappdriver.ps1"
 
 
 class VisualOcrWorkflowTest(unittest.TestCase):
@@ -91,3 +96,70 @@ class VisualOcrWorkflowTest(unittest.TestCase):
                         names.index("Set up JDK 25 for Maven"))
         self.assertLess(names.index("Set up JDK 25 for Maven"),
                         names.index("Install engine dependencies for FlutterTest"))
+
+    def test_flutter_emulator_script_avoids_pipefail_under_dash(self):
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["Android_Flutter_Emulator_E2E"]["steps"]
+        emulator = next(step for step in steps if step.get("uses", "").startswith(
+            "reactivecircus/android-emulator-runner@"))
+        script = emulator["with"]["script"]
+        self.assertNotRegex(script, r"(?m)^\s*set -[^\n]*pipefail")
+        self.assertRegex(script, r"(?m)^\s*set -eu\s*$")
+
+    def test_ios_visual_ocr_uses_shared_locators_and_opens_text_screen(self):
+        ios_tests = IOS_TESTS.read_text(encoding="utf-8")
+        self.assertIn('TEXT_BUTTON = AppiumBy.accessibilityId("Text Button")', ios_tests)
+        self.assertIn('TEXT_INPUT = AppiumBy.accessibilityId("Text Input")', ios_tests)
+        method = re.search(
+            r"public void visualAndOcrTargetsShouldInteractWithNativeControls\(\) \{(.*?)\n    @",
+            ios_tests,
+            flags=re.S,
+        )
+        self.assertIsNotNone(method)
+        body = method.group(1)
+        self.assertIn("tap(TEXT_BUTTON)", body)
+        self.assertIn("findElement(TEXT_INPUT)", body)
+        self.assertNotRegex(body, r'AppiumBy\.accessibilityId\("Text Input"\)')
+
+    def test_android_visual_ocr_avoids_ambiguous_auto_group1_image_target(self):
+        android_tests = ANDROID_TESTS.read_text(encoding="utf-8")
+        method = re.search(
+            r"public void visualAndOcrTargetsShouldScrollVerticallyThroughNativeControls\(\) \{(.*?)\n    @",
+            android_tests,
+            flags=re.S,
+        )
+        self.assertIsNotNone(method)
+        body = method.group(1)
+        self.assertIn('OcrTarget.exact("Group 1")', body)
+        self.assertIsNone(re.search(
+            r"ImageTarget\.fromBytes\(group1Screenshot\).*ImageMatchingMode\.AUTO",
+            body,
+            flags=re.S,
+        ))
+
+    def test_android_visual_ocr_horizontal_uses_tab12_image_not_exact_ocr(self):
+        android_tests = ANDROID_TESTS.read_text(encoding="utf-8")
+        method = re.search(
+            r"public void visualAndOcrTargetsShouldScrollHorizontallyInsideNativeControl\(\) \{(.*?)\n    @",
+            android_tests,
+            flags=re.S,
+        )
+        self.assertIsNotNone(method)
+        body = method.group(1)
+        self.assertIn("tab12Screenshot", body)
+        self.assertIn("ImageTarget.fromBytes(tab12Screenshot)", body)
+        self.assertNotIn('OcrTarget.exact("TAB 12")', body)
+        self.assertNotIn('OcrTarget.containing("TAB 1")', body)
+        self.assertIn('OcrTarget.exact("TAB 1")', body)
+
+    def test_windows_appium_desktop_pins_winappdriver_without_releases_api(self):
+        local_workflow = LOCAL_WORKFLOW.read_text(encoding="utf-8")
+        installer = WINAPPDRIVER_INSTALLER.read_text(encoding="utf-8")
+        self.assertNotRegex(local_workflow, r"(?m)^\s*[^#\n]*install-wad")
+        self.assertNotRegex(local_workflow, r"(?m)^\s*[^#\n]*api\.github\.com/repos/microsoft/winappdriver")
+        self.assertIn("install_winappdriver.ps1", local_workflow)
+        self.assertIn("WindowsApplicationDriver_", installer)
+        self.assertIn("api\\.github\\.com/repos/microsoft/winappdriver", installer)
+        self.assertIn("Refusing WinAppDriver install URL that hits the GitHub Releases API", installer)
+        self.assertIn("a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe", installer)
+        self.assertIn("Get-FileHash -Algorithm SHA256", installer)

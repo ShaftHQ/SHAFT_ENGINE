@@ -220,14 +220,17 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"));
 
-        byte[] group1Screenshot = driver.get().getDriver().findElement(group1).getScreenshotAs(OutputType.BYTES);
-        driver.get().touch()
-                .swipeElementIntoView(group18, TouchActions.SwipeDirection.DOWN)
-                .swipeElementIntoView(ImageTarget.fromBytes(group1Screenshot).matchingMode(ImageMatchingMode.AUTO),
-                        TouchActions.SwipeDirection.UP);
+        driver.get().touch().swipeElementIntoView(group18, TouchActions.SwipeDirection.DOWN);
+        byte[] group18Screenshot = driver.get().getDriver().findElement(group18).getScreenshotAs(OutputType.BYTES);
+
+        // Tiny "Group 1" crops match many list rows under AUTO; OCR uniquely names Group 1.
+        driver.get().touch().swipeElementIntoView(OcrTarget.exact("Group 1"), TouchActions.SwipeDirection.UP);
         Assert.assertTrue(driver.get().getDriver().findElement(group1).isDisplayed());
 
-        driver.get().touch().swipeElementIntoView(OcrTarget.exact("Group 18"), TouchActions.SwipeDirection.DOWN);
+        // Image proof uses the Group 18 crop captured while that row was visible.
+        driver.get().touch().swipeElementIntoView(
+                ImageTarget.fromBytes(group18Screenshot).matchingMode(ImageMatchingMode.AUTO),
+                TouchActions.SwipeDirection.DOWN);
         Assert.assertTrue(driver.get().getDriver().findElement(group18).isDisplayed());
     }
 
@@ -246,15 +249,24 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("5. Scrollable"));
 
         byte[] tab1Screenshot = driver.get().getDriver().findElement(tab1).getScreenshotAs(OutputType.BYTES);
-        driver.get().touch()
-                .swipeElementIntoView(tabs, tab12, TouchActions.SwipeDirection.RIGHT)
-                .swipeElementIntoView(tabs,
-                        ImageTarget.fromBytes(tab1Screenshot).matchingMode(ImageMatchingMode.AUTO),
-                        TouchActions.SwipeDirection.LEFT);
+        driver.get().touch().swipeElementIntoView(tabs, tab12, TouchActions.SwipeDirection.RIGHT);
+        byte[] tab12Screenshot = driver.get().getDriver().findElement(tab12).getScreenshotAs(OutputType.BYTES);
+
+        // Nightly LEFT image swipe already succeeded under AUTO; keep that proven path.
+        driver.get().touch().swipeElementIntoView(tabs,
+                ImageTarget.fromBytes(tab1Screenshot).matchingMode(ImageMatchingMode.AUTO),
+                TouchActions.SwipeDirection.LEFT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab1).isDisplayed());
 
-        driver.get().touch().swipeElementIntoView(tabs, OcrTarget.exact("TAB 12"), TouchActions.SwipeDirection.RIGHT);
+        // Exact OCR on short tab labels failed on BrowserStack; return with the selected-state tab12 crop.
+        driver.get().touch().swipeElementIntoView(tabs,
+                ImageTarget.fromBytes(tab12Screenshot).matchingMode(ImageMatchingMode.AUTO),
+                TouchActions.SwipeDirection.RIGHT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
+
+        // Exact "TAB 1" — containing("TAB 1") also matches TAB 10–13.
+        driver.get().touch().swipeElementIntoView(tabs, OcrTarget.exact("TAB 1"), TouchActions.SwipeDirection.LEFT);
+        Assert.assertTrue(driver.get().getDriver().findElement(tab1).isDisplayed());
     }
 
     @Test(groups = {"ApiDemosDebug"})

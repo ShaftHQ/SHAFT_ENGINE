@@ -1212,7 +1212,10 @@ jobs:
           target: google_apis
           arch: x86_64
           script: |
-            set -euo pipefail
+            # android-emulator-runner invokes this script with /usr/bin/sh (dash on
+            # ubuntu-latest). dash rejects bash-only -o options and exits 2 before Maven
+            # runs, so Post-Test Report then fails with missing Allure/JaCoCo (#5696).
+            set -eu
             APK_PATH="$GITHUB_WORKSPACE/shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk"
             ls -l "$APK_PATH"
             adb devices

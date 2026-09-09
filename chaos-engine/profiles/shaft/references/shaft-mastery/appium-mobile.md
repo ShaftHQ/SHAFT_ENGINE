@@ -9,11 +9,13 @@ web emulation (Chrome device metrics) is a separate, cheaper path from real
 native automation.
 
 ## Incidents that must not repeat
-- `appium driver run windows install-wad` launches the WinAppDriver MSI via
-  an unawaited elevated `Start-Process` and returns "success" ~0.3s later —
-  the next step races the still-running installer. Poll for the installed
-  binary/process readiness before starting the server (PR #3408; the job had
-  failed 8/8 scheduled runs with 300s session-create timeouts).
+- Never use `appium driver run windows install-wad` in CI: it lists
+  `api.github.com/repos/microsoft/winappdriver/releases` unauthenticated and
+  403s under shared Actions IP rate limits (#5697). Install a pinned MSI via
+  `scripts/ci/install_winappdriver.ps1` (or an equivalent authenticated /
+  cached asset path). The older race where `install-wad` returned before the
+  MSI finished still applies if you resurrect that path — poll for
+  `WinAppDriver.exe` before starting Appium (PR #3408).
 - Chrome's emulated-device list drifts: Chrome 143 removed "Pixel 5",
   silently breaking every mobile-web-emulation flow pinned to it. Treat
   device names as data that rots; validate against the running browser and
