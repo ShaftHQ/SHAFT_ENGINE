@@ -95,6 +95,29 @@ function fallbackUserConfigPath() {
   return path.join(os.homedir(), '.config', 'caveman', 'config.json');
 }
 
+// ChaosEngine project mode: detect router markers; project mode only.
+function isChaosEngineProject(startDir) {
+  try {
+    let dir = path.resolve(startDir || process.cwd());
+    const markers = [
+      'chaos-engine/skills/chaos-engine/SKILL.md',
+      '.chaos-engine/skills/chaos-engine/SKILL.md',
+    ];
+    for (let i = 0; i < 64; i++) {
+      for (const rel of markers) {
+        try {
+          const st = fs.lstatSync(path.join(dir, rel));
+          if (!st.isSymbolicLink() && st.isFile()) return true;
+        } catch (e) { /* next */ }
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) return false;
+      dir = parent;
+    }
+  } catch (e) { /* treat as non-project */ }
+  return false;
+}
+
 function fallbackGetDefaultMode(startDir) {
   // 1. Environment variable. No .trim() — the real resolver does not trim, and
   //    a degraded path that accepts " ultra" where the intact one rejects it is
@@ -113,8 +136,12 @@ function fallbackGetDefaultMode(startDir) {
       if (parent === dir) break;
       dir = parent;
     }
-  } catch (e) { /* fall through to user config */ }
-  // 3. User config, then 4. the built-in default.
+  } catch (e) { /* continue */ }
+  // ChaosEngine project mode only: never fall through to user config.
+  if (isChaosEngineProject(startDir)) {
+    return 'ultra';
+  }
+  // 3. User config, then 4. the built-in default (non-ChaosEngine only).
   return fallbackReadMode(fallbackUserConfigPath()) || 'full';
 }
 

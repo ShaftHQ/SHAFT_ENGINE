@@ -87,6 +87,30 @@ function readModeFromConfigFile(configPath) {
   return null;
 }
 
+// ChaosEngine project mode: when a ChaosEngine router exists in the walk,
+// never fall through to user-level caveman config. Project mode only.
+function isChaosEngineProject(startDir) {
+  try {
+    let dir = path.resolve(startDir || process.cwd());
+    const markers = [
+      'chaos-engine/skills/chaos-engine/SKILL.md',
+      '.chaos-engine/skills/chaos-engine/SKILL.md',
+    ];
+    for (let i = 0; i < 64; i++) {
+      for (const rel of markers) {
+        try {
+          const st = fs.lstatSync(path.join(dir, rel));
+          if (!st.isSymbolicLink() && st.isFile()) return true;
+        } catch (e) { /* next */ }
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) return false;
+      dir = parent;
+    }
+  } catch (e) { /* treat as non-project */ }
+  return false;
+}
+
 // startDir overrides the cwd the repo-config walk starts from (default
 // process.cwd(), same as findRepoConfigPath's own fallback) — lets a caller
 // resolve the mode for a directory other than its own process cwd (#634:
@@ -107,7 +131,12 @@ function getDefaultMode(startDir) {
     if (repoMode) return repoMode;
   }
 
-  // 3. User config file
+  // ChaosEngine project mode only: skip user config fallthrough.
+  if (isChaosEngineProject(startDir)) {
+    return 'ultra';
+  }
+
+  // 3. User config file (non-ChaosEngine projects only)
   const userMode = readModeFromConfigFile(getConfigPath());
   if (userMode) return userMode;
 
@@ -388,4 +417,4 @@ function readHistory(filePath) {
   }
 }
 
-module.exports = { getDefaultMode, getConfigDir, getConfigPath, findRepoConfigPath, VALID_MODES, safeWriteFlag, readFlag, appendFlag, readHistory, recordModeChange, MODE_LOG_BASENAME };
+module.exports = { getDefaultMode, getConfigDir, getConfigPath, findRepoConfigPath, isChaosEngineProject, VALID_MODES, safeWriteFlag, readFlag, appendFlag, readHistory, recordModeChange, MODE_LOG_BASENAME };

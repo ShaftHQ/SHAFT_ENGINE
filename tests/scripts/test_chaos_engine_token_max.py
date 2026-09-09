@@ -31,6 +31,12 @@ class TokenMaxTests(TestCase):
         self.assertIsNotNone(error)
         self.assertIn("disable extras", error)
 
+    def test_single_github_or_graphify_mcp_conflicts_with_owned_cli(self):
+        for server in ("github", "graphify"):
+            error = self.policy.cli_owned_conflict_error([server])
+            self.assertIsNotNone(error)
+            self.assertIn("No duplicate GitHub MCP", error)
+
     def test_user_and_project_ids_share_one_heal_prompt(self):
         text = (ROOT / "chaos-engine/hosts.py").read_text(encoding="utf-8")
         self.assertIn("disable extras in host MCP config", text)
@@ -40,7 +46,11 @@ class TokenMaxTests(TestCase):
             "chaos-engine",
             self.hosts.guidance_tree(ROOT),
         )
-        self.assertIn(self.policy.HEAL_PROMPT, self.policy.HEAL_PROMPT)
+        self.assertEqual(
+            self.policy.HEAL_PROMPT,
+            "No duplicate GitHub MCP. Repair: disable extras in host MCP config.",
+        )
+        self.assertIn(self.policy.HEAL_PROMPT, self.hosts.instruction_block(".chaos-engine"))
 
     def test_overlay_match_ignores_adopter_and_reports_repository_drift(self):
         self.assertTrue(self.overlay.core_matches_source(Path("/opt/not-a-shaft-checkout"))["coreMatchesSource"])

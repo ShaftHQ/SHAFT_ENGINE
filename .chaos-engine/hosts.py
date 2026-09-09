@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import os
+import urllib.request
 import platform
 import queue
 import re
@@ -574,6 +575,79 @@ def resolved_central_palace(project: Path) -> Path | None:
     return path if path.is_absolute() else None
 
 
+
+_MEMPALACE_OPERATOR_BACKUP = re.compile(
+    r"^(?:.*\.(?:bak|backup|old|orig)(?:\..*)?|.*~|sqlite_exact\.sqlite3(?:-wal|-shm)?\.(?:bak|backup).*)$",
+    re.IGNORECASE,
+)
+
+
+def quarantine_mempalace_operator_backups(
+    palace: Path, children: list[Path] | None = None
+) -> list[Path]:
+    """Move clearly-operator bak/backup siblings outside the allowlist when safe (#5630)."""
+    if is_link_or_reparse(palace) or not palace.is_dir():
+        return []
+    try:
+        entries = list(children) if children is not None else list(palace.iterdir())
+    except OSError:
+        return []
+    quarantine_root = palace / ".chaos-engine-quarantine"
+    moved: list[Path] = []
+    for child in entries:
+        if is_link_or_reparse(child) or not child.is_file():
+            continue
+        if _MEMPALACE_OPERATOR_BACKUP.fullmatch(child.name) is None:
+            continue
+        try:
+            quarantine_root.mkdir(parents=True, exist_ok=True)
+            destination = quarantine_root / child.name
+            if destination.exists() or is_link_or_reparse(destination):
+                destination = quarantine_root / f"{child.name}.{secrets.token_hex(4)}"
+            child.replace(destination)
+            moved.append(destination)
+        except OSError:
+            continue
+    return moved
+
+
+def attempt_mempalace_sqlite_exact_heal(palace: Path) -> bool:
+    """Bounded FTS5 rebuild for malformed sqlite_exact inverted indexes (#5630)."""
+    exact = palace / "sqlite_exact.sqlite3"
+    if is_link_or_reparse(exact) or not exact.is_file():
+        return False
+    connection = None
+    try:
+        # Read-only probe first — avoid writable opens (and WAL sidecars) unless
+        # quick_check specifically reports FTS corruption.
+        connection = sqlite3.connect(f"{exact.resolve().as_uri()}?mode=ro", uri=True)
+        connection.execute("PRAGMA trusted_schema=OFF")
+        quick = connection.execute("PRAGMA quick_check(1)").fetchone()
+        detail = " ".join(str(part) for part in (quick or ()))
+        if quick == ("ok",) or "fts" not in detail.casefold():
+            return False
+        connection.close()
+        connection = None
+        connection = sqlite3.connect(str(exact.resolve()))
+        connection.execute("PRAGMA trusted_schema=OFF")
+        tables = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
+            )
+        }
+        if "docs_fts" not in tables:
+            return False
+        connection.execute("INSERT INTO docs_fts(docs_fts) VALUES('rebuild')")
+        connection.commit()
+        return connection.execute("PRAGMA quick_check(1)").fetchone() == ("ok",)
+    except (OSError, sqlite3.DatabaseError):
+        return False
+    finally:
+        if connection is not None:
+            connection.close()
+
+
 def mempalace_directory_status(palace: Path) -> dict[str, str]:
     """Classify one MemPalace directory without importing its native backend."""
     if is_link_or_reparse(palace):
@@ -656,11 +730,23 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             palace / "replica.json",
         )
     }
-    if any(child.name not in allowed_names for child in children):
-        return {
-            "status": "recovery-required",
-            "detail": "MemPalace state contains unrecognized recoverable data",
-        }
+    unrecognized = [child for child in children if child.name not in allowed_names]
+    if unrecognized:
+        quarantine_mempalace_operator_backups(palace, unrecognized)
+        try:
+            children = list(palace.iterdir())
+        except OSError:
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state is unreadable or contains a link or reparse point",
+            }
+        # Quarantine directory itself is operator-owned recovery state; allow it.
+        allowed_with_quarantine = set(allowed_names) | {".chaos-engine-quarantine"}
+        if any(child.name not in allowed_with_quarantine for child in children):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
     if sidecar.exists():
         if not sidecar.is_dir() or is_link_or_reparse(sidecar):
             return {
@@ -704,12 +790,27 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             "detail": "SQLite-exact MemPalace WAL state has no database",
         }
     if exact.exists():
+        # Never open the DB (even for FTS heal) when WAL/SHM pairing is broken —
+        # a probe connection can create a missing sidecar and hide the defect.
+        if wal_exists != shared_memory_exists:
+            return {
+                "status": "recovery-required",
+                "detail": "SQLite-exact MemPalace state is unreadable or malformed",
+            }
         if not _sqlite_runtime_valid(
             exact,
             required_schema=SQLITE_EXACT_SCHEMA,
             required_indexes=SQLITE_EXACT_INDEXES,
             collection="mempalace_drawers",
         ):
+            if attempt_mempalace_sqlite_exact_heal(palace):
+                if _sqlite_runtime_valid(
+                    exact,
+                    required_schema=SQLITE_EXACT_SCHEMA,
+                    required_indexes=SQLITE_EXACT_INDEXES,
+                    collection="mempalace_drawers",
+                ):
+                    return {"status": "healthy", "backend": "sqlite_exact"}
             return {
                 "status": "recovery-required",
                 "detail": "SQLite-exact MemPalace state is unreadable or malformed",
@@ -911,6 +1012,16 @@ def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
     return frames
 
 
+
+def _memory_origin_main_desync_output(stderr: str | None, stdout: str | None) -> bool:
+    """Fingerprint Memory tool origin/main hard-fail without treating other crashes as sync."""
+    text = f"{stderr or ''}\n{stdout or ''}"
+    return (
+        "not synchronized with origin/main" in text
+        and "fix-next:" in text.casefold()
+    )
+
+
 def mcp_runtime_status(
     project: Path,
     managed_python: Path | None = None,
@@ -967,6 +1078,7 @@ def mcp_runtime_status(
         [python, str(tool), "memory-mcp"],
         [python, str(tool), "mempalace-mcp"],
     )
+    memory_origin_main_desync = False
     for name, command in zip(("memory-mcp", "mempalace-mcp"), commands):
         try:
             result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
@@ -984,6 +1096,12 @@ def mcp_runtime_status(
         except OSError:
             return {"status": "recovery-required", "detail": f"{name}-unavailable"}
         if result.returncode != 0:
+            if name == "memory-mcp" and _memory_origin_main_desync_output(
+                result.stderr, result.stdout
+            ):
+                # Keep probing mempalace-mcp; required mcps stay non-blocking (#5630).
+                memory_origin_main_desync = True
+                continue
             return {"status": "recovery-required", "detail": f"{name}-exit"}
         try:
             responses = parse_mcp_stdout_frames(result.stdout)
@@ -1006,6 +1124,13 @@ def mcp_runtime_status(
             listed_result.get("tools"), list
         ):
             return {"status": "recovery-required", "detail": f"{name}-tools-list"}
+    if memory_origin_main_desync:
+        return {
+            "status": "compatible-legacy",
+            "detail": "memory-origin-main-desync",
+            "code": "CE_MEMORY_ORIGIN_MAIN_DESYNC",
+            "fixNext": "git fetch origin main && git merge --ff-only origin/main",
+        }
     return {"status": "healthy"}
 
 
@@ -1795,12 +1920,70 @@ START = "<!-- CHAOSENGINE:START -->"
 END = "<!-- CHAOSENGINE:END -->"
 DIRECTORY_MARKER = ".chaos-engine-owned-directory"
 DIRECTORY_CLAIM_PREFIX = ".chaos-engine-directory-claim-"
-INSTRUCTION = (
-    f"{START}\nBefore every task, follow the canonical "
-    "[ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). "
-    "Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools.\n"
-    f"{END}\n"
-)
+def guidance_tree(project: Path | None = None) -> str:
+    """Origin names SOURCE. Adopters name the overlay only."""
+    if project is not None and (project / "chaos-engine/skills/chaos-engine/SKILL.md").is_file():
+        return "chaos-engine"
+    return ".chaos-engine"
+
+
+def instruction_block(tree: str = ".chaos-engine") -> str:
+    skill = f"{tree}/skills/chaos-engine/SKILL.md"
+    tool = f"{tree}/tool.py"
+    return (
+        f"{START}\nBefore every task, follow the canonical "
+        f"[ChaosEngine]({skill}). "
+        f"Use `{tool}` for the project-local Memory, MemPalace, and Graphify tools. "
+        "No duplicate GitHub MCP. Repair: disable extras in host MCP config.\n"
+        f"{END}\n"
+    )
+
+
+def selected_profile_name(project: Path | None, tree: str) -> str | None:
+    """Return the non-portable profile directory name when exactly one exists."""
+    if project is None:
+        return None
+    profiles = project / tree / "profiles"
+    if not profiles.is_dir():
+        return None
+    names = sorted(
+        path.name
+        for path in profiles.iterdir()
+        if path.is_dir()
+        and path.name != "portable"
+        and (path / "entrypoint.md").is_file()
+    )
+    if len(names) == 1:
+        return names[0]
+    return None
+
+
+def skill_adapter_bytes(tree: str, *, profile: str | None = None) -> bytes:
+    """Generated host skill pointer. Never embeds the router contract body."""
+    canonical = f"../../../{tree}/skills/chaos-engine/SKILL.md"
+    if profile:
+        return (
+            "---\n"
+            "name: chaos-engine\n"
+            "description: Load the canonical ChaosEngine policy and this "
+            "repository's selected project profile before every task.\n"
+            "---\n\n"
+            f"Follow the [canonical portable entrypoint]({canonical}),\n"
+            f"review the [profiles catalog](../../../{tree}/profiles/README.md), then\n"
+            f"load the [selected project profile](../../../{tree}/profiles/{profile}/entrypoint.md).\n"
+            "The [repository harness map](../README.md) inventories every local adapter and\n"
+            "enforcement surface.\n"
+        ).encode()
+    return (
+        "---\n"
+        "name: chaos-engine\n"
+        "description: Load the canonical installed ChaosEngine before every task.\n"
+        "---\n\n"
+        f"Follow the [canonical ChaosEngine]({canonical}).\n"
+    ).encode()
+
+
+INSTRUCTION = instruction_block(".chaos-engine")
 GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
 GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
 GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
@@ -1832,6 +2015,132 @@ def java_major(java: Path) -> int | None:
         return None
     match = re.search(r'version "(?P<major>\d+)', result.stderr + result.stdout)
     return int(match.group("major")) if match else None
+
+
+def java_compiler_present(java: Path) -> bool:
+    """True when the Java home that owns `java` also ships `javac` (JDK, not JRE)."""
+    try:
+        resolved = java.resolve(strict=True)
+    except OSError:
+        return False
+    javac = resolved.with_name("javac.exe" if os.name == "nt" else "javac")
+    return javac.is_file() and not is_link_or_reparse(javac)
+
+
+def managed_temurin_root(version: str = "25.0.4+7") -> Path:
+    system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    machine = platform.machine().lower()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    return (
+        maven_tools_cache_root().parent
+        / "temurin"
+        / version
+        / f"{system}-{architecture}"
+    )
+
+
+def ensure_managed_temurin_jdk(
+    specification: dict[str, object] | None = None,
+    *,
+    opener=None,
+    reporter=None,
+    confirmer=None,
+) -> Path | None:
+    """Provision checksum-verified Temurin JDK into the CE tools cache when needed (#5630)."""
+    version = "25.0.4+7"
+    system = "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    machine = platform.machine().lower()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    host_platform = f"{system}-{architecture}"
+    root = managed_temurin_root(version)
+    java = root / (
+        "bin/java.exe" if os.name == "nt" else
+        "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
+    )
+    verified = verified_managed_temurin(java, host_platform)
+    if verified is not None and java_compiler_present(verified):
+        return verified
+    if specification is None:
+        return None
+    runtimes = specification.get("runtimes")
+    temurin = runtimes.get("temurin") if isinstance(runtimes, dict) else None
+    artifacts = temurin.get("artifacts") if isinstance(temurin, dict) else None
+    artifact = artifacts.get(host_platform) if isinstance(artifacts, dict) else None
+    if not isinstance(artifact, dict):
+        return None
+    url, digest = artifact.get("url"), artifact.get("sha256")
+    if not isinstance(url, str) or not isinstance(digest, str):
+        return None
+    # Lazy-import download helpers from colocated dependencies controller.
+    dependencies_path = Path(__file__).resolve().with_name("dependencies.py")
+    if not dependencies_path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "chaos_engine_dependencies_temurin", dependencies_path
+    )
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    open_url = opener or urllib.request.urlopen
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    if confirmer is not None:
+        confirmer(f"Download Temurin JDK {version} from {url}")
+    if reporter is not None:
+        reporter.trace(f"provision managed Temurin JDK {version}")
+    suffix = ".zip" if str(url).endswith(".zip") else ".tar.gz"
+    transaction = parent / f".{version}-{architecture}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        if root.exists() or is_link_or_reparse(root):
+            # Incomplete prior attempt — refuse to clobber without a clean tree.
+            if verified_managed_temurin(java, host_platform) is None:
+                raise ValueError("existing managed Temurin JDK tree is invalid")
+            return java.resolve()
+        module._download_artifact(str(url), archive, str(digest), open_url, reporter=reporter)
+        module._extract_runtime_archive(archive, transaction)
+        # Write runtime receipt expected by verified_managed_temurin.
+        relative_java = (
+            "bin/java.exe" if os.name == "nt" else
+            "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
+        )
+        installed_java = transaction / relative_java
+        if not installed_java.is_file():
+            raise ValueError("Temurin JDK archive did not contain java")
+        javac = installed_java.with_name("javac.exe" if os.name == "nt" else "javac")
+        if not javac.is_file():
+            raise ValueError("Temurin JDK archive did not contain javac")
+        expected_architecture = (
+            "x64" if host_platform == "windows-arm64" else host_platform.split("-", 1)[1]
+        )
+        receipt = {
+            "schemaVersion": 1,
+            "runtime": "temurin",
+            "version": version,
+            "hostPlatform": host_platform,
+            "artifactArchitecture": expected_architecture,
+            "emulated": host_platform == "windows-arm64",
+            "java": relative_java,
+            "javaSha256": hashlib.sha256(installed_java.read_bytes()).hexdigest(),
+        }
+        (transaction / TEMURIN_RECEIPT).write_text(
+            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    verified = verified_managed_temurin(java, host_platform)
+    if verified is None or not java_compiler_present(verified):
+        raise ValueError("managed Temurin JDK provision did not produce a usable javac")
+    return verified
 
 
 def verified_maven_tools_jar(candidate: Path) -> Path | None:
@@ -2668,17 +2977,136 @@ def read_file(project: Path, path: Path) -> bytes | None:
         return stream.read()
 
 
-def instruction_content(before: bytes | None, instruction: str) -> bytes:
+MERGE_HANDOFF_RELATIVE = ".chaos-engine-state/merge-handoff.md"
+_merge_handoffs: list[dict[str, str]] = []
+
+
+def consume_merge_handoffs() -> list[dict[str, str]]:
+    items = list(_merge_handoffs)
+    _merge_handoffs.clear()
+    return items
+
+
+def _note_merge_handoff(relative: str, reason: str, desired: str) -> None:
+    _merge_handoffs.append(
+        {"path": relative, "reason": reason, "desired": desired}
+    )
+
+
+def _normalized_owned_span(block: str, start: str, end: str) -> str | None:
+    if block.count(start) != 1 or block.count(end) != 1:
+        return None
+    begin = block.index(start)
+    finish = block.index(end, begin)
+    if finish < begin:
+        return None
+    return block[begin : finish + len(end)].replace("\r\n", "\n")
+
+
+def merge_instruction(
+    before: bytes | None, instruction: str, *, relative: str
+) -> bytes:
+    """Merge one marker-owned instruction file, or leave it and record a handoff."""
+    original = b"" if before is None else before
     try:
         existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid host instruction file") from error
-    if START in existing or END in existing:
-        if instruction not in existing:
-            raise ValueError("ChaosEngine instruction collision")
-        return before  # type: ignore[return-value]
-    separator = "\n" if existing and not existing.endswith("\n") else ""
-    return (existing + separator + instruction).encode()
+    except UnicodeDecodeError:
+        _note_merge_handoff(relative, "file is not valid UTF-8", instruction)
+        return original
+    start_count = existing.count(START)
+    end_count = existing.count(END)
+    if start_count == end_count == 0:
+        separator = "\n" if existing and not existing.endswith("\n") else ""
+        return (existing + separator + instruction).encode()
+    if start_count != 1 or end_count != 1:
+        _note_merge_handoff(
+            relative,
+            "marker count is not a single matching start and end",
+            instruction,
+        )
+        return original
+    begin = existing.index(START)
+    finish = existing.index(END, begin)
+    if finish < begin:
+        _note_merge_handoff(
+            relative,
+            "marker count is not a single matching start and end",
+            instruction,
+        )
+        return original
+    span_end = finish + len(END)
+    interior = existing[begin:span_end].replace("\r\n", "\n")
+    recognized = _normalized_owned_span(instruction, START, END)
+    if recognized is None or interior != recognized:
+        _note_merge_handoff(
+            relative,
+            "markers exist but the interior is not the current owned block",
+            instruction,
+        )
+        return original
+    if span_end < len(existing) and existing[span_end] == "\r":
+        span_end += 1
+    if span_end < len(existing) and existing[span_end] == "\n":
+        span_end += 1
+    block = instruction if instruction.endswith("\n") else instruction + "\n"
+    return (existing[:begin] + block + existing[span_end:]).encode()
+
+
+def instruction_content(before: bytes | None, instruction: str) -> bytes:
+    return merge_instruction(before, instruction, relative="instruction")
+
+
+
+def _handoff_doctor_command() -> str:
+    command = "py -3" if os.name == "nt" else "python3"
+    return f"{command} .chaos-engine/install.py doctor --project ."
+
+
+def write_merge_handoff(project: Path, doctor_command: str) -> Path | None:
+    """Overwrite the handoff markdown, or remove a stale one after a clean merge."""
+    target = project / MERGE_HANDOFF_RELATIVE
+    items = consume_merge_handoffs()
+    if not items:
+        if target.exists() and target.is_file() and not is_link_or_reparse(target):
+            target.unlink()
+        return None
+    lines = [
+        "# Merge handoff",
+        "",
+        "The portable core is installed. These files were left byte-identical",
+        "because deterministic merge was impossible.",
+        "",
+    ]
+    for item in items:
+        lines.extend(
+            [
+                f"## {item['path']}",
+                "",
+                f"Reason: {item['reason']}",
+                "",
+                "Desired owned block:",
+                "",
+                "```",
+                item["desired"].rstrip("\n"),
+                "```",
+                "",
+            ]
+        )
+    lines.extend(["Doctor:", "", f"`{doctor_command}`", ""])
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = ("\n".join(lines)).encode("utf-8")
+    target.write_bytes(payload)
+    return target
+
+
+def merge_handoff_prompt(doctor_command: str) -> str:
+    return (
+        "Merge ChaosEngine host configuration using "
+        ".chaos-engine-state/merge-handoff.md. Follow "
+        "chaos-engine/references/installer-program.md deterministic merge. "
+        "Preserve every foreign handler and MCP server. Apply only the listed "
+        f"owned blocks. Then run {doctor_command} and follow each fix-next."
+    )
 
 
 def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, object]:
@@ -2920,6 +3348,59 @@ def managed_codex_block(content: str) -> str | None:
     return content[start:finish]
 
 
+_CODEX_ABSOLUTE_COMMAND = re.compile(
+    r'(command(?:Windows)?) = "((?:[A-Za-z]:[\\/]|/|\\\\)[^"\n]*)"'
+)
+_CODEX_MANAGED_WINDOWS_ARGS = re.compile(
+    r'argsWindows = \[(?!("-3", ))'
+)
+_CODEX_MANAGED_INTERPRETER_NAMES = frozenset(
+    {"python", "python3", "python.exe", "python3.exe"}
+)
+
+
+def _codex_absolute_command_paths(block: str) -> frozenset[str]:
+    return frozenset(match.group(2) for match in _CODEX_ABSOLUTE_COMMAND.finditer(block))
+
+
+def _is_known_managed_codex_interpreter(path: str, known_absolutes: frozenset[str]) -> bool:
+    if path in known_absolutes:
+        return True
+    normalized = path.replace("\\", "/")
+    if normalized in known_absolutes:
+        return True
+    base = normalized.rsplit("/", 1)[-1].casefold()
+    if base not in _CODEX_MANAGED_INTERPRETER_NAMES:
+        return False
+    lower = normalized.casefold()
+    return "uv-tools/mempalace" in lower or "chaos-engine-runtime" in lower
+
+
+def normalize_codex_interpreter_spelling(
+    block: str, *, known_absolutes: frozenset[str] = frozenset()
+) -> str:
+    """Map known absolute managed interpreters to python3/py -3 spelling for equivalence."""
+    normalized = block.replace("\r\n", "\n")
+    rewritten_windows = False
+    for match in list(_CODEX_ABSOLUTE_COMMAND.finditer(normalized)):
+        key, path = match.group(1), match.group(2)
+        if not _is_known_managed_codex_interpreter(path, known_absolutes):
+            continue
+        text = match.group(0)
+        if key == "commandWindows":
+            normalized = normalized.replace(text, 'commandWindows = "py"', 1)
+            rewritten_windows = True
+        else:
+            normalized = normalized.replace(text, 'command = "python3"', 1)
+    # Managed absolute Windows args omit the py -3 prefix; restore it for compare.
+    if rewritten_windows or known_absolutes:
+        def restore_windows_prefix(match: re.Match[str]) -> str:
+            return 'argsWindows = ["-3", '
+
+        normalized = _CODEX_MANAGED_WINDOWS_ARGS.sub(restore_windows_prefix, normalized)
+    return normalized
+
+
 def strip_known_codex_ownership(
     current: bytes, before: bytes | None, after: bytes | None
 ) -> bytes:
@@ -2943,9 +3424,18 @@ def strip_known_codex_ownership(
         *(legacy_codex_python_block(platform) for platform in ("nt", "posix")),
         legacy_portable_codex_block(),
     )
-    normalized = block.replace("\r\n", "\n")
+    known_absolutes = frozenset().union(
+        *(
+            _codex_absolute_command_paths(item)
+            for item in (before_block, recorded_block)
+            if item is not None
+        )
+    )
+    normalized = normalize_codex_interpreter_spelling(
+        block, known_absolutes=known_absolutes
+    )
     accepted = {
-        item.replace("\r\n", "\n")
+        normalize_codex_interpreter_spelling(item, known_absolutes=known_absolutes)
         for item in (*legacy, before_block, recorded_block)
         if item is not None
     }
@@ -2959,16 +3449,27 @@ def json_content(
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    relative: str = ".mcp.json",
 ) -> bytes:
+    original = b"" if before is None else before
+    desired = owned_servers(
+        maven_runtime=maven_runtime, managed_python=managed_python,
+        account_commands=account_commands,
+        maven_docker=maven_docker,
+    )
+    snippet = json.dumps({"mcpServers": desired}, indent=2, sort_keys=True) + "\n"
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError("invalid host JSON configuration") from error
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     if not isinstance(value, dict):
-        raise ValueError("invalid host JSON configuration")
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     servers = value.setdefault("mcpServers", {})
     if not isinstance(servers, dict):
-        raise ValueError("invalid MCP server configuration")
+        _note_merge_handoff(relative, "file is not valid UTF-8 or does not parse", snippet)
+        return original
     if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
         del servers["maven-tools-mcp"]
     for legacy_name in ("sha" + "ft-memory", "mempalace"):
@@ -2976,15 +3477,115 @@ def json_content(
             legacy_name, servers[legacy_name]
         ):
             del servers[legacy_name]
-    for name, desired in owned_servers(
-        maven_runtime=maven_runtime, managed_python=managed_python,
-        account_commands=account_commands,
-        maven_docker=maven_docker,
-    ).items():
-        if name in servers and not replaceable_owned_server(name, servers[name], desired):
-            raise ValueError(f"ChaosEngine MCP server collision: {name}")
-        servers[name] = desired
+    for name, server in desired.items():
+        if name in servers and not replaceable_owned_server(name, servers[name], server):
+            _note_merge_handoff(
+                relative,
+                "same-name MCP server exists with unknown ownership",
+                snippet,
+            )
+            return original
+        servers[name] = server
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+
+
+
+_OWNED_CODEX_MCP_SERVERS = frozenset(
+    {
+        "chaosengine-memory",
+        "chaosengine-mempalace",
+        "context7",
+        "maven-tools-mcp",
+    }
+)
+_CODEX_MCP_SERVER_HEADER = re.compile(
+    r'^\[mcp_servers\.(?:"(?P<quoted>[^"\n]+)"|(?P<plain>[^\].\s]+))'
+    r'(?P<rest>(?:\.[^\]]+)*)\]\s*$'
+)
+
+
+def strip_owned_codex_server_sections(
+    content: str, owned: frozenset[str] | None = None
+) -> str:
+    """Remove CE-owned `[mcp_servers.NAME]` tables (and nested tables); keep foreign servers."""
+    names = owned or _OWNED_CODEX_MCP_SERVERS
+    lines = content.splitlines(keepends=True)
+    kept: list[str] = []
+    skipping = False
+    owned_name: str | None = None
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        bare = line.splitlines()[0] if line else ""
+        match = _CODEX_MCP_SERVER_HEADER.match(bare)
+        if match is not None:
+            server = match.group("quoted") or match.group("plain")
+            if server in names:
+                skipping = True
+                owned_name = server
+                index += 1
+                continue
+            skipping = False
+            owned_name = None
+            kept.append(line)
+            index += 1
+            continue
+        if skipping:
+            if bare.startswith("[") and bare.rstrip().endswith("]"):
+                nested = _CODEX_MCP_SERVER_HEADER.match(bare)
+                if nested is not None:
+                    nested_name = nested.group("quoted") or nested.group("plain")
+                    if nested_name == owned_name:
+                        index += 1
+                        continue
+                skipping = False
+                owned_name = None
+                continue
+            index += 1
+            continue
+        kept.append(line)
+        index += 1
+    return "".join(kept)
+
+
+def _codex_non_owned_interior(managed_block: str) -> str:
+    """Return foreign mcp_servers tables that were wrapped inside CE markers."""
+    body = managed_block
+    for marker in (
+        "# CHAOSENGINE:START\r\n",
+        "# CHAOSENGINE:START\n",
+        "# CHAOSENGINE:END\r\n",
+        "# CHAOSENGINE:END\n",
+        "# CHAOSENGINE:START",
+        "# CHAOSENGINE:END",
+    ):
+        body = body.replace(marker, "")
+    preserved = strip_owned_codex_server_sections(body)
+    return preserved.strip()
+
+
+def heal_replace_codex_managed_block(existing: str, block: str) -> str:
+    """Replace a drifted CE managed Codex stanza; preserve non-owned keys outside it."""
+    managed = managed_codex_block(existing)
+    if managed is None:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    start = existing.find(managed)
+    if start < 0:
+        raise ValueError("ChaosEngine Codex configuration collision")
+    finish = start + len(managed)
+    before = strip_owned_codex_server_sections(existing[:start])
+    after = strip_owned_codex_server_sections(existing[finish:])
+    preserved = _codex_non_owned_interior(managed)
+    pieces = [before.rstrip("\n\r")]
+    if preserved:
+        pieces.append(preserved)
+    pieces.append(block.rstrip("\n\r") + "\n")
+    if after.lstrip("\n\r"):
+        pieces.append(after.lstrip("\n\r"))
+    merged = "\n".join(part for part in pieces if part)
+    if not merged.endswith("\n"):
+        merged += "\n"
+    return merged
 
 
 def remove_known_codex_orphans(existing: str) -> str:
@@ -3028,6 +3629,31 @@ def remove_exact_legacy_native_maven_codex_block(existing: str) -> str:
     return existing[:match.start()] + existing[match.end():]
 
 
+def _path_handed_off(relative: str) -> bool:
+    return any(item["path"] == relative for item in _merge_handoffs)
+
+
+def _merge_or_preserve(relative: str, original: bytes | None, builder):
+    """Apply a host merge; impossible files stay byte-identical and record a handoff."""
+    preserved = b"" if original is None else original
+    try:
+        return builder()
+    except ValueError as error:
+        detail = str(error)
+        if "collision" not in detail and not detail.startswith("invalid "):
+            raise
+        if "UTF-8" in detail or detail.startswith("invalid "):
+            reason = "file is not valid UTF-8 or does not parse"
+        elif "plugin" in detail or "marketplace" in detail:
+            reason = "plugin marketplace entry exists with unknown ownership"
+        elif "MCP" in detail or "hook" in detail:
+            reason = "same-name MCP server or hook exists with unknown ownership"
+        else:
+            reason = "marker count is not a single matching start and end"
+        _note_merge_handoff(relative, reason, "")
+        return preserved
+
+
 def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
@@ -3036,10 +3662,16 @@ def codex_content(
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
 ) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid Codex configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        _note_merge_handoff(
+            ".codex/config.toml",
+            "file is not valid UTF-8 or does not parse",
+            "",
+        )
+        return original
     existing = remove_known_codex_orphans(existing)
     legacy_blocks = (
         '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
@@ -3136,14 +3768,20 @@ def codex_content(
         for candidate in (legacy, legacy.replace("\n", "\r\n")):
             if candidate in existing:
                 return existing.replace(candidate, block).encode()
-        raise ValueError("ChaosEngine Codex configuration collision")
-    for name in owned_servers(
-        maven_runtime=maven_runtime, managed_python=managed_python,
-        account_commands=account_commands,
-        maven_docker=maven_docker,
-    ):
-        if f'mcp_servers."{name}"' in existing or f"mcp_servers.{name}" in existing:
-            raise ValueError(f"ChaosEngine Codex server collision: {name}")
+        # Drifted managed block / markers wrapping non-owned keys: replace stanza (#5630).
+        try:
+            return heal_replace_codex_managed_block(existing, block).encode()
+        except ValueError as error:
+            if "collision" not in str(error):
+                raise
+            _note_merge_handoff(
+                ".codex/config.toml",
+                "marker count is not a single matching start and end",
+                block,
+            )
+            return original
+    # Orphan CE-owned sections outside markers (esp. context7): strip then append.
+    existing = strip_owned_codex_server_sections(existing)
     separator = "\n" if existing and not existing.endswith("\n") else ""
     return (existing + separator + block).encode()
 
@@ -3407,7 +4045,14 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
 
 
 def replace_owned_text_block(
-    existing: str, start: str, end: str, block: str, label: str
+    existing: str,
+    start: str,
+    end: str,
+    block: str,
+    label: str,
+    *,
+    relative: str | None = None,
+    original: bytes | None = None,
 ) -> bytes:
     """Upgrade one marker-owned block while preserving all foreign text."""
     start_count = existing.count(start)
@@ -3415,12 +4060,29 @@ def replace_owned_text_block(
     if start_count == end_count == 0:
         separator = "\n" if existing and not existing.endswith("\n") else ""
         return (existing + separator + block).encode()
+    preserved = original if original is not None else existing.encode()
+    path = relative or label
     if start_count != 1 or end_count != 1:
-        raise ValueError(f"ChaosEngine {label} collision")
+        _note_merge_handoff(
+            path, "marker count is not a single matching start and end", block
+        )
+        return preserved
     begin = existing.index(start)
     finish = existing.index(end, begin) + len(end)
     if finish < begin:
-        raise ValueError(f"ChaosEngine {label} collision")
+        _note_merge_handoff(
+            path, "marker count is not a single matching start and end", block
+        )
+        return preserved
+    interior = existing[begin:finish].replace("\r\n", "\n")
+    recognized = _normalized_owned_span(block, start, end)
+    if recognized is None or interior != recognized:
+        _note_merge_handoff(
+            path,
+            "markers exist but the interior is not the current owned block",
+            block,
+        )
+        return preserved
     if finish < len(existing) and existing[finish] == "\r":
         finish += 1
     if finish < len(existing) and existing[finish] == "\n":
@@ -3428,11 +4090,52 @@ def replace_owned_text_block(
     return (existing[:begin] + block + existing[finish:]).encode()
 
 
-def gitignore_content(before: bytes | None) -> bytes:
+def strip_owned_text_block(
+    current: bytes,
+    recorded: bytes | None,
+    start: str,
+    end: str,
+    label: str,
+    alternatives: tuple[bytes, ...] = (),
+) -> bytes:
+    """Remove an unchanged marker-owned block while preserving foreign text."""
     try:
-        existing = before.decode("utf-8") if before is not None else ""
+        existing = current.decode("utf-8")
+        expected_values = (
+            recorded.decode("utf-8") if recorded is not None else "",
+            *(value.decode("utf-8") for value in alternatives),
+        )
     except UnicodeDecodeError as error:
-        raise ValueError("invalid gitignore configuration") from error
+        raise ValueError(f"invalid {label} configuration") from error
+
+    def bounds(content: str) -> tuple[int, int]:
+        if content.count(start) != 1 or content.count(end) != 1:
+            raise ValueError(f"ChaosEngine {label} collision")
+        begin = content.index(start)
+        finish = content.index(end, begin) + len(end)
+        if finish < len(content) and content[finish] == "\r":
+            finish += 1
+        if finish < len(content) and content[finish] == "\n":
+            finish += 1
+        return begin, finish
+
+    begin, finish = bounds(existing)
+    normalized = existing[begin:finish].replace("\r\n", "\n")
+    accepted = set()
+    for expected in expected_values:
+        expected_begin, expected_finish = bounds(expected)
+        accepted.add(expected[expected_begin:expected_finish].replace("\r\n", "\n"))
+    if normalized not in accepted:
+        raise ValueError(f"ChaosEngine {label} collision")
+    return (existing[:begin] + existing[finish:]).encode()
+
+
+def gitignore_content(before: bytes | None) -> bytes:
+    original = b"" if before is None else before
+    try:
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        existing = None
     block = (
         f"{GITIGNORE_START}\n"
         ".chaos-engine-runtime/\n.chaos-engine-runtime.lock\n.chaos-engine-runtime.*\n.chaos-engine-state/\n"
@@ -3441,6 +4144,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine.lock\n.chaos-engine.transaction.json\n"
         ".chaos-engine.backup/\n.chaos-engine.backup.*/\n"
         ".chaos-engine-cross-rollback/\n.chaos-engine-uninstall-*\n"
+        ".chaos-engine-dependencies.json\n"
         ".chaos-engine-hosts.json\n.chaos-engine-hosts.*\n"
         ".chaos-engine-directory-claim-*\ngraphify-out/\n"
         ".memory/*\n!.memory/\n!.memory/config.json\n!.memory/events.jsonl\n"
@@ -3461,20 +4165,38 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
         "!plugins/caveman/\n!plugins/caveman/**\n"
         "!plugins/ponytail/\n!plugins/ponytail/**\n"
-        "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n!.gitattributes\n"
+        "!.mcp.json\n\n"
+        "# Machine-local installer and Graphify artifacts remain untracked after the\n"
+        "# installed-harness allowlist above.\n"
+        ".chaos-engine-runtime-pointer.repair-backup-*.json\n"
+        ".claude/*.graphify-bak\n.claude/skills/graphify/\n"
+        ".codex/*.graphify-bak\n.codex/skills/\nplugins/**/__pycache__/\n"
+        "!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n!.gitattributes\n"
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
+    if existing is None:
+        _note_merge_handoff(
+            ".gitignore", "file is not valid UTF-8 or does not parse", block
+        )
+        return original
     return replace_owned_text_block(
-        existing, GITIGNORE_START, GITIGNORE_END, block, "gitignore"
+        existing,
+        GITIGNORE_START,
+        GITIGNORE_END,
+        block,
+        "gitignore",
+        relative=".gitignore",
+        original=original,
     )
 
 
 def gitattributes_content(before: bytes | None) -> bytes:
+    original = b"" if before is None else before
     try:
-        existing = before.decode("utf-8") if before is not None else ""
-    except UnicodeDecodeError as error:
-        raise ValueError("invalid gitattributes configuration") from error
+        existing = original.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError:
+        existing = None
     repository_root_anchor = "/"
     block = (
         f"{GITATTRIBUTES_START}\n"
@@ -3501,8 +4223,19 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.gitattributes text eol=lf\n"
         f"{GITATTRIBUTES_END}\n"
     )
+    if existing is None:
+        _note_merge_handoff(
+            ".gitattributes", "file is not valid UTF-8 or does not parse", block
+        )
+        return original
     return replace_owned_text_block(
-        existing, GITATTRIBUTES_START, GITATTRIBUTES_END, block, "gitattributes"
+        existing,
+        GITATTRIBUTES_START,
+        GITATTRIBUTES_END,
+        block,
+        "gitattributes",
+        relative=".gitattributes",
+        original=original,
     )
 
 
@@ -3514,6 +4247,7 @@ def desired_content(
     dependency_runtime: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    project: Path | None = None,
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -3531,11 +4265,16 @@ def desired_content(
         managed_python = Path(python)
         managed_node = Path(node)
     adapters = managed_paths()[:4]
-    skill = (
-        "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
-        "Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).\n"
-    ).encode()
-    after = {relative: skill for relative in adapters}
+    tree = guidance_tree(project)
+    profile = selected_profile_name(project, tree)
+    after = {
+        relative: skill_adapter_bytes(tree, profile=None) for relative in adapters
+    }
+    if profile:
+        # Codex discovers `.agents/skills`; keep the selected profile pointer there.
+        after[".agents/skills/chaos-engine/SKILL.md"] = skill_adapter_bytes(
+            tree, profile=profile
+        )
     stub_readme = (
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
@@ -3547,10 +4286,6 @@ def desired_content(
     after[".agents/skills/README.md"] = (
         before.get(".agents/skills/README.md") or stub_readme
     )
-    if before.get(".agents/skills/chaos-engine/SKILL.md") is not None:
-        after[".agents/skills/chaos-engine/SKILL.md"] = before[
-            ".agents/skills/chaos-engine/SKILL.md"
-        ]  # type: ignore[assignment]
     plugin_entry = {
         "name": "chaos-engine",
         "source": {"source": "local", "path": "./plugins/chaos-engine"},
@@ -3574,14 +4309,6 @@ def desired_content(
             raise ValueError("invalid plugin marketplace configuration") from error
         if not isinstance(marketplace, dict) or not isinstance(marketplace.get("plugins"), list):
             raise ValueError("invalid plugin marketplace configuration")
-    existing_plugin = next(
-        (item for item in marketplace["plugins"] if isinstance(item, dict) and item.get("name") == "chaos-engine"),
-        None,
-    )
-    if existing_plugin is not None and existing_plugin != plugin_entry:
-        raise ValueError("ChaosEngine plugin marketplace collision")
-    if existing_plugin is None:
-        marketplace["plugins"].append(plugin_entry)
     caveman_entry = {
         "name": CAVEMAN_PLUGIN_NAME,
         "source": {"source": "local", "path": "./plugins/caveman"},
@@ -3591,18 +4318,6 @@ def desired_content(
         },
         "category": "Productivity",
     }
-    existing_caveman = next(
-        (
-            item
-            for item in marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_caveman is not None and existing_caveman != caveman_entry:
-        raise ValueError("Caveman plugin marketplace collision")
-    if existing_caveman is None:
-        marketplace["plugins"].append(caveman_entry)
     ponytail_entry = {
         "name": PONYTAIL_PLUGIN_NAME,
         "source": {"source": "local", "path": "./plugins/ponytail"},
@@ -3612,6 +4327,18 @@ def desired_content(
         },
         "category": "Productivity",
     }
+    existing_plugin = next(
+        (item for item in marketplace["plugins"] if isinstance(item, dict) and item.get("name") == "chaos-engine"),
+        None,
+    )
+    existing_caveman = next(
+        (
+            item
+            for item in marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
+        ),
+        None,
+    )
     existing_ponytail = next(
         (
             item
@@ -3620,13 +4347,36 @@ def desired_content(
         ),
         None,
     )
-    if existing_ponytail is not None and existing_ponytail != ponytail_entry:
-        raise ValueError("Ponytail plugin marketplace collision")
-    if existing_ponytail is None:
-        marketplace["plugins"].append(ponytail_entry)
-    after[".agents/plugins/marketplace.json"] = (
-        json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    agents_collision = (
+        (existing_plugin is not None and existing_plugin != plugin_entry)
+        or (existing_caveman is not None and existing_caveman != caveman_entry)
+        or (existing_ponytail is not None and existing_ponytail != ponytail_entry)
+    )
+    desired_agents_marketplace = {
+        "name": marketplace.get("name", "chaos-engine-project"),
+        "plugins": [plugin_entry, caveman_entry, ponytail_entry],
+    }
+    if "interface" in marketplace:
+        desired_agents_marketplace["interface"] = marketplace["interface"]
+    if agents_collision:
+        _note_merge_handoff(
+            ".agents/plugins/marketplace.json",
+            "plugin marketplace entry exists with unknown ownership",
+            json.dumps(desired_agents_marketplace, indent=2, sort_keys=True) + "\n",
+        )
+        after[".agents/plugins/marketplace.json"] = (
+            b"" if marketplace_before is None else marketplace_before
+        )
+    else:
+        if existing_plugin is None:
+            marketplace["plugins"].append(plugin_entry)
+        if existing_caveman is None:
+            marketplace["plugins"].append(caveman_entry)
+        if existing_ponytail is None:
+            marketplace["plugins"].append(ponytail_entry)
+        after[".agents/plugins/marketplace.json"] = (
+            json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
+        ).encode()
     claude_plugin_entry = {
         "name": "chaos-engine",
         "source": "./plugins/chaos-engine",
@@ -3679,56 +4429,90 @@ def desired_content(
         ):
             existing_claude_plugin["version"] = plugin_version
         if existing_claude_plugin != claude_plugin_entry:
-            raise ValueError("ChaosEngine Claude marketplace collision")
-    if existing_claude_plugin is None:
+            _note_merge_handoff(
+                ".claude-plugin/marketplace.json",
+                "plugin marketplace entry exists with unknown ownership",
+                json.dumps(claude_plugin_entry, indent=2, sort_keys=True) + "\n",
+            )
+            after[".claude-plugin/marketplace.json"] = (
+                b"" if claude_marketplace_before is None else claude_marketplace_before
+            )
+            claude_marketplace = None
+    if claude_marketplace is not None and existing_claude_plugin is None:
         claude_marketplace["plugins"].append(claude_plugin_entry)
-    caveman_claude_entry = {
-        "name": CAVEMAN_PLUGIN_NAME,
-        "source": "./plugins/caveman",
-        "description": "Ultra-compressed communication mode.",
-        "version": CAVEMAN_PLUGIN_VERSION,
-        "skills": ["./caveman"],
-    }
-    existing_caveman = next(
-        (
-            item
-            for item in claude_marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_caveman is not None and existing_caveman != caveman_claude_entry:
-        if existing_caveman.get("skills") in (None, []):
-            existing_caveman["skills"] = caveman_claude_entry["skills"]
-        if existing_caveman != caveman_claude_entry:
-            raise ValueError("Caveman Claude plugin collision")
-    if existing_caveman is None:
-        claude_marketplace["plugins"].append(caveman_claude_entry)
-    ponytail_claude_entry = {
-        "name": PONYTAIL_PLUGIN_NAME,
-        "source": "./plugins/ponytail",
-        "description": "Laziest solution that actually works.",
-        "version": PONYTAIL_PLUGIN_VERSION,
-        "skills": ["./ponytail"],
-    }
-    existing_ponytail = next(
-        (
-            item
-            for item in claude_marketplace["plugins"]
-            if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
-        ),
-        None,
-    )
-    if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
-        if existing_ponytail.get("skills") in (None, []):
-            existing_ponytail["skills"] = ponytail_claude_entry["skills"]
-        if existing_ponytail != ponytail_claude_entry:
-            raise ValueError("Ponytail Claude plugin collision")
-    if existing_ponytail is None:
-        claude_marketplace["plugins"].append(ponytail_claude_entry)
-    after[".claude-plugin/marketplace.json"] = (
-        json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    if claude_marketplace is not None:
+        caveman_claude_entry = {
+            "name": CAVEMAN_PLUGIN_NAME,
+            "source": "./plugins/caveman",
+            "description": "Ultra-compressed communication mode.",
+            "version": CAVEMAN_PLUGIN_VERSION,
+            "skills": ["./caveman"],
+        }
+        existing_caveman = next(
+            (
+                item
+                for item in claude_marketplace["plugins"]
+                if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
+            ),
+            None,
+        )
+        if existing_caveman is not None and existing_caveman != caveman_claude_entry:
+            if existing_caveman.get("skills") in (None, []):
+                existing_caveman["skills"] = caveman_claude_entry["skills"]
+        ponytail_claude_entry = {
+            "name": PONYTAIL_PLUGIN_NAME,
+            "source": "./plugins/ponytail",
+            "description": "Laziest solution that actually works.",
+            "version": PONYTAIL_PLUGIN_VERSION,
+            "skills": ["./ponytail"],
+        }
+        existing_ponytail = next(
+            (
+                item
+                for item in claude_marketplace["plugins"]
+                if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
+            ),
+            None,
+        )
+        if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
+            if existing_ponytail.get("skills") in (None, []):
+                existing_ponytail["skills"] = ponytail_claude_entry["skills"]
+        companion_collision = (
+            (existing_caveman is not None and existing_caveman != caveman_claude_entry)
+            or (
+                existing_ponytail is not None
+                and existing_ponytail != ponytail_claude_entry
+            )
+        )
+        if companion_collision:
+            _note_merge_handoff(
+                ".claude-plugin/marketplace.json",
+                "plugin marketplace entry exists with unknown ownership",
+                json.dumps(
+                    {
+                        "plugins": [
+                            claude_plugin_entry,
+                            caveman_claude_entry,
+                            ponytail_claude_entry,
+                        ]
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+            )
+            after[".claude-plugin/marketplace.json"] = (
+                b"" if claude_marketplace_before is None else claude_marketplace_before
+            )
+            claude_marketplace = None
+        else:
+            if existing_caveman is None:
+                claude_marketplace["plugins"].append(caveman_claude_entry)
+            if existing_ponytail is None:
+                claude_marketplace["plugins"].append(ponytail_claude_entry)
+            after[".claude-plugin/marketplace.json"] = (
+                json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
+            ).encode()
     plugin_manifest = {
         "name": "chaos-engine",
         "version": plugin_version,
@@ -3765,18 +4549,30 @@ def desired_content(
     after["plugins/chaos-engine/hooks/hooks.json"] = (
         json.dumps({"hooks": {}}, indent=2, sort_keys=True) + "\n"
     ).encode()
-    after[".codex/hooks.json"] = hook_content(
-        without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
-        desired_hooks,
-        "Codex",
+    after[".codex/hooks.json"] = _merge_or_preserve(
+        ".codex/hooks.json",
+        before[".codex/hooks.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
+            desired_hooks,
+            "Codex",
+        ),
     )
-    after[".grok/hooks/lifecycle.json"] = hook_content(
-        without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
-        lifecycle_hooks_document("grok", managed_python=managed_python),
-        "Grok",
+    after[".grok/hooks/lifecycle.json"] = _merge_or_preserve(
+        ".grok/hooks/lifecycle.json",
+        before[".grok/hooks/lifecycle.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
+            lifecycle_hooks_document("grok", managed_python=managed_python),
+            "Grok",
+        ),
     )
-    after[".github/hooks/chaos-engine.json"] = copilot_hook_content(
-        before[".github/hooks/chaos-engine.json"], managed_node
+    after[".github/hooks/chaos-engine.json"] = _merge_or_preserve(
+        ".github/hooks/chaos-engine.json",
+        before[".github/hooks/chaos-engine.json"],
+        lambda: copilot_hook_content(
+            before[".github/hooks/chaos-engine.json"], managed_node
+        ),
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
@@ -3801,37 +4597,76 @@ def desired_content(
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
         "That router decides whether to load the bundled Caveman and Ponytail companions.\n"
     ).encode()
-    claude_settings = hook_content(
-        without_chaos_hooks(before[".claude/settings.json"], "Claude"),
-        lifecycle_hooks_document("claude", managed_python=managed_python),
-        "Claude",
+    claude_settings = _merge_or_preserve(
+        ".claude/settings.json",
+        before[".claude/settings.json"],
+        lambda: hook_content(
+            without_chaos_hooks(before[".claude/settings.json"], "Claude"),
+            lifecycle_hooks_document("claude", managed_python=managed_python),
+            "Claude",
+        ),
     )
-    try:
-        settings = json.loads(claude_settings) if claude_settings is not None else {}
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError("invalid Claude settings") from error
-    if not isinstance(settings, dict):
-        raise ValueError("invalid Claude settings")
-    enabled = settings.setdefault("enabledPlugins", {})
-    marketplaces = settings.setdefault("extraKnownMarketplaces", {})
-    if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
-        raise ValueError("invalid Claude settings")
-    claude_marketplace_name = claude_marketplace["name"]
-    plugin_id = f"chaos-engine@{claude_marketplace_name}"
-    if plugin_id in enabled and enabled[plugin_id] is not True:
-        raise ValueError("ChaosEngine Claude plugin collision")
-    desired_marketplace = {
-        "source": {"source": "directory", "path": "."}
-    }
-    if claude_marketplace_name in marketplaces and marketplaces[claude_marketplace_name] != desired_marketplace:
-        raise ValueError("ChaosEngine Claude marketplace collision")
-    enabled[plugin_id] = True
-    enabled[f"caveman@{claude_marketplace_name}"] = True
-    enabled[f"ponytail@{claude_marketplace_name}"] = True
-    marketplaces[claude_marketplace_name] = desired_marketplace
-    after[".claude/settings.json"] = (
-        json.dumps(settings, indent=2, sort_keys=True) + "\n"
-    ).encode()
+    if _path_handed_off(".claude/settings.json"):
+        after[".claude/settings.json"] = claude_settings
+    else:
+        try:
+            settings = json.loads(claude_settings) if claude_settings is not None else {}
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Claude settings") from error
+        if not isinstance(settings, dict):
+            raise ValueError("invalid Claude settings")
+        enabled = settings.setdefault("enabledPlugins", {})
+        marketplaces = settings.setdefault("extraKnownMarketplaces", {})
+        if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
+            raise ValueError("invalid Claude settings")
+        claude_marketplace_name = (
+            claude_marketplace["name"]
+            if claude_marketplace is not None
+            else "chaos-engine-project"
+        )
+        plugin_id = f"chaos-engine@{claude_marketplace_name}"
+        desired_marketplace = {
+            "source": {"source": "directory", "path": "."}
+        }
+        desired_settings = json.dumps(
+            {
+                **settings,
+                "enabledPlugins": {
+                    **enabled,
+                    plugin_id: True,
+                    f"caveman@{claude_marketplace_name}": True,
+                    f"ponytail@{claude_marketplace_name}": True,
+                },
+                "extraKnownMarketplaces": {
+                    **marketplaces,
+                    claude_marketplace_name: desired_marketplace,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+        settings_collision = plugin_id in enabled and enabled[plugin_id] is not True
+        marketplace_collision = (
+            claude_marketplace_name in marketplaces
+            and marketplaces[claude_marketplace_name] != desired_marketplace
+        )
+        if settings_collision or marketplace_collision:
+            _note_merge_handoff(
+                ".claude/settings.json",
+                "Claude plugin enablement is not the current owned state",
+                desired_settings,
+            )
+            after[".claude/settings.json"] = (
+                b"" if before[".claude/settings.json"] is None else before[".claude/settings.json"]
+            )
+        else:
+            enabled[plugin_id] = True
+            enabled[f"caveman@{claude_marketplace_name}"] = True
+            enabled[f"ponytail@{claude_marketplace_name}"] = True
+            marketplaces[claude_marketplace_name] = desired_marketplace
+            after[".claude/settings.json"] = (
+                json.dumps(settings, indent=2, sort_keys=True) + "\n"
+            ).encode()
     caveman_manifest = {
         "name": CAVEMAN_PLUGIN_NAME,
         "version": CAVEMAN_PLUGIN_VERSION,
@@ -3938,29 +4773,19 @@ def desired_content(
         commit=PONYTAIL_UPSTREAM_COMMIT,
         version=PONYTAIL_PLUGIN_VERSION,
     )
-    roles = {
-        "orchestrator": "Own planning, architecture, synthesis, and final verification.",
-        "implementer": "Implement one bounded specification before consolidated validation.",
-        "reviewer": "Perform an independent read-only adversarial review; never edit.",
-        "tester": "Reproduce behavior and produce regression and acceptance evidence.",
-        "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
-    }
-    for role, responsibility in roles.items():
-        slug = f"chaos-engine-{role}"
-        tools = "Read, Grep, Glob, Bash" if role == "reviewer" else "Read, Grep, Glob, Bash, Write, Edit"
-        after[f".claude/agents/{slug}.md"] = (
-            f"---\nname: {slug}\ndescription: {responsibility}\n"
-            f"tools: {tools}\n---\n\n"
-            f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow "
-            f"`.chaos-engine/references/roles.md#{role}`. {responsibility}\n"
-        ).encode()
-        sandbox = 'sandbox_mode = "read-only"\n' if role == "reviewer" else ""
-        after[f".codex/agents/{slug}.toml"] = (
-            f'name = "{slug}"\n'
-            f'description = {json.dumps(responsibility)}\n'
-            f'developer_instructions = {json.dumps(f"Load .chaos-engine/skills/chaos-engine/SKILL.md and follow .chaos-engine/references/roles.md#{role}. {responsibility}")}\n'
-            f"{sandbox}"
-        ).encode()
+    for role in (
+        "orchestrator",
+        "implementer",
+        "reviewer",
+        "tester",
+        "mechanical-helper",
+    ):
+        after[f".claude/agents/chaos-engine-{role}.md"] = role_adapter_desired(
+            f".claude/agents/chaos-engine-{role}.md"
+        )
+        after[f".codex/agents/chaos-engine-{role}.toml"] = role_adapter_desired(
+            f".codex/agents/chaos-engine-{role}.toml"
+        )
     memory_before = before[".memory/config.json"]
     if memory_before is None:
         normalized_name = re.sub(r"[^a-z0-9]+", "-", project_name.casefold()).strip("-") or "project"
@@ -4010,26 +4835,38 @@ def desired_content(
         validate_mempalace_config(mempalace_before)
         after["mempalace.yaml"] = mempalace_before
     after[".gitignore"] = gitignore_content(before[".gitignore"])
+    block = instruction_block(tree)
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
-        after[relative] = instruction_content(before[relative], INSTRUCTION)
-    after[".github/copilot-instructions.md"] = instruction_content(
+        after[relative] = merge_instruction(
+            before[relative], block, relative=relative
+        )
+    copilot_instruction = block.replace(f"{tree}/", f"../{tree}/")
+    after[".github/copilot-instructions.md"] = merge_instruction(
         before[".github/copilot-instructions.md"],
-        INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
+        copilot_instruction,
+        relative=".github/copilot-instructions.md",
     )
     after[".mcp.json"] = json_content(
         before[".mcp.json"], maven_runtime, managed_python, account_commands,
-        maven_docker,
+        maven_docker, relative=".mcp.json",
     )
     gemini_settings = json_content(
         before[".gemini/settings.json"], maven_runtime, managed_python,
         account_commands,
-        maven_docker,
+        maven_docker, relative=".gemini/settings.json",
     )
-    after[".gemini/settings.json"] = hook_content(
-        without_chaos_hooks(gemini_settings, "Gemini"),
-        gemini_hooks_document(managed_node),
-        "Gemini",
-    )
+    if _path_handed_off(".gemini/settings.json"):
+        after[".gemini/settings.json"] = gemini_settings
+    else:
+        after[".gemini/settings.json"] = _merge_or_preserve(
+            ".gemini/settings.json",
+            before[".gemini/settings.json"],
+            lambda: hook_content(
+                without_chaos_hooks(gemini_settings, "Gemini"),
+                gemini_hooks_document(managed_node),
+                "Gemini",
+            ),
+        )
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime,
         managed_python=managed_python, account_commands=account_commands,
@@ -4586,10 +5423,17 @@ def strip_known_json_ownership(
             legacy_owned_python_server(name, "nt"),
             legacy_owned_python_server(name, "posix"),
         )
-        if servers[name] in expected or legacy_server or (
+        owned_shape = replaceable_owned_server(name, servers[name], {}) or legacy_server or (
             name == "maven-tools-mcp" and servers[name] == LEGACY_MAVEN_TOOLS_SERVER
-        ):
-            del servers[name]
+        )
+        wrote_entry = (
+            name in recorded_servers
+            and recorded_servers[name] != original_servers.get(name)
+            and servers[name] == recorded_servers[name]
+        )
+        if servers[name] in expected:
+            if owned_shape or wrote_entry:
+                del servers[name]
             continue
         raise ValueError(f"ChaosEngine MCP server collision: {name}")
     for name in ("sha" + "ft-memory", "mempalace"):
@@ -4601,18 +5445,123 @@ def strip_known_json_ownership(
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
-def known_legacy_guard(project: Path, current: bytes) -> bool:
-    """Accept only an exact installed-core guard while replacing its plugin copy."""
-    for relative in (
-        ".chaos-engine/hooks/guard.py",
-        ".chaos-engine.backup/hooks/guard.py",
+PACKAGE_HOOK_FILES = (
+    "guard.py",
+    "kernel.py",
+    "launch.js",
+    "lifecycle.py",
+    "matchers.json",
+    "reflection.py",
+)
+PACKAGE_HOOK_PATHS = tuple(
+    f"plugins/chaos-engine/hooks/{name}" for name in PACKAGE_HOOK_FILES
+)
+ROLE_ADAPTER_PATHS = tuple(
+    f"{root}/chaos-engine-{role}{suffix}"
+    for root, suffix in ((".claude/agents", ".md"), (".codex/agents", ".toml"))
+    for role in (
+        "orchestrator",
+        "implementer",
+        "reviewer",
+        "tester",
+        "mechanical-helper",
+    )
+)
+
+
+def package_hook_bytes(name: str) -> bytes:
+    """Return the candidate package hook bytes shipped beside this module."""
+    return (Path(__file__).resolve().parent / "hooks" / name).read_bytes()
+
+
+def known_package_equal_hook(project: Path, relative: str, current: bytes) -> bool:
+    """Accept exact plugin hooks that match core, backup, or package copies."""
+    name = Path(relative).name
+    if name not in PACKAGE_HOOK_FILES:
+        return False
+    for candidate in (
+        project / ".chaos-engine/hooks" / name,
+        project / ".chaos-engine.backup/hooks" / name,
+        Path(__file__).resolve().parent / "hooks" / name,
     ):
         try:
-            if read_file(project, project / relative) == current:
+            if candidate.is_file() and candidate.read_bytes() == current:
                 return True
-        except ValueError:
+        except OSError:
             continue
     return False
+
+
+def known_legacy_guard(project: Path, current: bytes) -> bool:
+    """Accept only an exact installed-core or package-equal guard plugin copy."""
+    return known_package_equal_hook(
+        project, "plugins/chaos-engine/hooks/guard.py", current
+    )
+
+
+def role_adapter_desired(relative: str) -> bytes | None:
+    """Return the candidate fully-owned role adapter bytes for one managed path."""
+    roles = {
+        "orchestrator": (
+            "Orchestrator",
+            "Own planning, architecture, synthesis, and final verification.",
+        ),
+        "implementer": (
+            "Implementer",
+            "Implement one bounded specification before consolidated validation.",
+        ),
+        "reviewer": (
+            "Reviewer",
+            "Perform an independent read-only adversarial review; never edit.",
+        ),
+        "tester": (
+            "Tester",
+            "Reproduce behavior and produce regression and acceptance evidence.",
+        ),
+        "mechanical-helper": (
+            "Mechanical helper",
+            "Perform deterministic reversible spec-exact work; stop on ambiguity.",
+        ),
+    }
+    match = re.fullmatch(
+        r"\.(claude|codex)/agents/chaos-engine-([a-z-]+)\.(md|toml)", relative
+    )
+    if match is None:
+        return None
+    host, role, kind = match.groups()
+    named = roles.get(role)
+    if named is None:
+        return None
+    title, responsibility = named
+    process_owner = (
+        " In orchestrated mode also load `.chaos-engine/references/process-owner-scrum-master.md`."
+        if role == "orchestrator"
+        else ""
+    )
+    body = (
+        f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow the "
+        f"{title} role at `.chaos-engine/references/roles.md#{role}`."
+        f"{process_owner} {responsibility}"
+    )
+    if host == "claude" and kind == "md":
+        tools = (
+            "Read, Grep, Glob, Bash"
+            if role == "reviewer"
+            else "Read, Grep, Glob, Bash, Write, Edit"
+        )
+        return (
+            f"---\nname: chaos-engine-{role}\ndescription: {responsibility}\n"
+            f"tools: {tools}\n---\n\n{body}\n"
+        ).encode()
+    if host == "codex" and kind == "toml":
+        sandbox = 'sandbox_mode = "read-only"\n' if role == "reviewer" else ""
+        return (
+            f'name = "chaos-engine-{role}"\n'
+            f"description = {json.dumps(responsibility)}\n"
+            f"developer_instructions = {json.dumps(body)}\n"
+            f"{sandbox}"
+        ).encode()
+    return None
 
 
 def upgrade_before_images(
@@ -4647,13 +5596,34 @@ def upgrade_before_images(
             continue
         if observed in (before[relative], after[relative]):
             continue
+        if relative == ".gitignore" and observed is not None:
+            restored[relative] = strip_owned_text_block(
+                observed,
+                after[relative],
+                GITIGNORE_START,
+                GITIGNORE_END,
+                "gitignore",
+                (gitignore_content(None),),
+            )
+            continue
         if relative == ".agents/skills/README.md":
             restored[relative] = observed
             continue
-        if relative == "plugins/chaos-engine/hooks/guard.py":
-            if not isinstance(observed, bytes) or not known_legacy_guard(project, observed):
-                raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+        if relative in PACKAGE_HOOK_PATHS:
+            if not isinstance(observed, bytes) or not known_package_equal_hook(
+                project, relative, observed
+            ):
+                raise ValueError(
+                    f"ChaosEngine host adapter drift detected: {relative}"
+                )
             continue
+        if relative in ROLE_ADAPTER_PATHS:
+            desired = role_adapter_desired(relative)
+            if isinstance(observed, bytes) and desired is not None and observed == desired:
+                continue
+            raise ValueError(
+                f"ChaosEngine host adapter drift detected: {relative}"
+            )
         if relative in {
             ".codex/hooks.json",
             ".grok/hooks/lifecycle.json",
@@ -4666,7 +5636,7 @@ def upgrade_before_images(
             }[relative]
             restored[relative] = without_chaos_hooks(observed, label)
             continue
-        raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+        raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     return restored
 
 
@@ -4698,7 +5668,7 @@ def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for ev
         if relative in LIVE_PERSISTENT_PATHS:
             continue
         if not any(current == candidate[relative] for candidate in allowed):
-            raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     changed: list[tuple[str, bytes | None, bytes | None]] = []
     try:
         for relative in managed_paths():
@@ -4754,6 +5724,7 @@ def install(
     upgrade_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
     project = project.resolve()
+    consume_merge_handoffs()
     if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
         raise ValueError("ChaosEngine capability policy digest is invalid")
     receipt_path = project / RECEIPT_NAME
@@ -4775,7 +5746,7 @@ def install(
                     snapshot = preflight(project)
                 except ValueError as error:
                     raise ValueError(
-                        f"ChaosEngine host adapter drift detected: {project}"
+                        "ChaosEngine host adapter drift detected"
                     ) from error
             else:
                 snapshot = upgrade_snapshot
@@ -4803,6 +5774,7 @@ def install(
                 dependency_runtime=dependency_runtime,
                 account_commands=account_commands,
                 maven_docker=maven_docker,
+                project=project,
             )
             for relative in LIVE_PERSISTENT_PATHS:
                 wanted[relative] = current[relative]
@@ -4818,6 +5790,7 @@ def install(
             ):
                 apply_hook_receipt(receipt, after, receipt_after)
                 write_receipt(project, receipt, raw)
+                write_merge_handoff(project, _handoff_doctor_command())
                 return receipt
             next_receipt = dict(receipt)
             next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
@@ -4860,6 +5833,7 @@ def install(
                 reconcile(project, wanted, (current, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
+                write_merge_handoff(project, _handoff_doctor_command())
                 return next_receipt
             except BaseException:
                 reconcile(project, current, (current, wanted))
@@ -4873,6 +5847,7 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        write_merge_handoff(project, _handoff_doctor_command())
         return receipt
 
     before = current_images(project)
@@ -4884,6 +5859,7 @@ def install(
         dependency_runtime=dependency_runtime,
         account_commands=account_commands,
         maven_docker=maven_docker,
+        project=project,
     )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")
@@ -4907,8 +5883,10 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        write_merge_handoff(project, _handoff_doctor_command())
         return receipt
     except BaseException:
+        consume_merge_handoffs()
         reconcile(project, before, (before, after))
         remove_created_directories(project, receipt)
         if read_file(project, receipt_path) is not None:
@@ -4936,7 +5914,7 @@ def verify(
     validate_live_persistent_images(current)
     for relative in receipt_owned_paths():
         if current[relative] != after[relative]:
-            raise ValueError(f"ChaosEngine host adapter drift detected: {project / relative}")
+            raise ValueError(f"ChaosEngine host adapter drift detected: {relative}")
     return {
         "status": "healthy",
         "hookSourceCommit": receipt.get("coreCommit"),
