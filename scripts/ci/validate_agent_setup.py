@@ -160,7 +160,6 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
         ".memory/memory/project.json",
         ".memory/memory/architecture.md",
         ".memory/memory/architecture.json",
-        ".codex/config.toml",
     ]
     for configured_path in required_files:
         if not (root / configured_path).is_file():
@@ -259,7 +258,18 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
                     )
                 )
 
-    codex_content = (root / ".codex/config.toml").read_text(encoding="utf-8")
+    codex_path = root / ".codex/config.toml"
+    if not codex_path.is_file():
+        mcp_path = root / ".mcp.json"
+        if mcp_path.is_file():
+            try:
+                servers = read_json(mcp_path).get("mcpServers")
+            except (OSError, ValueError):
+                servers = None
+            if not isinstance(servers, dict):
+                errors.append(issue("memory-mcp", ".mcp.json", "invalid mcpServers mapping"))
+        return errors
+    codex_content = codex_path.read_text(encoding="utf-8")
     server_content = toml_section(codex_content, "mcp_servers.shaft-memory")
     remember_content = toml_section(
         codex_content, "mcp_servers.shaft-memory.tools.remember_memory"

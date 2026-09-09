@@ -1094,7 +1094,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
 
         for relative in (".codex/hooks.json", ".claude/settings.json"):
-            hooks = json.loads((ROOT / relative).read_text(encoding="utf-8"))["hooks"]
+            hooks = json.loads((OVERLAY / relative).read_text(encoding="utf-8"))["hooks"]
             self.assertEqual(preventive, hooks["PreToolUse"][0]["matcher"])
             self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
             self.assertEqual(observational, hooks["PostToolUseFailure"][0]["matcher"])
@@ -1201,7 +1201,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_source_repository_registers_copilot_hooks_through_kernel_launcher(self):
         document = json.loads(
-            (ROOT / ".github/hooks/chaos-engine.json").read_text(encoding="utf-8")
+            (OVERLAY / ".github/hooks/chaos-engine.json").read_text(encoding="utf-8")
         )
         expected = {
             "sessionStart",
@@ -1220,7 +1220,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
         for handlers in document["hooks"].values():
             self.assertEqual(1, len(handlers))
             self.assertEqual(
-                "node chaos-engine/hooks/launch.js copilot", handlers[0]["bash"]
+                "node .chaos-engine/hooks/launch.js copilot", handlers[0]["bash"]
             )
             self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
 

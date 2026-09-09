@@ -107,8 +107,7 @@
   "adapters": [
     "AGENTS.md",
     "CLAUDE.md",
-    ".agents/skills/chaos-engine/SKILL.md",
-    ".claude/skills/chaos-engine/SKILL.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
     ".github/copilot-instructions.md",
     "GEMINI.md"
   ]
