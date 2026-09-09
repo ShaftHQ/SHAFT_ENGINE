@@ -115,6 +115,37 @@ class AndroidSetupPlannerTest {
         assertEquals(AndroidSetupPlanner.APPIUM_LOCK_SHA256, digest);
     }
 
+    @Test
+    void bundledAppiumLocksOverridePatchedSharpAndMorgan() throws Exception {
+        assertPatchedSharpAndMorgan(
+                "/com/shaft/infrastructure/appium/package.json",
+                "/com/shaft/infrastructure/appium/package-lock.json");
+        assertPatchedSharpAndMorgan(
+                "/com/shaft/infrastructure/appium-ios/package.json",
+                "/com/shaft/infrastructure/appium-ios/package-lock.json");
+        assertPatchedSharpAndMorgan(
+                "/com/shaft/infrastructure/appium-windows/package.json",
+                "/com/shaft/infrastructure/appium-windows/package-lock.json");
+    }
+
+    private static void assertPatchedSharpAndMorgan(String packageResource, String lockResource) throws Exception {
+        String packageJson;
+        String lock;
+        try (var packageInput = AndroidSetupPlannerTest.class.getResourceAsStream(packageResource);
+             var lockInput = AndroidSetupPlannerTest.class.getResourceAsStream(lockResource)) {
+            packageJson = new String(java.util.Objects.requireNonNull(packageInput).readAllBytes(),
+                    StandardCharsets.UTF_8);
+            lock = new String(java.util.Objects.requireNonNull(lockInput).readAllBytes(), StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n").replace('\r', '\n');
+        }
+        assertTrue(packageJson.contains("\"sharp\": \"0.35.4\""), packageResource);
+        assertTrue(packageJson.contains("\"morgan\": \"1.12.0\""), packageResource);
+        assertTrue(lock.matches("(?s).*\"node_modules/sharp\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.35\\.4\".*"),
+                lockResource);
+        assertTrue(lock.matches("(?s).*\"node_modules/morgan\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"1\\.12\\.0\".*"),
+                lockResource);
+    }
+
     private static void assertSdkArchive(SetupPlatform platform, SetupArchitecture architecture,
                                          String fileName, String checksum) {
         SetupPlan plan = AndroidSetupPlanner.plan(platform, architecture, SetupMode.MANAGED,
