@@ -4036,7 +4036,7 @@ def doctor_with_dependencies(
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
                 _mod.apply_doctor_overlay_match(result, project.resolve())
-    except (OSError, RuntimeError, ValueError, AttributeError):
+    except (OSError, RuntimeError, ValueError, AttributeError, ImportError):
         # Optional #5689 probes; missing helpers must not crash doctor.
         pass
     if not verify_clients:
