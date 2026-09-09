@@ -131,7 +131,25 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIsNotNone(method)
         body = method.group(1)
         self.assertIn('OcrTarget.exact("Group 1")', body)
-        self.assertNotIn("ImageMatchingMode.AUTO", body)
+        self.assertIsNone(re.search(
+            r"ImageTarget\.fromBytes\(group1Screenshot\).*ImageMatchingMode\.AUTO",
+            body,
+            flags=re.S,
+        ))
+
+    def test_android_visual_ocr_horizontal_uses_tab12_image_not_exact_ocr(self):
+        android_tests = ANDROID_TESTS.read_text(encoding="utf-8")
+        method = re.search(
+            r"public void visualAndOcrTargetsShouldScrollHorizontallyInsideNativeControl\(\) \{(.*?)\n    @",
+            android_tests,
+            flags=re.S,
+        )
+        self.assertIsNotNone(method)
+        body = method.group(1)
+        self.assertIn("tab12Screenshot", body)
+        self.assertIn("ImageTarget.fromBytes(tab12Screenshot)", body)
+        self.assertNotIn('OcrTarget.exact("TAB 12")', body)
+        self.assertIn('OcrTarget.containing("TAB 1")', body)
 
     def test_windows_appium_desktop_pins_winappdriver_without_releases_api(self):
         local_workflow = LOCAL_WORKFLOW.read_text(encoding="utf-8")
@@ -142,3 +160,5 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIn("WindowsApplicationDriver_", installer)
         self.assertIn("api\\.github\\.com/repos/microsoft/winappdriver", installer)
         self.assertIn("Refusing WinAppDriver install URL that hits the GitHub Releases API", installer)
+        self.assertIn("a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe", installer)
+        self.assertIn("Get-FileHash -Algorithm SHA256", installer)

@@ -5,6 +5,8 @@
 param(
     [string]$Version = "1.2.1",
     [string]$MsiUrl = "",
+    # Matches shaft-infrastructure DesktopMobileSetupPlanner.WINAPPDRIVER_SHA256 for v1.2.1.
+    [string]$ExpectedSha256 = "a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe",
     [int]$ReadyTimeoutSeconds = 60
 )
 
@@ -31,6 +33,11 @@ if (-not $env:RUNNER_TEMP) {
 
 Write-Host "Downloading pinned WinAppDriver from $MsiUrl"
 Invoke-WebRequest -Uri $MsiUrl -OutFile $msiPath
+
+$actualSha256 = (Get-FileHash -Algorithm SHA256 -Path $msiPath).Hash.ToLowerInvariant()
+if ($actualSha256 -ne $ExpectedSha256.ToLowerInvariant()) {
+    throw "WinAppDriver MSI SHA-256 mismatch. expected=$ExpectedSha256 actual=$actualSha256"
+}
 
 Write-Host "Installing $msiPath"
 $install = Start-Process -FilePath "msiexec.exe" `
