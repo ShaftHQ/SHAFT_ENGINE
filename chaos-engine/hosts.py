@@ -2033,6 +2033,11 @@ def normalize_marker_policy(text: str) -> str:
     return compact.replace("../.chaos-engine/", ".chaos-engine/")
 
 
+EXTRA_POLICY_LOAD = re.compile(
+    r"(?is)load\s+\[[^\]]*\]\([^)]*skills/chaos-engine/SKILL\.md\)"
+)
+
+
 def competing_policy_errors(project: Path) -> list[str]:
     bodies: dict[str, str] = {}
     errors: list[str] = []
@@ -2040,7 +2045,17 @@ def competing_policy_errors(project: Path) -> list[str]:
         path = project / relative
         if not path.is_file():
             continue
-        bodies[relative] = normalize_marker_policy(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        bodies[relative] = normalize_marker_policy(text)
+        outside = text
+        if START in text and END in text:
+            begin = text.index(START)
+            finish = text.index(END, begin) + len(END)
+            outside = text[:begin] + text[finish:]
+        if relative == "CLAUDE.md" and "graphify-out/" in outside:
+            errors.append(f"{relative}: Graphify essay outside ChaosEngine marker")
+        if EXTRA_POLICY_LOAD.search(outside):
+            errors.append(f"{relative}: extra ChaosEngine Load outside marker")
     unique = set(bodies.values())
     if len(unique) > 1:
         errors.append(

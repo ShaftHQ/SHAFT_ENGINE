@@ -75,7 +75,7 @@ See [Host Parity Matrix](host-parity-matrix.md) and `HostCapability` in
 `hosts.py` writes the same command groups into the source-controlled,
 project-local hook document for each host with a hook primitive: Codex
 `hooks.json`, Claude settings, Gemini settings, Grok project hooks, and GitHub
-Copilot `.github/hooks`. Those direct provider documents are lifecycle owners.
+Copilot generated hooks. Those direct provider documents are lifecycle owners.
 ChaosEngine plugin carries
 skills and portable hook code but does not register a second hook pack. Its
 legacy hook document is overwritten with an empty `hooks` mapping during

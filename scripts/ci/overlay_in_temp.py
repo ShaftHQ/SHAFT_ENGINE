@@ -22,6 +22,9 @@ def materialize_overlay(origin: Path) -> Path:
     source = origin / "chaos-engine"
     installer = load_installer(source)
     temporary = Path(tempfile.mkdtemp(prefix="ce-overlay-"))
+    pom = origin / "pom.xml"
+    if pom.is_file():
+        shutil.copy2(pom, temporary / "pom.xml")
     installer.install_with_dependencies(
         temporary,
         source,
@@ -47,6 +50,18 @@ GENERATED_TREES = (
 )
 
 
+def merge_copy(source: Path, destination: Path) -> None:
+    """Copy overlay files into destination without clobbering existing files."""
+    if source.is_dir():
+        destination.mkdir(parents=True, exist_ok=True)
+        for child in source.iterdir():
+            merge_copy(child, destination / child.name)
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if not destination.exists():
+        shutil.copy2(source, destination)
+
+
 def ensure_overlay(root: Path) -> Path:
     pointer = root / ".agents/skills/chaos-engine/SKILL.md"
     if pointer.is_file():
@@ -57,14 +72,8 @@ def ensure_overlay(root: Path) -> Path:
     try:
         for relative in GENERATED_TREES:
             source = overlay / relative
-            destination = root / relative
-            if not source.exists() or destination.exists():
-                continue
-            if source.is_dir():
-                shutil.copytree(source, destination)
-            else:
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, destination)
+            if source.exists():
+                merge_copy(source, root / relative)
     finally:
         cleanup_overlay(overlay)
     return root

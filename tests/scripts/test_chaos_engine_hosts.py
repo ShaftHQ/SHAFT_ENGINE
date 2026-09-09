@@ -18,6 +18,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+from scripts.ci.overlay_in_temp import ensure_overlay  # noqa: E402
+
+ensure_overlay(ROOT)
 HOSTS = ROOT / "chaos-engine/hosts.py"
 TOOL = ROOT / "chaos-engine/tool.py"
 

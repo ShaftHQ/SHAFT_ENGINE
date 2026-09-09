@@ -11,6 +11,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+from scripts.ci.overlay_in_temp import ensure_overlay  # noqa: E402
+
+ensure_overlay(ROOT)
 CANONICAL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 HOOK_MAP = ROOT / "chaos-engine/references/hook-trigger-map.md"
 ROLES = ROOT / "chaos-engine/references/roles.md"

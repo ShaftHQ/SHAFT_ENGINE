@@ -5,8 +5,9 @@ accountable for; capability level says how much intelligence the assignment
 earns. The two are chosen separately — see [delegation](delegation.md).
 
 Claude and Codex both expose a subagent primitive, and each ships a role
-adapter per role that names one of these sections: `.claude/agents/*.md` and
-`.codex/agents/*.toml`. A host without that primitive carries the same role text
+adapter per role that names one of these sections: Claude agents markdown
+adapters and Codex agents TOML adapters (installer-generated; see INSTALL.md).
+A host without that primitive carries the same role text
 in the dispatch prompt, so the resolved policy is identical either way. Adding a
 role means adding both adapters.
 

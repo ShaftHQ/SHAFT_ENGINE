@@ -16,9 +16,9 @@ agents. This page is the installation reference. See [`README.md`](README.md) fo
 | Path | Kind | Who reads it |
 | --- | --- | --- |
 | `chaos-engine/` | Source (origin tracks) | Installer, pack, humans |
-| `.chaos-engine/` | Generated overlay | Hosts, doctor, `tool.py` |
-| `.agents/` `.claude/` `.codex/` `.gemini/` `.grok/hooks/` `.github/skills/` `.github/hooks/` `.claude-plugin/` | Generated host adapters | The named host |
-| `plugins/chaos-engine/` `plugins/caveman/` `plugins/ponytail/` `agent-plugins/chaos-engine/` | Generated plugin payloads | Host plugin loaders |
+| generated overlay tree | Generated overlay | Hosts, doctor, tool.py |
+| generated host adapter dirs | Generated host adapters | The named host |
+| generated plugin payloads | Generated plugin payloads | Host plugin loaders |
 | `.mcp.json` CE merge | Generated | Host MCP clients |
 | Marker blocks in `AGENTS.md` `CLAUDE.md` `GEMINI.md` `.github/copilot-instructions.md` | Generated pointers | Every host |
 
@@ -314,8 +314,8 @@ Then rerun the tool, or confirm with
 Re-running install self-heals CE-owned Codex MCP sections (`context7`,
 `chaosengine-memory`, `chaosengine-mempalace`, `maven-tools-mcp`) that sit
 outside or inside a drifted `# CHAOSENGINE:START`…`END` block. Non-owned
-user MCP servers are left untouched. No need to empty `.codex/config.toml`
-manually.
+user MCP servers are left untouched. No need to empty the generated Codex
+config file manually.
 
 ### Orphan `.chaos-engine-hosts.active-*` anchors
 
@@ -450,8 +450,9 @@ A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow
    differently pinned receipt. The version directory is an immutable,
    receipt-owned shared cache: parallel projects may read the verified pair, while
    project uninstall never changes or removes it.
-4. Host installation discovers both files and atomically rewrites `.mcp.json`, `.gemini/settings.json`, and
-   `.codex/config.toml` with their resolved absolute paths. Upgrades repeat
+4. Host installation discovers both files and atomically rewrites project MCP
+   JSON, Gemini settings, and the generated Codex config with their resolved
+   absolute paths. Upgrades repeat
    discovery, so another user's Java or data path is never inherited.
 5. Start a fresh client session and prove both the MCP initialize and tools/list
    responses over the upstream default stdio transport. Native mode launches

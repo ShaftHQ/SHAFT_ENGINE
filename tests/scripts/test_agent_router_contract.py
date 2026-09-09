@@ -26,6 +26,9 @@ from scripts.ci.validate_agent_guidance import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+from scripts.ci.overlay_in_temp import ensure_overlay  # noqa: E402
+
+ensure_overlay(ROOT)
 CANONICAL_SKILLS = ROOT / "chaos-engine/skills"
 CLAUDE_SKILLS = ROOT / ".claude/skills"
 CLAUDE_AGENTS = ROOT / ".claude/agents"

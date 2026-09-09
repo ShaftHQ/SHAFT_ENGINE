@@ -16,6 +16,9 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
+from scripts.ci.overlay_in_temp import ensure_overlay  # noqa: E402
+
+ensure_overlay(ROOT)
 GUARD = ROOT / "scripts/agents/guard.py"
 ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".claude", ".codex")
 
@@ -706,7 +709,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_hook_configs_are_tracked_for_host_local_trust(self):
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            ["git", "ls-files", "--error-unmatch", ".claude/settings.json", ".codex/hooks.json", "scripts/agents/guard.py"],
+            ["git", "ls-files", "--error-unmatch", "scripts/agents/guard.py"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -714,6 +717,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         )
         self.assertEqual(tracked.returncode, 0, tracked.stderr)
         for path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
+            self.assertTrue(path.is_file(), path)
             self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
 
     def test_inline_and_javascript_launchers_deny_when_guard_is_missing(self):

@@ -250,33 +250,10 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         parts = path.split("/")
         for depth in range(1, len(parts)):
             nodes.add("/".join(parts[:depth]))
-    generated_prefixes = (
-        ".chaos-engine/",
-        ".agents/",
-        ".claude/",
-        ".claude-plugin/",
-        ".codex/",
-        ".gemini/",
-        ".grok/",
-        ".github/skills/",
-        ".github/hooks/",
-        "plugins/chaos-engine/",
-        "plugins/caveman/",
-        "plugins/ponytail/",
-        "agent-plugins/chaos-engine/",
-    )
-
-    def generated_overlay(token: str) -> bool:
-        return any(
-            token == prefix.rstrip("/") or token.startswith(prefix)
-            for prefix in generated_prefixes
-        )
-
     stale = sorted(
         f"{token} (named in {source}) matches no tracked path"
         for token, source in tokens.items()
-        if not generated_overlay(token)
-        and not any(token_matchers[token].match(node) for node in nodes)
+        if not any(token_matchers[token].match(node) for node in nodes)
     )
 
     # Which elements the config would have missed. Reported rather than

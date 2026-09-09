@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -108,10 +109,30 @@ class OneSourceOverlayTests(unittest.TestCase):
             orphan = root / ".agents/skills/orphan-skill/SKILL.md"
             orphan.parent.mkdir(parents=True)
             orphan.write_text("orphan\n", encoding="utf-8")
+            plugin = root / "plugins/chaos-engine/skills/chaos-engine/SKILL.md"
+            plugin.parent.mkdir(parents=True)
+            plugin.write_text("plugin-divergent\n", encoding="utf-8")
+            merged = root / "chaos-engine/shaft-skills/SKILL.md"
+            merged.parent.mkdir(parents=True)
+            merged.write_text("merged\n", encoding="utf-8")
             errors = self.inventory.validate_skill_inventory(root)
             codes = {item["code"] for item in errors}
             self.assertIn("skill-body-divergent", codes)
             self.assertIn("skill-orphan", codes)
+            self.assertIn("skill-product-pack", codes)
+
+    def test_ensure_overlay_merges_into_existing_agents_readme(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shutil.copytree(ROOT / "chaos-engine", root / "chaos-engine")
+            readme = root / ".agents/skills/README.md"
+            readme.parent.mkdir(parents=True)
+            readme.write_text("origin harness map\n", encoding="utf-8")
+            self.assertFalse((root / ".agents/skills/chaos-engine/SKILL.md").is_file())
+            overlay_root = self.overlay.ensure_overlay(root)
+            self.assertEqual(overlay_root, root)
+            self.assertTrue((root / ".agents/skills/chaos-engine/SKILL.md").is_file())
+            self.assertEqual(readme.read_text(encoding="utf-8"), "origin harness map\n")
 
     def test_empty_project_tracks_generated_overlay(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -136,6 +157,20 @@ class OneSourceOverlayTests(unittest.TestCase):
                 ignored.returncode != 0 or "!.chaos-engine" in detail,
                 detail,
             )
+            subprocess.run(
+                ["git", "add", "-A", "--", ".chaos-engine/skills/chaos-engine/SKILL.md"],
+                cwd=project,
+                check=True,
+                capture_output=True,
+            )
+            listed = subprocess.run(
+                ["git", "ls-files", "--", ".chaos-engine/skills/chaos-engine/SKILL.md"],
+                cwd=project,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", listed.stdout)
             gitignore = (project / ".gitignore").read_text(encoding="utf-8")
             self.assertNotIn(self.hosts.ORIGIN_OVERLAY_START, gitignore)
 
@@ -144,8 +179,24 @@ class OneSourceOverlayTests(unittest.TestCase):
         try:
             skill = overlay_root / ".chaos-engine/skills/chaos-engine/SKILL.md"
             self.assertTrue(skill.is_file(), skill)
+            mcp = (overlay_root / ".mcp.json").read_text(encoding="utf-8")
+            self.assertIn("maven-tools-mcp", mcp)
+            self.assertTrue((overlay_root / "pom.xml").is_file())
         finally:
             self.overlay.cleanup_overlay(overlay_root)
+
+    def test_extra_load_outside_marker_is_competing_policy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            block = self.hosts.instruction_block(".chaos-engine")
+            (project / "AGENTS.md").write_text(block, encoding="utf-8")
+            (project / "CLAUDE.md").write_text(
+                "Load [ChaosEngine](.claude/skills/chaos-engine/SKILL.md)\n" + block,
+                encoding="utf-8",
+            )
+            (project / "GEMINI.md").write_text(block, encoding="utf-8")
+            errors = self.hosts.competing_policy_errors(project)
+            self.assertTrue(any("extra ChaosEngine Load" in item for item in errors))
 
     def test_install_docs_path_table(self):
         text = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
@@ -159,7 +210,8 @@ class OneSourceOverlayTests(unittest.TestCase):
         )
         self.assertIn("Kanban", text)
         self.assertIn("process-owner is the role name", text.casefold())
-        self.assertIn("alias", text.casefold())
+        self.assertIn("alias only when the user explicitly asks", text.casefold())
+        self.assertNotIn("is the process owner and Scrum-master", text)
 
     def test_root_pom_still_is_reactor_aggregator(self):
         text = (ROOT / "pom.xml").read_text(encoding="utf-8")

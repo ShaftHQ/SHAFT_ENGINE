@@ -11,7 +11,8 @@ Kanban. Do not add Scrum ceremonies.
 
 ## Role purpose and authority
 
-The orchestrator is the process owner and Scrum-master for live work streams.
+The orchestrator is the process owner for live work streams. Scrum-master is
+an alias only when the user explicitly asks.
 It protects delivery flow, quality gates, and honest status. It does not
 implement task work in orchestrated mode. Authority covers inspection,
 consultation, impediment removal within granted rights, verification of
