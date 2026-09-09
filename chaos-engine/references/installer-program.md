@@ -50,10 +50,10 @@ paragraph if they drift; re-read before implementing.
 - MCP / Codex: unknown same-name servers raise `ChaosEngine MCP server
   collision` / `Codex configuration collision`. Foreign servers outside owned
   markers are kept (`without_chaos_hooks`, Codex CE-owned table strip).
-- Verify (`install.py` `doctor_with_dependencies`): resolve managed Python from
-  the uv generation, then the account receipt, then `sys.executable` (#5703).
-  Only when no live interpreter exists do both `hooks` and `mcps` become
-  `recovery-required` with `managed-python-missing` / `CE_MANAGED_PYTHON_MISSING`.
+- Verify (`install.py` `doctor_with_dependencies`): if managed Python is
+  missing, **both** `hooks` and `mcps` become `recovery-required` with **no**
+  component `detail` or `code`. That is the cheapest shared explanation for
+  #5667 listing both names after a successful core rematerialize.
 - Hook probe (`hosts.py` `hook_runtime_healthy`): run `UserPromptSubmit`,
   `PreToolUse`, `PostToolUse` through
   `{managed_python} .chaos-engine/hooks/guard.py`. Any non-zero exit, invalid
@@ -150,24 +150,6 @@ verifies:
 Doctor after a handoff may still report `hooks` / `mcps` / instruction files
 as not yet healthy. That is expected until the agent finishes the prompt.
 `fix-next` must name the handoff file, not "reinstall".
-
-## Success with heal handoff (one-shot install)
-
-The adopter runs the one-liner once. After core is on disk, a named doctor
-recovery is not `CE-INSTALL-FAILED`. Write
-`.chaos-engine-state/heal-handoff.md`, print the success skin plus a Heal
-handoff panel, print the GitHub issue URL (every required form field filled)
-and **one** backtick agent prompt, then exit **0**.
-
-The prompt must: load ChaosEngine; read the handoff and local state files;
-repair named components; rerun doctor; comment investigation and outcome on
-the GitHub issue; not rerun the one-liner unless `install.py` is missing.
-
-Exit **1** only when core is absent; still print the issue URL and heal prompt.
-
-GitHub cannot attach files from a form URL or the Issues API. Required issue
-form fields are only the short installer-filled ids. Console log and doctor
-JSON stay optional.
 
 ## Install guide
 
