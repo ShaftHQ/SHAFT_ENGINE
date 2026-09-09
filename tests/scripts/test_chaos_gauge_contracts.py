@@ -90,7 +90,7 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             self.assertEqual(first, second)
 
     def test_harness_digest_ignores_untracked_runtime_junk(self):
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temporary:
             root = Path(temporary)
             dest = root / "chaos-engine"
             shutil.copytree(
