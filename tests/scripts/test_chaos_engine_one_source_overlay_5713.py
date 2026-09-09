@@ -121,18 +121,19 @@ class OneSourceOverlayTests(unittest.TestCase):
             self.assertIn("skill-orphan", codes)
             self.assertIn("skill-product-pack", codes)
 
-    def test_ensure_overlay_merges_into_existing_agents_readme(self):
+    def test_ensure_overlay_does_not_mutate_origin_readme(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             shutil.copytree(ROOT / "chaos-engine", root / "chaos-engine")
             readme = root / ".agents/skills/README.md"
             readme.parent.mkdir(parents=True)
             readme.write_text("origin harness map\n", encoding="utf-8")
-            self.assertFalse((root / ".agents/skills/chaos-engine/SKILL.md").is_file())
             overlay_root = self.overlay.ensure_overlay(root)
-            self.assertEqual(overlay_root, root)
-            self.assertTrue((root / ".agents/skills/chaos-engine/SKILL.md").is_file())
+            self.assertNotEqual(overlay_root, root)
+            self.assertFalse((root / ".agents/skills/chaos-engine/SKILL.md").is_file())
             self.assertEqual(readme.read_text(encoding="utf-8"), "origin harness map\n")
+            self.assertTrue((overlay_root / ".agents/skills/chaos-engine/SKILL.md").is_file())
+            self.overlay.cleanup_overlay(overlay_root)
 
     def test_empty_project_tracks_generated_overlay(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -157,25 +158,25 @@ class OneSourceOverlayTests(unittest.TestCase):
                 ignored.returncode != 0 or "!.chaos-engine" in detail,
                 detail,
             )
-            subprocess.run(
-                ["git", "add", "-A", "--", ".chaos-engine/skills/chaos-engine/SKILL.md"],
-                cwd=project,
-                check=True,
-                capture_output=True,
-            )
+            subprocess.run(["git", "add", "-A"], cwd=project, check=True, capture_output=True)
             listed = subprocess.run(
-                ["git", "ls-files", "--", ".chaos-engine/skills/chaos-engine/SKILL.md"],
+                ["git", "ls-files"],
                 cwd=project,
                 check=True,
                 capture_output=True,
                 text=True,
             )
-            self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", listed.stdout)
+            for relative in (
+                ".chaos-engine/skills/chaos-engine/SKILL.md",
+                ".agents/skills/chaos-engine/SKILL.md",
+                ".claude/skills/chaos-engine/SKILL.md",
+            ):
+                self.assertIn(relative, listed.stdout, listed.stdout)
             gitignore = (project / ".gitignore").read_text(encoding="utf-8")
             self.assertNotIn(self.hosts.ORIGIN_OVERLAY_START, gitignore)
 
     def test_overlay_in_temp_materializes_skill(self):
-        overlay_root = self.overlay.materialize_overlay(ROOT)
+        overlay_root = self.overlay.materialize_overlay(ROOT, copy_pom=True)
         try:
             skill = overlay_root / ".chaos-engine/skills/chaos-engine/SKILL.md"
             self.assertTrue(skill.is_file(), skill)
@@ -201,8 +202,21 @@ class OneSourceOverlayTests(unittest.TestCase):
     def test_install_docs_path_table(self):
         text = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
         self.assertIn("Source vs generated paths", text)
-        self.assertIn("`chaos-engine/`", text)
-        self.assertIn("`.chaos-engine/`", text)
+        for name in (
+            "chaos-engine/",
+            ".chaos-engine/",
+            ".agents/",
+            ".claude/",
+            ".codex/",
+            ".gemini/",
+            ".grok/",
+            ".github/skills/",
+            "plugins/chaos-engine/",
+            "AGENTS.md",
+            "CLAUDE.md",
+            "GEMINI.md",
+        ):
+            self.assertIn(name, text)
 
     def test_kanban_is_default_method(self):
         text = (ROOT / "chaos-engine/references/process-owner-scrum-master.md").read_text(

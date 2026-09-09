@@ -969,8 +969,9 @@ def validate_repository(
 ) -> tuple[list[dict[str, str]], dict]:
     """Run all agent setup checks."""
     overlay_root = ensure_overlay(root)
-    errors = [
-        *validate_guidance(root if overlay_root == root else overlay_root),
+    try:
+        errors = [
+        *validate_guidance(root),
         *[issue("semantic-owner", "scripts/ci/agent_ownership.json", message)
           for message in validate_ownership(root)],
         *[
@@ -988,10 +989,15 @@ def validate_repository(
         *validate_memory_setup(root),
         *validate_memory_integrity(root),
         *validate_host_parity(root),
-        *validate_skill_hygiene(overlay_root),
-        *validate_skill_inventory(overlay_root),
-        *validate_harness_reachability(root if overlay_root == root else overlay_root),
+        *validate_skill_hygiene(root),
+        *validate_skill_inventory(overlay_root if overlay_root != root else root),
+        *validate_harness_reachability(root),
     ]
+    finally:
+        if overlay_root != root:
+            from scripts.ci.overlay_in_temp import cleanup_overlay
+
+            cleanup_overlay(overlay_root)
     if run_external:
         errors.extend(run_memory_check(root))
         errors.extend(run_command(root, ["git", "diff", "--check"], "diff-check"))

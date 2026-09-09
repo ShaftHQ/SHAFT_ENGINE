@@ -16,9 +16,9 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
-from scripts.ci.overlay_in_temp import ensure_overlay  # noqa: E402
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
-ensure_overlay(ROOT)
+OVERLAY = session_overlay(ROOT)
 GUARD = ROOT / "scripts/agents/guard.py"
 ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".claude", ".codex")
 
@@ -420,13 +420,13 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertEqual(
             discovered,
             [
-                ROOT / ".agents/skills/chaos-engine/SKILL.md",
+                OVERLAY / ".agents/skills/chaos-engine/SKILL.md",
             ],
         )
 
     def test_chaos_engine_has_one_substantive_body_and_relative_adapter(self):
         canonical = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
-        adapter = ROOT / ".claude/skills/chaos-engine/SKILL.md"
+        adapter = OVERLAY / ".claude/skills/chaos-engine/SKILL.md"
         self.assertTrue(canonical.is_file())
         self.assertGreater(len(markdown_body(canonical)), 1000)
         self.assertLess(len(markdown_body(adapter)), 500)
@@ -439,7 +439,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIsNotNone(match)
         target = match.group(1)
         self.assertFalse(Path(target).is_absolute())
-        repository_adapter = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+        repository_adapter = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
         self.assertEqual((adapter.parent / target).resolve(), repository_adapter.resolve())
 
     def test_act_as_mohab_embeds_core_working_rules(self):
@@ -555,10 +555,18 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_all_hosts_reach_the_same_entrypoint_without_grok_duplication(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn(".agents/skills/chaos-engine/SKILL.md", agents)
+        self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", agents)
+        self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", agents)
         self.assertIn("@AGENTS.md", claude)
         self.assertFalse((ROOT / "GROK.md").exists())
-        self.assertFalse((ROOT / ".grok").exists())
+        grok_tracked = subprocess.run(
+            ["git", "ls-files", "--", ".grok"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(grok_tracked.stdout.strip(), "")
 
     def test_active_guidance_has_no_personal_or_absolute_operational_paths(self):
         self.assertEqual(absolute_guidance_path_offenders(ROOT), [])
@@ -580,9 +588,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             )
 
     def test_delegation_policy_uses_capability_tiers_not_fixed_models_or_effort(self):
-        paths = [ROOT / "AGENTS.md", ROOT / ".claude/user-harness/settings.json"]
+        paths = [ROOT / "AGENTS.md", OVERLAY / ".claude/user-harness/settings.json"]
         paths.extend((ROOT / "chaos-engine").rglob("*.md"))
-        paths.extend((ROOT / ".claude/agents").glob("*.md"))
+        paths.extend((OVERLAY / ".claude/agents").glob("*.md"))
         forbidden = re.compile(
             r"(?i)\b(?:sonnet|haiku|opus|fable|gpt-[\w.-]+|grok-[\w.-]+)\b"
             r"|\beffortLevel\b|\bHIGH effort\b|^model:\s*",
@@ -627,8 +635,8 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertNotIn(forbidden, pdca)
 
     def test_hook_configs_share_one_cwd_independent_lifecycle_contract(self):
-        claude_hooks = hook_groups(ROOT / ".claude/settings.json")
-        codex_hooks = hook_groups(ROOT / ".codex/hooks.json")
+        claude_hooks = hook_groups(OVERLAY / ".claude/settings.json")
+        codex_hooks = hook_groups(OVERLAY / ".codex/hooks.json")
         common = {
             "PreToolUse",
             "PostToolUse",
@@ -675,7 +683,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertNotIn("repository working directory unavailable", rendered)
             self.assertNotIn("ChaosEngine guard unavailable", rendered)
             self.assertEqual({}, json.loads(completed.stdout or "{}"))
-        settings_path = ROOT / ".claude/settings.json"
+        settings_path = OVERLAY / ".claude/settings.json"
         for groups in claude_hooks.values():
             for group in groups:
                 for handler in group["hooks"]:
@@ -704,7 +712,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                     self.assertTrue(handler["commandWindows"].startswith("py -3 "))
                     self.assertNotIn(str(ROOT), handler["commandWindows"])
                     self.assertIn("repository working directory unavailable", handler["command"])
-        self.assertFalse((ROOT / ".claude/hooks/guard.py").exists())
+        self.assertFalse((OVERLAY / ".claude/hooks/guard.py").exists())
         self.assertTrue(GUARD.is_file())
 
     def test_hook_configs_are_tracked_for_host_local_trust(self):
@@ -716,7 +724,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(tracked.returncode, 0, tracked.stderr)
-        for path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
+        for path in (OVERLAY / ".claude/settings.json", OVERLAY / ".codex/hooks.json"):
             self.assertTrue(path.is_file(), path)
             self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
 
@@ -725,7 +733,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         node = shutil.which("node")
         if not node:
             self.skipTest("node is required for this launcher check")
-        claude = hook_groups(ROOT / ".claude/settings.json")
+        claude = hook_groups(OVERLAY / ".claude/settings.json")
         command = claude["PreToolUse"][0]["hooks"][0]["command"]
         self.assertNotIn("print('{}')", command)
         self.assertNotIn('print("{}")', command)
@@ -770,7 +778,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 self.assertIn(decision, {"deny", "block"})
 
     def test_codex_intercepts_collaboration_dispatches(self):
-        config = json.loads((ROOT / ".codex/hooks.json").read_text(encoding="utf-8"))
+        config = json.loads((OVERLAY / ".codex/hooks.json").read_text(encoding="utf-8"))
         matcher = config["hooks"]["PreToolUse"][0]["matcher"]
         for tool_name in ("collaboration.spawn_agent", "spawn_agent"):
             with self.subTest(tool_name=tool_name):
@@ -815,7 +823,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 "tool_input": {"command": "mvn test"},
             }
         )
-        for config_path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
+        for config_path in (OVERLAY / ".claude/settings.json", OVERLAY / ".codex/hooks.json"):
             handler = hook_groups(config_path)["PreToolUse"][0]["hooks"][0]
             command = handler.get("commandWindows") or subprocess.list2cmdline(
                 [handler["command"], *handler.get("args", [])]
@@ -958,7 +966,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertNotRegex(palace, r"(?m)^- name: (?:target|graphify_out|allure_results)$")
         claude_mcp = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
         user_settings = json.loads(
-            (ROOT / ".claude/user-harness/settings.json").read_text(encoding="utf-8")
+            (OVERLAY / ".claude/user-harness/settings.json").read_text(encoding="utf-8")
         )
         self.assertIs(user_settings["enabledPlugins"]["mempalace@mempalace"], False)
         expected_mempalace_env = {
@@ -969,7 +977,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             claude_mcp["mcpServers"]["mempalace"]["env"],
             expected_mempalace_env,
         )
-        codex = tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))
+        codex = tomllib.loads((OVERLAY / ".codex/config.toml").read_text(encoding="utf-8"))
         project_mcp = claude_mcp["mcpServers"]["mempalace"]
         codex_mcp = codex["mcp_servers"]["mempalace"]
         self.assertEqual(codex_mcp["command"], project_mcp["command"])
@@ -999,7 +1007,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         claude = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))[
             "mcpServers"
         ]
-        codex = tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))[
+        codex = tomllib.loads((OVERLAY / ".codex/config.toml").read_text(encoding="utf-8"))[
             "mcp_servers"
         ]
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import importlib.util
 import shutil
 import tempfile
@@ -18,13 +19,14 @@ def load_installer(source: Path):
     return module
 
 
-def materialize_overlay(origin: Path) -> Path:
+def materialize_overlay(origin: Path, *, copy_pom: bool = False) -> Path:
     source = origin / "chaos-engine"
     installer = load_installer(source)
     temporary = Path(tempfile.mkdtemp(prefix="ce-overlay-"))
-    pom = origin / "pom.xml"
-    if pom.is_file():
-        shutil.copy2(pom, temporary / "pom.xml")
+    if copy_pom:
+        pom = origin / "pom.xml"
+        if pom.is_file():
+            shutil.copy2(pom, temporary / "pom.xml")
     installer.install_with_dependencies(
         temporary,
         source,
@@ -34,49 +36,24 @@ def materialize_overlay(origin: Path) -> Path:
     return temporary
 
 
-GENERATED_TREES = (
-    ".chaos-engine",
-    ".agents",
-    ".claude",
-    ".claude-plugin",
-    ".codex",
-    ".gemini",
-    ".grok",
-    ".github/skills",
-    ".github/hooks",
-    "plugins/chaos-engine",
-    "plugins/caveman",
-    "plugins/ponytail",
-)
-
-
-def merge_copy(source: Path, destination: Path) -> None:
-    """Copy overlay files into destination without clobbering existing files."""
-    if source.is_dir():
-        destination.mkdir(parents=True, exist_ok=True)
-        for child in source.iterdir():
-            merge_copy(child, destination / child.name)
-        return
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if not destination.exists():
-        shutil.copy2(source, destination)
-
-
 def ensure_overlay(root: Path) -> Path:
-    pointer = root / ".agents/skills/chaos-engine/SKILL.md"
-    if pointer.is_file():
-        return root
+    """Return a generated overlay tree. Never mutates origin."""
     if not (root / "chaos-engine/install.py").is_file():
         return root
-    overlay = materialize_overlay(root)
-    try:
-        for relative in GENERATED_TREES:
-            source = overlay / relative
-            if source.exists():
-                merge_copy(source, root / relative)
-    finally:
-        cleanup_overlay(overlay)
-    return root
+    return materialize_overlay(root, copy_pom=False)
+
+
+_session_overlay: Path | None = None
+
+
+def session_overlay(origin: Path) -> Path:
+    """Reuse one temp overlay per process for tests; never writes into origin."""
+    global _session_overlay
+    if _session_overlay is None:
+        _session_overlay = ensure_overlay(origin)
+        if _session_overlay != origin:
+            atexit.register(cleanup_overlay, _session_overlay)
+    return _session_overlay
 
 
 def cleanup_overlay(path: Path) -> None:

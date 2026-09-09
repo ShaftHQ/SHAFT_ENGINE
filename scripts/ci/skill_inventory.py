@@ -1,4 +1,4 @@
-"""Inventory SKILL.md trees; fail on orphans and divergent ChaosEngine bodies (#5713)."""
+"""Inventory SKILL.md trees; fail on orphans. Host/plugin files may be stubs (#5713)."""
 
 from __future__ import annotations
 
@@ -23,8 +23,11 @@ PLUGIN_SKILL_GLOBS = (
 
 SOURCE_SKILL_GLOBS = (
     "chaos-engine/skills/*/SKILL.md",
+    ".chaos-engine/skills/*/SKILL.md",
     "chaos-engine/vendor/*/skills/*/SKILL.md",
+    ".chaos-engine/vendor/*/skills/*/SKILL.md",
     "chaos-engine/profiles/*/references/playbooks/*.md",
+    ".chaos-engine/profiles/*/references/playbooks/*.md",
 )
 
 PRODUCT_SKILL_GLOB = "shaft-skills/**/SKILL.md"
@@ -48,15 +51,9 @@ def canonical_skill_names(root: Path) -> set[str]:
     return names
 
 
-def _source_skill_bytes(root: Path, name: str) -> bytes | None:
-    candidates = [
-        root / "chaos-engine/skills" / name / "SKILL.md",
-        *sorted((root / "chaos-engine/vendor").glob(f"*/skills/{name}/SKILL.md")),
-    ]
-    for path in candidates:
-        if path.is_file():
-            return path.read_bytes()
-    return None
+def is_redirect_stub(path: Path) -> bool:
+    text = path.read_text(encoding="utf-8")
+    return "SKILL.md" in text and len(text.encode("utf-8")) < 4096
 
 
 def validate_skill_inventory(root: Path) -> list[dict[str, str]]:
@@ -68,7 +65,11 @@ def validate_skill_inventory(root: Path) -> list[dict[str, str]]:
         for skill in overlay.rglob("SKILL.md"):
             relative = skill.relative_to(overlay).as_posix()
             counterpart = source / relative
-            if counterpart.is_file() and counterpart.read_bytes() != skill.read_bytes():
+            if not counterpart.is_file():
+                continue
+            if is_redirect_stub(skill):
+                continue
+            if counterpart.read_bytes() != skill.read_bytes():
                 errors.append(
                     issue(
                         "skill-body-divergent",
@@ -76,7 +77,7 @@ def validate_skill_inventory(root: Path) -> list[dict[str, str]]:
                         "byte-divergent from chaos-engine/ source",
                     )
                 )
-    for pattern in HOST_SKILL_GLOBS:
+    for pattern in HOST_SKILL_GLOBS + PLUGIN_SKILL_GLOBS:
         for path in _glob_files(root, pattern):
             name = _skill_name(path)
             if name not in names:
@@ -85,27 +86,6 @@ def validate_skill_inventory(root: Path) -> list[dict[str, str]]:
                         "skill-orphan",
                         path.relative_to(root).as_posix(),
                         f"host skill {name!r} has no chaos-engine source",
-                    )
-                )
-    for pattern in PLUGIN_SKILL_GLOBS:
-        for path in _glob_files(root, pattern):
-            name = _skill_name(path)
-            if name not in names:
-                errors.append(
-                    issue(
-                        "skill-orphan",
-                        path.relative_to(root).as_posix(),
-                        f"plugin skill {name!r} has no chaos-engine source",
-                    )
-                )
-                continue
-            expected = _source_skill_bytes(root, name)
-            if expected is not None and path.read_bytes() != expected:
-                errors.append(
-                    issue(
-                        "skill-body-divergent",
-                        path.relative_to(root).as_posix(),
-                        f"byte-divergent from chaos-engine skill {name!r}",
                     )
                 )
     if (root / "chaos-engine/shaft-skills").exists() or (

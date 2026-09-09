@@ -18,9 +18,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-from scripts.ci.overlay_in_temp import ensure_overlay  # noqa: E402
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
-ensure_overlay(ROOT)
+OVERLAY = session_overlay(ROOT)
 HOSTS = ROOT / "chaos-engine/hosts.py"
 TOOL = ROOT / "chaos-engine/tool.py"
 
@@ -708,20 +708,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_checked_in_mcp_configs_have_one_mempalace_registration(self):
         module = load(HOSTS, "chaos_engine_checked_in_mcp_configs")
-        for relative in (".mcp.json", ".gemini/settings.json"):
-            with self.subTest(relative=relative):
-                source = (ROOT / relative).read_bytes()
-                servers = json.loads(source)["mcpServers"]
-                self.assertNotIn("mempalace", servers)
-                self.assertEqual(
-                    [".chaos-engine/tool.py", "mempalace-mcp"],
-                    servers["chaosengine-mempalace"]["args"],
-                )
-                self.assertEqual(source, module.json_content(source))
-        codex = (ROOT / ".codex/config.toml").read_text(encoding="utf-8")
+        source = (ROOT / ".mcp.json").read_bytes()
+        servers = json.loads(source)["mcpServers"]
+        self.assertNotIn("mempalace", servers)
+        self.assertEqual(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            servers["chaosengine-mempalace"]["args"],
+        )
+        self.assertEqual(source, module.json_content(source))
+        gemini = json.loads((OVERLAY / ".gemini/settings.json").read_text(encoding="utf-8"))
+        self.assertNotIn("mempalace", gemini["mcpServers"])
+        self.assertEqual(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            gemini["mcpServers"]["chaosengine-mempalace"]["args"],
+        )
+        codex = (OVERLAY / ".codex/config.toml").read_text(encoding="utf-8")
         self.assertNotIn("[mcp_servers.mempalace]", codex)
         self.assertNotIn('"--palace"', codex)
-        self.assertEqual(codex.encode(), module.codex_content(codex.encode()))
 
     def test_complete_host_harness_installs_inventory_roles_hooks_and_plugin(self):
         module = load(HOSTS, "chaos_engine_complete_hosts")

@@ -26,13 +26,13 @@ from scripts.ci.validate_agent_guidance import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-from scripts.ci.overlay_in_temp import ensure_overlay  # noqa: E402
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
-ensure_overlay(ROOT)
+OVERLAY = session_overlay(ROOT)
 CANONICAL_SKILLS = ROOT / "chaos-engine/skills"
-CLAUDE_SKILLS = ROOT / ".claude/skills"
-CLAUDE_AGENTS = ROOT / ".claude/agents"
-CODEX_AGENTS = ROOT / ".codex/agents"
+CLAUDE_SKILLS = OVERLAY / ".claude/skills"
+CLAUDE_AGENTS = OVERLAY / ".claude/agents"
+CODEX_AGENTS = OVERLAY / ".codex/agents"
 ENTRYPOINT = CANONICAL_SKILLS / "chaos-engine/SKILL.md"
 REFERENCES = ROOT / "chaos-engine/profiles/shaft/references"
 ROUTING = REFERENCES / "routing.md"
@@ -1537,7 +1537,7 @@ class HostParityTest(unittest.TestCase):
                 targets = local_links(adapter)
                 self.assertTrue(targets, "adapter must link its canonical body")
                 resolved = (adapter.parent / targets[0]).resolve()
-                expected = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+                expected = OVERLAY / ".chaos-engine/skills/chaos-engine/SKILL.md"
                 self.assertEqual(resolved, expected.resolve())
 
     def role_headings(self) -> set[str]:
@@ -1569,7 +1569,10 @@ class HostParityTest(unittest.TestCase):
 
     def test_mechanical_helper_has_a_host_adapter_on_both_subagent_hosts(self):
         """A dispatch gate needs a legal mechanical role before it can refuse one."""
-        for path in (CLAUDE_AGENTS / "helper.md", CODEX_AGENTS / "helper.toml"):
+        for path in (
+            CLAUDE_AGENTS / "chaos-engine-mechanical-helper.md",
+            CODEX_AGENTS / "chaos-engine-mechanical-helper.toml",
+        ):
             with self.subTest(path=path):
                 self.assertTrue(path.is_file(), "mechanical-helper adapter is missing")
 
@@ -1656,9 +1659,12 @@ class HostParityTest(unittest.TestCase):
 
     def test_every_host_context_loads_the_entrypoint(self):
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", agents)
+        self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", agents)
         for host, paths in budget["host_contexts"].items():
             with self.subTest(host=host):
-                self.assertIn(".agents/skills/chaos-engine/SKILL.md", paths)
+                self.assertIn("AGENTS.md", paths)
 
 
 class CiGateIsBlockingTest(unittest.TestCase):

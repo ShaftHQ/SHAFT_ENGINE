@@ -1994,7 +1994,7 @@ ORIGIN_OVERLAY_PATTERNS = (
     "!.agents/skills/",
     "!.agents/skills/README.md",
     ".claude/",
-    ".claude-plugin/",
+    ".claude-plugin/**",
     "!.claude-plugin/marketplace.json",
     ".codex/",
     ".gemini/",
@@ -2004,7 +2004,7 @@ ORIGIN_OVERLAY_PATTERNS = (
     "plugins/chaos-engine/",
     "plugins/caveman/",
     "plugins/ponytail/",
-    "agent-plugins/chaos-engine/",
+    "agent-plugins/chaos-engine/**",
     "!agent-plugins/chaos-engine/CHANGELOG.md",
     "!agent-plugins/chaos-engine/COMPATIBILITY.md",
 )

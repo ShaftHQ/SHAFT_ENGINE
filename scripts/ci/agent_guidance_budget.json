@@ -39,56 +39,47 @@
   },
   "host_contexts": {
     "codex": [
-      "AGENTS.md",
-      ".agents/skills/chaos-engine/SKILL.md"
+      "AGENTS.md"
     ],
     "claude": [
       "AGENTS.md",
-      "CLAUDE.md",
-      ".agents/skills/chaos-engine/SKILL.md"
+      "CLAUDE.md"
     ],
     "grok": [
       "AGENTS.md",
-      "CLAUDE.md",
-      ".agents/skills/chaos-engine/SKILL.md"
+      "CLAUDE.md"
     ],
     "gemini": [
-      "AGENTS.md",
-      ".agents/skills/chaos-engine/SKILL.md"
+      "AGENTS.md"
     ],
     "copilot": [
       "AGENTS.md",
       ".github/copilot-instructions.md",
       ".github/instructions/framework-source.instructions.md",
-      ".github/instructions/java-tests.instructions.md",
-      ".agents/skills/chaos-engine/SKILL.md"
+      ".github/instructions/java-tests.instructions.md"
     ]
   },
   "host_skill_metadata_globs": {
     "codex": [
-      ".agents/skills/*/SKILL.md"
+      "chaos-engine/skills/*/SKILL.md"
     ],
     "claude": [
-      ".claude/skills/*/SKILL.md",
-      ".claude/agents/*.md"
+      "chaos-engine/skills/*/SKILL.md"
     ],
     "grok": [
-      ".claude/skills/*/SKILL.md",
-      ".claude/agents/*.md"
+      "chaos-engine/skills/*/SKILL.md"
     ],
     "gemini": [
-      ".agents/skills/*/SKILL.md"
+      "chaos-engine/skills/*/SKILL.md"
     ],
     "copilot": [
-      ".github/skills/*/SKILL.md",
       ".github/instructions/*.instructions.md"
     ]
   },
   "routing_bridges": {
     "source": "chaos-engine/profiles/shaft/references/routing.md",
     "skill_roots": [
-      ".agents/skills",
-      ".claude/skills",
+      "chaos-engine/skills",
       "shaft-skills"
     ],
     "required_names": [
@@ -99,23 +90,16 @@
     "AGENTS.md",
     "CLAUDE.md",
     ".agents/skills/README.md",
-    ".agents/skills/*/SKILL.md",
-    ".agents/skills/*/agents/openai.yaml",
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",
-    ".claude/agents/*.md",
-    ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
-    ".github/instructions/*.instructions.md",
-    ".github/skills/*/SKILL.md",
-    ".github/skills/README.md"
+    ".github/instructions/*.instructions.md"
   ],
   "total_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
     ".agents/skills/README.md",
-    ".agents/skills/*/SKILL.md",
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/skills/local-coding-delegate/SKILL.md",
     "chaos-engine/skills/omniroute/SKILL.md",
@@ -124,34 +108,10 @@
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",
-    ".claude/agents/*.md",
-    ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
-    ".github/instructions/*.instructions.md",
-    ".github/skills/README.md",
-    ".github/skills/*/SKILL.md"
+    ".github/instructions/*.instructions.md"
   ],
   "expected_skill_names": {
-    ".agents/skills": [
-      "chaos-engine"
-    ],
-    ".claude/skills": [
-      "chaos-engine"
-    ],
-    ".github/skills": [
-      "agent-guidance-boundary-guard",
-      "agentic-pdca-loop",
-      "allure-extent-report-operator",
-      "chaos-engine",
-      "ci-failure-investigator",
-      "flaky-test-stabilizer",
-      "mcp-transport-contract-auditor",
-      "modular-boundary-auditor",
-      "public-behavior-docs-synchronizer",
-      "release-dependency-guard",
-      "shaft-marketing-ad-producer",
-      "shaft-ui-design"
-    ],
     "chaos-engine/skills": [
       "chaos-engine",
       "freetoken",
@@ -165,16 +125,7 @@
     ".agents/skills": {
       "max_description_chars": 220,
       "max_skill_md_bytes": 20000,
-      "max_skill_md_lines": 500,
-      "require_openai_yaml": true
-    },
-    ".claude/skills": {
-      "max_description_chars": 220,
-      "max_skill_md_bytes": 1024
-    },
-    ".github/skills": {
-      "max_description_chars": 220,
-      "max_skill_md_bytes": 4096
+      "max_skill_md_lines": 500
     },
     "chaos-engine/skills": {
       "max_description_chars": 220,
@@ -256,7 +207,6 @@
     "CLAUDE.md",
     "CONTRIBUTING.md",
     ".agents/skills/README.md",
-    ".agents/skills/*/SKILL.md",
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/skills/local-coding-delegate/SKILL.md",
     "chaos-engine/skills/omniroute/SKILL.md",
@@ -265,12 +215,8 @@
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",
-    ".claude/agents/*.md",
-    ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
-    ".github/skills/README.md",
-    ".github/skills/*/SKILL.md",
     ".github/pull_request_template.md"
   ],
   "scope_files": [
@@ -278,9 +224,6 @@
     ".github/instructions/java-tests.instructions.md"
   ],
   "skills_roots": [
-    ".agents/skills",
-    ".claude/skills",
-    ".github/skills",
     "chaos-engine/skills"
   ],
   "duplicate_paragraph_min_chars": 180,

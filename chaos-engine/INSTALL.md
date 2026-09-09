@@ -15,10 +15,16 @@ agents. This page is the installation reference. See [`README.md`](README.md) fo
 
 | Path | Kind | Who reads it |
 | --- | --- | --- |
-| `chaos-engine/` | Source (origin tracks) | Installer, pack, humans |
-| generated overlay tree | Generated overlay | Hosts, doctor, tool.py |
-| generated host adapter dirs | Generated host adapters | The named host |
-| generated plugin payloads | Generated plugin payloads | Host plugin loaders |
+| <code>chaos-engine/</code> | Source (origin tracks) | Installer, pack, humans |
+| <code>.chaos-engine/</code> | Generated overlay | Hosts, doctor, tool.py |
+| <code>.agents/</code> | Generated host adapters | Codex |
+| <code>.claude/</code> | Generated host adapters | Claude |
+| <code>.codex/</code> | Generated host adapters | Codex |
+| <code>.gemini/</code> | Generated host adapters | Gemini |
+| <code>.grok/</code> | Generated host adapters | Grok |
+| <code>.github/skills/</code> | Generated host adapters | Copilot |
+| <code>plugins/chaos-engine/</code> | Generated plugin payloads | Host plugin loaders |
+| <code>AGENTS.md</code> <code>CLAUDE.md</code> <code>GEMINI.md</code> | Origin files plus generated markers | Every host |
 | `.mcp.json` CE merge | Generated | Host MCP clients |
 | Marker blocks in `AGENTS.md` `CLAUDE.md` `GEMINI.md` `.github/copilot-instructions.md` | Generated pointers | Every host |
 
