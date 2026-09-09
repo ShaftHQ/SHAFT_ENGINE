@@ -1939,6 +1939,50 @@ def instruction_block(tree: str = ".chaos-engine") -> str:
     )
 
 
+def selected_profile_name(project: Path | None, tree: str) -> str | None:
+    """Return the non-portable profile directory name when exactly one exists."""
+    if project is None:
+        return None
+    profiles = project / tree / "profiles"
+    if not profiles.is_dir():
+        return None
+    names = sorted(
+        path.name
+        for path in profiles.iterdir()
+        if path.is_dir()
+        and path.name != "portable"
+        and (path / "entrypoint.md").is_file()
+    )
+    if len(names) == 1:
+        return names[0]
+    return None
+
+
+def skill_adapter_bytes(tree: str, *, profile: str | None = None) -> bytes:
+    """Generated host skill pointer. Never embeds the router contract body."""
+    canonical = f"../../../{tree}/skills/chaos-engine/SKILL.md"
+    if profile:
+        return (
+            "---\n"
+            "name: chaos-engine\n"
+            "description: Load the canonical ChaosEngine policy and this "
+            "repository's selected project profile before every task.\n"
+            "---\n\n"
+            f"Follow the [canonical portable entrypoint]({canonical}),\n"
+            f"review the [profiles catalog](../../../{tree}/profiles/README.md), then\n"
+            f"load the [selected project profile](../../../{tree}/profiles/{profile}/entrypoint.md).\n"
+            "The [repository harness map](../README.md) inventories every local adapter and\n"
+            "enforcement surface.\n"
+        ).encode()
+    return (
+        "---\n"
+        "name: chaos-engine\n"
+        "description: Load the canonical installed ChaosEngine before every task.\n"
+        "---\n\n"
+        f"Follow the [canonical ChaosEngine]({canonical}).\n"
+    ).encode()
+
+
 INSTRUCTION = instruction_block(".chaos-engine")
 GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
 GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
@@ -4222,11 +4266,15 @@ def desired_content(
         managed_node = Path(node)
     adapters = managed_paths()[:4]
     tree = guidance_tree(project)
-    skill = (
-        "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
-        f"Follow the [canonical ChaosEngine](../../../{tree}/skills/chaos-engine/SKILL.md).\n"
-    ).encode()
-    after = {relative: skill for relative in adapters}
+    profile = selected_profile_name(project, tree)
+    after = {
+        relative: skill_adapter_bytes(tree, profile=None) for relative in adapters
+    }
+    if profile:
+        # Codex discovers `.agents/skills`; keep the selected profile pointer there.
+        after[".agents/skills/chaos-engine/SKILL.md"] = skill_adapter_bytes(
+            tree, profile=profile
+        )
     stub_readme = (
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
@@ -4238,10 +4286,6 @@ def desired_content(
     after[".agents/skills/README.md"] = (
         before.get(".agents/skills/README.md") or stub_readme
     )
-    if before.get(".agents/skills/chaos-engine/SKILL.md") is not None:
-        after[".agents/skills/chaos-engine/SKILL.md"] = before[
-            ".agents/skills/chaos-engine/SKILL.md"
-        ]  # type: ignore[assignment]
     plugin_entry = {
         "name": "chaos-engine",
         "source": {"source": "local", "path": "./plugins/chaos-engine"},
@@ -5458,11 +5502,26 @@ def known_legacy_guard(project: Path, current: bytes) -> bool:
 def role_adapter_desired(relative: str) -> bytes | None:
     """Return the candidate fully-owned role adapter bytes for one managed path."""
     roles = {
-        "orchestrator": "Own planning, architecture, synthesis, and final verification.",
-        "implementer": "Implement one bounded specification before consolidated validation.",
-        "reviewer": "Perform an independent read-only adversarial review; never edit.",
-        "tester": "Reproduce behavior and produce regression and acceptance evidence.",
-        "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
+        "orchestrator": (
+            "Orchestrator",
+            "Own planning, architecture, synthesis, and final verification.",
+        ),
+        "implementer": (
+            "Implementer",
+            "Implement one bounded specification before consolidated validation.",
+        ),
+        "reviewer": (
+            "Reviewer",
+            "Perform an independent read-only adversarial review; never edit.",
+        ),
+        "tester": (
+            "Tester",
+            "Reproduce behavior and produce regression and acceptance evidence.",
+        ),
+        "mechanical-helper": (
+            "Mechanical helper",
+            "Perform deterministic reversible spec-exact work; stop on ambiguity.",
+        ),
     }
     match = re.fullmatch(
         r"\.(claude|codex)/agents/chaos-engine-([a-z-]+)\.(md|toml)", relative
@@ -5470,17 +5529,19 @@ def role_adapter_desired(relative: str) -> bytes | None:
     if match is None:
         return None
     host, role, kind = match.groups()
-    responsibility = roles.get(role)
-    if responsibility is None:
+    named = roles.get(role)
+    if named is None:
         return None
+    title, responsibility = named
     process_owner = (
         " In orchestrated mode also load `.chaos-engine/references/process-owner-scrum-master.md`."
         if role == "orchestrator"
         else ""
     )
     body = (
-        f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow "
-        f"`.chaos-engine/references/roles.md#{role}`.{process_owner} {responsibility}"
+        f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow the "
+        f"{title} role at `.chaos-engine/references/roles.md#{role}`."
+        f"{process_owner} {responsibility}"
     )
     if host == "claude" and kind == "md":
         tools = (

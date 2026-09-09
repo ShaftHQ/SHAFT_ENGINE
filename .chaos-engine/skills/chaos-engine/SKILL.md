@@ -55,7 +55,7 @@ Retrieval depth reads off the same answer. Load
 [retrieve-first](../../references/retrieve-first.md) before broad manual discovery
 when a store can shorten the task, and at completion to keep the stores from
 drifting. Bound tool reads and prefer one script over a long tool chain:
-[context economy](../../references/context-economy.md) and
+[context economy](../../references/context-economy.md) / [token budget modes](../../references/token-budget-modes.md) and
 [script first](../../references/script-first.md).
 When this entrypoint was loaded through a role adapter, load
 [retrieve-first](../../references/retrieve-first.md) before task-specific discovery,
@@ -65,7 +65,11 @@ including one-file reversible work.
 
 Load the [research receipt](../../references/research-receipt.md) before the
 first implementation mutation. Mechanical one-file reversible work names its
-eight steps, then records store irrelevance without querying.
+eight steps, then records store irrelevance without querying. For research or
+multi-file explore, apply the [context firewall](../../references/context-firewall.md):
+spawn an isolated subagent/Task when the host supports it; return
+`filepath:line` citations and a distillate only — never raw transcripts.
+**Reject** always-on Task Observer.
 
 ## Red flags
 
@@ -137,23 +141,24 @@ For the short decision procedure and boundary cases, load
 
 This file is the only router. It does not restate companion rules.
 
-Load both companion skills at the start of every task, on every host, in every
-main thread and delegate. [Lifecycle hooks](../../references/lifecycle-hooks.md)
-inject compact canonical file locators; read each referenced vendor `SKILL.md`
-before responding. Do not inject full skill bodies into startup context. A host
-that ignores SessionStart output still owes this load through the entrypoint.
+Must not load companion skill bodies by default. [Lifecycle hooks](../../references/lifecycle-hooks.md)
+inject compact file locators at SessionStart; load a companion `SKILL.md` only
+when that skill is invoked or intensity must be applied. Do not inject full
+skill bodies into startup context. A host that ignores SessionStart output
+still owes companion intensity through this entrypoint's catalog row and
+selectors, not by inlining vendor text.
 
 ChaosEngine selects **ultra** for both companions. That intensity is mandated
 here, not a session preference. Vendor tables still define what ultra means.
 Off only: `stop caveman`, `stop ponytail`, or `normal mode`. Lite or full only
 when the user names that level.
 
-Once loaded, each companion's own text applies. Chat follows Caveman. What you
-build follows Ponytail. Host or adapter prose and formatting that demand
-complete sentences, restating tool work, decorative tables, essays, or
-natural-prose filler yield to the companions. Safety warnings, irreversible
-confirmations, ethical conduct, and persisted artifacts stay as those vendor
-files already carve out.
+Once a companion body is loaded, that companion's own text applies. Chat
+follows Caveman. What you build follows Ponytail. Host or adapter prose and
+formatting that demand complete sentences, restating tool work, decorative
+tables, essays, or natural-prose filler yield to the companions. Safety
+warnings, irreversible confirmations, ethical conduct, and persisted artifacts
+stay as those vendor files already carve out.
 
 ### Harness portability
 
@@ -162,8 +167,8 @@ config — is provider-agnostic and works through every supported host adapter.
 A host-only file is a thin adapter and never owns policy. Refuse a change that
 works through one adapter and silently no-ops the others.
 
-- [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/INVENTORY.md)
-- [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/INVENTORY.md)
+Copilot cloud and IDE are static surfaces of the Copilot CLI policy: same
+instruction pointer, no extra body ([hook trigger map](../../references/hook-trigger-map.md)).
 
 ### Consolidated validation
 
@@ -195,10 +200,26 @@ surface that owns it. The entrypoint makes that choice; callers do not bypass it
 by invoking a playbook directly. Load one surface, finish its deliverable, then
 return here for the next.
 
+| Route | Use when | Load |
+| --- | --- | --- |
+| Zero-LLM first | Before chat discovery for install/doctor/repair | [zero-llm-catalog](../../references/zero-llm-catalog.md) |
+| Heal | Drifted install, wiped runtime, unhealthy doctor | [heal-route](../../references/heal-route.md) (file path; no plugin required) |
+| Level-1 catalog | Need a secondary skill/tool beyond this router | [level-1-catalog](../../references/level-1-catalog.md) |
+| Context firewall | Research / multi-file explore needs isolation | [context-firewall](../../references/context-firewall.md) |
+| Meta-optimize | Periodic offline shared-log review (not continuous) | [meta-optimize](../../references/meta-optimize.md) |
+| Draft skill PR | Opt-in eval-gated draft skill PRs; default OFF | [draft-skill-pr](../../references/draft-skill-pr.md) |
+| Token budget | Triage or env selects ultra-lean / balanced / deep | [token-budget-modes](../../references/token-budget-modes.md) |
+| Eliminate waste | Token optimization: drop hops that do not change the next decision | [eliminate-waste](../../references/eliminate-waste.md) |
+| No proxy | Never install a traffic proxy | [no-proxy](../../references/no-proxy.md) |
+| GAP-EXIT2 UX | Grok/Copilot may not honor exit-2 hard blocks | [host-parity-matrix](../../references/host-parity-matrix.md) checklist |
+
 Routing also orders applicable knowledge retrieval before broad manual
 discovery. One bounded attempt is enough; never retry, repair, refresh, mine,
 checkpoint, poll, or watch a store for an ordinary task, and never treat an
 index as authority over a live file.
+
+Prefer the Zero-LLM / Heal rows before opening host chat for recovery. Iron-law
+Route: doctor and `repair --component` catalog entries beat discovery chat.
 
 The repository skills map at `.agents/skills/README.md` inventories every
 harness surface, adapter, hook, script and check, including the lifecycle guard
@@ -213,7 +234,11 @@ Select exactly one mode from [execution workflows](../../references/execution-wo
 the sole owner of workflow names, selection, switching, capacity fallback, and
 writer limits. Use optional local transport only through the
 [OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens or
-disables the canonical workflows.
+disables the canonical workflows. FreeToken is an optional loopback probe via
+[the FreeToken skill](../freetoken/SKILL.md): a private local-weights server on
+`127.0.0.1:1919`, not a replacement for OmniRoute, not a proxy, and not a
+workflow owner. Missing FreeToken never weakens or disables the canonical
+workflows.
 
 When orchestrating, load
 [process-owner / Scrum-master](../../references/process-owner-scrum-master.md).
@@ -256,15 +281,48 @@ third repeated fix without a receipt; terminal reflection after one hour.
 ## Learning Session
 
 After confirmed delivery and any terminal reflection, run exactly one root-owned
-Learning Session immediately before the final report. Never start it from a
-commit, guard refusal, failed diagnostic, delegate stop, or intermediate push. Run the
+Learning Session immediately before the final report. Portable Stop /
+delivery-complete hooks enforce this on every supported host — including when
+`chaos-engine/` files were untouched. Load
+[self-improve](../self-improve/SKILL.md) for the dual-track harness + product
+protocol. Never start it from a
+commit, guard refusal, failed diagnostic, delegate stop, or intermediate push.
+Unchanged ChaosEngine sources are not a valid skip. Report
+`harness queued N / product queued N / nothing durable`. Run the
 [learned-lessons workflow](../../references/work-github-playbook.md#learned-lessons-workflow).
 Scan the session for failures, traps, and guard blocks. Route each learning
 once: native Memory, MemPalace, Graphify, guidance, or a new GitHub issue after
-duplicate search. Prefer a smaller discriminating observation. Self-development
+duplicate search via `learning.py` (submit confirmed candidates as issues, not
+queue-only). Prefer a smaller discriminating observation. Self-development
 has no cap. Nothing durable is a valid result. Search before writing.
 
+Harness parity: lasting behavior and policy must live in the portable
+ChaosEngine overlay (hooks, skills, installer/doctor, host guidance adapters),
+never only in one agent's memory or routines.
+
 Gambaru.
+
+## Catalog
+
+Router rows only (name, one-line description, path). Load a body on demand.
+Slash-only skills stay listed. Descriptions stay short so host listing caps
+(Claude ~1536 chars/entry; Codex 2% or 8000 chars) do not drop a row.
+
+| name | description | path |
+| --- | --- | --- |
+| chaos-engine | Canonical provider-neutral skill router and working contract. | `skills/chaos-engine/SKILL.md` |
+| work-item | Open or rewrite a work item on any git-based SCM. | `skills/work-item/SKILL.md` |
+| self-improve | Learning Session dual-track harness and product lessons. | `skills/self-improve/SKILL.md` |
+| omniroute | Optional local OmniRoute dispatch for bounded implementation. | `skills/omniroute/SKILL.md` |
+| freetoken | Optional local FreeToken process for bounded implementation. | `skills/freetoken/SKILL.md` |
+| local-coding-delegate | Optional local coding loop as mechanical or default delegate. | `skills/local-coding-delegate/SKILL.md` |
+| caveman | Ultra-compressed chat style; intensity ultra unless stopped. | `vendor/caveman/skills/caveman/SKILL.md` |
+| ponytail | Laziest solution that works; intensity ultra unless stopped. | `vendor/ponytail/skills/ponytail/SKILL.md` |
+| orchestrator | Plan, architecture, synthesis, and final verification. | `references/roles.md#orchestrator` |
+| implementer | One bounded specification before consolidated validation. | `references/roles.md#implementer` |
+| reviewer | Independent read-only adversarial review; never edit. | `references/roles.md#reviewer` |
+| tester | Reproduce behavior; regression and acceptance evidence. | `references/roles.md#tester` |
+| mechanical-helper | Deterministic reversible spec-exact work; stop on ambiguity. | `references/roles.md#mechanical-helper` |
 
 The portable distribution's [human overview](../../README.md) uses the
 deterministic light, dark, monochrome, lockup, and small-size identity masters

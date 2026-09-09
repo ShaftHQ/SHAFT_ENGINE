@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/constraints/host-parity-one-router-cli-owned-mcp-project-mode-caveman.md",
+  "created_at": "2026-09-09T12:25:47+03:00",
+  "evidence": [
+    "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5698",
+    "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5701"
+  ],
+  "id": "constraint.host-parity-one-router-cli-owned-mcp-project-mode-caveman",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Host parity one router, CLI-owned MCP, project-mode Caveman"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "host-parity",
+    "cli-over-mcp",
+    "caveman",
+    "permanent"
+  ],
+  "title": "Host parity: one router, CLI-owned MCP, project-mode Caveman",
+  "type": "constraint",
+  "updated_at": "2026-09-09T12:25:47+03:00",
+  "content_hash": "sha256:8623d49f17a55390180b3c0d55f8c4ad29d5c6d1e2b711b4091d49d9ce52dc17"
+}

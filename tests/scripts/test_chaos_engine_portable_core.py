@@ -347,13 +347,12 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         lowered = skill.casefold()
 
-        self.assertIn("Load both companion skills at the start of every task", skill)
+        self.assertIn("must not load companion skill bodies by default", lowered)
         self.assertIn("selects **ultra**", lowered)
         self.assertNotIn("Default intensity remains each companion's own", skill)
         self.assertIn("yield to the companions", lowered)
         compact_hooks = " ".join(hooks.casefold().split())
         self.assertIn("apply companions through entrypoint load", compact_hooks)
-        self.assertNotIn("load on invoke", lowered)
         self.assertNotIn("Keep prose natural", agents)
         self.assertIn("Caveman", agents)
 

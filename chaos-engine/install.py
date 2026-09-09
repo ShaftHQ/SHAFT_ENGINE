@@ -2875,6 +2875,7 @@ def _tracing_dependency_runner(reporter, runner):
             try:
                 reporter.trace(f"run {_safe_command_trace_line(command)}")
             except Exception:
+                # Tracing must never fail the dependency command itself.
                 pass
         return runner(*args, **kwargs)
 
@@ -4021,14 +4022,21 @@ def doctor_with_dependencies(
             if _spec is not None and _spec.loader is not None:
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
-                error = _mod.uniqueness_error(
-                    _mod.collect_server_ids(project.resolve())
-                )
+                server_ids = _mod.collect_server_ids(project.resolve())
+                error = _mod.uniqueness_error(server_ids)
                 if error and isinstance(components.get("mcps"), dict):
                     result["status"] = "recovery-required"
                     components["mcps"]["status"] = "recovery-required"
                     components["mcps"]["detail"] = error
                     components["mcps"]["fixNext"] = _mod.HEAL_PROMPT
+                conflict = _mod.user_instruction_conflict_error(project.resolve())
+                if conflict and isinstance(components.get("hosts"), dict):
+                    result["status"] = "recovery-required"
+                    components["hosts"]["status"] = "recovery-required"
+                    components["hosts"]["detail"] = conflict
+                    components["hosts"]["fixNext"] = (
+                        "Remove duplicate ChaosEngine instruction from user/machine host config."
+                    )
         match_path = Path(__file__).resolve().with_name("overlay_match.py")
         if match_path.is_file() and isinstance(components, dict):
             _spec = _ilu.spec_from_file_location("ce_overlay_match_doctor", match_path)

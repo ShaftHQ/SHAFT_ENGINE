@@ -1232,25 +1232,16 @@ class ConsultGateTest(unittest.TestCase):
         self.assertIn("when dependencies, components, state, or workflows", content)
         self.assertIn("never ask a question the repository", content)
 
-    def test_companions_load_by_default_on_every_task(self):
+    def test_companions_are_cataloged_not_body_loaded_by_default(self):
         sections = headed_sections(ENTRYPOINT.read_text(encoding="utf-8"), "companions")
         self.assertEqual(len(sections), 1, "entrypoint needs exactly one Companions section")
         companions = re.sub(r"\s+", " ", sections[0]).lower()
-        for required in (
-            "start of every task",
-            "every host",
-            "every main thread and delegate",
-        ):
-            self.assertIn(required, companions)
+        self.assertIn("must not load companion skill bodies by default", companions)
+        self.assertIn("ultra", companions)
         entrypoint = compact(ENTRYPOINT)
-        self.assertNotIn("do not auto-load both", entrypoint)
-        self.assertNotIn("only when it changes the next action", entrypoint)
-        install = compact(ROOT / "chaos-engine/INSTALL.md")
-        self.assertIn("load by default", install)
-        self.assertNotIn("only when invoked", install)
-        inventory = compact(ROOT / ".agents/skills/README.md")
-        self.assertNotIn("only when the user invokes them", inventory)
-        self.assertNotIn("the next action needs that companion", inventory)
+        self.assertIn("## catalog", entrypoint)
+        self.assertIn("| caveman |", ENTRYPOINT.read_text(encoding="utf-8").casefold())
+        self.assertIn("| ponytail |", ENTRYPOINT.read_text(encoding="utf-8").casefold())
 
     def test_caveman_preserves_exact_meaning_before_compression(self):
         content = compact(VENDOR_CAVEMAN)
@@ -1543,7 +1534,7 @@ class HostParityTest(unittest.TestCase):
                 targets = local_links(adapter)
                 self.assertTrue(targets, "adapter must link its canonical body")
                 resolved = (adapter.parent / targets[0]).resolve()
-                expected = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+                expected = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
                 self.assertEqual(resolved, expected.resolve())
 
     def role_headings(self) -> set[str]:

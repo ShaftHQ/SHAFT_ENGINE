@@ -12,6 +12,8 @@ Companion wording is not restated here. SessionStart injects compact locators
 for vendor [Caveman](../vendor/caveman/skills/caveman/SKILL.md) and
 [Ponytail](../vendor/ponytail/skills/ponytail/SKILL.md); agent reads companion files.
 Post-delivery [self-improve](../skills/self-improve/SKILL.md) is locator-only at SessionStart.
+Per-event host and enforce/guide mode live in the
+[hook trigger map](hook-trigger-map.md).
 
 ## Required events
 

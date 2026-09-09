@@ -149,6 +149,7 @@ sends you there; the rest by
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
 - [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
 - [lifecycle hooks](../../chaos-engine/references/lifecycle-hooks.md)
+- [hook trigger map](../../chaos-engine/references/hook-trigger-map.md)
 - [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
 - [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
 - [work item](../../chaos-engine/references/work-item.md)

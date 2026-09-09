@@ -4,4 +4,4 @@ description: Perform deterministic reversible spec-exact work; stop on ambiguity
 tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 
-Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow `.chaos-engine/references/roles.md#mechanical-helper`. Perform deterministic reversible spec-exact work; stop on ambiguity.
+Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow the Mechanical helper role at `.chaos-engine/references/roles.md#mechanical-helper`. Perform deterministic reversible spec-exact work; stop on ambiguity.

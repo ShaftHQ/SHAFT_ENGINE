@@ -141,23 +141,24 @@ For the short decision procedure and boundary cases, load
 
 This file is the only router. It does not restate companion rules.
 
-Load both companion skills at the start of every task, on every host, in every
-main thread and delegate. [Lifecycle hooks](../../references/lifecycle-hooks.md)
-inject compact canonical file locators; read each referenced vendor `SKILL.md`
-before responding. Do not inject full skill bodies into startup context. A host
-that ignores SessionStart output still owes this load through the entrypoint.
+Must not load companion skill bodies by default. [Lifecycle hooks](../../references/lifecycle-hooks.md)
+inject compact file locators at SessionStart; load a companion `SKILL.md` only
+when that skill is invoked or intensity must be applied. Do not inject full
+skill bodies into startup context. A host that ignores SessionStart output
+still owes companion intensity through this entrypoint's catalog row and
+selectors, not by inlining vendor text.
 
 ChaosEngine selects **ultra** for both companions. That intensity is mandated
 here, not a session preference. Vendor tables still define what ultra means.
 Off only: `stop caveman`, `stop ponytail`, or `normal mode`. Lite or full only
 when the user names that level.
 
-Once loaded, each companion's own text applies. Chat follows Caveman. What you
-build follows Ponytail. Host or adapter prose and formatting that demand
-complete sentences, restating tool work, decorative tables, essays, or
-natural-prose filler yield to the companions. Safety warnings, irreversible
-confirmations, ethical conduct, and persisted artifacts stay as those vendor
-files already carve out.
+Once a companion body is loaded, that companion's own text applies. Chat
+follows Caveman. What you build follows Ponytail. Host or adapter prose and
+formatting that demand complete sentences, restating tool work, decorative
+tables, essays, or natural-prose filler yield to the companions. Safety
+warnings, irreversible confirmations, ethical conduct, and persisted artifacts
+stay as those vendor files already carve out.
 
 ### Harness portability
 
@@ -166,8 +167,8 @@ config — is provider-agnostic and works through every supported host adapter.
 A host-only file is a thin adapter and never owns policy. Refuse a change that
 works through one adapter and silently no-ops the others.
 
-- [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/INVENTORY.md)
-- [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/INVENTORY.md)
+Copilot cloud and IDE are static surfaces of the Copilot CLI policy: same
+instruction pointer, no extra body ([hook trigger map](../../references/hook-trigger-map.md)).
 
 ### Consolidated validation
 
@@ -300,6 +301,28 @@ ChaosEngine overlay (hooks, skills, installer/doctor, host guidance adapters),
 never only in one agent's memory or routines.
 
 Gambaru.
+
+## Catalog
+
+Router rows only (name, one-line description, path). Load a body on demand.
+Slash-only skills stay listed. Descriptions stay short so host listing caps
+(Claude ~1536 chars/entry; Codex 2% or 8000 chars) do not drop a row.
+
+| name | description | path |
+| --- | --- | --- |
+| chaos-engine | Canonical provider-neutral skill router and working contract. | `skills/chaos-engine/SKILL.md` |
+| work-item | Open or rewrite a work item on any git-based SCM. | `skills/work-item/SKILL.md` |
+| self-improve | Learning Session dual-track harness and product lessons. | `skills/self-improve/SKILL.md` |
+| omniroute | Optional local OmniRoute dispatch for bounded implementation. | `skills/omniroute/SKILL.md` |
+| freetoken | Optional local FreeToken process for bounded implementation. | `skills/freetoken/SKILL.md` |
+| local-coding-delegate | Optional local coding loop as mechanical or default delegate. | `skills/local-coding-delegate/SKILL.md` |
+| caveman | Ultra-compressed chat style; intensity ultra unless stopped. | `vendor/caveman/skills/caveman/SKILL.md` |
+| ponytail | Laziest solution that works; intensity ultra unless stopped. | `vendor/ponytail/skills/ponytail/SKILL.md` |
+| orchestrator | Plan, architecture, synthesis, and final verification. | `references/roles.md#orchestrator` |
+| implementer | One bounded specification before consolidated validation. | `references/roles.md#implementer` |
+| reviewer | Independent read-only adversarial review; never edit. | `references/roles.md#reviewer` |
+| tester | Reproduce behavior; regression and acceptance evidence. | `references/roles.md#tester` |
+| mechanical-helper | Deterministic reversible spec-exact work; stop on ambiguity. | `references/roles.md#mechanical-helper` |
 
 The portable distribution's [human overview](../../README.md) uses the
 deterministic light, dark, monochrome, lockup, and small-size identity masters
