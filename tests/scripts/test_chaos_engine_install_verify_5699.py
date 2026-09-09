@@ -158,6 +158,9 @@ class InstallVerifyHealth5699Tests(unittest.TestCase):
             )
             self.assertEqual(POLICY.HEAL_PROMPT, mcps["hostEnvironment"]["fixNext"])
             self.assertFalse(BOOTSTRAP._required_install_unhealthy(doctor))
+            rendered = INSTALL.format_health_report(doctor, kind="doctor")
+            self.assertIn("hostEnvironment", rendered)
+            self.assertIn(POLICY.HEAL_PROMPT, rendered)
             self.assertTrue((project / ".chaos-engine/hooks/guard.py").is_file())
             self.assertTrue((project / ".mcp.json").is_file())
 

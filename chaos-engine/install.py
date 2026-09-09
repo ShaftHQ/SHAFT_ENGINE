@@ -4916,6 +4916,40 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
     return lines
 
 
+def format_host_environment_findings(document: dict[str, object]) -> list[str]:
+    """Surface install-owned-healthy host-environment advisories (#5699)."""
+    lines: list[str] = []
+    components = document.get("components")
+    if not isinstance(components, dict):
+        return lines
+    for name in sorted(str(item) for item in components):
+        item = components[name]
+        if not isinstance(item, dict):
+            continue
+        finding = item.get("hostEnvironment")
+        if not isinstance(finding, dict):
+            continue
+        if finding.get("status") not in {"sync-advisory", "compatible-legacy", "degraded"}:
+            continue
+        detail = finding.get("detail")
+        fix = finding.get("fixNext")
+        detail_text = detail if isinstance(detail, str) and detail.strip() else "advisory"
+        lines.append(f"[info] {name}/hostEnvironment — {detail_text}")
+        if isinstance(fix, str) and fix.strip():
+            lines.append(f"  fix-next: {fix.strip()}")
+    hosts = document.get("hosts")
+    if isinstance(hosts, dict):
+        finding = hosts.get("hostEnvironment")
+        if isinstance(finding, dict) and finding.get("status") == "sync-advisory":
+            detail = finding.get("detail")
+            fix = finding.get("fixNext")
+            detail_text = detail if isinstance(detail, str) and detail.strip() else "advisory"
+            lines.append(f"[info] hosts/hostEnvironment — {detail_text}")
+            if isinstance(fix, str) and fix.strip():
+                lines.append(f"  fix-next: {fix.strip()}")
+    return lines
+
+
 
 def format_fix_next_only(document: dict[str, object]) -> str:
     """Emit only actionable fix-next lines for unhealthy components (#5582)."""
@@ -4963,13 +4997,21 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
     ]
     if total:
         lines.append(f"components: {healthy}/{total} healthy")
+    advisories = format_host_environment_findings(document)
+    advisory_count = sum(1 for line in advisories if line.startswith("[info]"))
     if not failures:
-        # Keep the happy path short for first-time users.
+        # Keep the happy path short; still show host-environment advisories (#5699).
+        if advisories:
+            lines.append(f"issues: {advisory_count} info")
+            lines.append("")
+            lines.extend(advisories)
         lines.extend(format_blocking_fidelity_warnings(document))
         return "\n".join(lines) + "\n"
     counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for _name, _item, severity in failures:
         counts[severity] = counts.get(severity, 0) + 1
+    if advisory_count:
+        counts["info"] = counts.get("info", 0) + advisory_count
     summary = ", ".join(
         f"{counts[key]} {key}" for key in ("error", "warning", "info") if counts.get(key)
     )
@@ -4985,6 +5027,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         fix = component_fix_next(name, item)
         if fix:
             lines.append(f"  fix-next: {fix}")
+    lines.extend(advisories)
     lines.extend(format_blocking_fidelity_warnings(document))
     return "\n".join(lines) + "\n"
 
