@@ -2676,8 +2676,13 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         existing = hosts.discover_maven_tools_runtime()
         if existing is not None and hosts.probe_maven_tools_runtime(*existing):
             return existing
+    elif cache_status["status"] == "busy":
+        raise RuntimeError("Maven Tools MCP cache is busy")
     elif cache_status["status"] != "absent":
-        raise ValueError("Maven Tools MCP cache is invalid")
+        discard = getattr(hosts, "discard_invalid_maven_tools_cache", None)
+        if not callable(discard):
+            raise ValueError("Maven Tools MCP cache is invalid")
+        discard(version)
     java_candidates = []
     configured = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")

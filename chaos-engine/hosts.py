@@ -2431,6 +2431,105 @@ def purge_maven_tools_cache(
         return {**observed, "status": "purged"}
 
 
+def _path_is_under(path: Path, root: Path) -> bool:
+    try:
+        path.absolute().relative_to(root.absolute())
+    except ValueError:
+        return False
+    return True
+
+
+def _discard_tree_nofollow(path: Path, cache_root: Path) -> None:
+    """Remove a cache subtree without following links out of the cache root."""
+    path = path.absolute()
+    cache_root = cache_root.absolute()
+    if not _path_is_under(path, cache_root):
+        raise ValueError("Maven Tools MCP discard path escapes cache root")
+    if is_link_or_reparse(path):
+        path.unlink()
+        return
+    if path.is_file() or path.is_symlink():
+        path.unlink()
+        return
+    if not path.is_dir():
+        return
+    for child in list(path.iterdir()):
+        if not _path_is_under(child, cache_root):
+            raise ValueError("Maven Tools MCP discard path escapes cache root")
+        if is_link_or_reparse(child):
+            child.unlink()
+        elif child.is_dir():
+            _discard_tree_nofollow(child, cache_root)
+        else:
+            child.unlink()
+    path.rmdir()
+
+
+def discard_invalid_maven_tools_cache(
+    version: str, *, root: Path | None = None
+) -> dict[str, str]:
+    """Discard an invalid Maven Tools version tree so install can rebuild it.
+
+    Healthy trees stay purge-only via purge_maven_tools_cache. Never follows
+    links out of the cache root: linked leaves are unlinked in place.
+    """
+    cache_root = (root or maven_tools_cache_root()).absolute()
+    anchor = _cache_anchor(cache_root)
+    version_root = _maven_tools_version_directory(cache_root, version)
+    result = {
+        "component": "maven-tools-mcp",
+        "version": version,
+        "path": str(version_root),
+    }
+    if not cache_root.exists() and not is_link_or_reparse(cache_root):
+        return {**result, "status": "absent"}
+    with maven_tools_cache_lock(cache_root, anchor=anchor):
+        _validate_cache_path(cache_root, anchor)
+        try:
+            observed = _maven_tools_cache_status_unlocked(
+                cache_root, version, anchor=anchor
+            )
+        except ValueError:
+            # Linked version leaves fail path validation; still discardable in place.
+            if is_link_or_reparse(version_root) and _path_is_under(
+                version_root, cache_root
+            ):
+                observed = {
+                    **result,
+                    "status": "invalid",
+                    "reason": "cache path is linked or invalid",
+                }
+            else:
+                raise
+        if observed["status"] == "absent":
+            return observed
+        if observed["status"] == "healthy":
+            raise ValueError(
+                "Maven Tools MCP cache discard refused: healthy cache requires purge"
+            )
+        if observed["status"] != "invalid":
+            raise ValueError(
+                f"Maven Tools MCP cache discard refused: {observed.get('status', 'unknown')}"
+            )
+        tombstone = cache_root / f".purging-{version}"
+        for marker in (tombstone, *sorted(cache_root.glob(f".purged-{version}-*"))):
+            if is_link_or_reparse(marker):
+                if not _path_is_under(marker, cache_root):
+                    raise ValueError("Maven Tools MCP discard path escapes cache root")
+                marker.unlink()
+            elif marker.exists():
+                _discard_tree_nofollow(marker, cache_root)
+        if is_link_or_reparse(version_root):
+            if not _path_is_under(version_root, cache_root):
+                raise ValueError("Maven Tools MCP discard path escapes cache root")
+            version_root.unlink()
+        elif version_root.exists():
+            claim = cache_root / f".discarding-{version}-{secrets.token_hex(16)}"
+            _rename_no_replace(version_root, claim)
+            _discard_tree_nofollow(claim, cache_root)
+        return {**observed, "status": "discarded"}
+
+
 def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Path:
     staging = staging.absolute()
     cache_root = (root or maven_tools_cache_root()).absolute()
