@@ -33,39 +33,24 @@ def load(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    assert spec.loader is not None
+    if spec.loader is None:
+        raise ImportError(f"unable to load {path}")
     spec.loader.exec_module(module)
     return module
 
-
-def frontmatter_description(text: str) -> str:
-    match = re.match(r"^---\n(.*?)\n---", text, re.S)
-    if not match:
-        return ""
-    block = match.group(1)
-    desc = re.search(
-        r"^description:\s*(?:>-?\s*)?(.*?)(?=^[\w-]+:|\Z)",
-        block,
-        re.S | re.M,
-    )
-    if not desc:
-        return ""
-    return " ".join(desc.group(1).strip().split())
 
 
 def catalog_rows(skill_text: str) -> dict[str, dict[str, str]]:
     """Parse `| name | description | path |` rows under ## Catalog."""
     section = re.search(r"(?ms)^## Catalog\n(.*?)(?=^## |\Z)", skill_text)
-    assert section, "router missing ## Catalog"
+    if section is None:
+        raise ValueError("router missing ## Catalog")
     rows: dict[str, dict[str, str]] = {}
     for line in section.group(1).splitlines():
-        if not line.startswith("|") or line.startswith("| ---") or "name" in line.lower() and "path" in line.lower():
-            if re.match(r"^\|\s*name\s*\|", line, re.I):
-                continue
-            if line.startswith("| ---"):
-                continue
-            if not line.startswith("|"):
-                continue
+        if not line.startswith("|"):
+            continue
+        if re.match(r"^\|\s*name\s*\|", line, re.I) or line.startswith("| ---"):
+            continue
         parts = [part.strip() for part in line.strip().strip("|").split("|")]
         if len(parts) < 3:
             continue
