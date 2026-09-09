@@ -2875,6 +2875,7 @@ def _tracing_dependency_runner(reporter, runner):
             try:
                 reporter.trace(f"run {_safe_command_trace_line(command)}")
             except Exception:
+                # Tracing must never fail the dependency command itself.
                 pass
         return runner(*args, **kwargs)
 
