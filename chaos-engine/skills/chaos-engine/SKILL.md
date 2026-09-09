@@ -233,7 +233,11 @@ Select exactly one mode from [execution workflows](../../references/execution-wo
 the sole owner of workflow names, selection, switching, capacity fallback, and
 writer limits. Use optional local transport only through the
 [OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens or
-disables the canonical workflows.
+disables the canonical workflows. FreeToken is an optional loopback probe via
+[the FreeToken skill](../freetoken/SKILL.md): a private local-weights server on
+`127.0.0.1:1919`, not a replacement for OmniRoute, not a proxy, and not a
+workflow owner. Missing FreeToken never weakens or disables the canonical
+workflows.
 
 When orchestrating, load
 [process-owner / Scrum-master](../../references/process-owner-scrum-master.md).
