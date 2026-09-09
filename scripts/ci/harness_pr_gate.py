@@ -233,6 +233,15 @@ CHECKS = {
         ("tests.scripts.test_chaos_engine_installer",),
         True,
     ),
+    "installer-ux-contract": Check(
+        "installer-ux-contract",
+        "installer",
+        (
+            "tests.scripts.test_chaos_engine_installer_ux",
+            "tests.scripts.test_chaos_engine_managed_runtimes",
+            "tests.scripts.test_chaos_engine_install_wrappers",
+        ),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -247,7 +256,11 @@ SURFACE_CHECKS = {
     "plugins": ("plugin-contract", "plugin-quality-contract"),
     "retrieval": ("retrieval-contract", "graph-resolver-contract"),
     "ci": ("ci-contract", "setup-aggregator-contract"),
-    "installer": ("protected-installer-acceptance", "protected-rollback"),
+    "installer": (
+        "protected-installer-acceptance",
+        "protected-rollback",
+        "installer-ux-contract",
+    ),
     "documentation": ("documentation-inventory-contract",),
     "accessibility": ("accessibility-contract",),
     "identities": ("identity-contract", "identity-recovery-contract"),
@@ -279,8 +292,10 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_dependencies.py",
         "tests/scripts/test_chaos_engine_generation_runtime.py",
         "tests/scripts/test_chaos_engine_installer.py",
+        "tests/scripts/test_chaos_engine_installer_ux.py",
         "tests/scripts/test_chaos_engine_install_wrappers.py",
         "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
+        "tests/scripts/test_chaos_engine_managed_runtimes.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",
