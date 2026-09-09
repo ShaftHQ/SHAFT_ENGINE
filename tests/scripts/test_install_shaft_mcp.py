@@ -919,7 +919,11 @@ class InstallShaftMcpTest(unittest.TestCase):
         source = MODULE.local_shaft_skills_source()
         marketplace = json.loads((REPO_ROOT / ".claude-plugin" / "marketplace.json")
                                  .read_text(encoding="utf-8"))
-        listed = marketplace["plugins"][0]["skills"]
+        listed = next(
+            plugin["skills"]
+            for plugin in marketplace["plugins"]
+            if plugin.get("name") == "shaft-skills"
+        )
         directories = sorted(
             entry for entry in source.iterdir()
             if entry.is_dir() and entry.name != "references"

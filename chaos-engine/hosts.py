@@ -1995,6 +1995,7 @@ ORIGIN_OVERLAY_PATTERNS = (
     "!.agents/skills/README.md",
     ".claude/",
     ".claude-plugin/",
+    "!.claude-plugin/marketplace.json",
     ".codex/",
     ".gemini/",
     ".grok/hooks/",

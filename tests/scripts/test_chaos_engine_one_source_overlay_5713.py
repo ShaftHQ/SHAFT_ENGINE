@@ -79,6 +79,7 @@ class OneSourceOverlayTests(unittest.TestCase):
             "agent-plugins/chaos-engine/CHANGELOG.md",
             "agent-plugins/chaos-engine/COMPATIBILITY.md",
             ".agents/skills/README.md",
+            ".claude-plugin/marketplace.json",
         }
         self.assertEqual(set(tracked) - allowed, set())
 
