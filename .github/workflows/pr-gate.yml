@@ -169,6 +169,7 @@ jobs:
               - 'tests/scripts/test_agent_plugin_release.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_agent_harness_reachability.py'
+              - 'tests/scripts/test_chaos_engine_one_source_overlay_5713.py'
               - 'tests/scripts/test_omniroute.py'
               - 'tests/scripts/test_omniroute_workflow_contract.py'
               - 'tests/scripts/test_omniroute_orchestrator_docs.py'

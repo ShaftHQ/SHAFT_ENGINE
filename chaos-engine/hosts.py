@@ -1986,8 +1986,66 @@ def skill_adapter_bytes(tree: str, *, profile: str | None = None) -> bytes:
 INSTRUCTION = instruction_block(".chaos-engine")
 GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
 GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
+ORIGIN_OVERLAY_START = "# CHAOSENGINE-ORIGIN-OVERLAY:START"
+ORIGIN_OVERLAY_END = "# CHAOSENGINE-ORIGIN-OVERLAY:END"
+ORIGIN_OVERLAY_PATTERNS = (
+    ".chaos-engine/",
+    ".agents/**",
+    "!.agents/skills/",
+    "!.agents/skills/README.md",
+    ".claude/",
+    ".claude-plugin/",
+    ".codex/",
+    ".gemini/",
+    ".grok/hooks/",
+    ".github/skills/",
+    ".github/hooks/",
+    "plugins/chaos-engine/",
+    "plugins/caveman/",
+    "plugins/ponytail/",
+    "agent-plugins/chaos-engine/",
+    "!agent-plugins/chaos-engine/CHANGELOG.md",
+    "!agent-plugins/chaos-engine/COMPATIBILITY.md",
+)
+MARKER_POLICY_FILES = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
+)
 GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
 GITATTRIBUTES_END = "# CHAOSENGINE-EOL:END"
+
+
+def origin_overlay_gitignore_block() -> str:
+    body = "\n".join(ORIGIN_OVERLAY_PATTERNS)
+    return f"{ORIGIN_OVERLAY_START}\n{body}\n{ORIGIN_OVERLAY_END}\n"
+
+
+def normalize_marker_policy(text: str) -> str:
+    interior = text
+    if START in text and END in text:
+        begin = text.index(START) + len(START)
+        finish = text.index(END, begin)
+        interior = text[begin:finish]
+    compact = " ".join(interior.replace("\r\n", "\n").split())
+    return compact.replace("../.chaos-engine/", ".chaos-engine/")
+
+
+def competing_policy_errors(project: Path) -> list[str]:
+    bodies: dict[str, str] = {}
+    errors: list[str] = []
+    for relative in MARKER_POLICY_FILES:
+        path = project / relative
+        if not path.is_file():
+            continue
+        bodies[relative] = normalize_marker_policy(path.read_text(encoding="utf-8"))
+    unique = set(bodies.values())
+    if len(unique) > 1:
+        errors.append(
+            "competing marker policy text: " + ", ".join(sorted(bodies))
+        )
+    return errors
 
 
 def interpreter(platform_name: str | None = None) -> tuple[str, list[str]]:

@@ -11,6 +11,20 @@
 ChaosEngine is a portable, provider-neutral working contract for software
 agents. This page is the installation reference. See [`README.md`](README.md) for purpose and operating loop, and [`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md) for the always-loaded contract.
 
+## Source vs generated paths
+
+| Path | Kind | Who reads it |
+| --- | --- | --- |
+| `chaos-engine/` | Source (origin tracks) | Installer, pack, humans |
+| `.chaos-engine/` | Generated overlay | Hosts, doctor, `tool.py` |
+| `.agents/` `.claude/` `.codex/` `.gemini/` `.grok/hooks/` `.github/skills/` `.github/hooks/` `.claude-plugin/` | Generated host adapters | The named host |
+| `plugins/chaos-engine/` `plugins/caveman/` `plugins/ponytail/` `agent-plugins/chaos-engine/` | Generated plugin payloads | Host plugin loaders |
+| `.mcp.json` CE merge | Generated | Host MCP clients |
+| Marker blocks in `AGENTS.md` `CLAUDE.md` `GEMINI.md` `.github/copilot-instructions.md` | Generated pointers | Every host |
+
+Adopters track generated harness files. Origin SHAFT_ENGINE ignores them after
+the `# CHAOSENGINE-RUNTIME` block so last-match gitignore wins.
+
 ## Golden path (first run)
 
 1. Change into the project directory you want ChaosEngine to manage.

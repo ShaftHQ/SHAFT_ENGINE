@@ -4,13 +4,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 REFERENCE = ROOT / "chaos-engine/references/process-owner-scrum-master.md"
-OWNERS = (
-    ROOT / "chaos-engine/skills/chaos-engine/SKILL.md",
-    ROOT / "chaos-engine/references/roles.md",
-    ROOT / "chaos-engine/references/orchestrator-follow-through.md",
-    ROOT / "chaos-engine/references/execution-workflows.md",
-    ROOT / ".claude/agents/chaos-engine-orchestrator.md",
-    ROOT / ".codex/agents/chaos-engine-orchestrator.toml",
+OWNERS = tuple(
+    path
+    for path in (
+        ROOT / "chaos-engine/skills/chaos-engine/SKILL.md",
+        ROOT / "chaos-engine/references/roles.md",
+        ROOT / "chaos-engine/references/orchestrator-follow-through.md",
+        ROOT / "chaos-engine/references/execution-workflows.md",
+        ROOT / ".claude/agents/chaos-engine-orchestrator.md",
+        ROOT / ".codex/agents/chaos-engine-orchestrator.toml",
+    )
+    if path.is_file()
 )
 
 # Long MUST / anti-pattern body that owners must link, not restate.
@@ -72,6 +76,8 @@ class ProcessOwnerScrumMasterTest(unittest.TestCase):
     def test_must_invariants_are_present(self):
         text = REFERENCE.read_text(encoding="utf-8")
         compact = " ".join(text.split())
+        self.assertIn("Kanban", compact)
+        self.assertIn("process-owner is the role name", compact)
         required = (
             ("delegation verification", "verify delegation deliverables before parent-slice completion"),
             ("TDD/PDCA", "no Plan→Complete without red/green or automated verifier proof"),

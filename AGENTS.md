@@ -10,7 +10,7 @@ requested goal and affected files.
 ## Canonical policy
 
 Before every task, read and follow
-[ChaosEngine](.agents/skills/chaos-engine/SKILL.md). It is the only router and
+[ChaosEngine](chaos-engine/skills/chaos-engine/SKILL.md). It is the only router and
 working-policy owner. Its selected profile and references own lifecycle hooks,
 roles, capability levels, skills, tools, Caveman, Ponytail, TDD, research,
 memory, task isolation, cleanup, delegation, review, delivery, and completion.

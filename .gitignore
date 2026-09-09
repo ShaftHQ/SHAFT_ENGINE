@@ -347,6 +347,25 @@ plugins/**/__pycache__/
 !.gitattributes
 .chaos-engine-owned-directory
 # CHAOSENGINE-RUNTIME:END
+# CHAOSENGINE-ORIGIN-OVERLAY:START
+.chaos-engine/
+.agents/**
+!.agents/skills/
+!.agents/skills/README.md
+.claude/
+.claude-plugin/
+.codex/
+.gemini/
+.grok/hooks/
+.github/skills/
+.github/hooks/
+plugins/chaos-engine/
+plugins/caveman/
+plugins/ponytail/
+agent-plugins/chaos-engine/
+!agent-plugins/chaos-engine/CHANGELOG.md
+!agent-plugins/chaos-engine/COMPATIBILITY.md
+# CHAOSENGINE-ORIGIN-OVERLAY:END
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml
