@@ -1936,6 +1936,10 @@ module.install_with_dependencies(project, source, "3" * 40)
             with mock.patch.object(
                 hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
             ), mock.patch.object(
+                MODULE, "resolve_managed_python", return_value=None
+            ), mock.patch.object(
+                MODULE, "heal_managed_python", return_value=None
+            ), mock.patch.object(
                 MODULE,
                 "load_installed_controller",
                 side_effect=lambda root, name: (

@@ -913,7 +913,7 @@ class InstallerUxTests(unittest.TestCase):
         self.assertEqual(["chaos-engine-installer.yml"], query["template"])
         self.assertEqual(["Verify installation"], query["failed_phase"])
         self.assertEqual(["memory"], query["unhealthy"])
-        self.assertLessEqual(len(report), 2000)
+        self.assertLessEqual(len(report), 4000)
 
     def test_failure_cause_redacts_local_paths_and_secret_assignments(self):
         private_path = Path(
@@ -962,6 +962,15 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("attach", lowered)
         self.assertIn("install-trace.json", template)
         self.assertIn(".chaos-engine-state/install-trace.json", template)
+        self.assertIn("install-console.log", template)
+        self.assertIn("doctor-failure.json", template)
+        self.assertIn("id: os_name", template)
+        self.assertIn("id: os_version", template)
+        self.assertIn("id: architecture", template)
+        self.assertIn("id: python_version", template)
+        self.assertIn("id: machine", template)
+        self.assertIn("id: console_log", template)
+        self.assertIn("id: doctor_json", template)
         self.assertNotIn("Install trace path", template)
         self.assertNotIn("/Users/", template)
         self.assertNotIn("/home/", template)
@@ -997,6 +1006,72 @@ class InstallerUxTests(unittest.TestCase):
             self.assertIn("attach", output.casefold())
             self.assertNotIn(str(project), query["install_trace"][0])
             self.assertIn("[path]", query["cause"][0])
+
+    def test_failure_prefill_includes_runtime_and_writes_full_logs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            (project / ".chaos-engine-state").mkdir(parents=True)
+            (project / ".chaos-engine-state" / "install-trace.json").write_text(
+                '{"status":"failed"}\n', encoding="utf-8"
+            )
+            error = BOOTSTRAP.InstallHealthError(
+                "Verify installation",
+                {
+                    "status": "recovery-required",
+                    "commit": "a" * 40,
+                    "components": {
+                        "hooks": {
+                            "status": "recovery-required",
+                            "taskImpact": "required",
+                            "detail": "managed-python-missing",
+                            "code": "CE_MANAGED_PYTHON_MISSING",
+                            "fixNext": "repair tools",
+                        },
+                        "mcps": {
+                            "status": "recovery-required",
+                            "taskImpact": "required",
+                            "detail": "managed-python-missing",
+                            "code": "CE_MANAGED_PYTHON_MISSING",
+                            "fixNext": "repair tools",
+                        },
+                    },
+                },
+            )
+            reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
+            reporter.traces.append((1.0, "PASS Download source (00:01)"))
+            stderr = io.StringIO()
+            with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                BOOTSTRAP.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    error,
+                    "owner/repo",
+                    reporter=reporter,
+                    project=project,
+                )
+            output = stderr.getvalue()
+            report = next(
+                line
+                for line in output.splitlines()
+                if line.startswith("https://github.com/owner/repo/issues/new?")
+            )
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(report).query)
+            self.assertTrue(query.get("os_name"))
+            self.assertTrue(query.get("python_version"))
+            self.assertTrue(query.get("architecture"))
+            self.assertTrue(query.get("machine"))
+            self.assertIn("CE_MANAGED_PYTHON_MISSING", query["doctor_details"][0])
+            self.assertLessEqual(len(report), 4000)
+            console = project / ".chaos-engine-state/install-console.log"
+            doctor = project / ".chaos-engine-state/doctor-failure.json"
+            self.assertTrue(console.is_file())
+            self.assertIn("PASS Download source", console.read_text(encoding="utf-8"))
+            payload = json.loads(doctor.read_text(encoding="utf-8"))
+            self.assertEqual(
+                "CE_MANAGED_PYTHON_MISSING",
+                payload["components"]["hooks"]["code"],
+            )
+            self.assertIn("install-console.log", output)
+            self.assertIn("doctor-failure.json", output)
             self.assertNotIn("/private/", query["cause"][0])
 
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):

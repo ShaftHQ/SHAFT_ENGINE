@@ -3778,7 +3778,7 @@ def resolve_managed_python(
     *,
     windows: bool | None = None,
 ) -> Path | None:
-    """Resolve a live MemPalace/account interpreter for hooks and MCP probes (#5680)."""
+    """Resolve generation, account, then installer Python for hooks/MCP probes (#5680/#5703)."""
     nt = os.name == "nt" if windows is None else bool(windows)
     scripts = "Scripts" if nt else "bin"
     names = (
@@ -3817,6 +3817,12 @@ def resolve_managed_python(
                 candidate_python = None
             if candidate_python is not None and candidate_python.is_file():
                 return candidate_python
+    try:
+        installer_python = Path(sys.executable).resolve(strict=True)
+    except (OSError, RuntimeError):
+        installer_python = None
+    if installer_python is not None and installer_python.is_file():
+        return installer_python
     return None
 
 

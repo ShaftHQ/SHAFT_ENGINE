@@ -8,6 +8,8 @@ import json
 import os
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
+import threading
+import time
 import unittest
 import unittest.mock as mock
 import urllib.error
@@ -1097,6 +1099,57 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     if "git/trees" not in url
                 )
             )
+
+    def test_download_source_fetches_selected_blobs_in_parallel(self):
+        module = load()
+        tree = {
+            "truncated": False,
+            "tree": [
+                {
+                    "path": f"chaos-engine/file-{index}.txt",
+                    "type": "blob",
+                    "mode": "100644",
+                    "size": 4,
+                }
+                for index in range(6)
+            ]
+            + [
+                {
+                    "path": "chaos-engine/skills/chaos-engine/SKILL.md",
+                    "type": "blob",
+                    "mode": "100644",
+                    "size": 5,
+                }
+            ],
+        }
+        lock = threading.Lock()
+        in_flight = 0
+        peak = 0
+
+        def opener(request, timeout=0):
+            del timeout
+            url = str(request.full_url if hasattr(request, "full_url") else request)
+            if "git/trees" in url:
+                return Response(json.dumps(tree).encode())
+            nonlocal in_flight, peak
+            with lock:
+                in_flight += 1
+                peak = max(peak, in_flight)
+            time.sleep(0.05)
+            with lock:
+                in_flight -= 1
+            if url.endswith("SKILL.md"):
+                return Response(b"skill")
+            return Response(b"blob")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            source = module.download_source(
+                "owner/repo", COMMIT_ONE, Path(temporary), opener=opener
+            )
+            self.assertTrue((source / "skills/chaos-engine/SKILL.md").is_file())
+            self.assertTrue((source / "file-0.txt").is_file())
+            self.assertGreater(peak, 1)
+            self.assertGreaterEqual(module.DOWNLOAD_WORKERS, 2)
 
     def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")

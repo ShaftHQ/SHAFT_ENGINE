@@ -552,10 +552,17 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_all_hosts_reach_the_same_entrypoint_without_grok_duplication(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+        grok_hooks = (ROOT / ".grok/hooks/lifecycle.json").read_text(encoding="utf-8")
         self.assertIn(".agents/skills/chaos-engine/SKILL.md", agents)
         self.assertIn("@AGENTS.md", claude)
+        self.assertNotIn("graphify query", claude)
+        self.assertNotIn("Unchanged `chaos-engine/` files are not a valid Learning Session skip", agents)
         self.assertFalse((ROOT / "GROK.md").exists())
-        self.assertFalse((ROOT / ".grok").exists())
+        self.assertTrue((ROOT / ".grok/hooks/lifecycle.json").is_file())
+        self.assertIn("CHAOS_ENGINE_HOST", grok_hooks)
+        self.assertIn("hooks/guard.py", grok_hooks)
+        self.assertNotIn("Iron laws", grok_hooks)
+        self.assertFalse((ROOT / "chaos-engine/skills/omniroot").exists())
 
     def test_active_guidance_has_no_personal_or_absolute_operational_paths(self):
         self.assertEqual(absolute_guidance_path_offenders(ROOT), [])

@@ -8,8 +8,11 @@ body:
       value: |
         This form is opened by the ChaosEngine installer when install verification fails.
         Keep the prefilled fields and add anything that is missing.
-        Attach `.chaos-engine-state/install-trace.json` as a GitHub file attachment.
-        Do not paste a machine-local absolute path as the only evidence.
+        Attach these files from the project (GitHub file attachments, not private absolute paths):
+        - `.chaos-engine-state/install-trace.json`
+        - `.chaos-engine-state/install-console.log`
+        - `.chaos-engine-state/doctor-failure.json`
+        Paste the full console log and doctor JSON below if you cannot attach the files.
   - type: input
     id: error_code
     attributes:
@@ -37,6 +40,35 @@ body:
     id: platform
     attributes:
       label: Platform
+      description: Python sys.platform (win32, linux, darwin).
+  - type: input
+    id: os_name
+    attributes:
+      label: OS name
+      description: Windows, Linux, Darwin, or equivalent.
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+  - type: input
+    id: architecture
+    attributes:
+      label: Architecture
+      description: AMD64, arm64, x86_64, and similar.
+  - type: input
+    id: python_version
+    attributes:
+      label: Python version
+  - type: input
+    id: machine
+    attributes:
+      label: Machine
+      description: Terse platform string (no hostname or home path).
+  - type: input
+    id: doctor_details
+    attributes:
+      label: Doctor details
+      description: Bounded component:code pairs from doctor-failure.json.
   - type: input
     id: hosts_receipt
     attributes:
@@ -62,6 +94,20 @@ body:
     attributes:
       label: Install trace snippet
       description: Short redacted excerpt only. Attach the full install-trace.json file.
+  - type: textarea
+    id: console_log
+    attributes:
+      label: Full console log
+      description: Paste the full installer console, or the contents of `.chaos-engine-state/install-console.log`.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor_json
+    attributes:
+      label: Full doctor JSON
+      description: Paste `doctor --json` or `.chaos-engine-state/doctor-failure.json`. Redact secrets.
+    validations:
+      required: true
   - type: input
     id: status_command
     attributes:

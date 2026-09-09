@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 import email.utils
 import hashlib
 import json
 import os
+import platform
 import re
 import shlex
 import runpy
@@ -33,6 +35,7 @@ MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_FILES = 2000
+DOWNLOAD_WORKERS = 8
 MAX_READ_ATTEMPTS = 4
 MAX_RETRY_AFTER_SECONDS = 60.0
 RETRY_BASE_SECONDS = 1.0
@@ -79,6 +82,69 @@ def write_install_trace(project: Path, result: dict[str, object], traces: list[t
         encoding="utf-8",
     )
     return path
+
+
+def runtime_environment() -> dict[str, str]:
+    """Bounded OS/Python facts for installer failure reports (#5703)."""
+    return {
+        "os_name": platform.system()[:40],
+        "os_version": platform.release()[:40],
+        "architecture": platform.machine()[:40] or "unknown",
+        "python_version": sys.version.split()[0][:32],
+        "machine": platform.platform(terse=True)[:80],
+    }
+
+
+def doctor_failure_payload(error: BaseException) -> dict[str, object]:
+    """Keep status/code/detail/fix-next only; never persist paths or secrets."""
+    doctor = getattr(error, "doctor", None)
+    if not isinstance(doctor, dict):
+        return {}
+    components: dict[str, object] = {}
+    raw = doctor.get("components")
+    if isinstance(raw, dict):
+        for name, item in raw.items():
+            if not isinstance(name, str) or not isinstance(item, dict):
+                continue
+            trimmed = {
+                key: item[key]
+                for key in ("status", "taskImpact", "detail", "code", "fixNext")
+                if isinstance(item.get(key), str)
+            }
+            if trimmed:
+                components[name] = trimmed
+    commit = doctor.get("commit")
+    return {
+        "status": doctor.get("status") if isinstance(doctor.get("status"), str) else "unknown",
+        "commit": commit if isinstance(commit, str) else None,
+        "components": components,
+    }
+
+
+def write_failure_artifacts(
+    project: Path,
+    reporter: InstallReporter | None,
+    error: BaseException,
+) -> tuple[str, str]:
+    """Write attachable console and doctor artifacts under .chaos-engine-state/."""
+    state = Path(project) / ".chaos-engine-state"
+    state.mkdir(parents=True, exist_ok=True)
+    traces: list[str] = []
+    if reporter is not None:
+        traces = [f"[+{ended:.3f}] {message}" for ended, message in reporter.traces]
+    (state / "install-console.log").write_text(
+        ("\n".join(traces) + "\n") if traces else "no installer console traces\n",
+        encoding="utf-8",
+    )
+    payload = doctor_failure_payload(error)
+    doctor_rel = "not available"
+    if payload:
+        (state / "doctor-failure.json").write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        doctor_rel = ".chaos-engine-state/doctor-failure.json"
+    return ".chaos-engine-state/install-console.log", doctor_rel
 
 
 def brand_lines(*, width: int = 80, color: bool = False, unicode: bool = False) -> list[str]:
@@ -214,6 +280,7 @@ class InstallHealthError(RuntimeError):
         self.observed_commit = commit if isinstance(commit, str) and COMMIT.fullmatch(commit) else None
         self.observed_components = observed_blocking_components(components)
         self.observed_component_details = observed_blocking_component_details(components)
+        self.doctor = doctor if isinstance(doctor, dict) else {}
 
 
 
@@ -1065,7 +1132,10 @@ def download_source(
 
     source = destination / "chaos-engine"
     source.mkdir()
-    for relative, expected_size in selected:
+    mkdir_lock = threading.Lock()
+
+    def fetch_blob(item: tuple[PurePosixPath, int]) -> None:
+        relative, expected_size = item
         encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in relative.parts)
         content = read_response(
             opener,
@@ -1076,8 +1146,15 @@ def download_source(
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
         target = source.joinpath(*relative.parts)
-        target.parent.mkdir(parents=True, exist_ok=True)
+        with mkdir_lock:
+            target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
+
+    workers = max(1, min(DOWNLOAD_WORKERS, len(selected)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(fetch_blob, item) for item in selected]
+        for future in as_completed(futures):
+            future.result()
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
         raise ValueError("ChaosEngine source tree is incomplete")
     return source
@@ -1437,6 +1514,11 @@ def emit_install_failure(
                     "Attach .chaos-engine-state/install-trace.json to the GitHub issue.",
                     file=sys.stderr,
                 )
+            print(
+                "Attach .chaos-engine-state/install-console.log and "
+                ".chaos-engine-state/doctor-failure.json when present.",
+                file=sys.stderr,
+            )
         except OSError:
             # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
             pass
@@ -1498,6 +1580,22 @@ def emit_install_failure(
         install_py = "unknown"
         install_trace = "not available"
         install_trace_snippet = "not available"
+        install_console = "not available"
+        doctor_json = "not available"
+        runtime = runtime_environment()
+        doctor_details = ""
+        payload = doctor_failure_payload(error)
+        if payload.get("components"):
+            labels: list[str] = []
+            components = payload["components"]
+            if isinstance(components, dict):
+                for name, item in components.items():
+                    if not isinstance(item, dict):
+                        continue
+                    code = item.get("code") or item.get("detail") or item.get("status")
+                    if isinstance(code, str):
+                        labels.append(f"{name}:{code}")
+            doctor_details = ",".join(labels)[:240]
         if project is not None:
             try:
                 root = Path(project).resolve()
@@ -1522,6 +1620,7 @@ def emit_install_failure(
                             lambda match: f"{match.group(1)}=<redacted>",
                             snippet,
                         )
+                install_console, doctor_json = write_failure_artifacts(root, reporter, error)
             except OSError:
                 # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
                 pass
@@ -1552,8 +1651,14 @@ def emit_install_failure(
                 f"install.py: {install_py}",
                 f"Install trace: {install_trace}",
                 "Attach: .chaos-engine-state/install-trace.json (GitHub file attachment)",
+                f"Install console: {install_console}",
+                f"Doctor JSON: {doctor_json}",
                 f"Install trace snippet: {install_trace_snippet}",
                 f"Platform: {sys.platform}",
+                f"OS: {runtime['os_name']} {runtime['os_version']} {runtime['architecture']}",
+                f"Python: {runtime['python_version']}",
+                f"Machine: {runtime['machine']}",
+                f"Doctor details: {doctor_details or 'not reported'}",
                 f"Status command: {status_command}",
                 f"Doctor command: {doctor_command}",
             )
@@ -1571,6 +1676,12 @@ def emit_install_failure(
                 "candidate_components": candidate_components,
                 "candidate_component_details": candidate_component_details,
                 "platform": sys.platform,
+                "os_name": runtime["os_name"],
+                "os_version": runtime["os_version"],
+                "architecture": runtime["architecture"],
+                "python_version": runtime["python_version"],
+                "machine": runtime["machine"],
+                "doctor_details": doctor_details,
                 "hosts_receipt": hosts_receipt,
                 "core_dir": core_dir,
                 "install_py": install_py,

@@ -50,10 +50,10 @@ paragraph if they drift; re-read before implementing.
 - MCP / Codex: unknown same-name servers raise `ChaosEngine MCP server
   collision` / `Codex configuration collision`. Foreign servers outside owned
   markers are kept (`without_chaos_hooks`, Codex CE-owned table strip).
-- Verify (`install.py` `doctor_with_dependencies`): if managed Python is
-  missing, **both** `hooks` and `mcps` become `recovery-required` with **no**
-  component `detail` or `code`. That is the cheapest shared explanation for
-  #5667 listing both names after a successful core rematerialize.
+- Verify (`install.py` `doctor_with_dependencies`): resolve managed Python from
+  the uv generation, then the account receipt, then `sys.executable` (#5703).
+  Only when no live interpreter exists do both `hooks` and `mcps` become
+  `recovery-required` with `managed-python-missing` / `CE_MANAGED_PYTHON_MISSING`.
 - Hook probe (`hosts.py` `hook_runtime_healthy`): run `UserPromptSubmit`,
   `PreToolUse`, `PostToolUse` through
   `{managed_python} .chaos-engine/hooks/guard.py`. Any non-zero exit, invalid
