@@ -70,7 +70,7 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
         generationConfig.put("responseMimeType", "application/json");
         generationConfig.set("responseSchema", request.desiredResponseSchema());
         // Gemini 3.x models spend thinking tokens from the same maxOutputTokens allowance as the
-        // answer (issue #4113); capping thinking depth to "low" leaves headroom in a fixed
+        // answer (issue #4113); capping thinking depth to "low" leaves margin in a fixed
         // output budget for the answer JSON itself instead of growing the budget unboundedly.
         // thinkingLevel is a Gemini 3.x-only field -- 2.5-series models use the older numeric
         // thinkingBudget instead, so this must not fire for them.

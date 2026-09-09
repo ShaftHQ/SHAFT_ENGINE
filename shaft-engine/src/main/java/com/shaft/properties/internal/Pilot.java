@@ -96,7 +96,7 @@ public interface Pilot extends EngineProperties<Pilot> {
      * AiExecutionService#inheritedLimit both take {@code min(requested, this value)}). Reasoning
      * models spend thinking tokens from the same budget, so 2,000 routinely truncated a full
      * generated test class before the answer JSON completed (finishReason=MAX_TOKENS). 8,000
-     * lets the already-declared per-call budget actually reach the wire, with wide headroom
+     * lets the already-declared per-call budget actually reach the wire, with wide margin
      * below Gemini 3.5 Flash's documented 65,000-token output ceiling.</p>
      */
     @Key("pilot.ai.maxOutputTokens")

@@ -8,7 +8,7 @@ Load on demand when classifying a finding.
 | --- | --- | --- |
 | harness/skills | `guidance` | Missing rule, friction in SKILL.md, bad progressive disclosure |
 | harness/hooks | `reliability` | Exit codes, SessionStart payload size, false blocks |
-| harness/memory | `tooling` | MemPalace/Graphify/Headroom retrieval misses, doctor fix-next |
+| harness/memory | `tooling` | MemPalace/Graphify retrieval misses, doctor fix-next |
 | harness/ux | `portability` | Installer/doctor dead-ends, host parity gaps |
 | product | `guidance` or `tooling` | Product enhancement candidates for the app under development |
 | security | `security` | Only privacy-safe, non-secret observations |

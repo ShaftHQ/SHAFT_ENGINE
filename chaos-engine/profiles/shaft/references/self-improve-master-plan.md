@@ -19,7 +19,7 @@
 | Lean self-improve: SessionStart locator-only; Learning Session on delivery Stop | **Shipped** (#5641 / #5613) |
 | Harness parity across six hosts (overlay, not agent memory) | **Shipped policy** (#5645 / host-parity-matrix) |
 | One-command install/configure/update | **Shipped north star** (#5618 / #5620) |
-| Headroom `agent-90` default; Caveman + Ponytail | **Shipped** (#5613 / token-budget-modes) |
+| Caveman + Ponytail companions | **Shipped** (token-budget-modes) |
 | Issues-first self-improve; eval-gated draft skill PRs **opt-in later** | **Locked** (#5618 fork #5) |
 | Merge commits only | **Locked** |
 
@@ -142,7 +142,7 @@ Each item: why · token impact · dependency · proposed CE shape · Task Observ
 - **Why:** HumanLayer: CLI in training data beats MCP schema tax for gh/git/docker/db.
 - **Token impact:** ↓↓ system prompt + tool-result size
 - **Dependency:** zero-llm-catalog / Level-1 (#5621/#5622)
-- **CE shape:** router iron-law row + catalog entries; MCP only when no equivalent CLI; Headroom/MCP remain for compression/proxy cases.
+- **CE shape:** router iron-law row + catalog entries; MCP only when no equivalent CLI exists.
 - **vs Task Observer:** N/A (tooling policy).
 
 ### 6. SkillOpt-style SKILL.md compression audit (propose, don’t auto-apply)
@@ -210,11 +210,11 @@ Each item: why · token impact · dependency · proposed CE shape · Task Observ
 1. Prefer **one condensed PR per wave** (S0→S4); children under the epic; `Fixes #<child>` never the epic.
 2. Every lasting behavior → portable `chaos-engine/` (hooks/skills/scripts/doctor) + host adapters as needed — **harness parity**.
 3. Expand eval-parity fixtures when adding gates; never weaken fixtures.
-4. Keep Headroom `agent-90` / Ponytail XOR OUTPUT_SHAPER / Caveman ultra.
+4. Keep Ponytail and Caveman ultra.
 5. No Cursor Cloud Agents for implementation workstreams.
 
 ---
 
 ## 9. Supersession notice
 
-The 2026-09-07 dependency-ranked top-10 (health plane → repair → zero-LLM locator → L1 catalog → research ledger → wake/retrieve → Headroom/budget → eval-gated improve → fixtures → Heal/GAP-EXIT2) is **complete** via #5619–#5625 + #5641. **Do not reopen those tickets.** Track new work from **§4 Top 10** under the self-improve epic filed alongside this document.
+The 2026-09-07 dependency-ranked top-10 (health plane → repair → zero-LLM locator → L1 catalog → research ledger → wake/retrieve → token-budget → eval-gated improve → fixtures → Heal/GAP-EXIT2) is **complete** via #5619–#5625 + #5641. **Do not reopen those tickets.** Track new work from **§4 Top 10** under the self-improve epic filed alongside this document.

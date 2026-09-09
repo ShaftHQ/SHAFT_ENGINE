@@ -8,7 +8,7 @@ Machine-checkable capability pins also live in `scripts/ci/agent_harness_parity.
 ## Harness parity (permanent)
 
 Any lasting behavior or policy — including Learning Session after every
-delivery — MUST live in the portable ChaosEngine overlay: hooks, skills,
+delivery, the ban on traffic proxies ([no-proxy](no-proxy.md)), and token optimization as Kanban eliminate-waste ([eliminate-waste](eliminate-waste.md)) — MUST live in the portable ChaosEngine overlay: hooks, skills,
 installer/doctor, and host guidance adapters (`AGENTS.md` / `CLAUDE.md` /
 `GEMINI.md` equivalents). Never leave lasting harness rules only in one
 agent's memory or routines. Unchanged `chaos-engine/` sources are not a
@@ -29,7 +29,6 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | SessionStart locator-only / progressive disclosure | A | A | A | A | A |
 | Skills discovery | A | A | A | A | A |
 | Companions (Caveman + Ponytail) | P | P | P | P | P |
-| Headroom (managed pin / wrap·proxy·MCP) | A wrap | A wrap | A wrap | A proxy/MCP | A wrap |
 | Self-improve skill (Learning Session) | P | P | P | P | P |
 | Retrieval soft-degrade (Memory/MemPalace/Graphify) | P | P | P | P | P |
 | Work-item to merge playbook | P | P | P | P | P |
@@ -44,9 +43,8 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | GAP-HOOK-TRUST | Grok | medium | Project hook trust (`/hooks-trust`, projectTrusted) can leave doctor recovery-required after install. | Host onboarding card + grok_runtime_status. |
 | GAP-MARKETPLACE-CLI | Claude, Codex | low | Marketplace/plugin auto-activation needs host CLI on PATH; absent CLI still installs adapters but activation is manual. | Onboarding cards. |
 | GAP-COPILOT-DETECT | Copilot | low | Detection is soft (`gh` / `code` / `cursor`); IDE/cloud hosting is outside install probes. | Onboarding card. |
-| GAP-HEADROOM-GEMINI | Gemini | low | No first-class `headroom wrap gemini`; use proxy/MCP (`headroom mcp serve`) with CE agent-90 env. | Documented in references/headroom.md (#5613). |
-| GAP-HEADROOM-CURSOR | Cursor | low | Upstream wrap is manual (prints base URLs); CE still ships pin + skill + doctor. | Upstream Headroom agent matrix. |
 | GAP-GEMINI-NODE | Gemini | low | Hook launcher needs Node.js; unsupported native events remain explicit capability gaps. | Onboarding card + launch.js. |
+| GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
 
 
 ## How to refresh

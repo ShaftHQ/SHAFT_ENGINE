@@ -71,6 +71,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         args = [sys.executable, str(tool), "mempalace", "search", query]
     else:
         args = [sys.executable, str(tool), "graphify", "query", query]
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "CHAOS_ENGINE_RETRIEVE": "1"}
     try:
         completed = subprocess.run(  # nosec B603 - fixed owned tool.py only.
             args,
@@ -78,7 +79,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             capture_output=True,
             text=True,
             timeout=TIMEOUT_SECONDS,
-            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            env=env,
             check=False,
         )
     except subprocess.TimeoutExpired:
@@ -95,13 +96,25 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             "reason": f"os-error:{type(error).__name__}",
             "query": query,
         }
+    detail = (completed.stderr or completed.stdout or "").strip().splitlines()
+    tip = detail[0][:120] if detail else ""
+    origin_sync = "not synchronized with origin/main" in (
+        (completed.stderr or "") + (completed.stdout or "")
+    )
     if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "").strip().splitlines()
-        tip = detail[0][:120] if detail else "nonzero-exit"
+        if origin_sync:
+            return {
+                "store": store,
+                "status": STATUS_SKIPPED,
+                "reason": "origin-sync",
+                "originSync": "advisory",
+                "storeHealth": "unchecked",
+                "query": query,
+            }
         return {
             "store": store,
             "status": STATUS_DEGRADED,
-            "reason": tip,
+            "reason": tip or "nonzero-exit",
             "query": query,
             "exitCode": completed.returncode,
         }
@@ -113,13 +126,16 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             "reason": "no-relevant-hits",
             "query": query,
         }
-    return {
+    receipt = {
         "store": store,
         "status": STATUS_USED,
         "reason": "hits",
         "query": query,
         "bytes": min(len(body.encode("utf-8")), 4096),
     }
+    if origin_sync:
+        receipt["originSync"] = "advisory"
+    return receipt
 
 
 def retrieve(

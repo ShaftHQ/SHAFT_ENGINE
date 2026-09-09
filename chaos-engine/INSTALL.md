@@ -170,28 +170,22 @@ absent does not make project health fail.
 
 ### Default-on all-in-one bundle
 
-The unattended one-liner provisions **Memory + MemPalace + Graphify + Ponytail +
-Headroom** (pin + CLI, CE `agent-90` policy, beacon off) and keeps Caveman on.
-Disable only with flags (combinable):
+The unattended one-liner provisions **Memory + MemPalace + Graphify + Ponytail**
+and keeps Caveman on. Disable only with flags (combinable):
 
 ```bash
 --without-memory --without-mempalace --without-graphify \
-  --without-ponytail --without-headroom --without-caveman
+  --without-ponytail --without-caveman
 ```
-
-Headroom CLI is auto-provisioned via `uv tool install --python 3.13
-"headroom-ai==0.37.0"` unless `--without-headroom` is set. Ponytail XOR
-`HEADROOM_OUTPUT_SHAPER` remains enforced.
 
 ### Component repair (no full wipe)
 
 ```bash
 python3 .chaos-engine/install.py repair --project . --component plugins
-python3 .chaos-engine/install.py repair --project . --component headroom
 python3 .chaos-engine/install.py repair --project . --component mempalace
 ```
 
-Supported components: `plugins`, `hosts`, `core`, `headroom`, `mempalace`,
+Supported components: `plugins`, `hosts`, `core`, `mempalace`,
 `graphify`, `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`. One-command
 **update** is the same install one-liner (repair/reinstall semantics aligned with
 this health truth).
@@ -495,23 +489,6 @@ printf '{"version":"%s","commit":"%s","jar":"%s","sha256":"%s"}\n' \
 python3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.chaos-engine/hosts.py'); api.get('publish_maven_tools_cache')(Path(sys.argv[1]), root=Path(sys.argv[2]))" "$staging" "$cache_root"
 ```
 
-
-## Headroom (default-on max-savings companion)
-
-ChaosEngine pins `headroom-ai==0.37.0` (Apache-2.0) and **auto-provisions** the
-CLI on install (`uv tool install`). Defaults: `HEADROOM_SAVINGS_PROFILE=agent-90`,
-beacon off. MemPalace and Graphify remain the memory SoT. Pass
-`--without-headroom` to skip CLI provision. Repair with
-`python3 .chaos-engine/install.py repair --project . --component headroom`.
-
-```bash
-eval "$(python3 .chaos-engine/headroom_policy.py export-env --token-budget ultra-lean)"
-headroom doctor
-HEADROOM_SAVINGS_PROFILE=agent-90 headroom wrap claude   # or proxy --port 8787
-```
-
-Ponytail XOR `HEADROOM_OUTPUT_SHAPER`: keep OUTPUT_SHAPER off while Ponytail is
-active. See [references/headroom.md](references/headroom.md).
 
 ## Self-improve skill
 

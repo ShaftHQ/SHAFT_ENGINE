@@ -82,6 +82,20 @@ class OcrSetupProviderTest {
         List<SetupAction> selected = OcrSetupManifest.actions(SetupMode.MANAGED, List.of("deu", "fra"));
         assertEquals(List.of("deu", "fra"), selected.stream()
                 .map(action -> action.version().substring(action.version().indexOf(':') + 1)).toList());
+        assertEquals(List.of("ara", "eng"), actions.stream()
+                .map(action -> action.version().substring(action.version().indexOf(':') + 1)).toList());
+    }
+
+    @Test
+    void baselinePlanMatchesInstallSelectionReconstructedFromSortedLanguages(@TempDir Path temp) {
+        SetupOptions options = SetupOptions.defaults(SetupProfile.OCR, paths(temp)).withMode(SetupMode.MANAGED);
+        InfrastructureSetupService service = new InfrastructureSetupService(
+                new SetupProviderRegistry(List.of(new OcrSetupProvider())),
+                SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupPlan plan = service.plan(options);
+        SetupSelection reconstructed = new SetupSelection(plan.actions().stream()
+                .map(action -> action.version().substring(action.version().indexOf(':') + 1)).toList());
+        assertEquals(plan, service.plan(options, reconstructed));
     }
 
     @Test

@@ -11,7 +11,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALL_PATH = ROOT / "chaos-engine/install.py"
-POLICY_PATH = ROOT / "chaos-engine/headroom_policy.py"
 INSTALL_MD = ROOT / "chaos-engine/INSTALL.md"
 
 
@@ -27,13 +26,12 @@ class WaveAHealthTruthTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.install = load(INSTALL_PATH, "ce_install_wave_a")
-        cls.policy = load(POLICY_PATH, "ce_headroom_wave_a")
 
     def test_install_docs_cover_status_subset_and_bundle_flags(self):
         text = INSTALL_MD.read_text(encoding="utf-8")
         self.assertIn("status` ⊆ `doctor", text)
         self.assertIn("activationProof", text)
-        self.assertIn("--without-headroom", text)
+        self.assertIn("--without-ponytail", text)
         self.assertIn("repair --project . --component plugins", text)
         self.assertIn("Default-on all-in-one bundle", text)
 
@@ -42,21 +40,21 @@ class WaveAHealthTruthTests(unittest.TestCase):
         for name in self.install.DEFAULT_BUNDLE_COMPONENTS:
             self.assertTrue(options[name], name)
         disabled = self.install.normalize_bundle_options(
-            {"without_headroom": True, "without_memory": True}
+            {"without_ponytail": True, "without_memory": True}
         )
-        self.assertFalse(disabled["headroom"])
         self.assertFalse(disabled["memory"])
-        self.assertTrue(disabled["ponytail"])
+        self.assertFalse(disabled["ponytail"])
+        self.assertTrue(disabled["caveman"])
 
     def test_bundle_options_round_trip(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             written = self.install.write_bundle_options(
-                project, {"headroom": False, "memory": True}
+                project, {"ponytail": False, "memory": True}
             )
             self.assertTrue(written.is_file())
             loaded = self.install.read_bundle_options(project)
-            self.assertFalse(loaded["headroom"])
+            self.assertFalse(loaded["ponytail"])
             self.assertTrue(loaded["memory"])
 
     def test_status_subset_helper_detects_plugins_false_healthy(self):
@@ -153,12 +151,12 @@ class WaveAHealthTruthTests(unittest.TestCase):
                 ".",
                 "--commit",
                 "a" * 40,
-                "--without-headroom",
+                "--without-caveman",
                 "--without-memory",
             ]
         )
-        self.assertTrue(install_args.without_headroom)
         self.assertTrue(install_args.without_memory)
+        self.assertTrue(install_args.without_caveman)
         self.assertFalse(install_args.without_ponytail)
 
     def test_plugins_fix_next_prefers_repair_command(self):
@@ -168,45 +166,6 @@ class WaveAHealthTruthTests(unittest.TestCase):
         )
         self.assertIsNotNone(fix)
         self.assertIn("repair --project . --component plugins", fix)
-
-
-    def test_headroom_ensure_installed_skips_network_under_ci(self):
-        def which(name, path=None):
-            return None
-
-        with mock.patch.dict(self.policy.os.environ, {"CI": "true"}, clear=False):
-            with mock.patch.object(self.policy.shutil, "which", side_effect=which):
-                result = self.policy.ensure_installed(which=which)
-        self.assertEqual("absent", result["status"])
-        self.assertEqual("skipped-ci", result["action"])
-
-    def test_headroom_ensure_installed_reuses_when_present(self):
-        with mock.patch.object(self.policy.shutil, "which", side_effect=lambda name: "/bin/headroom" if name == "headroom" else None):
-            result = self.policy.ensure_installed()
-        self.assertEqual("healthy", result["status"])
-        self.assertEqual("reused", result["action"])
-
-    def test_headroom_ensure_installed_runs_uv_when_missing(self):
-        calls = []
-
-        def which(name, path=None):
-            if name == "headroom":
-                return "/bin/headroom" if calls else None
-            if name == "uv":
-                return "/bin/uv"
-            return None
-
-        def runner(command, **_kwargs):
-            calls.append(command)
-            return mock.Mock(returncode=0, stdout="", stderr="")
-
-        with mock.patch.object(self.policy.shutil, "which", side_effect=which):
-            result = self.policy.ensure_installed(runner=runner, which=which)
-        self.assertEqual("healthy", result["status"])
-        self.assertEqual("installed", result["action"])
-        self.assertTrue(calls)
-        self.assertIn("tool", calls[0])
-        self.assertIn("install", calls[0])
 
 
 if __name__ == "__main__":

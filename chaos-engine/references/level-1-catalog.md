@@ -22,7 +22,6 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Research receipt | Before implementation mutation; triage scales depth | [`research-receipt.md`](research-receipt.md) |
 | Delivery phase gates | Phase ledger / research-before-mutation enforcement | [`delivery-phase-gates.md`](delivery-phase-gates.md) |
 | Eval-parity fixtures | Cross-host CE policy fixture suite | [`eval-parity-fixtures.md`](eval-parity-fixtures.md) |
-| Headroom | Max-savings wrap/proxy; Ponytail XOR OUTPUT_SHAPER | [`headroom.md`](headroom.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/omniroute/SKILL.md) |

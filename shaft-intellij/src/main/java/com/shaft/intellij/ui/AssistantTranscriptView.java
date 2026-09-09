@@ -2083,7 +2083,7 @@ final class AssistantTranscriptView extends JPanel {
                 Dimension preferred = super.getPreferredSize();
                 // Swing's int-truncated HTML measurement leaves zero right-edge slack, so a bubble
                 // laid out at exactly this width can clip the last letter or two. A few px of
-                // headroom -- still capped by preferredWidth -- fixes the crop without loosening the
+                // margin -- still capped by preferredWidth -- fixes the crop without loosening the
                 // wrap budget fallbackBubbleContentWidth() computes.
                 preferred.width = Math.min(preferred.width + JBUI.scale(4), preferredWidth);
                 return preferred;

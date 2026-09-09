@@ -27,7 +27,8 @@ public final class OcrSetupManifest {
 
     public static List<SetupAction> actions(SetupMode mode, List<String> requestedLanguages) {
         SetupActionKind kind = mode == SetupMode.EXTERNAL ? SetupActionKind.DIAGNOSE : SetupActionKind.INSTALL;
-        List<String> languages = requestedLanguages.isEmpty() ? BASELINE_LANGUAGES : requestedLanguages;
+        List<String> languages = new SetupSelection(
+                requestedLanguages.isEmpty() ? BASELINE_LANGUAGES : requestedLanguages).components();
         return languages.stream().map(language -> {
             Model model = MODELS.get(language);
             if (model == null) throw new IllegalArgumentException("Unsupported OCR language code: " + language);

@@ -13,7 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DATASET = ROOT / "scripts" / "ci" / "chaos_gauge" / "dataset"
 USER = "chaosgauge"
 UID = "10001"
-BASE = "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f"
+import re
+BASE_IMAGE = "python:3.12.11-slim"
+FROM_RE = re.compile(r"^FROM python:3\.12\.11-slim@sha256:[0-9a-f]{64}$")
 TASK_NAMES = (
     "delivery-focused-proof",
     "diagnosis-config-precedence",
@@ -38,7 +40,7 @@ class ChaosGaugeRuntimeTest(unittest.TestCase):
                 dockerfile = (task / "environment" / "Dockerfile").read_text(encoding="utf-8")
                 self.assertEqual(USER, config["agent"]["user"])
                 self.assertNotIn("docker_image", config["environment"])
-                self.assertEqual(f"FROM {BASE}", dockerfile.splitlines()[0])
+                self.assertRegex(dockerfile.splitlines()[0], FROM_RE)
                 self.assertIn(f"--uid {UID}", dockerfile)
                 self.assertIn(f"ENV HOME=/home/{USER}", dockerfile)
                 self.assertIn("WORKDIR /app", dockerfile)

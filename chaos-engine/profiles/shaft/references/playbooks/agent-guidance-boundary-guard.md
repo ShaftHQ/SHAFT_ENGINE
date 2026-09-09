@@ -14,4 +14,4 @@ Use for agent guidance and retrieval/config surfaces. Keep one substantive entry
 
 ## Output
 
-List canonical guidance, adapter, hook, retrieval, and validation changes plus intentional budget headroom.
+List canonical guidance, adapter, hook, retrieval, and validation changes plus intentional budget slack.

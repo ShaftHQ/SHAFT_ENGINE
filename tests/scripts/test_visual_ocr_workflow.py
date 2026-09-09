@@ -22,6 +22,8 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertEqual(len(excluded_groups), 1)
         self.assertIn("visual-ocr-mobile-acceptance",
                       excluded_groups[0].removeprefix("-Dsurefire.excludedGroups=").split(","))
+        self.assertNotIn("%regex[.*FlutterTest.*]", test_command)
+        self.assertNotIn("-Dshaft.enableFlutterE2E=true", test_command)
 
         android_tests = ANDROID_TESTS.read_text(encoding="utf-8")
         for method in (
@@ -76,3 +78,16 @@ class VisualOcrWorkflowTest(unittest.TestCase):
             self.assertIn("find shaft-engine/target/surefire-reports shaft-browserstack/target/surefire-reports", verification)
             self.assertIn('"${reports[@]}" --min-executed 1', verification)
             self.assertNotIn("TEST-testPackage.appium", verification)
+
+    def test_flutter_emulator_keeps_jdk17_for_apk_and_jdk25_for_maven(self):
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["Android_Flutter_Emulator_E2E"]["steps"]
+        env_step = next(step for step in steps if step.get("name") == "Setup Test Environment")
+        self.assertEqual("17", env_step["with"]["java-version"])
+        maven_jdk = next(step for step in steps if step.get("name") == "Set up JDK 25 for Maven")
+        self.assertEqual("25", maven_jdk["with"]["java-version"])
+        names = [step.get("name") for step in steps]
+        self.assertLess(names.index("Build demo-app debug APK wired for the Appium Flutter Integration Server"),
+                        names.index("Set up JDK 25 for Maven"))
+        self.assertLess(names.index("Set up JDK 25 for Maven"),
+                        names.index("Install engine dependencies for FlutterTest"))

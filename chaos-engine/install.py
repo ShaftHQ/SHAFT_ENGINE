@@ -56,7 +56,7 @@ CAPABILITY_ENUMS = {
 CAPABILITY_COMPONENTS = {
     "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
     "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
-    "graphify", "maven-tools-mcp", "headroom",
+    "graphify", "maven-tools-mcp",
 }
 PROJECT_SETUP_OUTPUTS = (
     ".agents/skills/graphify",
@@ -69,14 +69,12 @@ DEFAULT_BUNDLE_COMPONENTS = (
     "mempalace",
     "graphify",
     "ponytail",
-    "headroom",
     "caveman",
 )
 REPAIRABLE_COMPONENTS = frozenset({
     "plugins",
     "hosts",
     "core",
-    "headroom",
     "mempalace",
     "graphify",
     "memory",
@@ -108,9 +106,6 @@ def legacy_capability_policy() -> dict[str, dict[str, str]]:
         owner="project", scope="repository", lifecycle="derived-single-writer", taskImpact="advisory"
     )
     result["maven-tools-mcp"].update(
-        owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
-    )
-    result["headroom"].update(
         owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
     )
     return _validated_capabilities(result)
@@ -485,12 +480,19 @@ def load_manifest(target: Path) -> dict[str, object]:
         validated = _validated_capabilities(capabilities)
         encoded = json.dumps(validated, sort_keys=True, separators=(",", ":")).encode()
         known = set(validated)
-        if not known <= CAPABILITY_COMPONENTS:
+        extras = known - CAPABILITY_COMPONENTS
+        # Older receipts may name optional companions this contract no longer
+        # ships. Verify the stored digest, then drop those extras so doctor
+        # does not probe or require them. Unknown required names still fail.
+        if extras and any(validated[name].get("taskImpact") != "optional" for name in extras):
             raise ValueError("ChaosEngine manifest has an invalid capability policy")
         if capability_digest != hashlib.sha256(encoded).hexdigest():
             raise ValueError("ChaosEngine manifest has an invalid capability policy")
+        for name in extras:
+            validated.pop(name, None)
+        known = set(validated)
         # Forward-compatible read: older trees may omit newly added optional
-        # components (e.g. headroom). Required components must still be present so
+        # components. Required components must still be present so
         # upgrade can keep a verifiable backup for rollback (#5613).
         missing = CAPABILITY_COMPONENTS - known
         if missing:
@@ -3306,21 +3308,6 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         finally:
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
-        # Default-on Headroom pin+CLI (#5620). Disable only via --without-headroom.
-        # Best-effort: never abort a successful core install if the CLI pin fails.
-        if bundle.get("headroom", True) and provisioner is None:
-            policy_path = (project / INSTALL_DIRECTORY) / "headroom_policy.py"
-            if policy_path.is_file():
-                try:
-                    spec = importlib.util.spec_from_file_location(
-                        "chaos_engine_headroom_policy_install", policy_path
-                    )
-                    if spec is not None and spec.loader is not None:
-                        module = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(module)
-                        module.ensure_installed()
-                except (OSError, RuntimeError, ValueError, TimeoutError):
-                    pass
         return target
 
 
@@ -3492,13 +3479,11 @@ def attach_component_status(
             target / "skills/chaos-engine/SKILL.md",
             target / "vendor/caveman/PIN.json",
             target / "vendor/ponytail/PIN.json",
-            target / "vendor/headroom/PIN.json",
         ],
         "skills": [
             project / ".agents/skills/chaos-engine/SKILL.md",
             project / "plugins/caveman/skills/caveman/SKILL.md",
             project / "plugins/ponytail/skills/ponytail/SKILL.md",
-            target / "vendor/headroom/skills/headroom/SKILL.md",
             target / "skills/self-improve/SKILL.md",
         ],
         "playbooks": [target / "references/work-github-playbook.md"],
@@ -3580,36 +3565,6 @@ def attach_component_status(
         }
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health, **capabilities[name]}
-    # Load from the installed tree only. Bootstrap runpy-loads install.py from a
-    # temporary download that is deleted before Verify installation; a bare import
-    # or Path(__file__) fallback would point at that cleaned-up source (#5613).
-    import importlib.util as _ilu
-
-    _hp = target / "headroom_policy.py"
-    if not _hp.is_file():
-        headroom_state = {
-            "status": "broken",
-            "detail": "Headroom policy module missing from installed core.",
-            "cliPresent": False,
-            "pin": "headroom-ai",
-        }
-    else:
-        _spec = _ilu.spec_from_file_location("chaos_engine_headroom_policy", _hp)
-        if _spec is None or _spec.loader is None:
-            headroom_state = {
-                "status": "broken",
-                "detail": "Headroom policy module could not be loaded.",
-                "cliPresent": False,
-                "pin": "headroom-ai",
-            }
-        else:
-            _headroom_policy = _ilu.module_from_spec(_spec)
-            _spec.loader.exec_module(_headroom_policy)
-            headroom_state = _headroom_policy.doctor_status()
-    components["headroom"] = {
-        **{k: v for k, v in headroom_state.items() if k in {"status", "detail", "cliPresent", "pin"}},
-        **capabilities["headroom"],
-    }
     if inspect_retrieval_state:
         mempalace_state = host_controller.mempalace_runtime_status(project)
         if mempalace_state.get("status") != "healthy":
@@ -3630,14 +3585,6 @@ def attach_component_status(
                 "detail": f"Disabled via --without-{name} (default-on bundle opt-out).",
                 "taskImpact": "optional",
             }
-    if not bundle.get("headroom", True) and "headroom" in components:
-        components["headroom"] = {
-            **components["headroom"],
-            "status": "absent",
-            "detail": "Disabled via --without-headroom (default-on bundle opt-out).",
-            "taskImpact": "optional",
-            "cliPresent": False,
-        }
     result["components"] = components
     apply_merge_handoff_fix_next(project, components)
     if any(
@@ -4065,6 +4012,45 @@ def doctor_with_dependencies(
         if not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
             apply_hooks_probe_failure(result, components)
     apply_merge_handoff_fix_next(project.resolve(), components)
+    try:
+        import importlib.util as _ilu
+
+        policy_path = Path(__file__).resolve().with_name("mcp_policy.py")
+        if policy_path.is_file() and isinstance(components, dict):
+            _spec = _ilu.spec_from_file_location("ce_mcp_policy_doctor", policy_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                error = _mod.uniqueness_error(
+                    _mod.collect_server_ids(project.resolve())
+                )
+                if error and isinstance(components.get("mcps"), dict):
+                    result["status"] = "recovery-required"
+                    components["mcps"]["status"] = "recovery-required"
+                    components["mcps"]["detail"] = error
+                    components["mcps"]["fixNext"] = _mod.HEAL_PROMPT
+        match_path = Path(__file__).resolve().with_name("overlay_match.py")
+        if match_path.is_file() and isinstance(components, dict):
+            _spec = _ilu.spec_from_file_location("ce_overlay_match_doctor", match_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                matched = _mod.core_matches_source(project.resolve())
+                core = components.get("core")
+                if isinstance(core, dict):
+                    core["coreMatchesSource"] = bool(matched.get("coreMatchesSource"))
+                    if matched.get("scope") == "repository" and not matched.get(
+                        "coreMatchesSource"
+                    ):
+                        # Record mismatch. Do not flip overall doctor status:
+                        # origin overlay already drifts from SOURCE on main.
+                        core["detail"] = "overlay-source-mismatch"
+                        core["fixNext"] = (
+                            "Reinstall so .chaos-engine owned files match chaos-engine/."
+                        )
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        # Optional #5689 probes; missing helpers must not crash doctor.
+        pass
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
@@ -4536,19 +4522,6 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                 account_commands=account_commands,
             )
             return {"status": "repaired", "component": name, "action": "rebind"}
-        if name == "headroom":
-            policy_path = target / "headroom_policy.py"
-            if not policy_path.is_file():
-                raise ValueError("Headroom policy missing from installed core")
-            spec = importlib.util.spec_from_file_location(
-                "chaos_engine_headroom_policy_repair", policy_path
-            )
-            if spec is None or spec.loader is None:
-                raise ValueError("Headroom policy could not be loaded")
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            result = module.ensure_installed(runner=runner)
-            return {"status": "repaired", "component": name, **result}
         if name in {"memory", "mempalace", "graphify", "tools"}:
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")
@@ -4802,17 +4775,6 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
             "For Maven projects, rerun install with Maven Tools enabled "
             "(`--with-maven-tools` or root `pom.xml`); otherwise optional absence "
             "is fine."
-        )
-    if name == "headroom":
-        detail = item.get("detail")
-        if isinstance(detail, str) and detail.strip():
-            return detail.strip()
-        return (
-            f"Run `{cli} .chaos-engine/install.py repair --project . "
-            "--component headroom` (or `uv tool install --python 3.13 "
-            '"headroom-ai==0.37.0"`), then `eval "$('
-            f'{cli} .chaos-engine/headroom_policy.py export-env)"` and '
-            "`headroom doctor`. Pass `--without-headroom` to keep Headroom off."
         )
     if status == "migration-required":
         return (

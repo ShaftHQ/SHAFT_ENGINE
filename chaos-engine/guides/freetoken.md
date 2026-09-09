@@ -1,12 +1,13 @@
 # FreeToken: optional local-weights companion
 
-FreeToken and OmniRoute are different optional transports. ChaosEngine never
+FreeToken is an optional loopback probe of an already-running local-weights
+server. OmniRoute remains the optional cloud-quota transport. ChaosEngine never
 installs either. Execution workflows remain the sole owner. Neither replaces
 `SOLO` or a native implementer.
 
 | | OmniRoute | FreeToken |
 | --- | --- | --- |
-| Role | Optional cloud-quota router | Optional local-weights MoE server |
+| Role | Optional cloud-quota transport | Optional local-weights loopback probe |
 | Loopback | `http://127.0.0.1:20128` | `http://127.0.0.1:1919` |
 | ChaosEngine | Never installs, configures, starts, or authenticates | Never installs, downloads weights, or starts |
 
@@ -24,7 +25,7 @@ ignores proxies and any ambient `FREETOKEN_BASE_URL`. States are `ABSENT`,
 ## Operator install is vendor docs
 
 Not the ChaosEngine installer. Do not add FreeToken to the default installer
-bundle (Memory, MemPalace, Graphify, Ponytail, Headroom). Do not run
+bundle (Memory, MemPalace, Graphify, Ponytail). Do not run
 `ft launch`: it rewrites host configs and clears `ANTHROPIC_API_KEY` /
 `OPENAI_API_KEY`.
 
