@@ -106,18 +106,53 @@ def user_mcp_paths(home: Path | None = None) -> tuple[tuple[str, Path], ...]:
     return named
 
 
-def collect_server_ids(
-    project: Path,
-    home: Path | None = None,
-) -> list[str]:
-    names: list[str] = []
+def collect_project_server_ids(project: Path) -> list[str]:
+    """Server ids published by the project overlay `.mcp.json` (install-owned)."""
     project_mcp = project / ".mcp.json"
-    if project_mcp.is_file():
-        names.extend(server_ids_from_text(project_mcp.read_text(encoding="utf-8")))
+    if not project_mcp.is_file():
+        return []
+    return server_ids_from_text(project_mcp.read_text(encoding="utf-8"))
+
+
+def collect_user_server_ids(home: Path | None = None) -> list[str]:
+    """Server ids from user/global host MCP files (host-environment)."""
+    names: list[str] = []
     for _host, path in user_mcp_paths(home):
         if path.is_file():
             names.extend(server_ids_from_text(path.read_text(encoding="utf-8")))
     return names
+
+
+def collect_server_ids(
+    project: Path,
+    home: Path | None = None,
+) -> list[str]:
+    return [
+        *collect_project_server_ids(project),
+        *collect_user_server_ids(home),
+    ]
+
+
+def project_mcp_policy_error(project: Path) -> str | None:
+    """Install-blocking / doctor-failing when the project overlay published the conflict."""
+    return uniqueness_error(collect_project_server_ids(project))
+
+
+def user_mcp_policy_finding(
+    project: Path,
+    home: Path | None = None,
+) -> str | None:
+    """Host-environment advisory when only user/global (or cross-layer) MCP policy fails.
+
+    Project-overlay conflicts remain install-blocking via project_mcp_policy_error.
+    """
+    if project_mcp_policy_error(project) is not None:
+        return None
+    user_ids = collect_user_server_ids(home)
+    user_error = uniqueness_error(user_ids)
+    if user_error:
+        return user_error
+    return uniqueness_error([*collect_project_server_ids(project), *user_ids])
 
 
 _INSTRUCTION_START = "<!-- CHAOSENGINE:START -->"

@@ -3652,8 +3652,26 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             if result["hosts"]["status"] != "healthy":  # type: ignore[index]
                 result["status"] = "recovery-required"
             if active_probes:
-                result["hosts"]["grok"] = host_controller.grok_runtime_status(project)  # type: ignore[index]
-                if result["hosts"]["grok"]["status"] == "recovery-required":  # type: ignore[index]
+                # Grok CLI trust/loaded-hooks probe is host-environment, not install-owned (#5699).
+                grok_probe = host_controller.grok_runtime_status(project)
+                result["hosts"]["grok"] = grok_probe  # type: ignore[index]
+                if (
+                    isinstance(grok_probe, dict)
+                    and grok_probe.get("status") == "recovery-required"
+                    and result["hosts"].get("status") == "healthy"  # type: ignore[index]
+                ):
+                    result["hosts"]["hostEnvironment"] = {  # type: ignore[index]
+                        "status": "sync-advisory",
+                        "detail": "grok-hooks-probe",
+                        "fixNext": str(
+                            grok_probe.get("detail")
+                            or "Trust and reload Grok project hooks, then rerun doctor."
+                        ),
+                    }
+                elif (
+                    isinstance(grok_probe, dict)
+                    and grok_probe.get("status") == "recovery-required"
+                ):
                     result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
                     result["status"] = "recovery-required"
             removing = project / ".chaos-engine-runtime.removing"
@@ -3955,6 +3973,87 @@ def apply_hooks_probe_failure(result: dict[str, object], components: object) -> 
         hooks["fixNext"] = named
 
 
+def attach_host_environment_finding(
+    component: dict[str, object],
+    *,
+    detail: str,
+    fix_next: str,
+    code: str | None = None,
+) -> None:
+    """Record a host-environment advisory without flipping install-owned component health (#5699)."""
+    finding: dict[str, object] = {
+        "status": "sync-advisory",
+        "detail": detail,
+        "fixNext": fix_next,
+    }
+    if isinstance(code, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", code):
+        finding["code"] = code
+    component["hostEnvironment"] = finding
+
+
+def apply_hooks_host_environment_probe(
+    result: dict[str, object],
+    components: object,
+) -> None:
+    """Owned hook files stay healthy; runtime host probe is advisory (#5699)."""
+    if not isinstance(components, dict) or not isinstance(components.get("hooks"), dict):
+        return
+    hooks = components["hooks"]
+    if hooks.get("status") != "healthy":
+        apply_hooks_probe_failure(result, components)
+        return
+    named = component_fix_next(
+        "hooks",
+        {
+            "status": "recovery-required",
+            "detail": HOOKS_PROBE_FAILED_DETAIL,
+            "code": HOOKS_PROBE_FAILED_CODE,
+        },
+    )
+    attach_host_environment_finding(
+        hooks,
+        detail=HOOKS_PROBE_FAILED_DETAIL,
+        fix_next=named
+        or (
+            f"Run `{_doctor_python_cli()} .chaos-engine/install.py repair "
+            "--project . --component hooks`, reload/trust hooks in the active host, "
+            f"then `{_doctor_python_cli()} .chaos-engine/install.py doctor --project .`."
+        ),
+        code=HOOKS_PROBE_FAILED_CODE,
+    )
+
+
+def apply_mcp_policy_doctor(
+    result: dict[str, object],
+    components: object,
+    project: Path,
+    policy_mod: object,
+) -> None:
+    """Project-overlay MCP conflicts fail doctor; user/global aliases are advisory (#5699)."""
+    if not isinstance(components, dict) or not isinstance(components.get("mcps"), dict):
+        return
+    mcps = components["mcps"]
+    project_error = policy_mod.project_mcp_policy_error(project)
+    if project_error:
+        result["status"] = "recovery-required"
+        mcps["status"] = "recovery-required"
+        mcps["detail"] = project_error
+        mcps["fixNext"] = policy_mod.HEAL_PROMPT
+        return
+    finding = policy_mod.user_mcp_policy_finding(project)
+    if finding and mcps.get("status") in {
+        "healthy",
+        "compatible-legacy",
+        "degraded",
+        "sync-advisory",
+    }:
+        attach_host_environment_finding(
+            mcps,
+            detail=finding,
+            fix_next=policy_mod.HEAL_PROMPT,
+        )
+
+
 def doctor_with_dependencies(
     project: Path, *, verify_clients: bool = True
 ) -> dict[str, object]:
@@ -4011,7 +4110,8 @@ def doctor_with_dependencies(
             ),
         )
         if not host_controller.hook_runtime_healthy(project.resolve(), managed_python):
-            apply_hooks_probe_failure(result, components)
+            # Owned hook payload stays healthy; host runtime probe is advisory (#5699).
+            apply_hooks_host_environment_probe(result, components)
     apply_merge_handoff_fix_next(project.resolve(), components)
     try:
         import importlib.util as _ilu
@@ -4022,13 +4122,7 @@ def doctor_with_dependencies(
             if _spec is not None and _spec.loader is not None:
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
-                server_ids = _mod.collect_server_ids(project.resolve())
-                error = _mod.uniqueness_error(server_ids)
-                if error and isinstance(components.get("mcps"), dict):
-                    result["status"] = "recovery-required"
-                    components["mcps"]["status"] = "recovery-required"
-                    components["mcps"]["detail"] = error
-                    components["mcps"]["fixNext"] = _mod.HEAL_PROMPT
+                apply_mcp_policy_doctor(result, components, project.resolve(), _mod)
                 conflict = _mod.user_instruction_conflict_error(project.resolve())
                 if conflict and isinstance(components.get("hosts"), dict):
                     result["status"] = "recovery-required"
@@ -4822,6 +4916,40 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
     return lines
 
 
+def format_host_environment_findings(document: dict[str, object]) -> list[str]:
+    """Surface install-owned-healthy host-environment advisories (#5699)."""
+    lines: list[str] = []
+    components = document.get("components")
+    if not isinstance(components, dict):
+        return lines
+    for name in sorted(str(item) for item in components):
+        item = components[name]
+        if not isinstance(item, dict):
+            continue
+        finding = item.get("hostEnvironment")
+        if not isinstance(finding, dict):
+            continue
+        if finding.get("status") not in {"sync-advisory", "compatible-legacy", "degraded"}:
+            continue
+        detail = finding.get("detail")
+        fix = finding.get("fixNext")
+        detail_text = detail if isinstance(detail, str) and detail.strip() else "advisory"
+        lines.append(f"[info] {name}/hostEnvironment — {detail_text}")
+        if isinstance(fix, str) and fix.strip():
+            lines.append(f"  fix-next: {fix.strip()}")
+    hosts = document.get("hosts")
+    if isinstance(hosts, dict):
+        finding = hosts.get("hostEnvironment")
+        if isinstance(finding, dict) and finding.get("status") == "sync-advisory":
+            detail = finding.get("detail")
+            fix = finding.get("fixNext")
+            detail_text = detail if isinstance(detail, str) and detail.strip() else "advisory"
+            lines.append(f"[info] hosts/hostEnvironment — {detail_text}")
+            if isinstance(fix, str) and fix.strip():
+                lines.append(f"  fix-next: {fix.strip()}")
+    return lines
+
+
 
 def format_fix_next_only(document: dict[str, object]) -> str:
     """Emit only actionable fix-next lines for unhealthy components (#5582)."""
@@ -4869,13 +4997,21 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
     ]
     if total:
         lines.append(f"components: {healthy}/{total} healthy")
+    advisories = format_host_environment_findings(document)
+    advisory_count = sum(1 for line in advisories if line.startswith("[info]"))
     if not failures:
-        # Keep the happy path short for first-time users.
+        # Keep the happy path short; still show host-environment advisories (#5699).
+        if advisories:
+            lines.append(f"issues: {advisory_count} info")
+            lines.append("")
+            lines.extend(advisories)
         lines.extend(format_blocking_fidelity_warnings(document))
         return "\n".join(lines) + "\n"
     counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for _name, _item, severity in failures:
         counts[severity] = counts.get(severity, 0) + 1
+    if advisory_count:
+        counts["info"] = counts.get("info", 0) + advisory_count
     summary = ", ".join(
         f"{counts[key]} {key}" for key in ("error", "warning", "info") if counts.get(key)
     )
@@ -4891,6 +5027,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         fix = component_fix_next(name, item)
         if fix:
             lines.append(f"  fix-next: {fix}")
+    lines.extend(advisories)
     lines.extend(format_blocking_fidelity_warnings(document))
     return "\n".join(lines) + "\n"
 
