@@ -1000,6 +1000,7 @@ class InstallReporter:
                         issue_url = line.split("Issue: ", 1)[1].strip()
                         break
             except OSError:
+                # Keep the fallback issue locator when the handoff file cannot be read.
                 pass
             doctor_cli = "py -3" if os.name == "nt" else "python3"
             doctor_command = f"{doctor_cli} .chaos-engine/install.py doctor --project ."
@@ -1647,7 +1648,6 @@ def install_latest(
                 reporter.complete(
                     "Verify installation", remaining=remaining("Verify installation")
                 )
-                clients = {"clients": {}}
                 try:
                     confirm("Activate clients")
                     reporter.start(
@@ -1872,6 +1872,7 @@ def installer_issue_fields(
                 if doctor_path.is_file():
                     doctor_json = redact_report_text(doctor_path.read_text(encoding="utf-8"))
         except OSError:
+            # Keep default field values when install artifacts cannot be read.
             pass
     return {
         "error_code": code,
