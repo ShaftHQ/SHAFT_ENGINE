@@ -4043,20 +4043,8 @@ def doctor_with_dependencies(
             if _spec is not None and _spec.loader is not None:
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
-                matched = _mod.core_matches_source(project.resolve())
-                core = components.get("core")
-                if isinstance(core, dict):
-                    core["coreMatchesSource"] = bool(matched.get("coreMatchesSource"))
-                    if matched.get("scope") == "repository" and not matched.get(
-                        "coreMatchesSource"
-                    ):
-                        # Record mismatch. Do not flip overall doctor status:
-                        # origin overlay already drifts from SOURCE on main.
-                        core["detail"] = "overlay-source-mismatch"
-                        core["fixNext"] = (
-                            "Reinstall so .chaos-engine owned files match chaos-engine/."
-                        )
-    except (OSError, RuntimeError, ValueError, AttributeError):
+                _mod.apply_doctor_overlay_match(result, project.resolve())
+    except (OSError, RuntimeError, ValueError, AttributeError, ImportError):
         # Optional #5689 probes; missing helpers must not crash doctor.
         pass
     if not verify_clients:
