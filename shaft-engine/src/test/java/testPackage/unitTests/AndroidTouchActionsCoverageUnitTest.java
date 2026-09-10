@@ -1063,21 +1063,25 @@ public class AndroidTouchActionsCoverageUnitTest {
     @Test
     public void offScreenNativeElementIsNotTreatedAsInViewport() throws Exception {
         AndroidDriver driver = createMockAndroidDriver();
-        TouchActions touchActions = new TouchActions(new DriverFactoryHelper(driver));
         WebElement offScreen = mock(WebElement.class);
         WebElement onScreen = mock(WebElement.class);
         when(offScreen.isDisplayed()).thenReturn(true);
         when(onScreen.isDisplayed()).thenReturn(true);
         when(offScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(2367, 278, 100, 50));
         when(onScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(80, 278, 100, 50));
-        Method visible = TouchActions.class.getDeclaredMethod("isTargetVisibleInViewport", By.class);
-        visible.setAccessible(true);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(offScreen), List.of(onScreen));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
 
-        when(driver.findElements(any(By.class))).thenReturn(List.of(offScreen));
-        SHAFT.Validations.assertThat().object(visible.invoke(touchActions, By.id("tab12"))).isEqualTo(false).perform();
+        TouchActions touchActions = new TouchActions(new DriverFactoryHelper(driver));
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
 
-        when(driver.findElements(any(By.class))).thenReturn(List.of(onScreen));
-        SHAFT.Validations.assertThat().object(visible.invoke(touchActions, By.id("tab12"))).isEqualTo(true).perform();
+        // Presence in the native tree is not viewport membership (#5721). Public swipe
+        // must still scroll instead of treating the off-screen row as already in view.
+        touchActions.swipeElementIntoView(By.id("tab12"), TouchActions.SwipeDirection.RIGHT);
+
+        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
     }
 
     private AndroidDriver createMockAndroidDriver() {
