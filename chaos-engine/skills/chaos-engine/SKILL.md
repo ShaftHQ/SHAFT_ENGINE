@@ -206,6 +206,10 @@ return here for the next.
 | Heal | Drifted install, wiped runtime, unhealthy doctor | [heal-route](../../references/heal-route.md) (file path; no plugin required) |
 | Level-1 catalog | Need a secondary skill/tool beyond this router | [level-1-catalog](../../references/level-1-catalog.md) |
 | Context firewall | Research / multi-file explore needs isolation | [context-firewall](../../references/context-firewall.md) |
+| Harness learn | Tune git-tracked harness from repeated traces | [harness-learn](../../references/harness-learn.md) |
+| Design loop | Write-review-revise a design doc until 0 open issues | [design-loop](../../references/design-loop.md) |
+| Deep research | Bounded parallel research with independent verify and cited report | [deep-research](../../references/deep-research.md) |
+| Learn traces | Map-reduce-verify session traces; portable, no host TUI | [learn-traces](../../references/learn-traces.md) |
 | Meta-optimize | Periodic offline shared-log review (not continuous) | [meta-optimize](../../references/meta-optimize.md) |
 | Draft skill PR | Opt-in eval-gated draft skill PRs; default OFF | [draft-skill-pr](../../references/draft-skill-pr.md) |
 | Token budget | Triage or env selects ultra-lean / balanced / deep | [token-budget-modes](../../references/token-budget-modes.md) |
@@ -323,6 +327,10 @@ Slash-only skills stay listed. Descriptions stay short so host listing caps
 | reviewer | Independent read-only adversarial review; never edit. | `references/roles.md#reviewer` |
 | tester | Reproduce behavior; regression and acceptance evidence. | `references/roles.md#tester` |
 | mechanical-helper | Deterministic reversible spec-exact work; stop on ambiguity. | `references/roles.md#mechanical-helper` |
+| harness-learn | Tune git-tracked harness from repeated traces; never `~/.grok/skills`. | `references/harness-learn.md` |
+| design-loop | Write-review-revise design docs until 0 open issues. | `references/design-loop.md` |
+| deep-research | Bounded parallel research; independent verify; cited report. | `references/deep-research.md` |
+| learn-traces | Map-reduce-verify session traces without a host TUI. | `references/learn-traces.md` |
 
 The portable distribution's [human overview](../../README.md) uses the
 deterministic light, dark, monochrome, lockup, and small-size identity masters

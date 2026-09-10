@@ -122,6 +122,9 @@ transcripts, private routes, model identities, credentials, and local paths.
 
 The entrypoint makes this a duty. The terminal states are merged, red,
 conflicting, and stale; a watcher observes only green and red.
+When the owner says babysit and merge it when green, follow this PR-merger
+(arm auto-merge, watch, fix, confirm). Bundled `pr-babysit` forbids merge;
+do not copy that rule into ChaosEngine and do not edit the bundled skill in place.
 
 This repository uses merge commits so a delivered branch remains identifiable
 by ancestry. Squash and rebase merging are disabled; do not substitute them.
