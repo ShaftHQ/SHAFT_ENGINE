@@ -94,6 +94,36 @@ class InstallerUxTests(unittest.TestCase):
                 reporter.close()
         self.assertFalse(any(thread.name == "chaos-engine-installer" for thread in threading.enumerate()))
 
+    def test_live_and_pipe_announce_use_aligned_project_source(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        pipe = io.StringIO()
+        reporter = BOOTSTRAP.InstallReporter(stream=pipe, clock=lambda: 1.0)
+        reporter.announce(Path("/project"), "ShaftHQ/SHAFT_ENGINE", "main")
+        pipe_out = pipe.getvalue()
+        self.assertIn("Project", pipe_out)
+        self.assertIn("Source", pipe_out)
+        self.assertIn("ShaftHQ/SHAFT_ENGINE@main", pipe_out)
+        self.assertNotIn("Install root:", pipe_out)
+        self.assertNotIn("\x1b", pipe_out)
+
+        stream = Tty()
+        environment = {key: value for key, value in os.environ.items() if key != "NO_COLOR"}
+        environment["TERM"] = "xterm"
+        with unittest.mock.patch.dict(os.environ, environment, clear=True), unittest.mock.patch.object(
+            BOOTSTRAP.InstallReporter, "_enable_windows_vt", return_value=True
+        ), unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            tty = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            tty.announce(Path("/project"), "owner/repo", "main")
+            tty.start("Download source")
+            tty.close()
+        live = stream.getvalue()
+        self.assertIn("Project", live)
+        self.assertIn("Status", live)
+        self.assertNotIn("Install root:", live)
+
     def test_ticker_updates_elapsed_each_second_during_blocking_work(self):
         class Tty(io.StringIO):
             def isatty(self):
@@ -691,6 +721,9 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("Detected host CLIs: Claude Code", output)
         self.assertIn("Caveman + Ponytail", output)
         self.assertIn("Maven Tools MCP", output)
+        self.assertIn("Hosts", output)
+        self.assertIn("on PATH", output)
+        self.assertIn("not on PATH", output)
         self.assertIn("Claude Code:", output)
         self.assertIn("Codex:", output)
         self.assertIn("Grok:", output)
@@ -911,6 +944,7 @@ class InstallerUxTests(unittest.TestCase):
                     project=project,
                 )
             err = stderr.getvalue()
+            self.assertIn("Installation failed", err)
             self.assertNotIn(".chaos-engine/install.py", err)
             self.assertIn("Installer CLI is not on disk", err)
             self.assertIn("Rerun the same install command", err)

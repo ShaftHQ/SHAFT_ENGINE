@@ -676,8 +676,12 @@ class InstallReporter:
             with self._lock:
                 self._render_locked()
         else:
-            self.stream.write(self._truncate(f"Install root: {self.project_root}") + "\n")
-            self.stream.write(self._truncate(f"Source: {self.source_label}") + "\n")
+            self.stream.write(
+                self._truncate(_align_report("Project", self.project_root)) + "\n"
+            )
+            self.stream.write(
+                self._truncate(_align_report("Source", self.source_label)) + "\n"
+            )
             self.stream.flush()
 
     def trace(self, message: str) -> None:
@@ -907,9 +911,17 @@ class InstallReporter:
         check, active, empty = (("✓", "◉", " ") if self._unicode else ("x", "*", " "))
         lines = [""]
         if self.project_root:
-            lines.append(self._truncate(f"  Install root: {self.project_root}"))
+            lines.append(
+                self._truncate(
+                    _align_report("Project", self.project_root, color=self._color)
+                )
+            )
         if self.source_label:
-            lines.append(self._truncate(f"  Source: {self.source_label}"))
+            lines.append(
+                self._truncate(
+                    _align_report("Source", self.source_label, color=self._color)
+                )
+            )
         if self.project_root or self.source_label:
             lines.append("")
         for item in operations:
@@ -940,7 +952,7 @@ class InstallReporter:
         ]
         trace_path = self.trace_path or Path(".chaos-engine-state/install-trace.json")
         lines.extend(
-            self._paint(line, "36")
+            self._paint(line, "2")
             for line in self._wrap(
                 f"  Trace (last {len(log)} of {self.trace_count}; full log: {trace_path.as_posix()})"
             )
@@ -950,7 +962,7 @@ class InstallReporter:
         lines.append(self._paint("  Status", ION_BLUE))
         lines.append(self._paint(self._truncate("  " + separator.join(metrics)), ION_BLUE))
         if self.detail:
-            lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
+            lines.append(self._paint(self._truncate(f"  {self.detail}"), ION_BLUE))
         if self._lines:
             self.stream.write(f"\x1b[{self._lines}F")
         rendered = "\n".join(line + "\x1b[K" for line in lines) + "\n"
@@ -1363,8 +1375,8 @@ def run_first_run_wizard(
     present = [label for _host_id, label, found in hosts if found]
     absent = [label for _host_id, label, found in hosts if not found]
     output.write("ChaosEngine first-run wizard\n")
-    output.write(f"Project: {project}\n")
-    output.write(f"Upstream: {repository}\n")
+    output.write(_align_report("Project", str(project)) + "\n")
+    output.write(_align_report("Source", repository) + "\n")
     output.write(
         "This install will add the portable ChaosEngine core, lifecycle hooks, "
         "Memory, MemPalace, Graphify CLI, five host adapters, and the Caveman + "
@@ -1381,6 +1393,10 @@ def run_first_run_wizard(
         )
     if absent:
         output.write("Not detected on PATH: " + ", ".join(absent) + "\n")
+    output.write("Hosts\n")
+    for host_id, label, found in hosts:
+        status = "on PATH" if found else "not on PATH"
+        output.write(f"    {label:<16} {status}\n")
     output.write("Next after install:\n")
     for host_id, label, found in hosts:
         marker = "*" if found else "-"
@@ -2076,6 +2092,8 @@ def emit_install_failure(
     opener=urllib.request.urlopen,
     token: str | None = None,
 ) -> str | None:
+    print(file=sys.stderr)
+    print("  Installation failed", file=sys.stderr)
     print(file=sys.stderr)
     if code == "CE-INSTALL-CANCELLED":
         print(f"{code}: installation interrupted", file=sys.stderr)
