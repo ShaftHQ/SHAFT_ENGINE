@@ -654,6 +654,8 @@ public class AndroidTouchActionsCoverageUnitTest {
     public void reflectionAndWrapperMethodsShouldCoverRemainingTouchActionPaths() throws Exception {
         AndroidDriver driver = createMockAndroidDriver();
         WebElement targetElement = mock(WebElement.class);
+        when(targetElement.isDisplayed()).thenReturn(true);
+        when(targetElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(40, 80, 120, 40));
         when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(targetElement), List.of(targetElement));
         doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
 
@@ -1056,6 +1058,26 @@ public class AndroidTouchActionsCoverageUnitTest {
         touchActions.activateInjectedImage("mock-image-123");
 
         verify(elementActionsHelper).failAction(eq(driver), anyString(), isNull(By.class));
+    }
+
+    @Test
+    public void offScreenNativeElementIsNotTreatedAsInViewport() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(new DriverFactoryHelper(driver));
+        WebElement offScreen = mock(WebElement.class);
+        WebElement onScreen = mock(WebElement.class);
+        when(offScreen.isDisplayed()).thenReturn(true);
+        when(onScreen.isDisplayed()).thenReturn(true);
+        when(offScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(2367, 278, 100, 50));
+        when(onScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(80, 278, 100, 50));
+        Method visible = TouchActions.class.getDeclaredMethod("isTargetVisibleInViewport", By.class);
+        visible.setAccessible(true);
+
+        when(driver.findElements(any(By.class))).thenReturn(List.of(offScreen));
+        SHAFT.Validations.assertThat().object(visible.invoke(touchActions, By.id("tab12"))).isEqualTo(false).perform();
+
+        when(driver.findElements(any(By.class))).thenReturn(List.of(onScreen));
+        SHAFT.Validations.assertThat().object(visible.invoke(touchActions, By.id("tab12"))).isEqualTo(true).perform();
     }
 
     private AndroidDriver createMockAndroidDriver() {

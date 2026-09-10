@@ -105,6 +105,11 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         script = emulator["with"]["script"]
         self.assertNotRegex(script, r"(?m)^\s*set -[^\n]*pipefail")
         self.assertRegex(script, r"(?m)^\s*set -eu\s*$")
+        self.assertIn('working-directory', emulator["with"])
+        self.assertIn('cd "$GITHUB_WORKSPACE"', script)
+        self.assertIn("-Dallure.automaticallyOpen=false", script)
+        self.assertIn("-DheadlessExecution=true", script)
+        self.assertIn("shaft-engine/allure-results", script)
 
     def test_ios_visual_ocr_uses_shared_locators_and_opens_text_screen(self):
         ios_tests = IOS_TESTS.read_text(encoding="utf-8")
@@ -120,6 +125,8 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIn("tap(TEXT_BUTTON)", body)
         self.assertIn("findElement(TEXT_INPUT)", body)
         self.assertNotRegex(body, r'AppiumBy\.accessibilityId\("Text Input"\)')
+        self.assertIn("isAccessibilityFocused(TEXT_INPUT)", body)
+        self.assertNotIn("switchTo().activeElement()", body)
 
     def test_android_visual_ocr_avoids_ambiguous_auto_group1_image_target(self):
         android_tests = ANDROID_TESTS.read_text(encoding="utf-8")

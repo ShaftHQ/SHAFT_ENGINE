@@ -57,12 +57,12 @@ public class IOSBasicInteractionsTest {
 
         driver.get().touch()
                 .tap(ImageTarget.fromBytes(inputScreenshot));
-        Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
+        Assert.assertTrue(isAccessibilityFocused(TEXT_INPUT), "Image tap should focus Text Input");
 
         ((IOSDriver) driver.get().getDriver()).hideKeyboard();
-        Assert.assertNotEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
+        Assert.assertFalse(isAccessibilityFocused(TEXT_INPUT), "Hiding the keyboard should blur Text Input");
         driver.get().touch().tap(OcrTarget.exact("Text Input"));
-        Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
+        Assert.assertTrue(isAccessibilityFocused(TEXT_INPUT), "OCR tap should focus Text Input");
         driver.get().element().type(TEXT_INPUT, "visual ocr ios" + "\n");
 
         Validations.assertThat()
@@ -189,6 +189,12 @@ public class IOSBasicInteractionsTest {
 //        System.setProperty("browserStack.appUrl", "bs://e2c374a22cf954e582b5c02e9a9f7cfd650a8325");
         driver.set(new SHAFT.GUI.WebDriver());
 
+    }
+
+    /** XCUITest {@code switchTo().activeElement()} is getActiveElement with null locators. */
+    private boolean isAccessibilityFocused(By locator) {
+        String focused = driver.get().getDriver().findElement(locator).getAttribute("focused");
+        return "true".equalsIgnoreCase(focused) || "1".equals(focused);
     }
 
     @AfterMethod(alwaysRun = true)

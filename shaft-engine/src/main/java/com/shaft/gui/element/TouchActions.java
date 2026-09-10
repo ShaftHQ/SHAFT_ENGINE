@@ -1654,11 +1654,11 @@ public class TouchActions extends FluentWebDriverAction {
                 // for the animated GIF:
                 elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-                var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
+                var elementExistsOnViewPort = isTargetVisibleInViewport(targetElementLocator);
                 if (elementExistsOnViewPort)
                     return true;
                 canScrollMore.set(performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false)));
-                elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
+                elementExistsOnViewPort = isTargetVisibleInViewport(targetElementLocator);
                 if (!canScrollMore.get() && !elementExistsOnViewPort)
                     throw new RuntimeException("Element not found after scrolling to the end of the page.");
                 return elementExistsOnViewPort;
@@ -1687,6 +1687,35 @@ public class TouchActions extends FluentWebDriverAction {
         }
         ReportManager.logDiscrete("Element found on screen.");
         return true;
+    }
+
+    /**
+     * Native lists often keep off-screen rows in the tree. Presence is not
+     * viewport membership; element screenshots then crop outside the bitmap (#5721).
+     */
+    private boolean isTargetVisibleInViewport(By targetElementLocator) {
+        var matches = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator);
+        if (matches == null || matches.isEmpty()) {
+            return false;
+        }
+        WebElement element = matches.get(0);
+        try {
+            if (!element.isDisplayed()) {
+                return false;
+            }
+            Rectangle rect = element.getRect();
+            if (rect.getWidth() <= 0 || rect.getHeight() <= 0) {
+                return false;
+            }
+            Dimension window = driverFactoryHelper.getDriver().manage().window().getSize();
+            int left = Math.max(rect.getX(), 0);
+            int top = Math.max(rect.getY(), 0);
+            int right = Math.min(rect.getX() + rect.getWidth(), window.getWidth());
+            int bottom = Math.min(rect.getY() + rect.getHeight(), window.getHeight());
+            return right > left && bottom > top;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     /**
