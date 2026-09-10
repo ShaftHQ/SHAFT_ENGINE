@@ -96,6 +96,7 @@ jobs:
               - 'tests/scripts/test_chaos_engine_install_wrappers.py'
               - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
               - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
             docs:
               - "**/*.md"
               - "**/*.mdx"

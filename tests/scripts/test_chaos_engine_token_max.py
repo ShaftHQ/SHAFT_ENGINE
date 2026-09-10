@@ -125,10 +125,10 @@ class TokenMaxTests(TestCase):
     def test_user_and_project_ids_share_one_heal_prompt(self):
         text = (ROOT / "chaos-engine/hosts.py").read_text(encoding="utf-8")
         self.assertIn("disable extras in host MCP config", text)
-        self.assertIn("chaos-engine/", self.hosts.instruction_block("chaos-engine"))
+        self.assertIn(".chaos-engine/", self.hosts.instruction_block("chaos-engine"))
         self.assertIn(".chaos-engine/", self.hosts.instruction_block(".chaos-engine"))
         self.assertEqual(
-            "chaos-engine",
+            ".chaos-engine",
             self.hosts.guidance_tree(ROOT),
         )
         self.assertEqual(

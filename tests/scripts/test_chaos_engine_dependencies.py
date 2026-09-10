@@ -512,6 +512,38 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertFalse(local["mempalace"]["healthy"])
         self.assertEqual("version-mismatch", local["mempalace"]["detail"])
 
+    def test_mempalace_probe_invokes_cmd_c_for_dot_cmd_stubs_on_windows(self):
+        # On Windows, uv tool install creates .cmd stubs that subprocess.run
+        # cannot execute directly (requires cmd.exe). Without the fix, .cmd
+        # paths raise OSError → healthy=False → action="repaired" on rerun.
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        contract = specification["dependencies"]["mempalace"]
+        with tempfile.TemporaryDirectory() as temporary:
+            stub = str(Path(temporary) / "mempalace.cmd")
+            Path(stub).write_text("@echo off\r\n", encoding="utf-8")
+
+            received_commands: list[list[str]] = []
+
+            def tracking_runner(command, **_kwargs):
+                received_commands.append(list(command))
+                return SimpleNamespace(returncode=0, stdout="mempalace 3.8.0", stderr="")
+
+            with mock.patch.object(module.os, "name", "nt"), \
+                 mock.patch.object(module, "_account_search_path", return_value=""):
+                result = module.probe_account_dependency(
+                    "mempalace", stub, contract, runner=tracking_runner
+                )
+
+        self.assertEqual(1, len(received_commands))
+        invoked = received_commands[0]
+        # The first element must be "cmd", and the stub must appear after "/c"
+        self.assertEqual("cmd", invoked[0], "expected cmd.exe wrapper for .cmd stub")
+        self.assertEqual("/c", invoked[1])
+        self.assertEqual(stub, invoked[2])
+        self.assertTrue(result["healthy"])
+        self.assertEqual("3.8.0", result["version"])
+
     def test_stable_versions_reject_prerelease_and_yanked_candidates(self):
         module = load_controller()
         candidates = [

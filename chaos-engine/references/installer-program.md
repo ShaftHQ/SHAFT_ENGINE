@@ -72,7 +72,7 @@ Same inputs, same outputs, no LLM, no interactive prompt during the one-liner.
 
 | Class | Examples | Merge rule |
 | --- | --- | --- |
-| Marker-owned text | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.gitignore` runtime block, `.gitattributes` EOL block | Replace the single `START`/`END` span with the current owned block. Append the block when markers are absent. Keep all bytes outside the span. |
+| Marker-owned text | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.gitignore` runtime block, `.gitattributes` EOL block | Replace the single `START`/`END` span with the current owned block. Append the block when markers are absent. Keep all bytes outside the span. Owned instruction markers always name `.chaos-engine/` (Copilot uses `../.chaos-engine/`); never source `chaos-engine/`. |
 | Marker-owned JSON/TOML sections | generated Codex config `# CHAOSENGINE:START`…`END`, Claude/Grok/Gemini/Copilot hook documents | Same span rule. Foreign keys, handlers, and MCP servers outside the span stay. |
 | Named owned records | CE MCP servers `chaosengine-memory`, `chaosengine-mempalace`, `context7`, `maven-tools-mcp`; CE hook commands that `chaos_hook_command` recognizes | Upsert exact owned records. Delete only exact recognized legacy names already covered by tests (legacy Memory server id, bare `mempalace`, local-npx Context7, covered Docker/JAR shapes). |
 | Receipt-owned whole files | `.chaos-engine/**`, plugin manifests ChaosEngine publishes, role adapters it writes | Replace from the verified payload. |
