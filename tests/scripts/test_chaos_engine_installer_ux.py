@@ -512,10 +512,11 @@ class InstallerUxTests(unittest.TestCase):
                 return True
 
         stream = Tty()
-        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}, clear=False), unittest.mock.patch.object(
-            BOOTSTRAP.threading.Thread, "start", lambda self: None
-        ), unittest.mock.patch.dict(os.environ, {"NO_COLOR": ""}, clear=False):
-            os.environ.pop("NO_COLOR", None)
+        environment = {key: value for key, value in os.environ.items() if key != "NO_COLOR"}
+        environment["TERM"] = "xterm"
+        with unittest.mock.patch.dict(os.environ, environment, clear=True), unittest.mock.patch.object(
+            BOOTSTRAP.InstallReporter, "_enable_windows_vt", return_value=True
+        ), unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
             reporter = BOOTSTRAP.InstallReporter(stream=stream)
             reporter.success(
                 Path("/project"),
