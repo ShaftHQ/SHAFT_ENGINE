@@ -221,6 +221,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"));
 
         driver.get().touch().swipeElementIntoView(group18, TouchActions.SwipeDirection.DOWN);
+        Assert.assertTrue(driver.get().getDriver().findElement(group18).isDisplayed());
         byte[] group18Screenshot = driver.get().getDriver().findElement(group18).getScreenshotAs(OutputType.BYTES);
 
         // Tiny "Group 1" crops match many list rows under AUTO; OCR uniquely names Group 1.
@@ -250,6 +251,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
 
         byte[] tab1Screenshot = driver.get().getDriver().findElement(tab1).getScreenshotAs(OutputType.BYTES);
         driver.get().touch().swipeElementIntoView(tabs, tab12, TouchActions.SwipeDirection.RIGHT);
+        Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
         byte[] tab12Screenshot = driver.get().getDriver().findElement(tab12).getScreenshotAs(OutputType.BYTES);
 
         // Nightly LEFT image swipe already succeeded under AUTO; keep that proven path.

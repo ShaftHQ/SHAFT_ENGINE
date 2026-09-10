@@ -654,6 +654,8 @@ public class AndroidTouchActionsCoverageUnitTest {
     public void reflectionAndWrapperMethodsShouldCoverRemainingTouchActionPaths() throws Exception {
         AndroidDriver driver = createMockAndroidDriver();
         WebElement targetElement = mock(WebElement.class);
+        when(targetElement.isDisplayed()).thenReturn(true);
+        when(targetElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(40, 80, 120, 40));
         when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(targetElement), List.of(targetElement));
         doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
 
@@ -814,6 +816,8 @@ public class AndroidTouchActionsCoverageUnitTest {
     public void swipeElementIntoViewWithNativeLocatorShouldStillUseMobileScrollGesture() throws Exception {
         AndroidDriver driver = createMockAndroidDriver();
         WebElement targetElement = mock(WebElement.class);
+        when(targetElement.isDisplayed()).thenReturn(true);
+        when(targetElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(80, 278, 100, 50));
         when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(targetElement));
         doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
 
@@ -1056,6 +1060,30 @@ public class AndroidTouchActionsCoverageUnitTest {
         touchActions.activateInjectedImage("mock-image-123");
 
         verify(elementActionsHelper).failAction(eq(driver), anyString(), isNull(By.class));
+    }
+
+    @Test
+    public void offScreenNativeElementIsNotTreatedAsInViewport() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement offScreen = mock(WebElement.class);
+        WebElement onScreen = mock(WebElement.class);
+        when(offScreen.isDisplayed()).thenReturn(true);
+        when(onScreen.isDisplayed()).thenReturn(true);
+        when(offScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(2367, 278, 100, 50));
+        when(onScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(80, 278, 100, 50));
+        when(driver.findElements(any(By.class))).thenReturn(List.of(offScreen), List.of(onScreen));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(new DriverFactoryHelper(driver));
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        // Presence in the native tree is not viewport membership (#5721). Public swipe
+        // must still scroll instead of treating the off-screen row as already in view.
+        touchActions.swipeElementIntoView(By.id("tab12"), TouchActions.SwipeDirection.RIGHT);
+
+        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
     }
 
     private AndroidDriver createMockAndroidDriver() {
