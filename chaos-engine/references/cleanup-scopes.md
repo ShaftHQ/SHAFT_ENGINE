@@ -41,6 +41,31 @@ Graphify, and MemPalace. Do not touch sibling repositories or machine-wide
 caches. Preserve and halt on pre-existing unknown, dirty, locked, or
 concurrently owned state unless its discard is separately authorized.
 
+#### Authorized default-branch reset recipe
+
+When the owner explicitly authorizes repository-scope git hygiene (reset to a
+single origin-synced configured default branch and drop leftover local
+branches and worktrees), run this recipe only. It does not infer machine
+scope. Unique commits still require separate discard authorization.
+
+1. Fetch and prune the configured upstream. Resolve the configured default
+   branch from the remote HEAD or profile; never guess from the current
+   checkout name.
+2. Fast-forward the local default-branch ref to that immutable upstream tip.
+   Check out that one expected branch in the verified primary worktree. The
+   result is one clean expected checkout at the configured upstream tip.
+3. Inventory extra local branches and extra worktrees. Delete extra worktrees
+   that are clean, unlocked, and not concurrently owned. Then delete extra
+   local branches that are fully merged into the upstream tip or whose unique
+   commits the owner separately authorized discarding.
+4. Never rewrite remote history as cleanup: no `git push --force`, no
+   `--force-with-lease` to the configured default or other remote refs, no
+   remote branch deletion, no history rewrite. Remote mutation is not a
+   cleanup action.
+
+Selected project profiles may name this recipe; they must not fork a second
+policy.
+
 ### Machine scope (approval-gated)
 
 Machine cleanup is never inferred from either narrower scope. This scope
