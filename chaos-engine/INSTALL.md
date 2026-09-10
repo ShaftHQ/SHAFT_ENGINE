@@ -26,7 +26,11 @@ agents. This page is the installation reference. See [`README.md`](README.md) fo
 | <code>plugins/chaos-engine/</code> | Generated plugin payloads | Host plugin loaders |
 | <code>AGENTS.md</code> <code>CLAUDE.md</code> <code>GEMINI.md</code> | Origin files plus generated markers | Every host |
 | `.mcp.json` CE merge | Generated | Host MCP clients |
-| Marker blocks in `AGENTS.md` `CLAUDE.md` `GEMINI.md` `.github/copilot-instructions.md` | Generated pointers | Every host |
+| Marker blocks in `AGENTS.md` `CLAUDE.md` `GEMINI.md` `.github/copilot-instructions.md` | Generated pointers to `.chaos-engine` only | Every host |
+
+Generated host markers, skill adapters, MCP args, and doctor heal prompts always
+name `.chaos-engine/`. They never point at source `chaos-engine/`. Origin still
+tracks the source tree as the copy-from payload.
 
 Adopters track generated harness files. Origin SHAFT_ENGINE ignores them after
 the `# CHAOSENGINE-RUNTIME` block so last-match gitignore wins.

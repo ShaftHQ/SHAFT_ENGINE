@@ -173,7 +173,7 @@ class HostParity5698Tests(unittest.TestCase):
     def test_instruction_block_matches_heal_prompt(self):
         block = self.hosts.instruction_block("chaos-engine")
         self.assertIn(self.policy.HEAL_PROMPT, block)
-        self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", block)
+        self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", block)
 
     def test_copilot_cloud_ide_share_cli_policy_pointer(self):
         capability = self.kernel.HOST_CAPABILITIES["copilot"]

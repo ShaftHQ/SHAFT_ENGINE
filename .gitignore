@@ -277,6 +277,7 @@ mempalace_embedder.json
 .chaos-engine.backup.*/
 .chaos-engine-cross-rollback/
 .chaos-engine-uninstall-*
+.chaos-engine-dependencies.json
 .chaos-engine-hosts.json
 .chaos-engine-hosts.*
 .chaos-engine-directory-claim-*

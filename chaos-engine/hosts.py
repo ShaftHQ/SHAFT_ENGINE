@@ -1920,14 +1920,17 @@ START = "<!-- CHAOSENGINE:START -->"
 END = "<!-- CHAOSENGINE:END -->"
 DIRECTORY_MARKER = ".chaos-engine-owned-directory"
 DIRECTORY_CLAIM_PREFIX = ".chaos-engine-directory-claim-"
+INSTALLED_TREE = ".chaos-engine"
+SOURCE_TREE = "chaos-engine"
+
+
 def guidance_tree(project: Path | None = None) -> str:
-    """Origin names SOURCE. Adopters name the overlay only."""
-    if project is not None and (project / "chaos-engine/skills/chaos-engine/SKILL.md").is_file():
-        return "chaos-engine"
-    return ".chaos-engine"
+    """Generated host pointers always name the installed overlay."""
+    return INSTALLED_TREE
 
 
-def instruction_block(tree: str = ".chaos-engine") -> str:
+def instruction_block(tree: str = INSTALLED_TREE) -> str:
+    tree = INSTALLED_TREE
     skill = f"{tree}/skills/chaos-engine/SKILL.md"
     tool = f"{tree}/tool.py"
     return (
@@ -1939,27 +1942,38 @@ def instruction_block(tree: str = ".chaos-engine") -> str:
     )
 
 
+def copilot_instruction_block(tree: str = INSTALLED_TREE) -> str:
+    """Prefix overlay paths for files under `.github/`; never rewrite nested names."""
+    tree = INSTALLED_TREE
+    block = instruction_block(tree)
+    return block.replace(f"]({tree}/", f"](../{tree}/").replace(
+        f"`{tree}/tool.py`", f"`../{tree}/tool.py`"
+    )
+
+
 def selected_profile_name(project: Path | None, tree: str) -> str | None:
     """Return the non-portable profile directory name when exactly one exists."""
     if project is None:
         return None
-    profiles = project / tree / "profiles"
-    if not profiles.is_dir():
-        return None
-    names = sorted(
-        path.name
-        for path in profiles.iterdir()
-        if path.is_dir()
-        and path.name != "portable"
-        and (path / "entrypoint.md").is_file()
-    )
-    if len(names) == 1:
-        return names[0]
+    for candidate in (INSTALLED_TREE, SOURCE_TREE, tree):
+        profiles = project / candidate / "profiles"
+        if not profiles.is_dir():
+            continue
+        names = sorted(
+            path.name
+            for path in profiles.iterdir()
+            if path.is_dir()
+            and path.name != "portable"
+            and (path / "entrypoint.md").is_file()
+        )
+        if len(names) == 1:
+            return names[0]
     return None
 
 
 def skill_adapter_bytes(tree: str, *, profile: str | None = None) -> bytes:
     """Generated host skill pointer. Never embeds the router contract body."""
+    tree = INSTALLED_TREE
     canonical = f"../../../{tree}/skills/chaos-engine/SKILL.md"
     if profile:
         return (
@@ -2030,7 +2044,10 @@ def normalize_marker_policy(text: str) -> str:
         finish = text.index(END, begin)
         interior = text[begin:finish]
     compact = " ".join(interior.replace("\r\n", "\n").split())
-    return compact.replace("../.chaos-engine/", ".chaos-engine/")
+    compact = compact.replace("../", "")
+    compact = compact.replace(".chaos-engine/", "\0")
+    compact = compact.replace("chaos-engine/", ".chaos-engine/")
+    return compact.replace("\0", ".chaos-engine/")
 
 
 EXTRA_POLICY_LOAD = re.compile(
@@ -4627,7 +4644,7 @@ def desired_content(
         managed_python = Path(python)
         managed_node = Path(node)
     adapters = managed_paths()[:4]
-    tree = guidance_tree(project)
+    tree = INSTALLED_TREE
     profile = selected_profile_name(project, tree)
     after = {
         relative: skill_adapter_bytes(tree, profile=None) for relative in adapters
@@ -5202,10 +5219,9 @@ def desired_content(
         after[relative] = merge_instruction(
             before[relative], block, relative=relative
         )
-    copilot_instruction = block.replace(f"{tree}/", f"../{tree}/")
     after[".github/copilot-instructions.md"] = merge_instruction(
         before[".github/copilot-instructions.md"],
-        copilot_instruction,
+        copilot_instruction_block(tree),
         relative=".github/copilot-instructions.md",
     )
     after[".mcp.json"] = json_content(
