@@ -816,6 +816,8 @@ public class AndroidTouchActionsCoverageUnitTest {
     public void swipeElementIntoViewWithNativeLocatorShouldStillUseMobileScrollGesture() throws Exception {
         AndroidDriver driver = createMockAndroidDriver();
         WebElement targetElement = mock(WebElement.class);
+        when(targetElement.isDisplayed()).thenReturn(true);
+        when(targetElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(80, 278, 100, 50));
         when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(targetElement));
         doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
 
