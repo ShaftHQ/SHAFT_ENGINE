@@ -460,6 +460,8 @@ def probe_account_dependency(
     if not isinstance(probe, list) or not all(isinstance(item, str) for item in probe):
         raise ValueError(f"dependency probe contract is invalid: {name}")
     command = [executable_path, *probe[1:]]
+    if os.name == "nt" and executable_path.lower().endswith((".cmd", ".bat")):
+        command = ["cmd", "/c", *command]
     environment = {
         key: value
         for key, value in os.environ.items()
