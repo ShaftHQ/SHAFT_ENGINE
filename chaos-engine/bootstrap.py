@@ -723,6 +723,13 @@ class InstallReporter:
         suffix = "…" if self._unicode else "..."
         return value[: max(0, width - len(suffix))] + suffix
 
+    def _aligned_live_row(self, label: str, value: str) -> str:
+        plain = self._truncate(_align_report(label, value))
+        prefix = f"  {label:<10} "
+        if not plain.startswith(prefix):
+            return plain
+        return _align_report(label, plain[len(prefix) :], color=self._color)
+
     def _wrap(self, value: str) -> list[str]:
         width = self._width()
         if len(value) <= width:
@@ -911,17 +918,9 @@ class InstallReporter:
         check, active, empty = (("✓", "◉", " ") if self._unicode else ("x", "*", " "))
         lines = [""]
         if self.project_root:
-            lines.append(
-                self._truncate(
-                    _align_report("Project", self.project_root, color=self._color)
-                )
-            )
+            lines.append(self._aligned_live_row("Project", self.project_root))
         if self.source_label:
-            lines.append(
-                self._truncate(
-                    _align_report("Source", self.source_label, color=self._color)
-                )
-            )
+            lines.append(self._aligned_live_row("Source", self.source_label))
         if self.project_root or self.source_label:
             lines.append("")
         for item in operations:

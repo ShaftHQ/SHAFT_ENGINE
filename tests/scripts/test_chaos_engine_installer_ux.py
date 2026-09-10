@@ -124,6 +124,35 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("Status", live)
         self.assertNotIn("Install root:", live)
 
+    def test_narrow_tty_announce_keeps_ansi_reset_on_project_source(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        stream = Tty()
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"NO_COLOR", "FORCE_COLOR"}
+        }
+        environment.update({"TERM": "xterm", "COLUMNS": "20"})
+        with unittest.mock.patch.dict(os.environ, environment, clear=True), unittest.mock.patch.object(
+            BOOTSTRAP.InstallReporter, "_enable_windows_vt", return_value=True
+        ), unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            reporter.announce(Path("/very/long/project/path"), "owner/very-long-repo", "main")
+            reporter.close()
+        live = stream.getvalue()
+        self.assertIn("\x1b[0m", live)
+        self.assertNotEqual(live.rstrip().endswith(BOOTSTRAP.ION_BLUE[:-1]), True)
+        dangling = live.count(BOOTSTRAP.ION_BLUE) - live.count("\x1b[0m")
+        self.assertLessEqual(dangling, 0)
+
+        pipe = io.StringIO()
+        reporter = BOOTSTRAP.InstallReporter(stream=pipe, clock=lambda: 1.0)
+        reporter.announce(Path("/project"), "ShaftHQ/SHAFT_ENGINE", "main")
+        self.assertNotIn("\x1b", pipe.getvalue())
+
     def test_ticker_updates_elapsed_each_second_during_blocking_work(self):
         class Tty(io.StringIO):
             def isatty(self):
