@@ -733,7 +733,11 @@ class InstallReporter:
         ) or [indent]
 
     def _paint(self, value: str, color: str) -> str:
-        return f"\x1b[{color}m{value}\x1b[0m" if self._color else value
+        if not self._color:
+            return value
+        if color.startswith("\x1b"):
+            return f"{color}{value}\x1b[0m"
+        return f"\x1b[{color}m{value}\x1b[0m"
 
     def _duration(self, seconds: float) -> str:
         seconds = max(0, round(seconds))
@@ -913,11 +917,18 @@ class InstallReporter:
                 duration = self._duration(self._completed_elapsed.get(item, 0.0))
                 lines.append(self._paint(self._truncate(f"  [{check}] {item}  {duration}"), "32"))
             elif item == self.current_operation or item in self._in_flight:
-                lines.append(self._paint(self._truncate(f"  [{active}] {item}  running"), "36"))
+                lines.append(
+                    self._paint(
+                        self._truncate(f"  [{active}] {item}  running"),
+                        ION_BLUE,
+                    )
+                )
             else:
                 lines.append(self._truncate(f"  [{empty}] {item}"))
         separator = " · " if self._unicode else " | "
-        metrics = [f"Elapsed {self._duration(elapsed)}"]
+        done = sum(1 for item in operations if item in self.completed_operations)
+        total = len(operations)
+        metrics = [f"{done}/{total}", f"Elapsed {self._duration(elapsed)}"]
         rate = self._download_rate()
         if rate is not None:
             metrics.append(self._size(rate))
@@ -936,8 +947,8 @@ class InstallReporter:
         )
         for ended, message in log:
             lines.extend(self._wrap(f"  [+{self._duration(ended)}] {message}"))
-        lines.append(self._paint("  Summary", "36"))
-        lines.append(self._paint(self._truncate("  " + separator.join(metrics)), "36"))
+        lines.append(self._paint("  Status", ION_BLUE))
+        lines.append(self._paint(self._truncate("  " + separator.join(metrics)), ION_BLUE))
         if self.detail:
             lines.append(self._paint(self._truncate(f"  {self.detail}"), "36"))
         if self._lines:
@@ -971,27 +982,12 @@ class InstallReporter:
                 total += 1
                 if item.get("status") in {"healthy", "absent"}:
                     healthy += 1
-        client_names = sorted(clients) if isinstance(clients, dict) else []
-        self.close()
-        self.stream.write(self._paint("  Summary", "36") + "\n")
-        self.stream.write(
-            "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!\n"
-        )
-        if commit is not None:
-            self.stream.write(f"Resolved commit: {commit}\n")
-        if total:
-            self.stream.write(
-                f"Doctor: {doctor_status} ({healthy}/{total} components healthy)\n"
-            )
-        else:
-            self.stream.write(f"Doctor: {doctor_status}\n")
-        if client_names:
-            self.stream.write(f"Clients: {', '.join(client_names)}\n")
-        self.stream.write(format_first_session_brief(clients=clients if isinstance(clients, dict) else {}))
+        elapsed = self._duration(max(0.0, self.clock() - self.started))
+        extra: list[str] = []
         handoff = project / ".chaos-engine-state" / "merge-handoff.md"
         if handoff.is_file() and not handoff.is_symlink():
-            doctor = "py -3" if os.name == "nt" else "python3"
-            doctor_command = f"{doctor} .chaos-engine/install.py doctor --project ."
+            doctor_cli = "py -3" if os.name == "nt" else "python3"
+            doctor_command = f"{doctor_cli} .chaos-engine/install.py doctor --project ."
             prompt = (
                 "Merge ChaosEngine host configuration using "
                 ".chaos-engine-state/merge-handoff.md. Follow "
@@ -999,12 +995,14 @@ class InstallReporter:
                 "Preserve every foreign handler and MCP server. Apply only the listed "
                 f"owned blocks. Then run {doctor_command} and follow each fix-next."
             )
-            self.stream.write(self._paint("  Merge handoff", "36") + "\n")
-            self.stream.write(
-                "Core is installed. Some host files were left unchanged. Details: "
-                f"{handoff.as_posix()}\n"
+            extra.extend(
+                [
+                    "Merge handoff",
+                    "Core is installed. Some host files were left unchanged. Details: "
+                    + handoff.as_posix(),
+                    f"`{prompt}`",
+                ]
             )
-            self.stream.write(f"`{prompt}`\n")
         heal = project / HEAL_HANDOFF_RELATIVE
         if heal.is_file() and not heal.is_symlink():
             issue_url = "the GitHub issue linked in .chaos-engine-state/heal-handoff.md"
@@ -1019,26 +1017,35 @@ class InstallReporter:
             doctor_cli = "py -3" if os.name == "nt" else "python3"
             doctor_command = f"{doctor_cli} .chaos-engine/install.py doctor --project ."
             prompt = heal_handoff_prompt(doctor_command, issue_url)
-            self.stream.write(self._paint("  Heal handoff", "36") + "\n")
-            self.stream.write(
-                "Core is installed. Continue with one agent step. Details: "
-                f"{HEAL_HANDOFF_RELATIVE}\n"
+            extra.extend(
+                [
+                    "Heal handoff",
+                    "Core is installed. Continue with one agent step. Details: "
+                    + HEAL_HANDOFF_RELATIVE,
+                    "Open issue:" if "issues/new?" in issue_url else "GitHub issue:",
+                    issue_url,
+                    "Agent prompt (copy the backtick block):",
+                    f"`{prompt}`",
+                ]
             )
-            if "issues/new?" in issue_url:
-                self.stream.write("Open issue:\n")
-            else:
-                self.stream.write("GitHub issue:\n")
-            self.stream.write(f"{issue_url}\n")
-            self.stream.write("Agent prompt (copy the backtick block):\n")
-            self.stream.write(f"`{prompt}`\n")
+        self.close()
         self.stream.write(
-            format_host_onboarding_cards(
-                detected=detect_install_hosts(),
-                activated=clients if isinstance(clients, dict) else {},
+            format_install_report(
+                project=project,
+                doctor_status=doctor_status,
+                healthy=healthy,
+                total=total,
+                commit=commit,
+                clients=clients if isinstance(clients, dict) else {},
+                repository=repository,
+                source_label=self.source_label,
+                elapsed=elapsed,
+                extra_blocks=extra,
+                color=self._color,
+                unicode=self._unicode,
+                width=self._width(),
             )
         )
-        self.stream.write(f"{installer_user_guide_url(repository)}\n")
-        self.stream.write(f"Full install trace: {install_trace_path(project).as_posix()}\n")
         self.stream.flush()
 
     def close(self) -> None:
@@ -1058,8 +1065,21 @@ class InstallReporter:
 
 
 
+def _report_style(value: str, color: str, *, enabled: bool) -> str:
+    if not enabled:
+        return value
+    if color.startswith("\x1b"):
+        return f"{color}{value}\x1b[0m"
+    return f"\x1b[{color}m{value}\x1b[0m"
+
+
+def _align_report(label: str, value: str, *, color: bool = False) -> str:
+    painted = _report_style(f"{label:<10}", ION_BLUE, enabled=color)
+    return f"  {painted} {value}"
+
+
 def format_first_session_brief(*, clients: dict[str, object] | None = None) -> str:
-    """Return the post-install first-session brief (landed / untracked / next 3)."""
+    """Return bun-style next steps plus a First-session brief synonym heading."""
     client_names = sorted(clients) if isinstance(clients, dict) else []
     if client_names:
         open_host = (
@@ -1073,17 +1093,104 @@ def format_first_session_brief(*, clients: dict[str, object] | None = None) -> s
             "(Codex, Claude Code, Grok, Gemini, or GitHub Copilot)."
         )
     lines = [
+        "To get started:",
+        f"    {open_host}",
+        "    Ask the agent to load / use the `chaos-engine` skill.",
+        "    Run a small sample task (for example: ask doctor status, or a one-file reversible edit).",
         "First-session brief:",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def format_landed_untracked_lines() -> list[str]:
+    """Return Landed/Untracked receipt lines (folded under Guide/Trace)."""
+    return [
         "  Landed: portable core (`.chaos-engine/`), lifecycle hooks, five host adapters,",
         "    Caveman + Ponytail companions, self-improve skill, Memory / MemPalace / Graphify store tooling.",
         "  Untracked: generated indexes, caches, receipts, and runtimes",
         "    (`.chaos-engine-runtime*`, dependency/host receipts, `graphify-out`, local tool caches).",
         "    Canonical adapters and config stay trackable.",
-        "  Next:",
-        f"    1. {open_host}",
-        "    2. Ask the agent to load / use the `chaos-engine` skill.",
-        "    3. Run a small sample task (for example: ask doctor status, or a one-file reversible edit).",
     ]
+
+
+def format_install_report(
+    *,
+    project: Path,
+    doctor_status: str,
+    healthy: int,
+    total: int,
+    commit: str | None,
+    clients: dict[str, object],
+    repository: str,
+    source_label: str | None,
+    elapsed: str,
+    extra_blocks: list[str] | None = None,
+    color: bool = False,
+    unicode: bool = False,
+    width: int = 80,
+) -> str:
+    """Render the unattended finish receipt (bun/uv rhythm, rustup table)."""
+    headline = _report_style("Installation Successful!", "32", enabled=color)
+    lines = ["", f"  {headline}  ({elapsed})"]
+    if width >= 48:
+        rule = "──" if unicode else "--"
+        lines.append("  " + _report_style(rule * 18, ION_BLUE, enabled=color))
+    lines.append("")
+    lines.append(_align_report("Project", str(Path(project)), color=color))
+    if source_label:
+        lines.append(_align_report("Source", source_label, color=color))
+    if commit is not None:
+        short = commit[:12] + ("…" if unicode else "...") if len(commit) == 40 else commit
+        remainder = commit[12:] if len(commit) == 40 else ""
+        if remainder and color:
+            short = short + _report_style(remainder, "2", enabled=True)
+        lines.append(_align_report("Commit", short, color=color))
+        lines.append(f"Resolved commit: {commit}")
+    if total:
+        doctor_line = f"Doctor: {doctor_status} ({healthy}/{total} components healthy)"
+    else:
+        doctor_line = f"Doctor: {doctor_status}"
+    lines.append(doctor_line)
+    client_names = sorted(clients) if isinstance(clients, dict) else []
+    if client_names:
+        lines.append(f"Clients: {', '.join(client_names)}")
+    lines.append("")
+    started = format_first_session_brief(clients=clients).rstrip("\n")
+    if color:
+        started = started.replace(
+            "To get started:",
+            _report_style("To get started:", ION_BLUE, enabled=True),
+            1,
+        )
+    lines.append(started)
+    if extra_blocks:
+        lines.append("")
+        for block in extra_blocks:
+            if block in {"Merge handoff", "Heal handoff"}:
+                paint = "31" if block == "Heal handoff" else ION_BLUE
+                lines.append("  " + _report_style(block, paint, enabled=color))
+            else:
+                lines.append(block)
+    lines.append("")
+    lines.append(
+        format_host_onboarding_cards(
+            detected=detect_install_hosts(),
+            activated=clients,
+            color=color,
+        ).rstrip("\n")
+    )
+    lines.append("")
+    guide = installer_user_guide_url(repository)
+    guide_shown = guide
+    if color and unicode:
+        guide_shown = f"\x1b]8;;{guide}\x1b\\{guide}\x1b]8;;\x1b\\"
+    lines.append(_align_report("Guide", guide_shown, color=color))
+    trace = install_trace_path(Path(project)).as_posix()
+    trace_value = _report_style(trace, "2", enabled=color)
+    lines.append(_align_report("Trace", trace_value, color=color))
+    lines.append(f"Full install trace: {trace}")
+    lines.extend(format_landed_untracked_lines())
+    lines.append("")
     return "\n".join(lines) + "\n"
 
 
@@ -1177,29 +1284,55 @@ def format_host_onboarding_cards(
     *,
     detected: list[tuple[str, str, bool]] | None = None,
     activated: dict[str, object] | None = None,
+    color: bool = False,
 ) -> str:
-    """Render five host onboarding cards with enablement path and explicit gaps."""
+    """Render a rustup-style host table; how/gap only for one actionable host."""
     detected_map = {
         host_id: found for host_id, _label, found in (detected or [])
     }
     activated_names = {
         str(name).casefold() for name in (activated or {})
     }
-    lines = ["Host onboarding cards:"]
-    for host_id, _command, _label in HOST_DETECT_COMMANDS:
-        card = HOST_ONBOARDING_CARDS[host_id]
-        markers: list[str] = []
-        if detected_map.get(host_id):
-            markers.append("detected")
-        if host_id in activated_names or any(
+
+    def _is_activated(host_id: str) -> bool:
+        return host_id in activated_names or any(
             name == host_id or name.startswith(f"{host_id}-")
             for name in activated_names
-        ):
-            markers.append("activated")
-        marker_text = f" [{', '.join(markers)}]" if markers else ""
-        lines.append(f"  {card['label']}{marker_text} — {card['path']}")
-        lines.append(f"    how: {card['how']}")
-        lines.append(f"    gap: {card['gap']}")
+        )
+
+    actionable: str | None = None
+    for host_id, _command, _label in HOST_DETECT_COMMANDS:
+        if detected_map.get(host_id) and not _is_activated(host_id):
+            actionable = host_id
+            break
+    if actionable is None:
+        for host_id, _command, _label in HOST_DETECT_COMMANDS:
+            if not detected_map.get(host_id) and not _is_activated(host_id):
+                actionable = host_id
+                break
+    heading = _report_style("Hosts", ION_BLUE, enabled=color)
+    lines = ["Host onboarding cards:", f"  {heading}"]
+    for host_id, _command, _label in HOST_DETECT_COMMANDS:
+        card = HOST_ONBOARDING_CARDS[host_id]
+        found = bool(detected_map.get(host_id))
+        if _is_activated(host_id):
+            status = "activated"
+        elif host_id == "copilot" and found:
+            status = "IDE signal"
+        elif found:
+            status = "detected"
+        else:
+            status = "not on PATH"
+        status_cell = f"{status:<14}"
+        if color and status == "activated":
+            status_cell = _report_style(status_cell, "32", enabled=True)
+        elif color:
+            status_cell = _report_style(status_cell, "2", enabled=True)
+        path = card["path"].replace("file/hook injection", "file/hook")
+        lines.append(f"    {card['label']:<16} {status_cell} {path}")
+        if host_id == actionable:
+            lines.append(f"      how: {card['how']}")
+            lines.append(f"      gap: {card['gap']}")
     return "\n".join(lines) + "\n"
 
 

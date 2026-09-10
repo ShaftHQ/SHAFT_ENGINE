@@ -85,7 +85,8 @@ class InstallerUxTests(unittest.TestCase):
                 self.assertIn("Install core", output)
                 self.assertIn("Elapsed 00:00", output)
                 self.assertIn("Trace (last 0 of 0; full log:", output)
-                self.assertIn("Summary", output)
+                self.assertIn("Status", output)
+                self.assertRegex(output, r"0/2")
                 self.assertNotIn("ETA calculating", output)
                 self.assertNotIn("Current action:", output)
                 self.assertIn("\x1b[", output)
@@ -393,10 +394,8 @@ class InstallerUxTests(unittest.TestCase):
         )
         output = stream.getvalue()
         self.assertLess(output.index("DONE  Activate clients"), output.index("Installation Successful!"))
-        self.assertIn(
-            "Installation Successful! You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot. Just ask it to use chaos-engine and you should be good to go!",
-            output,
-        )
+        self.assertIn("Installation Successful!", output)
+        self.assertNotIn("You can now start a new agent session using Codex, Claude, Grok, Gemini, or Copilot", output)
         self.assertIn(f"Resolved commit: {commit}", output)
         self.assertIn("Doctor: healthy (2/2 components healthy)", output)
         self.assertIn("Clients: claude, codex", output)
@@ -407,12 +406,17 @@ class InstallerUxTests(unittest.TestCase):
         )
         self.assertNotIn("Owned managed dependencies", output)
         self.assertNotIn("Continue working in", output)
+        self.assertIn("To get started:", output)
         self.assertIn("First-session brief:", output)
         self.assertIn("Landed: portable core", output)
         self.assertIn("Untracked: generated indexes", output)
         self.assertIn("Open one activated host (claude, codex)", output)
         self.assertIn("Ask the agent to load / use the `chaos-engine` skill.", output)
         self.assertIn("Run a small sample task", output)
+        self.assertNotIn("\x1b[", output)
+        self.assertNotIn("\r", output)
+        report = output[output.index("Installation Successful!"):]
+        self.assertLessEqual(len(report.splitlines()), 40)
 
     def test_trace_persists_every_event_beyond_live_tty_limit(self):
         reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
@@ -442,6 +446,29 @@ class InstallerUxTests(unittest.TestCase):
             reporter.success(Path("/project"), {}, {}, repository="owner/repo")
         self.assertTrue(reporter._stop.is_set())
         self.assertIn("Installation Successful!", stream.getvalue())
+
+    def test_tty_success_uses_brand_colors_without_painting_every_line(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+
+        stream = Tty()
+        with unittest.mock.patch.dict(os.environ, {"TERM": "xterm"}, clear=False), unittest.mock.patch.object(
+            BOOTSTRAP.threading.Thread, "start", lambda self: None
+        ), unittest.mock.patch.dict(os.environ, {"NO_COLOR": ""}, clear=False):
+            os.environ.pop("NO_COLOR", None)
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            reporter.success(
+                Path("/project"),
+                {"commit": "b" * 40, "status": "healthy", "components": {}},
+                {"claude": {"status": "healthy"}},
+                repository="ShaftHQ/SHAFT_ENGINE",
+            )
+        output = stream.getvalue()
+        self.assertIn("\x1b[32mInstallation Successful!\x1b[0m", output)
+        self.assertIn(BOOTSTRAP.ION_BLUE, output)
+        self.assertIn("To get started:", output)
+        self.assertNotIn("\r", output)
 
     def test_core_and_provision_are_sequential_not_both_running(self):
         """#5635: Install core and Provision dependencies must not both show running."""
@@ -1499,15 +1526,19 @@ class InstallerUxTests(unittest.TestCase):
             activated={"claude": {"status": "healthy"}},
         )
         self.assertIn("Host onboarding cards:", rendered)
+        self.assertIn("Hosts", rendered)
         for label in ("Claude Code", "Codex", "Grok", "Gemini", "GitHub Copilot"):
             self.assertIn(label, rendered)
         self.assertIn("marketplace/plugin", rendered)
-        self.assertIn("file/hook injection", rendered)
+        self.assertIn("file/hook", rendered)
+        self.assertIn("activated", rendered)
+        self.assertIn("not on PATH", rendered)
+        self.assertIn("IDE signal", rendered)
         self.assertIn("gap:", rendered)
-        self.assertIn("[detected, activated]", rendered)
-        self.assertIn("Claude Code [detected, activated]", rendered)
-        # Exactly one card block per host (label line).
-        self.assertEqual(5, sum(1 for line in rendered.splitlines() if " — " in line))
+        self.assertEqual(1, rendered.count("how:"))
+        self.assertEqual(1, rendered.count("gap:"))
+        # Actionable host is first detected-not-activated (copilot), not activated Claude.
+        self.assertGreater(rendered.index("how:"), rendered.index("GitHub Copilot"))
 
     def test_success_cta_includes_host_onboarding_cards(self):
         stream = io.StringIO()
@@ -1532,24 +1563,25 @@ class InstallerUxTests(unittest.TestCase):
         output = stream.getvalue()
         self.assertIn("Host onboarding cards:", output)
         self.assertIn("marketplace/plugin", output)
-        self.assertIn("file/hook injection", output)
-        self.assertIn("gap:", output)
+        self.assertIn("file/hook", output)
+        self.assertEqual(1, output.count("how:"))
+        self.assertEqual(1, output.count("gap:"))
 
     def test_first_session_brief_lists_landed_untracked_and_three_next_actions(self):
         with_clients = BOOTSTRAP.format_first_session_brief(
             clients={"codex": {"status": "healthy"}}
         )
         self.assertIn("First-session brief:", with_clients)
-        self.assertIn("Landed:", with_clients)
-        self.assertIn("Untracked:", with_clients)
-        self.assertIn("Next:", with_clients)
+        self.assertIn("To get started:", with_clients)
         self.assertIn("Open one activated host (codex)", with_clients)
         self.assertIn("chaos-engine", with_clients)
         self.assertIn("sample task", with_clients)
         generic = BOOTSTRAP.format_first_session_brief(clients={})
         self.assertIn("Open any supported host", generic)
-        # Brief must stay concise for first-time users.
-        self.assertLessEqual(len(with_clients.splitlines()), 12)
+        self.assertLessEqual(len(with_clients.splitlines()), 8)
+        landed = "\n".join(BOOTSTRAP.format_landed_untracked_lines())
+        self.assertIn("Landed:", landed)
+        self.assertIn("Untracked:", landed)
 
     def test_confirmation_callbacks_reach_dependencies_maven_and_activation(self):
         bootstrap = (ROOT / "chaos-engine/bootstrap.py").read_text(encoding="utf-8")
