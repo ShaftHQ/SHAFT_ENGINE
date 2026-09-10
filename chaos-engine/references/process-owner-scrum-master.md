@@ -4,9 +4,15 @@ Normative owner of orchestrator-mode process ownership. Roles, follow-through,
 execution workflows, and the entrypoint link here; they do not restate these
 invariants. Load this reference whenever the selected workflow is orchestrated.
 
+The default delivery method is Kanban: limit WIP, pull work, eliminate waste.
+process-owner is the role name. Scrum-master is an alias only when the user
+explicitly asks to act as Scrum-master. TDD/PDCA is the quality loop inside
+Kanban. Do not add Scrum ceremonies.
+
 ## Role purpose and authority
 
-The orchestrator is the process owner and Scrum-master for live work streams.
+The orchestrator is the process owner for live work streams. Scrum-master is
+an alias only when the user explicitly asks.
 It protects delivery flow, quality gates, and honest status. It does not
 implement task work in orchestrated mode. Authority covers inspection,
 consultation, impediment removal within granted rights, verification of

@@ -20,8 +20,11 @@ INSTALLER_SPEC.loader.exec_module(INSTALLER)
 CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
 CLEANUP_SCOPES = CORE / "references/cleanup-scopes.md"
 TASK_ISOLATION = CORE / "references/task-isolation.md"
-REPOSITORY_ADAPTER = ROOT / ".agents/skills/chaos-engine/SKILL.md"
-COMPATIBILITY_ALIAS = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
+
+OVERLAY = session_overlay(ROOT)
+REPOSITORY_ADAPTER = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
+COMPATIBILITY_ALIAS = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
 SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
 PORTABLE_README = CORE / "README.md"
 BRAND_ASSETS = CORE / "assets/brand"
@@ -298,7 +301,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         repository_adapter = REPOSITORY_ADAPTER.read_text(encoding="utf-8")
 
         self.assertRegex(canonical, r"(?m)^name: chaos-engine$")
-        self.assertIn("../../../chaos-engine/skills/chaos-engine/SKILL.md", repository_adapter)
+        self.assertIn("skills/chaos-engine/SKILL.md", repository_adapter)
         self.assertFalse((ROOT / ".agents/skills/act-as-mohab/SKILL.md").exists())
         self.assertFalse((ROOT / ".claude/skills/act-as-mohab/SKILL.md").exists())
 
@@ -737,7 +740,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("../shafthq.github.io", profile_text)
         self.assertNotIn("../shafthq.github.io", entry)
         self.assertNotIn("../shafthq.github.io", playbook)
-        self.assertIn("[ChaosEngine](.agents/skills/chaos-engine/SKILL.md)", agents)
+        self.assertIn("[ChaosEngine](chaos-engine/skills/chaos-engine/SKILL.md)", agents)
+        self.assertIn("[ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md)", agents)
         self.assertIn("the only router and\nworking-policy owner", agents)
         self.assertNotIn("../shafthq.github.io", agents)
         self.assertIsNone(windows_absolute.search(entry))
@@ -747,10 +751,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
 
     def test_host_adapters_select_the_canonical_entrypoint(self):
         for adapter in (
-            ROOT / ".agents/skills/chaos-engine/SKILL.md",
-            ROOT / ".claude/skills/chaos-engine/SKILL.md",
+            OVERLAY / ".agents/skills/chaos-engine/SKILL.md",
+            OVERLAY / ".claude/skills/chaos-engine/SKILL.md",
         ):
-            with self.subTest(adapter=adapter.relative_to(ROOT)):
+            with self.subTest(adapter=adapter):
                 content = adapter.read_text(encoding="utf-8")
                 self.assertTrue(
                     "chaos-engine/skills/chaos-engine/SKILL.md" in content

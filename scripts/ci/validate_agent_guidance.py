@@ -521,6 +521,19 @@ def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
     return errors
 
 
+def _origin_generated_overlay_target(root: Path, resolved: Path) -> bool:
+    """True when a marker points at generated overlay that origin sources as chaos-engine/."""
+    try:
+        relative_path = resolved.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return False
+    prefix = ".chaos-engine/"
+    if not relative_path.startswith(prefix):
+        return False
+    source = root / "chaos-engine" / relative_path[len(prefix) :]
+    return source.exists()
+
+
 def local_link_targets(path: Path, content: str) -> list[str]:
     """Extract relative Markdown links and Claude-style imports."""
     targets = re.findall(r"\[[^\]]*\]\(([^)]+)\)", content)
@@ -550,7 +563,7 @@ def validate_local_references(root: Path, files: list[Path]) -> list[dict[str, s
                     )
                 )
                 continue
-            if not resolved.exists():
+            if not resolved.exists() and not _origin_generated_overlay_target(root, resolved):
                 errors.append(
                     issue(
                         "broken-reference",

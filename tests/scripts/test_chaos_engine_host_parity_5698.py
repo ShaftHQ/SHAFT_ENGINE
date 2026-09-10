@@ -11,6 +11,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
+
+OVERLAY = session_overlay(ROOT)
 CANONICAL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 HOOK_MAP = ROOT / "chaos-engine/references/hook-trigger-map.md"
 ROLES = ROOT / "chaos-engine/references/roles.md"
@@ -109,31 +112,31 @@ class HostParity5698Tests(unittest.TestCase):
             ROOT / "CLAUDE.md",
             ROOT / "GEMINI.md",
             ROOT / ".github/copilot-instructions.md",
-            ROOT / ".agents/skills/chaos-engine/SKILL.md",
-            ROOT / ".claude/skills/chaos-engine/SKILL.md",
-            ROOT / ".gemini/skills/chaos-engine/SKILL.md",
-            ROOT / ".github/skills/chaos-engine/SKILL.md",
+            OVERLAY / ".agents/skills/chaos-engine/SKILL.md",
+            OVERLAY / ".claude/skills/chaos-engine/SKILL.md",
+            OVERLAY / ".gemini/skills/chaos-engine/SKILL.md",
+            OVERLAY / ".github/skills/chaos-engine/SKILL.md",
         ]
-        adapters.extend(sorted((ROOT / ".claude/agents").glob("*.md")))
-        adapters.extend(sorted((ROOT / ".codex/agents").glob("*.toml")))
+        adapters.extend(sorted((OVERLAY / ".claude/agents").glob("*.md")))
+        adapters.extend(sorted((OVERLAY / ".codex/agents").glob("*.toml")))
         for path in adapters:
             text = path.read_text(encoding="utf-8")
             for marker in CONTRACT_MARKERS:
-                with self.subTest(path=path.relative_to(ROOT), marker=marker):
+                with self.subTest(path=str(path), marker=marker):
                     self.assertNotIn(marker, text)
 
     def test_role_adapters_load_canonical_router_not_agents_pointer(self):
-        for path in sorted((ROOT / ".claude/agents").glob("*.md")):
+        for path in sorted((OVERLAY / ".claude/agents").glob("*.md")):
             text = path.read_text(encoding="utf-8")
             self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", text)
             self.assertNotIn(".agents/skills/chaos-engine/SKILL.md", text)
-        for path in sorted((ROOT / ".codex/agents").glob("*.toml")):
+        for path in sorted((OVERLAY / ".codex/agents").glob("*.toml")):
             text = path.read_text(encoding="utf-8")
             self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", text)
             self.assertNotIn(".agents/skills/chaos-engine/SKILL.md", text)
 
     def test_agents_skill_pointer_cannot_drift_from_canonical(self):
-        pointer = (ROOT / ".agents/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        pointer = (OVERLAY / ".agents/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", pointer)
         self.assertNotIn("## Iron laws", pointer)
         # desired_content must regenerate the same class of pointer, never preserve foreign bodies

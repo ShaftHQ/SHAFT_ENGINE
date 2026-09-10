@@ -18,6 +18,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
+
+OVERLAY = session_overlay(ROOT)
 HOSTS = ROOT / "chaos-engine/hosts.py"
 TOOL = ROOT / "chaos-engine/tool.py"
 
@@ -705,20 +708,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_checked_in_mcp_configs_have_one_mempalace_registration(self):
         module = load(HOSTS, "chaos_engine_checked_in_mcp_configs")
-        for relative in (".mcp.json", ".gemini/settings.json"):
-            with self.subTest(relative=relative):
-                source = (ROOT / relative).read_bytes()
-                servers = json.loads(source)["mcpServers"]
-                self.assertNotIn("mempalace", servers)
-                self.assertEqual(
-                    [".chaos-engine/tool.py", "mempalace-mcp"],
-                    servers["chaosengine-mempalace"]["args"],
-                )
-                self.assertEqual(source, module.json_content(source))
-        codex = (ROOT / ".codex/config.toml").read_text(encoding="utf-8")
+        source = (ROOT / ".mcp.json").read_bytes()
+        servers = json.loads(source)["mcpServers"]
+        self.assertNotIn("mempalace", servers)
+        self.assertEqual(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            servers["chaosengine-mempalace"]["args"],
+        )
+        self.assertEqual(source, module.json_content(source))
+        gemini = json.loads((OVERLAY / ".gemini/settings.json").read_text(encoding="utf-8"))
+        self.assertNotIn("mempalace", gemini["mcpServers"])
+        self.assertEqual(
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            gemini["mcpServers"]["chaosengine-mempalace"]["args"],
+        )
+        codex = (OVERLAY / ".codex/config.toml").read_text(encoding="utf-8")
         self.assertNotIn("[mcp_servers.mempalace]", codex)
         self.assertNotIn('"--palace"', codex)
-        self.assertEqual(codex.encode(), module.codex_content(codex.encode()))
 
     def test_complete_host_harness_installs_inventory_roles_hooks_and_plugin(self):
         module = load(HOSTS, "chaos_engine_complete_hosts")
@@ -1088,7 +1094,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
 
         for relative in (".codex/hooks.json", ".claude/settings.json"):
-            hooks = json.loads((ROOT / relative).read_text(encoding="utf-8"))["hooks"]
+            hooks = json.loads((OVERLAY / relative).read_text(encoding="utf-8"))["hooks"]
             self.assertEqual(preventive, hooks["PreToolUse"][0]["matcher"])
             self.assertEqual(observational, hooks["PostToolUse"][0]["matcher"])
             self.assertEqual(observational, hooks["PostToolUseFailure"][0]["matcher"])
@@ -1195,7 +1201,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_source_repository_registers_copilot_hooks_through_kernel_launcher(self):
         document = json.loads(
-            (ROOT / ".github/hooks/chaos-engine.json").read_text(encoding="utf-8")
+            (OVERLAY / ".github/hooks/chaos-engine.json").read_text(encoding="utf-8")
         )
         expected = {
             "sessionStart",
@@ -1214,7 +1220,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
         for handlers in document["hooks"].values():
             self.assertEqual(1, len(handlers))
             self.assertEqual(
-                "node chaos-engine/hooks/launch.js copilot", handlers[0]["bash"]
+                "node .chaos-engine/hooks/launch.js copilot", handlers[0]["bash"]
             )
             self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
 

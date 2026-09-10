@@ -1,6 +1,0 @@
-interface:
-  display_name: "ChaosEngine"
-  short_description: "Canonical engineering harness"
-  default_prompt: "Use $chaos-engine to route this task."
-policy:
-  allow_implicit_invocation: true

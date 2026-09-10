@@ -299,7 +299,7 @@ flowchart LR
     K --> Profile["portable or selected project profile"]
     K --> Refs["on-demand references<br/>research, retrieval, isolation, roles,<br/>cleanup, reflection, GitHub delivery"]
     K --> Kernel["provider-neutral lifecycle kernel"]
-    Kernel --> Codex["Codex<br/>AGENTS.md + .codex hooks"]
+    Kernel --> Codex["Codex<br/>AGENTS.md + Codex hooks"]
     Kernel --> Claude["Claude<br/>CLAUDE.md + settings hooks"]
     Kernel --> Gemini["Gemini CLI<br/>GEMINI.md + settings hooks"]
     Kernel --> Grok["Grok<br/>AGENTS.md + project hooks"]

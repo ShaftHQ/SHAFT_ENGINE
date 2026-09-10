@@ -86,6 +86,8 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/harness_reachability.py",
     "scripts/ci/validate_documentation_boundaries.py",
     "scripts/ci/readme_contract.py",
+    "scripts/ci/overlay_in_temp.py",
+    "scripts/ci/skill_inventory.py",
     "scripts/ci/validate_skills.py",
     "scripts/ci/worktree_hygiene.py",
     "scripts/ci/agent_guidance_budget.json",

@@ -4164,6 +4164,16 @@ def doctor_with_dependencies(
                     components["hosts"]["fixNext"] = (
                         "Remove duplicate ChaosEngine instruction from user/machine host config."
                     )
+                policy_fn = getattr(host_controller, "competing_policy_errors", None)
+                policy = policy_fn(project.resolve()) if callable(policy_fn) else []
+                if policy and isinstance(components.get("hosts"), dict):
+                    result["status"] = "recovery-required"
+                    components["hosts"]["status"] = "recovery-required"
+                    components["hosts"]["detail"] = "; ".join(policy)
+                    components["hosts"]["fixNext"] = (
+                        "Reinstall host instruction markers so AGENTS.md, CLAUDE.md, "
+                        "GEMINI.md, and copilot-instructions share one policy sentence."
+                    )
         match_path = Path(__file__).resolve().with_name("overlay_match.py")
         if match_path.is_file() and isinstance(components, dict):
             _spec = _ilu.spec_from_file_location("ce_overlay_match_doctor", match_path)

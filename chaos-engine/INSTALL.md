@@ -11,6 +11,26 @@
 ChaosEngine is a portable, provider-neutral working contract for software
 agents. This page is the installation reference. See [`README.md`](README.md) for purpose and operating loop, and [`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md) for the always-loaded contract.
 
+## Source vs generated paths
+
+| Path | Kind | Who reads it |
+| --- | --- | --- |
+| <code>chaos-engine/</code> | Source (origin tracks) | Installer, pack, humans |
+| <code>.chaos-engine/</code> | Generated overlay | Hosts, doctor, tool.py |
+| <code>.agents/</code> | Generated host adapters | Codex |
+| <code>.claude/</code> | Generated host adapters | Claude |
+| <code>.codex/</code> | Generated host adapters | Codex |
+| <code>.gemini/</code> | Generated host adapters | Gemini |
+| <code>.grok/</code> | Generated host adapters | Grok |
+| <code>.github/skills/</code> | Generated host adapters | Copilot |
+| <code>plugins/chaos-engine/</code> | Generated plugin payloads | Host plugin loaders |
+| <code>AGENTS.md</code> <code>CLAUDE.md</code> <code>GEMINI.md</code> | Origin files plus generated markers | Every host |
+| `.mcp.json` CE merge | Generated | Host MCP clients |
+| Marker blocks in `AGENTS.md` `CLAUDE.md` `GEMINI.md` `.github/copilot-instructions.md` | Generated pointers | Every host |
+
+Adopters track generated harness files. Origin SHAFT_ENGINE ignores them after
+the `# CHAOSENGINE-RUNTIME` block so last-match gitignore wins.
+
 ## Golden path (first run)
 
 1. Change into the project directory you want ChaosEngine to manage.
@@ -300,8 +320,8 @@ Then rerun the tool, or confirm with
 Re-running install self-heals CE-owned Codex MCP sections (`context7`,
 `chaosengine-memory`, `chaosengine-mempalace`, `maven-tools-mcp`) that sit
 outside or inside a drifted `# CHAOSENGINE:START`…`END` block. Non-owned
-user MCP servers are left untouched. No need to empty `.codex/config.toml`
-manually.
+user MCP servers are left untouched. No need to empty the generated Codex
+config file manually.
 
 ### Orphan `.chaos-engine-hosts.active-*` anchors
 
@@ -436,8 +456,9 @@ A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow
    differently pinned receipt. The version directory is an immutable,
    receipt-owned shared cache: parallel projects may read the verified pair, while
    project uninstall never changes or removes it.
-4. Host installation discovers both files and atomically rewrites `.mcp.json`, `.gemini/settings.json`, and
-   `.codex/config.toml` with their resolved absolute paths. Upgrades repeat
+4. Host installation discovers both files and atomically rewrites project MCP
+   JSON, Gemini settings, and the generated Codex config with their resolved
+   absolute paths. Upgrades repeat
    discovery, so another user's Java or data path is never inherited.
 5. Start a fresh client session and prove both the MCP initialize and tools/list
    responses over the upstream default stdio transport. Native mode launches

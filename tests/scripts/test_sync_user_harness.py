@@ -14,6 +14,9 @@ from pathlib import Path
 from scripts.agents import sync_user_harness as sync
 
 ROOT = Path(__file__).resolve().parents[2]
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
+
+OVERLAY = session_overlay(ROOT)
 SCRIPT = ROOT / "scripts/agents/sync_user_harness.py"
 MANIFEST = ("CLAUDE.md", "settings.json")
 HISTORICAL_HARNESS_REVISION = "3993405e097d5d310c1d8a79d5c1974758064a85"
@@ -64,9 +67,9 @@ class SyncUserHarnessTest(unittest.TestCase):
         )
 
     def test_user_harness_defers_to_repository_and_syncs_no_skills(self):
-        guidance = (ROOT / ".claude/user-harness/CLAUDE.md").read_text(encoding="utf-8")
+        guidance = (OVERLAY / ".claude/user-harness/CLAUDE.md").read_text(encoding="utf-8")
         readme = " ".join(
-            (ROOT / ".claude/user-harness/README.md").read_text(encoding="utf-8").split()
+            (OVERLAY / ".claude/user-harness/README.md").read_text(encoding="utf-8").split()
         )
 
         self.assertIn("repository's source-controlled `AGENTS.md`", guidance)
@@ -251,7 +254,7 @@ class SyncUserHarnessTest(unittest.TestCase):
     def test_current_repo_skill_bytes_are_not_dynamic_ownership_proof(self):
         target = self.agents_target / "skills/act-as-mohab/SKILL.md"
         target.parent.mkdir(parents=True)
-        current = (ROOT / ".agents/skills/chaos-engine/SKILL.md").read_bytes()
+        current = (OVERLAY / ".agents/skills/chaos-engine/SKILL.md").read_bytes()
         target.write_bytes(current)
 
         completed = self.run_sync("--apply")

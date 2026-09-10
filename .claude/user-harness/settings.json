@@ -1,8 +1,0 @@
-{
-  "env": {
-    "ENABLE_TOOL_SEARCH": "true"
-  },
-  "enabledPlugins": {
-    "mempalace@mempalace": false
-  }
-}

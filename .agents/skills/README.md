@@ -130,6 +130,8 @@ Never loaded by default. The first four are described by the entrypoint as it
 sends you there; the rest by
 [routing](../../chaos-engine/profiles/shaft/references/routing.md).
 
+- [selected shaft profile](../../chaos-engine/profiles/shaft/entrypoint.md)
+- [shaft profile.json](../../chaos-engine/profiles/shaft/profile.json)
 - [routing](../../chaos-engine/profiles/shaft/references/routing.md)
 - [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
@@ -227,48 +229,24 @@ the plumbing differs.
 
 | Host | How it finds the entrypoint |
 | --- | --- |
-| Codex | Reads `AGENTS.md`, discovers the repository [ChaosEngine adapter](chaos-engine/SKILL.md) natively — with [metadata](chaos-engine/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
-| Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/chaos-engine/SKILL.md` redirects to the canonical body and `.claude/agents/*.md` carry the roles. |
-| Gemini | Reads `GEMINI.md`, follows `.gemini/skills/chaos-engine/SKILL.md`, and executes native lifecycle hooks from `.gemini/settings.json`. |
-| Grok | Reads `AGENTS.md` and executes `.grok/hooks/lifecycle.json`. |
-| Copilot | Reads `.github/copilot-instructions.md`; `.github/skills/*` redirects to canonical playbooks; Copilot CLI and cloud agent execute `.github/hooks/chaos-engine.json`. |
+| Codex | Reads `AGENTS.md` and the canonical [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) body. Host adapters are installer-generated; see [INSTALL.md](../../chaos-engine/INSTALL.md). |
+| Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`, then the same canonical body. |
+| Gemini | Reads `GEMINI.md`, then the same canonical body. |
+| Grok | Reads `AGENTS.md`, then the same canonical body. |
+| Copilot | Reads `.github/copilot-instructions.md` and `AGENTS.md`, then the same canonical body. |
 
 Those five rows are the harness's only inbound edges: each points *into* the
 entrypoint and carries no policy of its own, which is why the entrypoint links
 this page rather than linking back to them one by one. They are listed here so
 an agent on any host can see which surfaces exist and confirm they are thin.
 
-### Every adapter file, one by one
+### Origin-tracked host instruction files
 
-Spelled out rather than globbed, deliberately. A wildcard matches whatever
-happens to exist, so it re-derives itself from the tree it is supposed to be
-describing and can never go wrong — a new role adapter or a renamed one would
-leave `.claude/agents/*.md` looking perfectly correct. These names break when a
-file is added, moved or deleted, which is the only way a map stays true.
-
-| Host | Files |
-| --- | --- |
-| Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; `.agents/plugins/marketplace.json`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml`, `.codex/agents/chaos-engine-orchestrator.toml`, `.codex/agents/chaos-engine-implementer.toml`, `.codex/agents/chaos-engine-reviewer.toml`, `.codex/agents/chaos-engine-tester.toml`, `.codex/agents/chaos-engine-mechanical-helper.toml` |
-| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/chaos-engine/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md`, `.claude/agents/chaos-engine-orchestrator.md`, `.claude/agents/chaos-engine-implementer.md`, `.claude/agents/chaos-engine-reviewer.md`, `.claude/agents/chaos-engine-tester.md`, `.claude/agents/chaos-engine-mechanical-helper.md` |
-| Gemini | `GEMINI.md`; `.gemini/settings.json`; `.gemini/skills/chaos-engine/SKILL.md` |
-| Grok | `AGENTS.md`; `.grok/hooks/lifecycle.json` |
-| Copilot | `.github/copilot-instructions.md`; `.github/hooks/chaos-engine.json`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; redirect pack indexed by `.github/skills/README.md`; router redirect `.github/skills/chaos-engine/SKILL.md` |
-| Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |
-
-Copilot's redirect pack is one file per repository playbook. Each is a short
-pointer at the canonical body, not a second copy of it:
-`.github/skills/chaos-engine/SKILL.md`,
-`.github/skills/agent-guidance-boundary-guard/SKILL.md`,
-`.github/skills/agentic-pdca-loop/SKILL.md`,
-`.github/skills/allure-extent-report-operator/SKILL.md`,
-`.github/skills/ci-failure-investigator/SKILL.md`,
-`.github/skills/flaky-test-stabilizer/SKILL.md`,
-`.github/skills/mcp-transport-contract-auditor/SKILL.md`,
-`.github/skills/modular-boundary-auditor/SKILL.md`,
-`.github/skills/public-behavior-docs-synchronizer/SKILL.md`,
-`.github/skills/release-dependency-guard/SKILL.md`,
-`.github/skills/shaft-marketing-ad-producer/SKILL.md`,
-`.github/skills/shaft-ui-design/SKILL.md`.
+Installer-generated adapters are not origin-tracked. Path table:
+[INSTALL.md](../../chaos-engine/INSTALL.md). Origin tracks `AGENTS.md`,
+`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, and Copilot
+scope files `.github/instructions/framework-source.instructions.md` and
+`.github/instructions/java-tests.instructions.md`.
 
 If your agent does none of that automatically, say this to it:
 
@@ -309,9 +287,9 @@ does not know they exist meets them as an interruption instead of a tool.
 
 | Part | Where it lives | What it does to a session |
 | --- | --- | --- |
-| Lifecycle guard | `scripts/agents/guard.py`, `scripts/agents/session_worktree.py`, registered by `.claude/settings.json` and `.codex/hooks.json`; matcher policy in `chaos-engine/hooks/matchers.json` | One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStop, and SessionEnd. Host documents only register it. Preventive matchers omit intrinsically read-only tools; observational matchers retain outcome evidence. SessionStart creates one session worktree; Stop never deletes it; SessionEnd removes it after merge. |
+| Lifecycle guard | `scripts/agents/guard.py`, `scripts/agents/session_worktree.py`; matcher policy in `chaos-engine/hooks/matchers.json` | One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStop, and SessionEnd. Host documents only register it. Preventive matchers omit intrinsically read-only tools; observational matchers retain outcome evidence. SessionStart creates one session worktree; Stop never deletes it; SessionEnd removes it after merge. |
 | Learning controller | `scripts/agents/learning_session.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
-| Retrieval servers | `.mcp.json`, `.codex/config.toml`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
+| Retrieval servers | `.mcp.json`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
 | Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
 | Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/chaos_engine_cli.py` | Resolve the caller's repository and expose bounded PR watching, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
 | PR watcher adapter | `scripts/ci/watch_pr_checks.py` | Keeps the historical source-tree command as a thin adapter to canonical repository operations. |
@@ -383,6 +361,8 @@ change it:
 | `tests/scripts/test_sync_user_harness.py` | The user-level deployment. |
 | `tests/scripts/test_repository_context.py`, `tests/scripts/test_watch_pr_checks.py`, `tests/scripts/test_chaos_engine_runtime.py`, `tests/scripts/test_github_client.py`, `tests/scripts/test_pr_audit.py`, `tests/scripts/test_delivery_status.py`, `tests/scripts/test_issue_filing.py`, `tests/scripts/test_planning_contract.py` | Repository precedence, bounded watcher exit semantics, GitHub pagination, audit/delivery/issue/planning receipts, and the portable runtime/MCP contract. |
 | `tests/scripts/test_worktree_hygiene.py` | The worktree survey. |
+| `tests/scripts/test_knowledge_stores.py` | Knowledge-store CLI resolvers. |
+| `tests/scripts/test_resolve_mempalace.py` | MemPalace path resolver. |
 | `tests/scripts/test_shaft_skills_content.py`, `tests/scripts/test_shaft_skill_cli_examples.py` | The published product pack's content and its CLI examples. |
 
 `.github/workflows/pr-gate.yml` is what runs them. It is a harness element in

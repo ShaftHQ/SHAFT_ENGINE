@@ -185,6 +185,13 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
             )
         ]
 
+    generated_plugin = source.rstrip("/") in {
+        "./plugins/chaos-engine",
+        "./plugins/caveman",
+        "./plugins/ponytail",
+    }
+    if generated_plugin and (root / "chaos-engine").is_dir() and not (root / source).is_dir():
+        return []
     if not (root / source).is_dir():
         return [
             issue("marketplace-source-missing", f"plugin '{label}' source directory does not exist: {source}")
