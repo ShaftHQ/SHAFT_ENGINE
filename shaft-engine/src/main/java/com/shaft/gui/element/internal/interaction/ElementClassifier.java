@@ -2,9 +2,11 @@ package com.shaft.gui.element.internal.interaction;
 
 import org.openqa.selenium.WebElement;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 /**
  * Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags.
@@ -21,6 +23,54 @@ public final class ElementClassifier {
             "button", "submit", "reset", "image");
     private static final Set<String> TEXT_ROLES = Set.of(
             "textbox", "searchbox", "spinbutton");
+
+    /** Android / generic toggle class suffixes (lowered simple names). */
+    private static final Set<String> MOBILE_TOGGLE_CLASSES = Set.of(
+            "checkbox", "switch", "togglebutton");
+    /** iOS XCUI toggle class suffixes. */
+    private static final Set<String> IOS_TOGGLE_CLASSES = Set.of(
+            "xcuielementtypeswitch", "xcuielementtypecheckbox");
+    private static final Set<String> MOBILE_TOGGLE_ROLES = Set.of("checkbox", "switch");
+
+    private static final Set<String> MOBILE_RADIO_CLASSES = Set.of(
+            "radiobutton", "xcuielementtyperadiobutton");
+    private static final Set<String> MOBILE_RADIO_ROLES = Set.of("radio");
+
+    /** Android / Flutter text-entry class suffixes. */
+    private static final Set<String> MOBILE_TEXT_CLASSES = Set.of(
+            "edittext", "textfield", "autocompletetextview", "multiautocompletetextview",
+            // Flutter integration driver type names (ValueKey / Semantics still required by apps).
+            "editabletext");
+    /** iOS XCUI text-entry class suffixes. */
+    private static final Set<String> IOS_TEXT_CLASSES = Set.of(
+            "xcuielementtypetextfield", "xcuielementtypesecuretextfield", "xcuielementtypetextview");
+
+    private static final Set<String> MOBILE_BUTTON_CLASSES = Set.of(
+            "button", "imagebutton", "xcuielementtypebutton");
+    private static final Set<String> MOBILE_BUTTON_ROLES = Set.of("button");
+
+    private static final Set<String> MOBILE_LINK_CLASSES = Set.of("xcuielementtypelink");
+    private static final Set<String> MOBILE_LINK_ROLES = Set.of("link");
+
+    private static final Set<String> MOBILE_RANGE_CLASSES = Set.of(
+            "seekbar", "slider", "xcuielementtypeslider");
+
+    /**
+     * First-match-wins mobile kind rules. A loop over this table (rather than a sequential
+     * if-return chain) keeps {@link #classifyMobileNative} NPath under Codacy/PMD's gate —
+     * NPath multiplies across sequential branches even when each guard is a trivial call.
+     */
+    private static final List<MobileKindRule> MOBILE_KIND_RULES = List.of(
+            new MobileKindRule(ElementClassifier::isMobileToggle, ElementKind.CHECKBOX),
+            new MobileKindRule(ElementClassifier::isMobileRadio, ElementKind.RADIO),
+            new MobileKindRule(ElementClassifier::isMobileTextField, ElementKind.TEXT_LIKE),
+            new MobileKindRule(ElementClassifier::isMobileButton, ElementKind.BUTTON),
+            new MobileKindRule(ElementClassifier::isMobileLink, ElementKind.LINK),
+            // Range is class-suffix only; role "slider" stays on classifyByRole for non-mobile tags.
+            new MobileKindRule((simple, role) -> isMobileRange(simple), ElementKind.RANGE));
+
+    private record MobileKindRule(BiPredicate<String, String> matches, ElementKind kind) {
+    }
 
     private ElementClassifier() {
     }
@@ -86,68 +136,44 @@ public final class ElementClassifier {
             return null;
         }
         String simple = simpleClassName(token);
-
-        if (isMobileToggle(simple, role)) {
-            return ElementKind.CHECKBOX;
-        }
-        if (isMobileRadio(simple, role)) {
-            return ElementKind.RADIO;
-        }
-        if (isMobileTextField(simple, role)) {
-            return ElementKind.TEXT_LIKE;
-        }
-        if (isMobileButton(simple, role)) {
-            return ElementKind.BUTTON;
-        }
-        if (isMobileLink(simple, role)) {
-            return ElementKind.LINK;
-        }
-        if ("seekbar".equals(simple) || "slider".equals(simple) || "xcuielementtypeslider".equals(simple)) {
-            return ElementKind.RANGE;
+        for (MobileKindRule rule : MOBILE_KIND_RULES) {
+            if (rule.matches().test(simple, role)) {
+                return rule.kind();
+            }
         }
         return null;
     }
 
     private static boolean isMobileToggle(String simple, String role) {
-        return "checkbox".equals(role)
-                || "switch".equals(role)
-                || "checkbox".equals(simple)
-                || "switch".equals(simple)
-                || "togglebutton".equals(simple)
-                || "xcuielementtypeswitch".equals(simple)
-                || "xcuielementtypecheckbox".equals(simple);
+        return roleMatches(role, MOBILE_TOGGLE_ROLES)
+                || MOBILE_TOGGLE_CLASSES.contains(simple)
+                || IOS_TOGGLE_CLASSES.contains(simple);
     }
 
     private static boolean isMobileRadio(String simple, String role) {
-        return "radio".equals(role)
-                || "radiobutton".equals(simple)
-                || "xcuielementtyperadiobutton".equals(simple);
+        return roleMatches(role, MOBILE_RADIO_ROLES) || MOBILE_RADIO_CLASSES.contains(simple);
     }
 
     private static boolean isMobileTextField(String simple, String role) {
-        if (role != null && TEXT_ROLES.contains(role)) {
-            return true;
-        }
-        return "edittext".equals(simple)
-                || "textfield".equals(simple)
-                || "autocompletetextview".equals(simple)
-                || "multiautocompletetextview".equals(simple)
-                || "xcuielementtypetextfield".equals(simple)
-                || "xcuielementtypesecuretextfield".equals(simple)
-                || "xcuielementtypetextview".equals(simple)
-                // Flutter integration driver type names (ValueKey / Semantics still required by apps).
-                || "editabletext".equals(simple);
+        return roleMatches(role, TEXT_ROLES)
+                || MOBILE_TEXT_CLASSES.contains(simple)
+                || IOS_TEXT_CLASSES.contains(simple);
     }
 
     private static boolean isMobileButton(String simple, String role) {
-        return "button".equals(role)
-                || "button".equals(simple)
-                || "imagebutton".equals(simple)
-                || "xcuielementtypebutton".equals(simple);
+        return roleMatches(role, MOBILE_BUTTON_ROLES) || MOBILE_BUTTON_CLASSES.contains(simple);
     }
 
     private static boolean isMobileLink(String simple, String role) {
-        return "link".equals(role) || "xcuielementtypelink".equals(simple);
+        return roleMatches(role, MOBILE_LINK_ROLES) || MOBILE_LINK_CLASSES.contains(simple);
+    }
+
+    private static boolean isMobileRange(String simple) {
+        return MOBILE_RANGE_CLASSES.contains(simple);
+    }
+
+    private static boolean roleMatches(String role, Set<String> roles) {
+        return role != null && roles.contains(role);
     }
 
     private static String simpleClassName(String raw) {
