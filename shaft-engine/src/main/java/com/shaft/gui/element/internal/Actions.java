@@ -774,8 +774,7 @@ public class Actions extends ElementActions {
                             TypeStrategies.typeMobileText(d, targetElement, text, false);
                             TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
                         } else if (isWindowsDesktopExecution) {
-                            ClickStrategies.focusWindows(d, targetElement);
-                            TypeStrategies.typeDesktopText(d, targetElement, text);
+                            performWindowsDesktopTypeAppend(d, targetElement, text);
                         } else {
                             targetElement.sendKeys(text);
                         }
@@ -1211,9 +1210,67 @@ public class Actions extends ElementActions {
     /**
      * Wave E (#5732): Windows desktop / UIA type — ensure foreground (click / {@code windows: click}) →
      * clear flags → sendKeys / {@code windows: keys}. CheckBox/Radio toggle; ComboBox expand + filter + Enter.
+     * Window/Pane locators only bring the surface to the foreground (no sendKeys into the chrome).
      */
     private void performWindowsDesktopType(WebDriver d, WebElement targetElement, ElementKind kind,
                                            CharSequence[] text, ActionType action) {
+        if (ElementClassifier.isWindowsFocusSurface(targetElement)) {
+            ClickStrategies.focusWindows(d, targetElement);
+            ReportManager.logDiscrete(
+                    "type() on UIA Window/Pane ensured foreground focus; sendKeys skipped on focus surface.");
+            return;
+        }
+
+        TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleDesktopInsteadOfTyping(d, targetElement, kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.COMBOBOX) {
+            TypeStrategies.typeDesktopCombobox(d, targetElement, text);
+            validateTypedTextIfConfigured(targetElement, action, stringifyTypedValue(text),
+                    shouldValidateTypedText(text));
+            return;
+        }
+
+        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        String typedText = stringifyTypedValue(text);
+        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                ? readElementValueForTyping(targetElement) + typedText
+                : typedText;
+
+        // Foreground / focus before type (brings hosting Window/Pane forward when practical).
+        ClickStrategies.focusWindows(d, targetElement);
+        if ("native".equals(clearMode)) {
+            try {
+                targetElement.clear();
+            } catch (RuntimeException ignored) {
+                executeClearBasedOnClearMode(targetElement, "backspace");
+            }
+        } else {
+            executeClearBasedOnClearMode(targetElement, clearMode);
+        }
+
+        TypeStrategies.typeDesktopText(d, targetElement, text);
+        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+    }
+
+    /**
+     * Wave E append path: same kind routing as {@link #performWindowsDesktopType} without clear.
+     */
+    private void performWindowsDesktopTypeAppend(WebDriver d, WebElement targetElement, CharSequence[] text) {
+        if (ElementClassifier.isWindowsFocusSurface(targetElement)) {
+            ClickStrategies.focusWindows(d, targetElement);
+            ReportManager.logDiscrete(
+                    "typeAppend() on UIA Window/Pane ensured foreground focus; sendKeys skipped on focus surface.");
+            return;
+        }
+        ElementKind kind = ElementClassifier.classify(targetElement);
         TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
         if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
             TypeStrategies.rejectUnsupported(kind);
@@ -1227,33 +1284,8 @@ public class Actions extends ElementActions {
             TypeStrategies.typeDesktopCombobox(d, targetElement, text);
             return;
         }
-
-        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-        String typedText = stringifyTypedValue(text);
-        boolean shouldValidateTypedText = shouldValidateTypedText(text);
-        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
-                ? readElementValueForTyping(targetElement) + typedText
-                : typedText;
-
-        // Foreground / focus before type (Window/Pane sessions; Edit/Document Value path).
         ClickStrategies.focusWindows(d, targetElement);
-        if ("native".equals(clearMode)) {
-            try {
-                targetElement.clear();
-            } catch (RuntimeException ignored) {
-                executeClearBasedOnClearMode(targetElement, "backspace");
-            }
-        } else {
-            executeClearBasedOnClearMode(targetElement, clearMode);
-        }
-
-        if (desktopRoute == TypeStrategies.DesktopTypeRoute.DESKTOP_TEXT
-                || desktopRoute == TypeStrategies.DesktopTypeRoute.LEGACY_SEND_KEYS) {
-            TypeStrategies.typeDesktopText(d, targetElement, text);
-        } else {
-            targetElement.sendKeys(text);
-        }
-        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+        TypeStrategies.typeDesktopText(d, targetElement, text);
     }
 
     private void executeClearBasedOnClearMode(WebElement elem, String clearMode) {

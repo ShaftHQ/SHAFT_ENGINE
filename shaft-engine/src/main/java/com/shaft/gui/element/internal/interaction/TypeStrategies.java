@@ -173,17 +173,60 @@ public final class TypeStrategies {
 
     /**
      * Windows CheckBox / RadioButton: toggle via click (Invoke/Toggle), never sendKeys.
-     * Logs {@link WebElement#isSelected()} and {@code Toggle.ToggleState} when available.
+     * Asserts toggle state when {@link WebElement#isSelected()} or {@code Toggle.ToggleState} is observable.
      */
     public static void toggleDesktopInsteadOfTyping(WebDriver driver, WebElement element, ElementKind kind) {
         ReportManager.logDiscrete("type() on desktop " + kind + " redirected to click (toggle); sendKeys skipped.");
-        boolean before = safeIsSelected(element);
+        Boolean beforeSelected = tryIsSelected(element);
+        String beforeToggle = safeAttribute(element, "Toggle.ToggleState");
         ClickStrategies.focusWindows(driver, element);
-        boolean after = safeIsSelected(element);
-        String toggleState = safeAttribute(element, "Toggle.ToggleState");
-        ReportManager.logDiscrete("desktop toggle state selected=" + after
-                + (before == after ? " (unchanged from " + before + ")" : " (was " + before + ")")
-                + (toggleState == null ? "" : " Toggle.ToggleState=" + toggleState));
+        Boolean afterSelected = tryIsSelected(element);
+        String afterToggle = safeAttribute(element, "Toggle.ToggleState");
+        ReportManager.logDiscrete("desktop toggle state selected=" + afterSelected
+                + (afterToggle == null ? "" : " Toggle.ToggleState=" + afterToggle));
+        assertDesktopToggleChanged(kind, beforeSelected, afterSelected, beforeToggle, afterToggle);
+    }
+
+    /**
+     * Fail when a readable toggle signal exists and did not change after click.
+     * Skip the assert when neither {@code isSelected} nor {@code Toggle.ToggleState} is available.
+     */
+    static void assertDesktopToggleChanged(ElementKind kind, Boolean beforeSelected, Boolean afterSelected,
+                                           String beforeToggle, String afterToggle) {
+        boolean selectedObservable = beforeSelected != null && afterSelected != null;
+        boolean toggleAttrObservable = nonBlank(beforeToggle) || nonBlank(afterToggle);
+        if (!selectedObservable && !toggleAttrObservable) {
+            return;
+        }
+        // Already-selected radio is often idempotent under UIA click — do not fail.
+        if (kind == ElementKind.RADIO
+                && Boolean.TRUE.equals(beforeSelected)
+                && Boolean.TRUE.equals(afterSelected)
+                && !toggleAttrObservable) {
+            return;
+        }
+        boolean selectedChanged = selectedObservable && !beforeSelected.equals(afterSelected);
+        boolean toggleAttrChanged = toggleAttrObservable
+                && !String.valueOf(beforeToggle).equals(String.valueOf(afterToggle));
+        if (selectedChanged || toggleAttrChanged) {
+            return;
+        }
+        throw new InvalidElementStateException(
+                "Desktop toggle of " + kind + " did not change observable state"
+                        + " (selected " + beforeSelected + "→" + afterSelected
+                        + ", Toggle.ToggleState " + beforeToggle + "→" + afterToggle + ").");
+    }
+
+    private static boolean nonBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static Boolean tryIsSelected(WebElement element) {
+        try {
+            return element.isSelected();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     public static void setValueWithEvents(WebDriver driver, WebElement element, String text) {
@@ -353,14 +396,6 @@ public final class TypeStrategies {
         String value = safeAttribute(element, "Value.Value");
         if (value != null) {
             ReportManager.logDiscrete("UIA Value.Value after type: " + value);
-        }
-    }
-
-    private static boolean safeIsSelected(WebElement element) {
-        try {
-            return element.isSelected();
-        } catch (RuntimeException ignored) {
-            return false;
         }
     }
 

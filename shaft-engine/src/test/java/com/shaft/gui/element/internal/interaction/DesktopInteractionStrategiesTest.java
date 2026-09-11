@@ -11,6 +11,7 @@ import com.shaft.tools.io.internal.FlakeProfiler;
 import io.appium.java_client.windows.WindowsDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.InvalidElementStateException;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.Rectangle;
@@ -133,6 +134,21 @@ public class DesktopInteractionStrategiesTest {
     }
 
     @Test
+    public void typeEditWithNativeClearDoesClickClearSendKeys() {
+        SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
+        WindowsDriver driver = mockWindowsDriver();
+        WebElement element = uiaElement("ControlType.Edit");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "replaced");
+            verify(element).click();
+            verify(element).clear();
+            verify(element).sendKeys(eq("replaced"));
+        }
+    }
+
+    @Test
     public void typeCheckBoxTogglesAndNeverSendKeys() {
         WindowsDriver driver = mockWindowsDriver();
         WebElement element = uiaElement("ControlType.CheckBox");
@@ -141,6 +157,50 @@ public class DesktopInteractionStrategiesTest {
 
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
             new Actions(helperFor(driver)).type(LOCATOR, "ignored");
+            verify(element).click();
+            verify(element, never()).sendKeys(any(CharSequence[].class));
+            verify(element, never()).sendKeys(anyString());
+        }
+    }
+
+    @Test
+    public void typeAppendCheckBoxTogglesAndNeverSendKeys() {
+        WindowsDriver driver = mockWindowsDriver();
+        WebElement element = uiaElement("ControlType.CheckBox");
+        when(element.isSelected()).thenReturn(false, true);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).typeAppend(LOCATOR, "ignored");
+            verify(element).click();
+            verify(element, never()).sendKeys(any(CharSequence[].class));
+            verify(element, never()).sendKeys(anyString());
+        }
+    }
+
+    @Test
+    public void typeCheckBoxFailsWhenToggleStateUnchanged() {
+        WindowsDriver driver = mockWindowsDriver();
+        WebElement element = uiaElement("ControlType.CheckBox");
+        when(element.isSelected()).thenReturn(false, false);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helperFor(driver)).type(LOCATOR, "ignored"));
+            Assert.assertTrue(hasCauseMessage(exception, "did not change observable state"),
+                    "Expected toggle assert in: " + exception);
+        }
+    }
+
+    @Test
+    public void typeWindowOnlyEnsuresForeground() {
+        WindowsDriver driver = mockWindowsDriver();
+        WebElement element = uiaElement("ControlType.Window");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "should-not-type");
             verify(element).click();
             verify(element, never()).sendKeys(any(CharSequence[].class));
             verify(element, never()).sendKeys(anyString());
@@ -157,7 +217,7 @@ public class DesktopInteractionStrategiesTest {
             new Actions(helperFor(driver)).type(LOCATOR, "Option A");
             verify(element).click();
             verify(element).sendKeys(eq("Option A"));
-            verify(element, atLeastOnce()).sendKeys(any(CharSequence[].class));
+            verify(element).sendKeys(Keys.ENTER);
         }
     }
 
@@ -261,5 +321,16 @@ public class DesktopInteractionStrategiesTest {
         when(element.getRect()).thenReturn(new Rectangle(10, 20, 40, 60));
         when(element.getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
         return element;
+    }
+
+    private boolean hasCauseMessage(Throwable throwable, String fragment) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null && current.getMessage().contains(fragment)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }
