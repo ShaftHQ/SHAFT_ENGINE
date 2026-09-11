@@ -49,6 +49,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#waitForLazyLoading(org.openqa.selenium.WebDriver)" tabindex="0">waitForLazyLoading(WebDriver)</a></li>
+<li><a href="#waitForLazyLoadingAfterNavigation(org.openqa.selenium.WebDriver)" tabindex="0">waitForLazyLoadingAfterNavigation(WebDriver)</a></li>
 <li><a href="#waitForLazyLoadingAndDetectActivity(org.openqa.selenium.WebDriver)" tabindex="0">waitForLazyLoadingAndDetectActivity(WebDriver)</a></li>
 </ol>
 </li>
@@ -85,11 +86,18 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#waitForLazyLoading(org.openqa.selenium.WebDriver)" class="member-name-link">waitForLazyLoading</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Waits for jQuery, Angular, and/or Javascript if present on the current page.</div>
+<div class="block">Cheap per-action wait: network/framework readiness, plus DOM quiet only when
+<code>lazyLoadingDomStabilityQuietWindowMillis</code> is greater than zero (default <code>0</code>).</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#waitForLazyLoadingAndDetectActivity(org.openqa.selenium.WebDriver)" class="member-name-link">waitForLazyLoadingAndDetectActivity</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#waitForLazyLoadingAfterNavigation(org.openqa.selenium.WebDriver)" class="member-name-link">waitForLazyLoadingAfterNavigation</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Post-navigation wait: cheap wait plus the navigation DOM quiet window
+(<code>lazyLoadingDomStabilityOnNavigationQuietWindowMillis</code>, default <code>300</code>).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#waitForLazyLoadingAndDetectActivity(org.openqa.selenium.WebDriver)" class="member-name-link">waitForLazyLoadingAndDetectActivity</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Waits for browser lazy-loading signals and reports whether any page activity was observed.</div>
 </div>
 </div>
@@ -114,7 +122,18 @@
 <h3>waitForLazyLoading</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">waitForLazyLoading</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
-<div class="block">Waits for jQuery, Angular, and/or Javascript if present on the current page.</div>
+<div class="block">Cheap per-action wait: network/framework readiness, plus DOM quiet only when
+<code>lazyLoadingDomStabilityQuietWindowMillis</code> is greater than zero (default <code>0</code>).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="waitForLazyLoadingAfterNavigation(org.openqa.selenium.WebDriver)">
+<h3>waitForLazyLoadingAfterNavigation</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">waitForLazyLoadingAfterNavigation</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
+<div class="block">Post-navigation wait: cheap wait plus the navigation DOM quiet window
+(<code>lazyLoadingDomStabilityOnNavigationQuietWindowMillis</code>, default <code>300</code>).</div>
 </div>
 </section>
 </li>
