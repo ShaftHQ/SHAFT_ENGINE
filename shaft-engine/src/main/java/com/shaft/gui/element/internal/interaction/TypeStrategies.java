@@ -46,6 +46,19 @@ public final class TypeStrategies {
         REJECT
     }
 
+    /**
+     * Playwright {@code type()} routes (Wave C): plain inputs stay {@link PlaywrightTypeRoute#FILL};
+     * contenteditable / masked use {@link PlaywrightTypeRoute#PRESS_SEQUENTIALLY}.
+     */
+    public enum PlaywrightTypeRoute {
+        FILL,
+        PRESS_SEQUENTIALLY,
+        TOGGLE_CLICK,
+        SELECT_OPTION,
+        SET_FILES,
+        REJECT
+    }
+
     private TypeStrategies() {
     }
 
@@ -59,6 +72,24 @@ public final class TypeStrategies {
             // Readonly/disabled/iframe: refuse type. Button/link stay legacy (conservative).
             case DISABLED, READONLY, IFRAME -> TypeRoute.REJECT;
             case TEXT_LIKE, COMBOBOX, BUTTON, LINK, UNKNOWN -> TypeRoute.LEGACY_SEND_KEYS;
+        };
+    }
+
+    /**
+     * Playwright type routing. {@code masked} only affects text-like / combobox / unknown /
+     * button / link paths (contenteditable always sequential).
+     */
+    public static PlaywrightTypeRoute playwrightRouteFor(ElementKind kind, boolean masked) {
+        return switch (kind) {
+            case CHECKBOX, RADIO -> PlaywrightTypeRoute.TOGGLE_CLICK;
+            case SELECT -> PlaywrightTypeRoute.SELECT_OPTION;
+            case FILE -> PlaywrightTypeRoute.SET_FILES;
+            case CONTENTEDITABLE -> PlaywrightTypeRoute.PRESS_SEQUENTIALLY;
+            case DISABLED, READONLY, IFRAME -> PlaywrightTypeRoute.REJECT;
+            // date/range/color: Playwright fill is the fast, event-friendly default.
+            case DATE_LIKE, RANGE, COLOR -> PlaywrightTypeRoute.FILL;
+            case TEXT_LIKE, COMBOBOX, BUTTON, LINK, UNKNOWN ->
+                    masked ? PlaywrightTypeRoute.PRESS_SEQUENTIALLY : PlaywrightTypeRoute.FILL;
         };
     }
 

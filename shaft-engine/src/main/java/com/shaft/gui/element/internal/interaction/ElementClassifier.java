@@ -3,11 +3,13 @@ package com.shaft.gui.element.internal.interaction;
 import org.openqa.selenium.WebElement;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * Cheap Selenium-path classifier: tagName, type, role/ARIA, contenteditable, disabled flags.
+ * Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags.
  * Conservative by design — ambiguous custom widgets return {@link ElementKind#UNKNOWN}.
+ * Shared by Selenium Wave B and Playwright Wave C (#5732).
  */
 public final class ElementClassifier {
 
@@ -27,21 +29,32 @@ public final class ElementClassifier {
         if (element == null) {
             return ElementKind.UNKNOWN;
         }
+        return classify(fromWebElement(element));
+    }
 
-        if (isDisabled(element)) {
+    /**
+     * Classify from pre-read DOM signals (Playwright evaluate map or Selenium attribute reads).
+     */
+    public static ElementKind classify(ElementSignals signals) {
+        if (signals == null) {
+            return ElementKind.UNKNOWN;
+        }
+
+        if (isTruthyFlagValue(signals.disabled(), "disabled")
+                || "true".equals(safeLower(signals.ariaDisabled()))) {
             return ElementKind.DISABLED;
         }
-        // Readonly is classified before contenteditable/input kinds so type() can refuse
+        // Readonly before contenteditable/input kinds so type() can refuse
         // while click() still focuses (HTML readonly controls remain clickable).
-        if (isTruthyFlag(element, "readonly")) {
+        if (isTruthyFlagValue(signals.readonly(), "readonly")) {
             return ElementKind.READONLY;
         }
 
-        String tag = safeLower(safeTagName(element));
-        String type = safeLower(firstNonBlank(safeDom(element, "type"), safeProperty(element, "type")));
-        String role = safeLower(safeDom(element, "role"));
+        String tag = safeLower(signals.tagName());
+        String type = safeLower(signals.type());
+        String role = safeLower(signals.role());
 
-        if (isContentEditable(element)) {
+        if (isContentEditable(signals)) {
             return ElementKind.CONTENTEDITABLE;
         }
 
@@ -55,6 +68,73 @@ public final class ElementClassifier {
         }
 
         return classifyByRole(role);
+    }
+
+    /**
+     * Build signals from a Playwright-style evaluate result map (string keys, scalar values).
+     */
+    public static ElementSignals fromEvaluateMap(Map<?, ?> raw) {
+        if (raw == null) {
+            return null;
+        }
+        return new ElementSignals(
+                asString(raw.get("tagName")),
+                asString(raw.get("type")),
+                asString(raw.get("role")),
+                asString(raw.get("contentEditable")),
+                asString(raw.get("isContentEditable")),
+                asString(raw.get("disabled")),
+                asString(raw.get("readonly")),
+                asString(raw.get("ariaDisabled")),
+                asString(raw.get("dataMask")),
+                asString(raw.get("dataInputmask")),
+                asString(raw.get("mask")),
+                asString(raw.get("className")),
+                asString(raw.get("autocomplete")));
+    }
+
+    /**
+     * Conservative masked / OTP / input-mask heuristic for Playwright sequential typing.
+     * Prefer explicit data-* / mask attributes and known library class tokens over broad "mask" substrings.
+     */
+    public static boolean looksMasked(ElementSignals signals) {
+        if (signals == null) {
+            return false;
+        }
+        if (nonBlank(signals.dataMask())
+                || nonBlank(signals.dataInputmask())
+                || nonBlank(signals.mask())) {
+            return true;
+        }
+        String autocomplete = safeLower(signals.autocomplete());
+        if ("one-time-code".equals(autocomplete)) {
+            return true;
+        }
+        String className = safeLower(signals.className());
+        if (className == null) {
+            return false;
+        }
+        return className.contains("inputmask")
+                || className.contains("imask")
+                || className.contains("mask-input")
+                || className.contains("masked-input");
+    }
+
+    private static ElementSignals fromWebElement(WebElement element) {
+        return new ElementSignals(
+                safeTagName(element),
+                firstNonBlank(safeDom(element, "type"), safeProperty(element, "type")),
+                safeDom(element, "role"),
+                safeDom(element, "contenteditable"),
+                safeProperty(element, "isContentEditable"),
+                safeDom(element, "disabled"),
+                safeDom(element, "readonly"),
+                safeDom(element, "aria-disabled"),
+                safeDom(element, "data-mask"),
+                firstNonBlank(safeDom(element, "data-inputmask"), safeDom(element, "data-input-mask")),
+                safeDom(element, "mask"),
+                firstNonBlank(safeDom(element, "class"), safeProperty(element, "className")),
+                safeDom(element, "autocomplete"));
     }
 
     /**
@@ -151,20 +231,12 @@ public final class ElementClassifier {
         return ElementKind.UNKNOWN;
     }
 
-    private static boolean isDisabled(WebElement element) {
-        if (isTruthyFlag(element, "disabled")) {
-            return true;
-        }
-        String ariaDisabled = safeLower(safeDom(element, "aria-disabled"));
-        return "true".equals(ariaDisabled);
-    }
-
-    private static boolean isContentEditable(WebElement element) {
-        if (isContentEditableAttributeValue(safeDom(element, "contenteditable"))) {
+    private static boolean isContentEditable(ElementSignals signals) {
+        if (isContentEditableAttributeValue(signals.contentEditable())) {
             return true;
         }
         // Property path: only the boolean true string — mock junk like "dom-isContentEditable" must not match.
-        return "true".equalsIgnoreCase(safeProperty(element, "isContentEditable"));
+        return "true".equalsIgnoreCase(signals.isContentEditableProperty());
     }
 
     /**
@@ -190,7 +262,10 @@ public final class ElementClassifier {
      * Reject arbitrary non-empty strings so mocked defaults cannot false-positive.
      */
     static boolean isTruthyFlag(WebElement element, String attributeName) {
-        String value = safeDom(element, attributeName);
+        return isTruthyFlagValue(safeDom(element, attributeName), attributeName);
+    }
+
+    static boolean isTruthyFlagValue(String value, String attributeName) {
         if (value == null) {
             return false;
         }
@@ -242,5 +317,20 @@ public final class ElementClassifier {
             return second;
         }
         return first != null ? first : second;
+    }
+
+    private static boolean nonBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static String asString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean bool) {
+            return bool ? "true" : "false";
+        }
+        String text = String.valueOf(value);
+        return "null".equals(text) ? null : text;
     }
 }

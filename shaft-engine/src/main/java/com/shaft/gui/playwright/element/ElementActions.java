@@ -6,6 +6,10 @@ import com.google.common.annotations.Beta;
 import com.shaft.gui.driver.ElementAssertions;
 import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.driver.ShaftLocator;
+import com.shaft.gui.element.internal.interaction.ElementClassifier;
+import com.shaft.gui.element.internal.interaction.ElementKind;
+import com.shaft.gui.element.internal.interaction.ElementSignals;
+import com.shaft.gui.element.internal.interaction.TypeStrategies;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.ocr.OcrCoordinateMapper;
 import com.shaft.gui.internal.ocr.OcrPoint;
@@ -32,7 +36,46 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Playwright element actions. Click uses Playwright actionability waits (visible, stable,
+ * enabled, receives events). {@code force}/{@code trial} click options are intentionally
+ * not exposed on the public API (default off); use {@link #clickUsingJavascript} only when
+ * an intentional bypass is required.
+ * <p>
+ * Open Shadow DOM is reachable via Playwright locator pierce (CSS/role locators). Closed
+ * shadow roots are unsupported for pierce — interact through the host's public API or
+ * accessibility tree instead.
+ * <p>
+ * {@link #type} chooses {@code fill} vs {@code pressSequentially} by element kind
+ * (epic #5732 Wave C): plain inputs stay {@code fill}; contenteditable / masked inputs
+ * use sequential key presses.
+ */
 public class ElementActions implements com.shaft.gui.driver.ElementActionsContract {
+
+    /**
+     * Single evaluate payload for Wave C classify + masked heuristic (keep in sync with
+     * {@link ElementClassifier#fromEvaluateMap}).
+     */
+    private static final String ELEMENT_SIGNALS_SCRIPT = """
+            el => ({
+              tagName: el.tagName || '',
+              type: el.getAttribute('type') || el.type || '',
+              role: el.getAttribute('role') || '',
+              contentEditable: el.getAttribute('contenteditable'),
+              isContentEditable: el.isContentEditable === true ? 'true' : 'false',
+              disabled: el.disabled === true ? 'true'
+                : (el.getAttribute('disabled') === null ? null : (el.getAttribute('disabled') || 'disabled')),
+              readonly: el.readOnly === true ? 'true'
+                : (el.getAttribute('readonly') === null ? null : (el.getAttribute('readonly') || 'readonly')),
+              ariaDisabled: el.getAttribute('aria-disabled'),
+              dataMask: el.getAttribute('data-mask'),
+              dataInputmask: el.getAttribute('data-inputmask') || el.getAttribute('data-input-mask'),
+              mask: el.getAttribute('mask'),
+              className: typeof el.className === 'string' ? el.className : (el.getAttribute('class') || ''),
+              autocomplete: el.getAttribute('autocomplete')
+            })
+            """;
+
     private final PlaywrightSession session;
 
     public ElementActions(PlaywrightSession session) {
@@ -132,6 +175,12 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
         return click(SmartLocators.clickableField(elementName));
     }
 
+    /**
+     * Clicks using Playwright actionability (waits until actionable). Does not set
+     * {@code force} or {@code trial} — both stay default-off and are not part of the
+     * public SHAFT API. Open shadow pierce works via the locator engine; closed shadow
+     * is unsupported (use host public API / a11y).
+     */
     public ElementActions click(Locator elementLocator) {
         return timed("playwright.element.click", elementLocator, () -> {
             elementLocator.click();
@@ -361,7 +410,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions type(Locator elementLocator, CharSequence... text) {
-        return timed("playwright.element.type", elementLocator, () -> elementLocator.fill(join(text)));
+        return timed("playwright.element.type", elementLocator, () -> typeByKind(elementLocator, join(text), false));
     }
 
     @Override
@@ -389,8 +438,24 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions typeAppend(Locator elementLocator, CharSequence... text) {
-        return timed("playwright.element.typeAppend", elementLocator,
-                () -> elementLocator.fill(readTextForAppend(elementLocator) + join(text)));
+        return timed("playwright.element.typeAppend", elementLocator, () -> {
+            ElementSignals signals = readSignals(elementLocator);
+            ElementKind kind = ElementClassifier.classify(signals);
+            boolean masked = ElementClassifier.looksMasked(signals);
+            TypeStrategies.PlaywrightTypeRoute route = TypeStrategies.playwrightRouteFor(kind, masked);
+            if (route == TypeStrategies.PlaywrightTypeRoute.PRESS_SEQUENTIALLY) {
+                typeByKind(elementLocator, join(text), true);
+                return;
+            }
+            if (route == TypeStrategies.PlaywrightTypeRoute.REJECT
+                    || route == TypeStrategies.PlaywrightTypeRoute.TOGGLE_CLICK
+                    || route == TypeStrategies.PlaywrightTypeRoute.SELECT_OPTION
+                    || route == TypeStrategies.PlaywrightTypeRoute.SET_FILES) {
+                typeByKind(elementLocator, join(text), false);
+                return;
+            }
+            elementLocator.fill(readTextForAppend(elementLocator) + join(text));
+        });
     }
 
     @Override
@@ -420,7 +485,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
 
     public ElementActions typeSecure(Locator elementLocator, CharSequence... text) {
         return timed("playwright.element.typeSecure", elementLocator, () -> {
-            elementLocator.fill(join(text));
+            typeByKind(elementLocator, join(text), false);
             ReportManager.log("Typed secure text into Playwright element.");
         });
     }
@@ -545,6 +610,67 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
 
     private Locator resolve(ShaftLocator locator) {
         return locator.toPlaywrightLocator(session.page());
+    }
+
+    private void typeByKind(Locator locator, String text, boolean append) {
+        ElementSignals signals = readSignals(locator);
+        ElementKind kind = ElementClassifier.classify(signals);
+        boolean masked = ElementClassifier.looksMasked(signals);
+        TypeStrategies.PlaywrightTypeRoute route = TypeStrategies.playwrightRouteFor(kind, masked);
+        switch (route) {
+            case REJECT -> throw new IllegalStateException(
+                    "type() is not supported for element kind " + kind
+                            + "; use click/select/upload APIs as appropriate.");
+            case TOGGLE_CLICK -> {
+                ReportManager.logDiscrete("type() on " + kind + " redirected to click (toggle); fill skipped.");
+                locator.click();
+            }
+            case SELECT_OPTION -> locator.selectOption(text);
+            case SET_FILES -> locator.setInputFiles(Path.of(text));
+            case PRESS_SEQUENTIALLY -> pressSequentially(locator, text, append, kind);
+            case FILL -> locator.fill(text == null ? "" : text);
+        }
+    }
+
+    private void pressSequentially(Locator locator, String text, boolean append, ElementKind kind) {
+        String typed = text == null ? "" : text;
+        if (!append) {
+            if (kind == ElementKind.CONTENTEDITABLE) {
+                try {
+                    locator.click();
+                } catch (RuntimeException ignored) {
+                    // Focus best-effort before select-all / sequential keys.
+                }
+                locator.press("ControlOrMeta+A");
+            } else {
+                try {
+                    locator.clear();
+                } catch (RuntimeException clearFailed) {
+                    try {
+                        locator.click();
+                        locator.press("ControlOrMeta+A");
+                    } catch (RuntimeException ignored) {
+                        // Best-effort replace; sequential keys still attempt to land.
+                    }
+                }
+            }
+        }
+        if (!typed.isEmpty()) {
+            locator.pressSequentially(typed);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private ElementSignals readSignals(Locator locator) {
+        try {
+            Object raw = locator.evaluate(ELEMENT_SIGNALS_SCRIPT);
+            if (raw instanceof Map<?, ?> map) {
+                return ElementClassifier.fromEvaluateMap(map);
+            }
+        } catch (RuntimeException ignored) {
+            // Conservative: unknown → fill path via TEXT_LIKE/UNKNOWN routing.
+        }
+        return ElementSignals.of(null, null, null, null, null, null, null, null);
     }
 
     private String readTextForAppend(Locator locator) {
