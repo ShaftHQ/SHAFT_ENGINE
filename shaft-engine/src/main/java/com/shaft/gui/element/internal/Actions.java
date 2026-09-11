@@ -9,6 +9,10 @@ import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.interaction.ClickStrategies;
+import com.shaft.gui.element.internal.interaction.ElementClassifier;
+import com.shaft.gui.element.internal.interaction.ElementKind;
+import com.shaft.gui.element.internal.interaction.TypeStrategies;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingResolution;
@@ -664,20 +668,13 @@ public class Actions extends ElementActions {
                         WebElement targetElement = isMobileNativeExecution
                                 ? chooseBestEffortDisplayedElement(foundElements.get())
                                 : foundElements.get().getFirst();
-                        try {
-                            screenshot.set(0, takeActionScreenshot(targetElement));
-                            targetElement.click();
-                        } catch (InvalidElementStateException exception) {
-                            if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
-                                ((JavascriptExecutor) d).executeScript("arguments[0].click();", targetElement);
-                                ReportManager.logDiscrete("Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
-                            } else {
-                                // These exceptions are normally retryable for visibility-aware waits;
-                                // when JavaScript fallback is disabled, report the native click failure immediately
-                                // so the original Selenium exception is not replaced by a FluentWait timeout.
-                                throw exception;
-                            }
-                        }
+                        screenshot.set(0, takeActionScreenshot(targetElement));
+                        // Wave B (#5732): native → scroll/stabilize retry → flagged JS; preserve exception when JS off.
+                        ClickStrategies.click(
+                                d,
+                                targetElement,
+                                ElementClassifier.classify(targetElement),
+                                SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails());
                     }
                     case JAVASCRIPT_CLICK -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
@@ -723,18 +720,36 @@ public class Actions extends ElementActions {
                     case TYPE, TYPE_SECURELY -> {
                         WebElement targetElement = foundElements.get().getFirst();
                         CharSequence[] text = (CharSequence[]) data;
-                        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-                        String typedText = stringifyTypedValue(text);
-                        boolean shouldValidateTypedText = shouldValidateTypedText(text);
-                        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
-                                ? readElementValueForTyping(targetElement) + typedText
-                                : typedText;
-                        if (SHAFT.Properties.flags.attemptToClickBeforeTyping() && !"native".equals(clearMode)) {
-                            targetElement.click();
+                        ElementKind kind = ElementClassifier.classify(targetElement);
+                        TypeStrategies.TypeRoute typeRoute = TypeStrategies.routeFor(kind);
+                        if (typeRoute == TypeStrategies.TypeRoute.REJECT) {
+                            TypeStrategies.rejectUnsupported(kind);
+                        } else if (typeRoute == TypeStrategies.TypeRoute.TOGGLE_CLICK) {
+                            TypeStrategies.toggleInsteadOfTyping(targetElement, kind);
+                        } else if (typeRoute == TypeStrategies.TypeRoute.SELECT_OPTION) {
+                            selectValue(targetElement, locator, stringifyTypedValue(text));
+                        } else if (typeRoute == TypeStrategies.TypeRoute.SET_FILES) {
+                            typeFileLocationForUpload(targetElement, locator, stringifyTypedValue(text));
+                        } else if (typeRoute == TypeStrategies.TypeRoute.SET_VALUE_WITH_EVENTS) {
+                            TypeStrategies.setValueWithEvents(d, targetElement, stringifyTypedValue(text));
+                        } else if (typeRoute == TypeStrategies.TypeRoute.CONTENTEDITABLE) {
+                            boolean clearBefore = !"off".equals(SHAFT.Properties.flags.clearBeforeTypingMode());
+                            TypeStrategies.typeContentEditable(d, targetElement, text, clearBefore);
+                        } else {
+                            // TEXT_LIKE / COMBOBOX / UNKNOWN — legacy clear+sendKeys honors existing flags.
+                            String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+                            String typedText = stringifyTypedValue(text);
+                            boolean shouldValidateTypedText = shouldValidateTypedText(text);
+                            String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                                    ? readElementValueForTyping(targetElement) + typedText
+                                    : typedText;
+                            if (SHAFT.Properties.flags.attemptToClickBeforeTyping() && !"native".equals(clearMode)) {
+                                targetElement.click();
+                            }
+                            executeClearBasedOnClearMode(targetElement, clearMode);
+                            targetElement.sendKeys(text);
+                            validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                         }
-                        executeClearBasedOnClearMode(targetElement, clearMode);
-                        targetElement.sendKeys(text);
-                        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                     }
                     case TYPE_APPEND -> {
                         WebElement targetElement = foundElements.get().getFirst();
