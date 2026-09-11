@@ -1,27 +1,23 @@
 #!/usr/bin/env python3
-"""Fail fast when JavaDoc ``@param`` names do not match method arity (#5748).
-
-Learning from Wave D: a bogus ``@param replaceAllowed`` on a 3-arg
-``typeMobileText`` overload made ErrorProne fail ``TypeStrategies.java`` and
-cascaded unit/CodeQL red even though the Java logic was fine.
-
-This checker is a portable ChaosEngine local / PR-gate script (agent pre-push
-checklist + harness surface). It scans ``shaft-engine`` interaction packages by
-default (skip silently when absent) and reports every javadoc block-tag
-``@param`` whose name is not a parameter of the following method declaration.
-Type-parameter tags (``@param <T>``) are ignored. Prose mentions of ``@param``
-inside a comment body are not treated as tags.
-
-Usage:
-    python3 chaos-engine/check_javadoc_param_arity.py
-    python3 chaos-engine/check_javadoc_param_arity.py --root shaft-engine/.../interaction
-    python3 chaos-engine/check_javadoc_param_arity.py --paths file1.java file2.java
-
-Exit codes:
-    0  clean (or no matching sources)
-    1  one or more ``@param`` / signature mismatches
-    2  usage / IO error
-"""
+"""Fail fast when JavaDoc ``@param`` names do not match method arity (#5748)."""
+# Codacy runs both D212 and D213, so multi-line module docstrings always flag
+# one of them; detail therefore lives in this comment block.
+#
+# Learning from Wave D: a bogus ``@param replaceAllowed`` on a 3-arg
+# ``typeMobileText`` overload made ErrorProne fail ``TypeStrategies.java`` and
+# cascaded unit/CodeQL red even though the Java logic was fine.
+#
+# Portable ChaosEngine local / PR-gate script (agent before-push checklist +
+# harness surface). Scans ``shaft-engine`` interaction packages by default
+# (skip silently when absent). Reports every javadoc block-tag ``@param`` whose
+# name is not a parameter of the following method. Type-parameter tags
+# (``@param <T>``) and prose mentions of ``@param`` are ignored.
+#
+# Usage:
+#     python3 chaos-engine/check_javadoc_param_arity.py
+#     python3 chaos-engine/check_javadoc_param_arity.py --paths file1.java
+#
+# Exit codes: 0 clean / no sources; 1 mismatches; 2 usage / IO error.
 
 from __future__ import annotations
 
@@ -41,12 +37,12 @@ METHOD_START = re.compile(
     r"(?P<name>\w+)\s*\(",
     re.MULTILINE,
 )
-# Javadoc block tags only: leading * / whitespace, then @param. Ignores prose
-# mentions such as "do not copy @param replaceAllowed" inside the same comment.
+# Javadoc block tags only: leading * / whitespace, then @param.
 PARAM_TAG = re.compile(
     r"(?m)^\s*(?:\*\s*)?@param\s+(?P<name><[^>]+>|\w+)\b"
 )
 IDENT = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b")
+_NON_METHODS = frozenset({"if", "for", "while", "switch", "catch", "return"})
 
 
 @dataclass(frozen=True)
@@ -105,70 +101,83 @@ def _strip_line_comments(text: str) -> str:
     return re.sub(r"//.*?$", "", text, flags=re.MULTILINE)
 
 
-def _iter_javadoc_method_pairs(source: str) -> list[tuple[int, str, int, str]]:
-    """Return (javadoc_start_line, javadoc, method_start_line, method_header)."""
-    pairs: list[tuple[int, str, int, str]] = []
+def _skip_blank(lines: list[str], index: int) -> int:
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    return index
+
+
+def _read_javadoc_block(lines: list[str], index: int) -> tuple[str, int] | None:
+    if index >= len(lines) or not lines[index].lstrip().startswith("/**"):
+        return None
+    block_lines = [lines[index]]
+    if "*/" in lines[index]:
+        return "\n".join(block_lines), index + 1
+    index += 1
+    while index < len(lines):
+        block_lines.append(lines[index])
+        if "*/" in lines[index]:
+            return "\n".join(block_lines), index + 1
+        index += 1
+    return "\n".join(block_lines), index
+
+
+def _paren_delta(text: str) -> int:
+    return text.count("(") - text.count(")")
+
+
+def _skip_annotations(lines: list[str], index: int) -> int:
+    while index < len(lines) and lines[index].lstrip().startswith("@"):
+        depth = 0
+        while index < len(lines):
+            depth += _paren_delta(lines[index])
+            index += 1
+            if depth <= 0:
+                break
+    return index
+
+
+def _read_method_header(lines: list[str], index: int) -> tuple[str, int] | None:
+    header_parts: list[str] = []
+    depth = 0
+    seen_paren = False
+    while index < len(lines):
+        line = lines[index]
+        header_parts.append(line)
+        depth += _paren_delta(line)
+        if "(" in line:
+            seen_paren = True
+        index += 1
+        if seen_paren and depth <= 0:
+            return "\n".join(header_parts), index
+        if not seen_paren and "{" in line:
+            return None
+    return None
+
+
+def _iter_javadoc_method_pairs(source: str) -> list[tuple[int, str, str]]:
+    """Return (javadoc_start_line, javadoc, method_header) pairs."""
+    pairs: list[tuple[int, str, str]] = []
     lines = source.splitlines()
     index = 0
     while index < len(lines):
-        stripped = lines[index].lstrip()
-        if not stripped.startswith("/**"):
+        start = index
+        block = _read_javadoc_block(lines, index)
+        if block is None:
             index += 1
             continue
-        start = index
-        block_lines = [lines[index]]
-        if "*/" not in lines[index]:
-            index += 1
-            while index < len(lines):
-                block_lines.append(lines[index])
-                if "*/" in lines[index]:
-                    break
-                index += 1
-        javadoc = "\n".join(block_lines)
-        index += 1
-        while index < len(lines) and not lines[index].strip():
-            index += 1
-        # Skip annotations between javadoc and the method signature.
-        while index < len(lines):
-            stripped = lines[index].lstrip()
-            if not stripped.startswith("@"):
-                break
-            depth = 0
-            while index < len(lines):
-                for char in lines[index]:
-                    if char == "(":
-                        depth += 1
-                    elif char == ")":
-                        depth -= 1
-                index += 1
-                if depth <= 0:
-                    break
-        while index < len(lines) and not lines[index].strip():
-            index += 1
+        javadoc, index = block
+        index = _skip_blank(lines, index)
+        index = _skip_annotations(lines, index)
+        index = _skip_blank(lines, index)
         if index >= len(lines):
             break
-        header_start = index
-        header_parts: list[str] = []
-        depth = 0
-        seen_paren = False
-        while index < len(lines):
-            line = lines[index]
-            header_parts.append(line)
-            for char in line:
-                if char == "(":
-                    depth += 1
-                    seen_paren = True
-                elif char == ")":
-                    depth -= 1
+        header = _read_method_header(lines, index)
+        if header is None:
             index += 1
-            if seen_paren and depth <= 0:
-                break
-            if not seen_paren and "{" in line:
-                break
-        if not seen_paren:
             continue
-        header = "\n".join(header_parts)
-        pairs.append((start + 1, javadoc, header_start + 1, header))
+        text, index = header
+        pairs.append((start + 1, javadoc, text))
     return pairs
 
 
@@ -184,33 +193,7 @@ def _param_tags(javadoc: str) -> list[tuple[str, int]]:
     return tags
 
 
-def _method_name_and_params(header: str) -> tuple[str, tuple[str, ...]] | None:
-    cleaned = _strip_line_comments(header)
-    # Drop throws clause and body opener for matching.
-    cleaned = cleaned.split("{", 1)[0]
-    match = METHOD_START.search(cleaned)
-    if match is None:
-        return None
-    name = match.group("name")
-    # Reject constructors named like types only when preceded by `new` — keep all.
-    open_paren = cleaned.find("(", match.end() - 1)
-    if open_paren < 0:
-        return None
-    depth = 0
-    close = -1
-    for index, char in enumerate(cleaned[open_paren:], start=open_paren):
-        if char == "(":
-            depth += 1
-        elif char == ")":
-            depth -= 1
-            if depth == 0:
-                close = index
-                break
-    if close < 0:
-        return None
-    inside = cleaned[open_paren + 1 : close].strip()
-    if not inside:
-        return name, ()
+def _split_param_list(inside: str) -> list[str]:
     params: list[str] = []
     depth = 0
     current: list[str] = []
@@ -224,54 +207,70 @@ def _method_name_and_params(header: str) -> tuple[str, tuple[str, ...]] | None:
         elif char == "," and depth == 0:
             chunk = "".join(current).strip()
             if chunk:
-                params.append(_param_name(chunk))
+                params.append(chunk)
             current = []
         else:
             current.append(char)
     chunk = "".join(current).strip()
     if chunk:
-        params.append(_param_name(chunk))
-    return name, tuple(params)
+        params.append(chunk)
+    return params
+
+
+def _matching_close(text: str, open_index: int) -> int:
+    depth = 0
+    for index, char in enumerate(text[open_index:], start=open_index):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+    return -1
+
+
+def _method_name_and_params(header: str) -> tuple[str, tuple[str, ...]] | None:
+    cleaned = _strip_line_comments(header).split("{", 1)[0]
+    match = METHOD_START.search(cleaned)
+    if match is None:
+        return None
+    name = match.group("name")
+    open_paren = cleaned.find("(", match.end() - 1)
+    if open_paren < 0:
+        return None
+    close = _matching_close(cleaned, open_paren)
+    if close < 0:
+        return None
+    inside = cleaned[open_paren + 1 : close].strip()
+    if not inside:
+        return name, ()
+    return name, tuple(_param_name(chunk) for chunk in _split_param_list(inside))
 
 
 def _param_name(declaration: str) -> str:
     text = declaration.strip()
-    # Drop annotations (@Nullable Type name).
     while text.startswith("@"):
-        # annotation may be @Foo or @Foo(...)
-        if "(" in text[: text.find(" ") if " " in text else len(text)]:
-            depth = 0
-            end = 0
-            for index, char in enumerate(text):
-                if char == "(":
-                    depth += 1
-                elif char == ")":
-                    depth -= 1
-                    if depth == 0:
-                        end = index + 1
-                        break
-            text = text[end:].strip()
+        head = text[: text.find(" ") if " " in text else len(text)]
+        if "(" in head:
+            close = _matching_close(text, text.find("("))
+            text = text[close + 1 :].strip() if close >= 0 else ""
         else:
             parts = text.split(None, 1)
             text = parts[1].strip() if len(parts) > 1 else ""
     text = text.replace("...", " ")
     tokens = IDENT.findall(text)
-    if not tokens:
-        return text
-    # Last identifier is the parameter name.
-    return tokens[-1]
+    return tokens[-1] if tokens else text
 
 
 def check_source(path: Path, text: str | None = None) -> list[Finding]:
     source = text if text is not None else path.read_text(encoding="utf-8")
     findings: list[Finding] = []
-    for javadoc_line, javadoc, method_line, header in _iter_javadoc_method_pairs(source):
+    for javadoc_line, javadoc, header in _iter_javadoc_method_pairs(source):
         parsed = _method_name_and_params(header)
         if parsed is None:
             continue
         method_name, signature_params = parsed
-        # Skip obvious non-methods (enum constants etc. rarely match METHOD_START well).
-        if method_name in {"if", "for", "while", "switch", "catch", "return"}:
+        if method_name in _NON_METHODS:
             continue
         allowed = set(signature_params)
         for param, offset in _param_tags(javadoc):
@@ -334,7 +333,6 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"check_javadoc_param_arity: {error}\n")
         return 2
     if not sources:
-        # Portable overlay / empty tree: nothing to enforce.
         return 0
     findings = check_paths(sources)
     if not findings:
