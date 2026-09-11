@@ -62,6 +62,19 @@ public final class ClickStrategies {
 }
 '''
 
+PROSE_MENTION = '''
+package demo;
+
+public final class Docs {
+    /**
+     * Do not copy {@code @param replaceAllowed} onto the 3-arg overload.
+     * Example prose: avoid leftover @param replaceAllowed tags.
+     */
+    public static void typeMobileText(WebDriver driver, WebElement element, CharSequence[] text) {
+    }
+}
+'''
+
 
 def load_module():
     spec = importlib.util.spec_from_file_location("ce_check_javadoc_param_arity", MODULE_PATH)
@@ -87,6 +100,10 @@ class CheckJavadocParamArityTests(unittest.TestCase):
 
     def test_accepts_matching_overload_params(self):
         findings = self.mod.check_source(Path("ClickStrategies.java"), CLEAN_OVERLOADS)
+        self.assertEqual([], findings)
+
+    def test_ignores_prose_mentions_of_param_inside_javadoc(self):
+        findings = self.mod.check_source(Path("Docs.java"), PROSE_MENTION)
         self.assertEqual([], findings)
 
     def test_cli_fails_on_fixture_and_passes_on_clean(self):
@@ -119,10 +136,16 @@ class CheckJavadocParamArityTests(unittest.TestCase):
         framework = FRAMEWORK_SOURCE.read_text(encoding="utf-8")
         catalog = ZERO_LLM.read_text(encoding="utf-8")
         gate = HARNESS_PR_GATE.read_text(encoding="utf-8")
-        self.assertIn("@param", framework)
-        self.assertIn("overload", framework.casefold())
-        self.assertIn("check_javadoc_param_arity.py", framework)
+        self.assertIn("Overload `@param` arity", framework)
+        self.assertIn("../../../../check_javadoc_param_arity.py", framework)
+        self.assertTrue(
+            (FRAMEWORK_SOURCE.parent / "../../../../check_javadoc_param_arity.py")
+            .resolve()
+            .is_file(),
+            "framework-source relative link to checker must resolve",
+        )
         self.assertIn("check_javadoc_param_arity.py", catalog)
+        self.assertIn("[`check_javadoc_param_arity.py`](../check_javadoc_param_arity.py)", catalog)
         self.assertIn("javadoc-param-arity-contract", gate)
         self.assertIn("check_javadoc_param_arity.py", gate)
 

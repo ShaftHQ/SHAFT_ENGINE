@@ -5,10 +5,12 @@ Learning from Wave D: a bogus ``@param replaceAllowed`` on a 3-arg
 ``typeMobileText`` overload made ErrorProne fail ``TypeStrategies.java`` and
 cascaded unit/CodeQL red even though the Java logic was fine.
 
-This checker is a portable ChaosEngine pre-push / PR-gate script. It scans
-``shaft-engine`` interaction packages by default (skip silently when absent)
-and reports every ``@param`` whose name is not a parameter of the following
-method declaration. Type-parameter tags (``@param <T>``) are ignored.
+This checker is a portable ChaosEngine local / PR-gate script (agent pre-push
+checklist + harness surface). It scans ``shaft-engine`` interaction packages by
+default (skip silently when absent) and reports every javadoc block-tag
+``@param`` whose name is not a parameter of the following method declaration.
+Type-parameter tags (``@param <T>``) are ignored. Prose mentions of ``@param``
+inside a comment body are not treated as tags.
 
 Usage:
     python3 chaos-engine/check_javadoc_param_arity.py
@@ -34,11 +36,16 @@ DEFAULT_RELATIVE_ROOTS = (
 )
 
 METHOD_START = re.compile(
-    r"(?:(?:public|protected|private|static|final|synchronized|native|abstract|default)\s+)+"
+    r"^\s*(?:(?:public|protected|private|static|final|synchronized|native|abstract|default)\s+)+"
     r"(?:[\w.<>,\[\]?\s]+?\s+)?"
     r"(?P<name>\w+)\s*\(",
+    re.MULTILINE,
 )
-PARAM_TAG = re.compile(r"@param\s+(?P<name><[^>]+>|\w+)")
+# Javadoc block tags only: leading * / whitespace, then @param. Ignores prose
+# mentions such as "do not copy @param replaceAllowed" inside the same comment.
+PARAM_TAG = re.compile(
+    r"(?m)^\s*(?:\*\s*)?@param\s+(?P<name><[^>]+>|\w+)\b"
+)
 IDENT = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b")
 
 
