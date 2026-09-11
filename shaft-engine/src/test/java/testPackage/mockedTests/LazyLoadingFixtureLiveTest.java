@@ -60,6 +60,22 @@ public class LazyLoadingFixtureLiveTest {
                         + "already have completed the instant navigateToURL returns");
     }
 
+    @Test(description = "With both DOM quiet windows at 0, navigateToURL must not wait for delayed in-viewport hydration.")
+    public void navigationWithoutDomQuietDoesNotWaitForDelayedHydration() {
+        int originalNav = SHAFT.Properties.timeouts.lazyLoadingDomStabilityOnNavigationQuietWindowMillis();
+        int originalGlobal = SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis();
+        SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityOnNavigationQuietWindowMillis(0);
+        SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(0);
+        try {
+            driver.get().browser().navigateToURL(TestPageServer.url("lazyLoadingDomHydrationFixture.html"));
+            Assert.assertFalse(elementExistsNow("delayed-hero-section-content"),
+                    "1500ms hydration must still be absent when both DOM quiet windows are 0");
+        } finally {
+            SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityOnNavigationQuietWindowMillis(originalNav);
+            SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(originalGlobal);
+        }
+    }
+
     @Test(description = "Navigating to a page with long-lived EventSource and WebSocket connections "
             + "must not hang for waitForLazyLoadingTimeout (30s).")
     public void navigateToSseAndWebSocketPageDoesNotHang() {

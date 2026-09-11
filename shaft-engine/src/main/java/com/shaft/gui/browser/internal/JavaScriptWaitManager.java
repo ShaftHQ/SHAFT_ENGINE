@@ -232,12 +232,6 @@ public class JavaScriptWaitManager {
      * @return {@code true} when DOM stability is disabled or its quiet window has been satisfied
      */
     private static boolean isDomStable(String domMutationMarker, long[] domIdleSinceMillis,
-                                        String[] lastDomMutationMarker, long nowMillis) {
-        return isDomStable(domMutationMarker, domIdleSinceMillis, lastDomMutationMarker, nowMillis,
-                SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis());
-    }
-
-    private static boolean isDomStable(String domMutationMarker, long[] domIdleSinceMillis,
                                         String[] lastDomMutationMarker, long nowMillis, int quietWindowMillis) {
         int resolvedQuietWindowMillis = Math.max(0, quietWindowMillis);
         if (resolvedQuietWindowMillis <= 0) {

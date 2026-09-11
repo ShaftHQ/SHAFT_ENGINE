@@ -311,7 +311,7 @@ public class JavaScriptWaitManagerUnitTest {
 
     private static Method getIsDomStableMethod() throws Exception {
         Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
-                .getDeclaredMethod("isDomStable", String.class, long[].class, String[].class, long.class);
+                .getDeclaredMethod("isDomStable", String.class, long[].class, String[].class, long.class, int.class);
         method.setAccessible(true);
         return method;
     }
@@ -352,8 +352,8 @@ public class JavaScriptWaitManagerUnitTest {
             long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
             String[] lastMarker = {null};
 
-            boolean stableOnFirstPoll = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1000L);
-            boolean stableAfterImmediateMarkerChange = (boolean) method.invoke(null, "2", idleSinceMillis, lastMarker, 1001L);
+            boolean stableOnFirstPoll = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1000L, 0);
+            boolean stableAfterImmediateMarkerChange = (boolean) method.invoke(null, "2", idleSinceMillis, lastMarker, 1001L, 0);
 
             Assert.assertTrue(stableOnFirstPoll, "DOM stability must default to true (no-op) when the property is 0");
             Assert.assertTrue(stableAfterImmediateMarkerChange,
@@ -372,9 +372,9 @@ public class JavaScriptWaitManagerUnitTest {
             long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
             String[] lastMarker = {null};
 
-            boolean firstPoll = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1000L);
-            boolean beforeWindowEnds = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1200L);
-            boolean afterWindowEnds = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1300L);
+            boolean firstPoll = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1000L, 300);
+            boolean beforeWindowEnds = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1200L, 300);
+            boolean afterWindowEnds = (boolean) method.invoke(null, "1", idleSinceMillis, lastMarker, 1300L, 300);
 
             Assert.assertFalse(firstPoll, "Enabling DOM stability should require an observation baseline first");
             Assert.assertFalse(beforeWindowEnds, "Enabling DOM stability should require the configured quiet window to elapse");

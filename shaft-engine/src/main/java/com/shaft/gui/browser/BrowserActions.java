@@ -1224,7 +1224,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                 case TAB -> driverFactoryHelper.getDriver().switchTo().newWindow(WindowType.TAB).navigate().to(targetUrl);
                 case WINDOW -> driverFactoryHelper.getDriver().switchTo().newWindow(WindowType.WINDOW).navigate().to(targetUrl);
             }
-            JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
+            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
             var handleAfterNavigation = driverFactoryHelper.getDriver().getWindowHandle();
             if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
                 ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
