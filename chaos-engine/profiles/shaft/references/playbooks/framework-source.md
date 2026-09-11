@@ -12,7 +12,7 @@ applyTo: "**/src/main/java/**/*.java"
   strip or retarget every `@param` tag to the *actual* signature before push.
   A leftover `@param` from a longer overload fails ErrorProne and cascades CI
   (#5748). Run
-  [`check_javadoc_param_arity.py`](../../../../../../scripts/ci/check_javadoc_param_arity.py)
+  [`check_javadoc_param_arity.py`](../../../../../scripts/ci/check_javadoc_param_arity.py)
   against `shaft-engine` interaction packages (or the files you touched). The
   harness PR Gate `javadoc` surface also runs the checker’s unit tests when
   interaction sources or the script change.
