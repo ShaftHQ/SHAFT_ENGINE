@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,6 +39,7 @@ public class PlaywrightInteractionStrategiesUnitTest {
     public void typeTextLikeUsesFillNotPressSequentially() {
         Locator locator = locatorWithSignals(signals("INPUT", "text"));
         new ElementActions(mock(PlaywrightSession.class)).type(locator, "hello");
+        verify(locator).evaluate(anyString());
         verify(locator).fill("hello");
         verify(locator, never()).pressSequentially(anyString());
         verify(locator, never()).click();
@@ -77,6 +79,7 @@ public class PlaywrightInteractionStrategiesUnitTest {
         map.put("isContentEditable", "true");
         Locator locator = locatorWithSignals(map);
         new ElementActions(mock(PlaywrightSession.class)).type(locator, "editor text");
+        verify(locator).evaluate(anyString());
         verify(locator).press("ControlOrMeta+A");
         verify(locator).pressSequentially("editor text");
         verify(locator, never()).fill(anyString());
@@ -96,6 +99,7 @@ public class PlaywrightInteractionStrategiesUnitTest {
         map.put("dataMask", "00/00/0000");
         Locator locator = locatorWithSignals(map);
         new ElementActions(mock(PlaywrightSession.class)).type(locator, "12/31/2024");
+        verify(locator).evaluate(anyString());
         verify(locator).pressSequentially("12/31/2024");
         verify(locator, never()).fill(anyString());
     }
@@ -109,6 +113,41 @@ public class PlaywrightInteractionStrategiesUnitTest {
                 () -> new ElementActions(mock(PlaywrightSession.class)).type(locator, "nope"));
         verify(locator, never()).fill(anyString());
         verify(locator, never()).pressSequentially(anyString());
+    }
+
+    @Test
+    public void typeAppendTextLikeUsesFillNotPressSequentially() {
+        Locator locator = locatorWithSignals(signals("INPUT", "text"));
+        when(locator.inputValue()).thenReturn("front");
+        new ElementActions(mock(PlaywrightSession.class)).typeAppend(locator, " back");
+        verify(locator).evaluate(anyString());
+        verify(locator).fill("front back");
+        verify(locator, never()).pressSequentially(anyString());
+    }
+
+    @Test
+    public void typeAppendContentEditableUsesPressSequentiallyNotFill() {
+        Map<String, Object> map = signals("DIV", "");
+        map.put("contentEditable", "true");
+        map.put("isContentEditable", "true");
+        Locator locator = locatorWithSignals(map);
+        new ElementActions(mock(PlaywrightSession.class)).typeAppend(locator, " more");
+        // typeAppend + typeByKind(append) each readSignals via evaluate.
+        verify(locator, atLeastOnce()).evaluate(anyString());
+        verify(locator).pressSequentially(" more");
+        verify(locator, never()).fill(anyString());
+        verify(locator, never()).press("ControlOrMeta+A");
+    }
+
+    @Test
+    public void typeAppendMaskedInputUsesPressSequentially() {
+        Map<String, Object> map = signals("INPUT", "text");
+        map.put("dataMask", "00/00/0000");
+        Locator locator = locatorWithSignals(map);
+        new ElementActions(mock(PlaywrightSession.class)).typeAppend(locator, "2024");
+        verify(locator, atLeastOnce()).evaluate(anyString());
+        verify(locator).pressSequentially("2024");
+        verify(locator, never()).fill(anyString());
     }
 
     @Test
