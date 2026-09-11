@@ -11,6 +11,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -18,11 +19,17 @@ import java.util.Map;
  * Routes {@code type} by {@link ElementKind} so checkbox/radio/select/file/date/contenteditable
  * never take the blind clear+sendKeys path. Unknown kinds stay on the legacy caller path.
  * Mobile native (#5732 Wave D): focus → setValue / sendKeys / {@code mobile: type} → optional hideKeyboard.
+ * Windows desktop (#5732 Wave E): focus → clear → sendKeys / {@code windows: keys}; CheckBox/Radio toggle
+ * (not sendKeys); ComboBox expand then type-to-filter + Enter.
  *
  * <p><b>Compose / Flutter notes:</b> Jetpack Compose TextFields often reject setValue/sendKeys until
  * focused (enable {@code testTagsAsResourceId} and tap first). Flutter TextFields need ValueKey /
  * Semantics identifiers; after focus prefer driver sendKeys or {@code flutter:*} enter-text helpers.
  * When setValue is rejected without focus, SHAFT throws an actionable {@link InvalidElementStateException}.
+ *
+ * <p><b>WinAppDriver / UIA notes:</b> Prefer WebElement click/clear/sendKeys. On flake use
+ * {@code windows: click} / {@code windows: keys}. Value pattern is read via {@code Value.Value} when
+ * present; writing still goes through clear+keys (classic WinAppDriver has no setValue script).
  */
 public final class TypeStrategies {
 
@@ -81,6 +88,16 @@ public final class TypeStrategies {
         LEGACY_SEND_KEYS
     }
 
+    /** Windows desktop / UIA type routes (Wave E). */
+    public enum DesktopTypeRoute {
+        TOGGLE_CLICK,
+        DESKTOP_TEXT,
+        COMBOBOX,
+        REJECT,
+        /** Unknown / button / link — keep sendKeys after focus for conservative compatibility. */
+        LEGACY_SEND_KEYS
+    }
+
     private TypeStrategies() {
     }
 
@@ -104,6 +121,16 @@ public final class TypeStrategies {
             case DISABLED, READONLY, IFRAME, FILE, SELECT, RANGE, DATE_LIKE, COLOR -> MobileTypeRoute.REJECT;
             case TEXT_LIKE, COMBOBOX, CONTENTEDITABLE, UNKNOWN -> MobileTypeRoute.MOBILE_TEXT;
             case BUTTON, LINK -> MobileTypeRoute.LEGACY_SEND_KEYS;
+        };
+    }
+
+    public static DesktopTypeRoute desktopRouteFor(ElementKind kind) {
+        return switch (kind) {
+            case CHECKBOX, RADIO -> DesktopTypeRoute.TOGGLE_CLICK;
+            case TEXT_LIKE, CONTENTEDITABLE -> DesktopTypeRoute.DESKTOP_TEXT;
+            case COMBOBOX -> DesktopTypeRoute.COMBOBOX;
+            case DISABLED, READONLY, IFRAME, FILE, SELECT, RANGE, DATE_LIKE, COLOR -> DesktopTypeRoute.REJECT;
+            case BUTTON, LINK, UNKNOWN -> DesktopTypeRoute.LEGACY_SEND_KEYS;
         };
     }
 
@@ -142,6 +169,21 @@ public final class TypeStrategies {
     public static void toggleMobileInsteadOfTyping(WebDriver driver, WebElement element, ElementKind kind) {
         ReportManager.logDiscrete("type() on mobile " + kind + " redirected to tap (toggle); sendKeys skipped.");
         ClickStrategies.focusTap(driver, element);
+    }
+
+    /**
+     * Windows CheckBox / RadioButton: toggle via click (Invoke/Toggle), never sendKeys.
+     * Logs {@link WebElement#isSelected()} and {@code Toggle.ToggleState} when available.
+     */
+    public static void toggleDesktopInsteadOfTyping(WebDriver driver, WebElement element, ElementKind kind) {
+        ReportManager.logDiscrete("type() on desktop " + kind + " redirected to click (toggle); sendKeys skipped.");
+        boolean before = safeIsSelected(element);
+        ClickStrategies.focusWindows(driver, element);
+        boolean after = safeIsSelected(element);
+        String toggleState = safeAttribute(element, "Toggle.ToggleState");
+        ReportManager.logDiscrete("desktop toggle state selected=" + after
+                + (before == after ? " (unchanged from " + before + ")" : " (was " + before + ")")
+                + (toggleState == null ? "" : " Toggle.ToggleState=" + toggleState));
     }
 
     public static void setValueWithEvents(WebDriver driver, WebElement element, String text) {
@@ -251,6 +293,90 @@ public final class TypeStrategies {
             } catch (RuntimeException ignored) {
                 ReportManager.logDiscrete("hideKeyboard after typing was requested but failed; continuing.");
             }
+        }
+    }
+
+    /**
+     * Windows Edit / Document text entry after focus: {@code sendKeys} → {@code windows: keys}.
+     * Value pattern ({@code Value.Value}) is observed when present; writing uses keys.
+     */
+    public static void typeDesktopText(WebDriver driver, WebElement element, CharSequence[] text) {
+        String typed = stringify(text);
+        try {
+            element.sendKeys(text);
+            logValuePatternIfPresent(element);
+            return;
+        } catch (RuntimeException sendKeysFailure) {
+            ReportManager.logDiscrete("desktop sendKeys failed; trying windows: keys.");
+            windowsKeys(driver, typed);
+            logValuePatternIfPresent(element);
+        }
+    }
+
+    /**
+     * Windows ComboBox: click to expand (best-effort), type-to-filter, then Enter to commit.
+     */
+    public static void typeDesktopCombobox(WebDriver driver, WebElement element, CharSequence[] text) {
+        ClickStrategies.focusWindows(driver, element);
+        String typed = stringify(text);
+        try {
+            if (!typed.isEmpty()) {
+                element.sendKeys(text);
+            }
+            element.sendKeys(Keys.ENTER);
+        } catch (RuntimeException sendKeysFailure) {
+            ReportManager.logDiscrete("desktop ComboBox sendKeys failed; trying windows: keys + Enter.");
+            if (!typed.isEmpty()) {
+                windowsKeys(driver, typed);
+            }
+            Map<String, Object> enter = new LinkedHashMap<>();
+            enter.put("virtualKeyCode", 0x0D);
+            windowsKeys(driver, List.of(enter));
+        }
+    }
+
+    static void windowsKeys(WebDriver driver, String text) {
+        windowsKeys(driver, List.of(Map.of("text", text == null ? "" : text)));
+    }
+
+    static void windowsKeys(WebDriver driver, List<Map<String, Object>> actions) {
+        if (!(driver instanceof JavascriptExecutor executor)) {
+            throw new InvalidElementStateException(
+                    "windows: keys requires a driver that executes scripts.");
+        }
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("actions", actions);
+        executor.executeScript("windows: keys", params);
+    }
+
+    private static void logValuePatternIfPresent(WebElement element) {
+        String value = safeAttribute(element, "Value.Value");
+        if (value != null) {
+            ReportManager.logDiscrete("UIA Value.Value after type: " + value);
+        }
+    }
+
+    private static boolean safeIsSelected(WebElement element) {
+        try {
+            return element.isSelected();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private static String safeAttribute(WebElement element, String name) {
+        try {
+            String dom = element.getDomAttribute(name);
+            if (dom != null && !dom.isBlank()) {
+                return dom;
+            }
+        } catch (RuntimeException ignored) {
+            // Fall through to getAttribute.
+        }
+        try {
+            return element.getAttribute(name);
+        } catch (RuntimeException ignored) {
+            return null;
         }
     }
 

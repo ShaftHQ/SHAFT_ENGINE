@@ -9,9 +9,10 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 
 /**
- * Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags.
+ * Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags,
+ * Appium mobile class names, and Windows/UIA ControlType tokens.
  * Conservative by design — ambiguous custom widgets return {@link ElementKind#UNKNOWN}.
- * Shared by Selenium Wave B and Playwright Wave C (#5732).
+ * Shared by Selenium Wave B, Playwright Wave C, mobile Wave D, and desktop Wave E (#5732).
  */
 public final class ElementClassifier {
 
@@ -72,6 +73,32 @@ public final class ElementClassifier {
     private record MobileKindRule(BiPredicate<String, String> matches, ElementKind kind) {
     }
 
+    /**
+     * WinAppDriver / Appium Windows UIA control-type tokens (tag or class often
+     * {@code ControlType.Edit}, {@code Edit}, {@code CheckBox}, …).
+     */
+    private static final Set<String> WINDOWS_TEXT_CLASSES = Set.of("edit", "document");
+    private static final Set<String> WINDOWS_BUTTON_CLASSES = Set.of("button");
+    private static final Set<String> WINDOWS_LINK_CLASSES = Set.of("hyperlink");
+    private static final Set<String> WINDOWS_TOGGLE_CLASSES = Set.of("checkbox");
+    private static final Set<String> WINDOWS_RADIO_CLASSES = Set.of("radiobutton");
+    private static final Set<String> WINDOWS_COMBO_CLASSES = Set.of("combobox");
+    /** Window / Pane — focus surfaces only; not typed into as text fields. */
+    private static final Set<String> WINDOWS_FOCUS_SURFACE_CLASSES = Set.of("window", "pane");
+
+    /**
+     * First-match-wins Windows/UIA kind rules (NPath-safe table, same pattern as mobile).
+     * Button/CheckBox/Radio often already match mobile suffix sets; Edit/Document/Hyperlink/ComboBox
+     * need this table so they do not fall through to {@link ElementKind#UNKNOWN}.
+     */
+    private static final List<MobileKindRule> WINDOWS_KIND_RULES = List.of(
+            new MobileKindRule(ElementClassifier::isWindowsToggle, ElementKind.CHECKBOX),
+            new MobileKindRule(ElementClassifier::isWindowsRadio, ElementKind.RADIO),
+            new MobileKindRule(ElementClassifier::isWindowsTextField, ElementKind.TEXT_LIKE),
+            new MobileKindRule(ElementClassifier::isWindowsButton, ElementKind.BUTTON),
+            new MobileKindRule(ElementClassifier::isWindowsLink, ElementKind.LINK),
+            new MobileKindRule(ElementClassifier::isWindowsCombo, ElementKind.COMBOBOX));
+
     private ElementClassifier() {
     }
 
@@ -114,6 +141,11 @@ public final class ElementClassifier {
             return byMobile;
         }
 
+        ElementKind byWindows = classifyWindowsDesktop(tag, className, role);
+        if (byWindows != null) {
+            return byWindows;
+        }
+
         ElementKind byTag = classifyByTag(tag, role);
         if (byTag != null) {
             return byTag;
@@ -131,12 +163,39 @@ public final class ElementClassifier {
      * Conservative: only exact / well-known suffixes so custom views stay {@link ElementKind#UNKNOWN}.
      */
     static ElementKind classifyMobileNative(String tag, String className, String role) {
+        return classifyByKindRules(tag, className, role, MOBILE_KIND_RULES);
+    }
+
+    /**
+     * WinAppDriver / Appium Windows UIA ControlType tags. Returns null when not a known desktop control.
+     */
+    static ElementKind classifyWindowsDesktop(String tag, String className, String role) {
+        return classifyByKindRules(tag, className, role, WINDOWS_KIND_RULES);
+    }
+
+    /**
+     * True when tag/class looks like a UIA Window or Pane (foreground / focus surface).
+     */
+    public static boolean isWindowsFocusSurface(WebElement element) {
+        if (element == null) {
+            return false;
+        }
+        String token = firstNonBlank(safeTagName(element),
+                firstNonBlank(safeDom(element, "class"), safeProperty(element, "className")));
+        if (token == null) {
+            return false;
+        }
+        return WINDOWS_FOCUS_SURFACE_CLASSES.contains(simpleClassName(token));
+    }
+
+    private static ElementKind classifyByKindRules(String tag, String className, String role,
+                                                   List<MobileKindRule> rules) {
         String token = firstNonBlank(tag, className);
         if (token == null) {
             return null;
         }
         String simple = simpleClassName(token);
-        for (MobileKindRule rule : MOBILE_KIND_RULES) {
+        for (MobileKindRule rule : rules) {
             if (rule.matches().test(simple, role)) {
                 return rule.kind();
             }
@@ -170,6 +229,30 @@ public final class ElementClassifier {
 
     private static boolean isMobileRange(String simple) {
         return MOBILE_RANGE_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsToggle(String simple, String role) {
+        return roleMatches(role, MOBILE_TOGGLE_ROLES) || WINDOWS_TOGGLE_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsRadio(String simple, String role) {
+        return roleMatches(role, MOBILE_RADIO_ROLES) || WINDOWS_RADIO_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsTextField(String simple, String role) {
+        return roleMatches(role, TEXT_ROLES) || WINDOWS_TEXT_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsButton(String simple, String role) {
+        return roleMatches(role, MOBILE_BUTTON_ROLES) || WINDOWS_BUTTON_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsLink(String simple, String role) {
+        return roleMatches(role, MOBILE_LINK_ROLES) || WINDOWS_LINK_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsCombo(String simple, String role) {
+        return "combobox".equals(role) || "listbox".equals(role) || WINDOWS_COMBO_CLASSES.contains(simple);
     }
 
     private static boolean roleMatches(String role, Set<String> roles) {

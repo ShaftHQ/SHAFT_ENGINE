@@ -550,6 +550,7 @@ public class Actions extends ElementActions {
 
                 // identify run type
                 boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
+                boolean isWindowsDesktopExecution = DriverFactoryHelper.isWindowsAppiumExecution();
 
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
@@ -671,12 +672,14 @@ public class Actions extends ElementActions {
                         screenshot.set(0, takeActionScreenshot(targetElement));
                         // Wave B (#5732): native → scroll/stabilize retry → flagged JS; preserve exception when JS off.
                         // Wave D: mobile native uses W3C touch tap when WebDriver click flakes (web defaults unchanged).
+                        // Wave E: Windows desktop uses windows: click when WebDriver click flakes (no JS on desktop).
                         ClickStrategies.click(
                                 d,
                                 targetElement,
                                 ElementClassifier.classify(targetElement),
                                 SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails(),
-                                isMobileNativeExecution);
+                                isMobileNativeExecution,
+                                isWindowsDesktopExecution);
                     }
                     case JAVASCRIPT_CLICK -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
@@ -725,6 +728,8 @@ public class Actions extends ElementActions {
                         ElementKind kind = ElementClassifier.classify(targetElement);
                         if (isMobileNativeExecution) {
                             performMobileNativeType(d, targetElement, kind, text, action);
+                        } else if (isWindowsDesktopExecution) {
+                            performWindowsDesktopType(d, targetElement, kind, text, action);
                         } else {
                             TypeStrategies.TypeRoute typeRoute = TypeStrategies.routeFor(kind);
                             if (typeRoute == TypeStrategies.TypeRoute.REJECT) {
@@ -768,6 +773,9 @@ public class Actions extends ElementActions {
                             ClickStrategies.focusTap(d, targetElement);
                             TypeStrategies.typeMobileText(d, targetElement, text, false);
                             TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
+                        } else if (isWindowsDesktopExecution) {
+                            ClickStrategies.focusWindows(d, targetElement);
+                            TypeStrategies.typeDesktopText(d, targetElement, text);
                         } else {
                             targetElement.sendKeys(text);
                         }
@@ -1197,6 +1205,54 @@ public class Actions extends ElementActions {
             targetElement.sendKeys(text);
         }
         TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
+        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+    }
+
+    /**
+     * Wave E (#5732): Windows desktop / UIA type — ensure foreground (click / {@code windows: click}) →
+     * clear flags → sendKeys / {@code windows: keys}. CheckBox/Radio toggle; ComboBox expand + filter + Enter.
+     */
+    private void performWindowsDesktopType(WebDriver d, WebElement targetElement, ElementKind kind,
+                                           CharSequence[] text, ActionType action) {
+        TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleDesktopInsteadOfTyping(d, targetElement, kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.COMBOBOX) {
+            TypeStrategies.typeDesktopCombobox(d, targetElement, text);
+            return;
+        }
+
+        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        String typedText = stringifyTypedValue(text);
+        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                ? readElementValueForTyping(targetElement) + typedText
+                : typedText;
+
+        // Foreground / focus before type (Window/Pane sessions; Edit/Document Value path).
+        ClickStrategies.focusWindows(d, targetElement);
+        if ("native".equals(clearMode)) {
+            try {
+                targetElement.clear();
+            } catch (RuntimeException ignored) {
+                executeClearBasedOnClearMode(targetElement, "backspace");
+            }
+        } else {
+            executeClearBasedOnClearMode(targetElement, clearMode);
+        }
+
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.DESKTOP_TEXT
+                || desktopRoute == TypeStrategies.DesktopTypeRoute.LEGACY_SEND_KEYS) {
+            TypeStrategies.typeDesktopText(d, targetElement, text);
+        } else {
+            targetElement.sendKeys(text);
+        }
         validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
     }
 

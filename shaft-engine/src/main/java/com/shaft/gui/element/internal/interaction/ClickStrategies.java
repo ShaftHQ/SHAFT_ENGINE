@@ -10,14 +10,19 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Pause;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
+import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Selenium click ladder: native click → optional scroll/stabilize retry → flagged JS fallback.
  * Mobile native (#5732 Wave D): native click → W3C touch tap when WebDriver click flakes
  * (does not change desktop/web defaults; JS fallback stays web-oriented).
+ * Windows desktop (#5732 Wave E): native click → {@code windows: click} when WebDriver click flakes
+ * (Invoke-equivalent for Button/Hyperlink; JS fallback stays off the desktop path).
  */
 public final class ClickStrategies {
 
@@ -30,7 +35,7 @@ public final class ClickStrategies {
     }
 
     public static void click(WebDriver driver, WebElement element, ElementKind kind, boolean javascriptFallbackEnabled) {
-        click(driver, element, kind, javascriptFallbackEnabled, false);
+        click(driver, element, kind, javascriptFallbackEnabled, false, false);
     }
 
     /**
@@ -39,6 +44,18 @@ public final class ClickStrategies {
      */
     public static void click(WebDriver driver, WebElement element, ElementKind kind,
                              boolean javascriptFallbackEnabled, boolean mobileNativeTouchFallback) {
+        click(driver, element, kind, javascriptFallbackEnabled, mobileNativeTouchFallback, false);
+    }
+
+    /**
+     * @param mobileNativeTouchFallback when true (mobile native only), retry failed clicks with a W3C
+     *                                  touch tap instead of JavaScript click
+     * @param windowsDesktop            when true (WinAppDriver / Appium Windows only), retry failed
+     *                                  clicks with {@code windows: click} instead of JavaScript click
+     */
+    public static void click(WebDriver driver, WebElement element, ElementKind kind,
+                             boolean javascriptFallbackEnabled, boolean mobileNativeTouchFallback,
+                             boolean windowsDesktop) {
         if (kind == ElementKind.DISABLED) {
             throw new InvalidElementStateException(
                     "Refusing to click a disabled/readonly/aria-disabled element.");
@@ -48,6 +65,10 @@ public final class ClickStrategies {
         } catch (InvalidElementStateException firstFailure) {
             if (mobileNativeTouchFallback) {
                 retryMobileNativeClick(driver, element);
+                return;
+            }
+            if (windowsDesktop) {
+                retryWindowsDesktopClick(driver, element);
                 return;
             }
             stabilize(driver, element);
@@ -66,6 +87,10 @@ public final class ClickStrategies {
             // Broader than web: Appium often wraps click flakes outside InvalidElementStateException.
             if (mobileNativeTouchFallback) {
                 retryMobileNativeClick(driver, element);
+                return;
+            }
+            if (windowsDesktop) {
+                retryWindowsDesktopClick(driver, element);
                 return;
             }
             throw firstFailure;
@@ -92,6 +117,42 @@ public final class ClickStrategies {
         } catch (RuntimeException ignored) {
             tapWithTouch(driver, element);
         }
+    }
+
+    /**
+     * Best-effort focus / foreground for Windows desktop typing: WebDriver click, then
+     * {@code windows: click}. Helps Window/Pane sessions receive keys before Edit SendKeys.
+     */
+    public static void focusWindows(WebDriver driver, WebElement element) {
+        try {
+            element.click();
+        } catch (RuntimeException ignored) {
+            windowsClick(driver, element);
+        }
+    }
+
+    private static void retryWindowsDesktopClick(WebDriver driver, WebElement element) {
+        try {
+            element.click();
+        } catch (RuntimeException retryFailure) {
+            windowsClick(driver, element);
+            ReportManager.logDiscrete(
+                    "Performed Click using windows: click after WebDriver click failed on Windows desktop.");
+        }
+    }
+
+    static void windowsClick(WebDriver driver, WebElement element) {
+        if (!(driver instanceof JavascriptExecutor executor)) {
+            throw new InvalidElementStateException(
+                    "Windows click fallback requires a driver that executes scripts.");
+        }
+        if (!(element instanceof RemoteWebElement remote)) {
+            throw new InvalidElementStateException(
+                    "Windows click fallback requires a RemoteWebElement with an element id.");
+        }
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("elementId", remote.getId());
+        executor.executeScript("windows: click", params);
     }
 
     static void tapWithTouch(WebDriver driver, WebElement element) {
