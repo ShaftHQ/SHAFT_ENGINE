@@ -8,10 +8,12 @@
 # cascaded unit/CodeQL red even though the Java logic was fine.
 #
 # Portable ChaosEngine local / PR-gate script (agent before-push checklist +
-# harness surface). Scans ``shaft-engine`` interaction packages by default
-# (skip silently when absent). Reports every javadoc block-tag ``@param`` whose
-# name is not a parameter of the following method. Type-parameter tags
-# (``@param <T>``) and prose mentions of ``@param`` are ignored.
+# harness surface). By default discovers
+# ``*/src/main/java/**/gui/element/internal/interaction/*.java`` under the
+# project root (skip silently when absent). Reports every javadoc block-tag
+# ``@param`` whose name is not a parameter of the following method.
+# Type-parameter tags (``@param <T>``) and prose mentions of ``@param`` are
+# ignored.
 #
 # Usage:
 #     python3 chaos-engine/check_javadoc_param_arity.py
@@ -27,8 +29,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_RELATIVE_ROOTS = (
-    "shaft-engine/src/main/java/com/shaft/gui/element/internal/interaction",
+# Product-neutral discovery: module/src/main/java/**/gui/element/internal/interaction
+DEFAULT_INTERACTION_GLOB = (
+    "*/src/main/java/**/gui/element/internal/interaction"
 )
 
 METHOD_START = re.compile(
@@ -71,30 +74,44 @@ def project_root(start: Path | None = None) -> Path:
     return here
 
 
+def _collect_java(paths: list[Path]) -> list[Path]:
+    found: list[Path] = []
+    for path in paths:
+        if path.is_file() and path.suffix == ".java":
+            found.append(path.resolve())
+        elif path.is_dir():
+            found.extend(sorted(path.rglob("*.java")))
+    return found
+
+
+def default_interaction_roots(root: Path) -> list[Path]:
+    """Locate interaction strategy packages without hardcoding a product module."""
+    return sorted(
+        path for path in root.glob(DEFAULT_INTERACTION_GLOB) if path.is_dir()
+    )
+
+
 def discover_sources(
     root: Path,
     *,
-    relative_roots: tuple[str, ...] = DEFAULT_RELATIVE_ROOTS,
+    relative_roots: tuple[str, ...] | None = None,
     paths: list[Path] | None = None,
 ) -> list[Path]:
     if paths:
-        found: list[Path] = []
-        for path in paths:
-            resolved = path if path.is_absolute() else (root / path)
-            if resolved.is_file() and resolved.suffix == ".java":
-                found.append(resolved.resolve())
-            elif resolved.is_dir():
-                found.extend(sorted(resolved.rglob("*.java")))
-        return found
+        resolved = [
+            path if path.is_absolute() else (root / path) for path in paths
+        ]
+        return _collect_java(resolved)
 
-    found = []
-    for relative in relative_roots:
-        base = root / relative
-        if base.is_dir():
-            found.extend(sorted(base.rglob("*.java")))
-        elif base.is_file() and base.suffix == ".java":
-            found.append(base)
-    return found
+    if relative_roots:
+        bases = []
+        for relative in relative_roots:
+            base = root / relative
+            if base.exists():
+                bases.append(base)
+        return _collect_java(bases)
+
+    return _collect_java(default_interaction_roots(root))
 
 
 def _strip_line_comments(text: str) -> str:
@@ -324,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     root = project_root(args.project)
     explicit_paths = [Path(p) for p in args.paths] if args.paths else None
-    relative_roots = tuple(args.root) if args.root else DEFAULT_RELATIVE_ROOTS
+    relative_roots = tuple(args.root) if args.root else None
     try:
         sources = discover_sources(
             root, relative_roots=relative_roots, paths=explicit_paths

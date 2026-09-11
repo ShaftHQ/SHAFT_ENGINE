@@ -124,13 +124,21 @@ class CheckJavadocParamArityTests(unittest.TestCase):
 
     def test_live_interaction_package_is_clean(self):
         sources = self.mod.discover_sources(ROOT)
-        self.assertTrue(sources, "expected shaft-engine interaction sources in this checkout")
+        self.assertTrue(
+            sources,
+            "expected */gui/element/internal/interaction sources in this checkout",
+        )
         findings = self.mod.check_paths(sources)
         self.assertEqual(
             [],
             [f.format() for f in findings],
             "live interaction @param tags must match method arity",
         )
+
+    def test_portable_payload_avoids_forbidden_product_tokens(self):
+        text = MODULE_PATH.read_text(encoding="utf-8").casefold()
+        for token in ("shaft", "mohab", "act-as-mohab", "act as mohab"):
+            self.assertNotIn(token, text)
 
     def test_implementer_checklist_and_zero_llm_catalog_name_the_check(self):
         framework = FRAMEWORK_SOURCE.read_text(encoding="utf-8")
