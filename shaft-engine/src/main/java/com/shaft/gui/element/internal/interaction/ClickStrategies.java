@@ -45,21 +45,10 @@ public final class ClickStrategies {
         }
         try {
             element.click();
-        } catch (RuntimeException firstFailure) {
+        } catch (InvalidElementStateException firstFailure) {
             if (mobileNativeTouchFallback) {
-                // Broader than web: Appium often wraps click flakes outside InvalidElementStateException.
-                stabilizeMobile(driver, element);
-                try {
-                    element.click();
-                } catch (RuntimeException retryFailure) {
-                    tapWithTouch(driver, element);
-                    ReportManager.logDiscrete(
-                            "Performed Click using W3C touch tap after WebDriver click failed on mobile native.");
-                }
+                retryMobileNativeClick(driver, element);
                 return;
-            }
-            if (!(firstFailure instanceof InvalidElementStateException)) {
-                throw firstFailure;
             }
             stabilize(driver, element);
             try {
@@ -73,6 +62,24 @@ public final class ClickStrategies {
                     throw retryFailure;
                 }
             }
+        } catch (RuntimeException firstFailure) {
+            // Broader than web: Appium often wraps click flakes outside InvalidElementStateException.
+            if (mobileNativeTouchFallback) {
+                retryMobileNativeClick(driver, element);
+                return;
+            }
+            throw firstFailure;
+        }
+    }
+
+    private static void retryMobileNativeClick(WebDriver driver, WebElement element) {
+        stabilizeMobile(driver, element);
+        try {
+            element.click();
+        } catch (RuntimeException retryFailure) {
+            tapWithTouch(driver, element);
+            ReportManager.logDiscrete(
+                    "Performed Click using W3C touch tap after WebDriver click failed on mobile native.");
         }
     }
 

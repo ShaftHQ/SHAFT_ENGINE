@@ -188,14 +188,20 @@ public final class TypeStrategies {
      * Mobile native text entry after the caller has focused (and optionally cleared) the field.
      * Ladder: {@code sendKeys} → Android {@code mobile: replaceElementValue} (replace/clear modes only)
      * → {@code mobile: type}. Compose/Flutter rejections without focus surface an actionable error.
-     *
-     * @param replaceAllowed when false ({@code clearBeforeTypingMode=off} / append), skip
-     *                       {@code replaceElementValue} so existing text is not wiped
+     * Defaults to replace-allowed ({@code replaceAllowed=true}).
      */
     public static void typeMobileText(WebDriver driver, WebElement element, CharSequence[] text) {
         typeMobileText(driver, element, text, true);
     }
 
+    /**
+     * Mobile native text entry after the caller has focused (and optionally cleared) the field.
+     * Ladder: {@code sendKeys} → Android {@code mobile: replaceElementValue} (replace/clear modes only)
+     * → {@code mobile: type}. Compose/Flutter rejections without focus surface an actionable error.
+     *
+     * @param replaceAllowed when false ({@code clearBeforeTypingMode=off} / append), skip
+     *                       {@code replaceElementValue} so existing text is not wiped
+     */
     public static void typeMobileText(WebDriver driver, WebElement element, CharSequence[] text,
                                       boolean replaceAllowed) {
         String typed = stringify(text);
