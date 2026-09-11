@@ -9,13 +9,10 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 public class JavaScriptWaitManager {
-    private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
-    private static final Duration ACTIVE_REQUEST_POLLING_INTERVAL = Duration.ofMillis(200);
     private static final long IDLE_WINDOW_NOT_STARTED = -1L;
 
     private JavaScriptWaitManager() {
@@ -23,10 +20,19 @@ public class JavaScriptWaitManager {
     }
 
     /**
-     * Waits for jQuery, Angular, and/or Javascript if present on the current page.
+     * Cheap per-action wait: network/framework readiness, plus DOM quiet only when
+     * {@code lazyLoadingDomStabilityQuietWindowMillis} is greater than zero (default {@code 0}).
      */
     public static void waitForLazyLoading(WebDriver driver) {
         waitForLazyLoadingAndDetectActivity(driver);
+    }
+
+    /**
+     * Post-navigation wait: cheap wait plus the navigation DOM quiet window
+     * ({@code lazyLoadingDomStabilityOnNavigationQuietWindowMillis}, default {@code 300}).
+     */
+    public static void waitForLazyLoadingAfterNavigation(WebDriver driver) {
+        waitForLazyLoadingAndDetectActivity(driver, navigationDomQuietMillis());
     }
 
     /**
@@ -36,10 +42,15 @@ public class JavaScriptWaitManager {
      * @return {@code true} when document, framework, or network activity was observed during the wait
      */
     public static boolean waitForLazyLoadingAndDetectActivity(WebDriver driver) {
+        return waitForLazyLoadingAndDetectActivity(driver,
+                SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis());
+    }
+
+    private static boolean waitForLazyLoadingAndDetectActivity(WebDriver driver, int domQuietMillis) {
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                return waitForBrowserReadiness(driver);
+                return waitForBrowserReadiness(driver, Math.max(0, domQuietMillis));
             } catch (Exception ignored) {
                 return true;
             }
@@ -47,7 +58,13 @@ public class JavaScriptWaitManager {
         return false;
     }
 
-    private static boolean waitForBrowserReadiness(WebDriver driver) {
+    private static int navigationDomQuietMillis() {
+        return Math.max(
+                Math.max(0, SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis()),
+                Math.max(0, SHAFT.Properties.timeouts.lazyLoadingDomStabilityOnNavigationQuietWindowMillis()));
+    }
+
+    private static boolean waitForBrowserReadiness(WebDriver driver, int domQuietMillis) {
         final long[] idleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
         final String[] lastNetworkActivityMarker = {null};
         final boolean[] networkActivityObserved = {false};
@@ -78,7 +95,8 @@ public class JavaScriptWaitManager {
                                     String.valueOf(readiness.domMutationMarker()),
                                     domIdleSinceMillis,
                                     lastDomMutationMarker,
-                                    nowMillis);
+                                    nowMillis,
+                                    domQuietMillis);
                             return readiness.documentReady()
                                     && readiness.jqueryActive() == 0L
                                     && readiness.angularActive() == 0L
@@ -101,32 +119,6 @@ public class JavaScriptWaitManager {
      */
     private static Duration pollingInterval() {
         return Duration.ofMillis(Math.max(1, SHAFT.Properties.timeouts.lazyLoadingPollingIntervalMillis()));
-    }
-
-    private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
-        //Wait for active XHR/fetch requests to remain idle for the minimum quiet window
-        final long[] idleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
-        final boolean[] networkActivityObserved = {false};
-        new SynchronizationManager(driver).fluentWait().pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL).until(f -> {
-            if (f instanceof JavascriptExecutor javascriptExecutor) {
-                try {
-                    var returnedValue = javascriptExecutor.executeScript(JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue());
-                    long activeRequests = 0L;
-                    if (returnedValue instanceof Number numberValue) {
-                        activeRequests = numberValue.longValue();
-                    } else if (returnedValue != null) {
-                        activeRequests = Long.parseLong(returnedValue.toString());
-                    }
-                    return hasMetMinimumIdleWindow(activeRequests, idleSinceMillis, networkActivityObserved, System.currentTimeMillis());
-                } catch (Exception exception) {
-                    // force return in case of unexpected exception
-                    // e.g. org.openqa.selenium.JavascriptException if the script cannot execute
-                    ReportManagerHelper.logDiscrete(exception);
-                    return true;
-                }
-            }
-            return true;
-        });
     }
 
     /**
@@ -240,13 +232,13 @@ public class JavaScriptWaitManager {
      * @return {@code true} when DOM stability is disabled or its quiet window has been satisfied
      */
     private static boolean isDomStable(String domMutationMarker, long[] domIdleSinceMillis,
-                                        String[] lastDomMutationMarker, long nowMillis) {
-        int quietWindowMillis = Math.max(0, SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis());
-        if (quietWindowMillis <= 0) {
+                                        String[] lastDomMutationMarker, long nowMillis, int quietWindowMillis) {
+        int resolvedQuietWindowMillis = Math.max(0, quietWindowMillis);
+        if (resolvedQuietWindowMillis <= 0) {
             return true;
         }
         return hasMetDomStabilityQuietWindow(domMutationMarker, domIdleSinceMillis, lastDomMutationMarker,
-                quietWindowMillis, nowMillis);
+                resolvedQuietWindowMillis, nowMillis);
     }
 
     /**
@@ -281,57 +273,6 @@ public class JavaScriptWaitManager {
 
     private static Duration minimumIdleWindow() {
         return Duration.ofMillis(Math.max(0, SHAFT.Properties.timeouts.lazyLoadingNetworkIdleQuietWindowMillis()));
-    }
-
-    private static void waitForDocumentReadyState(WebDriver driver) {
-        new SynchronizationManager(driver).fluentWait().until(f -> {
-            if (f instanceof JavascriptExecutor javascriptExecutor) {
-                try {
-                    return COMPLETE_READY_STATES.contains(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.DOCUMENT_READY_STATE.getValue())));
-                } catch (Exception exception) {
-                    // force return in case of unexpected exception
-                    return true;
-                }
-            }
-            return true;
-        });
-    }
-
-    private static void waitForJQuery(WebDriver driver) {
-        new SynchronizationManager(driver).fluentWait().until(f -> {
-            if (f instanceof JavascriptExecutor javascriptExecutor) {
-                try {
-                    return Long.parseLong(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.JQUERY_ACTIVE_STATE.getValue()))) == 0;
-                } catch (Exception exception) {
-                    // force return in case of unexpected exception
-                    // org.openqa.selenium.JavascriptException: javascript error: jQuery is not defined
-                    return true;
-                }
-            }
-            return true;
-        });
-    }
-
-    private static void waitForAngular(WebDriver driver) {
-        new SynchronizationManager(driver).fluentWait().until(f -> {
-            if (f instanceof JavascriptExecutor javascriptExecutor) {
-                try {
-                    // Try AngularJS (1.x) first
-                    return Long.parseLong(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.ANGULAR_READY_STATE.getValue()))) == 0;
-                } catch (Exception exception) {
-                    // AngularJS not found on this page; try Angular 2+
-                    // org.openqa.selenium.JavascriptException: javascript error: angular is not defined
-                    try {
-                        // Try Angular 2+ if AngularJS is not available on the page
-                        return Long.parseLong(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.ANGULAR2_READY_STATE.getValue()))) == 0;
-                    } catch (Exception angularException) {
-                        // force return if Angular is not present on this page
-                        return true;
-                    }
-                }
-            }
-            return true;
-        });
     }
 
     private record BrowserReadinessState(boolean documentReady, long activeRequests, String networkActivityMarker,

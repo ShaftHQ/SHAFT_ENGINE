@@ -173,7 +173,21 @@ public class BrowserActionsCoverageUnitTest {
 
             // Once from forceStopCurrentNavigation() (pre-navigation), and once more after the
             // null-initialURL navigation completes -- matching the non-null branch's post-navigation wait.
-            javaScriptWaitManagerMocked.verify(() -> JavaScriptWaitManager.waitForLazyLoading(driver), Mockito.times(2));
+            javaScriptWaitManagerMocked.verify(() -> JavaScriptWaitManager.waitForLazyLoading(driver), Mockito.times(1));
+            javaScriptWaitManagerMocked.verify(() -> JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driver), Mockito.times(1));
+        }
+    }
+
+    @Test(description = "navigateToURL(url, WindowType) must use waitForLazyLoadingAfterNavigation, not the cheap wait")
+    public void navigateToURLInNewTabShouldWaitAfterNavigation() {
+        when(driver.getWindowHandle()).thenReturn("window-1", "window-2");
+        when(targetLocator.newWindow(WindowType.TAB)).thenReturn(driver);
+
+        try (MockedStatic<JavaScriptWaitManager> javaScriptWaitManagerMocked = Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            browserActions.navigateToURL("https://example.com/new-tab", WindowType.TAB);
+
+            javaScriptWaitManagerMocked.verify(() -> JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driver), Mockito.times(1));
+            javaScriptWaitManagerMocked.verify(() -> JavaScriptWaitManager.waitForLazyLoading(driver), Mockito.never());
         }
     }
 

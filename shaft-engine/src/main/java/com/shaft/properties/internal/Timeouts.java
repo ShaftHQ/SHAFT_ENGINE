@@ -78,6 +78,16 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     int lazyLoadingDomStabilityQuietWindowMillis();
 
     /**
+     * Required DOM-mutation quiet window in milliseconds applied after navigation
+     * ({@code waitForLazyLoadingAfterNavigation} / public {@code BrowserActions.waitForLazyLoading}).
+     * Independent of {@link #lazyLoadingDomStabilityQuietWindowMillis()}, which stays {@code 0}
+     * so cheap per-action waits do not fold DOM stability by default.
+     */
+    @Key("lazyLoadingDomStabilityOnNavigationQuietWindowMillis")
+    @DefaultValue("300")
+    int lazyLoadingDomStabilityOnNavigationQuietWindowMillis();
+
+    /**
      * Maximum number of progressive-scroll steps that {@code BrowserActions.scrollToLoadAll()}
      * will perform while sweeping a page for scroll-triggered lazy content, bounding its
      * worst-case cost regardless of how far the page keeps growing.
@@ -244,6 +254,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty lazyLoadingDomStabilityQuietWindowMillis(int value) {
             setProperty("lazyLoadingDomStabilityQuietWindowMillis", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty lazyLoadingDomStabilityOnNavigationQuietWindowMillis(int value) {
+            setProperty("lazyLoadingDomStabilityOnNavigationQuietWindowMillis", String.valueOf(value));
             return this;
         }
 

@@ -51,24 +51,41 @@ public class LazyLoadingFixtureLiveTest {
             + "in the DOM-mutation-observer signal, and IntersectionObserver-driven hydration of content already "
             + "in the initial viewport is present by the time navigateToURL returns.")
     public void domStabilityQuietWindowHoldsForInViewportHydration() {
-        // Note on timing: the DOM-stability quiet window can only ever *extend* a wait for a mutation
-        // it has already observed -- once a poll finds the mutation marker unchanged, that counts as
-        // "stable" immediately, even if an application is about to mutate the DOM a moment later. So a
-        // fixture cannot deterministically prove "the wait held *for* a not-yet-happened mutation"
-        // without racing the quiet window against the mutation's own delay. To keep this test
-        // non-flaky, the hero section hydrates essentially immediately (data-hydrate-delay-ms="0" in
-        // the fixture) rather than racing a longer delay against the quiet window.
-        SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(300);
-        try {
-            driver.get().browser().navigateToURL(FIXTURE_URL);
+        // Navigation applies lazyLoadingDomStabilityOnNavigationQuietWindowMillis (default 300)
+        // without requiring the global per-action DOM quiet window.
+        driver.get().browser().navigateToURL(FIXTURE_URL);
 
-            // Non-retrying rationale as above: a polling assertion here would mask an early return.
-            Assert.assertTrue(elementExistsNow("hero-section-content"),
-                    "the hero section's IntersectionObserver hydration (DOM mutation, no network signal) must "
-                            + "already have completed the instant navigateToURL returns");
+        Assert.assertTrue(elementExistsNow("hero-section-content"),
+                "the hero section's IntersectionObserver hydration (DOM mutation, no network signal) must "
+                        + "already have completed the instant navigateToURL returns");
+    }
+
+    @Test(description = "With both DOM quiet windows at 0, navigateToURL must not wait for delayed in-viewport hydration.")
+    public void navigationWithoutDomQuietDoesNotWaitForDelayedHydration() {
+        int originalNav = SHAFT.Properties.timeouts.lazyLoadingDomStabilityOnNavigationQuietWindowMillis();
+        int originalGlobal = SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis();
+        SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityOnNavigationQuietWindowMillis(0);
+        SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(0);
+        try {
+            driver.get().browser().navigateToURL(TestPageServer.url("lazyLoadingDomHydrationFixture.html"));
+            Assert.assertFalse(elementExistsNow("delayed-hero-section-content"),
+                    "1500ms hydration must still be absent when both DOM quiet windows are 0");
         } finally {
-            SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(0);
+            SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityOnNavigationQuietWindowMillis(originalNav);
+            SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(originalGlobal);
         }
+    }
+
+    @Test(description = "Navigating to a page with long-lived EventSource and WebSocket connections "
+            + "must not hang for waitForLazyLoadingTimeout (30s).")
+    public void navigateToSseAndWebSocketPageDoesNotHang() {
+        long started = System.currentTimeMillis();
+        driver.get().browser().navigateToURL(TestPageServer.url("lazyLoadingSseWsFixture.html"));
+        long elapsed = System.currentTimeMillis() - started;
+        Assert.assertTrue(elapsed < 15_000L,
+                "SSE/WebSocket navigation must not wait out the 30s lazy-loading timeout, elapsed=" + elapsed);
+        Assert.assertTrue(elementExistsNow("sse-ws-ready"),
+                "SSE/WS fixture marker must exist after navigateToURL returns");
     }
 
     @Test(description = "scrollToLoadAll() must bound-progressively scroll the page until the infinite list's "

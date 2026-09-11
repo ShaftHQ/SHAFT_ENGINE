@@ -125,8 +125,10 @@ class CaptureServiceApiToolsTest {
                 McpWorkspacePolicy.of(temp),
                 new McpCaptureCodeBlockService());
         try {
+            // Blank target becomes about:blank (no DNS). Eager pageLoad on example.test would fail
+            // before capture_api_start can assert the shared single-session lock.
             manager.start(new CaptureStartRequest(
-                    "https://example.test",
+                    "",
                     CaptureBrowser.CHROME,
                     temp.resolve("first.json"),
                     temp.resolve("runtime"),
