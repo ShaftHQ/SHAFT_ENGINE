@@ -332,24 +332,29 @@ public final class ElementClassifier {
                 safeDom(element, "autocomplete"));
     }
 
+    /** Tag → kind for web tags decided before input handling (NPath-safe map). */
+    private static final Map<String, ElementKind> TAG_KINDS = Map.of(
+            "select", ElementKind.SELECT,
+            "textarea", ElementKind.TEXT_LIKE,
+            "iframe", ElementKind.IFRAME,
+            "frame", ElementKind.IFRAME,
+            "a", ElementKind.LINK,
+            "button", ElementKind.BUTTON);
+
     /**
      * Tag-driven kinds (and tag/role pairs that are decided before input handling).
      * Returns null when the tag does not decide the kind.
      */
     private static ElementKind classifyByTag(String tag, String role) {
-        if ("select".equals(tag)) {
-            return ElementKind.SELECT;
+        ElementKind fromTag = tag == null ? null : TAG_KINDS.get(tag);
+        if (fromTag != null) {
+            return fromTag;
         }
-        if ("textarea".equals(tag)) {
-            return ElementKind.TEXT_LIKE;
-        }
-        if ("iframe".equals(tag) || "frame".equals(tag)) {
-            return ElementKind.IFRAME;
-        }
-        if ("a".equals(tag) || "link".equals(role)) {
+        // Role-only link/button when the tag did not already decide.
+        if ("link".equals(role)) {
             return ElementKind.LINK;
         }
-        if ("button".equals(tag) || "button".equals(role)) {
+        if ("button".equals(role)) {
             return ElementKind.BUTTON;
         }
         return null;
@@ -407,23 +412,25 @@ public final class ElementClassifier {
         return ElementKind.UNKNOWN;
     }
 
+    /** ARIA role → kind for the role-only fallthrough path (NPath-safe map). */
+    private static final Map<String, ElementKind> ROLE_KINDS = Map.of(
+            "checkbox", ElementKind.CHECKBOX,
+            "switch", ElementKind.CHECKBOX,
+            "radio", ElementKind.RADIO,
+            "slider", ElementKind.RANGE,
+            "combobox", ElementKind.COMBOBOX,
+            "listbox", ElementKind.COMBOBOX);
+
     private static ElementKind classifyByRole(String role) {
-        if ("checkbox".equals(role) || "switch".equals(role)) {
-            return ElementKind.CHECKBOX;
+        if (role == null) {
+            return ElementKind.UNKNOWN;
         }
-        if ("radio".equals(role)) {
-            return ElementKind.RADIO;
+        ElementKind kind = ROLE_KINDS.get(role);
+        if (kind != null) {
+            return kind;
         }
-        if ("slider".equals(role)) {
-            return ElementKind.RANGE;
-        }
-        if ("combobox".equals(role) || "listbox".equals(role)) {
-            return ElementKind.COMBOBOX;
-        }
-        if (role != null && TEXT_ROLES.contains(role)) {
-            return ElementKind.TEXT_LIKE;
-        }
-        return ElementKind.UNKNOWN;
+        // TEXT_ROLES stays the single source for textbox/searchbox/spinbutton.
+        return TEXT_ROLES.contains(role) ? ElementKind.TEXT_LIKE : ElementKind.UNKNOWN;
     }
 
     private static boolean isContentEditable(ElementSignals signals) {

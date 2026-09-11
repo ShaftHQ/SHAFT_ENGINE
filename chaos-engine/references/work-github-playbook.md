@@ -176,7 +176,10 @@ and focused proofs observed; it must not represent remote checks as green.
    branch, or merge the fetched configured upstream default branch for a
    conflict or stale head, then return to watch. Never force-push away
    owner-visible history. Any new push restarts the comment gate before
-   auto-merge may remain armed.
+   auto-merge may remain armed. Codacy **Complexity** `ACTION_REQUIRED` is
+   unit-red urgency ([codacy-complexity-gate](codacy-complexity-gate.md)):
+   extract kind-family helpers immediately; do not wait for unit jobs when
+   Complexity already failed.
 8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
 
 ## 8. Report

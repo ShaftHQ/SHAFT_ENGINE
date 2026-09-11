@@ -25,6 +25,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Retrieve-first | A store can shorten discovery; one bounded attempt | [`retrieve-first.md`](retrieve-first.md) |
 | Research receipt | Before implementation mutation; triage scales depth | [`research-receipt.md`](research-receipt.md) |
 | Delivery phase gates | Phase ledger / research-before-mutation enforcement | [`delivery-phase-gates.md`](delivery-phase-gates.md) |
+| Codacy Complexity gate | Classifier / interaction PRs; Complexity ACTION_REQUIRED == unit red | [`codacy-complexity-gate.md`](codacy-complexity-gate.md) |
 | Eval-parity fixtures | Cross-host CE policy fixture suite | [`eval-parity-fixtures.md`](eval-parity-fixtures.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
