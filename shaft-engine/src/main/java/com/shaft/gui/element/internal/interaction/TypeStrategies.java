@@ -190,38 +190,63 @@ public final class TypeStrategies {
     /**
      * Fail when a readable toggle signal exists and did not change after click.
      * Skip the assert when neither {@code isSelected} nor {@code Toggle.ToggleState} is available.
+     * Early-exit helpers keep NPath under Codacy/PMD's gate.
      */
     static void assertDesktopToggleChanged(ElementKind kind, Boolean beforeSelected, Boolean afterSelected,
                                            String beforeToggle, String afterToggle) {
-        boolean selectedObservable = beforeSelected != null && afterSelected != null;
-        boolean toggleAttrObservable = nonBlank(beforeToggle) || nonBlank(afterToggle);
-        if (!selectedObservable && !toggleAttrObservable) {
+        if (!desktopToggleObservable(beforeSelected, afterSelected, beforeToggle, afterToggle)) {
             return;
         }
         // Already-selected radio is often idempotent under UIA click — do not fail
         // even when Toggle.ToggleState stays On/1.
-        if (kind == ElementKind.RADIO
-                && Boolean.TRUE.equals(beforeSelected)
-                && Boolean.TRUE.equals(afterSelected)) {
+        if (radioDesktopToggleAlreadySettled(kind, beforeSelected, afterSelected, beforeToggle, afterToggle)) {
             return;
         }
-        if (kind == ElementKind.RADIO
-                && toggleAttrObservable
-                && isToggleOnToken(beforeToggle)
-                && isToggleOnToken(afterToggle)
-                && !selectedObservable) {
-            return;
-        }
-        boolean selectedChanged = selectedObservable && !beforeSelected.equals(afterSelected);
-        boolean toggleAttrChanged = toggleAttrObservable
-                && !String.valueOf(beforeToggle).equals(String.valueOf(afterToggle));
-        if (selectedChanged || toggleAttrChanged) {
+        if (desktopToggleSignalChanged(beforeSelected, afterSelected, beforeToggle, afterToggle)) {
             return;
         }
         throw new InvalidElementStateException(
                 "Desktop toggle of " + kind + " did not change observable state"
                         + " (selected " + beforeSelected + "→" + afterSelected
                         + ", Toggle.ToggleState " + beforeToggle + "→" + afterToggle + ").");
+    }
+
+    private static boolean desktopToggleObservable(Boolean beforeSelected, Boolean afterSelected,
+                                                   String beforeToggle, String afterToggle) {
+        return selectedObservable(beforeSelected, afterSelected)
+                || toggleAttrObservable(beforeToggle, afterToggle);
+    }
+
+    private static boolean radioDesktopToggleAlreadySettled(ElementKind kind, Boolean beforeSelected,
+                                                            Boolean afterSelected, String beforeToggle,
+                                                            String afterToggle) {
+        if (kind != ElementKind.RADIO) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(beforeSelected) && Boolean.TRUE.equals(afterSelected)) {
+            return true;
+        }
+        return toggleAttrObservable(beforeToggle, afterToggle)
+                && isToggleOnToken(beforeToggle)
+                && isToggleOnToken(afterToggle)
+                && !selectedObservable(beforeSelected, afterSelected);
+    }
+
+    private static boolean desktopToggleSignalChanged(Boolean beforeSelected, Boolean afterSelected,
+                                                      String beforeToggle, String afterToggle) {
+        boolean selectedChanged = selectedObservable(beforeSelected, afterSelected)
+                && !beforeSelected.equals(afterSelected);
+        boolean toggleAttrChanged = toggleAttrObservable(beforeToggle, afterToggle)
+                && !String.valueOf(beforeToggle).equals(String.valueOf(afterToggle));
+        return selectedChanged || toggleAttrChanged;
+    }
+
+    private static boolean selectedObservable(Boolean beforeSelected, Boolean afterSelected) {
+        return beforeSelected != null && afterSelected != null;
+    }
+
+    private static boolean toggleAttrObservable(String beforeToggle, String afterToggle) {
+        return nonBlank(beforeToggle) || nonBlank(afterToggle);
     }
 
     private static boolean nonBlank(String value) {
