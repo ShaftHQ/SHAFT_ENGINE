@@ -216,6 +216,7 @@ return here for the next.
 | Eliminate waste | Token optimization: drop hops that do not change the next decision | [eliminate-waste](../../references/eliminate-waste.md) |
 | No proxy | Never install a traffic proxy | [no-proxy](../../references/no-proxy.md) |
 | GAP-EXIT2 UX | Grok/Copilot may not honor exit-2 hard blocks | [host-parity-matrix](../../references/host-parity-matrix.md) checklist |
+| Codacy Complexity | Classifier / interaction PRs; Complexity ACTION_REQUIRED == unit red | [codacy-complexity-gate](../../references/codacy-complexity-gate.md) checklist |
 
 Routing also orders applicable knowledge retrieval before broad manual
 discovery. One bounded attempt is enough; never retry, repair, refresh, mine,

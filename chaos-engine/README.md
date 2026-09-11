@@ -346,7 +346,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | argparse | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/draft_skill_pr.py, chaos-engine/heuristics.py, chaos-engine/hooks/reflection.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/learning_session.py, chaos-engine/meta_optimize.py, chaos-engine/phase_ledger.py, chaos-engine/retrieve.py, chaos-engine/significance.py, chaos-engine/silent_verify.py, chaos-engine/skill_compress_audit.py, chaos-engine/skills/freetoken/scripts/probe.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/skills/omniroute/scripts/runner.py, chaos-engine/wake_pack.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | base64 | Portable runtime standard-library dependency. | chaos-engine/hosts.py, chaos-engine/install.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
-| collections | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/lifecycle.py, chaos-engine/mcp_policy.py, chaos-engine/silent_verify.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
+| collections | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/lifecycle.py, chaos-engine/mcp_policy.py, chaos-engine/silent_verify.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | concurrent | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | contextlib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/learning_session.py, chaos-engine/silent_verify.py, chaos-engine/skills/omniroute/scripts/runner.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | ctypes | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
@@ -692,7 +692,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 ## Read next
 
 - [Delivery phase gates](references/delivery-phase-gates.md) — hooks vs skills map + research-before-mutation.
-
+- [Codacy Complexity gate](references/codacy-complexity-gate.md) — classifier helpers; Complexity ACTION_REQUIRED == unit red.
 
 - [Zero-LLM catalog](references/zero-llm-catalog.md) — deterministic doctor/install/repair paths.
 - [Context firewall](references/context-firewall.md) — research/explore subagent isolation; distillate only.

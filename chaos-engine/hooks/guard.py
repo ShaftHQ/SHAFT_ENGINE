@@ -13,6 +13,7 @@ import posixpath
 import re
 import shlex
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 def _load_sibling(module_name: str):
@@ -647,6 +648,69 @@ def _record_denial_with_significance(event: dict, event_name: str, tool_name: st
     )
 
 
+# Soft Codacy Complexity reminder for classifier / interaction mutations (#5747).
+_CLASSIFIER_PATH_MARKERS = (
+    "elementclassifier",
+    "/interaction/",
+    "\\interaction\\",
+)
+_CLASSIFIER_NAME_MARKERS = (
+    "elementclassifier",
+    "classifymobilenative",
+    "classifywindowsdesktop",
+    "classifybytag",
+    "classifybyrole",
+    "classifyinput",
+)
+CODACY_COMPLEXITY_GATE_HINT = (
+    "Codacy Complexity gate (#5747): kind-family helpers / rule tables before "
+    "fat classify* arms; Complexity ACTION_REQUIRED == unit red. "
+    "Checklist: references/codacy-complexity-gate.md"
+)
+
+
+def _mutation_path_blobs(tool_name: str, tool_input: object, commands: tuple[str, ...]) -> str:
+    """Flatten Write/Edit/patch/shell targets for classifier-path matching."""
+    chunks: list[str] = []
+    if isinstance(tool_input, Mapping):
+        for key in ("file_path", "filePath", "path", "notebook_path", "notebookPath"):
+            value = tool_input.get(key)
+            if isinstance(value, str) and value.strip():
+                chunks.append(value)
+        for key in ("old_string", "new_string", "content", "patch", "input", "command", "cmd"):
+            value = tool_input.get(key)
+            if isinstance(value, str) and value.strip():
+                chunks.append(value)
+    elif isinstance(tool_input, str) and tool_input.strip():
+        chunks.append(tool_input)
+    chunks.extend(commands)
+    compact = tool_name.casefold() if tool_name else ""
+    if compact:
+        chunks.append(compact)
+    return "\n".join(chunks).casefold()
+
+
+def classifier_complexity_gate_hint(
+    event_name: str,
+    *,
+    mutation: bool,
+    tool_name: str,
+    tool_input: object,
+    commands: tuple[str, ...] = (),
+) -> str | None:
+    """Return soft checklist hint when mutating classifier / interaction surfaces."""
+    if event_name != "PreToolUse" or not mutation:
+        return None
+    blob = _mutation_path_blobs(tool_name, tool_input, commands)
+    if not blob:
+        return None
+    path_hit = any(marker in blob for marker in _CLASSIFIER_PATH_MARKERS)
+    name_hit = any(marker in blob for marker in _CLASSIFIER_NAME_MARKERS)
+    if path_hit or name_hit:
+        return CODACY_COMPLEXITY_GATE_HINT
+    return None
+
+
 def _run_event(event: dict, _host: str) -> int:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
@@ -717,6 +781,16 @@ def _run_event(event: dict, _host: str) -> int:
             return 2
     if event_name == "SessionStart":
         print(json.dumps({"additionalContext": _event_context(event_name, token)}))
+        return 0
+    complexity_hint = classifier_complexity_gate_hint(
+        event_name,
+        mutation=mutation,
+        tool_name=tool_name,
+        tool_input=tool_input,
+        commands=commands,
+    )
+    if complexity_hint:
+        print(json.dumps({"additionalContext": complexity_hint}))
     return 0
 
 
