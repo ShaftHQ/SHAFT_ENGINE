@@ -49,6 +49,7 @@ jobs:
       - Windows_Appium_Desktop_Local
       - MacOSX_Chrome_Local
       - Windows_Edge_Cucumber_Local
+      - Ubuntu_Flutter_Emulator_Local
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -631,9 +632,154 @@ jobs:
           job-name: Ubuntu_Managed_Android
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
+  Ubuntu_Flutter_Emulator_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Flutter_Emulator_Local,')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          java-version: '17'
+          node-version: '20'
+      - name: Setup Flutter 3.22.1
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.22.1
+          channel: stable
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4.0.1
+      - name: Flutter emulator preflight
+        run: bash scripts/ci/flutter_emulator_preflight.sh
+      - name: Checkout pinned appium-flutter-server demo-app
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: AppiumTestDistribution/appium-flutter-server
+          ref: 78ba97a6146091b944335d0db3330f74416f3ac7
+          path: appium-flutter-server
+          sparse-checkout: |
+            demo-app
+            server
+      - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
+        run: |
+          set -euo pipefail
+          cd appium-flutter-server/demo-app
+          dart pub global activate rps --version 0.8.0
+          bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 flutter build apk --debug
+          cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
+      - name: Copy freshly-built APK into FlutterTest path
+        run: |
+          set -euo pipefail
+          APK_PATH="$GITHUB_WORKSPACE/appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk"
+          ls -l "$APK_PATH"
+          cp "$APK_PATH" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
+      - name: Set up JDK 25 for Maven
+        uses: actions/setup-java@v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+      - name: Install engine dependencies for FlutterTest
+        run: >
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-engine -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+      - name: Boot emulator, open Flutter session, run FlutterTest tap/type/text
+        id: flutter_e2e
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          working-directory: ${{ github.workspace }}
+          script: |
+            # android-emulator-runner invokes this script with /usr/bin/sh (dash).
+            set -eu
+            cd "$GITHUB_WORKSPACE"
+            APK_PATH="$GITHUB_WORKSPACE/shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk"
+            ls -l "$APK_PATH"
+            adb devices
+
+            appiumLog="$RUNNER_TEMP/appium-server.log"
+            appium --address 127.0.0.1 --port 4723 --log-level info --log "$appiumLog" &
+            APPIUM_PID=$!
+            trap 'kill "$APPIUM_PID" 2>/dev/null || true' EXIT
+
+            ready=false
+            for i in $(seq 1 60); do
+              if curl --max-time 2 -fsS http://127.0.0.1:4723/status >/dev/null 2>&1; then
+                ready=true
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ready" != true ]; then
+              echo "::error::Appium server did not become ready."
+              cat "$appiumLog" || true
+              exit 1
+            fi
+
+            SESSION_PAYLOAD=$(jq -n --arg app "$APK_PATH" '{capabilities: {alwaysMatch: {platformName: "Android", "appium:automationName": "FlutterIntegration", "appium:app": $app, "appium:noReset": true}}}')
+            RESPONSE=$(curl --max-time 120 -fsS -X POST -H "Content-Type: application/json" -d "$SESSION_PAYLOAD" http://127.0.0.1:4723/session)
+            echo "$RESPONSE"
+            SESSION_ID=$(echo "$RESPONSE" | jq -r '.value.sessionId // empty')
+            if [ -z "$SESSION_ID" ]; then
+              echo "::error::Appium session did not open -- no sessionId in response."
+              cat "$appiumLog" || true
+              exit 1
+            fi
+            echo "Appium Flutter session opened: $SESSION_ID"
+            curl --max-time 30 -fsS -X DELETE "http://127.0.0.1:4723/session/$SESSION_ID" || true
+
+            mvn -f "$GITHUB_WORKSPACE/pom.xml" -pl shaft-engine -e test \
+              "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'testPackage.appium.FlutterTest' }}" \
+              "-Dshaft.enableFlutterE2E=true" \
+              "-DexecutionAddress=127.0.0.1:4723" \
+              "-Dmobile_app=src/test/resources/testDataFiles/apps/flutter-demo.apk" \
+              "-Dmobile_automationName=FlutterIntegration" \
+              "-DtargetOperatingSystem=android" \
+              "-DdefaultElementIdentificationTimeout=60" \
+              "-Dallure.automaticallyOpen=false" \
+              "-DheadlessExecution=true" \
+              "-DgenerateAllureReportArchive=true"
+            if [ ! -d "$GITHUB_WORKSPACE/shaft-engine/allure-results" ]; then
+              for d in "$PWD/shaft-engine/allure-results" "$PWD/allure-results" "$GITHUB_WORKSPACE/allure-results"; do
+                if [ -n "$(find "$d" -name '*-result.json' -type f -print -quit 2>/dev/null)" ]; then
+                  mkdir -p "$GITHUB_WORKSPACE/shaft-engine/allure-results"
+                  cp -a "$d"/. "$GITHUB_WORKSPACE/shaft-engine/allure-results/"
+                  break
+                fi
+              done
+            fi
+      - name: Upload Appium server log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Ubuntu_Flutter_Emulator_Local_appium_log
+          path: ${{ runner.temp }}/appium-server.log
+          if-no-files-found: ignore
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Flutter_Emulator_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   notify_local_e2e_tests_failure:
     name: Notify on nightly failure
-    needs: [ Windows_Edge_Local, MacOSX_Safari_Local_1, MacOSX_Safari_Local_2, Windows_Chrome_Local, Windows_Managed_Lighthouse, Ubuntu_Managed_Android, Windows_SikuliX_Local, Windows_Appium_Desktop_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local ]
+    needs: [ Windows_Edge_Local, MacOSX_Safari_Local_1, MacOSX_Safari_Local_2, Windows_Chrome_Local, Windows_Managed_Lighthouse, Ubuntu_Managed_Android, Windows_SikuliX_Local, Windows_Appium_Desktop_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local, Ubuntu_Flutter_Emulator_Local ]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5

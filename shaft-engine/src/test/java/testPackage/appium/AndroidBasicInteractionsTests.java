@@ -213,6 +213,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
     public void visualAndOcrTargetsShouldScrollVerticallyThroughNativeControls() {
         By group1 = By.xpath("//android.widget.TextView[@text='Group 1']");
         By group18 = By.xpath("//android.widget.TextView[@text='Group 18']");
+        By list = By.className("android.widget.ExpandableListView");
         driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
@@ -220,16 +221,17 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"));
 
-        driver.get().touch().swipeElementIntoView(group18, TouchActions.SwipeDirection.DOWN);
+        driver.get().touch().swipeElementIntoView(list, group18, TouchActions.SwipeDirection.DOWN);
         Assert.assertTrue(driver.get().getDriver().findElement(group18).isDisplayed());
         byte[] group18Screenshot = driver.get().getDriver().findElement(group18).getScreenshotAs(OutputType.BYTES);
 
+        // Full-window UP hits the activity boundary before Group 1; scroll the list.
         // Tiny "Group 1" crops match many list rows under AUTO; OCR uniquely names Group 1.
-        driver.get().touch().swipeElementIntoView(OcrTarget.exact("Group 1"), TouchActions.SwipeDirection.UP);
+        driver.get().touch().swipeElementIntoView(list, OcrTarget.exact("Group 1"), TouchActions.SwipeDirection.UP);
         Assert.assertTrue(driver.get().getDriver().findElement(group1).isDisplayed());
 
         // Image proof uses the Group 18 crop captured while that row was visible.
-        driver.get().touch().swipeElementIntoView(
+        driver.get().touch().swipeElementIntoView(list,
                 ImageTarget.fromBytes(group18Screenshot).matchingMode(ImageMatchingMode.AUTO),
                 TouchActions.SwipeDirection.DOWN);
         Assert.assertTrue(driver.get().getDriver().findElement(group18).isDisplayed());
@@ -249,15 +251,12 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .swipeElementIntoView(AppiumBy.accessibilityId("5. Scrollable"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("5. Scrollable"));
 
-        byte[] tab1Screenshot = driver.get().getDriver().findElement(tab1).getScreenshotAs(OutputType.BYTES);
         driver.get().touch().swipeElementIntoView(tabs, tab12, TouchActions.SwipeDirection.RIGHT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
         byte[] tab12Screenshot = driver.get().getDriver().findElement(tab12).getScreenshotAs(OutputType.BYTES);
 
-        // Nightly LEFT image swipe already succeeded under AUTO; keep that proven path.
-        driver.get().touch().swipeElementIntoView(tabs,
-                ImageTarget.fromBytes(tab1Screenshot).matchingMode(ImageMatchingMode.AUTO),
-                TouchActions.SwipeDirection.LEFT);
+        // TAB 1 captured while selected does not match the unselected strip after leaving it.
+        driver.get().touch().swipeElementIntoView(tabs, OcrTarget.exact("TAB 1"), TouchActions.SwipeDirection.LEFT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab1).isDisplayed());
 
         // Exact OCR on short tab labels failed on BrowserStack; return with the selected-state tab12 crop.
