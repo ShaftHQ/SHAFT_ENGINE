@@ -51,9 +51,16 @@ READINESS = frozenset({
 })
 RUN_STATUSES = frozenset({"planned", "running", "stalled", "blocked", "review", "completed", "cancelled", "quarantined"})
 _CAPABILITY_RANK = {"mechanical": 0, "default": 1, "most-intelligent": 2}
+_CODING_TASKS = frozenset({"coding", "implementation"})
 _ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _MECHANICAL_MARKERS = frozenset({"low", "lite", "flash", "air", "mini", "nano", "turbo", "haiku", "small"})
 _HIGH_MARKERS = frozenset({"high", "max", "pro", "ultra", "opus", "thinking", "reasoner"})
+# Implementation ranking: prefer coding-tagged ids; drop unfit safety/tiny rows.
+_CODING_DENY_MARKERS = frozenset({"safety", "guard", "translate", "nano", "tiny"})
+_CODING_BOOST_MARKERS = frozenset({
+    "code", "coder", "sonnet", "claude", "qwen", "kimi", "devstral",
+})
+_CODING_BOOST_SUBSTRINGS = ("gpt-oss",)
 _CATALOG_COMMAND = ("omniroute", "--output", "json", "models")
 _QUOTA_COMMAND = ("omniroute", "--output", "json", "usage", "quota")
 _PROVIDER_ARG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
@@ -864,6 +871,42 @@ def classify_capability(model_id: object) -> str:
     return "default"
 
 
+def _model_tokens(model_id: object) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", catalog_launch_id(model_id).lower()))
+
+
+def is_coding_denied(model_id: object) -> bool:
+    """True when the live id looks like safety/guard/translate/nano/tiny rather than coding."""
+    tokens = _model_tokens(model_id)
+    if tokens & _CODING_DENY_MARKERS:
+        return True
+    return False
+
+
+def is_coding_boosted(model_id: object) -> bool:
+    """True when the live id looks coding-capable (code/coder/sonnet/claude/gpt-oss/qwen/kimi/devstral)."""
+    text = catalog_launch_id(model_id).lower()
+    if any(needle in text for needle in _CODING_BOOST_SUBSTRINGS):
+        return True
+    tokens = _model_tokens(model_id)
+    if tokens & _CODING_BOOST_MARKERS:
+        return True
+    for token in tokens:
+        if token.startswith(("qwen", "kimi")) or "code" in token:
+            return True
+    return False
+
+
+def applies_coding_candidate_filter(
+    *, required_capability: str, task: str | None = None,
+) -> bool:
+    """Coding filter runs for implementation (`default`) and explicit coding/implementation tasks."""
+    normalized = (task or "").strip().lower()
+    if normalized in _CODING_TASKS:
+        return True
+    return required_capability == "default"
+
+
 _DEFAULT_TASK_ORDER = {"default": 0, "most-intelligent": 1, "mechanical": 2}
 _RATE_LIMIT_MARKERS = ("429", "too many requests", "resource_exhausted", "rate limit")
 _QUOTA_RESET_MARKERS = ("quota reset", "quota-reset", "rate limit reset")
@@ -1110,10 +1153,17 @@ def select_live_candidates(
     catalog: object, quota: object, *, required_capability: str,
     skip_identity_sha256s: object = (),
     exhaustion_cache: object = None,
+    task: str | None = None,
 ) -> list[dict[str, Any]]:
     """Join the current catalog to remaining quota and order the next usable model."""
     if required_capability not in _CAPABILITY_RANK:
         raise OmniRouteError("required capability is invalid")
+    normalized_task = (task or "").strip().lower() or None
+    if normalized_task is not None and normalized_task not in _CODING_TASKS | {"general"}:
+        raise OmniRouteError("required task is invalid")
+    coding_filter = applies_coding_candidate_filter(
+        required_capability=required_capability, task=normalized_task,
+    )
     skipped = {
         item for item in skip_identity_sha256s or ()
         if isinstance(item, str) and _HEX.fullmatch(item)
@@ -1167,14 +1217,38 @@ def select_live_candidates(
         identity_sha = _sha256({"model": model, "provider": provider})
         if identity_sha in skipped or identity_sha in blocked_identities:
             continue
+        if coding_filter and is_coding_denied(model):
+            continue
         selected.append({
             "model": model,
             "provider": provider,
             "remaining": left,
             "capability": classify_capability(model),
             "identitySha256": identity_sha,
+            "codingFit": (
+                "boost" if is_coding_boosted(model)
+                else "neutral"
+            ) if coding_filter else "n/a",
         })
-    if required_capability == "most-intelligent":
+    if coding_filter:
+        pool = selected
+        if required_capability == "most-intelligent":
+            pool = [row for row in pool if row["capability"] == "most-intelligent"]
+
+        def _capability_tiebreak(row: dict[str, Any]) -> int:
+            if required_capability == "mechanical":
+                return _CAPABILITY_RANK[row["capability"]]
+            if required_capability == "most-intelligent":
+                return 0
+            return _DEFAULT_TASK_ORDER.get(row["capability"], 9)
+
+        pool.sort(key=lambda row: (
+            0 if row.get("codingFit") == "boost" else 1,
+            _capability_tiebreak(row),
+            -row["remaining"],
+            row["model"],
+        ))
+    elif required_capability == "most-intelligent":
         pool = [row for row in selected if row["capability"] == "most-intelligent"]
         pool.sort(key=lambda row: (-row["remaining"], row["model"]))
     elif required_capability == "mechanical":
@@ -1311,6 +1385,7 @@ def candidates(
     diagnostic: object = None,
     failed_identity_sha256: str | None = None,
     failed_provider: str | None = None,
+    task: str | None = None,
 ) -> dict[str, Any]:
     """Query live catalog and quota every dispatch; overlay user-local exhaustion backoff only."""
     locator = which or shutil.which
@@ -1338,6 +1413,7 @@ def candidates(
         catalog, quota, required_capability=required_capability,
         skip_identity_sha256s=skip_identity_sha256s,
         exhaustion_cache=cache,
+        task=task,
     )
     return {"state": "READY" if picked else "RUNTIME_EXHAUSTED", "candidates": picked}
 
@@ -2558,12 +2634,20 @@ def main(argv: list[str] | None = None) -> int:
     candidates_parser.add_argument(
         "--capability", default="default", choices=sorted(_CAPABILITY_RANK),
     )
+    candidates_parser.add_argument(
+        "--task", default="general",
+        choices=sorted(_CODING_TASKS | {"general"}),
+        help="coding|implementation applies the coding allow/deny filter even outside default capability",
+    )
     args = parser.parse_args(raw_arguments)
     try:
         if args.command == "probe":
             return _print(probe(config_path=args.config))
         if args.command == "candidates":
-            return _print(candidates(required_capability=args.capability))
+            return _print(candidates(
+                required_capability=args.capability,
+                task=None if args.task == "general" else args.task,
+            ))
         if args.command == "attest":
             return _print(attest(config_path=args.config, contract_path=args.contract))
         if args.command == "dispatch":

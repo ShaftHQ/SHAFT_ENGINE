@@ -40,3 +40,14 @@ once forwarded the outer JVM's own `headlessExecution` instead of forcing
 - Parallel TestNG (`parallel="methods|classes"`) requires everything
   ThreadLocal (SHAFT drivers are); a static mutable field in test scope is a
   flake factory.
+
+## N-run proof under failure-ignore (#5739)
+The shaft-engine Surefire profile may set `testFailureIgnore=true` so JaCoCo
+can still report. Maven exit `0` then does **not** prove a green suite.
+Flake-proof / Wave N-run scripts must:
+
+1. Pass `-Dmaven.test.failure.ignore=false` on the proof invocation.
+2. After each run, parse Surefire `TEST-*.xml` (`failures` / `errors`) or
+   TestNG `testng-results.xml` (`failed`) and require zero.
+3. Call `python3 scripts/ci/assert_surefire_green.py <surefire-reports-dir>`
+   rather than trusting process exit alone.
