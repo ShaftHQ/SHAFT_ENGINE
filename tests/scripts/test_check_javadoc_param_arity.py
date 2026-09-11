@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = ROOT / "chaos-engine/check_javadoc_param_arity.py"
+MODULE_PATH = ROOT / "scripts/ci/check_javadoc_param_arity.py"
 FRAMEWORK_SOURCE = (
     ROOT
     / "chaos-engine/profiles/shaft/references/playbooks/framework-source.md"
@@ -145,15 +145,15 @@ class CheckJavadocParamArityTests(unittest.TestCase):
         catalog = ZERO_LLM.read_text(encoding="utf-8")
         gate = HARNESS_PR_GATE.read_text(encoding="utf-8")
         self.assertIn("Overload `@param` arity", framework)
-        self.assertIn("../../../../check_javadoc_param_arity.py", framework)
+        self.assertIn("../../../../../../scripts/ci/check_javadoc_param_arity.py", framework)
         self.assertTrue(
-            (FRAMEWORK_SOURCE.parent / "../../../../check_javadoc_param_arity.py")
+            (FRAMEWORK_SOURCE.parent / "../../../../../../scripts/ci/check_javadoc_param_arity.py")
             .resolve()
             .is_file(),
             "framework-source relative link to checker must resolve",
         )
         self.assertIn("check_javadoc_param_arity.py", catalog)
-        self.assertIn("[`check_javadoc_param_arity.py`](../check_javadoc_param_arity.py)", catalog)
+        self.assertIn("[`check_javadoc_param_arity.py`](../../scripts/ci/check_javadoc_param_arity.py)", catalog)
         self.assertIn("javadoc-param-arity-contract", gate)
         self.assertIn("check_javadoc_param_arity.py", gate)
 

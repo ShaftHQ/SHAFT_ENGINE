@@ -394,7 +394,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_promotion.py",
     ),
     "javadoc": (
-        "chaos-engine/check_javadoc_param_arity.py",
+        "scripts/ci/check_javadoc_param_arity.py",
         "chaos-engine/references/zero-llm-catalog.md",
         "chaos-engine/profiles/shaft/references/playbooks/framework-source.md",
         "tests/scripts/test_check_javadoc_param_arity.py",

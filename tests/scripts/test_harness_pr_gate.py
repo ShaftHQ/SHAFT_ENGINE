@@ -105,7 +105,7 @@ class ClassifierTest(unittest.TestCase):
                 "TypeStrategies.java"
             ]
         )
-        checker = classify_paths(["chaos-engine/check_javadoc_param_arity.py"])
+        checker = classify_paths(["scripts/ci/check_javadoc_param_arity.py"])
         catalog = classify_paths(["chaos-engine/references/zero-llm-catalog.md"])
 
         self.assertIn("javadoc", interaction.surfaces)

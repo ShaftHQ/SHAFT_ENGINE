@@ -16,8 +16,8 @@
 # ignored.
 #
 # Usage:
-#     python3 chaos-engine/check_javadoc_param_arity.py
-#     python3 chaos-engine/check_javadoc_param_arity.py --paths file1.java
+#     python3 scripts/ci/check_javadoc_param_arity.py
+#     python3 scripts/ci/check_javadoc_param_arity.py --paths file1.java
 #
 # Exit codes: 0 clean / no sources; 1 mismatches; 2 usage / IO error.
 
