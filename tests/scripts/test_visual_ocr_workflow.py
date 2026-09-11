@@ -84,9 +84,40 @@ class VisualOcrWorkflowTest(unittest.TestCase):
             self.assertIn('"${reports[@]}" --min-executed 1', verification)
             self.assertNotIn("TEST-testPackage.appium", verification)
 
-    def test_flutter_emulator_keeps_jdk17_for_apk_and_jdk25_for_maven(self):
+    def test_android_flutter_browserstack_is_sibling_not_mixed_into_native(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-        steps = workflow["jobs"]["Android_Flutter_Emulator_E2E"]["steps"]
+        self.assertNotIn("Android_Flutter_Emulator_E2E", workflow["jobs"])
+        self.assertNotIn("enableFlutterEmulatorE2E", workflow.get("on", {}).get("workflow_dispatch", {}).get("inputs", {}))
+        native = workflow["jobs"]["Android_Native_BrowserStack"]
+        flutter = workflow["jobs"]["Android_Flutter_BrowserStack"]
+        self.assertEqual("Flutter_Demo_App_Build", flutter["needs"])
+        build_if = workflow["jobs"]["Flutter_Demo_App_Build"]["if"]
+        self.assertIn(",Android_Flutter_BrowserStack,", build_if)
+        self.assertIn(",Android_Native_BrowserStack,", build_if)
+        flutter_run = next(step["run"] for step in flutter["steps"] if "-Dtest=" in step.get("run", ""))
+        native_run = next(step["run"] for step in native["steps"] if "-Dtest=" in step.get("run", ""))
+        self.assertIn("-Dshaft.enableFlutterE2E=true", flutter_run)
+        self.assertIn("-DexecutionAddress=browserstack", flutter_run)
+        self.assertIn("-Dmobile_automationName=FlutterIntegration", flutter_run)
+        self.assertIn("Google Pixel 7", flutter_run)
+        self.assertIn("13.0", flutter_run)
+        self.assertIn("-DbrowserStack.appUrl=", flutter_run)
+        self.assertIn("-DdefaultElementIdentificationTimeout=60", flutter_run)
+        self.assertIn("-DretryMaximumNumberOfAttempts=2", flutter_run)
+        self.assertIn("FlutterTest", flutter_run)
+        self.assertIn("github.event.inputs.tests", flutter_run)
+        self.assertNotIn("-Dshaft.enableFlutterE2E=true", native_run)
+        self.assertNotIn("%regex[.*FlutterTest.*]", native_run)
+        self.assertIn("Android_Flutter_BrowserStack", workflow["jobs"]["Workflow_Summary"]["needs"])
+        self.assertIn("Android_Flutter_BrowserStack", workflow["jobs"]["notify_e2e_tests_failure"]["needs"])
+        self.assertNotIn("Android_Flutter_Emulator_E2E", workflow["jobs"]["Workflow_Summary"]["needs"])
+        wire = next(step["run"] for step in flutter["steps"]
+                    if "flutter-demo.apk" in step.get("run", "") and "cp " in step.get("run", ""))
+        self.assertIn("shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk", wire)
+
+    def test_flutter_emulator_keeps_jdk17_for_apk_and_jdk25_for_maven(self):
+        workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
         env_step = next(step for step in steps if step.get("name") == "Setup Test Environment")
         self.assertEqual("17", env_step["with"]["java-version"])
         maven_jdk = next(step for step in steps if step.get("name") == "Set up JDK 25 for Maven")
@@ -96,10 +127,12 @@ class VisualOcrWorkflowTest(unittest.TestCase):
                         names.index("Set up JDK 25 for Maven"))
         self.assertLess(names.index("Set up JDK 25 for Maven"),
                         names.index("Install engine dependencies for FlutterTest"))
+        self.assertLess(names.index("Flutter emulator preflight"),
+                        names.index("Boot emulator, open Flutter session, run FlutterTest tap/type/text"))
 
     def test_flutter_emulator_script_avoids_pipefail_under_dash(self):
-        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-        steps = workflow["jobs"]["Android_Flutter_Emulator_E2E"]["steps"]
+        workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
         emulator = next(step for step in steps if step.get("uses", "").startswith(
             "reactivecircus/android-emulator-runner@"))
         script = emulator["with"]["script"]
@@ -110,6 +143,25 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIn("-Dallure.automaticallyOpen=false", script)
         self.assertIn("-DheadlessExecution=true", script)
         self.assertIn("shaft-engine/allure-results", script)
+        self.assertIn("127.0.0.1:4723", script)
+
+    def test_ubuntu_flutter_emulator_local_is_scheduled_like_windows_chrome(self):
+        workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
+        chrome_if = workflow["jobs"]["Windows_Chrome_Local"]["if"]
+        flutter_if = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["if"]
+        self.assertEqual(chrome_if.replace("Windows_Chrome_Local", "JOB"),
+                         flutter_if.replace("Ubuntu_Flutter_Emulator_Local", "JOB"))
+        self.assertIn("Ubuntu_Flutter_Emulator_Local", workflow["jobs"]["Workflow_Summary"]["needs"])
+        self.assertIn("Ubuntu_Flutter_Emulator_Local",
+                      workflow["jobs"]["notify_local_e2e_tests_failure"]["needs"])
+        preflight = (ROOT / "scripts" / "ci" / "flutter_emulator_preflight.sh").read_text(encoding="utf-8")
+        self.assertIn("/dev/kvm", preflight)
+        self.assertIn("sdkmanager", preflight)
+        self.assertIn("Android XR", preflight)
+        self.assertIn("appium-flutter-integration-driver", preflight)
+        self.assertIn("adb", preflight)
+        names = [step.get("name") for step in workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]]
+        self.assertIn("Flutter emulator preflight", names)
 
     def test_ios_visual_ocr_uses_shared_locators_and_opens_text_screen(self):
         ios_tests = IOS_TESTS.read_text(encoding="utf-8")

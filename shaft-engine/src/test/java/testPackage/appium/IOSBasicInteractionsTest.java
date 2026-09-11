@@ -57,6 +57,7 @@ public class IOSBasicInteractionsTest {
 
         driver.get().touch()
                 .tap(ImageTarget.fromBytes(inputScreenshot));
+        waitUntilKeyboardFocus(TEXT_INPUT);
         Assert.assertTrue(isAccessibilityFocused(TEXT_INPUT), "Image tap should focus Text Input");
 
         ((IOSDriver) driver.get().getDriver()).hideKeyboard();
@@ -191,10 +192,30 @@ public class IOSBasicInteractionsTest {
 
     }
 
-    /** XCUITest {@code switchTo().activeElement()} is getActiveElement with null locators. */
+    /** XCUITest keyboard focus is {@code hasKeyboardFocus}; {@code focused} is Android. */
     private boolean isAccessibilityFocused(By locator) {
-        String focused = driver.get().getDriver().findElement(locator).getAttribute("focused");
-        return "true".equalsIgnoreCase(focused) || "1".equals(focused);
+        var element = driver.get().getDriver().findElement(locator);
+        return isTruthyIosFlag(element.getAttribute("hasKeyboardFocus"))
+                || isTruthyIosFlag(element.getAttribute("focused"));
+    }
+
+    private void waitUntilKeyboardFocus(By locator) {
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (isAccessibilityFocused(locator)) {
+                return;
+            }
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    private static boolean isTruthyIosFlag(String value) {
+        return "true".equalsIgnoreCase(value) || "1".equals(value) || "yes".equalsIgnoreCase(value);
     }
 
     @AfterMethod(alwaysRun = true)
