@@ -270,7 +270,9 @@ For issue-to-merged-PR work, use the [GitHub playbook](../../references/work-git
 Do not confuse a diff with an outcome: run the real affected flow, review the
 actual diff, and keep external actions within granted authority.
 
-Opening a PR does not end the duty. Arm auto-merge once selected terminal assurance passes,
+Opening a PR does not end the duty. Arm auto-merge once selected terminal assurance passes
+and the tracker or epic's initial scope is complete (every in-scope sub-issue merged
+or explicitly dropped on the tracker; no dropped FR/SC),
 then watch with `gh pr checks <n> --watch --fail-fast` until the remote confirms
 merged. Red and conflicting are yours to fix, not to hand back; stale emits no
 event, so ask for it. The duty survives compaction, a dead delegate, and the

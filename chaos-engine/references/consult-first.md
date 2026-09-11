@@ -93,7 +93,7 @@ rule overrides an imported skill's default path.
 Work runs in this order, and each phase ends before the next begins:
 
 analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
-pull request -> babysit (fix review comments and failed tests) to green -> merge ->
+pull request -> babysit (fix review comments and failed tests) to green -> prove epic and tracker initial scope is complete -> merge ->
 terminal reflection when owed -> one root Learning Session -> final report.
 
 Behavior changes receive only the planning-approved terminal adversarial review

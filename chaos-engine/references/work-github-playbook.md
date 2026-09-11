@@ -153,7 +153,14 @@ and focused proofs observed; it must not represent remote checks as green.
    acceptance until the current exact head is fully green and no bot finding,
    review thread, inline comment, conversation comment, or annotation remains
    unresolved. Map the approved initial plan and every closing ticket to the
-   user-facing affected flows. This is the final assurance action before arming
+   user-facing affected flows. Re-read the original tracker or epic body (not a
+   later summary): every Functional Requirement, Success Criterion, and GitHub
+   sub-issue in that initial scope must map to live files and a merged or
+   currently-armed PR. Do not arm auto-merge while any in-scope sub-issue is
+   open, any FR/SC is unimplemented, or this PR would close an epic that still
+   has dropped scope. Owner-reduced scope counts only when the tracker body
+   itself records the drop. Remaining work becomes new sub-issues before merge;
+   it does not silently vanish. This is the final assurance action before arming
    auto-merge. If the head or remote feedback changes afterward, the receipt is
    stale: clear only that new observable state, then run one replacement
    acceptance against the new exact head. Unchanged state never triggers a retry.

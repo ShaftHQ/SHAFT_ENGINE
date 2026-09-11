@@ -842,6 +842,7 @@ class EntrypointDutyTest(unittest.TestCase):
             "run final holistic acceptance last",
             "no bot finding",
             "remains unresolved",
+            "do not arm auto-merge while any in-scope sub-issue is open",
             "final assurance action before arming auto-merge",
             "immediately after that acceptance remains current",
         )
