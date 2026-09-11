@@ -3,6 +3,10 @@
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
+GitHub writes use `gh` (`issue create`, `pr create`, comments, labels). Never
+GitHub MCP for those jobs. Default ChaosEngine MCP catalogs never include
+GitHub MCP. If a host already has GitHub MCP, leave it unchanged.
+
 ## 4. Implement, check, review, deliver
 
 Rule every open design choice on the issue before the first implementing commit;

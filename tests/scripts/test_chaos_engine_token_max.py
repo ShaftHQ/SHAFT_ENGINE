@@ -111,20 +111,18 @@ class TokenMaxTests(TestCase):
         cls.retrieve = load(ROOT / "chaos-engine/retrieve.py", "ce_retrieve_5689")
         cls.hosts = load(ROOT / "chaos-engine/hosts.py", "ce_hosts_5689")
 
-    def test_github_alias_pair_is_duplicate(self):
-        error = self.policy.uniqueness_error(["github", "github-gh"])
-        self.assertIsNotNone(error)
-        self.assertIn("disable extras", error)
+    def test_github_alias_pair_is_left_in_place(self):
+        self.assertIsNone(self.policy.uniqueness_error(["github", "github-gh"]))
 
-    def test_single_github_or_graphify_mcp_conflicts_with_owned_cli(self):
-        for server in ("github", "graphify"):
-            error = self.policy.cli_owned_conflict_error([server])
-            self.assertIsNotNone(error)
-            self.assertIn("No duplicate GitHub MCP", error)
+    def test_graphify_mcp_conflicts_with_owned_cli_github_does_not(self):
+        self.assertIsNone(self.policy.cli_owned_conflict_error(["github"]))
+        error = self.policy.cli_owned_conflict_error(["graphify"])
+        self.assertIsNotNone(error)
+        self.assertIn("Prefer gh for GitHub", error)
 
     def test_user_and_project_ids_share_one_heal_prompt(self):
         text = (ROOT / "chaos-engine/hosts.py").read_text(encoding="utf-8")
-        self.assertIn("disable extras in host MCP config", text)
+        self.assertIn("Leave an existing GitHub MCP config unchanged", text)
         self.assertIn(".chaos-engine/", self.hosts.instruction_block("chaos-engine"))
         self.assertIn(".chaos-engine/", self.hosts.instruction_block(".chaos-engine"))
         self.assertEqual(
@@ -133,7 +131,8 @@ class TokenMaxTests(TestCase):
         )
         self.assertEqual(
             self.policy.HEAL_PROMPT,
-            "No duplicate GitHub MCP. Repair: disable extras in host MCP config.",
+            "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
+            "Leave an existing GitHub MCP config unchanged.",
         )
         self.assertIn(self.policy.HEAL_PROMPT, self.hosts.instruction_block(".chaos-engine"))
 

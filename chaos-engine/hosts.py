@@ -1937,7 +1937,8 @@ def instruction_block(tree: str = INSTALLED_TREE) -> str:
         f"{START}\nBefore every task, follow the canonical "
         f"[ChaosEngine]({skill}). "
         f"Use `{tool}` for the project-local Memory, MemPalace, and Graphify tools. "
-        "No duplicate GitHub MCP. Repair: disable extras in host MCP config.\n"
+        "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
+        "Leave an existing GitHub MCP config unchanged.\n"
         f"{END}\n"
     )
 
@@ -3836,6 +3837,11 @@ def json_content(
         account_commands=account_commands,
         maven_docker=maven_docker,
     )
+    desired = {
+        name: server
+        for name, server in desired.items()
+        if str(name).strip().casefold() not in {"github", "github-gh", "github_gh"}
+    }
     snippet = json.dumps({"mcpServers": desired}, indent=2, sort_keys=True) + "\n"
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
@@ -3857,6 +3863,8 @@ def json_content(
         ):
             del servers[legacy_name]
     for name, server in desired.items():
+        if str(name).strip().casefold() in {"github", "github-gh", "github_gh"}:
+            continue
         if name in servers and not replaceable_owned_server(name, servers[name], server):
             _note_merge_handoff(
                 relative,

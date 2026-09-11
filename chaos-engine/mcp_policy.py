@@ -9,18 +9,20 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
-ALIAS_GROUPS: tuple[frozenset[str], ...] = (
-    frozenset({"github", "github-gh", "github_gh"}),
-)
+GITHUB_MCP_IDS = frozenset({"github", "github-gh", "github_gh"})
 
-# When a CLI is the owned client, these MCP server ids must not be enabled.
+# GitHub MCP is never a default catalog entry. Presence of an existing GitHub
+# MCP server is not a uniqueness conflict: leave it unchanged. Graphify MCP
+# still conflicts with the owned Graphify CLI.
+ALIAS_GROUPS: tuple[frozenset[str], ...] = ()
+
 CLI_OWNED_MCP: dict[str, frozenset[str]] = {
-    "github": frozenset({"github", "github-gh", "github_gh"}),
     "graphify": frozenset({"graphify", "graphifyy"}),
 }
 
 HEAL_PROMPT = (
-    "No duplicate GitHub MCP. Repair: disable extras in host MCP config."
+    "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
+    "Leave an existing GitHub MCP config unchanged."
 )
 
 _SERVER_HEADER = re.compile(
@@ -47,6 +49,19 @@ def duplicate_groups(server_ids: Iterable[str]) -> list[tuple[str, ...]]:
     return found
 
 
+def is_github_mcp_id(name: str) -> bool:
+    return str(name).strip().casefold() in GITHUB_MCP_IDS
+
+
+def omit_github_from_defaults(servers: dict[str, object]) -> dict[str, object]:
+    """Default install catalog must never publish GitHub MCP ids."""
+    return {
+        key: value
+        for key, value in servers.items()
+        if not is_github_mcp_id(str(key))
+    }
+
+
 def uniqueness_error(server_ids: Iterable[str]) -> str | None:
     cli_error = cli_owned_conflict_error(server_ids)
     if cli_error:
@@ -59,7 +74,7 @@ def uniqueness_error(server_ids: Iterable[str]) -> str | None:
 
 
 def cli_owned_conflict_error(server_ids: Iterable[str]) -> str | None:
-    """Fail when an MCP duplicates an owned CLI (gh, graphify)."""
+    """Fail when an MCP duplicates an owned CLI (Graphify). GitHub MCP is never defaulted and is left in place if already configured."""
     names = {str(item).strip().casefold() for item in server_ids if str(item).strip()}
     seen: list[str] = []
     for owned, aliases in CLI_OWNED_MCP.items():
