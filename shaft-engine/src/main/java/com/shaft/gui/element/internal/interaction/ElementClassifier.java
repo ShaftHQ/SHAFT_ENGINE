@@ -45,6 +45,23 @@ public final class ElementClassifier {
             return ElementKind.CONTENTEDITABLE;
         }
 
+        ElementKind byTag = classifyByTag(tag, role);
+        if (byTag != null) {
+            return byTag;
+        }
+
+        if ("input".equals(tag)) {
+            return classifyInput(type, role);
+        }
+
+        return classifyByRole(role);
+    }
+
+    /**
+     * Tag-driven kinds (and tag/role pairs that are decided before input handling).
+     * Returns null when the tag does not decide the kind.
+     */
+    private static ElementKind classifyByTag(String tag, String role) {
         if ("select".equals(tag)) {
             return ElementKind.SELECT;
         }
@@ -60,36 +77,39 @@ public final class ElementClassifier {
         if ("button".equals(tag) || "button".equals(role)) {
             return ElementKind.BUTTON;
         }
+        return null;
+    }
 
-        if ("input".equals(tag)) {
-            if ("checkbox".equals(type) || "checkbox".equals(role)) {
-                return ElementKind.CHECKBOX;
-            }
-            if ("radio".equals(type) || "radio".equals(role)) {
-                return ElementKind.RADIO;
-            }
-            if ("file".equals(type)) {
-                return ElementKind.FILE;
-            }
-            if (DATE_INPUT_TYPES.contains(type)) {
-                return ElementKind.DATE_LIKE;
-            }
-            if ("range".equals(type) || "slider".equals(role)) {
-                return ElementKind.RANGE;
-            }
-            if ("color".equals(type)) {
-                return ElementKind.COLOR;
-            }
-            if (BUTTON_INPUT_TYPES.contains(type)) {
-                return ElementKind.BUTTON;
-            }
-            if (TEXT_INPUT_TYPES.contains(type) || type == null) {
-                return ElementKind.TEXT_LIKE;
-            }
-            // Unknown input type (e.g. custom) — do not guess.
-            return ElementKind.UNKNOWN;
+    private static ElementKind classifyInput(String type, String role) {
+        if ("checkbox".equals(type) || "checkbox".equals(role)) {
+            return ElementKind.CHECKBOX;
         }
+        if ("radio".equals(type) || "radio".equals(role)) {
+            return ElementKind.RADIO;
+        }
+        if ("file".equals(type)) {
+            return ElementKind.FILE;
+        }
+        if (DATE_INPUT_TYPES.contains(type)) {
+            return ElementKind.DATE_LIKE;
+        }
+        if ("range".equals(type) || "slider".equals(role)) {
+            return ElementKind.RANGE;
+        }
+        if ("color".equals(type)) {
+            return ElementKind.COLOR;
+        }
+        if (BUTTON_INPUT_TYPES.contains(type)) {
+            return ElementKind.BUTTON;
+        }
+        if (TEXT_INPUT_TYPES.contains(type) || type == null) {
+            return ElementKind.TEXT_LIKE;
+        }
+        // Unknown input type (e.g. custom) — do not guess.
+        return ElementKind.UNKNOWN;
+    }
 
+    private static ElementKind classifyByRole(String role) {
         if ("checkbox".equals(role) || "switch".equals(role)) {
             return ElementKind.CHECKBOX;
         }
@@ -105,7 +125,6 @@ public final class ElementClassifier {
         if (role != null && TEXT_ROLES.contains(role)) {
             return ElementKind.TEXT_LIKE;
         }
-
         return ElementKind.UNKNOWN;
     }
 
@@ -119,11 +138,9 @@ public final class ElementClassifier {
 
     private static boolean isContentEditable(WebElement element) {
         String raw = safeDom(element, "contenteditable");
-        if (raw != null) {
-            // HTML allows "", "true", and "plaintext-only"; "false" is not editable.
-            if (!"false".equalsIgnoreCase(raw.trim())) {
-                return true;
-            }
+        // HTML allows "", "true", and "plaintext-only"; "false" is not editable.
+        if (raw != null && !"false".equalsIgnoreCase(raw.trim())) {
+            return true;
         }
         return "true".equalsIgnoreCase(safeProperty(element, "isContentEditable"));
     }
