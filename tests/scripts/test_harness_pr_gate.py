@@ -98,6 +98,26 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("promotion-contract", {check.id for check in promotion.checks})
         self.assertEqual(("promotion",), promotion_runner.surfaces)
 
+    def test_javadoc_param_arity_surface_selects_checker_and_catalog_contracts(self) -> None:
+        interaction = classify_paths(
+            [
+                "shaft-engine/src/main/java/com/shaft/gui/element/internal/interaction/"
+                "TypeStrategies.java"
+            ]
+        )
+        checker = classify_paths(["scripts/ci/check_javadoc_param_arity.py"])
+        catalog = classify_paths(["chaos-engine/references/zero-llm-catalog.md"])
+
+        self.assertIn("javadoc", interaction.surfaces)
+        self.assertIn("javadoc", checker.surfaces)
+        self.assertIn("javadoc", catalog.surfaces)
+        for plan in (interaction, checker, catalog):
+            check_ids = {check.id for check in plan.checks}
+            self.assertIn("javadoc-param-arity-contract", check_ids)
+            modules = set(plan.test_modules)
+            self.assertIn("tests.scripts.test_check_javadoc_param_arity", modules)
+            self.assertIn("tests.scripts.test_chaos_engine_zero_llm_catalog", modules)
+
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
 

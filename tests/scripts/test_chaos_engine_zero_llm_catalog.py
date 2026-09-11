@@ -35,6 +35,7 @@ class ZeroLlmCatalogTests(unittest.TestCase):
         self.assertIn("heuristics --top", text)
         self.assertIn("significance.py", text)
         self.assertIn("skill_compress_audit.py", text)
+        self.assertIn("check_javadoc_param_arity.py", text)
 
     def test_format_fix_next_only_emits_component_lines(self):
         document = {
