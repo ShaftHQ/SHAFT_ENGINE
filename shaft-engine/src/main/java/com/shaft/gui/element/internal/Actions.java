@@ -670,11 +670,13 @@ public class Actions extends ElementActions {
                                 : foundElements.get().getFirst();
                         screenshot.set(0, takeActionScreenshot(targetElement));
                         // Wave B (#5732): native → scroll/stabilize retry → flagged JS; preserve exception when JS off.
+                        // Wave D: mobile native uses W3C touch tap when WebDriver click flakes (web defaults unchanged).
                         ClickStrategies.click(
                                 d,
                                 targetElement,
                                 ElementClassifier.classify(targetElement),
-                                SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails());
+                                SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails(),
+                                isMobileNativeExecution);
                     }
                     case JAVASCRIPT_CLICK -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
@@ -721,34 +723,38 @@ public class Actions extends ElementActions {
                         WebElement targetElement = foundElements.get().getFirst();
                         CharSequence[] text = (CharSequence[]) data;
                         ElementKind kind = ElementClassifier.classify(targetElement);
-                        TypeStrategies.TypeRoute typeRoute = TypeStrategies.routeFor(kind);
-                        if (typeRoute == TypeStrategies.TypeRoute.REJECT) {
-                            TypeStrategies.rejectUnsupported(kind);
-                        } else if (typeRoute == TypeStrategies.TypeRoute.TOGGLE_CLICK) {
-                            TypeStrategies.toggleInsteadOfTyping(targetElement, kind);
-                        } else if (typeRoute == TypeStrategies.TypeRoute.SELECT_OPTION) {
-                            selectValue(targetElement, locator, stringifyTypedValue(text));
-                        } else if (typeRoute == TypeStrategies.TypeRoute.SET_FILES) {
-                            typeFileLocationForUpload(targetElement, locator, stringifyTypedValue(text));
-                        } else if (typeRoute == TypeStrategies.TypeRoute.SET_VALUE_WITH_EVENTS) {
-                            TypeStrategies.setValueWithEvents(d, targetElement, stringifyTypedValue(text));
-                        } else if (typeRoute == TypeStrategies.TypeRoute.CONTENTEDITABLE) {
-                            boolean clearBefore = !"off".equals(SHAFT.Properties.flags.clearBeforeTypingMode());
-                            TypeStrategies.typeContentEditable(d, targetElement, text, clearBefore);
+                        if (isMobileNativeExecution) {
+                            performMobileNativeType(d, targetElement, kind, text, action);
                         } else {
-                            // TEXT_LIKE / COMBOBOX / UNKNOWN — legacy clear+sendKeys honors existing flags.
-                            String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-                            String typedText = stringifyTypedValue(text);
-                            boolean shouldValidateTypedText = shouldValidateTypedText(text);
-                            String expectedText = shouldValidateTypedText && "off".equals(clearMode)
-                                    ? readElementValueForTyping(targetElement) + typedText
-                                    : typedText;
-                            if (SHAFT.Properties.flags.attemptToClickBeforeTyping() && !"native".equals(clearMode)) {
-                                targetElement.click();
+                            TypeStrategies.TypeRoute typeRoute = TypeStrategies.routeFor(kind);
+                            if (typeRoute == TypeStrategies.TypeRoute.REJECT) {
+                                TypeStrategies.rejectUnsupported(kind);
+                            } else if (typeRoute == TypeStrategies.TypeRoute.TOGGLE_CLICK) {
+                                TypeStrategies.toggleInsteadOfTyping(targetElement, kind);
+                            } else if (typeRoute == TypeStrategies.TypeRoute.SELECT_OPTION) {
+                                selectValue(targetElement, locator, stringifyTypedValue(text));
+                            } else if (typeRoute == TypeStrategies.TypeRoute.SET_FILES) {
+                                typeFileLocationForUpload(targetElement, locator, stringifyTypedValue(text));
+                            } else if (typeRoute == TypeStrategies.TypeRoute.SET_VALUE_WITH_EVENTS) {
+                                TypeStrategies.setValueWithEvents(d, targetElement, stringifyTypedValue(text));
+                            } else if (typeRoute == TypeStrategies.TypeRoute.CONTENTEDITABLE) {
+                                boolean clearBefore = !"off".equals(SHAFT.Properties.flags.clearBeforeTypingMode());
+                                TypeStrategies.typeContentEditable(d, targetElement, text, clearBefore);
+                            } else {
+                                // TEXT_LIKE / COMBOBOX / UNKNOWN — legacy clear+sendKeys honors existing flags.
+                                String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+                                String typedText = stringifyTypedValue(text);
+                                boolean shouldValidateTypedText = shouldValidateTypedText(text);
+                                String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                                        ? readElementValueForTyping(targetElement) + typedText
+                                        : typedText;
+                                if (SHAFT.Properties.flags.attemptToClickBeforeTyping() && !"native".equals(clearMode)) {
+                                    targetElement.click();
+                                }
+                                executeClearBasedOnClearMode(targetElement, clearMode);
+                                targetElement.sendKeys(text);
+                                validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                             }
-                            executeClearBasedOnClearMode(targetElement, clearMode);
-                            targetElement.sendKeys(text);
-                            validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                         }
                     }
                     case TYPE_APPEND -> {
@@ -1138,6 +1144,51 @@ public class Actions extends ElementActions {
                 }
             }
         }
+    }
+
+    /**
+     * Wave D (#5732): mobile-native type — focus (tap) → clear flags → setValue/sendKeys/{@code mobile: type}
+     * → optional {@code hideKeyboardAfterTyping}. Checkbox/Switch toggle; never blind sendKeys on toggles.
+     */
+    private void performMobileNativeType(WebDriver d, WebElement targetElement, ElementKind kind,
+                                         CharSequence[] text, ActionType action) {
+        TypeStrategies.MobileTypeRoute mobileRoute = TypeStrategies.mobileRouteFor(kind);
+        if (mobileRoute == TypeStrategies.MobileTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return;
+        }
+        if (mobileRoute == TypeStrategies.MobileTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleMobileInsteadOfTyping(d, targetElement, kind);
+            return;
+        }
+
+        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        String typedText = stringifyTypedValue(text);
+        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                ? readElementValueForTyping(targetElement) + typedText
+                : typedText;
+
+        // Always focus before typing on mobile native (Compose/Flutter require it; honors research ladder).
+        ClickStrategies.focusTap(d, targetElement);
+        if ("native".equals(clearMode)) {
+            // focusTap already clicked; clear without a second click.
+            try {
+                targetElement.clear();
+            } catch (RuntimeException ignored) {
+                executeClearBasedOnClearMode(targetElement, "backspace");
+            }
+        } else {
+            executeClearBasedOnClearMode(targetElement, clearMode);
+        }
+
+        if (mobileRoute == TypeStrategies.MobileTypeRoute.MOBILE_TEXT) {
+            TypeStrategies.typeMobileText(d, targetElement, text);
+        } else {
+            targetElement.sendKeys(text);
+        }
+        TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
+        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
     }
 
     private void executeClearBasedOnClearMode(WebElement elem, String clearMode) {

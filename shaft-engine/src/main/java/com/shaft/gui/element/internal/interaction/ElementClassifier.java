@@ -53,9 +53,15 @@ public final class ElementClassifier {
         String tag = safeLower(signals.tagName());
         String type = safeLower(signals.type());
         String role = safeLower(signals.role());
+        String className = safeLower(signals.className());
 
         if (isContentEditable(signals)) {
             return ElementKind.CONTENTEDITABLE;
+        }
+
+        ElementKind byMobile = classifyMobileNative(tag, className, role);
+        if (byMobile != null) {
+            return byMobile;
         }
 
         ElementKind byTag = classifyByTag(tag, role);
@@ -68,6 +74,86 @@ public final class ElementClassifier {
         }
 
         return classifyByRole(role);
+    }
+
+    /**
+     * Appium native class / XCUI / Flutter-ish tags. Returns null when not a known mobile control.
+     * Conservative: only exact / well-known suffixes so custom views stay {@link ElementKind#UNKNOWN}.
+     */
+    static ElementKind classifyMobileNative(String tag, String className, String role) {
+        String token = firstNonBlank(tag, className);
+        if (token == null) {
+            return null;
+        }
+        String simple = simpleClassName(token);
+
+        if (isMobileToggle(simple, role)) {
+            return ElementKind.CHECKBOX;
+        }
+        if (isMobileRadio(simple, role)) {
+            return ElementKind.RADIO;
+        }
+        if (isMobileTextField(simple, role)) {
+            return ElementKind.TEXT_LIKE;
+        }
+        if (isMobileButton(simple, role)) {
+            return ElementKind.BUTTON;
+        }
+        if (isMobileLink(simple, role)) {
+            return ElementKind.LINK;
+        }
+        if ("seekbar".equals(simple) || "slider".equals(simple) || "xcuielementtypeslider".equals(simple)) {
+            return ElementKind.RANGE;
+        }
+        return null;
+    }
+
+    private static boolean isMobileToggle(String simple, String role) {
+        return "checkbox".equals(role)
+                || "switch".equals(role)
+                || "checkbox".equals(simple)
+                || "switch".equals(simple)
+                || "togglebutton".equals(simple)
+                || "xcuielementtypeswitch".equals(simple)
+                || "xcuielementtypecheckbox".equals(simple);
+    }
+
+    private static boolean isMobileRadio(String simple, String role) {
+        return "radio".equals(role)
+                || "radiobutton".equals(simple)
+                || "xcuielementtyperadiobutton".equals(simple);
+    }
+
+    private static boolean isMobileTextField(String simple, String role) {
+        if (role != null && TEXT_ROLES.contains(role)) {
+            return true;
+        }
+        return "edittext".equals(simple)
+                || "textfield".equals(simple)
+                || "autocompletetextview".equals(simple)
+                || "multiautocompletetextview".equals(simple)
+                || "xcuielementtypetextfield".equals(simple)
+                || "xcuielementtypesecuretextfield".equals(simple)
+                || "xcuielementtypetextview".equals(simple)
+                // Flutter integration driver type names (ValueKey / Semantics still required by apps).
+                || "editabletext".equals(simple);
+    }
+
+    private static boolean isMobileButton(String simple, String role) {
+        return "button".equals(role)
+                || "button".equals(simple)
+                || "imagebutton".equals(simple)
+                || "xcuielementtypebutton".equals(simple);
+    }
+
+    private static boolean isMobileLink(String simple, String role) {
+        return "link".equals(role) || "xcuielementtypelink".equals(simple);
+    }
+
+    private static String simpleClassName(String raw) {
+        String lower = raw.toLowerCase(Locale.ROOT);
+        int slash = Math.max(lower.lastIndexOf('.'), lower.lastIndexOf('/'));
+        return slash >= 0 && slash + 1 < lower.length() ? lower.substring(slash + 1) : lower;
     }
 
     /**
