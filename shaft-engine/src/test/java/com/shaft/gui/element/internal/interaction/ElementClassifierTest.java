@@ -60,8 +60,9 @@ public class ElementClassifierTest {
                 {element("iframe", null, null, null), ElementKind.IFRAME},
                 // case 20
                 {disabled("input", "text"), ElementKind.DISABLED},
-                {readonly("input", "text"), ElementKind.DISABLED},
+                {readonly("input", "text"), ElementKind.READONLY},
                 {ariaDisabled("div"), ElementKind.DISABLED},
+                {contentEditablePlaintext("div"), ElementKind.CONTENTEDITABLE},
                 // unknown conservative
                 {element("div", null, null, null), ElementKind.UNKNOWN},
                 {element("custom-widget", null, null, null), ElementKind.UNKNOWN},
@@ -103,6 +104,18 @@ public class ElementClassifierTest {
         Assert.assertEquals(TypeStrategies.routeFor(ElementKind.TEXT_LIKE), TypeStrategies.TypeRoute.LEGACY_SEND_KEYS);
         Assert.assertEquals(TypeStrategies.routeFor(ElementKind.UNKNOWN), TypeStrategies.TypeRoute.LEGACY_SEND_KEYS);
         Assert.assertEquals(TypeStrategies.routeFor(ElementKind.COMBOBOX), TypeStrategies.TypeRoute.LEGACY_SEND_KEYS);
+        Assert.assertEquals(TypeStrategies.routeFor(ElementKind.BUTTON), TypeStrategies.TypeRoute.LEGACY_SEND_KEYS);
+        Assert.assertEquals(TypeStrategies.routeFor(ElementKind.LINK), TypeStrategies.TypeRoute.LEGACY_SEND_KEYS);
+        Assert.assertEquals(TypeStrategies.routeFor(ElementKind.READONLY), TypeStrategies.TypeRoute.REJECT);
+        Assert.assertEquals(TypeStrategies.routeFor(ElementKind.DISABLED), TypeStrategies.TypeRoute.REJECT);
+    }
+
+    @Test
+    public void clickAllowsReadonlyButRefusesDisabled() {
+        Assert.assertNotEquals(ElementKind.READONLY, ElementKind.DISABLED);
+        // Readonly must not share DISABLED click refusal — covered by ClickStrategies.DISABLED check.
+        WebElement readonlyInput = readonly("input", "text");
+        Assert.assertEquals(ElementClassifier.classify(readonlyInput), ElementKind.READONLY);
     }
 
     private static WebElement element(String tag, String type, String role, String unused) {
@@ -123,6 +136,12 @@ public class ElementClassifierTest {
     private static WebElement contentEditable(String tag) {
         WebElement element = element(tag, null, null, null);
         when(element.getDomAttribute("contenteditable")).thenReturn("true");
+        return element;
+    }
+
+    private static WebElement contentEditablePlaintext(String tag) {
+        WebElement element = element(tag, null, null, null);
+        when(element.getDomAttribute("contenteditable")).thenReturn("plaintext-only");
         return element;
     }
 

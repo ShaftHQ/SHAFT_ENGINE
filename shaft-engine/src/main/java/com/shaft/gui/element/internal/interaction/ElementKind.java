@@ -18,6 +18,9 @@ public enum ElementKind {
     CONTENTEDITABLE,
     COMBOBOX,
     IFRAME,
+    /** Disabled or aria-disabled — refuse click and type. */
     DISABLED,
+    /** Readonly — click allowed (focus); type refused. */
+    READONLY,
     UNKNOWN
 }

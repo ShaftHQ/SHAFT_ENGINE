@@ -56,8 +56,9 @@ public final class TypeStrategies {
             case FILE -> TypeRoute.SET_FILES;
             case DATE_LIKE, RANGE, COLOR -> TypeRoute.SET_VALUE_WITH_EVENTS;
             case CONTENTEDITABLE -> TypeRoute.CONTENTEDITABLE;
-            case DISABLED, IFRAME, BUTTON, LINK -> TypeRoute.REJECT;
-            case TEXT_LIKE, COMBOBOX, UNKNOWN -> TypeRoute.LEGACY_SEND_KEYS;
+            // Readonly/disabled/iframe: refuse type. Button/link stay legacy (conservative).
+            case DISABLED, READONLY, IFRAME -> TypeRoute.REJECT;
+            case TEXT_LIKE, COMBOBOX, BUTTON, LINK, UNKNOWN -> TypeRoute.LEGACY_SEND_KEYS;
         };
     }
 

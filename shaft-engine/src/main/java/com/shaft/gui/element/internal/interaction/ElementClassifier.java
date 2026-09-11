@@ -28,15 +28,20 @@ public final class ElementClassifier {
             return ElementKind.UNKNOWN;
         }
 
-        if (isDisabledOrReadonly(element)) {
+        if (isDisabled(element)) {
             return ElementKind.DISABLED;
+        }
+        // Readonly is classified before contenteditable/input kinds so type() can refuse
+        // while click() still focuses (HTML readonly controls remain clickable).
+        if (isTruthyFlag(element, "readonly")) {
+            return ElementKind.READONLY;
         }
 
         String tag = safeLower(safeTagName(element));
         String type = safeLower(firstNonBlank(safeDom(element, "type"), safeProperty(element, "type")));
         String role = safeLower(safeDom(element, "role"));
 
-        if (isTruthyFlag(element, "contenteditable") || "true".equalsIgnoreCase(safeProperty(element, "isContentEditable"))) {
+        if (isContentEditable(element)) {
             return ElementKind.CONTENTEDITABLE;
         }
 
@@ -104,12 +109,23 @@ public final class ElementClassifier {
         return ElementKind.UNKNOWN;
     }
 
-    private static boolean isDisabledOrReadonly(WebElement element) {
-        if (isTruthyFlag(element, "disabled") || isTruthyFlag(element, "readonly")) {
+    private static boolean isDisabled(WebElement element) {
+        if (isTruthyFlag(element, "disabled")) {
             return true;
         }
         String ariaDisabled = safeLower(safeDom(element, "aria-disabled"));
         return "true".equals(ariaDisabled);
+    }
+
+    private static boolean isContentEditable(WebElement element) {
+        String raw = safeDom(element, "contenteditable");
+        if (raw != null) {
+            // HTML allows "", "true", and "plaintext-only"; "false" is not editable.
+            if (!"false".equalsIgnoreCase(raw.trim())) {
+                return true;
+            }
+        }
+        return "true".equalsIgnoreCase(safeProperty(element, "isContentEditable"));
     }
 
     /**
