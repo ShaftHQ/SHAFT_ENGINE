@@ -71,7 +71,7 @@
 </li>
 <li>
 <div id="class-summary">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="class-summary-tab0" role="tab" aria-selected="true" aria-controls="class-summary.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary', 2)" class="active-table-tab">All Classes and Interfaces</button><button id="class-summary-tab2" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab2', 2)" class="table-tab">Classes</button><button id="class-summary-tab3" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab3', 2)" class="table-tab">Enum Classes</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="class-summary-tab0" role="tab" aria-selected="true" aria-controls="class-summary.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary', 2)" class="active-table-tab">All Classes and Interfaces</button><button id="class-summary-tab2" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab2', 2)" class="table-tab">Classes</button><button id="class-summary-tab3" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab3', 2)" class="table-tab">Enum Classes</button><button id="class-summary-tab4" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab4', 2)" class="table-tab">Record Classes</button></div>
 <div id="class-summary.tabpanel" role="tabpanel" aria-labelledby="class-summary-tab0">
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Class</div>
@@ -82,16 +82,26 @@
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="ElementClassifier.html" title="class in com.shaft.gui.element.internal.interaction">ElementClassifier</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">
-<div class="block">Cheap Selenium-path classifier: tagName, type, role/ARIA, contenteditable, disabled flags.</div>
+<div class="block">Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab3"><a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">Conservative element kinds for Selenium click/type strategy selection (epic #5732 Wave B).</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="TypeStrategies.html" title="class in com.shaft.gui.element.internal.interaction">TypeStrategies</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="block">Cheap DOM signals for <a href="ElementClassifier.html" title="class in com.shaft.gui.element.internal.interaction"><code>ElementClassifier</code></a> — shared by Selenium <code>WebElement</code>
+and Playwright locator evaluate results (epic #5732).</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="TypeStrategies.html" title="class in com.shaft.gui.element.internal.interaction">TypeStrategies</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Routes <code>type</code> by <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction"><code>ElementKind</code></a> so checkbox/radio/select/file/date/contenteditable
 never take the blind clear+sendKeys path.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeStrategies.PlaywrightTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="block">Playwright <code>type()</code> routes (Wave C): plain inputs stay <a href="TypeStrategies.PlaywrightTypeRoute.html#FILL"><code>TypeStrategies.PlaywrightTypeRoute.FILL</code></a>;
+contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PRESS_SEQUENTIALLY"><code>TypeStrategies.PlaywrightTypeRoute.PRESS_SEQUENTIALLY</code></a>.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeStrategies.TypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab3">&nbsp;</div>

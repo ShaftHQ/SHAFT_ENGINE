@@ -50,6 +50,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#routeFor(com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">routeFor(ElementKind)</a></li>
+<li><a href="#playwrightRouteFor(com.shaft.gui.element.internal.interaction.ElementKind,boolean)" tabindex="0">playwrightRouteFor(ElementKind, boolean)</a></li>
 <li><a href="#rejectUnsupported(com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">rejectUnsupported(ElementKind)</a></li>
 <li><a href="#toggleInsteadOfTyping(org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">toggleInsteadOfTyping(WebElement, ElementKind)</a></li>
 <li><a href="#setValueWithEvents(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">setValueWithEvents(WebDriver, WebElement, String)</a></li>
@@ -88,8 +89,14 @@ never take the blind clear+sendKeys path. Unknown kinds stay on the legacy calle
 <div class="table-header col-second">Class</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="TypeStrategies.TypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-second even-row-color"><code><a href="TypeStrategies.PlaywrightTypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Playwright <code>type()</code> routes (Wave C): plain inputs stay <a href="TypeStrategies.PlaywrightTypeRoute.html#FILL"><code>TypeStrategies.PlaywrightTypeRoute.FILL</code></a>;
+contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PRESS_SEQUENTIALLY"><code>TypeStrategies.PlaywrightTypeRoute.PRESS_SEQUENTIALLY</code></a>.</div>
+</div>
+<div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="TypeStrategies.TypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></code></div>
+<div class="col-last odd-row-color">&nbsp;</div>
 </div>
 </section>
 </li>
@@ -104,31 +111,37 @@ never take the blind clear+sendKeys path. Unknown kinds stay on the legacy calle
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#rejectUnsupported(com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">rejectUnsupported</a><wbr>(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeStrategies.TypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#routeFor(com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">routeFor</a><wbr>(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeStrategies.PlaywrightTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#playwrightRouteFor(com.shaft.gui.element.internal.interaction.ElementKind,boolean)" class="member-name-link">playwrightRouteFor</a><wbr>(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind,
+ boolean&nbsp;masked)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Playwright type routing.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#rejectUnsupported(com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">rejectUnsupported</a><wbr>(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#sendKeysFilePath(org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">sendKeysFilePath</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;absoluteFilePath)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeStrategies.TypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#routeFor(com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">routeFor</a><wbr>(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#setValueWithEvents(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">setValueWithEvents</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#sendKeysFilePath(org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">sendKeysFilePath</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;absoluteFilePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#setValueWithEvents(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">setValueWithEvents</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  org.openqa.selenium.WebElement&nbsp;element,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#toggleInsteadOfTyping(org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">toggleInsteadOfTyping</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
- <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#typeContentEditable(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D,boolean)" class="member-name-link">typeContentEditable</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#toggleInsteadOfTyping(org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">toggleInsteadOfTyping</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#typeContentEditable(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D,boolean)" class="member-name-link">typeContentEditable</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  org.openqa.selenium.WebElement&nbsp;element,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>[]&nbsp;text,
  boolean&nbsp;clearBefore)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Focus then insert text without <code>WebElement.clear()</code>.</div>
 </div>
 </div>
@@ -153,6 +166,17 @@ never take the blind clear+sendKeys path. Unknown kinds stay on the legacy calle
 <h3>routeFor</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TypeStrategies.TypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></span>&nbsp;<span class="element-name">routeFor</span><wbr><span class="parameters">(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="playwrightRouteFor(com.shaft.gui.element.internal.interaction.ElementKind,boolean)">
+<h3>playwrightRouteFor</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TypeStrategies.PlaywrightTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></span>&nbsp;<span class="element-name">playwrightRouteFor</span><wbr><span class="parameters">(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind,
+ boolean&nbsp;masked)</span></div>
+<div class="block">Playwright type routing. <code>masked</code> only affects text-like / combobox / unknown /
+button / link paths (contenteditable always sequential).</div>
 </div>
 </section>
 </li>

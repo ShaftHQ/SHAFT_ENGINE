@@ -156,6 +156,18 @@
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">ElementActions</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>
 implements <a href="../../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></span></div>
+<div class="block">Playwright element actions. Click uses Playwright actionability waits (visible, stable,
+enabled, receives events). <code>force</code>/<code>trial</code> click options are intentionally
+not exposed on the public API (default off); use <a href="#clickUsingJavascript(org.openqa.selenium.By)"><code>clickUsingJavascript(By)</code></a> only when
+an intentional bypass is required.
+<p>
+Open Shadow DOM is reachable via Playwright locator pierce (CSS/role locators). Closed
+shadow roots are unsupported for pierce — interact through the host's public API or
+accessibility tree instead.
+<p>
+<a href="#type(org.openqa.selenium.By,java.lang.CharSequence...)"><code>type(By, CharSequence...)</code></a> chooses <code>fill</code> vs <code>pressSequentially</code> by element kind
+(epic #5732 Wave C): plain inputs stay <code>fill</code>; contenteditable / masked inputs
+use sequential key presses.</div>
 </div>
 </section>
 <section class="summary">
@@ -232,7 +244,9 @@ implements <a href="../../driver/ElementActionsContract.html" title="interface i
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActions.html" title="class in com.shaft.gui.playwright.element">ElementActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(com.microsoft.playwright.Locator)" class="member-name-link">click</a><wbr>(com.microsoft.playwright.Locator&nbsp;elementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clicks using Playwright actionability (waits until actionable).</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActions.html" title="class in com.shaft.gui.playwright.element">ElementActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">click</a><wbr>(<a href="../../driver/ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -726,6 +740,10 @@ implements <a href="../../driver/ElementActionsContract.html" title="interface i
 <h3>click</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActions.html" title="class in com.shaft.gui.playwright.element">ElementActions</a></span>&nbsp;<span class="element-name">click</span><wbr><span class="parameters">(com.microsoft.playwright.Locator&nbsp;elementLocator)</span></div>
+<div class="block">Clicks using Playwright actionability (waits until actionable). Does not set
+<code>force</code> or <code>trial</code> — both stay default-off and are not part of the
+public SHAFT API. Open shadow pierce works via the locator engine; closed shadow
+is unsupported (use host public API / a11y).</div>
 </div>
 </section>
 </li>

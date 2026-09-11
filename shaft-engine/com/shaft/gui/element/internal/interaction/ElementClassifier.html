@@ -49,6 +49,9 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#classify(org.openqa.selenium.WebElement)" tabindex="0">classify(WebElement)</a></li>
+<li><a href="#classify(com.shaft.gui.element.internal.interaction.ElementSignals)" tabindex="0">classify(ElementSignals)</a></li>
+<li><a href="#fromEvaluateMap(java.util.Map)" tabindex="0">fromEvaluateMap(Map)</a></li>
+<li><a href="#looksMasked(com.shaft.gui.element.internal.interaction.ElementSignals)" tabindex="0">looksMasked(ElementSignals)</a></li>
 </ol>
 </li>
 </ol>
@@ -66,8 +69,9 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">ElementClassifier</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Cheap Selenium-path classifier: tagName, type, role/ARIA, contenteditable, disabled flags.
-Conservative by design — ambiguous custom widgets return <a href="ElementKind.html#UNKNOWN"><code>ElementKind.UNKNOWN</code></a>.</div>
+<div class="block">Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags.
+Conservative by design — ambiguous custom widgets return <a href="ElementKind.html#UNKNOWN"><code>ElementKind.UNKNOWN</code></a>.
+Shared by Selenium Wave B and Playwright Wave C (#5732).</div>
 </div>
 </section>
 <section class="summary">
@@ -84,8 +88,23 @@ Conservative by design — ambiguous custom widgets return <a href="ElementKind.
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#classify(org.openqa.selenium.WebElement)" class="member-name-link">classify</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#classify(com.shaft.gui.element.internal.interaction.ElementSignals)" class="member-name-link">classify</a><wbr>(<a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a>&nbsp;signals)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Classify from pre-read DOM signals (Playwright evaluate map or Selenium attribute reads).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#classify(org.openqa.selenium.WebElement)" class="member-name-link">classify</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#fromEvaluateMap(java.util.Map)" class="member-name-link">fromEvaluateMap</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;?,<wbr>?&gt;&nbsp;raw)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Build signals from a Playwright-style evaluate result map (string keys, scalar values).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#looksMasked(com.shaft.gui.element.internal.interaction.ElementSignals)" class="member-name-link">looksMasked</a><wbr>(<a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a>&nbsp;signals)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Conservative masked / OTP / input-mask heuristic for Playwright sequential typing.</div>
+</div>
 </div>
 </div>
 </div>
@@ -108,6 +127,34 @@ Conservative by design — ambiguous custom widgets return <a href="ElementKind.
 <h3>classify</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a></span>&nbsp;<span class="element-name">classify</span><wbr><span class="parameters">(org.openqa.selenium.WebElement&nbsp;element)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="classify(com.shaft.gui.element.internal.interaction.ElementSignals)">
+<h3>classify</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a></span>&nbsp;<span class="element-name">classify</span><wbr><span class="parameters">(<a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a>&nbsp;signals)</span></div>
+<div class="block">Classify from pre-read DOM signals (Playwright evaluate map or Selenium attribute reads).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="fromEvaluateMap(java.util.Map)">
+<h3>fromEvaluateMap</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a></span>&nbsp;<span class="element-name">fromEvaluateMap</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;?,<wbr>?&gt;&nbsp;raw)</span></div>
+<div class="block">Build signals from a Playwright-style evaluate result map (string keys, scalar values).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="looksMasked(com.shaft.gui.element.internal.interaction.ElementSignals)">
+<h3>looksMasked</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">looksMasked</span><wbr><span class="parameters">(<a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a>&nbsp;signals)</span></div>
+<div class="block">Conservative masked / OTP / input-mask heuristic for Playwright sequential typing.
+Prefer explicit data-* / mask attributes and known library class tokens over broad "mask" substrings.</div>
 </div>
 </section>
 </li>
