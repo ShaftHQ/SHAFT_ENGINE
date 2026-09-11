@@ -27,6 +27,26 @@ the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 `closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
 `## Continuation` sections current for the delivered head.
 
+### Wave PR open checklist (before first push)
+
+Strategy-matrix / Wave PRs fail governance without a release-note label and
+fail static analysis when Java switches lack a default branch. Before the
+first push of any Wave or strategy-matrix PR:
+
+1. Apply **exactly one** release-note classification label:
+   `breaking-change`, `enhancement`, `bug`, or `skip-release-notes`.
+2. Verify Java `switch` expressions/statements are **exhaustive** (include a
+   `default` branch where Codacy/`MissingDefaultCase` requires it). Confirm
+   locally before push so the first CI cycle is not a fix-push for labels or
+   switch exhaustiveness.
+
+N-run / flake-proof scripts that invoke Maven under the engine Surefire
+profile must not treat process exit alone as green: after each proof
+invocation, require a zero failed count from Surefire `TEST-*.xml` or
+TestNG `testng-results.xml` (and set `-Dmaven.test.failure.ignore=false`
+for defense in depth). Use
+[`scripts/ci/assert_surefire_green.py`](../../scripts/ci/assert_surefire_green.py).
+
 ## 5. Docs, catalog, and screenshots — only where real
 
 Update user documentation and the feature catalog only for shipped behavior.

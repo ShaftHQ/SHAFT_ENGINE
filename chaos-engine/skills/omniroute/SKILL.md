@@ -55,6 +55,7 @@ omniroute --output json models
 omniroute --output json usage quota
 omniroute --output json models <provider>
 python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability mechanical|default|most-intelligent
+python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability default --task coding|implementation|general
 ```
 
 Do not add `--json` after the `models` subcommand: that form prints a table, not JSON. Use `--output json` before `models`.
@@ -82,6 +83,41 @@ otherwise default. Architecture, review, and analytical work use only
 most-intelligent. Implementation uses `default` first, then most-intelligent,
 then mechanical. Do not pin a Codex profile model such as Gemini Flash-Lite.
 Empty result is `RUNTIME_EXHAUSTED`.
+
+### Coding candidate filter (implementation)
+
+For `--capability default` and for `--task coding|implementation`, rank from
+the live ids with an allow/deny token filter — never a stored model list:
+
+- **Deny** (drop before ranking): tokens `safety`, `guard`, `translate`,
+  `nano`, `tiny`.
+- **Boost** (sort first within the remaining pool): tokens/substrings `code`,
+  `coder`, `sonnet`, `claude`, `gpt-oss`, `qwen`, `kimi`, `devstral` (also
+  ids whose tokens start with `qwen`/`kimi` or contain `code`).
+
+Mechanical and most-intelligent capability selections without an explicit
+coding task keep the older capability-only ranking and do not apply this
+filter. Catalog ranking never writes route, model, or provider ids into
+repository files.
+
+When the gateway supports combo routing, prefer trying
+`omniroute run --model auto/coding` (or category coding) first; on failure or
+unsupported combo, fall back to the ranked native id from `candidates`.
+
+### Dispatch checklist (READY)
+
+1. Health on loopback only: `curl -sf --max-time 2 http://127.0.0.1:20128/api/health`.
+2. Live `candidates` (coding filter for implementation).
+3. Pick the first remaining identity; never reuse a just-failed identity on 429.
+4. On `READY`, launch `omniroute run --model --provider <target>` before any
+   native host model. Prefer the first installed target: `claude`, then
+   `opencode`, then `codex` (skip exit `127` missing binaries).
+5. On fail: skip that identity/provider, requery, next remaining id.
+6. Native host models only on `RUNTIME_EXHAUSTED`, empty remaining catalog,
+   sealed-launcher exit `78`, or missing OmniRoute binary (`ABSENT`).
+
+**Process failure:** ranking `candidates` then shipping via the native host
+model while OmniRoute is `READY` is not success. Catalog ≠ dispatch.
 
 Retry is chosen from the failure, not from a pinned profile. Official
 troubleshooting splits transient rate/400/401 from hard quota exhaustion:
@@ -153,9 +189,10 @@ Native host models only when OmniRoute itself cannot run.
 
 Canonical orchestration must probe the fixed loopback endpoint before native
 fallback, with no endpoint prompt. On `READY` after a live `candidates` pick,
-dispatch through `omniroute run` as above. A concrete `RUNTIME_EXHAUSTED`
-health result, empty remaining catalog, or sealed-launcher exit code `78`
-permits native implementer fallback.
+**must** dispatch through `omniroute run` as above before any native host
+model. A concrete `RUNTIME_EXHAUSTED` health result, empty remaining catalog,
+missing OmniRoute binary, or sealed-launcher exit code `78` permits native
+implementer fallback.
 
 ## Runner
 
@@ -164,6 +201,7 @@ Use only the standard-library [runner](scripts/runner.py):
 ```text
 python3 chaos-engine/skills/omniroute/scripts/runner.py probe
 python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability mechanical|default|most-intelligent
+python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability default --task coding
 python3 chaos-engine/skills/omniroute/scripts/runner.py dispatch --contract <private-state>/dispatch.json
 python3 chaos-engine/skills/omniroute/scripts/runner.py status ...
 python3 chaos-engine/skills/omniroute/scripts/runner.py cancel ...
