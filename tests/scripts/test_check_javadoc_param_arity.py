@@ -152,7 +152,7 @@ class CheckJavadocParamArityTests(unittest.TestCase):
             .is_file(),
             "framework-source relative link to checker must resolve",
         )
-        self.assertIn("[`check_javadoc_param_arity.py`](../../scripts/ci/check_javadoc_param_arity.py)", catalog)
+        self.assertIn("check_javadoc_param_arity.py", catalog)
         self.assertIn("[`check_javadoc_param_arity.py`](../../scripts/ci/check_javadoc_param_arity.py)", catalog)
         self.assertIn("javadoc-param-arity-contract", gate)
         self.assertIn("check_javadoc_param_arity.py", gate)
