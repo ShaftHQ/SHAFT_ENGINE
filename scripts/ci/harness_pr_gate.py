@@ -187,6 +187,11 @@ CHECKS = {
         "fallback",
         ("tests.scripts.test_validate_agent_setup",),
     ),
+    "javadoc-param-arity-contract": Check(
+        "javadoc-param-arity-contract",
+        "javadoc",
+        ("tests.scripts.test_check_javadoc_param_arity",),
+    ),
     "protected-ownership": Check(
         "protected-ownership",
         "protected",
@@ -266,6 +271,7 @@ SURFACE_CHECKS = {
     "identities": ("identity-contract", "identity-recovery-contract"),
     "promotion": ("promotion-contract",),
     "fallback": ("fallback-contract",),
+    "javadoc": ("javadoc-param-arity-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -383,6 +389,12 @@ SURFACE_PATTERNS = {
     "promotion": (
         "scripts/ci/chaos_engine_promotion*.py",
         "tests/scripts/test_chaos_engine_promotion.py",
+    ),
+    "javadoc": (
+        "chaos-engine/check_javadoc_param_arity.py",
+        "tests/scripts/test_check_javadoc_param_arity.py",
+        "shaft-engine/src/main/java/com/shaft/gui/element/internal/interaction/*",
+        "chaos-engine/profiles/shaft/references/playbooks/framework-source.md",
     ),
 }
 

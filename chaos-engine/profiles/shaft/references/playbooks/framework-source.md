@@ -8,6 +8,12 @@ applyTo: "**/src/main/java/**/*.java"
   changed signatures.
 - Add concise JavaDoc (`@param`/`@return`/`@throws` where applicable) to
   public classes and methods.
+- **Overload `@param` arity (pre-push):** when adding or splitting overloads,
+  strip or retarget every `@param` tag to the *actual* signature before push.
+  A leftover `@param` from a longer overload fails ErrorProne and cascades CI
+  (#5748). Run
+  [`check_javadoc_param_arity.py`](../../../../check_javadoc_param_arity.py)
+  against `shaft-engine` interaction packages (or the files you touched).
 - Keep user-facing APIs consistent with the `SHAFT` facade and its namespaced
   nested classes. Utility classes use a private constructor that throws
   `IllegalStateException("Utility class")`.
