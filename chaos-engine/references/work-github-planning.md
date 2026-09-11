@@ -106,6 +106,10 @@ delivery through **GitHub native sub-issues**, not checkbox prose alone.
 - File each subtask as a real issue and attach it as a sub-issue of the epic.
 - Delivery PRs close **children only**: one `Fixes #<child>` / `Closes #<child>`
   line per completed subtask. Never put a closing keyword on the epic number.
+- Before arming auto-merge on any child or tracker PR, re-read the epic's
+  initial scope and confirm every related sub-issue is merged or explicitly
+  dropped on the tracker. Auto-merge of one green PR must not close or imply
+  the epic is done while in-scope children remain open or unimplemented.
 - Workflow `.github/workflows/epic-autoclose.yml` runs on `issues: closed`. It
   no-ops unless the closed issue's parent is an eligible epic **and** every
   tracked sub-issue is closed; then it closes the epic with a receipt comment.

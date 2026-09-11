@@ -48,6 +48,19 @@ class LearnContractTests(unittest.TestCase):
         self.assertIn("do not copy that rule into ChaosEngine", section)
         self.assertIn("do not edit the bundled skill in place", section)
 
+    def test_a2_pr_merger_requires_epic_scope_before_auto_merge(self):
+        playbook = PLAYBOOK.read_text(encoding="utf-8")
+        planning = (ROOT / "chaos-engine/references/work-github-planning.md").read_text(
+            encoding="utf-8"
+        )
+        skill = SKILL.read_text(encoding="utf-8")
+        compact = re.sub(r"\s+", " ", playbook).casefold()
+        self.assertIn("do not arm auto-merge while any in-scope sub-issue is open", compact)
+        self.assertIn("initial scope", compact)
+        self.assertIn("dropped scope", compact)
+        self.assertIn("related sub-issue is merged", planning.casefold())
+        self.assertIn("initial scope is complete", skill.casefold())
+
     def test_router_and_level1_discover_portable_contracts(self):
         rows = catalog_rows(SKILL.read_text(encoding="utf-8"))
         skill = SKILL.read_text(encoding="utf-8")
