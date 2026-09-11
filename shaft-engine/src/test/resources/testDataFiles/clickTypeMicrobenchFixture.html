@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT Wave F click/type microbench</title>
+    <style>
+        body { font-family: sans-serif; margin: 2rem; }
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #overlay.hidden { display: none; }
+        #go { position: relative; z-index: 1; padding: 0.5rem 1rem; }
+        #name { padding: 0.4rem; min-width: 16rem; }
+    </style>
+</head>
+<body>
+<main>
+    <h1 id="ready">Wave F microbench</h1>
+    <label for="name">Name</label>
+    <input id="name" type="text" name="name" autocomplete="off"/>
+    <button id="go" type="button">Go</button>
+    <p id="result" data-status="idle"></p>
+</main>
+<div id="overlay" aria-hidden="false"><span>toast overlay</span></div>
+<script>
+    (function () {
+        var overlay = document.getElementById("overlay");
+        var nameInput = document.getElementById("name");
+        var go = document.getElementById("go");
+        var result = document.getElementById("result");
+
+        // Sticky overlay covers the page so native clicks on #go are intercepted until
+        // dismissed. Wave F measures type on a clear input, then click with JS fallback
+        // (or after dismiss) through the overlay scenario from epic #5732.
+        window.__shaftDismissOverlay = function () {
+            overlay.classList.add("hidden");
+            overlay.setAttribute("aria-hidden", "true");
+        };
+
+        go.addEventListener("click", function () {
+            result.setAttribute("data-status", "clicked");
+            result.textContent = "clicked:" + (nameInput.value || "");
+        });
+    })();
+</script>
+</body>
+</html>
