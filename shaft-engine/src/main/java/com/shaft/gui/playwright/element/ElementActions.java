@@ -629,6 +629,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
             case SET_FILES -> locator.setInputFiles(Path.of(text));
             case PRESS_SEQUENTIALLY -> pressSequentially(locator, text, append, kind);
             case FILL -> locator.fill(text == null ? "" : text);
+            default -> throw new IllegalStateException("Unhandled Playwright type route: " + route);
         }
     }
 
@@ -642,14 +643,18 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
                     // Focus best-effort before select-all / sequential keys.
                 }
                 locator.press("ControlOrMeta+A");
+                if (typed.isEmpty()) {
+                    locator.press("Backspace");
+                    return;
+                }
             } else {
                 try {
                     locator.clear();
-                } catch (RuntimeException clearFailed) {
+                } catch (RuntimeException ignored) {
                     try {
                         locator.click();
                         locator.press("ControlOrMeta+A");
-                    } catch (RuntimeException ignored) {
+                    } catch (RuntimeException ignoredAgain) {
                         // Best-effort replace; sequential keys still attempt to land.
                     }
                 }
