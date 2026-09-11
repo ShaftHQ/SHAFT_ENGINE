@@ -94,6 +94,28 @@ public class ElementClassifierTest {
     }
 
     @Test
+    public void contentEditableRejectsArbitraryMockStrings() {
+        Assert.assertFalse(ElementClassifier.isContentEditableAttributeValue(null));
+        Assert.assertFalse(ElementClassifier.isContentEditableAttributeValue("false"));
+        Assert.assertFalse(ElementClassifier.isContentEditableAttributeValue("dom-contenteditable"));
+        Assert.assertFalse(ElementClassifier.isContentEditableAttributeValue("yes"));
+        Assert.assertTrue(ElementClassifier.isContentEditableAttributeValue(""));
+        Assert.assertTrue(ElementClassifier.isContentEditableAttributeValue("true"));
+        Assert.assertTrue(ElementClassifier.isContentEditableAttributeValue("TRUE"));
+        Assert.assertTrue(ElementClassifier.isContentEditableAttributeValue("plaintext-only"));
+        Assert.assertTrue(ElementClassifier.isContentEditableAttributeValue("contenteditable"));
+
+        WebElement mockedInput = mock(WebElement.class);
+        when(mockedInput.getTagName()).thenReturn("input");
+        when(mockedInput.getDomAttribute(anyString())).thenAnswer(invocation -> "dom-" + invocation.getArgument(0));
+        when(mockedInput.getDomAttribute("type")).thenReturn("text");
+        when(mockedInput.getDomProperty(anyString())).thenAnswer(invocation -> "dom-" + invocation.getArgument(0));
+        when(mockedInput.getAttribute(anyString())).thenAnswer(invocation -> "attr-" + invocation.getArgument(0));
+        // Coverage-style mocks must stay TEXT_LIKE / UNKNOWN, never CONTENTEDITABLE.
+        Assert.assertEquals(ElementClassifier.classify(mockedInput), ElementKind.TEXT_LIKE);
+    }
+
+    @Test
     public void typeRoutesDoNotBlindSendKeysForSpecialKinds() {
         Assert.assertEquals(TypeStrategies.routeFor(ElementKind.CHECKBOX), TypeStrategies.TypeRoute.TOGGLE_CLICK);
         Assert.assertEquals(TypeStrategies.routeFor(ElementKind.RADIO), TypeStrategies.TypeRoute.TOGGLE_CLICK);

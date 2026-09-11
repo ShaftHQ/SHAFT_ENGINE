@@ -160,12 +160,29 @@ public final class ElementClassifier {
     }
 
     private static boolean isContentEditable(WebElement element) {
-        String raw = safeDom(element, "contenteditable");
-        // HTML allows "", "true", and "plaintext-only"; "false" is not editable.
-        if (raw != null && !"false".equalsIgnoreCase(raw.trim())) {
+        if (isContentEditableAttributeValue(safeDom(element, "contenteditable"))) {
             return true;
         }
+        // Property path: only the boolean true string — mock junk like "dom-isContentEditable" must not match.
         return "true".equalsIgnoreCase(safeProperty(element, "isContentEditable"));
+    }
+
+    /**
+     * HTML contenteditable is on for "", "true", "plaintext-only", or the attribute name itself.
+     * Reject arbitrary non-empty strings so mocked getDomAttribute defaults cannot false-positive.
+     */
+    static boolean isContentEditableAttributeValue(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return true;
+        }
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        return "true".equals(lower)
+                || "plaintext-only".equals(lower)
+                || "contenteditable".equals(lower);
     }
 
     /**
