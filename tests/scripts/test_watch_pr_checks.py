@@ -344,5 +344,48 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
             self.assertIn(module, workflow)
 
 
+
+
+class WatchPrChecksSupersededCancelledTest(unittest.TestCase):
+    """#5753: cancelled PR Gate summaries must not false-stop delivery."""
+
+    def test_superseded_cancelled_same_name_is_not_red(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "PR Gate Summary", "state": "CANCELLED", "link": "https://checks/old"},
+                {"name": "PR Gate Summary", "state": "IN_PROGRESS", "link": "https://checks/new"},
+            ]
+        )
+        self.assertEqual("PENDING", bucket)
+        self.assertEqual([], failing)
+
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "PR Gate Summary", "state": "CANCELLED", "link": "https://checks/old"},
+                {"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/new"},
+                {"name": "Unit Tests", "state": "SUCCESS", "link": "https://checks/u"},
+            ]
+        )
+        self.assertEqual("GREEN", bucket)
+        self.assertEqual([], failing)
+
+    def test_lone_cancelled_without_successor_stays_red(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [{"name": "PR Gate Summary", "state": "CANCELLED", "link": "https://checks/only"}]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertEqual("PR Gate Summary", failing[0]["name"])
+
+    def test_collapse_prefers_pending_over_success_and_red(self):
+        effective = watch_pr_checks.collapse_checks_by_name(
+            [
+                {"name": "gate", "state": "FAILURE", "link": "https://a"},
+                {"name": "gate", "state": "SUCCESS", "link": "https://b"},
+                {"name": "gate", "state": "QUEUED", "link": "https://c"},
+            ]
+        )
+        self.assertEqual(1, len(effective))
+        self.assertEqual("QUEUED", effective[0]["state"])
+
 if __name__ == "__main__":
     unittest.main()

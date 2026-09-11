@@ -16,11 +16,15 @@
 #     SHA from ``gh pr view --json headRefOid``.
 #
 # CLASSIFICATION (per poll):
-#     RED     -- any check reports a failed/cancelled/timed-out-shaped
-#                state (see ``RED_STATES``; includes ``ACTION_REQUIRED``,
-#                which GitHub Apps such as Codacy use for a
-#                completed-but-failing run).
-#     GREEN   -- all checks are completed and none are RED.
+#     First collapse to one effective check per ``name``: drop
+#     ``CANCELLED`` when a same-named check is pending or successful
+#     (superseded workflow re-runs), then prefer PENDING > SUCCESS >
+#     remaining RED. See ``collapse_checks_by_name`` / #5753.
+#     RED     -- any effective check reports a failed/cancelled/timed-out-
+#                shaped state (see ``RED_STATES``; includes
+#                ``ACTION_REQUIRED``, which GitHub Apps such as Codacy use
+#                for a completed-but-failing run).
+#     GREEN   -- all effective checks are completed and none are RED.
 #     PENDING -- otherwise (some check is still queued/running); sleep
 #                ``--interval`` seconds and poll again, unless the poll
 #                budget is exhausted.
@@ -242,17 +246,63 @@ def poll_once(gh_executable: str, root: Path, repo: str, pr: int) -> list[dict]:
     raise CheckWatchError(f"gh pr checks failed: {proc.stderr.strip() or proc.stdout.strip()}")
 
 
+def collapse_checks_by_name(checks: list[dict]) -> list[dict]:
+    """Prefer one effective check per name, ignoring superseded cancellations.
+
+    When a required workflow is cancelled and replaced on the same head,
+    GitHub's rollup still lists the cancelled summary alongside the new
+    pending/successful run. Keep watching through that supersession: drop
+    ``CANCELLED`` entries whenever a same-named check is pending or
+    successful, then prefer PENDING > SUCCESS > remaining RED (#5753).
+    """
+    by_name: dict[str, list[dict]] = {}
+    for check in checks:
+        name = str(check.get("name", "")).strip() or ""
+        by_name.setdefault(name, []).append(check)
+
+    effective: list[dict] = []
+    for group in by_name.values():
+        non_cancelled = [
+            check
+            for check in group
+            if str(check.get("state", "")).upper() != "CANCELLED"
+        ]
+        chosen_group = non_cancelled if non_cancelled else group
+
+        pending = [
+            check
+            for check in chosen_group
+            if str(check.get("state", "")).upper() in PENDING_STATES
+        ]
+        if pending:
+            effective.append(pending[0])
+            continue
+        success = [
+            check
+            for check in chosen_group
+            if str(check.get("state", "")).upper() in SUCCESS_STATES
+        ]
+        if success:
+            effective.append(success[0])
+            continue
+        effective.append(chosen_group[0])
+    return effective
+
+
 def classify_checks(checks: list[dict]) -> tuple[str, list[dict]]:
     """Classify one poll's checks into RED, GREEN, or PENDING."""
     # Returns (bucket, failing_checks); failing_checks is only populated
     # for RED. An empty check list (nothing reported yet) is PENDING, not
-    # GREEN.
+    # GREEN. Collapse same-named superseded cancellations first (#5753).
     if not checks:
         return "PENDING", []
-    failing = [check for check in checks if str(check.get("state", "")).upper() in RED_STATES]
+    effective = collapse_checks_by_name(checks)
+    failing = [
+        check for check in effective if str(check.get("state", "")).upper() in RED_STATES
+    ]
     if failing:
         return "RED", failing
-    if any(str(check.get("state", "")).upper() in PENDING_STATES for check in checks):
+    if any(str(check.get("state", "")).upper() in PENDING_STATES for check in effective):
         return "PENDING", []
     return "GREEN", []
 
