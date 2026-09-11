@@ -146,19 +146,21 @@ class HostParity5698Tests(unittest.TestCase):
             source,
         )
 
-    def test_cli_owned_github_and_graphify_mcp_are_refused(self):
-        for server in ("github", "github-gh", "github_gh", "graphify"):
+    def test_cli_owned_graphify_mcp_is_refused_github_mcp_is_left_in_place(self):
+        for server in ("github", "github-gh", "github_gh"):
             with self.subTest(server=server):
-                error = self.policy.cli_owned_conflict_error([server])
-                self.assertIsNotNone(error)
-                self.assertIn("No duplicate GitHub MCP", error)
+                self.assertIsNone(self.policy.cli_owned_conflict_error([server]))
+        error = self.policy.cli_owned_conflict_error(["graphify"])
+        self.assertIsNotNone(error)
+        self.assertIn("Prefer gh for GitHub", error)
         self.assertIsNone(self.policy.cli_owned_conflict_error(["maven-tools-mcp"]))
         self.assertEqual(
             self.policy.HEAL_PROMPT,
-            "No duplicate GitHub MCP. Repair: disable extras in host MCP config.",
+            "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
+            "Leave an existing GitHub MCP config unchanged.",
         )
 
-    def test_doctor_collects_cli_owned_conflict_from_temp_mcp(self):
+    def test_existing_github_mcp_in_project_overlay_does_not_conflict(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             (project / ".mcp.json").write_text(
@@ -166,9 +168,20 @@ class HostParity5698Tests(unittest.TestCase):
                 encoding="utf-8",
             )
             ids = self.policy.collect_server_ids(project, home=project / "home")
-            error = self.policy.cli_owned_conflict_error(ids)
-            self.assertIsNotNone(error)
-            self.assertIn("github", error.casefold())
+            self.assertIsNone(self.policy.cli_owned_conflict_error(ids))
+            self.assertIsNone(self.policy.project_mcp_policy_error(project))
+
+    def test_default_owned_servers_never_include_github_mcp(self):
+        servers = self.hosts.owned_servers()
+        for name in servers:
+            self.assertFalse(self.policy.is_github_mcp_id(name), name)
+        before = json.dumps(
+            {"mcpServers": {"github": {"command": "npx"}, "keep-me": {"command": "echo"}}}
+        ).encode()
+        after = json.loads(self.hosts.json_content(before).decode("utf-8"))
+        self.assertEqual({"command": "npx"}, after["mcpServers"]["github"])
+        self.assertIn("chaosengine-memory", after["mcpServers"])
+        self.assertNotIn("github-gh", self.hosts.owned_servers())
 
     def test_instruction_block_matches_heal_prompt(self):
         block = self.hosts.instruction_block("chaos-engine")

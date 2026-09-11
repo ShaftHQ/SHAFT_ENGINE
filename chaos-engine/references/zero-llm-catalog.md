@@ -52,7 +52,7 @@ Prefer training-data CLIs over MCP schema tax when both can do the job:
 
 | Job | Prefer CLI | Avoid when CLI exists |
 | --- | --- | --- |
-| GitHub issues/PRs/checks | `gh` | GitHub MCP for the same call |
+| GitHub issues/PRs/checks | `gh` | GitHub MCP for the same call. Default install never publishes GitHub MCP. If a host already has GitHub MCP, leave it; still prefer `gh`. |
 | Learning queue/metrics | `learning.py` / `learning_session.py` | MCP wrappers around the same files |
 | Install health / repair | `install.py doctor|repair` / `--fix-next-only` | Chat discovery of doctor |
 | Delivery phase ledger | `phase_ledger.py` | MCP phase bookkeeping |

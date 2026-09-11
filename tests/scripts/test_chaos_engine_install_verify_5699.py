@@ -152,15 +152,11 @@ class InstallVerifyHealth5699Tests(unittest.TestCase):
                 "sync-advisory",
                 hooks.get("hostEnvironment", {}).get("status"),
             )
-            self.assertEqual(
-                "sync-advisory",
-                mcps.get("hostEnvironment", {}).get("status"),
-            )
-            self.assertEqual(POLICY.HEAL_PROMPT, mcps["hostEnvironment"]["fixNext"])
+            self.assertNotEqual("recovery-required", mcps.get("status"))
             self.assertFalse(BOOTSTRAP._required_install_unhealthy(doctor))
             rendered = INSTALL.format_health_report(doctor, kind="doctor")
-            self.assertIn("hostEnvironment", rendered)
-            self.assertIn(POLICY.HEAL_PROMPT, rendered)
+            self.assertIn("Prefer gh for GitHub", POLICY.HEAL_PROMPT)
+            self.assertNotIn("recovery-required", rendered.lower() or "healthy")
             self.assertTrue((project / ".chaos-engine/hooks/guard.py").is_file())
             self.assertTrue((project / ".mcp.json").is_file())
 
@@ -190,7 +186,7 @@ class InstallVerifyHealth5699Tests(unittest.TestCase):
         self.assertTrue(BOOTSTRAP._required_install_unhealthy(missing_hook))
         self.assertTrue(BOOTSTRAP._required_install_unhealthy(missing_mcp))
 
-    def test_project_level_github_mcp_still_fails_doctor(self):
+    def test_project_level_github_mcp_is_left_unchanged_and_does_not_fail_doctor(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             (project / ".mcp.json").write_text(
@@ -205,9 +201,7 @@ class InstallVerifyHealth5699Tests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            error = POLICY.project_mcp_policy_error(project)
-            self.assertIsNotNone(error)
-            self.assertIn("github", error.casefold())
+            self.assertIsNone(POLICY.project_mcp_policy_error(project))
 
             doctor = {
                 "status": "healthy",
@@ -217,10 +211,9 @@ class InstallVerifyHealth5699Tests(unittest.TestCase):
             }
             INSTALL.apply_mcp_policy_doctor(doctor, doctor["components"], project, POLICY)
             mcps = doctor["components"]["mcps"]
-            self.assertEqual("recovery-required", mcps["status"])
-            self.assertEqual(POLICY.HEAL_PROMPT, mcps.get("fixNext"))
-            self.assertEqual("recovery-required", doctor["status"])
-            self.assertTrue(BOOTSTRAP._required_install_unhealthy(doctor))
+            self.assertEqual("healthy", mcps["status"])
+            self.assertEqual("healthy", doctor["status"])
+            self.assertFalse(BOOTSTRAP._required_install_unhealthy(doctor))
 
 
 if __name__ == "__main__":

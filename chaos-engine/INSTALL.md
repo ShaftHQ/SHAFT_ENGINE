@@ -191,8 +191,8 @@ MCP alias pairs and non-owned host hook probes (for example Grok trust/loaded
 hooks, or a failed runtime hook probe when owned hook files are present) nest
 under `hostEnvironment` as `sync-advisory` findings with the existing heal
 prompt; they do not flip install-owned `hooks` / `mcps` to `recovery-required`
-and do not cause CE-INSTALL-FAILED. Project-overlay GitHub MCP duplicates still
-fail doctor (#5698). Memory, MemPalace, and Graphify are advisory to ordinary
+and do not cause CE-INSTALL-FAILED. Default MCP catalogs never include GitHub MCP; prefer `gh`. An existing GitHub
+MCP server is left unchanged and does not fail doctor. Memory, MemPalace, and Graphify are advisory to ordinary
 tasks but remain strict in `doctor`; an unhealthy selected store still returns
 `recovery-required`. Maven Tools MCP is auto-installed when the project has a
 root `pom.xml`. On non-Maven projects it stays optional and absent does not make
