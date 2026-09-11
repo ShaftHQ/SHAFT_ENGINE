@@ -335,6 +335,14 @@ public class JavaScriptWaitManagerUnitTest {
         Assert.assertTrue(afterSecondWindowEnds, "Should pass again once the quiet window elapses after the marker change");
     }
 
+    @Test(description = "Verify lazyLoadingDomStabilityQuietWindowMillis defaults to 0 and navigation DOM quiet defaults to 300")
+    public void testDomStabilityPropertyDefaults() {
+        Assert.assertEquals(SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis(), 0,
+                "cheap per-action DOM quiet window stays disabled by default");
+        Assert.assertEquals(SHAFT.Properties.timeouts.lazyLoadingDomStabilityOnNavigationQuietWindowMillis(), 300,
+                "navigation DOM quiet window defaults to 300ms");
+    }
+
     @Test(description = "Verify DOM stability is a no-op (always stable) when lazyLoadingDomStabilityQuietWindowMillis is 0 (default = today's behavior)")
     public void testDomStabilityDisabledWhenPropertyIsZero() throws Exception {
         int original = SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis();

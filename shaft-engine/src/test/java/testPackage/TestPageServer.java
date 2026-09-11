@@ -88,6 +88,24 @@ public final class TestPageServer {
         return sanitized.isBlank() ? "shaft-download.bin" : sanitized;
     }
 
+    private static void serveSse(HttpExchange exchange) {
+        try {
+            exchange.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
+            exchange.getResponseHeaders().set("Cache-Control", "no-cache");
+            exchange.sendResponseHeaders(200, 0);
+            OutputStream responseBody = exchange.getResponseBody();
+            responseBody.write("data: shaft-sse\n\n".getBytes(StandardCharsets.UTF_8));
+            responseBody.flush();
+            Thread.sleep(30_000L);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+        } catch (IOException ignored) {
+            // client disconnected
+        } finally {
+            exchange.close();
+        }
+    }
+
     private static void neverRespond(HttpExchange exchange) {
         try {
             // Hold past typical pageLoadTimeout used by failed-navigate proofs (2s) so
@@ -117,6 +135,7 @@ public final class TestPageServer {
                 newServer.createContext("/__never_respond", TestPageServer::neverRespond);
                 newServer.createContext("/__download", TestPageServer::serveDownload);
                 newServer.createContext("/__download_page", TestPageServer::serveDownloadPage);
+                newServer.createContext("/__sse", TestPageServer::serveSse);
                 newServer.setExecutor(Executors.newCachedThreadPool(runnable -> {
                     Thread thread = new Thread(runnable, "test-page-server");
                     thread.setDaemon(true);

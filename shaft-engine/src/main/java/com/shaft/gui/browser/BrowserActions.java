@@ -1330,7 +1330,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
             } else
                 // navigate to new url
                 browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), null, modifiedTargetUrl, targetUrlAfterRedirection);
-            JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
+            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
 
             // validate successful navigation
             if (!targetUrl.contains("\n")) {
@@ -1483,7 +1483,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                 case BACK -> driverFactoryHelper.getDriver().navigate().back();
                 case REFRESH -> driverFactoryHelper.getDriver().navigate().refresh();
             }
-            JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
+            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
             if (!navigationAction.equals(NavigationAction.REFRESH)) {
                 browserActionsHelper.waitUntilUrlIsNot(driverFactoryHelper.getDriver(), initialURL);
                 newURL = driverFactoryHelper.getDriver().getCurrentUrl();
@@ -2334,7 +2334,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions waitForLazyLoading() {
-        JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
+        JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
         return this;
     }
 

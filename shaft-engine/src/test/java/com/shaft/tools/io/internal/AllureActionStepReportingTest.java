@@ -93,8 +93,8 @@ public class AllureActionStepReportingTest extends Tests {
 
     @Test
     public void failedNavigateStillWritesExactlyOneFailedOrBrokenAllureStep() throws IOException {
-        // SHAFT defaults pageLoadStrategy=none and readinessState=none, so get()
-        // returns before the document exists. Recreate a driver that waits, then
+        // Hang-path coverage still forces pageLoadStrategy=normal and readinessState=complete
+        // so get() waits for a full document load. Recreate a driver that waits, then
         // hit the local TestPageServer never-respond URL (no live network). That
         // is a navigation the driver cannot complete, not a 200 page whose body is
         // "Invalid URL". Bound the withheld response: Safari forever mid-load made
