@@ -62,6 +62,11 @@
 focus → <code>sendKeys</code> / <code>mobile: replaceElementValue</code> / <code>mobile: type</code>,
 W3C touch click fallback, and checkbox/switch toggle semantics.
 
+<p>Wave E covers Windows desktop (WinAppDriver / UIA): Edit/Document click→clear→sendKeys
+(<code>windows: keys</code> fallback; <code>Value.Value</code> observed when present), Button/Hyperlink
+Invoke via click/<code>windows: click</code>, CheckBox/RadioButton toggle (not sendKeys), ComboBox
+expand → type-to-filter → Enter, and Window/Pane foreground focus before type.
+
 <p>Compose: enable <code>testTagsAsResourceId</code> and tap before type.
 Flutter: prefer ValueKey/Semantics; type after focus.</div>
 </section>
@@ -92,7 +97,8 @@ Flutter: prefer ValueKey/Semantics; type after focus.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="ElementClassifier.html" title="class in com.shaft.gui.element.internal.interaction">ElementClassifier</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">
-<div class="block">Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags.</div>
+<div class="block">Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags,
+Appium mobile class names, and Windows/UIA ControlType tokens.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab3"><a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab3">
@@ -108,17 +114,21 @@ and Playwright locator evaluate results (epic #5732).</div>
 <div class="block">Routes <code>type</code> by <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction"><code>ElementKind</code></a> so checkbox/radio/select/file/date/contenteditable
 never take the blind clear+sendKeys path.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeStrategies.MobileTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.MobileTypeRoute</a></div>
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeStrategies.DesktopTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.DesktopTypeRoute</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="block">Windows desktop / UIA type routes (Wave E).</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeStrategies.MobileTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.MobileTypeRoute</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">Mobile-native type routes (Wave D).</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeStrategies.PlaywrightTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeStrategies.PlaywrightTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
 <div class="block">Playwright <code>type()</code> routes (Wave C): plain inputs stay <a href="TypeStrategies.PlaywrightTypeRoute.html#FILL"><code>TypeStrategies.PlaywrightTypeRoute.FILL</code></a>;
 contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PRESS_SEQUENTIALLY"><code>TypeStrategies.PlaywrightTypeRoute.PRESS_SEQUENTIALLY</code></a>.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeStrategies.TypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">&nbsp;</div>
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeStrategies.TypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">&nbsp;</div>
 </div>
 </div>
 </div>

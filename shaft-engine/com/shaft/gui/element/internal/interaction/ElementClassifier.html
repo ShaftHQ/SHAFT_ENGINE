@@ -50,6 +50,7 @@
 <ol class="toc-list">
 <li><a href="#classify(org.openqa.selenium.WebElement)" tabindex="0">classify(WebElement)</a></li>
 <li><a href="#classify(com.shaft.gui.element.internal.interaction.ElementSignals)" tabindex="0">classify(ElementSignals)</a></li>
+<li><a href="#isWindowsFocusSurface(org.openqa.selenium.WebElement)" tabindex="0">isWindowsFocusSurface(WebElement)</a></li>
 <li><a href="#fromEvaluateMap(java.util.Map)" tabindex="0">fromEvaluateMap(Map)</a></li>
 <li><a href="#looksMasked(com.shaft.gui.element.internal.interaction.ElementSignals)" tabindex="0">looksMasked(ElementSignals)</a></li>
 </ol>
@@ -69,9 +70,10 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">ElementClassifier</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags.
+<div class="block">Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags,
+Appium mobile class names, and Windows/UIA ControlType tokens.
 Conservative by design — ambiguous custom widgets return <a href="ElementKind.html#UNKNOWN"><code>ElementKind.UNKNOWN</code></a>.
-Shared by Selenium Wave B and Playwright Wave C (#5732).</div>
+Shared by Selenium Wave B, Playwright Wave C, mobile Wave D, and desktop Wave E (#5732).</div>
 </div>
 </section>
 <section class="summary">
@@ -101,8 +103,13 @@ Shared by Selenium Wave B and Playwright Wave C (#5732).</div>
 <div class="block">Build signals from a Playwright-style evaluate result map (string keys, scalar values).</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#looksMasked(com.shaft.gui.element.internal.interaction.ElementSignals)" class="member-name-link">looksMasked</a><wbr>(<a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a>&nbsp;signals)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isWindowsFocusSurface(org.openqa.selenium.WebElement)" class="member-name-link">isWindowsFocusSurface</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">True when tag/class looks like a UIA Window or Pane (foreground / focus surface).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#looksMasked(com.shaft.gui.element.internal.interaction.ElementSignals)" class="member-name-link">looksMasked</a><wbr>(<a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a>&nbsp;signals)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Conservative masked / OTP / input-mask heuristic for Playwright sequential typing.</div>
 </div>
 </div>
@@ -136,6 +143,15 @@ Shared by Selenium Wave B and Playwright Wave C (#5732).</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a></span>&nbsp;<span class="element-name">classify</span><wbr><span class="parameters">(<a href="ElementSignals.html" title="class in com.shaft.gui.element.internal.interaction">ElementSignals</a>&nbsp;signals)</span></div>
 <div class="block">Classify from pre-read DOM signals (Playwright evaluate map or Selenium attribute reads).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isWindowsFocusSurface(org.openqa.selenium.WebElement)">
+<h3>isWindowsFocusSurface</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isWindowsFocusSurface</span><wbr><span class="parameters">(org.openqa.selenium.WebElement&nbsp;element)</span></div>
+<div class="block">True when tag/class looks like a UIA Window or Pane (foreground / focus surface).</div>
 </div>
 </section>
 </li>
