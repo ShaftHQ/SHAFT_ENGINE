@@ -45,8 +45,9 @@ public final class ClickStrategies {
         }
         try {
             element.click();
-        } catch (InvalidElementStateException firstFailure) {
+        } catch (RuntimeException firstFailure) {
             if (mobileNativeTouchFallback) {
+                // Broader than web: Appium often wraps click flakes outside InvalidElementStateException.
                 stabilizeMobile(driver, element);
                 try {
                     element.click();
@@ -56,6 +57,9 @@ public final class ClickStrategies {
                             "Performed Click using W3C touch tap after WebDriver click failed on mobile native.");
                 }
                 return;
+            }
+            if (!(firstFailure instanceof InvalidElementStateException)) {
+                throw firstFailure;
             }
             stabilize(driver, element);
             try {

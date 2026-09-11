@@ -148,7 +148,40 @@ public class MobileInteractionStrategiesTest {
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
             new Actions(helperFor(driver)).type(LOCATOR, "compose-text");
             verify(driver).executeScript(eq("mobile: type"), any(Map.class));
+            // clearBeforeTypingMode defaults to off on mobile — must not wipe via replaceElementValue
+            verify((CanReplaceElementValue) driver, never()).replaceElementValue(any(), anyString());
         }
+    }
+
+    @Test
+    public void typeWithNativeClearMayUseReplaceElementValue() {
+        SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
+        AppiumDriver driver = mockAppiumDriver();
+        RemoteWebElement element = mock(RemoteWebElement.class);
+        when(element.isDisplayed()).thenReturn(true);
+        when(element.isEnabled()).thenReturn(true);
+        when(element.getTagName()).thenReturn("android.widget.EditText");
+        when(element.getAttribute(anyString())).thenReturn(null);
+        when(element.getDomAttribute(anyString())).thenReturn(null);
+        when(element.getDomProperty(anyString())).thenReturn(null);
+        when(element.getText()).thenReturn("");
+        when(element.getRect()).thenReturn(new Rectangle(10, 20, 40, 60));
+        when(element.getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        doThrow(new InvalidElementStateException("sendKeys blocked")).when(element).sendKeys(any(CharSequence[].class));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "replaced");
+            verify((CanReplaceElementValue) driver).replaceElementValue(eq(element), eq("replaced"));
+        }
+    }
+
+    @Test
+    public void mobileRouteRejectsRangeAndDate() {
+        Assert.assertEquals(TypeStrategies.mobileRouteFor(ElementKind.RANGE),
+                TypeStrategies.MobileTypeRoute.REJECT);
+        Assert.assertEquals(TypeStrategies.mobileRouteFor(ElementKind.DATE_LIKE),
+                TypeStrategies.MobileTypeRoute.REJECT);
     }
 
     @Test
@@ -231,7 +264,7 @@ public class MobileInteractionStrategiesTest {
         RemoteWebElement element = mock(RemoteWebElement.class);
         doThrow(new InvalidElementStateException("sendKeys blocked")).when(element).sendKeys(any(CharSequence[].class));
 
-        TypeStrategies.typeMobileText(driver, element, new CharSequence[]{"via-replace"});
+        TypeStrategies.typeMobileText(driver, element, new CharSequence[]{"via-replace"}, true);
         verify((CanReplaceElementValue) driver).replaceElementValue(eq(element), eq("via-replace"));
     }
 

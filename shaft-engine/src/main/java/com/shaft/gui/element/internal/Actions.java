@@ -764,7 +764,13 @@ public class Actions extends ElementActions {
                         String expectedText = shouldValidateTypedText
                                 ? readElementValueForTyping(targetElement) + stringifyTypedValue(text)
                                 : "";
-                        targetElement.sendKeys(text);
+                        if (isMobileNativeExecution) {
+                            ClickStrategies.focusTap(d, targetElement);
+                            TypeStrategies.typeMobileText(d, targetElement, text, false);
+                            TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
+                        } else {
+                            targetElement.sendKeys(text);
+                        }
                         validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                     }
                     case JAVASCRIPT_SET_VALUE ->
@@ -1182,8 +1188,11 @@ public class Actions extends ElementActions {
             executeClearBasedOnClearMode(targetElement, clearMode);
         }
 
-        if (mobileRoute == TypeStrategies.MobileTypeRoute.MOBILE_TEXT) {
-            TypeStrategies.typeMobileText(d, targetElement, text);
+        // replaceElementValue wipes the field — only when clear mode is not "off" (mobile default is off).
+        boolean replaceAllowed = !"off".equals(clearMode);
+        if (mobileRoute == TypeStrategies.MobileTypeRoute.MOBILE_TEXT
+                || mobileRoute == TypeStrategies.MobileTypeRoute.LEGACY_SEND_KEYS) {
+            TypeStrategies.typeMobileText(d, targetElement, text, replaceAllowed);
         } else {
             targetElement.sendKeys(text);
         }

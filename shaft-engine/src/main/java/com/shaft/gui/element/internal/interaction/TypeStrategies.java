@@ -100,9 +100,9 @@ public final class TypeStrategies {
     public static MobileTypeRoute mobileRouteFor(ElementKind kind) {
         return switch (kind) {
             case CHECKBOX, RADIO -> MobileTypeRoute.TOGGLE_CLICK;
-            case DISABLED, READONLY, IFRAME, FILE, SELECT -> MobileTypeRoute.REJECT;
-            case TEXT_LIKE, COMBOBOX, DATE_LIKE, RANGE, COLOR, CONTENTEDITABLE, UNKNOWN ->
-                    MobileTypeRoute.MOBILE_TEXT;
+            // SeekBar/slider/date/color need platform value APIs — do not pretend sendKeys works.
+            case DISABLED, READONLY, IFRAME, FILE, SELECT, RANGE, DATE_LIKE, COLOR -> MobileTypeRoute.REJECT;
+            case TEXT_LIKE, COMBOBOX, CONTENTEDITABLE, UNKNOWN -> MobileTypeRoute.MOBILE_TEXT;
             case BUTTON, LINK -> MobileTypeRoute.LEGACY_SEND_KEYS;
         };
     }
@@ -186,10 +186,18 @@ public final class TypeStrategies {
 
     /**
      * Mobile native text entry after the caller has focused (and optionally cleared) the field.
-     * Ladder: {@code sendKeys} → Android {@code mobile: replaceElementValue} → {@code mobile: type}.
-     * Compose/Flutter rejections without focus surface an actionable error.
+     * Ladder: {@code sendKeys} → Android {@code mobile: replaceElementValue} (replace/clear modes only)
+     * → {@code mobile: type}. Compose/Flutter rejections without focus surface an actionable error.
+     *
+     * @param replaceAllowed when false ({@code clearBeforeTypingMode=off} / append), skip
+     *                       {@code replaceElementValue} so existing text is not wiped
      */
     public static void typeMobileText(WebDriver driver, WebElement element, CharSequence[] text) {
+        typeMobileText(driver, element, text, true);
+    }
+
+    public static void typeMobileText(WebDriver driver, WebElement element, CharSequence[] text,
+                                      boolean replaceAllowed) {
         String typed = stringify(text);
         RuntimeException lastFailure = null;
 
@@ -201,7 +209,9 @@ public final class TypeStrategies {
             ReportManager.logDiscrete("mobile sendKeys failed; trying platform setValue / mobile: type.");
         }
 
-        if (driver instanceof CanReplaceElementValue replacer && element instanceof RemoteWebElement remote) {
+        if (replaceAllowed
+                && driver instanceof CanReplaceElementValue replacer
+                && element instanceof RemoteWebElement remote) {
             try {
                 replacer.replaceElementValue(remote, typed);
                 return;
@@ -222,14 +232,6 @@ public final class TypeStrategies {
         }
 
         throw actionableMobileTypeFailure(element, lastFailure);
-    }
-
-    /**
-     * Focus (tap) then type for mobile native text-like controls.
-     */
-    public static void focusAndTypeMobile(WebDriver driver, WebElement element, CharSequence[] text) {
-        ClickStrategies.focusTap(driver, element);
-        typeMobileText(driver, element, text);
     }
 
     public static void hideKeyboardIfConfigured(WebDriver driver, boolean hideKeyboardAfterTyping) {
