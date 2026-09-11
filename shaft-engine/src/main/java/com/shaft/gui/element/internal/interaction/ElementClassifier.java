@@ -81,12 +81,30 @@ public final class ElementClassifier {
     }
 
     private static ElementKind classifyInput(String type, String role) {
+        ElementKind toggle = classifyToggleInput(type, role);
+        if (toggle != null) {
+            return toggle;
+        }
+        ElementKind special = classifySpecialInput(type, role);
+        if (special != null) {
+            return special;
+        }
+        return classifyButtonOrTextInput(type);
+    }
+
+    /** Checkbox / radio input type or role. Returns null when not a toggle. */
+    private static ElementKind classifyToggleInput(String type, String role) {
         if ("checkbox".equals(type) || "checkbox".equals(role)) {
             return ElementKind.CHECKBOX;
         }
         if ("radio".equals(type) || "radio".equals(role)) {
             return ElementKind.RADIO;
         }
+        return null;
+    }
+
+    /** File / date / range / color. Returns null when not a special input. */
+    private static ElementKind classifySpecialInput(String type, String role) {
         if ("file".equals(type)) {
             return ElementKind.FILE;
         }
@@ -99,10 +117,15 @@ public final class ElementClassifier {
         if ("color".equals(type)) {
             return ElementKind.COLOR;
         }
+        return null;
+    }
+
+    /** Button-like or text-like input types; unknown types stay UNKNOWN. */
+    private static ElementKind classifyButtonOrTextInput(String type) {
         if (BUTTON_INPUT_TYPES.contains(type)) {
             return ElementKind.BUTTON;
         }
-        if (TEXT_INPUT_TYPES.contains(type) || type == null) {
+        if (type == null || TEXT_INPUT_TYPES.contains(type)) {
             return ElementKind.TEXT_LIKE;
         }
         // Unknown input type (e.g. custom) — do not guess.
