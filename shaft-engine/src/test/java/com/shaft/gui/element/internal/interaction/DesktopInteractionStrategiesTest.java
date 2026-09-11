@@ -194,6 +194,36 @@ public class DesktopInteractionStrategiesTest {
     }
 
     @Test
+    public void typeAlreadySelectedRadioWithToggleStateDoesNotFail() {
+        WindowsDriver driver = mockWindowsDriver();
+        WebElement element = uiaElement("ControlType.RadioButton");
+        when(element.isSelected()).thenReturn(true, true);
+        when(element.getAttribute("Toggle.ToggleState")).thenReturn("On");
+        when(element.getDomAttribute("Toggle.ToggleState")).thenReturn("On");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "ignored");
+            verify(element).click();
+            verify(element, never()).sendKeys(any(CharSequence[].class));
+        }
+    }
+
+    @Test
+    public void typeAppendComboBoxExpandsFiltersAndEnters() {
+        WindowsDriver driver = mockWindowsDriver();
+        WebElement element = uiaElement("ControlType.ComboBox");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).typeAppend(LOCATOR, "Option B");
+            verify(element).click();
+            verify(element).sendKeys(eq("Option B"));
+            verify(element).sendKeys(Keys.ENTER);
+        }
+    }
+
+    @Test
     public void typeWindowOnlyEnsuresForeground() {
         WindowsDriver driver = mockWindowsDriver();
         WebElement element = uiaElement("ControlType.Window");

@@ -198,11 +198,18 @@ public final class TypeStrategies {
         if (!selectedObservable && !toggleAttrObservable) {
             return;
         }
-        // Already-selected radio is often idempotent under UIA click — do not fail.
+        // Already-selected radio is often idempotent under UIA click — do not fail
+        // even when Toggle.ToggleState stays On/1.
         if (kind == ElementKind.RADIO
                 && Boolean.TRUE.equals(beforeSelected)
-                && Boolean.TRUE.equals(afterSelected)
-                && !toggleAttrObservable) {
+                && Boolean.TRUE.equals(afterSelected)) {
+            return;
+        }
+        if (kind == ElementKind.RADIO
+                && toggleAttrObservable
+                && isToggleOnToken(beforeToggle)
+                && isToggleOnToken(afterToggle)
+                && !selectedObservable) {
             return;
         }
         boolean selectedChanged = selectedObservable && !beforeSelected.equals(afterSelected);
@@ -219,6 +226,14 @@ public final class TypeStrategies {
 
     private static boolean nonBlank(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private static boolean isToggleOnToken(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String lower = raw.trim().toLowerCase(Locale.ROOT);
+        return "on".equals(lower) || "1".equals(lower) || "true".equals(lower);
     }
 
     private static Boolean tryIsSelected(WebElement element) {

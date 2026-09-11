@@ -769,16 +769,19 @@ public class Actions extends ElementActions {
                         String expectedText = shouldValidateTypedText
                                 ? readElementValueForTyping(targetElement) + stringifyTypedValue(text)
                                 : "";
+                        boolean textWasTyped = true;
                         if (isMobileNativeExecution) {
                             ClickStrategies.focusTap(d, targetElement);
                             TypeStrategies.typeMobileText(d, targetElement, text, false);
                             TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
                         } else if (isWindowsDesktopExecution) {
-                            performWindowsDesktopTypeAppend(d, targetElement, text);
+                            textWasTyped = performWindowsDesktopTypeAppend(d, targetElement, text);
                         } else {
                             targetElement.sendKeys(text);
                         }
-                        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+                        if (textWasTyped) {
+                            validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+                        }
                     }
                     case JAVASCRIPT_SET_VALUE ->
                             ((JavascriptExecutor) d).executeScript("""
@@ -1262,30 +1265,33 @@ public class Actions extends ElementActions {
 
     /**
      * Wave E append path: same kind routing as {@link #performWindowsDesktopType} without clear.
+     *
+     * @return true when text was typed (caller may validate); false for toggle / focus-surface / reject paths
      */
-    private void performWindowsDesktopTypeAppend(WebDriver d, WebElement targetElement, CharSequence[] text) {
+    private boolean performWindowsDesktopTypeAppend(WebDriver d, WebElement targetElement, CharSequence[] text) {
         if (ElementClassifier.isWindowsFocusSurface(targetElement)) {
             ClickStrategies.focusWindows(d, targetElement);
             ReportManager.logDiscrete(
                     "typeAppend() on UIA Window/Pane ensured foreground focus; sendKeys skipped on focus surface.");
-            return;
+            return false;
         }
         ElementKind kind = ElementClassifier.classify(targetElement);
         TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
         if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
             TypeStrategies.rejectUnsupported(kind);
-            return;
+            return false;
         }
         if (desktopRoute == TypeStrategies.DesktopTypeRoute.TOGGLE_CLICK) {
             TypeStrategies.toggleDesktopInsteadOfTyping(d, targetElement, kind);
-            return;
+            return false;
         }
         if (desktopRoute == TypeStrategies.DesktopTypeRoute.COMBOBOX) {
             TypeStrategies.typeDesktopCombobox(d, targetElement, text);
-            return;
+            return true;
         }
         ClickStrategies.focusWindows(d, targetElement);
         TypeStrategies.typeDesktopText(d, targetElement, text);
+        return true;
     }
 
     private void executeClearBasedOnClearMode(WebElement elem, String clearMode) {
