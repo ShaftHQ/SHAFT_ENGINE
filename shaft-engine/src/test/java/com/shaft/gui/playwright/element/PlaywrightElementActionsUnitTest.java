@@ -17,6 +17,7 @@ import org.testng.annotations.Test;
 import org.testng.annotations.AfterMethod;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -76,6 +77,11 @@ public class PlaywrightElementActionsUnitTest {
         when(session.page()).thenReturn(page);
         when(page.locator(anyString())).thenReturn(locator);
         when(locator.count()).thenReturn(1);
+        when(locator.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT",
+                "type", "email",
+                "role", "",
+                "isContentEditable", "false"));
 
         ElementActions actions = new ElementActions(session);
 
@@ -83,6 +89,7 @@ public class PlaywrightElementActionsUnitTest {
         Assert.assertSame(actions.type("Email", "user@example.com"), actions);
         verify(locator).click();
         verify(locator).fill("user@example.com");
+        verify(locator, never()).pressSequentially(anyString());
     }
 
     @Test

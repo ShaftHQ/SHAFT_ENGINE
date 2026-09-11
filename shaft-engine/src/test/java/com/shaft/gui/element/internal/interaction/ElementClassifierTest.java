@@ -77,7 +77,8 @@ public class ElementClassifierTest {
 
     @Test
     public void nullElementIsUnknown() {
-        Assert.assertEquals(ElementClassifier.classify(null), ElementKind.UNKNOWN);
+        Assert.assertEquals(ElementClassifier.classify((WebElement) null), ElementKind.UNKNOWN);
+        Assert.assertEquals(ElementClassifier.classify((ElementSignals) null), ElementKind.UNKNOWN);
     }
 
     @Test
