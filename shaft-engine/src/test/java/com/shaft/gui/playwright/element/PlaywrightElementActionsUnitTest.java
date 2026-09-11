@@ -115,11 +115,18 @@ public class PlaywrightElementActionsUnitTest {
     public void typeAppendShouldFillCurrentValueInOneOperation() {
         PlaywrightSession session = mock(PlaywrightSession.class);
         Locator locator = mock(Locator.class);
+        // Stub evaluate so TEXT_LIKE → fill is proven (not UNKNOWN fill-fallback).
+        when(locator.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT",
+                "type", "text",
+                "role", "",
+                "isContentEditable", "false"));
         when(locator.inputValue()).thenReturn("frontend");
 
         ElementActions actions = new ElementActions(session);
 
         Assert.assertSame(actions.typeAppend(locator, " backend"), actions);
+        verify(locator).evaluate(anyString());
         verify(locator).fill("frontend backend");
         verify(locator, never()).pressSequentially(anyString());
     }
