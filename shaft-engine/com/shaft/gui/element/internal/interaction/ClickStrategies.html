@@ -49,6 +49,8 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#click(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind,boolean)" tabindex="0">click(WebDriver, WebElement, ElementKind, boolean)</a></li>
+<li><a href="#click(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind,boolean,boolean)" tabindex="0">click(WebDriver, WebElement, ElementKind, boolean, boolean)</a></li>
+<li><a href="#focusTap(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement)" tabindex="0">focusTap(WebDriver, WebElement)</a></li>
 </ol>
 </li>
 </ol>
@@ -67,7 +69,8 @@
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">ClickStrategies</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
 <div class="block">Selenium click ladder: native click → optional scroll/stabilize retry → flagged JS fallback.
-When JS fallback is off, the native <code>InvalidElementStateException</code> is preserved.</div>
+Mobile native (#5732 Wave D): native click → W3C touch tap when WebDriver click flakes
+(does not change desktop/web defaults; JS fallback stays web-oriented).</div>
 </div>
 </section>
 <section class="summary">
@@ -89,6 +92,19 @@ When JS fallback is off, the native <code>InvalidElementStateException</code> is
  <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind,
  boolean&nbsp;javascriptFallbackEnabled)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#click(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind,boolean,boolean)" class="member-name-link">click</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind,
+ boolean&nbsp;javascriptFallbackEnabled,
+ boolean&nbsp;mobileNativeTouchFallback)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#focusTap(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement)" class="member-name-link">focusTap</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Best-effort focus tap for mobile typing: WebDriver click, then W3C touch if needed.</div>
+</div>
 </div>
 </div>
 </div>
@@ -114,6 +130,33 @@ When JS fallback is off, the native <code>InvalidElementStateException</code> is
  org.openqa.selenium.WebElement&nbsp;element,
  <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind,
  boolean&nbsp;javascriptFallbackEnabled)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="click(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind,boolean,boolean)">
+<h3>click</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">click</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind,
+ boolean&nbsp;javascriptFallbackEnabled,
+ boolean&nbsp;mobileNativeTouchFallback)</span></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>mobileNativeTouchFallback</code> - when true (mobile native only), retry failed clicks with a W3C
+                                 touch tap instead of JavaScript click</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="focusTap(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement)">
+<h3>focusTap</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">focusTap</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element)</span></div>
+<div class="block">Best-effort focus tap for mobile typing: WebDriver click, then W3C touch if needed.</div>
 </div>
 </section>
 </li>

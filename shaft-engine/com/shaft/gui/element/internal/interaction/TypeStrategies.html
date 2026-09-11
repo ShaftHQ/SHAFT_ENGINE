@@ -50,12 +50,18 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#routeFor(com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">routeFor(ElementKind)</a></li>
+<li><a href="#mobileRouteFor(com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">mobileRouteFor(ElementKind)</a></li>
 <li><a href="#playwrightRouteFor(com.shaft.gui.element.internal.interaction.ElementKind,boolean)" tabindex="0">playwrightRouteFor(ElementKind, boolean)</a></li>
 <li><a href="#rejectUnsupported(com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">rejectUnsupported(ElementKind)</a></li>
 <li><a href="#toggleInsteadOfTyping(org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">toggleInsteadOfTyping(WebElement, ElementKind)</a></li>
+<li><a href="#toggleMobileInsteadOfTyping(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" tabindex="0">toggleMobileInsteadOfTyping(WebDriver, WebElement, ElementKind)</a></li>
 <li><a href="#setValueWithEvents(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">setValueWithEvents(WebDriver, WebElement, String)</a></li>
 <li><a href="#typeContentEditable(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D,boolean)" tabindex="0">typeContentEditable(WebDriver, WebElement, CharSequence[], boolean)</a></li>
 <li><a href="#sendKeysFilePath(org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">sendKeysFilePath(WebElement, String)</a></li>
+<li><a href="#typeMobileText(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D)" tabindex="0">typeMobileText(WebDriver, WebElement, CharSequence[])</a></li>
+<li><a href="#typeMobileText(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D,boolean)" tabindex="0">typeMobileText(WebDriver, WebElement, CharSequence[], boolean)</a></li>
+<li><a href="#hideKeyboardIfConfigured(org.openqa.selenium.WebDriver,boolean)" tabindex="0">hideKeyboardIfConfigured(WebDriver, boolean)</a></li>
+<li><a href="#stringify(java.lang.CharSequence%5B%5D)" tabindex="0">stringify(CharSequence[])</a></li>
 </ol>
 </li>
 </ol>
@@ -74,7 +80,13 @@
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">TypeStrategies</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
 <div class="block">Routes <code>type</code> by <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction"><code>ElementKind</code></a> so checkbox/radio/select/file/date/contenteditable
-never take the blind clear+sendKeys path. Unknown kinds stay on the legacy caller path.</div>
+never take the blind clear+sendKeys path. Unknown kinds stay on the legacy caller path.
+Mobile native (#5732 Wave D): focus → setValue / sendKeys / <code>mobile: type</code> → optional hideKeyboard.
+
+<p><b>Compose / Flutter notes:</b> Jetpack Compose TextFields often reject setValue/sendKeys until
+focused (enable <code>testTagsAsResourceId</code> and tap first). Flutter TextFields need ValueKey /
+Semantics identifiers; after focus prefer driver sendKeys or <code>flutter:*</code> enter-text helpers.
+When setValue is rejected without focus, SHAFT throws an actionable <code>InvalidElementStateException</code>.</div>
 </div>
 </section>
 <section class="summary">
@@ -89,14 +101,19 @@ never take the blind clear+sendKeys path. Unknown kinds stay on the legacy calle
 <div class="table-header col-second">Class</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="TypeStrategies.PlaywrightTypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></code></div>
+<div class="col-second even-row-color"><code><a href="TypeStrategies.MobileTypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.MobileTypeRoute</a></code></div>
 <div class="col-last even-row-color">
+<div class="block">Mobile-native type routes (Wave D).</div>
+</div>
+<div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="TypeStrategies.PlaywrightTypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Playwright <code>type()</code> routes (Wave C): plain inputs stay <a href="TypeStrategies.PlaywrightTypeRoute.html#FILL"><code>TypeStrategies.PlaywrightTypeRoute.FILL</code></a>;
 contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PRESS_SEQUENTIALLY"><code>TypeStrategies.PlaywrightTypeRoute.PRESS_SEQUENTIALLY</code></a>.</div>
 </div>
-<div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="TypeStrategies.TypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="TypeStrategies.TypeRoute.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></code></div>
+<div class="col-last even-row-color">&nbsp;</div>
 </div>
 </section>
 </li>
@@ -111,6 +128,13 @@ contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PR
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hideKeyboardIfConfigured(org.openqa.selenium.WebDriver,boolean)" class="member-name-link">hideKeyboardIfConfigured</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ boolean&nbsp;hideKeyboardAfterTyping)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeStrategies.MobileTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.MobileTypeRoute</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#mobileRouteFor(com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">mobileRouteFor</a><wbr>(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeStrategies.PlaywrightTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.PlaywrightTypeRoute</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#playwrightRouteFor(com.shaft.gui.element.internal.interaction.ElementKind,boolean)" class="member-name-link">playwrightRouteFor</a><wbr>(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind,
  boolean&nbsp;masked)</code></div>
@@ -132,10 +156,20 @@ contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PR
  org.openqa.selenium.WebElement&nbsp;element,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#toggleInsteadOfTyping(org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">toggleInsteadOfTyping</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
- <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stringify(java.lang.CharSequence%5B%5D)" class="member-name-link">stringify</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>[]&nbsp;text)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#toggleInsteadOfTyping(org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">toggleInsteadOfTyping</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#toggleMobileInsteadOfTyping(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)" class="member-name-link">toggleMobileInsteadOfTyping</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Mobile checkbox/switch/radio: toggle via click/tap, never sendKeys.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#typeContentEditable(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D,boolean)" class="member-name-link">typeContentEditable</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  org.openqa.selenium.WebElement&nbsp;element,
@@ -143,6 +177,21 @@ contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PR
  boolean&nbsp;clearBefore)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Focus then insert text without <code>WebElement.clear()</code>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#typeMobileText(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D)" class="member-name-link">typeMobileText</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>[]&nbsp;text)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Mobile native text entry after the caller has focused (and optionally cleared) the field.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#typeMobileText(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence%5B%5D,boolean)" class="member-name-link">typeMobileText</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>[]&nbsp;text,
+ boolean&nbsp;replaceAllowed)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Mobile native text entry after the caller has focused (and optionally cleared) the field.</div>
 </div>
 </div>
 </div>
@@ -166,6 +215,14 @@ contenteditable / masked use <a href="TypeStrategies.PlaywrightTypeRoute.html#PR
 <h3>routeFor</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TypeStrategies.TypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.TypeRoute</a></span>&nbsp;<span class="element-name">routeFor</span><wbr><span class="parameters">(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="mobileRouteFor(com.shaft.gui.element.internal.interaction.ElementKind)">
+<h3>mobileRouteFor</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TypeStrategies.MobileTypeRoute.html" title="enum class in com.shaft.gui.element.internal.interaction">TypeStrategies.MobileTypeRoute</a></span>&nbsp;<span class="element-name">mobileRouteFor</span><wbr><span class="parameters">(<a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</span></div>
 </div>
 </section>
 </li>
@@ -198,6 +255,17 @@ button / link paths (contenteditable always sequential).</div>
 </section>
 </li>
 <li>
+<section class="detail" id="toggleMobileInsteadOfTyping(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,com.shaft.gui.element.internal.interaction.ElementKind)">
+<h3>toggleMobileInsteadOfTyping</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">toggleMobileInsteadOfTyping</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="ElementKind.html" title="enum class in com.shaft.gui.element.internal.interaction">ElementKind</a>&nbsp;kind)</span></div>
+<div class="block">Mobile checkbox/switch/radio: toggle via click/tap, never sendKeys.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="setValueWithEvents(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)">
 <h3>setValueWithEvents</h3>
 <div class="horizontal-scroll">
@@ -226,6 +294,56 @@ replaces existing content via documented JS insert; otherwise appends with sendK
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">sendKeysFilePath</span><wbr><span class="parameters">(org.openqa.selenium.WebElement&nbsp;element,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;absoluteFilePath)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="typeMobileText(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence[])">
+<h3>typeMobileText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">typeMobileText</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>[]&nbsp;text)</span></div>
+<div class="block">Mobile native text entry after the caller has focused (and optionally cleared) the field.
+Ladder: <code>sendKeys</code> → Android <code>mobile: replaceElementValue</code> (replace/clear modes only)
+→ <code>mobile: type</code>. Compose/Flutter rejections without focus surface an actionable error.
+Defaults to replace-allowed (<code>replaceAllowed=true</code>).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="typeMobileText(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.CharSequence[],boolean)">
+<h3>typeMobileText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">typeMobileText</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>[]&nbsp;text,
+ boolean&nbsp;replaceAllowed)</span></div>
+<div class="block">Mobile native text entry after the caller has focused (and optionally cleared) the field.
+Ladder: <code>sendKeys</code> → Android <code>mobile: replaceElementValue</code> (replace/clear modes only)
+→ <code>mobile: type</code>. Compose/Flutter rejections without focus surface an actionable error.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>replaceAllowed</code> - when false (<code>clearBeforeTypingMode=off</code> / append), skip
+                      <code>replaceElementValue</code> so existing text is not wiped</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="hideKeyboardIfConfigured(org.openqa.selenium.WebDriver,boolean)">
+<h3>hideKeyboardIfConfigured</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">hideKeyboardIfConfigured</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ boolean&nbsp;hideKeyboardAfterTyping)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stringify(java.lang.CharSequence[])">
+<h3>stringify</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">stringify</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>[]&nbsp;text)</span></div>
 </div>
 </section>
 </li>
