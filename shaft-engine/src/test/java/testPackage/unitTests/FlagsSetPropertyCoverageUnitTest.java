@@ -24,6 +24,7 @@ public class FlagsSetPropertyCoverageUnitTest {
     private boolean originalRespectBuiltInWaitsInNativeMode;
     private boolean originalClickUsingJavascriptWhenWebDriverClickFails;
     private boolean originalAttemptToClickBeforeTyping;
+    private boolean originalHideKeyboardAfterTyping;
     private boolean originalAutoCloseDriverInstance;
     private boolean originalAutomaticallyAssertResponseStatusCode;
     private int originalMaximumPerformanceMode;
@@ -51,6 +52,7 @@ public class FlagsSetPropertyCoverageUnitTest {
         originalRespectBuiltInWaitsInNativeMode = SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode();
         originalClickUsingJavascriptWhenWebDriverClickFails = SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails();
         originalAttemptToClickBeforeTyping = SHAFT.Properties.flags.attemptToClickBeforeTyping();
+        originalHideKeyboardAfterTyping = SHAFT.Properties.flags.hideKeyboardAfterTyping();
         originalAutoCloseDriverInstance = SHAFT.Properties.flags.autoCloseDriverInstance();
         originalAutomaticallyAssertResponseStatusCode = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
         originalMaximumPerformanceMode = SHAFT.Properties.flags.maximumPerformanceMode();
@@ -80,6 +82,7 @@ public class FlagsSetPropertyCoverageUnitTest {
                 .respectBuiltInWaitsInNativeMode(originalRespectBuiltInWaitsInNativeMode)
                 .clickUsingJavascriptWhenWebDriverClickFails(originalClickUsingJavascriptWhenWebDriverClickFails)
                 .attemptToClickBeforeTyping(originalAttemptToClickBeforeTyping)
+                .hideKeyboardAfterTyping(originalHideKeyboardAfterTyping)
                 .autoCloseDriverInstance(originalAutoCloseDriverInstance)
                 .automaticallyAssertResponseStatusCode(originalAutomaticallyAssertResponseStatusCode)
                 .maximumPerformanceMode(originalMaximumPerformanceMode)
@@ -112,6 +115,7 @@ public class FlagsSetPropertyCoverageUnitTest {
         Assert.assertSame(setProperty.respectBuiltInWaitsInNativeMode(!originalRespectBuiltInWaitsInNativeMode), setProperty);
         Assert.assertSame(setProperty.clickUsingJavascriptWhenWebDriverClickFails(!originalClickUsingJavascriptWhenWebDriverClickFails), setProperty);
         Assert.assertSame(setProperty.attemptToClickBeforeTyping(!originalAttemptToClickBeforeTyping), setProperty);
+        Assert.assertSame(setProperty.hideKeyboardAfterTyping(!originalHideKeyboardAfterTyping), setProperty);
         Assert.assertSame(setProperty.autoCloseDriverInstance(!originalAutoCloseDriverInstance), setProperty);
         Assert.assertSame(setProperty.automaticallyAssertResponseStatusCode(!originalAutomaticallyAssertResponseStatusCode), setProperty);
         Assert.assertSame(setProperty.maximumPerformanceMode(originalMaximumPerformanceMode == 0 ? 1 : 0), setProperty);
@@ -137,6 +141,7 @@ public class FlagsSetPropertyCoverageUnitTest {
         Assert.assertEquals(SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode(), !originalRespectBuiltInWaitsInNativeMode);
         Assert.assertEquals(SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails(), !originalClickUsingJavascriptWhenWebDriverClickFails);
         Assert.assertEquals(SHAFT.Properties.flags.attemptToClickBeforeTyping(), !originalAttemptToClickBeforeTyping);
+        Assert.assertEquals(SHAFT.Properties.flags.hideKeyboardAfterTyping(), !originalHideKeyboardAfterTyping);
         Assert.assertEquals(SHAFT.Properties.flags.autoCloseDriverInstance(), !originalAutoCloseDriverInstance);
         Assert.assertEquals(SHAFT.Properties.flags.automaticallyAssertResponseStatusCode(), !originalAutomaticallyAssertResponseStatusCode);
         Assert.assertEquals(SHAFT.Properties.flags.maximumPerformanceMode(), originalMaximumPerformanceMode == 0 ? 1 : 0);

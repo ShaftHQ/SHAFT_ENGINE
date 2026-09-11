@@ -97,6 +97,14 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("false")
     boolean attemptToClickBeforeTyping();
 
+    /**
+     * When true, hide the native soft keyboard after a successful mobile-native {@code type()}.
+     * Default false preserves historical behavior; iOS hideKeyboard can be unreliable.
+     */
+    @Key("hideKeyboardAfterTyping")
+    @DefaultValue("false")
+    boolean hideKeyboardAfterTyping();
+
     @Key("disableCache")
     @DefaultValue("false")
     boolean disableCache();
@@ -201,6 +209,11 @@ public interface Flags extends EngineProperties<Flags> {
 
         public SetProperty attemptToClickBeforeTyping(boolean value) {
             setProperty("attemptToClickBeforeTyping", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty hideKeyboardAfterTyping(boolean value) {
+            setProperty("hideKeyboardAfterTyping", String.valueOf(value));
             return this;
         }
 
