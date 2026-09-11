@@ -550,6 +550,7 @@ public class Actions extends ElementActions {
 
                 // identify run type
                 boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
+                boolean isWindowsDesktopExecution = DriverFactoryHelper.isWindowsAppiumExecution();
 
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
@@ -671,12 +672,14 @@ public class Actions extends ElementActions {
                         screenshot.set(0, takeActionScreenshot(targetElement));
                         // Wave B (#5732): native → scroll/stabilize retry → flagged JS; preserve exception when JS off.
                         // Wave D: mobile native uses W3C touch tap when WebDriver click flakes (web defaults unchanged).
+                        // Wave E: Windows desktop uses windows: click when WebDriver click flakes (no JS on desktop).
                         ClickStrategies.click(
                                 d,
                                 targetElement,
                                 ElementClassifier.classify(targetElement),
                                 SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails(),
-                                isMobileNativeExecution);
+                                isMobileNativeExecution,
+                                isWindowsDesktopExecution);
                     }
                     case JAVASCRIPT_CLICK -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
@@ -725,6 +728,8 @@ public class Actions extends ElementActions {
                         ElementKind kind = ElementClassifier.classify(targetElement);
                         if (isMobileNativeExecution) {
                             performMobileNativeType(d, targetElement, kind, text, action);
+                        } else if (isWindowsDesktopExecution) {
+                            performWindowsDesktopType(d, targetElement, kind, text, action);
                         } else {
                             TypeStrategies.TypeRoute typeRoute = TypeStrategies.routeFor(kind);
                             if (typeRoute == TypeStrategies.TypeRoute.REJECT) {
@@ -764,14 +769,19 @@ public class Actions extends ElementActions {
                         String expectedText = shouldValidateTypedText
                                 ? readElementValueForTyping(targetElement) + stringifyTypedValue(text)
                                 : "";
+                        boolean textWasTyped = true;
                         if (isMobileNativeExecution) {
                             ClickStrategies.focusTap(d, targetElement);
                             TypeStrategies.typeMobileText(d, targetElement, text, false);
                             TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
+                        } else if (isWindowsDesktopExecution) {
+                            textWasTyped = performWindowsDesktopTypeAppend(d, targetElement, text);
                         } else {
                             targetElement.sendKeys(text);
                         }
-                        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+                        if (textWasTyped) {
+                            validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+                        }
                     }
                     case JAVASCRIPT_SET_VALUE ->
                             ((JavascriptExecutor) d).executeScript("""
@@ -1198,6 +1208,90 @@ public class Actions extends ElementActions {
         }
         TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
         validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+    }
+
+    /**
+     * Wave E (#5732): Windows desktop / UIA type — ensure foreground (click / {@code windows: click}) →
+     * clear flags → sendKeys / {@code windows: keys}. CheckBox/Radio toggle; ComboBox expand + filter + Enter.
+     * Window/Pane locators only bring the surface to the foreground (no sendKeys into the chrome).
+     */
+    private void performWindowsDesktopType(WebDriver d, WebElement targetElement, ElementKind kind,
+                                           CharSequence[] text, ActionType action) {
+        if (ElementClassifier.isWindowsFocusSurface(targetElement)) {
+            ClickStrategies.focusWindows(d, targetElement);
+            ReportManager.logDiscrete(
+                    "type() on UIA Window/Pane ensured foreground focus; sendKeys skipped on focus surface.");
+            return;
+        }
+
+        TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleDesktopInsteadOfTyping(d, targetElement, kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.COMBOBOX) {
+            TypeStrategies.typeDesktopCombobox(d, targetElement, text);
+            validateTypedTextIfConfigured(targetElement, action, stringifyTypedValue(text),
+                    shouldValidateTypedText(text));
+            return;
+        }
+
+        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        String typedText = stringifyTypedValue(text);
+        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                ? readElementValueForTyping(targetElement) + typedText
+                : typedText;
+
+        // Foreground / focus before type (brings hosting Window/Pane forward when practical).
+        ClickStrategies.focusWindows(d, targetElement);
+        if ("native".equals(clearMode)) {
+            try {
+                targetElement.clear();
+            } catch (RuntimeException ignored) {
+                executeClearBasedOnClearMode(targetElement, "backspace");
+            }
+        } else {
+            executeClearBasedOnClearMode(targetElement, clearMode);
+        }
+
+        TypeStrategies.typeDesktopText(d, targetElement, text);
+        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+    }
+
+    /**
+     * Wave E append path: same kind routing as {@link #performWindowsDesktopType} without clear.
+     *
+     * @return true when text was typed (caller may validate); false for toggle / focus-surface / reject paths
+     */
+    private boolean performWindowsDesktopTypeAppend(WebDriver d, WebElement targetElement, CharSequence[] text) {
+        if (ElementClassifier.isWindowsFocusSurface(targetElement)) {
+            ClickStrategies.focusWindows(d, targetElement);
+            ReportManager.logDiscrete(
+                    "typeAppend() on UIA Window/Pane ensured foreground focus; sendKeys skipped on focus surface.");
+            return false;
+        }
+        ElementKind kind = ElementClassifier.classify(targetElement);
+        TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return false;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleDesktopInsteadOfTyping(d, targetElement, kind);
+            return false;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.COMBOBOX) {
+            TypeStrategies.typeDesktopCombobox(d, targetElement, text);
+            return true;
+        }
+        ClickStrategies.focusWindows(d, targetElement);
+        TypeStrategies.typeDesktopText(d, targetElement, text);
+        return true;
     }
 
     private void executeClearBasedOnClearMode(WebElement elem, String clearMode) {
