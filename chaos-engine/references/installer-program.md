@@ -76,7 +76,7 @@ Same inputs, same outputs, no LLM, no interactive prompt during the one-liner.
 | Marker-owned JSON/TOML sections | generated Codex config `# CHAOSENGINE:START`…`END`, Claude/Grok/Gemini/Copilot hook documents | Same span rule. Foreign keys, handlers, and MCP servers outside the span stay. |
 | Named owned records | CE MCP servers `chaosengine-memory`, `chaosengine-mempalace`, `context7`, `maven-tools-mcp`; CE hook commands that `chaos_hook_command` recognizes | Upsert exact owned records. Delete only exact recognized legacy names already covered by tests (legacy Memory server id, bare `mempalace`, local-npx Context7, covered Docker/JAR shapes). |
 | Receipt-owned whole files | `.chaos-engine/**`, plugin manifests ChaosEngine publishes, role adapters it writes | Replace from the verified payload. |
-| Persistent data | `.memory/**` (except installer-owned schema/config), `mempalace.yaml` palace data, `graphify-out` | Never delete or convert on install/upgrade. |
+| Persistent data | tracked durable `.memory/**` + `mempalace.yaml`; untracked palace indexes / `graphify-out` / `.memory` runtime | Never delete or convert on install/upgrade. |
 | Foreign | Anything else in those files | Byte-preserve. |
 
 ### Mergeable
