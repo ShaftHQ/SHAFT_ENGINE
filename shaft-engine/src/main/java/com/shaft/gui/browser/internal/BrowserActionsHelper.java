@@ -373,7 +373,7 @@ public class BrowserActionsHelper {
             new WebDriverWait(driver, Duration.ofSeconds(Math.max(5, SHAFT.Properties.timeouts.browserNavigationTimeout())))
                     .until(webDriver -> {
                         Object state = executor.executeScript("return document.readyState");
-                        return "complete".equals(String.valueOf(state)) || "interactive".equals(String.valueOf(state));
+                        return "complete".equals(String.valueOf(state));
                     });
         } catch (RuntimeException ignored) {
             ReportManager.logDiscrete("Safari document readiness wait expired; continuing with the current document.", Level.WARN);

@@ -100,7 +100,7 @@ public class CoverageTests {
         driver.get().getDriver().findElement(locator).getAttribute("value");
         driver.get().getDriver().findElement(locator).getText();
         driver.get().getDriver().findElement(locator).submit();
-        driver.get().element().assertThat(locator).text().isEqualTo("test").perform();
+        driver.get().element().assertThat(locator).attribute("value").isEqualTo("test").perform();
         driver.get().getDriver().close();
         try {
             driver.get().getDriver().quit();

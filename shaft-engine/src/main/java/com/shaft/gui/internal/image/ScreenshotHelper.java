@@ -137,7 +137,7 @@ public class ScreenshotHelper {
                 ReportManagerHelper.logDiscrete(exception, Level.WARN);
                 ReportManagerHelper.logDiscrete("Could not take a screenshot after 5 attempts.", Level.WARN);
                 return null;
-            } else if (isHungDriverScreenshotFailure(exception)) {
+            } else if (isHungDriverScreenshotFailure(exception) || isDeadSessionScreenshotFailure(exception)) {
                 // Hung mid-navigation sessions (Safari after a never-completing load) time out
                 // the WebDriver HTTP client. Soft-degrade so action reporting can still write
                 // its Allure step instead of being replaced by a screenshot failure (#5528).
@@ -174,9 +174,40 @@ public class ScreenshotHelper {
                 return OutputType.BYTES.convertFromBase64Png(encoded);
             }
         } catch (RuntimeException ignored) {
-            ReportManagerHelper.logDiscrete("Flutter screenshot helper failed; leaving the W3C capture unused to keep the session alive.", Level.WARN);
+            ReportManagerHelper.logDiscrete("Flutter screenshot helper failed; falling back to W3C capture.", Level.WARN);
         }
-        return null;
+        if (!(driver instanceof TakesScreenshot screenshotDriver)) {
+            return null;
+        }
+        try {
+            return screenshotDriver.getScreenshotAs(OutputType.BYTES);
+        } catch (RuntimeException exception) {
+            if (isDeadSessionScreenshotFailure(exception) || isHungDriverScreenshotFailure(exception)) {
+                ReportManagerHelper.logDiscrete(exception, Level.WARN);
+                ReportManagerHelper.logDiscrete("Could not take a screenshot; continuing without evidence.", Level.WARN);
+                return null;
+            }
+            FailureReporter.fail(ScreenshotHelper.class, "Failed to capture a screenshot", exception);
+            return null;
+        }
+    }
+
+    private static boolean isDeadSessionScreenshotFailure(Throwable exception) {
+        for (Throwable cursor = exception; cursor != null; cursor = cursor.getCause()) {
+            if (cursor instanceof NoSuchSessionException) {
+                return true;
+            }
+            String message = cursor.getMessage();
+            if (message != null) {
+                String lowered = message.toLowerCase(java.util.Locale.ROOT);
+                if (lowered.contains("no such session")
+                        || lowered.contains("session is either terminated")
+                        || lowered.contains("unexpectedly shut down")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean isHungDriverScreenshotFailure(Throwable exception) {

@@ -9,6 +9,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -120,14 +121,13 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         if (!isSafariBrowser() || currentWebDriver == null) {
             return;
         }
-        var typed = new StringBuilder();
-        Arrays.stream(keysToSend).toList().forEach(typed::append);
+        String typed = printableTypedText(keysToSend);
         if (typed.isEmpty()) {
             return;
         }
         try {
             String value = element.getAttribute("value");
-            if (value != null && value.contains(typed)) {
+            if (value != null && !value.isEmpty()) {
                 return;
             }
             if (currentWebDriver instanceof JavascriptExecutor executor) {
@@ -136,11 +136,31 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
                         arguments[0].value = arguments[1];
                         arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
                         arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
-                        """, element, typed.toString());
+                        """, element, typed);
             }
         } catch (RuntimeException ignored) {
             ReportManager.logDiscrete("Safari sendKeys value restore skipped.");
         }
+    }
+
+    static String printableTypedText(CharSequence... keysToSend) {
+        if (keysToSend == null) {
+            return "";
+        }
+        var typed = new StringBuilder();
+        for (CharSequence sequence : keysToSend) {
+            if (sequence == null || sequence instanceof Keys) {
+                continue;
+            }
+            for (int index = 0; index < sequence.length(); index++) {
+                char character = sequence.charAt(index);
+                if (Keys.getKeyFromUnicode(character) != null) {
+                    continue;
+                }
+                typed.append(character);
+            }
+        }
+        return typed.toString();
     }
 
     public void beforeClear(WebElement element) {
@@ -225,7 +245,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
                     return true;
                 }
                 Object state = executor.executeScript("return document.readyState");
-                return "complete".equals(String.valueOf(state)) || "interactive".equals(String.valueOf(state));
+                return "complete".equals(String.valueOf(state));
             });
         } catch (TimeoutException ignored) {
             ReportManager.logDiscrete("Safari document readiness wait expired after native navigation.");
