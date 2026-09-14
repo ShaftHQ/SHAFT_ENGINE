@@ -2571,19 +2571,29 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "--spring.profiles.active=docker,no-context7",
             ],
         }
-        desired = {
-            "command": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java",
-            "args": ["-jar", "/cache/maven-tools-mcp-3.2.1.jar"],
-        }
+        desired = module.portable_python_server(
+            [".chaos-engine/tool.py", "maven-tools-mcp"]
+        )
 
+        # Exact ChaosEngine jar shape and any prior absolute java/jar shape are
+        # replaceable by the portable tool.py launcher (#5782).
         self.assertTrue(module.replaceable_owned_server("maven-tools-mcp", legacy, desired))
         for mutation in (
             {**legacy, "command": "/usr/bin/custom-java"},
             {**legacy, "args": [*legacy["args"], "--custom"]},
             {**legacy, "args": ["-jar", "/tmp/maven-tools-mcp-3.2.0.jar"]},
+            {"command": "/usr/bin/java", "args": ["-jar", "/elsewhere/server.jar"]},
+        ):
+            self.assertTrue(
+                module.replaceable_owned_server("maven-tools-mcp", mutation, desired)
+            )
+        # Non-java / non-jar shapes stay collisions (user-owned or docker).
+        for foreign in (
+            {"command": "docker", "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]},
+            {"command": "custom-mcp", "args": ["--serve"]},
         ):
             self.assertFalse(
-                module.replaceable_owned_server("maven-tools-mcp", mutation, desired)
+                module.replaceable_owned_server("maven-tools-mcp", foreign, desired)
             )
 
     def test_exact_legacy_mcp_aliases_migrate_and_unknown_servers_survive(self):
@@ -3280,7 +3290,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             for project in projects:
                 configured = json.loads((project / ".mcp.json").read_text(encoding="utf-8"))
-                self.assertEqual(str(jar.resolve()), configured["mcpServers"]["maven-tools-mcp"]["args"][1])
+                maven = configured["mcpServers"]["maven-tools-mcp"]
+                self.assertIn("maven-tools-mcp", maven["args"])
+                self.assertIn("tool.py", " ".join(str(item) for item in maven["args"]))
+                self.assertNotIn(str(jar.resolve()), json.dumps(configured))
             self.assertEqual(before, hashlib.sha256(jar.read_bytes()).hexdigest())
 
     def test_native_maven_tools_runtime_resolves_path_java_symlink(self):
