@@ -66,6 +66,7 @@
 <li><a href="#beforeClick(org.openqa.selenium.WebElement)" tabindex="0">beforeClick(WebElement)</a></li>
 <li><a href="#beforeSubmit(org.openqa.selenium.WebElement)" tabindex="0">beforeSubmit(WebElement)</a></li>
 <li><a href="#beforeSendKeys(org.openqa.selenium.WebElement,java.lang.CharSequence...)" tabindex="0">beforeSendKeys(WebElement, CharSequence...)</a></li>
+<li><a href="#afterSendKeys(org.openqa.selenium.WebElement,java.lang.CharSequence...)" tabindex="0">afterSendKeys(WebElement, CharSequence...)</a></li>
 <li><a href="#beforeClear(org.openqa.selenium.WebElement)" tabindex="0">beforeClear(WebElement)</a></li>
 <li><a href="#afterGetAttribute(org.openqa.selenium.WebElement,java.lang.String,java.lang.String)" tabindex="0">afterGetAttribute(WebElement, String, String)</a></li>
 <li><a href="#afterGetText(org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">afterGetText(WebElement, String)</a></li>
@@ -181,40 +182,44 @@ implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#afterRefresh(org.openqa.selenium.WebDriver.Navigation)" class="member-name-link">afterRefresh</a><wbr>(org.openqa.selenium.WebDriver.Navigation&nbsp;navigation)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#afterTo(org.openqa.selenium.WebDriver.Navigation,java.lang.String)" class="member-name-link">afterTo</a><wbr>(org.openqa.selenium.WebDriver.Navigation&nbsp;navigation,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;url)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#afterTo(org.openqa.selenium.WebDriver.Navigation,java.net.URL)" class="member-name-link">afterTo</a><wbr>(org.openqa.selenium.WebDriver.Navigation&nbsp;navigation,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/net/URL.html" title="class or interface in java.net" class="external-link">URL</a>&nbsp;url)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeClear(org.openqa.selenium.WebElement)" class="member-name-link">beforeClear</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeClick(org.openqa.selenium.WebElement)" class="member-name-link">beforeClick</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeFindElement(org.openqa.selenium.WebDriver,org.openqa.selenium.By)" class="member-name-link">beforeFindElement</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
- org.openqa.selenium.By&nbsp;locator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeSendKeys(org.openqa.selenium.Alert,java.lang.String)" class="member-name-link">beforeSendKeys</a><wbr>(org.openqa.selenium.Alert&nbsp;alert,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeSendKeys(org.openqa.selenium.WebElement,java.lang.CharSequence...)" class="member-name-link">beforeSendKeys</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#afterSendKeys(org.openqa.selenium.WebElement,java.lang.CharSequence...)" class="member-name-link">afterSendKeys</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;keysToSend)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeSubmit(org.openqa.selenium.WebElement)" class="member-name-link">beforeSubmit</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#afterTo(org.openqa.selenium.WebDriver.Navigation,java.lang.String)" class="member-name-link">afterTo</a><wbr>(org.openqa.selenium.WebDriver.Navigation&nbsp;navigation,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;url)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onError(java.lang.Object,java.lang.reflect.Method,java.lang.Object%5B%5D,java.lang.reflect.InvocationTargetException)" class="member-name-link">onError</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;target,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#afterTo(org.openqa.selenium.WebDriver.Navigation,java.net.URL)" class="member-name-link">afterTo</a><wbr>(org.openqa.selenium.WebDriver.Navigation&nbsp;navigation,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/net/URL.html" title="class or interface in java.net" class="external-link">URL</a>&nbsp;url)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeClear(org.openqa.selenium.WebElement)" class="member-name-link">beforeClear</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeClick(org.openqa.selenium.WebElement)" class="member-name-link">beforeClick</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeFindElement(org.openqa.selenium.WebDriver,org.openqa.selenium.By)" class="member-name-link">beforeFindElement</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.By&nbsp;locator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeSendKeys(org.openqa.selenium.Alert,java.lang.String)" class="member-name-link">beforeSendKeys</a><wbr>(org.openqa.selenium.Alert&nbsp;alert,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeSendKeys(org.openqa.selenium.WebElement,java.lang.CharSequence...)" class="member-name-link">beforeSendKeys</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;keysToSend)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#beforeSubmit(org.openqa.selenium.WebElement)" class="member-name-link">beforeSubmit</a><wbr>(org.openqa.selenium.WebElement&nbsp;element)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onError(java.lang.Object,java.lang.reflect.Method,java.lang.Object%5B%5D,java.lang.reflect.InvocationTargetException)" class="member-name-link">onError</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;target,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/reflect/Method.html" title="class or interface in java.lang.reflect" class="external-link">Method</a>&nbsp;method,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>[]&nbsp;args,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/reflect/InvocationTargetException.html" title="class or interface in java.lang.reflect" class="external-link">InvocationTargetException</a>&nbsp;e)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -226,7 +231,7 @@ implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_
 <code>afterCall, beforeCall, call, onError</code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-org.openqa.selenium.support.events.WebDriverListener">Methods inherited from interface&nbsp;org.openqa.selenium.support.events.WebDriverListener</h3>
-<code>afterAccept, afterActiveElement, afterAddCookie, afterAlert, afterAnyAlertCall, afterAnyNavigationCall, afterAnyOptionsCall, afterAnyTargetLocatorCall, afterAnyTimeoutsCall, afterAnyWebDriverCall, afterAnyWebElementCall, afterAnyWindowCall, afterClear, afterClick, afterDefaultContent, afterDeleteAllCookies, afterDeleteCookie, afterDeleteCookieNamed, afterDismiss, afterExecuteAsyncScript, afterExecuteScript, afterFindElement, afterFindElement, afterFindElements, afterFindElements, afterFrame, afterFrame, afterFrame, afterFullscreen, afterGetCookieNamed, afterGetCookies, afterGetCssValue, afterGetCurrentUrl, afterGetLocation, afterGetPageSource, afterGetPosition, afterGetScreenshotAs, afterGetScreenshotAs, afterGetSize, afterGetSize, afterGetTagName, afterGetText, afterGetWindowHandle, afterGetWindowHandles, afterImplicitlyWait, afterIsDisplayed, afterIsEnabled, afterIsSelected, afterNewWindow, afterPageLoadTimeout, afterParentFrame, afterPerform, afterResetInputState, afterScriptTimeout, afterSendKeys, afterSendKeys, afterSetPosition, afterSetSize, afterSubmit, afterWindow, beforeAccept, beforeActiveElement, beforeAddCookie, beforeAlert, beforeAnyAlertCall, beforeAnyCall, beforeAnyNavigationCall, beforeAnyOptionsCall, beforeAnyTargetLocatorCall, beforeAnyTimeoutsCall, beforeAnyWebDriverCall, beforeAnyWebElementCall, beforeAnyWindowCall, beforeBack, beforeClose, beforeDefaultContent, beforeDeleteAllCookies, beforeDeleteCookie, beforeDeleteCookieNamed, beforeDismiss, beforeExecuteAsyncScript, beforeExecuteScript, beforeFindElement, beforeFindElements, beforeFindElements, beforeForward, beforeFrame, beforeFrame, beforeFrame, beforeFullscreen, beforeGet, beforeGetAttribute, beforeGetCookieNamed, beforeGetCookies, beforeGetCssValue, beforeGetCurrentUrl, beforeGetLocation, beforeGetPageSource, beforeGetPosition, beforeGetScreenshotAs, beforeGetScreenshotAs, beforeGetSize, beforeGetSize, beforeGetTagName, beforeGetText, beforeGetText, beforeGetTitle, beforeGetWindowHandle, beforeGetWindowHandles, beforeImplicitlyWait, beforeIsDisplayed, beforeIsEnabled, beforeIsSelected, beforeMaximize, beforeNewWindow, beforePageLoadTimeout, beforeParentFrame, beforePerform, beforeQuit, beforeRefresh, beforeResetInputState, beforeScriptTimeout, beforeSetPosition, beforeSetSize, beforeTo, beforeTo, beforeWindow, throwsExceptions</code></div>
+<code>afterAccept, afterActiveElement, afterAddCookie, afterAlert, afterAnyAlertCall, afterAnyNavigationCall, afterAnyOptionsCall, afterAnyTargetLocatorCall, afterAnyTimeoutsCall, afterAnyWebDriverCall, afterAnyWebElementCall, afterAnyWindowCall, afterClear, afterClick, afterDefaultContent, afterDeleteAllCookies, afterDeleteCookie, afterDeleteCookieNamed, afterDismiss, afterExecuteAsyncScript, afterExecuteScript, afterFindElement, afterFindElement, afterFindElements, afterFindElements, afterFrame, afterFrame, afterFrame, afterFullscreen, afterGetCookieNamed, afterGetCookies, afterGetCssValue, afterGetCurrentUrl, afterGetLocation, afterGetPageSource, afterGetPosition, afterGetScreenshotAs, afterGetScreenshotAs, afterGetSize, afterGetSize, afterGetTagName, afterGetText, afterGetWindowHandle, afterGetWindowHandles, afterImplicitlyWait, afterIsDisplayed, afterIsEnabled, afterIsSelected, afterNewWindow, afterPageLoadTimeout, afterParentFrame, afterPerform, afterResetInputState, afterScriptTimeout, afterSendKeys, afterSetPosition, afterSetSize, afterSubmit, afterWindow, beforeAccept, beforeActiveElement, beforeAddCookie, beforeAlert, beforeAnyAlertCall, beforeAnyCall, beforeAnyNavigationCall, beforeAnyOptionsCall, beforeAnyTargetLocatorCall, beforeAnyTimeoutsCall, beforeAnyWebDriverCall, beforeAnyWebElementCall, beforeAnyWindowCall, beforeBack, beforeClose, beforeDefaultContent, beforeDeleteAllCookies, beforeDeleteCookie, beforeDeleteCookieNamed, beforeDismiss, beforeExecuteAsyncScript, beforeExecuteScript, beforeFindElement, beforeFindElements, beforeFindElements, beforeForward, beforeFrame, beforeFrame, beforeFrame, beforeFullscreen, beforeGet, beforeGetAttribute, beforeGetCookieNamed, beforeGetCookies, beforeGetCssValue, beforeGetCurrentUrl, beforeGetLocation, beforeGetPageSource, beforeGetPosition, beforeGetScreenshotAs, beforeGetScreenshotAs, beforeGetSize, beforeGetSize, beforeGetTagName, beforeGetText, beforeGetText, beforeGetTitle, beforeGetWindowHandle, beforeGetWindowHandles, beforeImplicitlyWait, beforeIsDisplayed, beforeIsEnabled, beforeIsSelected, beforeMaximize, beforeNewWindow, beforePageLoadTimeout, beforeParentFrame, beforePerform, beforeQuit, beforeRefresh, beforeResetInputState, beforeScriptTimeout, beforeSetPosition, beforeSetSize, beforeTo, beforeTo, beforeWindow, throwsExceptions</code></div>
 </section>
 </li>
 </ul>
@@ -389,6 +394,19 @@ implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code>beforeSendKeys</code>&nbsp;in interface&nbsp;<code>org.openqa.selenium.support.events.WebDriverListener</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="afterSendKeys(org.openqa.selenium.WebElement,java.lang.CharSequence...)">
+<h3>afterSendKeys</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">afterSendKeys</span><wbr><span class="parameters">(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;keysToSend)</span></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code>afterSendKeys</code>&nbsp;in interface&nbsp;<code>org.openqa.selenium.support.events.WebDriverListener</code></dd>
 </dl>
 </div>
 </section>
