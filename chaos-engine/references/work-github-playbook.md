@@ -48,6 +48,11 @@ default branch. Before the first push of **any** human PR:
    skill-md byte budget (Agent Guidance Gate). Compress overlapping sections in
    the same PR and run `python3 scripts/ci/validate_agent_setup.py --skip-external`
    plus the skill's phrase-contract unit tests before push.
+4. When changing `.gitignore` or `hosts.py` Memory tracking policy: update the
+   `generated-assets` inventory row in
+   `scripts/ci/validate_chaos_engine_readme.py` (and the README inventory it
+   renders) in the **same** PR, then run that inventory's unit checks before
+   push.
 
 N-run / flake-proof scripts that invoke Maven under the engine Surefire
 profile must not treat process exit alone as green: after each proof
