@@ -5,6 +5,7 @@ import com.shaft.properties.internal.Properties;
 import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.WebDriverException;
 import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -79,6 +80,29 @@ public class FlutterTest {
         }
 
         driver.set(new SHAFT.GUI.WebDriver());
+        waitForFlutterLoginScreen();
+    }
+
+    private void waitForFlutterLoginScreen() {
+        long deadline = System.currentTimeMillis() + 60_000L;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                var session = driver.get().getDriver();
+                if (!session.findElements(PLEASE_LOGIN_TEXT).isEmpty()
+                        || !session.findElements(PLEASE_LOGIN_SEMANTICS).isEmpty()
+                        || !session.findElements(USERNAME_FIELD).isEmpty()) {
+                    return;
+                }
+            } catch (WebDriverException ignored) {
+                // FlutterIntegration session still hydrating widgets
+            }
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
     }
 
     /**

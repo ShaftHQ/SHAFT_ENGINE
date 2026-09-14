@@ -136,14 +136,35 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         emulator = next(step for step in steps if step.get("uses", "").startswith(
             "reactivecircus/android-emulator-runner@"))
         script = emulator["with"]["script"]
-        self.assertNotRegex(script, r"(?m)^\s*set -[^\n]*pipefail")
-        self.assertRegex(script, r"(?m)^\s*set -eu\s*$")
+        self.assertNotIn("\n", script.strip())
+        self.assertIn("run_ubuntu_flutter_emulator_e2e.sh", script)
         self.assertIn('working-directory', emulator["with"])
-        self.assertIn('cd "$GITHUB_WORKSPACE"', script)
-        self.assertIn("-Dallure.automaticallyOpen=false", script)
-        self.assertIn("-DheadlessExecution=true", script)
-        self.assertIn("shaft-engine/allure-results", script)
-        self.assertIn("127.0.0.1:4723", script)
+        helper = (ROOT / "scripts" / "ci" / "run_ubuntu_flutter_emulator_e2e.sh").read_text(encoding="utf-8")
+        self.assertNotRegex(helper, r"(?m)^\s*set -[^\n]*pipefail")
+        self.assertRegex(helper, r"(?m)^\s*set -eu\s*$")
+        self.assertIn('cd "$GITHUB_WORKSPACE"', helper)
+        self.assertIn('APK_PATH="$GITHUB_WORKSPACE/shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk"', helper)
+        self.assertIn('ls -l "$APK_PATH"', helper)
+        self.assertLess(helper.find("APK_PATH="), helper.find('ls -l "$APK_PATH"'))
+        self.assertIn("-Dallure.automaticallyOpen=false", helper)
+        self.assertIn("-DheadlessExecution=true", helper)
+        self.assertIn("shaft-engine/allure-results", helper)
+        self.assertIn("127.0.0.1:4723", helper)
+
+    def test_flutter_emulator_runner_keeps_apk_path_in_one_invocation(self):
+        workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
+        emulator = next(step for step in workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
+                        if step.get("uses", "").startswith("reactivecircus/android-emulator-runner@"))
+        script_lines = [line for line in emulator["with"]["script"].splitlines() if line.strip()]
+        self.assertEqual(1, len(script_lines),
+                         "android-emulator-runner runs each YAML script line as a separate sh -c")
+        helper = ROOT / "scripts" / "ci" / "run_ubuntu_flutter_emulator_e2e.sh"
+        self.assertTrue(helper.is_file())
+        text = helper.read_text(encoding="utf-8")
+        assign_at = text.find("APK_PATH=")
+        use_at = text.find('ls -l "$APK_PATH"')
+        self.assertGreater(assign_at, 0)
+        self.assertGreater(use_at, assign_at)
 
     def test_ubuntu_flutter_emulator_local_is_scheduled_like_windows_chrome(self):
         workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
