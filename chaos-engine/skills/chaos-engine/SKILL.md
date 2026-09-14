@@ -52,9 +52,9 @@ Re-triage when a premise turns out false, the third fix for one symptom fails,
 the blast radius grows, or the user adds scope.
 
 Retrieval depth reads off the same answer. Load
-[retrieve-first](../../references/retrieve-first.md) before broad manual discovery
-when Memory, MemPalace, or [Graphify](../../references/graphify.md) can shorten the
-task, and at completion to keep the stores from drifting. Bound tool reads and prefer one script over a long tool chain:
+[retrieve-first](../../references/retrieve-first.md) (Memory, MemPalace,
+[Graphify](../../references/graphify.md)) before discovery when a store helps,
+and at completion to keep stores from drifting. Bound tool reads and prefer one script over a long tool chain:
 [context economy](../../references/context-economy.md) / [token budget modes](../../references/token-budget-modes.md) and
 [script first](../../references/script-first.md).
 When this entrypoint was loaded through a role adapter, load
