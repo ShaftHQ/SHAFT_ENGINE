@@ -284,7 +284,8 @@ task that opened the PR:
 ## Reflection
 
 Follow [reflection checkpoints](../../references/reflection-checkpoints.md): no
-third repeated fix without a receipt; terminal reflection after one hour.
+third repeated fix without a receipt; terminal reflection after one hour;
+leftover risks become `gh` issues, never chat-only.
 
 ## Learning Session
 
@@ -335,10 +336,5 @@ Slash-only skills stay listed. Descriptions stay short so host listing caps
 | design-loop | Write-review-revise design docs until 0 open issues. | `references/design-loop.md` |
 | deep-research | Bounded parallel research; independent verify; cited report. | `references/deep-research.md` |
 | learn-traces | Map-reduce-verify session traces without a host TUI. | `references/learn-traces.md` |
-| prefer-cli-over-mcp | CLI when both exist; gh when configured. | `references/prefer-cli-over-mcp.md` |
 
-The portable distribution's [human overview](../../README.md) uses the
-deterministic light, dark, monochrome, lockup, and small-size identity masters
-documented in the [ChaosEngine identity guide](../../assets/brand/BRAND.md).
-Those masters stay in the origin source tree and are not copied into adopter
-installs.
+Identity: [README](../../README.md), [brand](../../assets/brand/BRAND.md).
