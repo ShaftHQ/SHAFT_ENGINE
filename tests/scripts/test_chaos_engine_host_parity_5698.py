@@ -156,8 +156,9 @@ class HostParity5698Tests(unittest.TestCase):
         self.assertIsNone(self.policy.cli_owned_conflict_error(["maven-tools-mcp"]))
         self.assertEqual(
             self.policy.HEAL_PROMPT,
-            "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
-            "Leave an existing GitHub MCP config unchanged.",
+            "Prefer gh for GitHub when gh exists and is configured. "
+            "CLI over MCP when both exist. "
+            "Default MCP catalog never includes GitHub MCP.",
         )
 
     def test_existing_github_mcp_in_project_overlay_does_not_conflict(self):

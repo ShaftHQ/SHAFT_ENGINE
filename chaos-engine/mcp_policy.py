@@ -21,8 +21,22 @@ CLI_OWNED_MCP: dict[str, frozenset[str]] = {
 }
 
 HEAL_PROMPT = (
-    "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
-    "Leave an existing GitHub MCP config unchanged."
+    "Prefer gh for GitHub when gh exists and is configured. "
+    "CLI over MCP when both exist. "
+    "Default MCP catalog never includes GitHub MCP."
+)
+
+COLLIDING_USER_SKILL_NAMES = frozenset(
+    {
+        "graphify",
+        "find-docs",
+        "caveman",
+        "ponytail",
+        "chaos-engine",
+        "learn",
+        "learn-traces",
+        "deep-research",
+    }
 )
 
 _SERVER_HEADER = re.compile(
@@ -101,6 +115,52 @@ def server_ids_from_text(text: str) -> list[str]:
                 if isinstance(servers, dict):
                     return [str(name) for name in servers]
     return [match.group(1).strip() for match in _SERVER_HEADER.finditer(text)]
+
+
+def user_skill_roots(home: Path | None = None) -> tuple[tuple[str, Path], ...]:
+    """User-home skill trees that must not collide with the overlay catalog."""
+    root = home or Path.home()
+    return (
+        ("claude", root / ".claude" / "skills"),
+        ("agents", root / ".agents" / "skills"),
+        ("codex", Path(os.environ.get("CODEX_HOME") or root / ".codex") / "skills"),
+        ("grok", Path(os.environ.get("GROK_HOME") or root / ".grok") / "skills"),
+        ("gemini", Path(os.environ.get("GEMINI_HOME") or root / ".gemini") / "skills"),
+    )
+
+
+def colliding_user_skills(home: Path | None = None) -> list[str]:
+    found: list[str] = []
+    for _host, root in user_skill_roots(home):
+        if not root.is_dir():
+            continue
+        for child in sorted(root.iterdir()):
+            if child.is_dir() and child.name.casefold() in COLLIDING_USER_SKILL_NAMES:
+                found.append(str(child))
+    return found
+
+
+def user_skill_collision_error(home: Path | None = None) -> str | None:
+    hits = colliding_user_skills(home)
+    if not hits:
+        return None
+    rendered = ", ".join(hits)
+    return f"{HEAL_PROMPT} User-home skills collide with ChaosEngine overlay. Seen: {rendered}."
+
+
+def gh_is_configured() -> bool:
+    try:
+        import subprocess
+
+        completed = subprocess.run(  # nosec B603 B607 - fixed gh probe
+            ["gh", "auth", "status"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return completed.returncode == 0
 
 
 def user_mcp_paths(home: Path | None = None) -> tuple[tuple[str, Path], ...]:

@@ -21,3 +21,10 @@ or pager mechanics here.
 
 A first-ever run is step/curate, never auto-delete. See
 [harness-learn](harness-learn.md).
+
+Collect with the portable runner (every host):
+
+`python3 .chaos-engine/learn_traces.py collect --out <run-dir>`
+
+Then map-reduce-verify with isolated subagents. Do not copy a host TUI
+workflow into this tree. Do not write learned skills under `~/.grok/skills`.

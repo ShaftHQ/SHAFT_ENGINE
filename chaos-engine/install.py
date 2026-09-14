@@ -4085,6 +4085,18 @@ def apply_mcp_policy_doctor(
             detail=finding,
             fix_next=policy_mod.HEAL_PROMPT,
         )
+    skill_error = policy_mod.user_skill_collision_error()
+    if skill_error and mcps.get("status") in {
+        "healthy",
+        "compatible-legacy",
+        "degraded",
+        "sync-advisory",
+    }:
+        attach_host_environment_finding(
+            mcps,
+            detail=skill_error,
+            fix_next=policy_mod.HEAL_PROMPT,
+        )
 
 
 def doctor_with_dependencies(
