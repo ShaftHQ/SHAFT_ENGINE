@@ -234,11 +234,11 @@ class OmniRouteCatalogTest(unittest.TestCase):
         )
         self.assertEqual("glm/glm-4.5-air", skipped[0]["model"])
         self.assertEqual(
-            ["-c", 'model="glm/glm-4.5"'],
+            ["-c", "model='glm/glm-4.5'"],
             RUNNER.codex_model_overlay("glm", "glm-4.5"),
         )
         self.assertEqual(
-            ["-c", 'model="nvidia/z-ai/glm-5.2"'],
+            ["-c", "model='nvidia/z-ai/glm-5.2'"],
             RUNNER.codex_model_overlay("nvidia", "z-ai/glm-5.2"),
         )
         gateway = [

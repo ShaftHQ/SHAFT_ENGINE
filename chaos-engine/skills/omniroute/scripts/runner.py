@@ -917,6 +917,29 @@ _BALANCE_MARKERS = (
     "payment required",
 )
 _CATALOG_MISS_MARKERS = ("not available in the active live catalog",)
+_UNRECOGNIZED_MODEL_MARKERS = (
+    "unrecognized_model",
+    "unrecognized model",
+    "[claude-code:unrecognized_model]",
+)
+_AUTH_FAILURE_MARKERS = ("401", "403", "unauthorized", "forbidden", "invalid api key", "invalid key")
+_TRANSIENT_BLIP_MARKERS = (
+    "timed out",
+    "timeout",
+    "temporarily unavailable",
+    "connection reset",
+    "connection refused",
+    "network is unreachable",
+    "temporary failure",
+    "broken pipe",
+)
+_AUTO_CODING_IDS = ("auto/coding", "auto/coding:fast")
+_KNOWN_RUN_TARGETS = frozenset({
+    "claude", "opencode", "codex", "qwen", "gemini", "aider", "goose",
+})
+_RUN_TARGET_RANK = ("claude", "opencode", "codex", "qwen", "gemini", "aider", "goose")
+BINARY_MISSING_EXIT = 127
+MAX_WRITER_ATTEMPTS = MAX_CONTINUITY_WRITERS
 
 
 def diagnostic_is_rate_limited(text: object) -> bool:
@@ -949,15 +972,165 @@ def diagnostic_is_stream_disconnected(text: object) -> bool:
     return "stream disconnected before completion" in blob or "stream closed before response.completed" in blob
 
 
-def diagnostic_signals_exhaustion(text: object) -> bool:
-    """True when diagnostics should update the user-local exhaustion backoff cache."""
+def diagnostic_is_unrecognized_model(text: object) -> bool:
+    """True when a CLI target rejects the native id (e.g. Claude Code + Kimi)."""
+    blob = str(text or "").casefold()
+    return any(marker in blob for marker in _UNRECOGNIZED_MODEL_MARKERS)
+
+
+def diagnostic_is_auth_failure(text: object) -> bool:
+    """True when HTTP 401/403 or invalid-key text should stop OmniRoute transport."""
+    blob = str(text or "").casefold()
+    if diagnostic_is_rate_limited(text):
+        return False
+    return any(marker in blob for marker in _AUTH_FAILURE_MARKERS)
+
+
+def diagnostic_is_transient_blip(text: object) -> bool:
+    """True for a single timeout/network blip that may retry the same identity once."""
+    blob = str(text or "").casefold()
+    if diagnostic_skips_identity(text) or diagnostic_is_auth_failure(text):
+        return False
+    return any(marker in blob for marker in _TRANSIENT_BLIP_MARKERS)
+
+
+def diagnostic_skips_identity(text: object) -> bool:
+    """True when the failure must skip this identity with zero same-identity retries."""
     return (
         diagnostic_is_rate_limited(text)
         or diagnostic_is_quota_reset(text)
         or diagnostic_is_insufficient_balance(text)
-        or diagnostic_is_stream_disconnected(text)
         or diagnostic_is_catalog_mismatch(text)
+        or diagnostic_is_unrecognized_model(text)
+        or diagnostic_is_stream_disconnected(text)
     )
+
+
+def diagnostic_stops_omniroute_transport(text: object) -> bool:
+    """True when OmniRoute transport must stop (do not rotate identities)."""
+    return diagnostic_is_auth_failure(text)
+
+
+def diagnostic_signals_exhaustion(text: object) -> bool:
+    """True when diagnostics should update the user-local exhaustion backoff cache."""
+    return diagnostic_skips_identity(text)
+
+
+def same_identity_retry_budget(diagnostic: object) -> int:
+    """Same-identity retries allowed for this diagnostic (0 or 1)."""
+    if diagnostic_stops_omniroute_transport(diagnostic) or diagnostic_skips_identity(diagnostic):
+        return 0
+    if diagnostic_is_transient_blip(diagnostic):
+        return 1
+    return 0
+
+
+def writer_attempts_exhausted(attempt_count: int, *, max_attempts: int = MAX_WRITER_ATTEMPTS) -> bool:
+    """True after the continuity writer cap; callers must emit RUNTIME_EXHAUSTED."""
+    return int(attempt_count) >= int(max_attempts)
+
+
+def is_claude_family_native_id(model_id: object) -> bool:
+    """True for Claude-family / cc/ / anthropic* ids safe for the `claude` run target."""
+    text = str(model_id or "").strip().lower()
+    if not text:
+        return False
+    if text.startswith("cc/") or "/cc/" in text:
+        return True
+    local = text.split("/", 1)[-1]
+    if local.startswith(("claude", "anthropic")):
+        return True
+    if text.startswith(("claude/", "anthropic/")):
+        return True
+    return False
+
+
+def run_target_allows_model(
+    target: str,
+    model_id: object,
+    *,
+    discovery_aliases: bool = False,
+) -> bool:
+    """Fail-closed CLI target × model matrix. Unknown targets stay caller-owned."""
+    if target not in _KNOWN_RUN_TARGETS:
+        return True
+    if target == "claude":
+        return is_claude_family_native_id(model_id) or discovery_aliases
+    return True
+
+
+def opencode_model_arg(model_id: object) -> str:
+    """Prefix once for OpenCode: `--model omniroute/<id>`."""
+    text = str(model_id or "").strip()
+    if not text:
+        return ""
+    if text.startswith("omniroute/"):
+        return text
+    return f"omniroute/{text}"
+
+
+def installed_run_targets(
+    which: Callable[[str], str | None] | None = None,
+) -> list[str]:
+    """Installed OmniRoute run targets in preference order."""
+    locator = which or shutil.which
+    return [name for name in _RUN_TARGET_RANK if locator(name)]
+
+
+def rank_run_targets_for_model(
+    model_id: object,
+    *,
+    installed: list[str] | tuple[str, ...] | None = None,
+    which: Callable[[str], str | None] | None = None,
+    discovery_aliases: bool = False,
+) -> list[str]:
+    """Compatible installed targets: claude (Claude-family only) → opencode → codex → qwen/gemini."""
+    present = list(installed) if installed is not None else installed_run_targets(which)
+    ranked: list[str] = []
+    for target in _RUN_TARGET_RANK:
+        if target not in present:
+            continue
+        if not run_target_allows_model(target, model_id, discovery_aliases=discovery_aliases):
+            continue
+        ranked.append(target)
+    return ranked
+
+
+def select_compatible_run_target(
+    model_id: object,
+    *,
+    preferred: str | None = None,
+    installed: list[str] | tuple[str, ...] | None = None,
+    which: Callable[[str], str | None] | None = None,
+    discovery_aliases: bool = False,
+) -> str | None:
+    """Pick the first compatible installed target; honor preferred when compatible."""
+    if preferred and preferred not in _KNOWN_RUN_TARGETS:
+        return preferred
+    ranked = rank_run_targets_for_model(
+        model_id,
+        installed=installed,
+        which=which,
+        discovery_aliases=discovery_aliases,
+    )
+    if preferred in ranked:
+        return preferred
+    return ranked[0] if ranked else None
+
+
+def next_run_target_after_exit(
+    targets: list[str] | tuple[str, ...],
+    current: str,
+    exit_code: int,
+) -> str | None:
+    """Missing binary (127) advances to the next target, not the next model."""
+    if int(exit_code) != BINARY_MISSING_EXIT:
+        return None
+    ordered = list(targets)
+    if current not in ordered:
+        return ordered[0] if ordered else None
+    index = ordered.index(current) + 1
+    return ordered[index] if index < len(ordered) else None
 
 
 def codex_model_overlay(provider: str, model: str) -> list[str]:
@@ -966,8 +1139,221 @@ def codex_model_overlay(provider: str, model: str) -> list[str]:
     `omniroute run` injects `model_provider=omniroute` but leaves Codex's default
     model name in place, which the gateway then routes to the `codex` provider.
     """
-    return ["-c", f'model="{catalog_request_id(provider, model)}"']
+    return ["-c", f"model='{catalog_request_id(provider, model)}'"]
 
+
+def provider_live_native_ids(rows: object) -> set[str]:
+    """Native and composed ids present in one provider's live `models` JSON."""
+    ids: set[str] = set()
+    for item in rows if isinstance(rows, list) else []:
+        if not isinstance(item, dict):
+            continue
+        provider = item.get("provider") if isinstance(item.get("provider"), str) else ""
+        native = catalog_native_id(item)
+        if not native:
+            continue
+        ids.add(native.casefold())
+        if provider:
+            ids.add(catalog_request_id(provider, native).casefold())
+        for key in ("id", "name", "fullModel"):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                ids.add(value.strip().casefold())
+                ids.add(catalog_launch_id(value).casefold())
+    return ids
+
+
+def composed_id_in_provider_live_list(provider: str, model: str, live_rows: object) -> bool:
+    """Verify mapped `provider/model` exists in that provider's live list."""
+    allowed = provider_live_native_ids(live_rows)
+    if not allowed:
+        return False
+    request = catalog_request_id(provider, model).casefold()
+    native = model.casefold()
+    if "/" in native and native.startswith(f"{provider.casefold()}/"):
+        native = native.split("/", 1)[1]
+    return request in allowed or native in allowed or model.casefold() in allowed
+
+
+def live_auto_coding_ids(catalog: object) -> list[str]:
+    """Return advertised auto/coding ids from a live `/v1/models`-shaped catalog."""
+    found: list[str] = []
+    seen: set[str] = set()
+    for item in catalog if isinstance(catalog, list) else []:
+        texts: list[str] = []
+        if isinstance(item, str):
+            texts.append(item.strip())
+        elif isinstance(item, dict):
+            for key in ("id", "model", "name", "fullModel"):
+                value = item.get(key)
+                if isinstance(value, str) and value.strip():
+                    texts.append(value.strip())
+            native = catalog_native_id(item)
+            if native:
+                texts.append(native)
+        for text in texts:
+            lowered = text.casefold()
+            for auto_id in _AUTO_CODING_IDS:
+                if lowered == auto_id or lowered.endswith(f"/{auto_id}"):
+                    if auto_id not in seen:
+                        seen.add(auto_id)
+                        found.append(auto_id)
+    return found
+
+
+def preflight_smoke(
+    model: str,
+    provider: str | None = None,
+    *,
+    run: Callable[..., Any] | None = None,
+    mode: str = "test",
+) -> dict[str, Any]:
+    """Cheap completion proof before a long `omniroute run` implementer launch.
+
+    Stubbable via `run`. Failure means skip the identity; do not start the implementer.
+    """
+    runner = run or subprocess.run
+    if mode == "chat":
+        command = ["omniroute", "--output", "json", "chat", "--model", model]
+        if provider:
+            command.extend(["--provider", provider])
+    else:
+        command = ["omniroute", "test", "--json"]
+        if provider:
+            command.append(provider)
+        if model:
+            command.append(model)
+    try:
+        completed = runner(  # nosec B603 - fixed local OmniRoute argv.
+            command, capture_output=True, text=True, check=False,
+            env=_omniroute_cli_environment(),
+        )
+    except OSError as error:
+        return {"ok": False, "diagnostic": str(error), "launch_implementer": False}
+    stdout = getattr(completed, "stdout", "") or ""
+    stderr = getattr(completed, "stderr", "") or ""
+    code = int(getattr(completed, "returncode", 1) or 0)
+    blob = f"{stdout}\n{stderr}"
+    if code != 0 or diagnostic_skips_identity(blob) or diagnostic_stops_omniroute_transport(blob):
+        return {"ok": False, "diagnostic": blob.strip()[:2000], "launch_implementer": False}
+    return {"ok": True, "diagnostic": "", "launch_implementer": True}
+
+
+def choose_productive_launch(
+    candidate_rows: object,
+    *,
+    preferred_target: str,
+    installed: list[str] | tuple[str, ...] | None = None,
+    which: Callable[[str], str | None] | None = None,
+    discovery_aliases: bool = False,
+    preflight: Callable[..., dict[str, Any]] | None = None,
+    skip_preflight: bool = False,
+    max_attempts: int = MAX_WRITER_ATTEMPTS,
+) -> dict[str, Any]:
+    """Select model×target with matrix + optional smoke; never launch a failing pair."""
+    skipped: list[dict[str, str]] = []
+    rows = [row for row in candidate_rows if isinstance(row, dict)] if isinstance(candidate_rows, list) else []
+    if not rows:
+        return {
+            "action": "runtime_exhausted",
+            "launch_implementer": False,
+            "skipped": skipped,
+            "reason": "empty candidates",
+        }
+    attempts = 0
+    for pick in rows:
+        if writer_attempts_exhausted(attempts, max_attempts=max_attempts):
+            break
+        model = pick.get("model")
+        provider = pick.get("provider")
+        if not isinstance(model, str) or not model or not isinstance(provider, str) or not provider:
+            continue
+        target = select_compatible_run_target(
+            model,
+            preferred=preferred_target,
+            installed=installed,
+            which=which,
+            discovery_aliases=discovery_aliases,
+        )
+        if target is None:
+            skipped.append({"model": model, "provider": provider, "reason": "no compatible target"})
+            continue
+        attempts += 1
+        if preferred_target in _KNOWN_RUN_TARGETS and not skip_preflight:
+            smoke = (preflight or preflight_smoke)(model, provider)
+            if not isinstance(smoke, dict) or not smoke.get("ok"):
+                reason = "preflight failed"
+                if isinstance(smoke, dict) and smoke.get("diagnostic"):
+                    reason = str(smoke["diagnostic"])[:200]
+                skipped.append({"model": model, "provider": provider, "reason": reason})
+                continue
+        return {
+            "action": "launch",
+            "launch_implementer": True,
+            "model": model,
+            "provider": provider,
+            "target": target,
+            "identitySha256": pick.get("identitySha256"),
+            "skipped": skipped,
+            "opencodeModel": opencode_model_arg(model) if target == "opencode" else None,
+            "codexOverlay": codex_model_overlay(provider, model) if target == "codex" else None,
+        }
+    return {
+        "action": "runtime_exhausted",
+        "launch_implementer": False,
+        "skipped": skipped,
+        "reason": "RUNTIME_EXHAUSTED",
+    }
+
+
+def replay_dispatch_diagnostics(
+    steps: list[dict[str, Any]],
+    *,
+    preferred_target: str = "claude",
+    installed: list[str] | tuple[str, ...] | None = None,
+) -> dict[str, Any]:
+    """Replay identity failures (429 / catalog-miss / unrecognized_model) without launching."""
+    skipped: list[dict[str, str]] = []
+    launched = False
+    stop_transport = False
+    for step in steps:
+        model = str(step.get("model") or "")
+        provider = str(step.get("provider") or "")
+        diagnostic = step.get("diagnostic") or ""
+        target = select_compatible_run_target(
+            model,
+            preferred=preferred_target,
+            installed=installed if installed is not None else ["claude", "opencode", "codex"],
+        )
+        if target is None or (
+            preferred_target == "claude"
+            and not run_target_allows_model("claude", model)
+            and "unrecognized_model" in str(diagnostic).casefold()
+        ):
+            skipped.append({
+                "model": model,
+                "provider": provider,
+                "reason": "incompatible target or unrecognized_model",
+            })
+            continue
+        if diagnostic_stops_omniroute_transport(diagnostic):
+            stop_transport = True
+            skipped.append({"model": model, "provider": provider, "reason": "auth failure"})
+            break
+        if diagnostic_skips_identity(diagnostic) or same_identity_retry_budget(diagnostic) == 0:
+            skipped.append({
+                "model": model,
+                "provider": provider,
+                "reason": str(diagnostic)[:200] or "identity skip",
+            })
+            continue
+        launched = True
+        break
+    return {
+        "launch_implementer": launched,
+        "stop_transport": stop_transport,
+        "skipped": skipped,
+    }
 
 _DEFAULT_EXHAUSTION_SECONDS = 2 * 60 * 60
 _EXHAUSTION_CACHE_NAME = "provider-exhaustion.json"
@@ -1154,6 +1540,8 @@ def select_live_candidates(
     skip_identity_sha256s: object = (),
     exhaustion_cache: object = None,
     task: str | None = None,
+    provider_live_ids: object = None,
+    prefer_auto_coding: bool | None = None,
 ) -> list[dict[str, Any]]:
     """Join the current catalog to remaining quota and order the next usable model."""
     if required_capability not in _CAPABILITY_RANK:
@@ -1164,6 +1552,9 @@ def select_live_candidates(
     coding_filter = applies_coding_candidate_filter(
         required_capability=required_capability, task=normalized_task,
     )
+    use_auto = prefer_auto_coding
+    if use_auto is None:
+        use_auto = coding_filter
     skipped = {
         item for item in skip_identity_sha256s or ()
         if isinstance(item, str) and _HEX.fullmatch(item)
@@ -1177,6 +1568,7 @@ def select_live_candidates(
         key for key in (cache.get("identities") or {})
         if isinstance(key, str) and _HEX.fullmatch(key)
     } if isinstance(cache.get("identities"), dict) else set()
+    live_index = provider_live_ids if isinstance(provider_live_ids, dict) else None
     remaining: dict[str, int] = {}
     for row in quota if isinstance(quota, list) else []:
         if not isinstance(row, dict):
@@ -1207,6 +1599,14 @@ def select_live_candidates(
         model = catalog_request_id(provider, native)
         if not model:
             continue
+        if live_index is not None:
+            allowed = live_index.get(provider_key)
+            if isinstance(allowed, set) and allowed:
+                if (
+                    native.casefold() not in allowed
+                    and model.casefold() not in allowed
+                ):
+                    continue
         left = remaining.get(provider_key)
         if not left:
             continue
@@ -1259,6 +1659,26 @@ def select_live_candidates(
         pool.sort(key=lambda row: (
             _DEFAULT_TASK_ORDER.get(row["capability"], 9), -row["remaining"], row["model"],
         ))
+    if use_auto:
+        auto_ids = live_auto_coding_ids(catalog)
+        headroom = max((row["remaining"] for row in pool), default=1)
+        autos: list[dict[str, Any]] = []
+        for auto_id in auto_ids:
+            identity_sha = _sha256({"model": auto_id, "provider": "auto"})
+            if identity_sha in skipped or identity_sha in blocked_identities:
+                continue
+            if ("auto", auto_id) in {(row["provider"], row["model"]) for row in pool}:
+                continue
+            autos.append({
+                "model": auto_id,
+                "provider": "auto",
+                "remaining": headroom,
+                "capability": "default",
+                "identitySha256": identity_sha,
+                "codingFit": "boost" if coding_filter else "n/a",
+            })
+        if autos:
+            pool = autos + [row for row in pool if row.get("model") not in auto_ids]
     return pool
 
 
@@ -1353,27 +1773,62 @@ def _raw_gateway_models(
         return []
 
 
+def _index_provider_live_ids(per_provider_rows: dict[str, list[object]]) -> dict[str, set[str]]:
+    index: dict[str, set[str]] = {}
+    for provider, rows in per_provider_rows.items():
+        key = _provider_key(provider)
+        if not key:
+            continue
+        index[key] = provider_live_native_ids(rows)
+    return index
+
+
 def _live_catalog_rows(
     quota: object, run: Callable[..., Any] | None = None,
     which: Callable[[str], str | None] | None = None,
-) -> list[object]:
-    """Prefer gateway `/api/models` (`model` + `available`). CLI `models` JSON uses display names and is capped at 50."""
-    raw = _raw_gateway_models(run=run, which=which)
-    if raw:
-        return raw
+) -> tuple[list[object], dict[str, set[str]]]:
+    """Join per remaining-quota provider live lists (avoids the global 50-row CLI cap).
+
+    Returns (catalog_rows, provider_live_id_index). Gateway `/api/models` may enrich
+    the catalog, but a composed id must still exist in that provider's live list when
+    the per-provider query succeeded.
+    """
     catalog: list[object] = []
+    seen: set[tuple[str, str]] = set()
+    per_provider: dict[str, list[object]] = {}
+
+    def _extend(rows: list[object]) -> None:
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            provider = item.get("provider")
+            native = catalog_native_id(item)
+            if not isinstance(provider, str) or not provider or not native:
+                continue
+            key = (_provider_key(provider), native.casefold())
+            if key in seen:
+                continue
+            seen.add(key)
+            catalog.append(item)
+
     for provider in _remaining_quota_providers(quota):
         try:
-            rows = _omniroute_cli((*_CATALOG_COMMAND, provider), run=run)
+            rows = _catalog_rows(_omniroute_cli((*_CATALOG_COMMAND, provider), run=run))
         except OmniRouteError:
-            continue
-        catalog.extend(_catalog_rows(rows))
+            rows = []
+        per_provider[provider] = rows
+        _extend(rows)
+    live_index = _index_provider_live_ids(per_provider)
+    gateway = _raw_gateway_models(run=run, which=which)
+    if gateway:
+        _extend(gateway)
     if catalog:
-        return catalog
+        return catalog, live_index
     try:
-        return _catalog_rows(_omniroute_cli(_CATALOG_COMMAND, run=run))
+        fallback = _catalog_rows(_omniroute_cli(_CATALOG_COMMAND, run=run))
     except OmniRouteError:
-        return []
+        fallback = []
+    return fallback, live_index
 
 
 def candidates(
@@ -1393,7 +1848,7 @@ def candidates(
         return {"state": "ABSENT", "candidates": []}
     try:
         quota = _omniroute_cli(_QUOTA_COMMAND, run=run)
-        catalog = _live_catalog_rows(quota, run=run, which=locator)
+        catalog, live_index = _live_catalog_rows(quota, run=run, which=locator)
     except OmniRouteError:
         return {"state": "UNHEALTHY", "candidates": []}
     root = Path(state_dir) if state_dir is not None else default_state_path()
@@ -1414,9 +1869,9 @@ def candidates(
         skip_identity_sha256s=skip_identity_sha256s,
         exhaustion_cache=cache,
         task=task,
+        provider_live_ids=live_index or None,
     )
     return {"state": "READY" if picked else "RUNTIME_EXHAUSTED", "candidates": picked}
-
 
 def _valid_private_candidate(candidate: object) -> bool:
     return bool(
@@ -2213,9 +2668,25 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
     if capability not in _CAPABILITY_RANK:
         capability = "default"
     catalog = candidates(required_capability=capability)
-    pick = (catalog.get("candidates") or [None])[0]
-    if not isinstance(pick, dict):
+    candidate_rows = catalog.get("candidates") or []
+    if not isinstance(candidate_rows, list) or not candidate_rows:
         raise OmniRouteError("OmniRoute is not ready: RUNTIME_EXHAUSTED")
+    # Fail-closed target matrix + optional smoke for known OmniRoute run targets.
+    # Sealed/host launchers (unknown targets) keep the legacy first-candidate path.
+    plan = choose_productive_launch(
+        candidate_rows,
+        preferred_target=target,
+        which=shutil.which,
+        skip_preflight=target not in _KNOWN_RUN_TARGETS,
+    )
+    if plan.get("action") != "launch" or not plan.get("launch_implementer"):
+        raise OmniRouteError("OmniRoute is not ready: RUNTIME_EXHAUSTED")
+    pick = {
+        "model": plan["model"],
+        "provider": plan["provider"],
+        "identitySha256": plan.get("identitySha256"),
+    }
+    resolved_target = str(plan["target"])
     if invocation_mode == "direct":
         argv = [*launcher_argv, *delegate_args]
     elif invocation_mode == "gateway":
@@ -2223,25 +2694,28 @@ def dispatch(  # noqa: MC0001 - fail-closed dispatch keeps invariant checks in o
         # `run` as argv[1]; other gateway launchers keep their profile argv.
         argv = list(launcher_argv)
         if len(argv) >= 2 and argv[1] == "run":
-            argv.extend(["--model", pick["model"], "--provider", pick["provider"], "--port", "20128"])
+            run_model = pick["model"]
+            if resolved_target == "opencode":
+                run_model = opencode_model_arg(run_model)
+            argv.extend(["--model", run_model, "--provider", pick["provider"], "--port", "20128"])
             if credential_mode == "environment":
                 argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
             overlay = list(delegate_args)
-            if target == "codex":
+            if resolved_target == "codex":
                 overlay = [*codex_model_overlay(pick["provider"], pick["model"]), *overlay]
-            argv.extend([target, "--", *overlay])
+            argv.extend([resolved_target, "--", *overlay])
         else:
-            argv = [*launcher_argv, target, "--port", "20128"]
+            argv = [*launcher_argv, resolved_target, "--port", "20128"]
             if credential_mode == "environment":
                 argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
             argv.extend(["--", *delegate_args])
     else:
-        argv = [*launcher_argv, target, "--port", "20128"]
+        argv = [*launcher_argv, resolved_target, "--port", "20128"]
         if credential_mode == "environment":
             argv.extend(["--api-key-env", "OMNIROUTE_API_KEY"])
         argv.extend(["--", *delegate_args])
     dispatch_environment = _dispatch_environment(environment, credential_mode)
-    delegate_manifest = _delegate_contract(delegate, worktree, target, argv, dispatch_environment)
+    delegate_manifest = _delegate_contract(delegate, worktree, resolved_target, argv, dispatch_environment)
     with _reservation(Path(state_dir)):
         if path.exists():
             raise OmniRouteError("run id already exists")
