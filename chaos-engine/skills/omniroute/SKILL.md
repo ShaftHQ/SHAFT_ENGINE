@@ -106,74 +106,52 @@ unsupported combo, fall back to the ranked native id from `candidates`.
 
 ### CLI target matrix (fail closed)
 
-Pick the run target from the model id, not from "first installed binary wins":
+Pick target from model id (not first binary):
 
-| Target | Compatible native ids | Notes |
+| Target | Compatible ids | Notes |
 | --- | --- | --- |
-| `claude` | Claude-family / `cc/` / `anthropic*` only | Non-Claude ids need `ANTHROPIC_MODEL` **and** `EXPOSE_CC_DISCOVERY_ALIASES`, or **do not use** `claude` (Kimi via raw `claude` → `unrecognized_model`). |
-| `opencode` | any coding id | `--model omniroute/<id>` (prefix once). |
-| `codex` | any coding id | `-c model='<provider>/<id>'`, `wire_api=responses`, base URL with `/v1`. |
-| `qwen` / `gemini` | id verbatim | `qwen` requires `--model`. |
+| `claude` | Claude-family / `cc/` / `anthropic*` only | Else `ANTHROPIC_MODEL`+`EXPOSE_CC_DISCOVERY_ALIASES`, or skip `claude` (raw Kimi → `unrecognized_model`). |
+| `opencode` | any coding id | `--model omniroute/<id>` once. |
+| `codex` | any coding id | `-c model='<provider>/<id>'`, `wire_api=responses`, base `/v1`. |
+| `qwen` / `gemini` | id verbatim | `qwen` needs `--model`. |
 
-Missing binary (`127`) → next **target**, not next model of a dead target.
-Rank installed targets: `claude` (Claude-family ids only) → `opencode` → `codex` → `qwen`/`gemini`.
+Exit `127` → next **target**. Rank: `claude` (Claude-family only) → `opencode` → `codex` → `qwen`/`gemini`.
 
 ### Preflight before long `omniroute run`
 
-Before launching a long implementer (`claude --print` / `opencode run` / `codex exec`):
+1. Prefer `auto/coding` / `auto/coding:fast` when live `/v1/models` advertises it and smoke (`omniroute test` / tiny `chat`) passes.
+2. Else ranked native id in provider live `models <provider>`; smoke it. Fail → skip; do not start implementer.
+3. `unrecognized_model` / 429 / live-catalog 400 / stream-before-completed → **0** same-identity retries; requery; next id.
+4. Same identity ≤**1** retry for timeout / single network blip only.
+5. 401/403 → stop OmniRoute transport.
 
-1. Prefer `auto/coding` or `auto/coding:fast` when advertised in live `/v1/models` **and** a smoke `omniroute test` / tiny `chat` succeeds.
-2. Otherwise pick a ranked native id whose composed id exists in that provider's live `models <provider>` list.
-3. Smoke-test that identity (`omniroute test <provider> [model] --json` or 1-token `chat`). Failure → skip identity; do **not** start the implementer.
-4. On `unrecognized_model` / 429 / live-catalog 400 / stream-before-completed: **0** same-identity retries; requery; next identity.
-5. Same identity: at most **1** retry, only for timeout / single network blip.
-6. 401/403: stop OmniRoute transport (do not rotate).
-
-Anti-patterns: static model-name allowlists as the primary selector; `candidates` then native host while READY; `claude` + Kimi/Qwen without discovery aliases.
+Anti-patterns: static model allowlists as primary selector; `candidates` then native host while READY; `claude`+Kimi/Qwen without discovery aliases.
 
 ### Operator checklist (docs only — no credential writes)
 
-- Keep at least one Claude-family connection if you use the `claude` target.
-- Keep at least one OpenAI-compatible coding connection for `opencode`/`codex`.
-- Leave exhausted OAuth (e.g. Antigravity at zero) out of the default coding rank until quota recovers.
-- Dashboard → provider → Import from `/models` / Auto-Sync when CLI ids drift from live `/v1`.
+- Claude-family connection for `claude`; OpenAI-compatible coding connection for `opencode`/`codex`.
+- Leave exhausted OAuth out of default coding rank until quota recovers.
+- Dashboard → Import `/models` / Auto-Sync when CLI ids drift from live `/v1`.
 - Thinking Budget **passthrough**. Harness never installs OmniRoute or writes secrets.
 
 ### Dispatch checklist (READY)
 
-1. Health on loopback only: `curl -sf --max-time 2 http://127.0.0.1:20128/api/health`.
-2. Live `candidates` (coding filter for implementation).
-3. Pick the first remaining identity; never reuse a just-failed identity on 429.
-4. On `READY`, launch `omniroute run --model --provider <target>` before any
-   native host model. Prefer the first installed target: `claude`, then
-   `opencode`, then `codex` (skip exit `127` missing binaries).
-5. On fail: skip that identity/provider, requery, next remaining id.
-6. Native host models only on `RUNTIME_EXHAUSTED`, empty remaining catalog,
-   sealed-launcher exit `78`, or missing OmniRoute binary (`ABSENT`).
+1. Loopback health: `curl -sf --max-time 2 http://127.0.0.1:20128/api/health`.
+2. Live `candidates` (coding filter). First remaining identity; never reuse a just-failed id on 429.
+3. On `READY`, `omniroute run --model --provider <target>` before native host (target order above; skip `127`).
+4. On fail: skip identity/provider, requery, next id.
+5. Native host only on `RUNTIME_EXHAUSTED`, empty catalog, sealed-launcher `78`, or `ABSENT`.
 
-**Process failure:** ranking `candidates` then shipping via the native host
-model while OmniRoute is `READY` is not success. Catalog ≠ dispatch.
+**Process failure:** `candidates` then native host while READY is not success. Catalog ≠ dispatch.
 
-Retry is chosen from the failure, not from a pinned profile. Official
-troubleshooting splits transient rate/400/401 from hard quota exhaustion:
+Retry from failure, not a pinned profile:
 
-- HTTP 429 / rate-limit / resource_exhausted: do not retry the same identity.
-  Requery the catalog, skip that `identitySha256`, pick the next remaining
-  model, and relaunch `omniroute run --model` / `--provider` on the same
-  installed target. If the provider is out of balance, skip that provider
-  family. Daemon-side `OMNIROUTE_ROTATE_ON_400=true` hops 400/401 inside the
-  gateway; ChaosEngine still skips a failed identity at launch.
-- HTTP 400 live-catalog miss (`not available in the active live catalog`):
-  same as 429. Skip that identity, requery, launch the next remaining native id.
-- Stream closed before `response.completed` after one same-pick retry: same as 429.
-  Debug format translation at Dashboard Translator (Playground / Chat Tester).
-- Timeout or a single network blip: retry the same catalog pick once.
-- HTTP 401/403 or invalid key: stop. Do not retry. Fix the endpoint credential.
-  Expired OAuth: Dashboard reconnect or `omniroute providers auth`.
-- Empty remaining catalog: `RUNTIME_EXHAUSTED`, then native host models.
+- 429 / rate-limit / resource_exhausted / live-catalog 400 (`not available in the active live catalog`) / Stream closed before `response.completed`: skip identity, requery, next native id. Out-of-balance provider → skip family. Daemon `OMNIROUTE_ROTATE_ON_400=true` may hop inside gateway; ChaosEngine still skips the failed launch identity. Stream issues → Dashboard Translator.
+- Timeout / single network blip: retry same pick once.
+- 401/403 / invalid key: stop; fix credential (OAuth: Dashboard reconnect or `omniroute providers auth`).
+- Empty remaining catalog: `RUNTIME_EXHAUSTED`, then native host.
 
-Never pin a model in a Codex profile. Fetch the live catalog, rank for the
-task, map display names to native ids, then launch `omniroute run`.
+Never pin a model in a Codex profile. Live catalog → rank → map display→native → `omniroute run`.
 
 ### Dispatch (`omniroute run`, no config writes)
 
@@ -284,22 +262,7 @@ authentication facts never come from a stale `READY` cache. Operator config is
 a regular owner-owned private file (mode `0600` where permission bits exist).
 Dispatch reads one no-follow config descriptor, seals the verified launcher
 into owner-private state, and executes that immutable copy. Loopback
-health disables ambient proxies and rejects redirects. Dispatch resolves one
-absolute protected executable, binds device, inode, owner, mode, size, mtime,
-and SHA-256 content, then revalidates it immediately before execution. Dispatch
-requires distinct clean linked delegate and integration Git worktrees from the
-expected repository, including
-no untracked files, interprocess-atomic ownership reservation, ancestor/descendant path
-overlap rejection, argument-list process invocation, a minimal environment, a
-bounded runtime, and private state whose components reject symlinks and unsafe
-ownership or permissions. Standard output and error are drained without an unbounded buffer,
-secret-shaped values are redacted, and each retained stream is capped at 16
-KiB in a private diagnostic artifact. Redaction removes exact known credential
-values before persistence plus credential-shaped patterns. A timeout or cancel
-waits after `SIGTERM`, sends `SIGKILL` to survivors, and proves process-group
-death before releasing state. Unsupported durable process identity or process-tree
-termination fails closed before state mutation to native delegation; OmniRoute transport is not claimed
-on that platform. Its manifest
+health disables ambient proxies and rejects redirects. Dispatch binds one absolute protected executable (device/inode/owner/mode/size/mtime/SHA-256) and revalidates before execution. Dispatch requires distinct clean linked delegate and integration worktrees (no untracked files, atomic ownership reservation, path-overlap rejection, argv invocation, minimal env, bounded runtime, private state rejecting symlinks/unsafe ownership). Stdout/stderr drain without unbounded buffers; secret-shaped values redacted; each retained stream capped at 16 KiB in a private diagnostic. Timeout/cancel: `SIGTERM`, then `SIGKILL`, prove process-group death before releasing state. Unsupported durable process identity fails closed before native delegation. Its manifest
 freezes task/workflow/root/base/integration/qualification/delegate/process/
 cadence/deadline/timeout/HEAD/diagnostic/receipt facts; its terminal receipt freezes outcome,
 exit, clean state, changed paths, checks, blockers, adjacent findings, and
