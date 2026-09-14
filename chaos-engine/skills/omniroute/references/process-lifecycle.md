@@ -19,5 +19,5 @@ Long implementer launches must not take down the orchestrator shell.
 ## Related
 
 - Productive dispatch (live catalog, CLI target matrix, preflight, retry
-  budgets): `scripts/runner.py` helpers and the OmniRoute skill checklists.
+  budgets): `chaos-engine/skills/omniroute/scripts/runner.py` helpers and the OmniRoute skill checklists.
 - Learning: #5770.
