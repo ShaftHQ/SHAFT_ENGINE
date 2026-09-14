@@ -221,6 +221,8 @@ def inventory_sections(root: Path = ROOT) -> dict[str, str]:
             ("five host APIs", "Run scheduled paired promotion trials.", "scripts/ci/chaos_engine_promotion.py", "required for promotion only", "scheduled/manual CI", "host credentials", "promotion evaluator", "promotion remains Blocked"),
             ("ShaftHQ/shafthq.github.io", "Publish companion functional documentation.", "repository documentation policy", "required in same delivery campaign", "GitHub", "documentation PR", "documentation repository", "campaign remains incomplete"),
         ],
+        # Keep the Memory/MemPalace/Graphify row aligned with .gitignore /
+        # hosts.py durable-Memory tracking policy (#5776).
         "generated-assets": [
             ("dependency generations", "Immutable project-local tools and interpreters.", "dependencies.py", "generated", "Windows, Linux, macOS", "installer", "receipt-owned", "unselected candidate is removed; foreign content is preserved"),
             ("active and previous pointers", "Atomically select current and rollback generations.", "dependencies.py", "generated", "Windows, Linux, macOS", "installer", "installer control plane", "invalid pointer fails closed"),

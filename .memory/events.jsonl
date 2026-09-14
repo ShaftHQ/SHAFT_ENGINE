@@ -1217,3 +1217,4 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.omniroute-verify-live-provider-ids-and-cli-target-matrix-before-long-run","timestamp":"2026-09-14T14:45:14+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.do-not-broad-kill-omniroute-launcher-patterns-that-match-the-parent-shell","timestamp":"2026-09-14T14:45:14+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.durable-native-memory-is-tracked-not-gitignored","timestamp":"2026-09-14T15:12:35+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.keep-generated-assets-inventory-in-sync-when-memory-gitignore-policy-changes","timestamp":"2026-09-14T15:51:45+03:00"}
