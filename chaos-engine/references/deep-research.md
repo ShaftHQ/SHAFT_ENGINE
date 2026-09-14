@@ -22,3 +22,10 @@ independent evidence. Isolated explore still follows
 
 Do not pretend a host TUI workflow ran if the host has no workflow runner.
 Bounded parallelism and citation validation remain mandatory on every host.
+
+Scaffold a run directory (every host):
+
+`python3 .chaos-engine/deep_research.py init --query "<query>" --out <run-dir>`
+
+Then execute the four phases with isolated subagents. The Grok TUI workflow
+is an adapter, not the owner.

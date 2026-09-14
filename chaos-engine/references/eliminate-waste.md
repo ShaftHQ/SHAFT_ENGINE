@@ -7,7 +7,7 @@ Waste is any token, retry, duplicate tool, proxy hop, or retry-the-same-search t
 ## Do
 
 - One store, one bounded retrieve, then act.
-- One owned path. No second MCP for the same job. CLI over MCP when both exist.
+- One owned path. No second MCP for the same job. See [prefer CLI over MCP](prefer-cli-over-mcp.md).
 - Drop work that does not change the delivery. Do not re-implement a removed path.
 - Keep the original issue intent and details. Ignore only the part that is waste (a traffic proxy). Do not rewrite the rest into a new program.
 - Prefer a smaller diff that removes a hop over a larger diff that adds a wrapper.

@@ -1937,8 +1937,9 @@ def instruction_block(tree: str = INSTALLED_TREE) -> str:
         f"{START}\nBefore every task, follow the canonical "
         f"[ChaosEngine]({skill}). "
         f"Use `{tool}` for the project-local Memory, MemPalace, and Graphify tools. "
-        "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
-        "Leave an existing GitHub MCP config unchanged.\n"
+        "Prefer gh for GitHub when gh exists and is configured. "
+        "CLI over MCP when both exist. "
+        "Default MCP catalog never includes GitHub MCP.\n"
         f"{END}\n"
     )
 
