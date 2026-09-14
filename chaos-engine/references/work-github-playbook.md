@@ -68,8 +68,10 @@ Collect durable findings during work, but route them through exactly one root-ow
 Learning Session only after confirmed delivery and immediately before the final report.
 Delegates and intermediate pushes never start another session.
 When reflection is required, put the changed approach and focused proof on the
-tracker before resuming. The hook never writes issues. After delivery, a
-session over one hour records its terminal reflection receipt before the Learning Session.
+tracker before resuming. The hook never writes issues; the agent files leftover
+risks and out-of-scope items with `gh` after duplicate search, then records
+those URLs on the terminal receipt. After delivery, a session over one hour
+records its terminal reflection receipt before the Learning Session.
 
 ### Learned-lessons workflow
 

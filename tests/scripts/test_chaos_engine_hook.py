@@ -77,12 +77,18 @@ class ChaosEngineHookTest(unittest.TestCase):
             {"hook_event_name": "SubagentStop", "stop_hook_active": False},
         )
         for host in ("codex", "claude", "gemini", "grok", "copilot"):
-            environment = {**os.environ, "CHAOS_ENGINE_HOST": host}
-            for event in fixtures:
-                with self.subTest(host=host, event=event["hook_event_name"]):
-                    result = self.run_hook(event, environment)
-                    self.assertEqual(0, result.returncode)
-                    self.assertEqual({}, json.loads(result.stdout))
+            with tempfile.TemporaryDirectory() as temporary:
+                environment = {
+                    **os.environ,
+                    "CHAOS_ENGINE_HOST": host,
+                    "TMPDIR": temporary,
+                    "TEMP": temporary,
+                }
+                for event in fixtures:
+                    with self.subTest(host=host, event=event["hook_event_name"]):
+                        result = self.run_hook(event, environment)
+                        self.assertEqual(0, result.returncode)
+                        self.assertEqual({}, json.loads(result.stdout))
 
     def _hook_decision_payload(self, result):
         rendered = (result.stdout or "").strip() or (result.stderr or "").strip() or "{}"
@@ -727,6 +733,7 @@ process.stderr.write(result.stderr || '');
                     "proofCommandOrCheck": "delivery status",
                     "proofOutcome": "Delivery status was confirmed.",
                     "durableDisposition": "guidance-fixed",
+                    "noDeferredOrRiskWork": True,
                 }
                 reflection.record_receipt("portable-delivery", receipt, token)
             delivered = self.run_hook(

@@ -451,7 +451,7 @@ def _validate_receipt_shape(receipt: dict) -> None:
         "schemaVersion", "taskId", "trigger", "failureFingerprints",
         "failedAssumption", "approachesCompared", "chosenExperiment",
         "changedApproach", "proofCommandOrCheck", "proofOutcome",
-        "durableDisposition", "issue",
+        "durableDisposition", "issue", "trackingIssues", "noDeferredOrRiskWork",
     }
     unknown = set(receipt) - allowed_fields
     if unknown:
@@ -517,6 +517,34 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
         if not _GITHUB_ISSUE_URL.fullmatch(issue):
             raise ValueError("issue must be a GitHub issue URL")
         entry["issue"] = issue
+    no_deferred = receipt.get("noDeferredOrRiskWork")
+    if no_deferred is not None and not isinstance(no_deferred, bool):
+        raise ValueError("noDeferredOrRiskWork must be a boolean")
+    tracking = receipt.get("trackingIssues", [])
+    if tracking is None:
+        tracking = []
+    if not isinstance(tracking, list):
+        raise ValueError("trackingIssues must be a list of GitHub issue URLs")
+    cleaned_issues = []
+    for item in tracking:
+        url = _safe_text("trackingIssues", item, allow_github_issue=True)
+        if not _GITHUB_ISSUE_URL.fullmatch(url):
+            raise ValueError("trackingIssues must be GitHub issue URLs")
+        cleaned_issues.append(url)
+    if cleaned_issues:
+        entry["trackingIssues"] = cleaned_issues
+    if trigger == "long-session-completion":
+        if no_deferred is True:
+            entry["noDeferredOrRiskWork"] = True
+        elif not cleaned_issues:
+            raise ValueError(
+                "long-session-completion requires trackingIssues GitHub URLs "
+                "for leftover risks and out-of-scope work, or noDeferredOrRiskWork true"
+            )
+        else:
+            entry["noDeferredOrRiskWork"] = False
+    elif no_deferred is True:
+        entry["noDeferredOrRiskWork"] = True
     entry["receiptHash"] = _receipt_hash(session_id, entry)
     if not append_entry(session_id, entry):
         raise OSError("could not append reflection receipt")
