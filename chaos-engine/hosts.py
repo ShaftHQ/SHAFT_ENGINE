@@ -3046,15 +3046,18 @@ def owned_servers(
             extra={"env": dict(MEMPALACE_MCP_ENV)},
         )
     if maven_runtime is not None:
-        java, jar = maven_runtime
-        servers["maven-tools-mcp"] = {
-            "command": str(java),
-            "args": ["-jar", str(jar)],
-        }
+        # Portable shared-cache contract: never embed workstation-absolute
+        # java/jar paths in git-tracked project overlay (#5782). Discovery of
+        # maven_runtime still gates whether the entry is published.
+        servers["maven-tools-mcp"] = portable_python_server(
+            [".chaos-engine/tool.py", "maven-tools-mcp"],
+            managed_python=managed_python,
+        )
     elif maven_docker is not None:
-        docker, image = maven_docker
+        _docker, image = maven_docker
+        # Prefer bare `docker` so committed overlay stays machine-portable.
         servers["maven-tools-mcp"] = {
-            "command": docker,
+            "command": "docker",
             "args": ["run", "-i", "--rm", image],
         }
     return servers
@@ -3549,7 +3552,24 @@ def replaceable_owned_server(name: str, existing: object, desired: dict[str, obj
             {"command": "npx", "args": ["-y", "@upstash/context7-mcp@latest"]},
         )
     if name == "maven-tools-mcp":
-        return exact_legacy_native_maven_server(existing)
+        if exact_legacy_native_maven_server(existing):
+            return True
+        portable = portable_python_server(
+            [".chaos-engine/tool.py", "maven-tools-mcp"]
+        )
+        if existing == portable or existing == desired:
+            return True
+        # Prior absolute java/jar shapes are replaceable by the portable launcher.
+        if isinstance(existing, dict):
+            command = str(existing.get("command") or "")
+            args = existing.get("args")
+            if isinstance(args, list) and any(
+                isinstance(item, str) and item.casefold().endswith(".jar") for item in args
+            ):
+                return True
+            if Path(command).name.casefold() in {"java", "java.exe"}:
+                return True
+        return False
     if name not in {"chaosengine-memory", "chaosengine-mempalace"}:
         return False
     arguments = [".chaos-engine/tool.py", "memory-mcp"] if name == "chaosengine-memory" else [
@@ -4125,21 +4145,26 @@ def codex_content(
         "# CHAOSENGINE:END\n",
     )
     if maven_runtime is not None:
-        java, jar = maven_runtime
+        # Portable launcher — no absolute java/jar in tracked Codex config (#5782).
+        maven_cmd = posix_command
+        maven_args = '".chaos-engine/tool.py", "maven-tools-mcp"'
         block = block.replace(
             "# CHAOSENGINE:END\n",
             "\n"
             '[mcp_servers."maven-tools-mcp"]\n'
-            f"command = {json.dumps(str(java))}\n"
-            f'args = ["-jar", {json.dumps(str(jar))}]\n'
+            f'command = "{maven_cmd}"\n'
+            f"args = [{maven_args}]\n"
+            f'commandWindows = "{windows_command}"\n'
+            f'argsWindows = [{windows_prefix}{maven_args}]\n'
+            'cwd = "."\n'
             "# CHAOSENGINE:END\n",
         )
     elif maven_docker is not None:
-        docker, image = maven_docker
+        _docker, image = maven_docker
         block = block.replace(
             "# CHAOSENGINE:END\n",
             "\n[mcp_servers.\"maven-tools-mcp\"]\n"
-            f"command = {json.dumps(docker)}\n"
+            'command = "docker"\n'
             f'args = ["run", "-i", "--rm", {json.dumps(image)}]\n'
             "# CHAOSENGINE:END\n",
         )
@@ -5028,15 +5053,20 @@ def desired_content(
         desired_marketplace = {
             "source": {"source": "directory", "path": "."}
         }
+        # Pin enable list to CE trio only; strip marketplace auto-install extras (#5783).
+        pinned_enabled = {
+            key: value
+            for key, value in enabled.items()
+            if str(key).split("@", 1)[0].casefold()
+            in {PLUGIN_NAME, CAVEMAN_PLUGIN_NAME, PONYTAIL_PLUGIN_NAME}
+        }
+        pinned_enabled[plugin_id] = True
+        pinned_enabled[f"caveman@{claude_marketplace_name}"] = True
+        pinned_enabled[f"ponytail@{claude_marketplace_name}"] = True
         desired_settings = json.dumps(
             {
                 **settings,
-                "enabledPlugins": {
-                    **enabled,
-                    plugin_id: True,
-                    f"caveman@{claude_marketplace_name}": True,
-                    f"ponytail@{claude_marketplace_name}": True,
-                },
+                "enabledPlugins": pinned_enabled,
                 "extraKnownMarketplaces": {
                     **marketplaces,
                     claude_marketplace_name: desired_marketplace,
@@ -5060,10 +5090,9 @@ def desired_content(
                 b"" if before[".claude/settings.json"] is None else before[".claude/settings.json"]
             )
         else:
-            enabled[plugin_id] = True
-            enabled[f"caveman@{claude_marketplace_name}"] = True
-            enabled[f"ponytail@{claude_marketplace_name}"] = True
+            settings["enabledPlugins"] = pinned_enabled
             marketplaces[claude_marketplace_name] = desired_marketplace
+            settings["extraKnownMarketplaces"] = marketplaces
             after[".claude/settings.json"] = (
                 json.dumps(settings, indent=2, sort_keys=True) + "\n"
             ).encode()

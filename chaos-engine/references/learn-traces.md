@@ -26,5 +26,9 @@ Collect with the portable runner (every host):
 
 `python3 .chaos-engine/learn_traces.py collect --out <run-dir>`
 
+Collect parses Grok/Claude/Codex (and Gemini when present) session
+trees into redacted `sessions/*.json` plus `manifest.json` with kept
+and drop counts. No credentials in output.
+
 Then map-reduce-verify with isolated subagents. Do not copy a host TUI
 workflow into this tree. Do not write learned skills under `~/.grok/skills`.

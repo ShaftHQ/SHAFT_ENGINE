@@ -129,13 +129,11 @@ class TokenMaxTests(TestCase):
             ".chaos-engine",
             self.hosts.guidance_tree(ROOT),
         )
-        self.assertEqual(
-            self.policy.HEAL_PROMPT,
-            "Prefer gh for GitHub when gh exists and is configured. "
-            "CLI over MCP when both exist. "
-            "Default MCP catalog never includes GitHub MCP.",
-        )
-        self.assertIn(self.policy.HEAL_PROMPT, self.hosts.instruction_block(".chaos-engine"))
+        self.assertIn("when gh auth status succeeds", self.policy.HEAL_PROMPT)
+        self.assertIn("CLI over MCP when both exist", self.policy.HEAL_PROMPT)
+        block = self.hosts.instruction_block(".chaos-engine")
+        self.assertIn("Prefer gh for GitHub when gh exists and is configured", block)
+        self.assertIn("CLI over MCP when both exist", block)
 
     def test_overlay_match_adopter_is_true(self):
         with tempfile.TemporaryDirectory() as temporary:

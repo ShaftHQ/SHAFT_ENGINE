@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "constraint",
+  "id": "grok-host-parity-5780-5785",
+  "title": "Grok host parity and CLI-over-MCP (#5780\u2013#5785)",
+  "updatedAt": "2026-09-14T17:42:45.300650+00:00",
+  "sourceIssues": [
+    5780,
+    5781,
+    5782,
+    5783,
+    5784,
+    5785,
+    5779
+  ]
+}

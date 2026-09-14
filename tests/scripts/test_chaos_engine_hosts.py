@@ -2755,11 +2755,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
         servers = module.owned_servers("nt", maven_runtime=(java, jar))
         maven = servers["maven-tools-mcp"]
 
-        self.assertEqual(str(java), maven["command"])
-        self.assertEqual(
-            ["-jar", str(jar)],
-            maven["args"],
-        )
+        # Portable launcher — no workstation-absolute java/jar in overlay (#5782).
+        self.assertIn("tool.py", " ".join(str(item) for item in maven["args"]))
+        self.assertIn("maven-tools-mcp", maven["args"])
+        self.assertNotIn(str(jar), str(maven))
         self.assertNotEqual("docker", Path(str(maven["command"])).name.casefold())
 
     def test_explicit_maven_tools_docker_mode_pins_resolved_image(self):
@@ -2769,7 +2768,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "command": "/usr/bin/docker",
+                "command": "docker",
                 "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.1"],
             },
             servers["maven-tools-mcp"],
@@ -2785,8 +2784,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
         claude = json.loads(after[".mcp.json"])
         codex = after[".codex/config.toml"].decode("utf-8")
 
-        self.assertEqual(str(java), claude["mcpServers"]["maven-tools-mcp"]["command"])
-        self.assertIn(str(jar).replace("\\", "\\\\"), codex)
+        maven = claude["mcpServers"]["maven-tools-mcp"]
+        self.assertIn("maven-tools-mcp", maven["args"])
+        self.assertIn("tool.py", " ".join(str(item) for item in maven["args"]))
+        self.assertNotIn(str(jar), json.dumps(claude))
+        self.assertIn("maven-tools-mcp", codex)
+        self.assertIn("tool.py", codex)
+        self.assertNotIn(str(jar).replace("\\", "\\\\"), codex)
         self.assertNotIn("spring.profiles.active", codex)
 
     def test_native_maven_tools_runtime_discovers_user_paths(self):
@@ -3369,11 +3373,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         rendered = module.codex_content(old, maven_runtime=(java, new_jar)).decode()
 
-        self.assertIn(str(new_jar), rendered)
+        self.assertIn("tool.py", rendered)
+        self.assertIn("maven-tools-mcp", rendered)
+        self.assertNotIn(str(new_jar), rendered)
         self.assertNotIn(str(old_jar), rendered)
         mutated = old.replace(b"docker,no-context7", b"docker,no-context7,custom")
         healed = module.codex_content(mutated, maven_runtime=(java, new_jar)).decode()
-        self.assertIn(str(new_jar), healed)
+        self.assertIn("tool.py", healed)
+        self.assertNotIn(str(new_jar), healed)
         self.assertNotIn("docker,no-context7,custom", healed)
         self.assertIn("# CHAOSENGINE:START", healed)
 

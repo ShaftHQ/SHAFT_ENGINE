@@ -54,6 +54,8 @@ class CliOverMcpTests(unittest.TestCase):
             manifest = self.learn.collect(home, out)
             self.assertEqual(1, manifest["schemaVersion"])
             self.assertTrue((out / "manifest.json").is_file())
+            self.assertIn("sessions", manifest)
+            self.assertIn("dropped", manifest)
 
     def test_deep_research_init_writes_run(self):
         with tempfile.TemporaryDirectory() as temporary:
