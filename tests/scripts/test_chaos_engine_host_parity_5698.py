@@ -154,11 +154,10 @@ class HostParity5698Tests(unittest.TestCase):
         self.assertIsNotNone(error)
         self.assertIn("Prefer gh for GitHub", error)
         self.assertIsNone(self.policy.cli_owned_conflict_error(["maven-tools-mcp"]))
-        self.assertEqual(
-            self.policy.HEAL_PROMPT,
-            "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
-            "Leave an existing GitHub MCP config unchanged.",
-        )
+        self.assertIn("when gh auth status succeeds", self.policy.HEAL_PROMPT)
+        self.assertIn("leave existing GitHub MCP", self.policy.HEAL_PROMPT)
+        self.assertIn("CLI over MCP when both exist", self.policy.HEAL_PROMPT)
+        self.assertIn("Default MCP catalog never includes GitHub MCP", self.policy.HEAL_PROMPT)
 
     def test_existing_github_mcp_in_project_overlay_does_not_conflict(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -185,7 +184,10 @@ class HostParity5698Tests(unittest.TestCase):
 
     def test_instruction_block_matches_heal_prompt(self):
         block = self.hosts.instruction_block("chaos-engine")
-        self.assertIn(self.policy.HEAL_PROMPT, block)
+        # Instruction block stays token-cheap; doctor HEAL_PROMPT is the long form.
+        self.assertIn("Prefer gh for GitHub when gh exists and is configured", block)
+        self.assertIn("CLI over MCP when both exist", block)
+        self.assertIn("Default MCP catalog never includes GitHub MCP", block)
         self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", block)
 
     def test_copilot_cloud_ide_share_cli_policy_pointer(self):

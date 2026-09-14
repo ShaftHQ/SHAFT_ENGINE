@@ -191,6 +191,8 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             "durableDisposition": "nothing-durable",
         }
         receipt.update(overrides)
+        if receipt.get("trigger") == "long-session-completion":
+            receipt.setdefault("noDeferredOrRiskWork", True)
         return receipt
 
     def test_distinct_second_failure_requires_task_reflection(self):
@@ -544,6 +546,8 @@ class ReflectionReceiptPrivacyTest(unittest.TestCase):
             "durableDisposition": "guidance-fixed",
         }
         receipt.update(overrides)
+        if receipt.get("trigger") == "long-session-completion":
+            receipt.setdefault("noDeferredOrRiskWork", True)
         return receipt
 
     def test_session_token_and_closed_schema_reject_forged_receipts(self):
@@ -787,7 +791,28 @@ class TerminalReflectionContractTest(unittest.TestCase):
             "proofCommandOrCheck": "installed hook probe",
             "proofOutcome": "The installed hook passed.",
             "durableDisposition": "guidance-fixed",
+            "noDeferredOrRiskWork": True,
         }
+
+    def test_terminal_receipt_requires_tracking_issues_or_no_deferred_attestation(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            token = reflection.record_session_start("track", "2020-01-01T00:00:00+00:00")
+            bare = self._receipt()
+            bare.pop("noDeferredOrRiskWork", None)
+            with self.assertRaises(ValueError):
+                reflection.record_receipt("track", bare, token)
+            tracked = self._receipt()
+            tracked.pop("noDeferredOrRiskWork", None)
+            tracked["trackingIssues"] = [
+                "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5780"
+            ]
+            recorded = reflection.record_receipt("track", tracked, token)
+            self.assertEqual(
+                ["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5780"],
+                recorded["trackingIssues"],
+            )
 
     def test_under_one_hour_cannot_prerecord_terminal_receipt_and_does_not_block_stop(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(

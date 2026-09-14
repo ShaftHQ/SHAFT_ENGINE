@@ -4056,6 +4056,54 @@ def apply_hooks_host_environment_probe(
     )
 
 
+
+def apply_ce_plugin_pin_doctor(
+    result: dict[str, object],
+    components: object,
+    project: Path,
+    policy_mod: object,
+) -> None:
+    """Fail/heal when enabledPlugins includes non-CE plugins (#5783)."""
+    settings_path = project / ".claude" / "settings.json"
+    if not settings_path.is_file():
+        return
+    try:
+        payload = json.loads(settings_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return
+    if not isinstance(payload, dict):
+        return
+    enabled = payload.get("enabledPlugins")
+    error_fn = getattr(policy_mod, "enabled_plugins_policy_error", None)
+    pin_fn = getattr(policy_mod, "pin_enabled_plugins", None)
+    if not callable(error_fn):
+        return
+    error = error_fn(enabled if isinstance(enabled, dict) else None)
+    if not error:
+        return
+    # Heal: rewrite enable list to CE trio when marketplace name is known.
+    marketplace = "chaos-engine-project"
+    marketplaces = payload.get("extraKnownMarketplaces")
+    if isinstance(marketplaces, dict) and marketplaces:
+        marketplace = str(next(iter(marketplaces)))
+    if callable(pin_fn) and isinstance(enabled, dict):
+        payload["enabledPlugins"] = pin_fn(enabled, marketplace_name=marketplace)
+        settings_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        plugins = components.get("plugins") if isinstance(components, dict) else None
+        if isinstance(plugins, dict):
+            plugins["detail"] = f"Healed extra enabled plugins. Was: {error}"
+        return
+    result["status"] = "recovery-required"
+    if isinstance(components, dict) and isinstance(components.get("plugins"), dict):
+        components["plugins"]["status"] = "recovery-required"
+        components["plugins"]["detail"] = error
+        components["plugins"]["fixNext"] = (
+            "Enable only chaos-engine, caveman, and ponytail plugins."
+        )
+
+
 def apply_mcp_policy_doctor(
     result: dict[str, object],
     components: object,
@@ -4073,6 +4121,24 @@ def apply_mcp_policy_doctor(
         mcps["detail"] = project_error
         mcps["fixNext"] = policy_mod.HEAL_PROMPT
         return
+    # #5781: when gh is healthy, strip user-host GitHub MCP during doctor/repair path.
+    repair_fn = getattr(policy_mod, "repair_user_github_mcp", None)
+    if callable(repair_fn):
+        try:
+            repaired = repair_fn()
+        except OSError:
+            repaired = None
+        if isinstance(repaired, dict) and repaired.get("stripped"):
+            mcps["githubMcpRepair"] = repaired
+            attach_host_environment_finding(
+                mcps,
+                detail=(
+                    "Disabled user-host GitHub MCP because gh auth status is healthy."
+                ),
+                fix_next=policy_mod.HEAL_PROMPT,
+            )
+        elif isinstance(repaired, dict) and repaired.get("preserved"):
+            mcps["githubMcpRepair"] = repaired
     finding = policy_mod.user_mcp_policy_finding(project)
     if finding and mcps.get("status") in {
         "healthy",
@@ -4085,6 +4151,34 @@ def apply_mcp_policy_doctor(
             detail=finding,
             fix_next=policy_mod.HEAL_PROMPT,
         )
+    skill_error = policy_mod.user_skill_collision_error()
+    if skill_error and mcps.get("status") in {
+        "healthy",
+        "compatible-legacy",
+        "degraded",
+        "sync-advisory",
+    }:
+        attach_host_environment_finding(
+            mcps,
+            detail=skill_error,
+            fix_next=policy_mod.HEAL_PROMPT,
+        )
+    bundled = getattr(policy_mod, "overlay_bundled_skill_error", lambda _p: None)(project)
+    if bundled:
+        result["status"] = "recovery-required"
+        skills = components.get("skills")
+        if isinstance(skills, dict):
+            skills["status"] = "recovery-required"
+            skills["detail"] = bundled
+            skills["fixNext"] = (
+                "Remove vendored Grok office/game skills from the overlay catalog."
+            )
+    # #5780: document unfixable Grok host-product limits when extras cannot be deleted.
+    grok_status = getattr(policy_mod, "grok_host_product_status", None)
+    if callable(grok_status):
+        hosts = components.get("hosts")
+        if isinstance(hosts, dict):
+            hosts["grokHostProduct"] = grok_status()
 
 
 def doctor_with_dependencies(
@@ -4156,6 +4250,7 @@ def doctor_with_dependencies(
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
                 apply_mcp_policy_doctor(result, components, project.resolve(), _mod)
+                apply_ce_plugin_pin_doctor(result, components, project.resolve(), _mod)
                 conflict = _mod.user_instruction_conflict_error(project.resolve())
                 if conflict and isinstance(components.get("hosts"), dict):
                     result["status"] = "recovery-required"

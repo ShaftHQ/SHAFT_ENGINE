@@ -214,6 +214,7 @@ return here for the next.
 | Draft skill PR | Opt-in eval-gated draft skill PRs; default OFF | [draft-skill-pr](../../references/draft-skill-pr.md) |
 | Token budget | Triage or env selects ultra-lean / balanced / deep | [token-budget-modes](../../references/token-budget-modes.md) |
 | Eliminate waste | Token optimization: drop hops that do not change the next decision | [eliminate-waste](../../references/eliminate-waste.md) |
+| Prefer CLI over MCP | CLI when both exist; `gh` when configured; never default GitHub MCP | [prefer-cli-over-mcp](../../references/prefer-cli-over-mcp.md) |
 | No proxy | Never install a traffic proxy | [no-proxy](../../references/no-proxy.md) |
 | GAP-EXIT2 UX | Grok/Copilot may not honor exit-2 hard blocks | [host-parity-matrix](../../references/host-parity-matrix.md) checklist |
 | Codacy Complexity | Classifier / interaction PRs; Complexity ACTION_REQUIRED == unit red | [codacy-complexity-gate](../../references/codacy-complexity-gate.md) checklist |
@@ -283,7 +284,8 @@ task that opened the PR:
 ## Reflection
 
 Follow [reflection checkpoints](../../references/reflection-checkpoints.md): no
-third repeated fix without a receipt; terminal reflection after one hour.
+third repeated fix without a receipt; terminal reflection after one hour;
+leftover risks become `gh` issues, never chat-only.
 
 ## Learning Session
 
@@ -335,8 +337,4 @@ Slash-only skills stay listed. Descriptions stay short so host listing caps
 | deep-research | Bounded parallel research; independent verify; cited report. | `references/deep-research.md` |
 | learn-traces | Map-reduce-verify session traces without a host TUI. | `references/learn-traces.md` |
 
-The portable distribution's [human overview](../../README.md) uses the
-deterministic light, dark, monochrome, lockup, and small-size identity masters
-documented in the [ChaosEngine identity guide](../../assets/brand/BRAND.md).
-Those masters stay in the origin source tree and are not copied into adopter
-installs.
+Identity: [README](../../README.md), [brand](../../assets/brand/BRAND.md).

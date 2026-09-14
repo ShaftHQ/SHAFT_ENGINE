@@ -134,6 +134,23 @@ def resolve_command(
     return controller["active_dispatch"](project, tool, arguments or [])
 
 
+
+def resolve_maven_tools_command(installed_root: Path) -> list[str]:
+    """Resolve java + cached jar via hosts discover_maven_tools_runtime (#5782)."""
+    controller = load_host_controller(installed_root)
+    discover = controller.get("discover_maven_tools_runtime")
+    if not callable(discover):
+        raise ValueError("maven-tools-mcp runtime discovery is unavailable")
+    runtime = discover()
+    if runtime is None:
+        raise ValueError(
+            "maven-tools-mcp cache runtime is absent; install with "
+            "`--with-maven-tools` or use docker mode"
+        )
+    java, jar = runtime
+    return [str(java), "-jar", str(jar)]
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: tool.py <tool|retrieve> [args...]", file=sys.stderr)
@@ -152,6 +169,15 @@ def main() -> int:
             return int(spec_mod["main"](arguments))
         if tool == "mempalace-mcp":
             arguments = mempalace_mcp_arguments(installed_root, arguments)
+        if tool == "maven-tools-mcp":
+            command = resolve_maven_tools_command(installed_root)
+            environment = os.environ.copy()
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            return subprocess.call(  # nosec B603
+                [*command, *arguments],
+                env=environment,
+                cwd=shared_project_root(installed_root.resolve().parent),
+            )
         command = resolve_command(installed_root, tool, arguments)
         environment = os.environ.copy()
         environment["PYTHONDONTWRITEBYTECODE"] = "1"

@@ -44,6 +44,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | GAP-MARKETPLACE-CLI | Claude, Codex | low | Marketplace/plugin auto-activation needs host CLI on PATH; absent CLI still installs adapters but activation is manual. | Onboarding cards. |
 | GAP-COPILOT-DETECT | Copilot | low | Detection is soft (`gh` / `code` / `cursor`); IDE/cloud hosting is outside install probes. | Onboarding card. |
 | GAP-GEMINI-NODE | Gemini | low | Hook launcher needs Node.js; unsupported native events remain explicit capability gaps. | Onboarding card + launch.js. |
+| GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | #5780 #5785; prefer-cli-over-mcp. |
 | GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
 
 

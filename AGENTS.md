@@ -45,5 +45,5 @@ Learning Session skip. Research/explore isolation follows
   `py -3 scripts/ci/validate_agent_setup.py --skip-external` and the smallest
   directly affected tests. Inspect result artifacts rather than banners alone.
 <!-- CHAOSENGINE:START -->
-Before every task, follow the canonical [ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools. Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. Leave an existing GitHub MCP config unchanged.
+Before every task, follow the canonical [ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools. Prefer gh for GitHub when gh exists and is configured. CLI over MCP when both exist. Default MCP catalog never includes GitHub MCP.
 <!-- CHAOSENGINE:END -->

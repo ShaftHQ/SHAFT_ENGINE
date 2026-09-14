@@ -122,19 +122,18 @@ class TokenMaxTests(TestCase):
 
     def test_user_and_project_ids_share_one_heal_prompt(self):
         text = (ROOT / "chaos-engine/hosts.py").read_text(encoding="utf-8")
-        self.assertIn("Leave an existing GitHub MCP config unchanged", text)
+        self.assertIn("CLI over MCP when both exist", text)
         self.assertIn(".chaos-engine/", self.hosts.instruction_block("chaos-engine"))
         self.assertIn(".chaos-engine/", self.hosts.instruction_block(".chaos-engine"))
         self.assertEqual(
             ".chaos-engine",
             self.hosts.guidance_tree(ROOT),
         )
-        self.assertEqual(
-            self.policy.HEAL_PROMPT,
-            "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
-            "Leave an existing GitHub MCP config unchanged.",
-        )
-        self.assertIn(self.policy.HEAL_PROMPT, self.hosts.instruction_block(".chaos-engine"))
+        self.assertIn("when gh auth status succeeds", self.policy.HEAL_PROMPT)
+        self.assertIn("CLI over MCP when both exist", self.policy.HEAL_PROMPT)
+        block = self.hosts.instruction_block(".chaos-engine")
+        self.assertIn("Prefer gh for GitHub when gh exists and is configured", block)
+        self.assertIn("CLI over MCP when both exist", block)
 
     def test_overlay_match_adopter_is_true(self):
         with tempfile.TemporaryDirectory() as temporary:
