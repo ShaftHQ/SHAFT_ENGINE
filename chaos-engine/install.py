@@ -3680,11 +3680,13 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 result["status"] = "recovery-required"
             if active_probes:
                 # Grok CLI trust/loaded-hooks probe is host-environment, not install-owned (#5699).
+                # Untrusted/incomplete hooks are sync-advisory only; never flip overall/hosts
+                # to recovery-required solely for Grok trust.
                 grok_probe = host_controller.grok_runtime_status(project)
                 result["hosts"]["grok"] = grok_probe  # type: ignore[index]
                 if (
                     isinstance(grok_probe, dict)
-                    and grok_probe.get("status") == "recovery-required"
+                    and grok_probe.get("status") == "sync-advisory"
                     and result["hosts"].get("status") == "healthy"  # type: ignore[index]
                 ):
                     result["hosts"]["hostEnvironment"] = {  # type: ignore[index]
@@ -3695,12 +3697,6 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                             or "Trust and reload Grok project hooks, then rerun doctor."
                         ),
                     }
-                elif (
-                    isinstance(grok_probe, dict)
-                    and grok_probe.get("status") == "recovery-required"
-                ):
-                    result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
-                    result["status"] = "recovery-required"
             removing = project / ".chaos-engine-runtime.removing"
             backup = project / ".chaos-engine-runtime.backup"
             building = project / ".chaos-engine-runtime.building"

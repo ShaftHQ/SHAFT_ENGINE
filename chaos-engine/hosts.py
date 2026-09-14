@@ -3387,6 +3387,28 @@ def _normalized_owned_span(block: str, start: str, end: str) -> str | None:
     return block[begin : finish + len(end)].replace("\r\n", "\n")
 
 
+def _is_current_or_recognized_legacy_owned_span(
+    interior: str, start: str, end: str, desired_block: str
+) -> bool:
+    """True when the owned span is current or a fingerprint-recognized CE legacy."""
+    current = _normalized_owned_span(desired_block, start, end)
+    if current is not None and interior == current:
+        return True
+    if start == START and end == END:
+        return (
+            "Before every task, follow the canonical" in interior
+            and ".chaos-engine/" in interior
+        )
+    if start == GITIGNORE_START and end == GITIGNORE_END:
+        return (
+            ".chaos-engine-runtime/" in interior
+            and ".chaos-engine-state/" in interior
+        )
+    if start == GITATTRIBUTES_START and end == GITATTRIBUTES_END:
+        return ".chaos-engine/** text eol=lf" in interior
+    return False
+
+
 def merge_instruction(
     before: bytes | None, instruction: str, *, relative: str
 ) -> bytes:
@@ -3420,8 +3442,9 @@ def merge_instruction(
         return original
     span_end = finish + len(END)
     interior = existing[begin:span_end].replace("\r\n", "\n")
-    recognized = _normalized_owned_span(instruction, START, END)
-    if recognized is None or interior != recognized:
+    if not _is_current_or_recognized_legacy_owned_span(
+        interior, START, END, instruction
+    ):
         _note_merge_handoff(
             relative,
             "markers exist but the interior is not the current owned block",
@@ -4488,8 +4511,7 @@ def replace_owned_text_block(
         )
         return preserved
     interior = existing[begin:finish].replace("\r\n", "\n")
-    recognized = _normalized_owned_span(block, start, end)
-    if recognized is None or interior != recognized:
+    if not _is_current_or_recognized_legacy_owned_span(interior, start, end, block):
         _note_merge_handoff(
             path,
             "markers exist but the interior is not the current owned block",
@@ -6378,7 +6400,7 @@ def grok_runtime_status(
         "review the project then run `/hooks-trust`; reload hooks and rerun doctor."
     )
     if not isinstance(payload, dict) or payload.get("projectTrusted") is not True:
-        return {"status": "recovery-required", "detail": recovery}
+        return {"status": "sync-advisory", "detail": recovery}
     hooks = payload.get("hooks")
     loaded = {
         str(item.get("event"))
@@ -6390,7 +6412,7 @@ def grok_runtime_status(
         "post_tool_use_failure", "stop", "subagent_stop", "session_end",
     }
     if not required.issubset(loaded):
-        return {"status": "recovery-required", "detail": recovery}
+        return {"status": "sync-advisory", "detail": recovery}
     return {"status": "healthy"}
 
 

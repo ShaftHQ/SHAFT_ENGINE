@@ -215,6 +215,60 @@ class InstallVerifyHealth5699Tests(unittest.TestCase):
             self.assertEqual("healthy", doctor["status"])
             self.assertFalse(BOOTSTRAP._required_install_unhealthy(doctor))
 
+    def test_grok_untrusted_probe_is_sync_advisory_when_hosts_verify_healthy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            home = root / "home"
+            project.mkdir()
+            home.mkdir()
+            self._install_portable(project)
+
+            hosts = INSTALL.load_installed_controller(project / ".chaos-engine", "hosts")
+            original_load = INSTALL.load_installed_controller
+            env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home)}
+            env["XDG_CONFIG_HOME"] = str(home / ".config")
+            for key in (
+                "CLAUDE_CONFIG",
+                "CODEX_HOME",
+                "GROK_HOME",
+                "GEMINI_HOME",
+                "COPILOT_HOME",
+            ):
+                env.pop(key, None)
+            advisory = {
+                "status": "sync-advisory",
+                "detail": (
+                    "Run `grok inspect --json` from the project. If projectTrusted "
+                    "is false, review the project then run `/hooks-trust`; reload "
+                    "hooks and rerun doctor."
+                ),
+            }
+            with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(
+                hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
+            ), mock.patch.object(
+                hosts, "mcp_runtime_status", return_value={"status": "healthy"}
+            ), mock.patch.object(
+                hosts, "hook_runtime_healthy", return_value=True
+            ), mock.patch.object(
+                hosts, "grok_runtime_status", return_value=advisory
+            ), mock.patch.object(
+                INSTALL,
+                "load_installed_controller",
+                side_effect=lambda root, name: (
+                    hosts if name == "hosts" else original_load(root, name)
+                ),
+            ):
+                doctor = INSTALL.doctor_with_dependencies(project, verify_clients=False)
+            self.assertEqual("healthy", doctor["status"])
+            self.assertEqual("healthy", doctor["hosts"]["status"])
+            self.assertEqual("sync-advisory", doctor["hosts"]["grok"]["status"])
+            host_env = doctor["hosts"].get("hostEnvironment", {})
+            self.assertEqual("sync-advisory", host_env.get("status"))
+            self.assertEqual("grok-hooks-probe", host_env.get("detail"))
+            self.assertIn("/hooks-trust", str(host_env.get("fixNext") or ""))
+            self.assertFalse(BOOTSTRAP._required_install_unhealthy(doctor))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -138,8 +138,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project = Path(temporary)
             for payload, expected in (
                 (healthy, "healthy"),
-                ({**healthy, "projectTrusted": False}, "recovery-required"),
-                ({**healthy, "hooks": healthy["hooks"][:-1]}, "recovery-required"),
+                ({**healthy, "projectTrusted": False}, "sync-advisory"),
+                ({**healthy, "hooks": healthy["hooks"][:-1]}, "sync-advisory"),
             ):
                 calls = []
                 state = module.grok_runtime_status(
@@ -149,10 +149,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 self.assertEqual(expected, state["status"])
                 self.assertEqual(["grok", "inspect", "--json"], calls[0][0])
                 self.assertNotIn("--trust", calls[0][0])
+                if expected == "sync-advisory":
+                    self.assertIn("/hooks-trust", state["detail"])
             failed = module.grok_runtime_status(
                 project, executable="grok", runner=lambda *_a, **_k: result({}, 1)
             )
-            self.assertEqual("recovery-required", failed["status"])
+            self.assertEqual("sync-advisory", failed["status"])
             self.assertIn("/hooks-trust", failed["detail"])
 
     def test_detected_client_plugins_are_registered_installed_and_verified(self):
