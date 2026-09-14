@@ -53,6 +53,10 @@ default branch. Before the first push of **any** human PR:
    `scripts/ci/validate_chaos_engine_readme.py` (and the README inventory it
    renders) in the **same** PR, then run that inventory's unit checks before
    push.
+5. Before stacking host-parity / harness follow-ons on an unmerged scaffold
+   PR: merge the scaffold first **or** absorb it into the follow-on PR and
+   close both together (avoids blocked deliveries and duplicate parallel PRs).
+   Cite #5787.
 
 N-run / flake-proof scripts that invoke Maven under the engine Surefire
 profile must not treat process exit alone as green: after each proof
