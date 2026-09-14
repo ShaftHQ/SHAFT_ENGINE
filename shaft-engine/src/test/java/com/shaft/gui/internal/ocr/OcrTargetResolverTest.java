@@ -71,6 +71,37 @@ public class OcrTargetResolverTest {
     }
 
     @Test
+    public void exactMatchUsesConsecutiveWordsWhenLineContainsNeighbors() {
+        OcrResult result = result(
+                line("TAB 1 TAB 2 TAB 3", 10, 20, 240, 24, 0.94),
+                word("TAB", 10, 20, 40, 24, 0.96),
+                word("1", 55, 20, 16, 24, 0.95),
+                word("TAB", 90, 20, 40, 24, 0.96),
+                word("2", 135, 20, 16, 24, 0.95),
+                word("TAB", 170, 20, 40, 24, 0.96),
+                word("3", 215, 20, 16, 24, 0.95));
+
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1"));
+
+        Assert.assertEquals(match.text(), "TAB 1");
+        Assert.assertEquals(match.bounds(), new OcrRectangle(10, 20, 61, 24));
+    }
+
+    @Test
+    public void exactTabOneDoesNotMatchTabTen() {
+        OcrResult result = result(
+                line("TAB 10 TAB 11", 10, 20, 200, 24, 0.94),
+                word("TAB", 10, 20, 40, 24, 0.96),
+                word("10", 55, 20, 24, 24, 0.95),
+                word("TAB", 90, 20, 40, 24, 0.96),
+                word("11", 135, 20, 24, 24, 0.95));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1")));
+        Assert.assertTrue(notFound.getMessage().contains("TAB 1"));
+    }
+
+    @Test
     public void excludesLowConfidenceAndReportsThreshold() {
         OcrResult result = result(line("Pay now", 10, 20, 80, 20, 0.55));
 

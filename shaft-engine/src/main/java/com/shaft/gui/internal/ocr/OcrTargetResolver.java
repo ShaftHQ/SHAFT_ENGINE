@@ -41,6 +41,8 @@ final class OcrTargetResolver {
             String expected = normalize(target.expectedText(), target);
             if (target.matchMode() == OcrMatchMode.EXACT && observed.equals(expected)) {
                 matches.add(new OcrMatch(normalizeWhitespace(line.text()), line.bounds(), line.confidence()));
+            } else if (target.matchMode() == OcrMatchMode.EXACT) {
+                matches.addAll(exactConsecutiveWords(result.blocks(), line, expected, target));
             } else if (target.matchMode() == OcrMatchMode.CONTAINS && observed.contains(expected)) {
                 matches.addAll(narrowToWords(result.blocks(), line, expected, target));
             }
@@ -62,6 +64,33 @@ final class OcrTargetResolver {
                     + target.expectedText() + "' but only " + matches.size() + " matches were found.");
         }
         return matches.get(target.occurrence());
+    }
+
+    private static List<OcrMatch> exactConsecutiveWords(List<OcrTextBlock> allBlocks, OcrTextBlock line,
+                                                        String normalizedExpected, OcrTarget target) {
+        List<OcrTextBlock> words = allBlocks.stream()
+                .filter(block -> block.level() == OcrBlockLevel.WORD)
+                .filter(block -> block.confidence() >= target.options().minimumConfidence())
+                .filter(block -> containedBy(block.bounds(), line.bounds()))
+                .sorted(Comparator.comparingInt(block -> block.bounds().x()))
+                .toList();
+        List<OcrMatch> exact = new ArrayList<>();
+        for (int start = 0; start < words.size(); start++) {
+            for (int end = start + 1; end <= words.size(); end++) {
+                List<OcrTextBlock> window = words.subList(start, end);
+                String joined = normalize(String.join(" ", window.stream()
+                        .map(OcrTextBlock::text)
+                        .map(OcrTargetResolver::normalizeWhitespace)
+                        .toList()), target);
+                if (joined.equals(normalizedExpected)) {
+                    exact.add(toMatch(window, line));
+                }
+                if (joined.length() > normalizedExpected.length()) {
+                    break;
+                }
+            }
+        }
+        return exact;
     }
 
     private static List<OcrMatch> narrowToWords(List<OcrTextBlock> allBlocks, OcrTextBlock line,

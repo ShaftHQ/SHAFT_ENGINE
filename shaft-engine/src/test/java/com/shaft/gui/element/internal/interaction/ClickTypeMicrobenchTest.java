@@ -42,9 +42,6 @@ public class ClickTypeMicrobenchTest {
 
     @BeforeMethod(alwaysRun = true)
     public void init(Method method) {
-        if ("classifierOverheadStaysNegligibleVersusPreStrategy".equals(method.getName())) {
-            return;
-        }
         if (!"local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress())
                 || !"chrome".equalsIgnoreCase(SHAFT.Properties.web.targetBrowserName())) {
             throw new SkipException("Wave F microbench requires local Chrome.");

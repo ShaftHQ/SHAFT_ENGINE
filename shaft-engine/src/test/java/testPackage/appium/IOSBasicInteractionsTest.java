@@ -192,11 +192,25 @@ public class IOSBasicInteractionsTest {
 
     }
 
-    /** XCUITest keyboard focus is {@code hasKeyboardFocus}; {@code focused} is Android. */
+    /**
+     * BrowserStack XCUITest rejects {@code hasKeyboardFocus} as unknown; valid names include
+     * {@code focused} and {@code wdFocused}.
+     */
     private boolean isAccessibilityFocused(By locator) {
-        var element = driver.get().getDriver().findElement(locator);
-        return isTruthyIosFlag(element.getAttribute("hasKeyboardFocus"))
-                || isTruthyIosFlag(element.getAttribute("focused"));
+        return isAccessibilityFocused(driver.get().getDriver().findElement(locator));
+    }
+
+    static boolean isAccessibilityFocused(org.openqa.selenium.WebElement element) {
+        for (String attribute : new String[] {"focused", "wdFocused", "hasKeyboardFocus"}) {
+            try {
+                if (isTruthyIosFlag(element.getAttribute(attribute))) {
+                    return true;
+                }
+            } catch (WebDriverException ignored) {
+                // unknown attribute on this XCUITest/Appium combination
+            }
+        }
+        return false;
     }
 
     private void waitUntilKeyboardFocus(By locator) {

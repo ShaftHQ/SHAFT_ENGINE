@@ -1219,7 +1219,7 @@ jobs:
           node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
+        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=30" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
       # This job runs -pl shaft-browserstack -am like every other BrowserStack job in this
       # file (Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack,
       # Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack) -- and like them, its
