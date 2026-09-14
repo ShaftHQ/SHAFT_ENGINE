@@ -125,7 +125,7 @@ Exit `127` → next **target**. Rank: `claude` (Claude-family only) → `opencod
 4. Same identity ≤**1** retry for timeout / single network blip only.
 5. 401/403 → stop OmniRoute transport.
 
-Anti-patterns: static model allowlists as primary selector; `candidates` then native host while READY; `claude`+Kimi/Qwen without discovery aliases.
+Anti-patterns: static model allowlists as primary selector; `candidates` then native host while READY; `claude`+Kimi/Qwen without discovery aliases; broad `pkill -f` on launcher argv (see [process lifecycle](references/process-lifecycle.md)).
 
 ### Operator checklist (docs only — no credential writes)
 

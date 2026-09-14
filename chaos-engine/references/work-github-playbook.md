@@ -31,18 +31,23 @@ the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 `closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
 `## Continuation` sections current for the delivered head.
 
-### Wave PR open checklist (before first push)
+### Human PR open checklist (before first push)
 
-Strategy-matrix / Wave PRs fail governance without a release-note label and
-fail static analysis when Java switches lack a default branch. Before the
-first push of any Wave or strategy-matrix PR:
+Human-authored PRs fail Release-note governance without a classification label.
+Strategy-matrix / Wave PRs also fail static analysis when Java switches lack a
+default branch. Before the first push of **any** human PR:
 
-1. Apply **exactly one** release-note classification label:
-   `breaking-change`, `enhancement`, `bug`, or `skip-release-notes`.
-2. Verify Java `switch` expressions/statements are **exhaustive** (include a
-   `default` branch where Codacy/`MissingDefaultCase` requires it). Confirm
-   locally before push so the first CI cycle is not a fix-push for labels or
-   switch exhaustiveness.
+1. Apply **exactly one** release-note classification label in the same
+   `gh pr create` step: `breaking-change`, `enhancement`, `bug`, or
+   `skip-release-notes` (bug for fixes, enhancement for features).
+2. For Wave / strategy-matrix Java changes: verify `switch`
+   expressions/statements are **exhaustive** (include a `default` branch where
+   Codacy/`MissingDefaultCase` requires it). Confirm locally before push so the
+   first CI cycle is not a fix-push for labels or switch exhaustiveness.
+3. When editing ChaosEngine `SKILL.md` bodies: keep each skill under the
+   skill-md byte budget (Agent Guidance Gate). Compress overlapping sections in
+   the same PR and run `python3 scripts/ci/validate_agent_setup.py --skip-external`
+   plus the skill's phrase-contract unit tests before push.
 
 N-run / flake-proof scripts that invoke Maven under the engine Surefire
 profile must not treat process exit alone as green: after each proof
