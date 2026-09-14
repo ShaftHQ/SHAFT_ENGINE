@@ -335,6 +335,15 @@ public class BrowserActionsHelper {
         }
 
         try {
+            if (usesClassicSafariNavigation(driver)) {
+                try {
+                    driver.navigate().to(internalURL);
+                } catch (TimeoutException timeoutException) {
+                    ReportManager.logDiscrete("Safari navigation timed out; waiting for document readiness.", Level.WARN);
+                }
+                waitUntilSafariDocumentSettles(driver);
+                return;
+            }
             // upgrading to w3c compliant browsing context for navigation
             new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.valueOf(SHAFT.Properties.web.readinessState().trim().toUpperCase()));
         } catch (TimeoutException | java.lang.IllegalArgumentException |
@@ -345,6 +354,29 @@ public class BrowserActionsHelper {
             driver.navigate().to(internalURL);
         } catch (WebDriverException rootCauseException) {
             failAction(driver, targetUrl, rootCauseException);
+        }
+    }
+
+    private static boolean usesClassicSafariNavigation(WebDriver driver) {
+        if (driver instanceof org.openqa.selenium.safari.SafariDriver) {
+            return true;
+        }
+        String browserName = SHAFT.Properties.web.targetBrowserName();
+        return browserName != null && ("safari".equalsIgnoreCase(browserName) || "webkit".equalsIgnoreCase(browserName));
+    }
+
+    private static void waitUntilSafariDocumentSettles(WebDriver driver) {
+        if (!(driver instanceof JavascriptExecutor executor)) {
+            return;
+        }
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(Math.max(5, SHAFT.Properties.timeouts.browserNavigationTimeout())))
+                    .until(webDriver -> {
+                        Object state = executor.executeScript("return document.readyState");
+                        return "complete".equals(String.valueOf(state)) || "interactive".equals(String.valueOf(state));
+                    });
+        } catch (RuntimeException ignored) {
+            ReportManager.logDiscrete("Safari document readiness wait expired; continuing with the current document.", Level.WARN);
         }
     }
 

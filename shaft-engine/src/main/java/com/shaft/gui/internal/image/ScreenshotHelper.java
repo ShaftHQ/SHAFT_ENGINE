@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chromium.HasCdp;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import io.appium.java_client.flutter.FlutterIntegrationTestDriver;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -126,6 +127,9 @@ public class ScreenshotHelper {
     }
 
     protected static byte[] takeViewportScreenshot(WebDriver driver, int retryAttempts) {
+        if (driver instanceof FlutterIntegrationTestDriver flutterDriver) {
+            return takeFlutterIntegrationScreenshot(flutterDriver);
+        }
         try {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         } catch (RuntimeException exception) {
@@ -158,6 +162,21 @@ public class ScreenshotHelper {
                     return null;
                 }
         }
+    }
+
+    private static byte[] takeFlutterIntegrationScreenshot(JavascriptExecutor driver) {
+        try {
+            Object result = driver.executeScript("flutter: screenshot");
+            if (result instanceof byte[] bytes && bytes.length > 0) {
+                return bytes;
+            }
+            if (result instanceof String encoded && !encoded.isBlank()) {
+                return OutputType.BYTES.convertFromBase64Png(encoded);
+            }
+        } catch (RuntimeException ignored) {
+            ReportManagerHelper.logDiscrete("Flutter screenshot helper failed; leaving the W3C capture unused to keep the session alive.", Level.WARN);
+        }
+        return null;
     }
 
     private static boolean isHungDriverScreenshotFailure(Throwable exception) {

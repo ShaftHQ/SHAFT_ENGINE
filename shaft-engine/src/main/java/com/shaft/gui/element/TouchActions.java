@@ -1386,6 +1386,10 @@ public class TouchActions extends FluentWebDriverAction {
 
     private Dimension imageViewportSize(BufferedImage screenshot) {
         if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
+            Dimension window = driverFactoryHelper.getDriver().manage().window().getSize();
+            if (window != null && window.getWidth() > 0 && window.getHeight() > 0) {
+                return window;
+            }
             return new Dimension(screenshot.getWidth(), screenshot.getHeight());
         }
         if (driverFactoryHelper.getDriver() instanceof JavascriptExecutor javascriptExecutor) {

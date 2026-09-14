@@ -151,6 +151,20 @@ public class ScreenshotHelperCoverageUnitTest {
     }
 
     @Test
+    public void takeViewportScreenshotShouldUseFlutterScreenshotInsteadOfW3cCapture() {
+        io.appium.java_client.flutter.FlutterIntegrationTestDriver flutterDriver =
+                Mockito.mock(io.appium.java_client.flutter.FlutterIntegrationTestDriver.class,
+                        Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        when(flutterDriver.executeScript("flutter: screenshot")).thenReturn("png".getBytes());
+        when(((TakesScreenshot) flutterDriver).getScreenshotAs(OutputType.BYTES))
+                .thenThrow(new org.openqa.selenium.NoSuchSessionException("The driver was unexpectedly shut down!"));
+
+        byte[] bytes = ScreenshotHelper.takeViewportScreenshot(flutterDriver, 1);
+        Assert.assertNotNull(bytes);
+        Mockito.verify((TakesScreenshot) flutterDriver, Mockito.never()).getScreenshotAs(OutputType.BYTES);
+    }
+
+    @Test
     public void takeViewportScreenshotShouldSoftFailOnHungDriverTimeout() {
         WebDriver hungDriver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
         when(((TakesScreenshot) hungDriver).getScreenshotAs(OutputType.BYTES))

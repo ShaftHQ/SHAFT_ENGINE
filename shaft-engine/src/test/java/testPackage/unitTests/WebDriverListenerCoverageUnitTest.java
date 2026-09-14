@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -69,6 +70,7 @@ public class WebDriverListenerCoverageUnitTest {
 
         listener.beforeSubmit(element);
         listener.beforeSendKeys(element, "abc", "123");
+        listener.afterSendKeys(element, "abc", "123");
         listener.beforeClear(element);
         listener.afterGetAttribute(element, "value", "abc123");
         listener.afterGetText(element, "sample text");
@@ -101,6 +103,25 @@ public class WebDriverListenerCoverageUnitTest {
             reportManager.verify(() -> ReportManager.log("Navigate to \"https://example.com/\"."));
             reportManager.verify(() -> ReportManager.log("Navigate to url \"https://example.com/\"."), Mockito.times(2));
         }
+    }
+
+    @Test
+    public void afterSendKeysShouldRestoreSafariValueWhenNativeSendKeysIsSwallowed() {
+        saveCurrentProperties();
+        SHAFT.Properties.web.set().targetBrowserName("safari");
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(org.openqa.selenium.JavascriptExecutor.class));
+        WebElement element = mock(WebElement.class);
+        when(element.getAttribute("value")).thenReturn("", "test");
+        when(((org.openqa.selenium.JavascriptExecutor) driver).executeScript("return document.readyState"))
+                .thenReturn("complete");
+        listener.afterGet(driver, "data:text/html,<input>");
+
+        listener.afterSendKeys(element, "test");
+
+        verify((org.openqa.selenium.JavascriptExecutor) driver).executeScript(
+                org.mockito.ArgumentMatchers.contains("value"), eq(element), eq("test"));
     }
 
     @Test

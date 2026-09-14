@@ -106,6 +106,11 @@ public class OcrGuiActionContractTest {
     @SuppressWarnings("unchecked")
     public void appiumActionUsesScreenshotCoordinatesAndTouchInputWithoutBrowserJavascript() {
         AppiumDriver driver = mock(AppiumDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new org.openqa.selenium.Dimension(2000, 1000));
         when(driver.getScreenshotAs(OutputType.BYTES)).thenReturn(screenshot);
 
         OcrWebDriverPointerActions.click(driver, OcrTarget.exact("Pay now"));
@@ -119,5 +124,25 @@ public class OcrGuiActionContractTest {
         Map<String, Object> parameters = (Map<String, Object>) captor.getValue().iterator().next().encode().get("parameters");
         Assert.assertEquals(parameters.get("pointerType"), "touch");
         verify(driver, Mockito.never()).executeScript(Mockito.anyString(), Mockito.any(Object[].class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void appiumActionScalesScreenshotPixelsToWindowPoints() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new org.openqa.selenium.Dimension(1000, 500));
+        when(driver.getScreenshotAs(OutputType.BYTES)).thenReturn(screenshot);
+
+        OcrWebDriverPointerActions.click(driver, OcrTarget.exact("Pay now"));
+
+        ArgumentCaptor<Collection<Sequence>> captor = ArgumentCaptor.forClass(Collection.class);
+        verify(driver).perform(captor.capture());
+        List<Map<String, Object>> actions = (List<Map<String, Object>>) captor.getValue().iterator().next().encode().get("actions");
+        Assert.assertEquals(((Number) actions.getFirst().get("x")).intValue(), 500);
+        Assert.assertEquals(((Number) actions.getFirst().get("y")).intValue(), 250);
     }
 }
