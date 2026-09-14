@@ -73,12 +73,12 @@ public interface Mobile extends EngineProperties<Mobile> {
 
     /** Maximum time in seconds to wait for a Flutter element. Zero keeps the default wait behavior. */
     @Key("mobile_flutterElementWaitTimeout")
-    @DefaultValue("0")
+    @DefaultValue("60")
     int flutterElementWaitTimeout();
 
     /** Maximum time in seconds to wait for the Flutter driver server to start. */
     @Key("mobile_flutterServerLaunchTimeout")
-    @DefaultValue("0")
+    @DefaultValue("60")
     int flutterServerLaunchTimeout();
 
     /** Local system port used by the Flutter driver; zero lets the driver choose. */

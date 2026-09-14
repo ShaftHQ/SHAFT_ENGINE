@@ -47,7 +47,7 @@ public final class OcrWebDriverPointerActions {
         OcrMatch match = OcrProcessingActions.find(screenshot, target);
         boolean nativeMobile = driver instanceof AppiumDriver;
         int[] viewportSize = nativeMobile
-                ? new int[]{image.getWidth(), image.getHeight()}
+                ? appiumWindowSize(driver, image)
                 : viewportSize(driver, image);
         OcrPoint point = OcrCoordinateMapper.toPointerCenter(match, image.getWidth(), image.getHeight(),
                 viewportSize[0], viewportSize[1], 0, 0);
@@ -63,6 +63,18 @@ public final class OcrWebDriverPointerActions {
             }
         }
         interactive.perform(List.of(sequence));
+    }
+
+    private static int[] appiumWindowSize(WebDriver driver, BufferedImage screenshot) {
+        try {
+            var size = driver.manage().window().getSize();
+            if (size != null && size.getWidth() > 0 && size.getHeight() > 0) {
+                return new int[]{size.getWidth(), size.getHeight()};
+            }
+        } catch (RuntimeException ignored) {
+            // fall back to screenshot pixels when the session cannot report window size
+        }
+        return new int[]{screenshot.getWidth(), screenshot.getHeight()};
     }
 
     private static int[] viewportSize(WebDriver driver, BufferedImage screenshot) {

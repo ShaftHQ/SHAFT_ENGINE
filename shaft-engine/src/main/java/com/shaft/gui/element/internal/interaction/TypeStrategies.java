@@ -3,6 +3,7 @@ package com.shaft.gui.element.internal.interaction;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.HidesKeyboard;
 import io.appium.java_client.android.CanReplaceElementValue;
+import io.appium.java_client.flutter.FlutterIntegrationTestDriver;
 import org.openqa.selenium.InvalidElementStateException;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
@@ -338,6 +339,15 @@ public final class TypeStrategies {
         } catch (RuntimeException sendKeysFailure) {
             lastFailure = sendKeysFailure;
             ReportManager.logDiscrete("mobile sendKeys failed; trying platform setValue / mobile: type.");
+        }
+
+        if (driver instanceof FlutterIntegrationTestDriver flutterDriver) {
+            try {
+                flutterDriver.executeScript("flutter: enterText", typed);
+                return;
+            } catch (RuntimeException flutterTypeFailure) {
+                lastFailure = flutterTypeFailure;
+            }
         }
 
         if (replaceAllowed

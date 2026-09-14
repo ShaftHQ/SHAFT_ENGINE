@@ -8,9 +8,15 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -37,6 +43,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void afterGet(WebDriver driver, String url) {
         currentWebDriver = driver;
         ReportManager.log("Navigate to \"" + url + "\".");
+        waitForSafariDocument();
     }
 
     public void afterGetCurrentUrl(String result, WebDriver driver) {
@@ -110,6 +117,52 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         }
     }
 
+    public void afterSendKeys(WebElement element, CharSequence... keysToSend) {
+        if (!isSafariBrowser() || currentWebDriver == null) {
+            return;
+        }
+        String typed = printableTypedText(keysToSend);
+        if (typed.isEmpty()) {
+            return;
+        }
+        try {
+            String value = element.getAttribute("value");
+            if (value != null && !value.isEmpty()) {
+                return;
+            }
+            if (currentWebDriver instanceof JavascriptExecutor executor) {
+                executor.executeScript("""
+                        arguments[0].focus();
+                        arguments[0].value = arguments[1];
+                        arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+                        arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                        """, element, typed);
+            }
+        } catch (RuntimeException ignored) {
+            ReportManager.logDiscrete("Safari sendKeys value restore skipped.");
+        }
+    }
+
+    static String printableTypedText(CharSequence... keysToSend) {
+        if (keysToSend == null) {
+            return "";
+        }
+        var typed = new StringBuilder();
+        for (CharSequence sequence : keysToSend) {
+            if (sequence == null || sequence instanceof Keys) {
+                continue;
+            }
+            for (int index = 0; index < sequence.length(); index++) {
+                char character = sequence.charAt(index);
+                if (Keys.getKeyFromUnicode(character) != null) {
+                    continue;
+                }
+                typed.append(character);
+            }
+        }
+        return typed.toString();
+    }
+
     public void beforeClear(WebElement element) {
         try {
             ReportManager.log("Clear " + getElementName(element) + ".");
@@ -138,22 +191,27 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void afterTo(WebDriver.Navigation navigation, String url) {
         ReportManager.log("Navigate to url \"" + url + "\".");
+        waitForSafariDocument();
     }
 
     public void afterTo(WebDriver.Navigation navigation, URL url) {
         ReportManager.log("Navigate to url \"" + url + "\".");
+        waitForSafariDocument();
     }
 
     public void afterBack(WebDriver.Navigation navigation) {
         ReportManager.log("Navigate back.");
+        waitForSafariDocument();
     }
 
     public void afterForward(WebDriver.Navigation navigation) {
         ReportManager.log("Navigate forward.");
+        waitForSafariDocument();
     }
 
     public void afterRefresh(WebDriver.Navigation navigation) {
         ReportManager.log("Refresh current page.");
+        waitForSafariDocument();
     }
 
     // Alert
@@ -170,6 +228,28 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void afterMaximize(WebDriver.Window window) {
         ReportManager.log("Maximize Current Window.");
+    }
+
+    private static boolean isSafariBrowser() {
+        String browserName = SHAFT.Properties.web.targetBrowserName();
+        return browserName != null && ("safari".equalsIgnoreCase(browserName) || "webkit".equalsIgnoreCase(browserName));
+    }
+
+    private void waitForSafariDocument() {
+        if (!isSafariBrowser() || currentWebDriver == null) {
+            return;
+        }
+        try {
+            new WebDriverWait(currentWebDriver, Duration.ofSeconds(15)).until(driver -> {
+                if (!(driver instanceof JavascriptExecutor executor)) {
+                    return true;
+                }
+                Object state = executor.executeScript("return document.readyState");
+                return "complete".equals(String.valueOf(state));
+            });
+        } catch (TimeoutException ignored) {
+            ReportManager.logDiscrete("Safari document readiness wait expired after native navigation.");
+        }
     }
 
     private String getElementName(WebElement element) {

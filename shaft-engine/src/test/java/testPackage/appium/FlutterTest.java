@@ -80,7 +80,17 @@ public class FlutterTest {
         }
 
         driver.set(new SHAFT.GUI.WebDriver());
+        waitForFlutterFirstFrame();
         waitForFlutterLoginScreen();
+    }
+
+    private void waitForFlutterFirstFrame() {
+        try {
+            ((org.openqa.selenium.JavascriptExecutor) driver.get().getDriver())
+                    .executeScript("flutter: waitForFirstFrame");
+        } catch (WebDriverException ignored) {
+            // Older Flutter Integration servers do not expose waitForFirstFrame.
+        }
     }
 
     private void waitForFlutterLoginScreen() {

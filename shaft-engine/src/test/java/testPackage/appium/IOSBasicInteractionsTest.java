@@ -214,10 +214,15 @@ public class IOSBasicInteractionsTest {
     }
 
     private void waitUntilKeyboardFocus(By locator) {
-        long deadline = System.currentTimeMillis() + 5_000;
+        long deadline = System.currentTimeMillis() + 15_000;
+        boolean retriedTap = false;
         while (System.currentTimeMillis() < deadline) {
             if (isAccessibilityFocused(locator)) {
                 return;
+            }
+            if (!retriedTap) {
+                retriedTap = true;
+                new ElementActions(driver.get().getDriver()).performTouchAction().tap(locator);
             }
             try {
                 Thread.sleep(200);

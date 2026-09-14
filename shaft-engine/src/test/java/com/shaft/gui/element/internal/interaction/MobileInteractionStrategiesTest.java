@@ -258,6 +258,17 @@ public class MobileInteractionStrategiesTest {
     }
 
     @Test
+    public void typeMobileTextPrefersFlutterEnterText() {
+        io.appium.java_client.flutter.FlutterIntegrationTestDriver driver =
+                mock(io.appium.java_client.flutter.FlutterIntegrationTestDriver.class);
+        RemoteWebElement element = mock(RemoteWebElement.class);
+        doThrow(new InvalidElementStateException("sendKeys blocked")).when(element).sendKeys(any(CharSequence[].class));
+
+        TypeStrategies.typeMobileText(driver, element, new CharSequence[]{"admin"}, false);
+        verify(driver).executeScript("flutter: enterText", "admin");
+    }
+
+    @Test
     public void typeMobileTextDirectReplaceElementValue() {
         AppiumDriver driver = mockAppiumDriver();
         RemoteWebElement element = mock(RemoteWebElement.class);

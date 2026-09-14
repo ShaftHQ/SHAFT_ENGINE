@@ -72,6 +72,14 @@ public class BrowserActionsHelperCoverageUnitTest {
         String targetFixture = SHAFT.Properties.paths.testData() + "/dummy.html";
         helper.navigateToNewUrl(driver, "about:blank", targetFixture, "");
         verify(navigation).to(new File(targetFixture).toURI().toString());
+
+        SHAFT.Properties.web.set().targetBrowserName("safari");
+        org.openqa.selenium.safari.SafariDriver safari = mock(org.openqa.selenium.safari.SafariDriver.class);
+        WebDriver.Navigation safariNavigation = mock(WebDriver.Navigation.class);
+        when(safari.navigate()).thenReturn(safariNavigation);
+        helper.navigateToNewUrl(safari, "about:blank", "https://www.selenium.dev/selenium/web/xhtmlTest.html",
+                "https://www.selenium.dev/selenium/web/xhtmlTest.html");
+        verify(safariNavigation).to("https://www.selenium.dev/selenium/web/xhtmlTest.html");
     }
 
     @Test

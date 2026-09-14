@@ -99,6 +99,31 @@ public class VisualTargetTouchActionsTest {
     }
 
     @Test
+    public void appiumImageTapShouldScaleScreenshotPixelsToWindowPoints() throws Exception {
+        byte[] screenshot = image(false);
+        SequencedProvider provider = new SequencedProvider(1);
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+        IOSDriver driver = iosDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(50, 50));
+        TestTouchActions actions = actions(driver);
+        ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.TEMPLATE);
+
+        try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            actions.tap(target);
+        }
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.Collection<org.openqa.selenium.interactions.Sequence>> sequences =
+                ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(driver).perform(sequences.capture());
+        Map<String, Object> move = ((List<Map<String, Object>>) sequences.getValue().iterator().next()
+                .encode().get("actions")).getFirst();
+        Assert.assertEquals(((Number) move.get("x")).intValue(), 13);
+        Assert.assertEquals(((Number) move.get("y")).intValue(), 13);
+    }
+
+    @Test
     public void publicIosImageScrollShouldReachTheDocumentedMobileScrollCommand() throws Exception {
         byte[] screenshot = image(false);
         SequencedProvider provider = new SequencedProvider(2);
