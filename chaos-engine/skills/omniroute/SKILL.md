@@ -104,6 +104,41 @@ When the gateway supports combo routing, prefer trying
 `omniroute run --model auto/coding` (or category coding) first; on failure or
 unsupported combo, fall back to the ranked native id from `candidates`.
 
+### CLI target matrix (fail closed)
+
+Pick the run target from the model id, not from "first installed binary wins":
+
+| Target | Compatible native ids | Notes |
+| --- | --- | --- |
+| `claude` | Claude-family / `cc/` / `anthropic*` only | Non-Claude ids need `ANTHROPIC_MODEL` **and** `EXPOSE_CC_DISCOVERY_ALIASES`, or **do not use** `claude` (Kimi via raw `claude` → `unrecognized_model`). |
+| `opencode` | any coding id | `--model omniroute/<id>` (prefix once). |
+| `codex` | any coding id | `-c model='<provider>/<id>'`, `wire_api=responses`, base URL with `/v1`. |
+| `qwen` / `gemini` | id verbatim | `qwen` requires `--model`. |
+
+Missing binary (`127`) → next **target**, not next model of a dead target.
+Rank installed targets: `claude` (Claude-family ids only) → `opencode` → `codex` → `qwen`/`gemini`.
+
+### Preflight before long `omniroute run`
+
+Before launching a long implementer (`claude --print` / `opencode run` / `codex exec`):
+
+1. Prefer `auto/coding` or `auto/coding:fast` when advertised in live `/v1/models` **and** a smoke `omniroute test` / tiny `chat` succeeds.
+2. Otherwise pick a ranked native id whose composed id exists in that provider's live `models <provider>` list.
+3. Smoke-test that identity (`omniroute test <provider> [model] --json` or 1-token `chat`). Failure → skip identity; do **not** start the implementer.
+4. On `unrecognized_model` / 429 / live-catalog 400 / stream-before-completed: **0** same-identity retries; requery; next identity.
+5. Same identity: at most **1** retry, only for timeout / single network blip.
+6. 401/403: stop OmniRoute transport (do not rotate).
+
+Anti-patterns: static model-name allowlists as the primary selector; `candidates` then native host while READY; `claude` + Kimi/Qwen without discovery aliases.
+
+### Operator checklist (docs only — no credential writes)
+
+- Keep at least one Claude-family connection if you use the `claude` target.
+- Keep at least one OpenAI-compatible coding connection for `opencode`/`codex`.
+- Leave exhausted OAuth (e.g. Antigravity at zero) out of the default coding rank until quota recovers.
+- Dashboard → provider → Import from `/models` / Auto-Sync when CLI ids drift from live `/v1`.
+- Thinking Budget **passthrough**. Harness never installs OmniRoute or writes secrets.
+
 ### Dispatch checklist (READY)
 
 1. Health on loopback only: `curl -sf --max-time 2 http://127.0.0.1:20128/api/health`.
