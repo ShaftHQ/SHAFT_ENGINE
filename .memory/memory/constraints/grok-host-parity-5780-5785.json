@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/grok-host-parity-5780-5785.md",
-  "content_hash": "sha256:a565fbf72e8e062b3a2cd5de70d62dc242523a5a837b6a1f139ffce679d5b798",
+  "content_hash": "sha256:f7d7d070eb07cf1b24aa6382b8fd94a386a66fc5aec61bd1dcb410d51b0af6d9",
   "created_at": "2026-09-14T20:42:45+03:00",
   "evidence": [
     "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5780",
