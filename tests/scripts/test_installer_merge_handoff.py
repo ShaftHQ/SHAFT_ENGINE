@@ -72,6 +72,29 @@ class InstructionMergeHandoffTest(unittest.TestCase):
         self.assertEqual(text.count(self.hosts.START), 1)
         self.assertEqual(self.hosts.consume_merge_handoffs(), [])
 
+    def test_legacy_instruction_span_is_replaced_without_handoff(self) -> None:
+        # Pre-CLI-over-MCP ChaosEngine-owned wording (#4791 era).
+        legacy = (
+            f"{self.hosts.START}\nBefore every task, follow the canonical "
+            "[ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). "
+            "Use `.chaos-engine/tool.py` for the project-local Memory, "
+            "MemPalace, and Graphify tools. "
+            "Prefer gh for GitHub. Default MCP catalog never includes GitHub MCP. "
+            "Leave an existing GitHub MCP config unchanged.\n"
+            f"{self.hosts.END}\n"
+        )
+        before = ("foreign keep\n" + legacy + "foreign tail\n").encode()
+        merged = self.hosts.merge_instruction(
+            before, self.hosts.INSTRUCTION, relative="AGENTS.md"
+        )
+        text = merged.decode("utf-8")
+        self.assertIn("foreign keep\n", text)
+        self.assertIn("foreign tail\n", text)
+        self.assertIn("CLI over MCP when both exist.", text)
+        self.assertNotIn("Leave an existing GitHub MCP config unchanged.", text)
+        self.assertEqual(text.count(self.hosts.START), 1)
+        self.assertEqual(self.hosts.consume_merge_handoffs(), [])
+
     def test_edited_span_is_left_unchanged_and_handed_off(self) -> None:
         original = (
             "foreign\n"

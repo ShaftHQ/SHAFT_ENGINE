@@ -1259,8 +1259,8 @@ HOST_ONBOARDING_CARDS = {
             "`projectTrusted` is false run `/hooks-trust`, then reload hooks."
         ),
         "gap": (
-            "Hook trust is host-gated; doctor reports recovery-required until trusted "
-            "hooks load."
+            "Hook trust is host-gated; doctor stays healthy and reports sync-advisory "
+            "until the operator runs `/hooks-trust` when using Grok."
         ),
     },
     "gemini": {

@@ -97,6 +97,11 @@ byte-identical to before this run.
    split markers).
 2. Markers exist but the interior is neither the current owned block nor a
    recognized legacy owned block (operator or other tool edited the CE span).
+   Recognized-legacy fingerprints auto-upgrade the owned span in place:
+   instruction markers must contain `Before every task, follow the canonical`
+   and `.chaos-engine/`; gitignore runtime markers must contain
+   `.chaos-engine-runtime/` and `.chaos-engine-state/`; gitattributes EOL
+   markers must contain `.chaos-engine/** text eol=lf`.
 3. A same-name MCP server / hook command exists with unknown ownership.
 4. The file is not valid UTF-8 or does not parse, so a span cannot be located
    without guessing.
