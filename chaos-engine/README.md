@@ -465,7 +465,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | dependency generations | Immutable project-local tools and interpreters. | dependencies.py | generated | Windows, Linux, macOS | installer | receipt-owned | unselected candidate is removed; foreign content is preserved |
 | active and previous pointers | Atomically select current and rollback generations. | dependencies.py | generated | Windows, Linux, macOS | installer | installer control plane | invalid pointer fails closed |
 | host adapters and receipts | Install native hook, skill, plugin, and MCP projections. | hosts.py | generated and trackable | five hosts | host installer | receipt-owned | rollback restores exact prior bytes |
-| Memory, MemPalace, and Graphify state | Persist canonical data or derived indexes. | .gitignore; hosts.py | generated and never tracked | project local | owned tools | project or derived single writer | doctor reports recovery-required |
+| Memory, MemPalace, and Graphify state | Persist canonical Memory/relations (tracked) plus derived indexes (`graphify-out/`, MemPalace palace data, `.memory` runtime). | .gitignore; hosts.py | durable Memory tracked; derived indexes untracked | project local | owned tools | project or derived single writer | doctor reports recovery-required |
 | reports, caches, and evaluation receipts | Carry bounded diagnostics without transcripts or secrets. | .gitignore; chaos_engine_promotion.py | generated and never tracked | local and CI | requesting command | ephemeral evidence owner | missing evidence blocks promotion |
 <!-- inventory:generated-assets:end -->
 

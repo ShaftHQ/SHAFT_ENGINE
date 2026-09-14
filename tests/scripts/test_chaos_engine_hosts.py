@@ -832,9 +832,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ignores.rindex(".chaos-engine-owned-directory"),
                 ignores.index("!.codex/**"),
             )
-            self.assertIn("!.memory/config.json", ignores)
-            self.assertIn("!.memory/schema/*.schema.json", ignores)
-            self.assertIn("!.memory/events.jsonl", ignores)
+            self.assertIn(".memory/index/", ignores)
+            self.assertIn(".memory/private/", ignores)
+            self.assertIn("Durable native Memory is tracked", ignores)
+            self.assertNotIn(".memory/memory/*", ignores)
+            self.assertNotIn("!.memory/config.json", ignores)
             self.assertIn("!.claude/**", ignores)
             self.assertIn("!.codex/**", ignores)
             self.assertIn(".claude/settings.local.json", ignores)
@@ -1360,14 +1362,18 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertTrue(handoff.is_file())
             self.assertIn(".claude-plugin/marketplace.json", handoff.read_text(encoding="utf-8"))
 
-    def test_gitignore_reincludes_tracked_memory_config_under_existing_parent_rule(self):
+    def test_gitignore_tracks_durable_memory_and_ignores_runtime_only(self):
         module = load(HOSTS, "chaos_engine_gitignore_memory")
         before = {relative: None for relative in module.managed_paths()}
         before[".gitignore"] = b".memory/\n"
 
         rendered = module.desired_content(before)[".gitignore"].decode()
 
-        self.assertLess(rendered.index("!.memory/"), rendered.index("!.memory/config.json"))
+        self.assertIn(".memory/index/", rendered)
+        self.assertIn(".memory/private/", rendered)
+        self.assertIn("Durable native Memory is tracked", rendered)
+        self.assertNotIn(".memory/memory/*", rendered)
+        self.assertNotIn("!.memory/config.json", rendered)
 
     def test_gitignore_reincludes_every_canonical_harness_root(self):
         module = load(HOSTS, "chaos_engine_gitignore_canonical_roots")

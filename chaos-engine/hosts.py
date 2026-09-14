@@ -4534,10 +4534,9 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine-dependencies.json\n"
         ".chaos-engine-hosts.json\n.chaos-engine-hosts.*\n"
         ".chaos-engine-directory-claim-*\ngraphify-out/\n"
-        ".memory/*\n!.memory/\n!.memory/config.json\n!.memory/events.jsonl\n"
-        "!.memory/schema/\n!.memory/schema/*.schema.json\n"
-        "!.memory/memory/\n.memory/memory/*\n!.memory/memory/.gitkeep\n"
-        "!.memory/relations/\n.memory/relations/*\n!.memory/relations/.gitkeep\n"
+        "# Durable native Memory is tracked. Runtime/private only:\n"
+        ".memory/index/\n.memory/context/\n.memory/exports/\n"
+        ".memory/recovery/\n.memory/.backup/\n.memory/.lock\n.memory/private/\n"
         "!.chaos-engine/\n!.chaos-engine/**\n.chaos-engine/**/__pycache__/\n"
         "!.agents/\n!.agents/plugins/\n!.agents/plugins/marketplace.json\n"
         "!.agents/skills/\n!.agents/skills/README.md\n"
@@ -4567,6 +4566,19 @@ def gitignore_content(before: bytes | None) -> bytes:
             ".gitignore", "file is not valid UTF-8 or does not parse", block
         )
         return original
+    if existing.count(GITIGNORE_START) == 1 and existing.count(GITIGNORE_END) == 1:
+        begin = existing.index(GITIGNORE_START)
+        finish = existing.index(GITIGNORE_END, begin) + len(GITIGNORE_END)
+        if finish < len(existing) and existing[finish] == "\r":
+            finish += 1
+        if finish < len(existing) and existing[finish] == "\n":
+            finish += 1
+        interior = existing[begin:finish].replace("\r\n", "\n")
+        if (
+            ".memory/*\n!.memory/\n!.memory/config.json" in interior
+            and ".memory/memory/*" in interior
+        ):
+            return (existing[:begin] + block + existing[finish:]).encode()
     return replace_owned_text_block(
         existing,
         GITIGNORE_START,
