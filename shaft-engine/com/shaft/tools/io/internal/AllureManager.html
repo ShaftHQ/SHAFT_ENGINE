@@ -45,7 +45,14 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#field-summary" tabindex="0">Field Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
+<li><a href="#field-detail" tabindex="0">Field Details</a>
+<ol class="toc-list">
+<li><a href="#ALLURE_CLI_MAVEN_GROUP_ID" tabindex="0">ALLURE_CLI_MAVEN_GROUP_ID</a></li>
+<li><a href="#ALLURE_CLI_MAVEN_ARTIFACT_ID" tabindex="0">ALLURE_CLI_MAVEN_ARTIFACT_ID</a></li>
+</ol>
+</li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#initializeAllureReportingEnvironment()" tabindex="0">initializeAllureReportingEnvironment()</a></li>
@@ -56,6 +63,9 @@
 <li><a href="#getProvisionedAllureCliJs(java.lang.String)" tabindex="0">getProvisionedAllureCliJs(String)</a></li>
 <li><a href="#isProvisionedAllureCliPresent(java.lang.String)" tabindex="0">isProvisionedAllureCliPresent(String)</a></li>
 <li><a href="#tryProvisionAllureCli(java.lang.String)" tabindex="0">tryProvisionAllureCli(String)</a></li>
+<li><a href="#getAllureCliMavenZipPath(java.lang.String)" tabindex="0">getAllureCliMavenZipPath(String)</a></li>
+<li><a href="#tryProvisionAllureCliFromMavenZip(java.lang.String)" tabindex="0">tryProvisionAllureCliFromMavenZip(String)</a></li>
+<li><a href="#unpackAllureCliZip(java.io.File,java.io.File)" tabindex="0">unpackAllureCliZip(File, File)</a></li>
 </ol>
 </li>
 </ol>
@@ -94,9 +104,13 @@ configured Allure 3 CLI in this order:
   <li>Portable Node.js under <code>~/.m2/repository/nodejs/</code> → its bundled <code>npx</code> → same
       <code>npx --yes allure@&amp;lt;version&amp;gt;</code> invocation.</li>
 </ol>
-Pre-warm the Maven cache offline with <code>mvn -Pprovision-allure-cli -pl shaft-engine
--am initialize</code>. The <code>allure.forceConfiguredCliVersion</code> property remains a deprecated
-always-on alias (setting it <code>false</code> only logs that PATH allure is ignored).
+Provision prefers unpacking the Maven zip
+<code>io.github.shafthq:allure-cli:&amp;lt;version&amp;gt;:zip</code> (#5815) into the runtime cache when the
+artifact is present locally, then falls back to npm. Air-gap CI:
+<code>mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize</code>. Online warm-up:
+<code>mvn -Pprovision-allure-cli -pl shaft-engine -am initialize</code>. The
+<code>allure.forceConfiguredCliVersion</code> property remains a deprecated always-on alias
+(setting it <code>false</code> only logs that PATH allure is ignored).
 
 <p>Thread safety: all public methods are <code>static</code> and intended to be called from a
 single thread (the test runner thread). The result directory fields are mutable class-level
@@ -105,6 +119,26 @@ state and should not be accessed concurrently.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- =========== FIELD SUMMARY =========== -->
+<li>
+<section class="field-summary" id="field-summary">
+<h2>Field Summary</h2>
+<div class="caption"><span>Fields</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Field</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color"><code><a href="#ALLURE_CLI_MAVEN_ARTIFACT_ID" class="member-name-link">ALLURE_CLI_MAVEN_ARTIFACT_ID</a></code></div>
+<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-first odd-row-color"><code>static final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color"><code><a href="#ALLURE_CLI_MAVEN_GROUP_ID" class="member-name-link">ALLURE_CLI_MAVEN_GROUP_ID</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Maven coordinates for the pinned Allure 3 CLI zip artifact (#5815).</div>
+</div>
+</div>
+</section>
+</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
@@ -131,27 +165,43 @@ state and should not be accessed concurrently.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getAllureCliHome(java.lang.String)" class="member-name-link">getAllureCliHome</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getProvisionedAllureCliJs(java.lang.String)" class="member-name-link">getProvisionedAllureCliJs</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#initializeAllureReportingEnvironment()" class="member-name-link">initializeAllureReportingEnvironment</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getAllureCliMavenZipPath(java.lang.String)" class="member-name-link">getAllureCliMavenZipPath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Absolute path to the Maven-local zip for <code>io.github.shafthq:allure-cli:&amp;lt;version&amp;gt;</code>.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getProvisionedAllureCliJs(java.lang.String)" class="member-name-link">getProvisionedAllureCliJs</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#initializeAllureReportingEnvironment()" class="member-name-link">initializeAllureReportingEnvironment</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Initialises the Allure reporting environment before a test suite begins.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isProvisionedAllureCliPresent(java.lang.String)" class="member-name-link">isProvisionedAllureCliPresent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#openAllureReportAfterExecution()" class="member-name-link">openAllureReportAfterExecution</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isProvisionedAllureCliPresent(java.lang.String)" class="member-name-link">isProvisionedAllureCliPresent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#openAllureReportAfterExecution()" class="member-name-link">openAllureReportAfterExecution</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Generates the Allure HTML report and opens it in the default browser when
 <code>SHAFT.Properties.allure.automaticallyOpen()</code> is <code>true</code>.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tryProvisionAllureCli(java.lang.String)" class="member-name-link">tryProvisionAllureCli</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Best-effort install of the pinned Allure 3 CLI into the Maven-local runtime cache
+(#5801/#5815).</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tryProvisionAllureCli(java.lang.String)" class="member-name-link">tryProvisionAllureCli</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tryProvisionAllureCliFromMavenZip(java.lang.String)" class="member-name-link">tryProvisionAllureCliFromMavenZip</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Best-effort install of the pinned Allure 3 npm package into the Maven-local CLI cache
-(#5801).</div>
+<div class="block">Unpacks a local Maven Allure CLI zip into the runtime cache when present (#5815).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#unpackAllureCliZip(java.io.File,java.io.File)" class="member-name-link">unpackAllureCliZip</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/File.html" title="class or interface in java.io" class="external-link">File</a>&nbsp;zipFile,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/File.html" title="class or interface in java.io" class="external-link">File</a>&nbsp;destinationDir)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Extracts <code>zipFile</code> into <code>destinationDir</code> (zip-slip safe).</div>
 </div>
 </div>
 </div>
@@ -165,6 +215,49 @@ state and should not be accessed concurrently.</div>
 </section>
 <section class="details">
 <ul class="details-list">
+<!-- ============ FIELD DETAIL =========== -->
+<li>
+<section class="field-details" id="field-detail">
+<h2>Field Details</h2>
+<ul class="member-list">
+<li>
+<section class="detail" id="ALLURE_CLI_MAVEN_GROUP_ID">
+<h3>ALLURE_CLI_MAVEN_GROUP_ID</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">ALLURE_CLI_MAVEN_GROUP_ID</span></div>
+<div class="block">Maven coordinates for the pinned Allure 3 CLI zip artifact (#5815).
+Layout on disk: <code>~/.m2/repository/io/github/shafthq/allure-cli/&amp;lt;version&amp;gt;/allure-cli-&amp;lt;version&amp;gt;.zip</code></div>
+<dl class="notes">
+<dt>See Also:</dt>
+<dd>
+<ul class="tag-list">
+<li><a href="../../../../../constant-values.html#com.shaft.tools.io.internal.AllureManager.ALLURE_CLI_MAVEN_GROUP_ID">Constant Field Values</a></li>
+</ul>
+</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ALLURE_CLI_MAVEN_ARTIFACT_ID">
+<h3>ALLURE_CLI_MAVEN_ARTIFACT_ID</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">ALLURE_CLI_MAVEN_ARTIFACT_ID</span></div>
+<dl class="notes">
+<dt>See Also:</dt>
+<dd>
+<ul class="tag-list">
+<li><a href="#ALLURE_CLI_MAVEN_GROUP_ID"><code>ALLURE_CLI_MAVEN_GROUP_ID</code></a></li>
+<li><a href="../../../../../constant-values.html#com.shaft.tools.io.internal.AllureManager.ALLURE_CLI_MAVEN_ARTIFACT_ID">Constant Field Values</a></li>
+</ul>
+</dd>
+</dl>
+</div>
+</section>
+</li>
+</ul>
+</section>
+</li>
 <!-- ============ METHOD DETAIL ========== -->
 <li>
 <section class="method-details" id="method-detail">
@@ -291,14 +384,62 @@ The archive is written to the project directory with a timestamped filename
 <h3>tryProvisionAllureCli</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">tryProvisionAllureCli</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</span></div>
-<div class="block">Best-effort install of the pinned Allure 3 npm package into the Maven-local CLI cache
-(#5801). Safe to call when already installed (no-op). Does not use a user PATH
-<code>allure</code> binary.</div>
+<div class="block">Best-effort install of the pinned Allure 3 CLI into the Maven-local runtime cache
+(#5801/#5815). Prefers a local Maven zip unpack, then npm. Safe to call when already
+installed (no-op). Does not use a user PATH <code>allure</code> binary.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>allure3Version</code> - pinned Allure 3 npm package version</dd>
 <dt>Returns:</dt>
 <dd><code>true</code> when <code>cli.js</code> is present after this call</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="getAllureCliMavenZipPath(java.lang.String)">
+<h3>getAllureCliMavenZipPath</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getAllureCliMavenZipPath</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</span></div>
+<div class="block">Absolute path to the Maven-local zip for <code>io.github.shafthq:allure-cli:&amp;lt;version&amp;gt;</code>.
+Override with <code>-Dallure.cli.mavenZip=/path/to/allure-cli-&amp;lt;version&amp;gt;.zip</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>allure3Version</code> - pinned Allure 3 CLI version</dd>
+<dt>Returns:</dt>
+<dd>absolute zip path</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="tryProvisionAllureCliFromMavenZip(java.lang.String)">
+<h3>tryProvisionAllureCliFromMavenZip</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">tryProvisionAllureCliFromMavenZip</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allure3Version)</span></div>
+<div class="block">Unpacks a local Maven Allure CLI zip into the runtime cache when present (#5815).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>allure3Version</code> - pinned Allure 3 CLI version</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when <code>cli.js</code> is present afterwards</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="unpackAllureCliZip(java.io.File,java.io.File)">
+<h3>unpackAllureCliZip</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">unpackAllureCliZip</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/File.html" title="class or interface in java.io" class="external-link">File</a>&nbsp;zipFile,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/File.html" title="class or interface in java.io" class="external-link">File</a>&nbsp;destinationDir)</span></div>
+<div class="block">Extracts <code>zipFile</code> into <code>destinationDir</code> (zip-slip safe).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>zipFile</code> - local Maven zip artifact</dd>
+<dd><code>destinationDir</code> - runtime CLI home (<code>.../allure/allure-cli/&amp;lt;version&amp;gt;/</code>)</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> on success</dd>
 </dl>
 </div>
 </section>

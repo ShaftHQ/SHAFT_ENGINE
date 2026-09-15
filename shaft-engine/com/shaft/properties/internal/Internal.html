@@ -120,7 +120,7 @@ properties or internal properties files.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#allure3Version()" class="member-name-link">allure3Version</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Version of the Allure 3 npm CLI package used by managed report generation (#5801).</div>
+<div class="block">Version of the Allure 3 npm CLI package used by managed report generation (#5801/#5815).</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#androidCommandLineToolsVersion()" class="member-name-link">androidCommandLineToolsVersion</a>()</code></div>
@@ -243,14 +243,16 @@ Allure 3 CLI (#5801).</div>
 <div class="member-signature"><span class="annotations">@Key("allure3Version")
 @DefaultValue("3.17.0")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">allure3Version</span>()</div>
-<div class="block">Version of the Allure 3 npm CLI package used by managed report generation (#5801).
+<div class="block">Version of the Allure 3 npm CLI package used by managed report generation (#5801/#5815).
 Keep this aligned with the Allure 3 CLI you expect in CI (independent of
-<code>allure-bom</code> Java adapter coordinates). SHAFT prefers a Maven-provisioned copy under
-<code>~/.m2/repository/allure/allure-cli/&amp;lt;version&amp;gt;/</code>; otherwise it falls back to
+<code>allure-bom</code> Java adapter coordinates), root POM <code>allure.cli.version</code>, and
+<code>allure-cli/pom.xml</code>. SHAFT prefers a Maven-provisioned copy under
+<code>~/.m2/repository/allure/allure-cli/&amp;lt;version&amp;gt;/</code> (optionally unpacked from
+<code>io.github.shafthq:allure-cli:&amp;lt;version&amp;gt;:zip</code>); otherwise it falls back to
 <code>npx --yes allure@&amp;lt;version&amp;gt;</code> (or portable Node under <code>~/.m2/repository/nodejs/</code>).
 User <code>PATH</code> <code>allure</code> is never used. Update this value to upgrade the pinned CLI
-across the engine and the <code>provision-allure-cli</code> Maven profile
-(<code>allure.cli.version</code> in the root POM). Latest releases:
+across the engine, the <code>provision-allure-cli</code> / <code>provision-allure-cli-maven</code>
+profiles, and the zip module. Latest releases:
 <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a></div>
 </div>
 </section>
