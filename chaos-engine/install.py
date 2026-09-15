@@ -2023,6 +2023,28 @@ def recover_transaction(project: Path) -> None:
         _recover_transaction(project)
 
 
+
+def sync_repository_overlay_from_source(project: Path) -> None:
+    """After core publish, heal `.chaos-engine` from local SOURCE on origin checkouts."""
+    match_path = Path(__file__).resolve().with_name("overlay_match.py")
+    if not match_path.is_file():
+        return
+    try:
+        import importlib.util as _ilu
+
+        spec = _ilu.spec_from_file_location("ce_overlay_match_install_sync", match_path)
+        if spec is None or spec.loader is None:
+            return
+        module = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        if not getattr(module, "is_repository_checkout", lambda _p: False)(project):
+            return
+        module.sync_overlay_from_source(project)
+    except (OSError, RuntimeError, ValueError, AttributeError, ImportError):
+        # Install-time sync is best-effort; doctor heal-once is the backstop.
+        pass
+
+
 def install(  # noqa: MC0001 - publication and compensation form one transaction.
     project: Path,
     source: Path,
@@ -2124,6 +2146,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                         finally:
                             if temporary_manifest.exists():
                                 temporary_manifest.unlink()
+                    sync_repository_overlay_from_source(project)
                     return target
                 if current["source"].get("kind") != "local":  # type: ignore[union-attr]
                     raise ValueError("same commit resolved from different ChaosEngine provenance")
@@ -2173,6 +2196,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         finally:
             if stage.exists():
                 shutil.rmtree(stage)
+    sync_repository_overlay_from_source(project)
     return target
 
 
@@ -3336,6 +3360,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         finally:
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
+        sync_repository_overlay_from_source(project)
         return target
 
 
@@ -4874,6 +4899,19 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
                 continue
             item["fixNext"] = message
         return
+    overlay = Path(project) / ".chaos-engine-state" / "overlay-handoff.md"
+    if overlay.is_file() and not is_link_or_reparse(overlay):
+        message = (
+            "Complete the agent overlay heal using .chaos-engine-state/overlay-handoff.md, "
+            "then rerun doctor. Do not rerun the install one-liner."
+        )
+        for item in components.values():
+            if not isinstance(item, dict):
+                continue
+            if _component_severity(item) == "ok":
+                continue
+            item["fixNext"] = message
+        return
     handoff = Path(project) / ".chaos-engine-state" / "merge-handoff.md"
     if not handoff.is_file() or is_link_or_reparse(handoff):
         return
@@ -5174,6 +5212,10 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         fix = component_fix_next(name, item)
         if fix:
             lines.append(f"  fix-next: {fix}")
+        prompt = item.get("agentPrompt")
+        if isinstance(prompt, str) and prompt.strip():
+            lines.append("  Agent prompt (copy the backtick block):")
+            lines.append(f"  `{prompt.strip()}`")
     lines.extend(advisories)
     lines.extend(format_blocking_fidelity_warnings(document))
     return "\n".join(lines) + "\n"

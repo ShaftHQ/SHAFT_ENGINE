@@ -1014,6 +1014,26 @@ class InstallReporter:
                     f"`{prompt}`",
                 ]
             )
+        overlay_handoff = project / ".chaos-engine-state" / "overlay-handoff.md"
+        if overlay_handoff.is_file() and not overlay_handoff.is_symlink():
+            doctor_cli = "py -3" if os.name == "nt" else "python3"
+            doctor_command = f"{doctor_cli} .chaos-engine/install.py doctor --project ."
+            prompt = (
+                "Heal ChaosEngine overlay using .chaos-engine-state/overlay-handoff.md. "
+                "Copy only the listed owned files from chaos-engine/ to .chaos-engine/ "
+                "(byte-identical; create parents as needed). Preserve every foreign "
+                "overlay bit. Rewrite .chaos-engine/manifest.json files digests to match "
+                f"the overlay. Then run {doctor_command} and follow each fix-next."
+            )
+            extra.extend(
+                [
+                    "Overlay handoff",
+                    "Core is installed. Owned overlay bytes still diverge from local SOURCE. "
+                    "Details: .chaos-engine-state/overlay-handoff.md",
+                    "Agent prompt (copy the backtick block):",
+                    f"`{prompt}`",
+                ]
+            )
         heal = project / HEAL_HANDOFF_RELATIVE
         if heal.is_file() and not heal.is_symlink():
             issue_url = "the GitHub issue linked in .chaos-engine-state/heal-handoff.md"
