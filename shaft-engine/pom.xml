@@ -1035,6 +1035,73 @@
                 </plugins>
             </build>
         </profile>
+
+        <!-- Option C (#5801): pre-warm ~/.m2/repository/allure/allure-cli/<allure.cli.version>/
+             so report generation can run offline without npx/network. AllureManager resolves this
+             path first and never uses a user PATH allure binary.
+             Usage: mvn -Pprovision-allure-cli -pl shaft-engine -am initialize -->
+        <profile>
+            <id>provision-allure-cli</id>
+            <properties>
+                <allure.cli.cacheRoot>${user.home}/.m2/repository/allure/allure-cli</allure.cli.cacheRoot>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.2.0</version>
+                        <executions>
+                            <execution>
+                                <id>write-allure-cli-package-json</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <mkdir dir="${allure.cli.cacheRoot}/${allure.cli.version}"/>
+                                        <echo file="${allure.cli.cacheRoot}/${allure.cli.version}/package.json"><![CDATA[{
+  "name": "shaft-allure-cli-runtime",
+  "private": true
+}
+]]></echo>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.2</version>
+                        <executions>
+                            <execution>
+                                <id>provision-allure-cli</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>npm</executable>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                    <arguments>
+                                        <argument>--prefix</argument>
+                                        <argument>${allure.cli.cacheRoot}/${allure.cli.version}</argument>
+                                        <argument>install</argument>
+                                        <argument>--no-package-lock</argument>
+                                        <argument>--no-save</argument>
+                                        <argument>--ignore-scripts</argument>
+                                        <argument>allure@${allure.cli.version}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
     </profiles>
 
     <reporting>

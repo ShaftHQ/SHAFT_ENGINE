@@ -127,10 +127,18 @@ public interface Allure extends EngineProperties<Allure> {
      *
      * <p>Property key: {@code allure.forceConfiguredCliVersion} — default: {@code true}
      *
-     * <p>After {@code allure-bom} 3.0.0 (#5793 / #5798), SHAFT always ignores user-installed
+     * <p>After {@code allure-bom} 3.0.0 (#5793 / #5798 / #5801), SHAFT always ignores user-installed
      * {@code allure} binaries on {@code PATH} (including Allure 2.x) for generate/open/serve and
-     * uses managed Allure 3 only: {@code npx --yes allure@<allure3Version>} (or portable Node.js
-     * under {@code ~/.m2/repository/nodejs/}).
+     * uses managed Allure 3 only, preferring a Maven-provisioned CLI under
+     * {@code ~/.m2/repository/allure/allure-cli/&lt;allure3Version&gt;/}, then
+     * {@code npx --yes allure@&lt;allure3Version&gt;} (or portable Node.js under
+     * {@code ~/.m2/repository/nodejs/}).
+     *
+     * <p>Operators / CI: pre-warm the Maven cache with
+     * {@code mvn -Pprovision-allure-cli -pl shaft-engine -am initialize} (uses root POM property
+     * {@code allure.cli.version}, aligned with {@code allure3Version}). Override the cache root
+     * with {@code -Dallure.cli.cacheRoot=...}. Skip runtime provision with
+     * {@code -Dallure.cli.skipProvision=true}.
      *
      * <p>Setting this property to {@code false} is a no-op that logs a discrete deprecation note;
      * PATH allure remains ignored. Prefer leaving the default {@code true} or removing the property

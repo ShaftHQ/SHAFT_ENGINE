@@ -212,6 +212,7 @@ public class AllureManagerUnitTest {
         String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
         Path scriptPath = Path.of(scriptFileName);
         try {
+            isolateFromProvisionedCliCache();
             SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
             scriptMethod.invoke(null);
             String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
@@ -237,6 +238,7 @@ public class AllureManagerUnitTest {
         String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
         Path scriptPath = Path.of(scriptFileName);
         try {
+            isolateFromProvisionedCliCache();
             SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
             scriptMethod.invoke(null);
             String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
@@ -512,6 +514,8 @@ public class AllureManagerUnitTest {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
 
+        isolateFromProvisionedCliCache();
+
         Field internalField = Properties.class.getDeclaredField("internal");
         internalField.setAccessible(true);
         Object originalInternalConfig = internalField.get(null);
@@ -540,7 +544,7 @@ public class AllureManagerUnitTest {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
 
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+        isolateFromProvisionedCliCache();
         SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
 
         Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
@@ -732,6 +736,8 @@ public class AllureManagerUnitTest {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
 
+        isolateFromProvisionedCliCache();
+
         SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
         Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
@@ -750,6 +756,8 @@ public class AllureManagerUnitTest {
     public void resolveAllureCommandPrefixShouldIgnoreStubAllure2OnPathAndUseManagedAllure3() throws Exception {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
+
+        isolateFromProvisionedCliCache();
 
         Path allureBinary = getWritablePathDirectory().resolve("allure");
         boolean binaryAlreadyExists = Files.exists(allureBinary);
@@ -782,6 +790,8 @@ public class AllureManagerUnitTest {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
 
+        isolateFromProvisionedCliCache();
+
         Path allureBinary = getWritablePathDirectory().resolve("allure");
         boolean binaryAlreadyExists = Files.exists(allureBinary);
         String originalBinaryContent = binaryAlreadyExists ? Files.readString(allureBinary) : null;
@@ -812,6 +822,8 @@ public class AllureManagerUnitTest {
     public void resolveAllureCommandPrefixShouldIgnoreSystemAllureWhenEnforced() throws Exception {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
+
+        isolateFromProvisionedCliCache();
 
         Path allureBinary = getWritablePathDirectory().resolve("allure");
         boolean binaryAlreadyExists = Files.exists(allureBinary);
@@ -996,9 +1008,162 @@ public class AllureManagerUnitTest {
     public void resetAllureManagerCachedState() throws Exception {
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
         setStaticField(AllureManager.class, "realtimeMonitoringProcess", null);
+        System.clearProperty("allure.cli.cacheRoot");
+        System.clearProperty("allure.cli.skipProvision");
         Properties.clearForCurrentThread();
         setStaticField(AllureManager.class, "allureResultsFolderPath", SHAFT.Properties.paths.allureResults());
         setStaticField(AllureManager.class, "allureOutPutDirectory", "");
+    }
+
+    /**
+     * Forces CLI resolution away from any machine-local Maven Allure CLI cache so tests that
+     * assert the npx fallback stay deterministic (#5801).
+     */
+    private static Path isolateFromProvisionedCliCache() throws Exception {
+        Path emptyCache = Files.createTempDirectory("shaft-allure-cli-empty-cache");
+        System.setProperty("allure.cli.cacheRoot", emptyCache.toString());
+        System.setProperty("allure.cli.skipProvision", "true");
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+        return emptyCache;
+    }
+
+    /**
+     * Creates a minimal Maven-cache Allure CLI layout ({@code node_modules/allure/cli.js}) under a
+     * temp cache root for resolution-order tests (#5801).
+     */
+    private static Path createFakeProvisionedAllureCli(String version) throws Exception {
+        Path cacheRoot = Files.createTempDirectory("shaft-allure-cli-provisioned");
+        Path cliJs = cacheRoot.resolve(version).resolve("node_modules").resolve("allure").resolve("cli.js");
+        Files.createDirectories(cliJs.getParent());
+        Files.writeString(cliJs, "#!/usr/bin/env node\nconsole.log('fake-allure-cli');\n", StandardCharsets.UTF_8);
+        System.setProperty("allure.cli.cacheRoot", cacheRoot.toString());
+        System.setProperty("allure.cli.skipProvision", "true");
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+        return cacheRoot;
+    }
+
+
+    @Test(description = "resolveAllureCommandPrefix should prefer Maven-provisioned Allure 3 CLI over npx (#5801)")
+    public void resolveAllureCommandPrefixShouldPreferProvisionedCliOverNpx() throws Exception {
+        String version = SHAFT.Properties.internal.allure3Version();
+        Path cacheRoot = createFakeProvisionedAllureCli(version);
+        try {
+            Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
+            resolveAllureCommandPrefix.setAccessible(true);
+            SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
+
+            Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
+            SHAFT.Validations.assertThat().object(resolvedPrefix).isNotNull().perform();
+            String prefix = resolvedPrefix.toString();
+            SHAFT.Validations.assertThat().object(prefix.contains("npx")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(prefix.contains("allure@")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(prefix.contains("cli.js")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(prefix.contains(version)).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(prefix.equals("allure")).isEqualTo(false).perform();
+        } finally {
+            try (Stream<Path> walk = Files.walk(cacheRoot)) {
+                walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (Exception ignored) {
+                    }
+                });
+            }
+        }
+    }
+
+    @Test(description = "resolveAllureCommandPrefix should prefer provisioned CLI even when stub Allure 2 is on PATH (#5801)")
+    public void resolveAllureCommandPrefixShouldPreferProvisionedCliOverPathAllure2() throws Exception {
+        String version = SHAFT.Properties.internal.allure3Version();
+        Path cacheRoot = createFakeProvisionedAllureCli(version);
+        Path allureBinary = getWritablePathDirectory().resolve("allure");
+        boolean binaryAlreadyExists = Files.exists(allureBinary);
+        String originalBinaryContent = binaryAlreadyExists ? Files.readString(allureBinary) : null;
+        try {
+            Files.writeString(allureBinary, "#!/bin/sh\necho \"2.24.0\"\n");
+            allureBinary.toFile().setExecutable(true);
+
+            Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
+            resolveAllureCommandPrefix.setAccessible(true);
+            SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
+
+            Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
+            SHAFT.Validations.assertThat().object(resolvedPrefix).isNotNull().perform();
+            String prefix = resolvedPrefix.toString();
+            SHAFT.Validations.assertThat().object(prefix.equals("allure")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(prefix.contains("cli.js")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(prefix.contains("npx")).isEqualTo(false).perform();
+        } finally {
+            if (binaryAlreadyExists) {
+                Files.writeString(allureBinary, originalBinaryContent);
+                allureBinary.toFile().setExecutable(true);
+            } else {
+                Files.deleteIfExists(allureBinary);
+            }
+            try (Stream<Path> walk = Files.walk(cacheRoot)) {
+                walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (Exception ignored) {
+                    }
+                });
+            }
+        }
+    }
+
+    @Test(description = "getCommandToCreateAllureReport should use provisioned cli.js path without npx when cached (#5801 offline path)")
+    public void getCommandToCreateAllureReportShouldUseProvisionedCliWithoutNpx() throws Exception {
+        String version = SHAFT.Properties.internal.allure3Version();
+        Path cacheRoot = createFakeProvisionedAllureCli(version);
+        try {
+            Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
+            resolveAllureCommandPrefix.setAccessible(true);
+            Object prefix = resolveAllureCommandPrefix.invoke(null);
+            SHAFT.Validations.assertThat().object(prefix).isNotNull().perform();
+
+            setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
+            setStaticField(AllureManager.class, "allureOutPutDirectory", "target/allure-report");
+            Method getCommandMethod = AllureManager.class.getDeclaredMethod("getCommandToCreateAllureReport");
+            getCommandMethod.setAccessible(true);
+            String command = (String) getCommandMethod.invoke(null);
+
+            SHAFT.Validations.assertThat().object(command.contains("npx")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(command.contains("cli.js")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(command.contains("generate")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(command.contains("--config")).isEqualTo(true).perform();
+        } finally {
+            try (Stream<Path> walk = Files.walk(cacheRoot)) {
+                walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (Exception ignored) {
+                    }
+                });
+            }
+        }
+    }
+
+    @Test(description = "isProvisionedAllureCliPresent and cache helpers should honor allure.cli.cacheRoot override")
+    public void provisionedCliHelpersShouldHonorCacheRootOverride() throws Exception {
+        String version = "3.17.0";
+        Path cacheRoot = createFakeProvisionedAllureCli(version);
+        try {
+            SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent(version)).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(AllureManager.getProvisionedAllureCliJs(version).contains(cacheRoot.toString()))
+                    .isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(AllureManager.getAllureCliHome(version).startsWith(cacheRoot.toString()))
+                    .isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent("9.9.9")).isEqualTo(false).perform();
+        } finally {
+            try (Stream<Path> walk = Files.walk(cacheRoot)) {
+                walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (Exception ignored) {
+                    }
+                });
+            }
+        }
     }
 
     @Test(description = "getCommandToCreateAllureReport should use allure3 --config syntax when allure3 is detected")

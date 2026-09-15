@@ -26,10 +26,15 @@ public interface Internal extends EngineProperties<Internal> {
     String watermarkImagePath();
 
     /**
-     * Version of the Allure 3 npm package used when the CLI is not already on {@code PATH}.
-     * SHAFT invokes {@code npx --yes allure@<version>} to download and cache the package
-     * automatically.  Update this value here to upgrade the bundled CLI across the engine
-     * without changing {@code AllureManager} or any CI script. Use this url for the latest version <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
+     * Version of the Allure 3 npm CLI package used by managed report generation (#5801).
+     * Keep this aligned with the Allure 3 CLI you expect in CI (independent of
+     * {@code allure-bom} Java adapter coordinates). SHAFT prefers a Maven-provisioned copy under
+     * {@code ~/.m2/repository/allure/allure-cli/&lt;version&gt;/}; otherwise it falls back to
+     * {@code npx --yes allure@&lt;version&gt;} (or portable Node under {@code ~/.m2/repository/nodejs/}).
+     * User {@code PATH} {@code allure} is never used. Update this value to upgrade the pinned CLI
+     * across the engine and the {@code provision-allure-cli} Maven profile
+     * ({@code allure.cli.version} in the root POM). Latest releases:
+     * <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
      */
     @Key("allure3Version")
     @DefaultValue("3.17.0")
@@ -37,10 +42,11 @@ public interface Internal extends EngineProperties<Internal> {
 
     /**
      * Version of the portable Node.js LTS distribution that SHAFT downloads when neither
-     * {@code allure} nor {@code npx} is available on {@code PATH}.  The archive is cached
-     * in {@code ~/.m2/repository/nodejs/} so it is only downloaded once per machine.
-     * Update this value here to upgrade the bundled Node.js runtime. Use this url for the latest version <a href="https://nodejs.org/en/about/previous-releases#looking-for-the-latest-release-of-a-version-branch">NodeJsLTS</a>
-     *
+     * {@code node}/{@code npx} is available on {@code PATH}, or when provisioning the Maven-cached
+     * Allure 3 CLI (#5801). The archive is cached in {@code ~/.m2/repository/nodejs/} so it is
+     * only downloaded once per machine. Update this value here to upgrade the bundled Node.js
+     * runtime. Latest LTS:
+     * <a href="https://nodejs.org/en/about/previous-releases#looking-for-the-latest-release-of-a-version-branch">NodeJsLTS</a>
      */
     @Key("nodeLtsVersion")
     @DefaultValue("24.21.0")
