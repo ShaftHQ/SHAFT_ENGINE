@@ -340,6 +340,12 @@ public class MobileEvidenceActionsTest {
     public void failedPublicationShouldDeleteThePreparedRecordingStage() throws Exception {
         boolean screenshots = SHAFT.Properties.reporting.traceIncludeScreenshots();
         boolean nativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        // Isolate java.io.tmpdir so parallel Chrome Grid mates cannot leave
+        // unrelated shaft-mobile-evidence-*.zip files in the shared runner tmp
+        // and poison the before/after stage assertions (#5808).
+        String previousTmpDir = System.getProperty("java.io.tmpdir");
+        Path isolatedTmp = Files.createTempDirectory("shaft-mobile-evidence-isolated-tmp-");
+        System.setProperty("java.io.tmpdir", isolatedTmp.toAbsolutePath().toString());
         Path directory = Files.createTempDirectory("shaft-mobile-evidence-failed-publish-");
         Path recording = directory.resolve("saved.mp4");
         AppiumDriver driver = liveDriver();
@@ -365,6 +371,21 @@ public class MobileEvidenceActionsTest {
                     .traceIncludeScreenshots(screenshots).traceIncludeNativePageSource(nativeSource);
             Files.deleteIfExists(recording);
             Files.deleteIfExists(directory);
+            if (previousTmpDir == null) {
+                System.clearProperty("java.io.tmpdir");
+            } else {
+                System.setProperty("java.io.tmpdir", previousTmpDir);
+            }
+            try (var entries = Files.list(isolatedTmp)) {
+                entries.forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (java.io.IOException ignored) {
+                        path.toFile().deleteOnExit();
+                    }
+                });
+            }
+            Files.deleteIfExists(isolatedTmp);
         }
     }
 
