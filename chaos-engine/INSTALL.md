@@ -290,6 +290,33 @@ and keeps Caveman on. Disable only with flags (combinable):
   --without-ponytail --without-caveman
 ```
 
+### Official self-heal (#5811)
+
+Doctor heals **required** third-party / bundle items by running each item's
+**official install command** (or CE's bundled vendor publish when CE vendors the
+bytes). Deterministic first; if heal is impossible, doctor writes a pasteable
+handoff under `.chaos-engine-state/` with the exact official command — never a
+bare "rerun doctor".
+
+| Item | Official install / publish | Heal path |
+| --- | --- | --- |
+| Caveman / Ponytail | CE vendor rematerialize (`chaos-engine/vendor/{caveman,ponytail}` → `plugins/`) | `hosts.rematerialize_companions` on doctor when enabled-but-missing |
+| MemPalace | `uv tool install --with chromadb==1.5.9 mempalace==3.8.0` | `repair --component mempalace` / account provisioner |
+| Graphify | `uv tool install --with tree-sitter-sql==0.3.11 graphifyy==0.9.43` | `repair --component graphify` |
+| Memory | `npm install -g @aictx/memory@0.2.1` | `repair --component memory` |
+| Context7 | `npm install -g ctx7@latest` | account dependency provisioner |
+| uv / Node / Temurin Java / Maven | Astral / nodejs.org / Adoptium / Apache (CE managed helpers) | `repair --component tools` + managed runtime helpers |
+| CE MCPs / skills | `repair --component mcps` / `skills` (hosts rebind) | doctor + repair |
+| GitHub CLI (`gh`) | https://cli.github.com/ | advisory fix-next only (operator tool; CE does not auto-install) |
+
+Opt-out flags (`--without-memory`, `--without-caveman`, …) stay off — doctor
+does not heal disabled bundle items. Failed heal handoffs:
+
+- `.chaos-engine-state/companion-handoff.md`
+- `.chaos-engine-state/official-self-heal-handoff.md`
+
+See also epic #5803 and policy issue #5811.
+
 ### Component repair (no full wipe)
 
 ```bash

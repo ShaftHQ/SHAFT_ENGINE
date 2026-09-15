@@ -1774,6 +1774,156 @@ def companion_required_files(name: str) -> tuple[str, ...]:
     raise ValueError(f"unknown companion plugin: {name}")
 
 
+def companion_plugin_payload(name: str) -> dict[str, bytes]:
+    """Build receipt-bound companion plugin bytes from CE vendor (official publish)."""
+    after: dict[str, bytes] = {}
+    if name == CAVEMAN_PLUGIN_NAME:
+        caveman_manifest = {
+            "name": CAVEMAN_PLUGIN_NAME,
+            "version": CAVEMAN_PLUGIN_VERSION,
+            "description": (
+                "Ultra-compressed communication mode. Cut filler. Keep technical accuracy."
+            ),
+            "author": {
+                "name": "Julius Brussee",
+                "url": "https://github.com/JuliusBrussee",
+            },
+            "homepage": "https://github.com/JuliusBrussee/caveman",
+            "repository": "https://github.com/JuliusBrussee/caveman",
+            "license": "MIT",
+            "skills": "./skills/",
+        }
+        after["plugins/caveman/.codex-plugin/plugin.json"] = (
+            json.dumps(caveman_manifest, indent=2, sort_keys=True) + "\n"
+        ).encode()
+        after["plugins/caveman/.claude-plugin/plugin.json"] = (
+            json.dumps(
+                {
+                    "name": CAVEMAN_PLUGIN_NAME,
+                    "version": CAVEMAN_PLUGIN_VERSION,
+                    "description": caveman_manifest["description"],
+                    "author": caveman_manifest["author"],
+                    "hooks": {
+                        "UserPromptSubmit": [
+                            {
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": (
+                                            'node "${CLAUDE_PLUGIN_ROOT}/src/hooks/'
+                                            'caveman-mode-tracker.js"'
+                                        ),
+                                        "timeout": 5,
+                                        "statusMessage": "Tracking caveman mode...",
+                                    }
+                                ]
+                            }
+                        ],
+                    },
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode()
+        publish_vendor_plugin(
+            after,
+            name=CAVEMAN_PLUGIN_NAME,
+            vendor="caveman",
+            repository="JuliusBrussee/caveman",
+            commit=CAVEMAN_UPSTREAM_COMMIT,
+            version=CAVEMAN_PLUGIN_VERSION,
+        )
+        return after
+    if name == PONYTAIL_PLUGIN_NAME:
+        ponytail_manifest = {
+            "name": PONYTAIL_PLUGIN_NAME,
+            "version": PONYTAIL_PLUGIN_VERSION,
+            "description": "Forces the laziest solution that actually works.",
+            "author": {
+                "name": "DietrichGebert",
+                "url": "https://github.com/DietrichGebert",
+            },
+            "homepage": "https://github.com/DietrichGebert/ponytail",
+            "repository": "https://github.com/DietrichGebert/ponytail",
+            "license": "MIT",
+            "skills": "./skills/",
+        }
+        after["plugins/ponytail/.codex-plugin/plugin.json"] = (
+            json.dumps(ponytail_manifest, indent=2, sort_keys=True) + "\n"
+        ).encode()
+        hooks_path = (
+            Path(__file__).resolve().parent / "vendor/ponytail/hooks/claude-codex-hooks.json"
+        )
+        published_ponytail_hooks: dict = {}
+        if hooks_path.is_file():
+            ponytail_hooks = json.loads(hooks_path.read_text(encoding="utf-8"))
+            published_ponytail_hooks = dict(ponytail_hooks.get("hooks", ponytail_hooks))
+            published_ponytail_hooks.pop("SessionStart", None)
+        after["plugins/ponytail/.claude-plugin/plugin.json"] = (
+            json.dumps(
+                {
+                    "name": PONYTAIL_PLUGIN_NAME,
+                    "version": PONYTAIL_PLUGIN_VERSION,
+                    "description": ponytail_manifest["description"],
+                    "author": ponytail_manifest["author"],
+                    "hooks": published_ponytail_hooks,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode()
+        publish_vendor_plugin(
+            after,
+            name=PONYTAIL_PLUGIN_NAME,
+            vendor="ponytail",
+            repository="DietrichGebert/ponytail",
+            commit=PONYTAIL_UPSTREAM_COMMIT,
+            version=PONYTAIL_PLUGIN_VERSION,
+        )
+        return after
+    raise ValueError(f"unknown companion plugin: {name}")
+
+
+def rematerialize_companions(
+    project: Path,
+    *,
+    names: tuple[str, ...] | None = None,
+) -> dict[str, object]:
+    """Rematerialize enabled companions from CE vendor (official publish path, #5811)."""
+    project = Path(project).resolve()
+    selected = tuple(names) if names is not None else COMPANION_PLUGIN_NAMES
+    written: list[str] = []
+    for name in selected:
+        if name not in COMPANION_PLUGIN_NAMES:
+            raise ValueError(f"unknown companion plugin: {name}")
+        payload = companion_plugin_payload(name)
+        for relative, body in sorted(payload.items()):
+            path = project / relative
+            if path.exists() and path.is_symlink():
+                raise ValueError(f"companion path is a symlink: {relative}")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if path.is_file() and path.read_bytes() == body:
+                continue
+            path.write_bytes(body)
+            written.append(relative)
+    present = [
+        (project / f"plugins/{name}/skills/{name}/SKILL.md").is_file() for name in selected
+    ]
+    status = "healed" if all(present) else "failed"
+    return {
+        "status": status,
+        "written": written,
+        "names": list(selected),
+        "officialCommand": (
+            "CE vendor rematerialize via hosts.rematerialize_companions "
+            "(chaos-engine/vendor/{caveman,ponytail} → plugins/)"
+        ),
+    }
+
+
+
 def cached_plugin_matches(installed_path: object, source: Path) -> bool:
     if not isinstance(installed_path, str):
         return False

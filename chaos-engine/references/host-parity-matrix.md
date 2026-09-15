@@ -51,6 +51,11 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
 
 
+
+## Official self-heal (#5811)
+
+Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in `official_self_heal.py` + `INSTALL.md`. Opt-out `--without-*` stays off. Parent epic: #5803.
+
 ## How to refresh
 
 1. Update rows when adapter contracts or Host Parity Wave B issues land.
