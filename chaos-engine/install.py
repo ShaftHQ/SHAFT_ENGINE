@@ -4261,6 +4261,7 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
                 encoding="utf-8",
             )
         except OSError:
+            # Best-effort handoff file; doctor still returns sync-advisory + agentPrompt.
             pass
         components[key] = {
             "status": "sync-advisory",

@@ -237,10 +237,6 @@ def session_start_context(token: str | None, activation: str) -> str:
     # Identity pointer (#5807) — locator only, never inline the body.
     identity_hit = False
     for root in _search_roots():
-        for rel in ("identity.md", ".chaos-engine/identity.md", "chaos-engine/identity.md"):
-            candidate = root / rel if not rel.startswith(".") or root.name == "" else root / rel
-            # Prefer explicit relatives from search roots / parents.
-            pass
         for candidate in (
             root / "identity.md",
             root / ".chaos-engine" / "identity.md",
