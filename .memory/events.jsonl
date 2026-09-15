@@ -1227,3 +1227,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.close-delivery-only-after-verify-evidence-is-inspected","timestamp":"2026-09-15T21:50:47+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.wifi-and-host-network-recovery-are-out-of-scope-for-chaosengine","timestamp":"2026-09-15T21:50:47+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.chaosengine-identity-is-pragmatic-ethical-selfless-value-add","timestamp":"2026-09-15T21:50:47+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.learning-session-memory-save-is-the-default-write-path","timestamp":"2026-09-15T20:18:39+00:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.gotcha-learning-session-memory-save-is-the-default-write-path-related-to-gotcha-memory-saves-use-intent-first-json-on-stdin","timestamp":"2026-09-15T20:18:39+00:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.memory-saves-use-intent-first-json-on-stdin","timestamp":"2026-09-15T20:18:39+00:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.learning-session-memory-save-is-the-default-write-path","timestamp":"2026-09-15T20:19:45+00:00"}

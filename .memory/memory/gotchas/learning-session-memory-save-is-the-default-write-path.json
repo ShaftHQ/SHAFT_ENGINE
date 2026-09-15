@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/learning-session-memory-save-is-the-default-write-path.md",
+  "content_hash": "sha256:90e75db0cf22b4773137758f0e6d9c8e138de7da1a3a14ca14c73847d11396f3",
+  "created_at": "2026-09-15T20:18:39+00:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5852",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5846",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.learning-session-memory-save-is-the-default-write-path",
+  "source": {
+    "kind": "agent",
+    "task": "Re-enable Learning Session memory save as default write path (#5852)"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "memory",
+    "learning-session",
+    "permanent"
+  ],
+  "title": "Learning Session memory save is the default write path",
+  "type": "gotcha",
+  "updated_at": "2026-09-15T20:19:45+00:00"
+}

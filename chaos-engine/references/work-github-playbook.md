@@ -104,11 +104,14 @@ records its terminal reflection receipt before the Learning Session.
 4. Link the receipt ID and incident evidence in the issue, then bind that issue's
    canonical URL during `assess`. A receipt, Memory entry, Graphify flag, or old
    issue comment is evidence only and never replaces the action ticket.
-5. Write the knowledge result, or explicitly record that nothing durable or
-   actionable surfaced. Do not manufacture an issue for a genuinely no-action result.
-   Non-private Memory objects and relations are source-controlled: commit them on
-   the task branch. Secrets never enter `.memory/memory`; they stay in
-   `.memory/private/` (gitignored).
+5. Write the knowledge result via `memory save --stdin` (default write path
+   after Memory migrate; #5852), or explicitly record that nothing durable or
+   actionable surfaced. Do not manufacture an issue for a genuinely no-action
+   result. Do **not** hand-author `.memory/**` sidecars; never bypass a rejected
+   save by editing JSON/markdown under `.memory/` directly. Non-private Memory
+   objects and relations are source-controlled: commit them on the task branch.
+   Secrets never enter `.memory/memory`; they stay in `.memory/private/`
+   (gitignored).
 
 For a meaningful event, record an evidence-consistent `signal`, then `assess`
 it into a quarantined candidate using one distinct `--tracking-issue-url` per

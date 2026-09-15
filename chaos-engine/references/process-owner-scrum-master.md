@@ -103,6 +103,9 @@ authoritative research to improve the process itself.
   verify, doctor, or E2E receipts). Narrative green is not Done.
 - Host WiFi and unrelated lab network recovery are out of scope for ChaosEngine
   delivery and Learning Sessions; escalate outside CE and keep harness work moving.
+- Learning Session Memory writes use `memory save --stdin` as the default path
+  (#5852). Drop manual `.memory/**` sidecar authoring; report save failures
+  instead of hand-editing runtime-shaped JSON/markdown.
 
 ## Anti-patterns and self-correction
 
@@ -117,3 +120,4 @@ authoritative research to improve the process itself.
 | Premature close: Done without verify receipts | Re-open; require CI, silent verify, doctor, or E2E evidence before Done |
 | WiFi / host-network rabbit hole inside CE delivery | Declare out of scope; escalate outside CE; resume harness or product work |
 | Skip dual-checkout reinstall after a CE harness merge | Reinstall official CE on desktop and agent checkouts; doctor; then continue |
+| Manual `.memory/**` sidecar authoring in Learning Session | Use `memory save --stdin`; never hand-edit JSON/markdown sidecars (#5852) |
