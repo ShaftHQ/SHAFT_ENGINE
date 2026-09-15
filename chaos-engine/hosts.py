@@ -662,6 +662,7 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
             try:
                 path.write_bytes(original)
             except OSError:
+                # Best-effort restore; backup under .memory/.backup remains authoritative.
                 pass
         return {"status": "failed", "reason": f"transform-failed:{error}"}
     return {"status": "migrated", "backup": str(backup), "objects": len(objects)}
