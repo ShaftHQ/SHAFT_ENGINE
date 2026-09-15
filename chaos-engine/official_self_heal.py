@@ -701,6 +701,10 @@ def _doctor_heal_context7(
 ) -> None:
     """Heal missing context7/ctx7 via official npm path (#5812)."""
     dependencies = result.get("dependencies")
+    # Avoid expensive tools repair when the account dependency set is already healthy.
+    if isinstance(dependencies, dict) and dependencies.get("status") == "healthy":
+        if not _dependency_component_unhealthy(dependencies, CONTEXT7_ITEM):
+            return
     needs = _dependency_component_unhealthy(dependencies, CONTEXT7_ITEM)
     # Also heal when doctor surfaces an explicit context7 component.
     item = components.get(CONTEXT7_ITEM)
@@ -752,6 +756,13 @@ def _doctor_heal_managed_runtimes(
 ) -> None:
     """Heal managed Node/Java/Maven via official CE helpers (#5813)."""
     dependencies = result.get("dependencies")
+    if isinstance(dependencies, dict) and dependencies.get("status") == "healthy":
+        tools = components.get("tools")
+        maven_tools = components.get("maven-tools-mcp")
+        tools_need = isinstance(tools, dict) and _component_needs_heal(tools)
+        maven_need = isinstance(maven_tools, dict) and _component_needs_heal(maven_tools)
+        if not tools_need and not maven_need:
+            return
     missing = [
         name
         for name in MANAGED_RUNTIME_ITEMS

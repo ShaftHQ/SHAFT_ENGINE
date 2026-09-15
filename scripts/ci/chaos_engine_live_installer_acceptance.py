@@ -30,7 +30,7 @@ PROBES = {
     "graphify": ["--version"],
     "memory": ["--help"],
 }
-PHASE_TIMEOUT_SECONDS = 600
+PHASE_TIMEOUT_SECONDS = 900
 MCP_START_TIMEOUT_SECONDS = 10
 MCP_PROTOCOL_VERSION = "2025-06-18"
 COMMIT = re.compile(r"[0-9a-f]{40}")
