@@ -1222,3 +1222,8 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.auto-upgrade-recognized-ce-owned-marker-spans-on-install","timestamp":"2026-09-15T06:21:10+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.grok-hook-trust-is-host-gated-sync-advisory-not-install-recovery","timestamp":"2026-09-15T06:21:11+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.repository-install-must-sync-overlay-from-local-source-before-doctor","timestamp":"2026-09-15T07:07:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.process-owner-status-is-rag-plus-one-evidence-table-without-heartbeats","timestamp":"2026-09-15T21:50:47+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.dual-checkout-ce-reinstall-after-every-harness-merge","timestamp":"2026-09-15T21:50:47+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.close-delivery-only-after-verify-evidence-is-inspected","timestamp":"2026-09-15T21:50:47+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.wifi-and-host-network-recovery-are-out-of-scope-for-chaosengine","timestamp":"2026-09-15T21:50:47+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.chaosengine-identity-is-pragmatic-ethical-selfless-value-add","timestamp":"2026-09-15T21:50:47+03:00"}

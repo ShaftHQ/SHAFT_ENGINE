@@ -1,0 +1,1 @@
+Host or lab WiFi failures are not ChaosEngine delivery or Learning Session work. Escalate outside CE, do not burn harness tokens on network recovery, and keep process-owner focused on overlay, installer, doctor, and product surfaces.
