@@ -234,6 +234,29 @@ def session_start_context(token: str | None, activation: str) -> str:
                 locator = _workspace_locator(path)
                 parts.append(f"Required companion: read and follow `{locator}` before responding.")
                 break
+    # Identity pointer (#5807) — locator only, never inline the body.
+    identity_hit = False
+    for root in _search_roots():
+        for candidate in (
+            root / "identity.md",
+            root / ".chaos-engine" / "identity.md",
+            root / "chaos-engine" / "identity.md",
+        ):
+            if candidate.is_file():
+                locator = _workspace_locator(candidate)
+                parts.append(
+                    f"Identity: read and follow `{locator}` "
+                    "(Truth section protected from silent Learning rewrites)."
+                )
+                identity_hit = True
+                break
+        if identity_hit:
+            break
+    if not identity_hit:
+        parts.append(
+            "Identity: read and follow `.chaos-engine/identity.md` "
+            "(create-on-heal via doctor/activate if missing)."
+        )
     rendered = "\n\n".join(parts)
     with contextlib.suppress(Exception):
         counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"

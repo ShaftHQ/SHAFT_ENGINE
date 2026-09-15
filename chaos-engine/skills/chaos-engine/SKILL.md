@@ -153,6 +153,10 @@ here, not a session preference. Vendor tables still define what ultra means.
 Off only: `stop caveman`, `stop ponytail`, or `normal mode`. Lite or full only
 when the user names that level.
 
+**Implement path (required):** load Caveman+Ponytail at ultra before first
+mutation (all hosts). SessionStart is locator-only. Exempt: `--without-caveman` /
+`--without-ponytail`; else doctor flags gaps.
+
 Once a companion body is loaded, that companion's own text applies. Chat
 follows Caveman. What you build follows Ponytail. Host or adapter prose and
 formatting that demand complete sentences, restating tool work, decorative
@@ -305,17 +309,15 @@ duplicate search via `learning.py` (submit confirmed candidates as issues, not
 queue-only). Prefer a smaller discriminating observation. Self-development
 has no cap. Nothing durable is a valid result. Search before writing.
 
-Harness parity: lasting behavior and policy must live in the portable
-ChaosEngine overlay (hooks, skills, installer/doctor, host guidance adapters),
-never only in one agent's memory or routines.
+Harness parity: lasting policy lives in the portable overlay, not only in
+one agent's memory or routines.
 
 Gambaru.
 
 ## Catalog
 
-Router rows only (name, one-line description, path). Load a body on demand.
-Slash-only skills stay listed. Descriptions stay short so host listing caps
-(Claude ~1536 chars/entry; Codex 2% or 8000 chars) do not drop a row.
+Router rows only. Load a body on demand. Keep descriptions short for host
+listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 
 | name | description | path |
 | --- | --- | --- |

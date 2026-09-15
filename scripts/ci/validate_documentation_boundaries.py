@@ -55,6 +55,7 @@ ALLOWED_EXACT = {
     "chaos-engine/decision-quality-report.md",
     "chaos-engine/STANDALONE.md",
     "chaos-engine/INSTALL.md",
+    "chaos-engine/identity.md",
     "chaos-engine/THIRD_PARTY_NOTICES.md",
 }
 ALLOWED_NESTED_READMES = {
