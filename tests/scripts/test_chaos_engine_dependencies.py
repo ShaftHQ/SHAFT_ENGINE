@@ -957,7 +957,59 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             module.mark_mempalace_project_setup(project)
             self.assertEqual(b"current\n", marker.read_bytes())
 
+    def test_mempalace_setup_adopts_home_palace_when_project_target_missing(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            home = root / "home"
+            project.mkdir()
+            default = home / ".mempalace/palace"
+            default.mkdir(parents=True)
+            payload = b"SQLite format 3\x00home-exact"
+            default.joinpath("sqlite_exact.sqlite3").write_bytes(payload)
+            default.joinpath("sqlite_exact.sqlite3-wal").write_bytes(b"wal")
+
+            with mock.patch.object(module.Path, "home", return_value=home):
+                module.mark_mempalace_project_setup(project)
+
+            palace = project / ".chaos-engine-state/mempalace"
+            self.assertEqual(payload, palace.joinpath("sqlite_exact.sqlite3").read_bytes())
+            self.assertEqual(b"wal", palace.joinpath("sqlite_exact.sqlite3-wal").read_bytes())
+            self.assertEqual(b"current\n", palace.joinpath(".mined").read_bytes())
+            self.assertEqual(payload, default.joinpath("sqlite_exact.sqlite3").read_bytes())
+
+    def test_mempalace_setup_does_not_mix_home_exact_into_chroma_project_palace(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            home = root / "home"
+            project.mkdir()
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+            palace.joinpath("chroma.sqlite3").write_bytes(b"chroma")
+            default = home / ".mempalace/palace"
+            default.mkdir(parents=True)
+            default.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\x00")
+
+            with mock.patch.object(module.Path, "home", return_value=home):
+                with self.assertRaisesRegex(RuntimeError, "exact target"):
+                    module.mark_mempalace_project_setup(project)
+            self.assertFalse(palace.joinpath("sqlite_exact.sqlite3").exists())
+
+    def test_invoke_tool_runner_accepts_subprocess_run(self):
+        module = load_controller()
+        result = module.invoke_tool_runner(
+            __import__("subprocess").run,
+            [__import__("sys").executable, "-c", "print('ok')"],
+            {},
+        )
+        self.assertEqual(0, result.returncode)
+        self.assertIn("ok", result.stdout)
+
     def test_empty_project_mempalace_init_pins_exact_palace_without_auto_mine(self):
+
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
