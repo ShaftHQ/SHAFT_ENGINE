@@ -44,13 +44,39 @@ MODULE_DIR_BY_ARTIFACT = {
 
 
 def missing_module_dirs(missing_paths: list[str]) -> list[str]:
-    """Reduce missing Central publication paths to their unique reactor module directories."""
+    """
+    Reduce missing Central publication paths to their unique reactor module directories.
+
+    Skips the standalone ``allure-cli`` zip module (#5833): it is versioned with Allure 3
+    and deployed via ``mvn -f allure-cli/pom.xml``, not reactor ``-pl``.
+    """
     seen: list[str] = []
     for path in missing_paths:
         artifact = path.split("/")[3]
+        if artifact == verify.ALLURE_CLI_ARTIFACT:
+            continue
         if artifact not in seen:
             seen.append(artifact)
     return [MODULE_DIR_BY_ARTIFACT[artifact] for artifact in seen]
+
+
+def allure_cli_missing(missing_paths: list[str]) -> bool:
+    """True when any standalone allure-cli Central path is still missing."""
+    return any(f"/{verify.ALLURE_CLI_ARTIFACT}/" in path for path in missing_paths)
+
+
+def build_allure_cli_deploy_command(gpg_keyname: str, gpg_passphrase: str) -> list[str]:
+    """Build standalone ``mvn -f allure-cli/pom.xml deploy`` (same secrets as reactor)."""
+    return [
+        verify.maven_executable(),
+        "--batch-mode",
+        "-f",
+        str(ROOT / "allure-cli" / "pom.xml"),
+        "deploy",
+        "-DskipTests",
+        f"-Dgpg.keyname={gpg_keyname}",
+        f"-Dgpg.passphrase={gpg_passphrase}",
+    ]
 
 
 def build_deploy_command(module_dirs: list[str], gpg_keyname: str, gpg_passphrase: str) -> list[str]:
@@ -224,21 +250,38 @@ def reconcile_release(
         )
     missing = verify.missing_publication_paths(repository_url, version)
     module_dirs = missing_module_dirs(missing)
+    need_allure_cli = allure_cli_missing(missing)
 
-    if module_dirs:
-        command = build_deploy_command(module_dirs, gpg_keyname, gpg_passphrase)
+    if module_dirs or need_allure_cli:
         if dry_run:
-            print(f"[dry-run] missing Maven Central artifacts for modules: {', '.join(module_dirs)}")
-            print("[dry-run] would run: " + " ".join(command))
+            if module_dirs:
+                command = build_deploy_command(module_dirs, gpg_keyname, gpg_passphrase)
+                print(f"[dry-run] missing Maven Central artifacts for modules: {', '.join(module_dirs)}")
+                print("[dry-run] would run: " + " ".join(command))
+            if need_allure_cli:
+                cli_command = build_allure_cli_deploy_command(gpg_keyname, gpg_passphrase)
+                print("[dry-run] missing standalone allure-cli zip on Maven Central")
+                print("[dry-run] would run: " + " ".join(cli_command))
             return 0
-        print(f"Missing Maven Central artifacts for modules: {', '.join(module_dirs)}")
-        result = subprocess.run(command, cwd=ROOT, check=False)
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"Targeted deploy failed (exit {result.returncode}) for modules: "
-                f"{', '.join(module_dirs)}"
-            )
-        print(f"Deployed missing modules to Maven Central: {', '.join(module_dirs)}")
+        if module_dirs:
+            print(f"Missing Maven Central artifacts for modules: {', '.join(module_dirs)}")
+            command = build_deploy_command(module_dirs, gpg_keyname, gpg_passphrase)
+            result = subprocess.run(command, cwd=ROOT, check=False)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Targeted deploy failed (exit {result.returncode}) for modules: "
+                    f"{', '.join(module_dirs)}"
+                )
+            print(f"Deployed missing modules to Maven Central: {', '.join(module_dirs)}")
+        if need_allure_cli:
+            print("Missing standalone allure-cli zip on Maven Central (#5833).")
+            cli_command = build_allure_cli_deploy_command(gpg_keyname, gpg_passphrase)
+            result = subprocess.run(cli_command, cwd=ROOT, check=False)  # nosec B603
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Standalone allure-cli deploy failed (exit {result.returncode})"
+                )
+            print("Deployed standalone allure-cli zip to Maven Central.")
     else:
         print(f"All Maven Central artifacts already present for {version}.")
 

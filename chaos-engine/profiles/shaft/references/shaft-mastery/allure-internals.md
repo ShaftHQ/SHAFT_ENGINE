@@ -67,4 +67,10 @@ Root POM property `allure.cli.version` must stay aligned with `Internal.allure3V
 Overrides: `-Dallure.cli.cacheRoot=...`, `-Dallure.cli.mavenZip=...`, `-Dallure.cli.skipProvision=true`
 (engine bootstrap only).
 
-Maven Central publish of the zip artifact is tracked in #5833.
+**Maven Central (#5833):** `allure-cli/` stays outside the shaft-parent reactor
+(version = Allure 3). `mavenCentral_cd.yml` deploys it standalone after the SHAFT
+reactor using the same GPG/OSSRH secrets. After publish, air-gapped CI only needs a
+corporate Maven mirror of `io.github.shafthq:allure-cli:<allure.cli.version>:zip`
+plus `-Pprovision-allure-cli-maven` (no npm).
+`scripts/ci/verify_maven_central_release.py` expects the zip (+ `.asc` / `.pom`).
+

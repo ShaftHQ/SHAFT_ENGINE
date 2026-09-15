@@ -30,6 +30,7 @@ on:
       - 'shaft-ocr/**'
       - 'shaft-sikulix/**'
       - 'shaft-bom/**'
+      - 'allure-cli/**'
       - 'legacy-shaft-engine/**'
       - 'report-aggregate/**'
       - 'tools/modularization/consumer-fixtures/**'
@@ -304,6 +305,20 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Set up Node.js for allure-cli zip
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Deploy standalone allure-cli zip to Maven Central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: |
+          # Standalone module: version tracks Allure 3, not shaftEngineVersion (#5833).
+          # Reuses the same Central + GPG secrets as the reactor deploy (no invented secrets).
+          mvn --batch-mode -f allure-cli/pom.xml deploy "-DskipTests" \
+            "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" \
+            "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
       - name: Verify published Maven Central coordinates
         run: python3 scripts/ci/verify_maven_central_release.py "${RELEASE_VERSION}"
 
