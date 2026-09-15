@@ -691,9 +691,14 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
         configured = mempalace_project_configuration_exists(project)
         if configured and not mempalace_project_setup_complete(project):
-            planned.append([mempalace, "mine", "."])
+            planned.append([mempalace, "mine", ".", "--backend", "sqlite_exact"])
         elif not configured:
-            planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
+            planned.append(
+                [
+                    mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine",
+                    "--backend", "sqlite_exact",
+                ]
+            )
     graphify = commands.get("graphify")
     if graphify:
         if not (project / "graphify-out/graph.json").is_file():
@@ -737,8 +742,45 @@ def mempalace_project_setup_environment(
     }
 
 
+def default_mempalace_palace() -> Path:
+    """MemPalace default palace when CLI/env palace binding is ignored."""
+    return Path.home() / ".mempalace" / "palace"
+
+
+def _project_palace_accepts_home_adopt(palace: Path) -> bool:
+    if not palace.exists():
+        return True
+    if is_link_or_reparse(palace) or not palace.is_dir():
+        return False
+    names = {child.name for child in palace.iterdir()}
+    return names <= {".mined", ".mempalace"}
+
+
+def adopt_mempalace_default_palace(project: Path) -> None:
+    """Copy sqlite_exact files from ~/.mempalace/palace when the project target is vacant."""
+    palace = project.resolve() / ".chaos-engine-state/mempalace"
+    if (palace / "sqlite_exact.sqlite3").is_file():
+        return
+    if not _project_palace_accepts_home_adopt(palace):
+        return
+    source = default_mempalace_palace()
+    exact = source / "sqlite_exact.sqlite3"
+    if is_link_or_reparse(source) or not exact.is_file() or is_link_or_reparse(exact):
+        return
+    palace.mkdir(parents=True, exist_ok=True)
+    for name in (
+        "sqlite_exact.sqlite3",
+        "sqlite_exact.sqlite3-wal",
+        "sqlite_exact.sqlite3-shm",
+    ):
+        candidate = source / name
+        if candidate.is_file() and not is_link_or_reparse(candidate):
+            shutil.copy2(candidate, palace / name)
+
+
 def mark_mempalace_project_setup(project: Path) -> None:
     """Mark only a successful sqlite_exact project setup as mined."""
+    adopt_mempalace_default_palace(project)
     palace = project.resolve() / ".chaos-engine-state/mempalace"
     if not (palace / "sqlite_exact.sqlite3").is_file():
         raise RuntimeError("MemPalace init did not create the exact target")
@@ -1056,7 +1098,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     for command in project_setup_plan(project, commands):
         environment = mempalace_project_setup_environment(project, command)
-        if command == [commands.get("mempalace"), "mine", "."]:
+        if command[:3] == [commands.get("mempalace"), "mine", "."]:
             _run_transient_mempalace_mine(
                 command, project, runner=runner, extra_environment=environment
             )
@@ -3716,6 +3758,25 @@ def run_command(command: list[str], environment: dict[str, str]) -> subprocess.C
     )
 
 
+def invoke_tool_runner(runner, command: list[str], environment: dict[str, str]):
+    """Call (command, environment) runners; adapt subprocess.run (env= kwargs)."""
+    try:
+        return runner(command, environment)
+    except TypeError as error:
+        if "bufsize" not in str(error):
+            raise
+        merged = os.environ.copy()
+        merged.update(environment)
+        return runner(  # nosec B603
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=merged,
+            timeout=300,
+        )
+
+
 def execute_plan(
     runtime: Path,
     specification: dict[str, object],
@@ -3728,7 +3789,7 @@ def execute_plan(
         completed[tool] = []
         for command in commands:
             try:
-                result = runner(command, environment)
+                result = invoke_tool_runner(runner, command, environment)
             except (OSError, subprocess.SubprocessError) as error:
                 raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
             completed[tool].append((result.stdout or result.stderr).strip())
@@ -3738,7 +3799,7 @@ def execute_plan(
         probes[tool] = []
         for command in commands:
             try:
-                result = runner(command, environment)
+                result = invoke_tool_runner(runner, command, environment)
             except (OSError, subprocess.SubprocessError) as error:
                 raise RuntimeError(f"{tool} entrypoint probe failed: {command[0]}") from error
             probes[tool].append((result.stdout or result.stderr).strip())
@@ -4095,7 +4156,7 @@ def doctor(
     environment = tool_environment(runtime)
     for commands in probe_plan(runtime).values():
         for command in commands:
-            runner(command, environment)
+            invoke_tool_runner(runner, command, environment)
     return {
         "status": "healthy",
         "freshness": freshness(receipt, now),
