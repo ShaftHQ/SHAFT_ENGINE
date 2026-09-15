@@ -50,12 +50,12 @@ class OfficialSelfHeal5811Test(unittest.TestCase):
             skill = project / "plugins/caveman/skills/caveman/SKILL.md"
             self.assertFalse(skill.is_file())
             result = hosts.rematerialize_companions(project, names=("caveman",))
-            self.assertEqual("healed", result["status"])
+            self.assertEqual("healthy", result["status"])
             self.assertTrue(skill.is_file())
             self.assertIn("plugins/caveman/skills/caveman/SKILL.md", result["written"])
             # Idempotent second pass.
             again = hosts.rematerialize_companions(project, names=("caveman",))
-            self.assertEqual("healed", again["status"])
+            self.assertEqual("healthy", again["status"])
 
     def test_doctor_heal_success_for_companion_and_bundle_tool(self):
         module = load(HEAL, "ce_official_self_heal_success")

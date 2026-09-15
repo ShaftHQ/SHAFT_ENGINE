@@ -495,7 +495,7 @@ def _doctor_heal_companions(
             "error": f"{type(error).__name__}: {error}",
             "names": missing_companions,
         }
-    if heal.get("status") == "healed":
+    if heal.get("status") in {"healed", "healthy"}:
         _apply_companion_heal_success(
             components, summary, project, missing_companions
         )

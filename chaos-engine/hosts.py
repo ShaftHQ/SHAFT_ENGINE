@@ -1716,46 +1716,6 @@ def companion_plugin_images() -> dict[str, bytes]:
     return after
 
 
-def rematerialize_companions(
-    project: Path, *, names: tuple[str, ...] | None = None
-) -> dict[str, object]:
-    """Deterministically rewrite enabled companion plugin trees from CE vendor.
-
-    Used by doctor/repair so missing Caveman/Ponytail self-heal via the same
-    bytes the official installer publishes — no manual choreography (#5806).
-    """
-    project = project.resolve()
-    wanted = set(names or COMPANION_PLUGIN_NAMES)
-    images = companion_plugin_images()
-    written: list[str] = []
-    for relative, content in images.items():
-        name = relative.split("/", 2)[1] if relative.startswith("plugins/") else ""
-        if name not in wanted:
-            continue
-        path = project / relative
-        validate_path(project, path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        before = read_file(project, path)
-        if before == content:
-            continue
-        # Direct publish: same vendor bytes as install `after` images. Do not
-        # require host-write claims (doctor may run before anchors exist) (#5811).
-        staging = path.with_name(path.name + ".ce-heal-tmp")
-        staging.write_bytes(content)
-        staging.replace(path)
-        written.append(relative)
-    missing = [
-        name
-        for name in wanted
-        if not (project / f"plugins/{name}/skills/{name}/SKILL.md").is_file()
-    ]
-    return {
-        "status": "healthy" if not missing else "failed",
-        "written": written,
-        "missing": missing,
-    }
-
-
 def companion_required_files(name: str) -> tuple[str, ...]:
     if name == CAVEMAN_PLUGIN_NAME:
         return (
@@ -1911,9 +1871,10 @@ def rematerialize_companions(
     present = [
         (project / f"plugins/{name}/skills/{name}/SKILL.md").is_file() for name in selected
     ]
-    status = "healed" if all(present) else "failed"
+    # "healthy" matches #5806/#5810 doctor contract; "healed" alias for #5811 callers.
+    ok = all(present)
     return {
-        "status": status,
+        "status": "healthy" if ok else "failed",
         "written": written,
         "names": list(selected),
         "officialCommand": (
