@@ -3,7 +3,8 @@
 Portable map-reduce-verify contract for session traces. Host TUI workflow
 runners may implement this; other hosts use isolated subagents and files. Do
 not reconstruct a vendor workflow from memory. Do not copy host-only script
-or pager mechanics here.
+or pager mechanics here. Do not vendor a Grok TUI learn-traces workflow script (or equivalent
+host pager/runner) into this tree.
 
 ## Phases
 
@@ -22,13 +23,59 @@ or pager mechanics here.
 A first-ever run is step/curate, never auto-delete. See
 [harness-learn](harness-learn.md).
 
-Collect with the portable runner (every host):
+## Portable /learn (every host)
 
-`python3 .chaos-engine/learn_traces.py collect --out <run-dir>`
+Installed path only (`.chaos-engine`). Never treat source `chaos-engine/` as the
+runtime install.
 
-Collect parses Grok/Claude/Codex (and Gemini when present) session
-trees into redacted `sessions/*.json` plus `manifest.json` with kept
-and drop counts. No credentials in output.
+Runner modules: [`learn_traces.py`](../learn_traces.py) (CLI + collect) and
+[`learn_traces_mrv.py`](../learn_traces_mrv.py) (map-reduce-verify file contract).
 
-Then map-reduce-verify with isolated subagents. Do not copy a host TUI
-workflow into this tree. Do not write learned skills under `~/.grok/skills`.
+One-command equivalent of host `/learn` for **git-tracked overlay** policy:
+
+```bash
+python3 .chaos-engine/learn_traces.py learn --out <run-dir>
+```
+
+Default `--offline` path fills the map/reduce/verify **file contract**
+deterministically (scripts/CI). For live host Task/subagents:
+
+```bash
+python3 .chaos-engine/learn_traces.py learn --out <run-dir> --host-agents
+# …isolated agents write map/batch-*.json, reduce/synthesis.json, verify/*.json…
+python3 .chaos-engine/learn_traces.py finalize --run-dir <run-dir>
+```
+
+Stepwise:
+
+| Step | Command |
+| --- | --- |
+| Collect | `python3 .chaos-engine/learn_traces.py collect --out <run-dir>` |
+| Layout + prompts | `python3 .chaos-engine/learn_traces.py prepare --run-dir <run-dir>` |
+| Offline map-reduce-verify | `python3 .chaos-engine/learn_traces.py offline --run-dir <run-dir>` |
+| Report + actions | `python3 .chaos-engine/learn_traces.py finalize --run-dir <run-dir>` |
+
+Collect parses Grok/Claude/Codex (and Gemini when present) session trees into
+redacted `sessions/*.json` plus `manifest.json` with kept and drop counts. No
+credentials in output.
+
+`finalize` writes `report.md` (coverage line matches manifest kept count) and
+`actions.json`. Action targets are git-tracked `chaos-engine/` /
+`.chaos-engine/` PR paths or `patches/*.diff` — **never** `~/.grok/skills/...`
+as the primary write.
+
+## Thin host adapters
+
+Same documented command on every supported host. Adapters are pointers only;
+policy lives here + the runner under `.chaos-engine`.
+
+| Host | How to invoke |
+| --- | --- |
+| Grok | Prefer CE `learn_traces.py learn` for overlay PRs. Grok TUI `/learn` may still curate `GROK_HOME` skills; it is not the owner of git-tracked ChaosEngine policy. |
+| Claude | Router → Learn traces, or the CLI above. No TUI workflow file required. |
+| Codex | Same CLI / router row. |
+| Copilot | Same CLI / router row. |
+| Gemini | Same CLI when session trees exist. |
+
+Do not copy a host TUI workflow into this tree. Do not write learned skills under
+`~/.grok/skills`. Do not require `~/.grok/bundled/skills/learn`.

@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Portable learn-traces collector. Map-reduce stays with isolated host agents."""
+"""Portable learn-traces collect + map-reduce-verify (#5784 / #5847).
+
+Collect remains host-agnostic. Map-reduce-verify uses an isolated file
+contract (prompts + batch notes) so every host can run /learn without a
+Grok TUI workflow. Offline mode fills that contract deterministically for
+scripts/tests; hosts may instead write the same files via Task/subagents.
+Actions target git-tracked overlay paths only — never ~/.grok/skills.
+"""
 
 from __future__ import annotations
 
@@ -277,7 +284,7 @@ def collect(home: Path, out: Path) -> dict[str, object]:
         "sessions_kept": len(sessions),
         "sessions": sessions,
         "dropped": dropped,
-        "next": "map-reduce-verify via isolated subagents; see references/learn-traces.md",
+        "next": "python3 .chaos-engine/learn_traces.py learn --out <run-dir> (or prepare/offline/finalize); see references/learn-traces.md",
     }
     (out / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
@@ -285,16 +292,121 @@ def collect(home: Path, out: Path) -> dict[str, object]:
     return manifest
 
 
+
+
+def _load_mrv():
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("learn_traces_mrv.py")
+    spec = importlib.util.spec_from_file_location("chaos_engine_learn_traces_mrv", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("learn_traces_mrv.py missing")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def prepare(run_dir: Path) -> dict[str, object]:
+    return _load_mrv().prepare(run_dir)
+
+
+def offline_map_reduce_verify(run_dir: Path) -> dict[str, object]:
+    return _load_mrv().offline_map_reduce_verify(run_dir)
+
+
+def finalize(run_dir: Path) -> dict[str, object]:
+    return _load_mrv().finalize(run_dir)
+
+
+def learn(
+    run_dir: Path,
+    *,
+    home: Path | None = None,
+    collect_first: bool = True,
+    offline: bool = True,
+) -> dict[str, object]:
+    return _load_mrv().learn(
+        run_dir,
+        collect_fn=collect,
+        home=home,
+        collect_first=collect_first,
+        offline=offline,
+    )
+
+
+def is_forbidden_target(target: str) -> bool:
+    return _load_mrv().is_forbidden_target(target)
+
+
+def is_git_tracked_overlay_target(target: str) -> bool:
+    return _load_mrv().is_git_tracked_overlay_target(target)
+
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="learn_traces.py")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    collect_p = sub.add_parser("collect")
+    collect_p = sub.add_parser("collect", help="collect redacted host sessions")
     collect_p.add_argument("--home", type=Path, default=Path.home())
     collect_p.add_argument("--out", type=Path, required=True)
+    prepare_p = sub.add_parser(
+        "prepare", help="write map/reduce/verify file layout + prompts"
+    )
+    prepare_p.add_argument("--run-dir", type=Path, required=True)
+    offline_p = sub.add_parser(
+        "offline",
+        help="deterministic map-reduce-verify fill (scripts/tests; no host TUI)",
+    )
+    offline_p.add_argument("--run-dir", type=Path, required=True)
+    finalize_p = sub.add_parser(
+        "finalize", help="fail-closed report.md + actions.json from verify/"
+    )
+    finalize_p.add_argument("--run-dir", type=Path, required=True)
+    learn_p = sub.add_parser(
+        "learn",
+        help="portable /learn: collect + map-reduce-verify + report (default offline)",
+    )
+    learn_p.add_argument("--out", type=Path, required=True)
+    learn_p.add_argument("--home", type=Path, default=Path.home())
+    learn_p.add_argument(
+        "--no-collect",
+        action="store_true",
+        help="reuse existing run-dir manifest/sessions",
+    )
+    learn_p.add_argument(
+        "--host-agents",
+        action="store_true",
+        help="prepare only; do not run offline map-reduce (await subagents)",
+    )
     args = parser.parse_args(argv)
     if args.cmd == "collect":
         manifest = collect(args.home.expanduser(), args.out)
         print(json.dumps({"run_dir": str(args.out), **manifest}))
+        return 0
+    if args.cmd == "prepare":
+        layout = prepare(args.run_dir)
+        print(json.dumps({"run_dir": str(args.run_dir), **layout}))
+        return 0
+    if args.cmd == "offline":
+        verdict = offline_map_reduce_verify(args.run_dir)
+        print(json.dumps({"run_dir": str(args.run_dir), **verdict}))
+        return 0
+    if args.cmd == "finalize":
+        try:
+            actions = finalize(args.run_dir)
+        except FileNotFoundError as error:
+            print(json.dumps({"ok": False, "error": str(error)}), file=sys.stderr)
+            return 2
+        print(json.dumps({"run_dir": str(args.run_dir), **actions}))
+        return 0
+    if args.cmd == "learn":
+        result = learn(
+            args.out,
+            home=args.home.expanduser(),
+            collect_first=not args.no_collect,
+            offline=not args.host_agents,
+        )
+        print(json.dumps(result))
         return 0
     return 2
 

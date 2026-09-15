@@ -74,6 +74,8 @@ class CliOverMcpTests(unittest.TestCase):
         self.assertIn("prefer-cli-over-mcp", skill)
         learn = (ROOT / "chaos-engine/references/learn-traces.md").read_text(encoding="utf-8")
         self.assertIn("learn_traces.py", learn)
+        self.assertIn("learn --out", learn)
+        self.assertIn("actions.json", learn)
         research = (ROOT / "chaos-engine/references/deep-research.md").read_text(encoding="utf-8")
         self.assertIn("deep_research.py", research)
 
