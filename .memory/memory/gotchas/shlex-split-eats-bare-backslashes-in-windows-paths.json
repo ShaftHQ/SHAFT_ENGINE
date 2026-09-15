@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shlex-split-eats-bare-backslashes-in-windows-paths.md",
-  "content_hash": "sha256:e08814fc56b2863bb3e0f6ce61e258ca991ef7d9769d73d95bd70631a517ce14",
+  "content_hash": "sha256:f54abc2e8d1bd451344e61a9c922eef19589c641fdebfd923c04f1a4fcb96dac",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [
     {

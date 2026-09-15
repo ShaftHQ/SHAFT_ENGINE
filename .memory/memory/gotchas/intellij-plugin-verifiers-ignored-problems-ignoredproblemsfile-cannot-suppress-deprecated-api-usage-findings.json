@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings.md",
-  "content_hash": "sha256:d27c4775352b5dbfaec1ab6635b7c32db234a07f5dac8178afed6032ef04ff8d",
+  "content_hash": "sha256:7f1dd5e5d9c474e79ddc3407b5a9e85076593d66f8835d5aaa6be4855b781333",
   "created_at": "2026-07-17T08:12:19+03:00",
   "evidence": [],
   "id": "gotcha.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings",

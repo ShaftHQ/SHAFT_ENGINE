@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/memory-and-graphify-are-a-mandatory-session-entry-point.md",
-  "content_hash": "sha256:9d34c53dd9e4e2995cefaf862ea99bc5f3bfd91d07e1822ebc2f2355b677b81a",
+  "content_hash": "sha256:0b07901f5859d22f6db421522a455b9ee2b74b9091ae99f44dd0eed1323b3b81",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [],
   "id": "gotcha.memory-and-graphify-are-a-mandatory-session-entry-point",

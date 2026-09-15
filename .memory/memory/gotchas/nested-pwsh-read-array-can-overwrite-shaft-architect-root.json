@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/nested-pwsh-read-array-can-overwrite-shaft-architect-root.md",
-  "content_hash": "sha256:cda853f221964f3f662dc3b2ae9425ce3b7e0dec7b83669953363297d9f78127",
+  "content_hash": "sha256:2051b97ee2f9f0f52bc0419bfc42b963ee7da25fb2bafa33427355aad7aa572a",
   "created_at": "2026-08-17T23:09:44+03:00",
   "evidence": [
     {

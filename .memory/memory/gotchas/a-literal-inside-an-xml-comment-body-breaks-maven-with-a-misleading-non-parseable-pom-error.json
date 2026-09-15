@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/a-literal-inside-an-xml-comment-body-breaks-maven-with-a-misleading-non-parseable-pom-error.md",
-  "content_hash": "sha256:78478f246d891e20e01bc6cd11afb6235bab0aafb8405821f290b24c6f41c017",
+  "content_hash": "sha256:6d9aaa59fb887884475942c1cc00676f73768c6800a47a0488bf8a5d9a39c994",
   "created_at": "2026-07-26T03:02:04+03:00",
   "evidence": [
     {

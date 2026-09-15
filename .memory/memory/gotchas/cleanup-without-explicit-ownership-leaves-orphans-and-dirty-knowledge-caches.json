@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/cleanup-without-explicit-ownership-leaves-orphans-and-dirty-knowledge-caches.md",
-  "content_hash": "sha256:f77cd91003f7d46022969c1c8962c362dd2cf1cb5dea94967e5447a1915bc6d8",
+  "content_hash": "sha256:63e0695ab025f8500c15366ad455b7806d1816e64874abb751cc33ea2345cdd1",
   "created_at": "2026-08-14T20:49:54+03:00",
   "evidence": [
     {

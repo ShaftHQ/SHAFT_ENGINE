@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-gradle-test-needs-offline-when-network-egress-to-jetbrains-cache-redirector-is-blocked.md",
-  "content_hash": "sha256:354af6fdfc17232bda7fc5e748a7617925980f94da0aa200854a35d82a61455a",
+  "content_hash": "sha256:b75e42cdc7c84bea7328333e1466281359d3a880f91263c5ff6dbe25e5c64dcb",
   "created_at": "2026-07-09T12:58:19+03:00",
   "evidence": [],
   "id": "gotcha.shaft-intellij-gradle-test-needs-offline-when-network-egress-to-jetbrains-cache-redirector-is-blocked",

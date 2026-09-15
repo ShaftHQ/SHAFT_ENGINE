@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/shaft-capture-e2e-use-system-mvn-jdk25-not-mvnw-read-surefire-xml-for-the-verdict.md",
-  "content_hash": "sha256:b43412b7b7d9dba2289d420dd1e01aab3a878f160c53f068d61f784a6d239970",
+  "content_hash": "sha256:418926b11ace98b0f789a8b2ba550c5a91e7f241272f4f6f6b8b4c63a5b6670c",
   "created_at": "2026-07-14T15:55:31+03:00",
   "evidence": [],
   "id": "feature.shaft-capture-e2e-use-system-mvn-jdk25-not-mvnw-read-surefire-xml-for-the-verdict",

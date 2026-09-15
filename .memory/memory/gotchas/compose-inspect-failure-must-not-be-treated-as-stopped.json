@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/compose-inspect-failure-must-not-be-treated-as-stopped.md",
-  "content_hash": "sha256:8f70438e205f575501786d45cd6b35a45c12398ace7bcab38f9be770698834ff",
+  "content_hash": "sha256:f974feb0e88566442c17c75da57e46458af4845e7a29efadbde178ddf85e6125",
   "created_at": "2026-08-17T14:35:11+03:00",
   "evidence": [],
   "id": "gotcha.compose-inspect-failure-must-not-be-treated-as-stopped",

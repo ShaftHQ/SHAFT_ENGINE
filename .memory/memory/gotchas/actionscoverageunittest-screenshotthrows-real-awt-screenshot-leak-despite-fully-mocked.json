@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/actionscoverageunittest-screenshotthrows-real-awt-screenshot-leak-despite-fully-mocked.md",
-  "content_hash": "sha256:7b1a0412e9fbdc40d9ba442e3ff56b310866b20c411c6999347aacd3ce0a14d5",
+  "content_hash": "sha256:899f415f26ea2cc7c962611a7fa0dc7cc8e30af4f5ee0a8f374ab645c7bc3b7f",
   "created_at": "2026-07-28T06:52:33+03:00",
   "evidence": [
     {

@@ -502,16 +502,37 @@ def _remap_memory_id(old_id: object, mapped_type: str) -> str:
     return f"{mapped_type}.{rest}"
 
 
+def _memory_object_content_hash(sidecar: dict[str, object], body: str) -> str:
+    """Match scripts/ci/validate_agent_setup.memory_content_hash (Memory CLI recipe)."""
+    payload = {key: value for key, value in sidecar.items() if key != "content_hash"}
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    blob = canonical + "\n" + body.replace("\r\n", "\n")
+    return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _remap_evidence_memory_ids(
+    evidence: list[dict[str, str]], id_map: dict[str, str]
+) -> list[dict[str, str]]:
+    remapped: list[dict[str, str]] = []
+    for item in evidence:
+        if item.get("kind") == "memory" and item.get("id") in id_map:
+            remapped.append({"kind": "memory", "id": id_map[item["id"]]})
+        else:
+            remapped.append(item)
+    return remapped
+
+
 def _migrate_one_memory_object(
     value: dict[str, object], id_map: dict[str, str]
 ) -> dict[str, object]:
     mapped_type = _mapped_memory_type(value)
     old_id = value.get("id")
     new_id = id_map.get(str(old_id), _remap_memory_id(old_id, mapped_type))
-    evidence = _normalize_memory_evidence(value.get("evidence"))
-    for item in evidence:
-        if item["kind"] == "memory" and item["id"] in id_map:
-            item["id"] = id_map[item["id"]]
+    evidence = _remap_evidence_memory_ids(
+        _normalize_memory_evidence(value.get("evidence")), id_map
+    )
     migrated: dict[str, object] = {
         "type": mapped_type,
         "id": new_id,
@@ -521,13 +542,38 @@ def _migrate_one_memory_object(
     if isinstance(superseded, str) and superseded in id_map:
         migrated["superseded_by"] = id_map[superseded]
     for key in RUNTIME_MEMORY_OBJECT_FIELDS:
-        if key in {"type", "evidence", "id", "superseded_by"}:
+        if key in {"type", "evidence", "id", "superseded_by", "content_hash"}:
             continue
         if key in value:
             migrated[key] = value[key]
     if "superseded_by" in value and "superseded_by" not in migrated:
         migrated["superseded_by"] = value["superseded_by"]
     return migrated
+
+
+def _rewrite_memory_events(project: Path, id_map: dict[str, str]) -> bytes | None:
+    events_path = project / ".memory/events.jsonl"
+    if not events_path.is_file():
+        return None
+    original = events_path.read_bytes()
+    rewritten_lines: list[str] = []
+    for line in original.decode("utf-8").splitlines():
+        if not line.strip():
+            rewritten_lines.append(line)
+            continue
+        event = json.loads(line)
+        if isinstance(event, dict):
+            eid = event.get("id")
+            if isinstance(eid, str) and eid in id_map:
+                event["id"] = id_map[eid]
+            rewritten_lines.append(
+                json.dumps(event, separators=(",", ":"), ensure_ascii=False)
+            )
+        else:
+            rewritten_lines.append(line)
+    payload = ("\n".join(rewritten_lines) + ("\n" if rewritten_lines else "")).encode()
+    events_path.write_bytes(payload)
+    return original
 
 
 def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
@@ -546,6 +592,9 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
         relations = project / ".memory/relations"
         if relations.is_dir():
             shutil.copytree(relations, backup / "relations")
+        events = project / ".memory/events.jsonl"
+        if events.is_file():
+            shutil.copy2(events, backup / "events.jsonl")
     except OSError as error:
         return {"status": "failed", "reason": f"backup-failed:{error}"}
     originals: list[tuple[Path, bytes]] = []
@@ -568,9 +617,13 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
             id_map[old_id] = new_id
             objects.append((path, value, original))
         for path, value, original in objects:
-            payload = json.dumps(
-                _migrate_one_memory_object(value, id_map), indent=2, sort_keys=True
-            ).encode() + b"\n"
+            migrated = _migrate_one_memory_object(value, id_map)
+            body_relative = migrated.get("body_path")
+            if isinstance(body_relative, str) and body_relative:
+                body_file = project / ".memory" / body_relative
+                body = body_file.read_text(encoding="utf-8")
+                migrated["content_hash"] = _memory_object_content_hash(migrated, body)
+            payload = json.dumps(migrated, indent=2, sort_keys=True).encode() + b"\n"
             originals.append((path, original))
             path.write_bytes(payload)
         relations_root = project / ".memory/relations"
@@ -594,11 +647,16 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
                     str(predicate), "related_to"
                 )
             if "evidence" in rewritten:
-                rewritten["evidence"] = _normalize_memory_evidence(rewritten.get("evidence"))
+                rewritten["evidence"] = _remap_evidence_memory_ids(
+                    _normalize_memory_evidence(rewritten.get("evidence")), id_map
+                )
             originals.append((path, original))
             path.write_bytes(
                 json.dumps(rewritten, indent=2, sort_keys=True).encode() + b"\n"
             )
+        events_original = _rewrite_memory_events(project, id_map)
+        if events_original is not None:
+            originals.append((project / ".memory/events.jsonl", events_original))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError) as error:
         for path, original in reversed(originals):
             try:

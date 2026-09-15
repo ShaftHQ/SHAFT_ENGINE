@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/swing-test-helper-a-findbuttonbytext-that-ignores-isvisible-silently-passes-for-always-present-but-hidden-toggles.md",
-  "content_hash": "sha256:c37deb84e8dab040cc8e223b7acc810f09b984138c995b5dbb6f30581ceaac27",
+  "content_hash": "sha256:17dbc22a839ab8cca70db802be75dcfe98fb9972bc1a80dd37d9c30175bc882f",
   "created_at": "2026-07-17T04:30:07+03:00",
   "evidence": [],
   "id": "feature.swing-test-helper-a-findbuttonbytext-that-ignores-isvisible-silently-passes-for-always-present-but-hidden-toggles",

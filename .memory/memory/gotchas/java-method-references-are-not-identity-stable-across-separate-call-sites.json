@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/java-method-references-are-not-identity-stable-across-separate-call-sites.md",
-  "content_hash": "sha256:effe67d981d85e0f2fa2ccf029ced8f2162edfe6da1f349d626142f1375622d8",
+  "content_hash": "sha256:cd2891df67f8d1b6ac3d434a51a0130f622c91bda9766bf8fdc298cd29b4a826",
   "created_at": "2026-07-17T02:13:20+03:00",
   "evidence": [
     {

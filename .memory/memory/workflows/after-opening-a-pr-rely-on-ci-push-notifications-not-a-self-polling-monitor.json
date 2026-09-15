@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/after-opening-a-pr-rely-on-ci-push-notifications-not-a-self-polling-monitor.md",
-  "content_hash": "sha256:2c255f71c0cd11bea82cb01c9e6dd3c89c36b650cadf395c4c26b4de3783efc5",
+  "content_hash": "sha256:6675c73046b3d320a82977231c475de1db5b74c0717dac80e02319ced91f8ca2",
   "created_at": "2026-07-14T12:45:52+03:00",
   "evidence": [],
   "id": "feature.after-opening-a-pr-rely-on-ci-push-notifications-not-a-self-polling-monitor",

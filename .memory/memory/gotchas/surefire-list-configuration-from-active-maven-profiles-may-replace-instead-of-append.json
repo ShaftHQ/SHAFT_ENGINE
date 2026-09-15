@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append.md",
-  "content_hash": "sha256:0295a7056cfc22275cd67d064644167fe62b15e1db0676addde8602ae8a7e504",
+  "content_hash": "sha256:f2ad7b0baa127a2c1def916bf91f344abf0a1808c45f37756b72aab8439e6573",
   "created_at": "2026-08-13T05:00:33+03:00",
   "evidence": [
     {

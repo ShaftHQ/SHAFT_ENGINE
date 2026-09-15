@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/mutation-test-guard-pys-crlf-files-via-python-not-a-powershell-regex.md",
-  "content_hash": "sha256:77293b86c95890153a634141c4436b625141138158da1be70f243132dcc1b46b",
+  "content_hash": "sha256:134df86c3cecb336a67b4f890a64fc58007db65baa1e361bb2a66a25d572e9ee",
   "created_at": "2026-08-04T22:09:13+03:00",
   "evidence": [],
   "id": "gotcha.mutation-test-guard-pys-crlf-files-via-python-not-a-powershell-regex",

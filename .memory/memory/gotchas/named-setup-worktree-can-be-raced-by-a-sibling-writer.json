@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/named-setup-worktree-can-be-raced-by-a-sibling-writer.md",
-  "content_hash": "sha256:82ef1e3480c85d4e9ca55bb85197ac82df37234bff2fa2cf72ae8d0f8e607e17",
+  "content_hash": "sha256:204185f1bfff54faf1cac420d8bac2048a38dafeb2f8ef327ff3c14c663f953c",
   "created_at": "2026-08-17T17:36:27+03:00",
   "evidence": [
     {

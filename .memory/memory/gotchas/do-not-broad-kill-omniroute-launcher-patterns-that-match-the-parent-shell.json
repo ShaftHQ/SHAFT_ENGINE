@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/do-not-broad-kill-omniroute-launcher-patterns-that-match-the-parent-shell.md",
-  "content_hash": "sha256:cc36879c5646b62f4d32069ca2b278cb498e0badf301e1ea0640203b04e62d60",
+  "content_hash": "sha256:6bd9f5d0f4c0fd2fa6630ed98e8d6b5db4b6721c1076a526cbd24cb3de6cd743",
   "created_at": "2026-09-14T14:45:14+03:00",
   "evidence": [
     {

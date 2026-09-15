@@ -4,7 +4,7 @@
   "created_at": "2026-07-29T16:47:24+03:00",
   "evidence": [
     {
-      "id": "synthesis.stack-and-tooling",
+      "id": "feature.stack-and-tooling",
       "kind": "memory"
     },
     {

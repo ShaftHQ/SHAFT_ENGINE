@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/swing-context-menus-wired-via-a-raw-mouselistener-ispopuptrigger-are-mouse-only-use-jcomponent-setcomponentpopupmenu-instead.md",
-  "content_hash": "sha256:0f9fc53ff612b0de9df14aa801f94821d62806b33ec16d0d142e3f8127674417",
+  "content_hash": "sha256:349dddf4bb41926b6b5d62ca738072455173b1c7ef64f59d0abe6dff8eebeb5c",
   "created_at": "2026-07-17T04:38:38+03:00",
   "evidence": [
     {

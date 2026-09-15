@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/aibudget-per-request-output-tokens-are-dead-unless-global-default-keeps-up.md",
-  "content_hash": "sha256:3f27fb98733b48d0fffe0f5ec8fe18ec9cbe0777a41f21b7a178a9f6370d93bf",
+  "content_hash": "sha256:ec5f0baee0ffecb86ee363c644eb81b15f202a14a596ece48d41477f24091c8c",
   "created_at": "2026-07-26T18:19:35+03:00",
   "evidence": [
     {

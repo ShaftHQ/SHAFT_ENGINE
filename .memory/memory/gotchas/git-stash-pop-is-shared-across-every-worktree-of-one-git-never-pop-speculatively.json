@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/git-stash-pop-is-shared-across-every-worktree-of-one-git-never-pop-speculatively.md",
-  "content_hash": "sha256:88bd7eab7777b260b6ff0a1349db97d364a6683a3d9c03adfb832f5328c84ab2",
+  "content_hash": "sha256:42673ae3c98052475473e91a527a138da4984a6c1cd43bb05108fce1a2a9e767",
   "created_at": "2026-07-26T18:00:13+03:00",
   "evidence": [],
   "id": "gotcha.git-stash-pop-is-shared-across-every-worktree-of-one-git-never-pop-speculatively",

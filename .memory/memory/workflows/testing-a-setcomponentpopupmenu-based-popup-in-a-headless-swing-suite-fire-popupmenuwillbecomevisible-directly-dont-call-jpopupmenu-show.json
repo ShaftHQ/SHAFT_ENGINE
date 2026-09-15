@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/testing-a-setcomponentpopupmenu-based-popup-in-a-headless-swing-suite-fire-popupmenuwillbecomevisible-directly-dont-call-jpopupmenu-show.md",
-  "content_hash": "sha256:a920de78ee6aa96bfb5f88729beab11bc81ddd89039e20fe167e1099d3e3e42e",
+  "content_hash": "sha256:8bed921998dabde3bbe2a5f9914cb484d61998b048ef498dd52a3a67405c48ac",
   "created_at": "2026-07-17T04:38:38+03:00",
   "evidence": [],
   "id": "feature.testing-a-setcomponentpopupmenu-based-popup-in-a-headless-swing-suite-fire-popupmenuwillbecomevisible-directly-dont-call-jpopupmenu-show",

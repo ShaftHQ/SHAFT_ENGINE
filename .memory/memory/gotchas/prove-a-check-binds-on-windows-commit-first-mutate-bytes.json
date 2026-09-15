@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/prove-a-check-binds-on-windows-commit-first-mutate-bytes.md",
-  "content_hash": "sha256:8e38d84a8aadc5176c9848c16daa098e7a5f5798f0058e9890a9d5118a7a19b3",
+  "content_hash": "sha256:4571c6e97c11d4d16436dad1940e0a8167ecd6c8dc9c7cdfccd583e92ffb616c",
   "created_at": "2026-08-04T22:41:59+03:00",
   "evidence": [],
   "id": "gotcha.prove-a-check-binds-on-windows-commit-first-mutate-bytes",

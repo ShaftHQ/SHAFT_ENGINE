@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/empty-git-status-porcelain-piped-to-set-content-skips-git-status-txt.md",
-  "content_hash": "sha256:d9958d17820878de0a9de0be470b0280785eb09a58eab58ff7b34d8990c68fe9",
+  "content_hash": "sha256:c534d5e98eced6a912d7c309c194ae6ff566184adb82d82c332a9ff5efce6b3f",
   "created_at": "2026-08-18T20:03:45+03:00",
   "evidence": [
     {

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/github-mcp-write-paths-403-on-this-repo-use-gh-cli-for-comments-prs-and-reviews.md",
-  "content_hash": "sha256:93e0b8b72a7bb56ab387f197df9861495948c5565e09f6f6e0d86e1f9cef016e",
+  "content_hash": "sha256:3de9e4a464712d084238705f8d76ab81855abf97735e3f09b5d6e2d58ea6e0be",
   "created_at": "2026-08-17T16:45:35+03:00",
   "evidence": [],
   "id": "gotcha.github-mcp-write-paths-403-on-this-repo-use-gh-cli-for-comments-prs-and-reviews",

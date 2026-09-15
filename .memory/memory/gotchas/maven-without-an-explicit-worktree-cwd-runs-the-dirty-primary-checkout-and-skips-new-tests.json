@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/maven-without-an-explicit-worktree-cwd-runs-the-dirty-primary-checkout-and-skips-new-tests.md",
-  "content_hash": "sha256:a16922c7fd671812f6fc42c0d21ca01f6a8714a006437a10b2032fd46c4f4521",
+  "content_hash": "sha256:f0a3279dd9d457c7fbebec5cb75dc891f0ed55324e682252148c4c7d4023c5b4",
   "created_at": "2026-08-17T15:39:58+03:00",
   "evidence": [],
   "id": "gotcha.maven-without-an-explicit-worktree-cwd-runs-the-dirty-primary-checkout-and-skips-new-tests",

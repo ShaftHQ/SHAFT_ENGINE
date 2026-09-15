@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/new-interface-default-methods-with-unused-parameters-are-codacy-visible-even-when-the-same-pattern-already-exists-on-main.md",
-  "content_hash": "sha256:0f8007ff2296c434f96380154cba5b195497dfbd68520474ed3e02f5234986d7",
+  "content_hash": "sha256:4aa5411867f2e8b03f07f56dbaac354dfe9f0df43011ce3707098403d3effc43",
   "created_at": "2026-08-17T15:39:58+03:00",
   "evidence": [],
   "id": "gotcha.new-interface-default-methods-with-unused-parameters-are-codacy-visible-even-when-the-same-pattern-already-exists-on-main",

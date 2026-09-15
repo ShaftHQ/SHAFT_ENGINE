@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/shaft-intellij-blocking-async-work-runs-on-shaftpluginexecutor-never-forkjoinpool-commonpool.md",
-  "content_hash": "sha256:e5af26a6d46aab97b6e3724d7723a6fb32d0ca6395eaac8f2c4f2de029e3a112",
+  "content_hash": "sha256:856da762f4a3c69fb4ffa900c8b7fc5b1d6adbad4381aafe7827e44377a0da25",
   "created_at": "2026-07-17T02:13:20+03:00",
   "evidence": [
     {

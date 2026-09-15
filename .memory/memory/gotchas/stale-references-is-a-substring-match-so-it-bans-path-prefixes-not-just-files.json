@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files.md",
-  "content_hash": "sha256:e68fe824fdcba5d42a52c5add784a20ebdc940ae3ad7fecbeaafb4d0dfe81a77",
+  "content_hash": "sha256:c5d0db45201579b01aa14b1cfba03bd37dd99aeb2d8d7d1a8836516c26fbcaf9",
   "created_at": "2026-08-04T19:07:27+03:00",
   "evidence": [
     {

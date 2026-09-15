@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/c-program-files-java-jdk-21-is-a-broken-jdk-install-on-this-machine.md",
-  "content_hash": "sha256:8ff984d74282d2cd705971c5a9268ae2b5e102d8b3270bb1ac5ba86b20d078f2",
+  "content_hash": "sha256:fca65e93eaa95be1efe3f53ab28f658cbb48d55ba008b3a57549b3bc8d0f909c",
   "created_at": "2026-07-17T04:16:33+03:00",
   "evidence": [],
   "id": "gotcha.c-program-files-java-jdk-21-is-a-broken-jdk-install-on-this-machine",

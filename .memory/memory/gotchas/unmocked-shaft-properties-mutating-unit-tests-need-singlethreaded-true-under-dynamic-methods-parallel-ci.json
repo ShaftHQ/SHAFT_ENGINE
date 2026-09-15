@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/unmocked-shaft-properties-mutating-unit-tests-need-singlethreaded-true-under-dynamic-methods-parallel-ci.md",
-  "content_hash": "sha256:3c11267e3cd2db22c4f8e7171b9ecc41c9645da569a329fccf71055808293643",
+  "content_hash": "sha256:99865436fea34da04c133c532399e9afa20e5c2e5b4fc8744d25e422d0be511f",
   "created_at": "2026-07-21T16:34:05+03:00",
   "evidence": [
     {

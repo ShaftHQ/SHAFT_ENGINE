@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/squash-merge-makes-landed-branches-look-unmerged-by-rev-list-count.md",
-  "content_hash": "sha256:22a7397acd37164842b43e673db46ed432c3772319942faf094593ba53517a29",
+  "content_hash": "sha256:1c040e37dda23c9d97bc2f75e5ec91a1ea0d68f741c4a8871a4fbf9c707c2b66",
   "created_at": "2026-08-10T15:22:23+03:00",
   "evidence": [],
   "id": "gotcha.squash-merge-makes-landed-branches-look-unmerged-by-rev-list-count",

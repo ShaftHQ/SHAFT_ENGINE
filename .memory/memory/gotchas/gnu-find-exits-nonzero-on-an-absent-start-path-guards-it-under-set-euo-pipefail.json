@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/gnu-find-exits-nonzero-on-an-absent-start-path-guards-it-under-set-euo-pipefail.md",
-  "content_hash": "sha256:8d50f7a1ea6b5d1a28e97840799c92bd6748355f5018418c2736ac75c131ac7d",
+  "content_hash": "sha256:5d56d4051f0da8bbf8dd966236f14b74a961ffc3bb43158caa786821fade5946",
   "created_at": "2026-07-26T17:14:32+03:00",
   "evidence": [
     {

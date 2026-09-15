@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.md",
-  "content_hash": "sha256:8f0f07bae2bf0c00f1cb80db0f26479a85ec1e7f5765f4557fc177025a514a56",
+  "content_hash": "sha256:360178626927ffcb3e17b978262ac5aaee4cdb4ff1fc3e4b4f1ea703b728abb8",
   "created_at": "2026-07-10T15:08:06+03:00",
   "evidence": [
     {

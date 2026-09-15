@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/expose-a-recorder-owned-readiness-predicate-when-a-browser-test-must-cross-a-pipeline-timing-window.md",
-  "content_hash": "sha256:2cc590b894724e37803532d234421e2c1aac364cde4fcf9f56bab577399134f3",
+  "content_hash": "sha256:3983f53a79c199a5096a2af46579c8ebc10907284dce583b91170bf9e85b9a0e",
   "created_at": "2026-08-09T11:52:15+03:00",
   "evidence": [],
   "id": "decision.expose-a-recorder-owned-readiness-predicate-when-a-browser-test-must-cross-a-pipeline-timing-window",

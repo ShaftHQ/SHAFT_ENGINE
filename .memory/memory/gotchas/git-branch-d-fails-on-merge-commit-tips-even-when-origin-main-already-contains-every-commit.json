@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/git-branch-d-fails-on-merge-commit-tips-even-when-origin-main-already-contains-every-commit.md",
-  "content_hash": "sha256:c33653f8fde75ddd53967c48b2209127f672d25db5ea9c38aae4d545d190f80e",
+  "content_hash": "sha256:fb0644181973de20bac33f89e92763d40d88071870fac61444fbfa9beeb5c773",
   "created_at": "2026-08-17T16:45:35+03:00",
   "evidence": [],
   "id": "gotcha.git-branch-d-fails-on-merge-commit-tips-even-when-origin-main-already-contains-every-commit",

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps.md",
-  "content_hash": "sha256:496b3d5b25da44be0d9fe0ff14a1a9f944421ea0650194128212641c98ba06b3",
+  "content_hash": "sha256:7bac3c4d833d843bdf42f7db1a6b1aaccaca8f3db75f4c493d58baee2e2f975f",
   "created_at": "2026-07-10T15:08:06+03:00",
   "evidence": [
     {

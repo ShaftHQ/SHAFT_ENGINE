@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/durable-native-memory-is-tracked-not-gitignored.md",
-  "content_hash": "sha256:fbd583c070959002b427cd18952771cb732f4b3cbf512bb15b57b241845097af",
+  "content_hash": "sha256:f1fa4e267931a933a5d87790a9552c8b0ed7603672a0f7e1f9fd44ec8ad10561",
   "created_at": "2026-09-14T15:12:35+03:00",
   "evidence": [
     {

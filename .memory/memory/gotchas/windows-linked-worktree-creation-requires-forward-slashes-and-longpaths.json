@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/windows-linked-worktree-creation-requires-forward-slashes-and-longpaths.md",
-  "content_hash": "sha256:fb30907498cbbcae157253e9d85279eea90296981ae0dc3dcec4d0354fdc3b6c",
+  "content_hash": "sha256:cdad914ade821960e2fe731427506f569bed063bdaf6e9cff95a2872bd199224",
   "created_at": "2026-08-15T11:53:59+03:00",
   "evidence": [
     {

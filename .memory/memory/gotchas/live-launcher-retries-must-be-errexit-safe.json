@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/live-launcher-retries-must-be-errexit-safe.md",
-  "content_hash": "sha256:1a97bcedbe039429b1bce0e4b2c83b392e49451dda5f9e08ab6b052cc62dec0d",
+  "content_hash": "sha256:67c9e4df220f486eece7d93d477cb6f737b17c577111ac38755f9898c32a1152",
   "created_at": "2026-08-01T20:20:05+03:00",
   "evidence": [
     {

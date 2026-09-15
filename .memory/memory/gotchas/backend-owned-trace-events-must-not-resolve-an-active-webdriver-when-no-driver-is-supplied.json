@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied.md",
-  "content_hash": "sha256:f7d41d9aabd092825be4dab56c43f33dd3b804f309e11141d73b2c839ca489d5",
+  "content_hash": "sha256:f867532ff0f258a505629a5cfba7d0a96f52dcad20dae7b25c4bf3e8135547ca",
   "created_at": "2026-08-12T04:42:39+03:00",
   "evidence": [
     {

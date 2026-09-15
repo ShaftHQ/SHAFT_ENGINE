@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/codacy-pr-findings-are-readable-unauthenticated-via-the-public-api.md",
-  "content_hash": "sha256:ee59e95cbace545fb4ba10b47cb63dc43dfa12dff5d91f7424abb5fcc8230a63",
+  "content_hash": "sha256:8bdaeb4c2dd087d4abdfd69757cc98e7a639eb812c395a7155038f256cb6f77f",
   "created_at": "2026-07-12T19:24:23+03:00",
   "evidence": [],
   "id": "feature.codacy-pr-findings-are-readable-unauthenticated-via-the-public-api",

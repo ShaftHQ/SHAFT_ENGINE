@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/graphify-refresh-must-reject-negative-windows-process-exits-before-recording-freshness.md",
-  "content_hash": "sha256:e67be90971d6b1deb0e8ce5a1d76d05732c0ce08fbfe343c1810e5108f8fa1a5",
+  "content_hash": "sha256:14305cdcd610fc10a442dbb4e4e0ec81dae79d879b9bda549b08876c5b4608d4",
   "created_at": "2026-08-09T21:56:21+03:00",
   "evidence": [],
   "id": "gotcha.graphify-refresh-must-reject-negative-windows-process-exits-before-recording-freshness",

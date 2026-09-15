@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/selenium-hasauthentication-is-cdp-backed-chromium-only-not-bidi-backed-remotewebdriver-needs-explicit-addhasauthentication.md",
-  "content_hash": "sha256:dd1770e44a46c15a4ed608011fef1db9a4371cfdd19ab0c8777ffcb8d9e2fc92",
+  "content_hash": "sha256:31c17b130549a969967ed4368f26699cd140c567d390a5c855a7b1668bcf9b8b",
   "created_at": "2026-07-19T22:15:10+03:00",
   "evidence": [
     {

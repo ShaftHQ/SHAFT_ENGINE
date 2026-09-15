@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/fake-test-applications-getservice-returning-null-defeats-the-editorcolorsmanager-getinstance-never-returns-null-guard.md",
-  "content_hash": "sha256:2d49d75a90c9dd599a07c4328104ca7c4414b8430ff922dbaa2147369be93690",
+  "content_hash": "sha256:b8d7e3a06127aa2982bd67c61580a0f2b64a11f3fc5491692e3f756babcd09dd",
   "created_at": "2026-07-27T10:37:22+03:00",
   "evidence": [
     {

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/concurrent-agents-sharing-one-m2-prefer-compile-package-over-install.md",
-  "content_hash": "sha256:0bbfce6aaca84f1863e00c88c0f5622d1ec1a5775b5ecf24a33038fec5ba2fc9",
+  "content_hash": "sha256:f635d2a146ca0089256ca2b3a6bb60841d854a95bf593025bcc9b012e38eaff9",
   "created_at": "2026-07-26T10:25:51+03:00",
   "evidence": [
     {

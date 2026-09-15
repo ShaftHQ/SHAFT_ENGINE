@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute.md",
-  "content_hash": "sha256:fc2482d25aa0fbd6daaba40ff68f2f754165685ae196f871f1a55ea996ae27a7",
+  "content_hash": "sha256:2675ce3b165f3a044e7ac3b66b39e4246ba2056739761e8d5d94dae546e7e630",
   "created_at": "2026-07-26T19:06:15+03:00",
   "evidence": [],
   "id": "gotcha.arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute",

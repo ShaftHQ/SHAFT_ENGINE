@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts.md",
-  "content_hash": "sha256:5987a46af304d3633cfa191b4b842e3d2377c24f35a49cb7bb81d55ff299ecf1",
+  "content_hash": "sha256:1b63c9f48d50955ad2e7612f17b3d9aae5560c089d2b580c4798a9341f7c8956",
   "created_at": "2026-07-17T13:40:08+03:00",
   "evidence": [],
   "id": "gotcha.always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts",

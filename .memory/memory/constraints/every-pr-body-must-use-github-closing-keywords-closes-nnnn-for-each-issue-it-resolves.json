@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/every-pr-body-must-use-github-closing-keywords-closes-nnnn-for-each-issue-it-resolves.md",
-  "content_hash": "sha256:125d878cca8a94baeba9893862f89b160127405e817a7dab355519c072ce7982",
+  "content_hash": "sha256:b4e437905db8b625dd84ec0e1c582438591f1f43def1aca68fcd74a3676c8710",
   "created_at": "2026-07-17T13:10:58+03:00",
   "evidence": [],
   "id": "gotcha.every-pr-body-must-use-github-closing-keywords-closes-nnnn-for-each-issue-it-resolves",

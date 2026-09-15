@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/windows-directory-junctions-bypass-path-is-symlink-and-must-be-rejected-as-reparse-points.md",
-  "content_hash": "sha256:45b07242b1dd2b0385f8379c796ec7f996b08ecd7c3d41b49f30ef56ffbd1857",
+  "content_hash": "sha256:4a54cfe8c7396f47861a44732c4d4b047e4f93312273b52f9b07b25963bd86d6",
   "created_at": "2026-08-11T13:48:58+03:00",
   "evidence": [
     {

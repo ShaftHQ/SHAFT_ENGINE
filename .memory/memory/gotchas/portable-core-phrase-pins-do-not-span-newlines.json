@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/portable-core-phrase-pins-do-not-span-newlines.md",
-  "content_hash": "sha256:d5646de91d65063bf0137bced645475652e42688a68218489e97bdea27e3d78a",
+  "content_hash": "sha256:0efab67e820e5e300e220228aa6e50f2480c356f0f5f61a109251bb31ccda862",
   "created_at": "2026-08-18T18:07:05+03:00",
   "evidence": [],
   "id": "gotcha.portable-core-phrase-pins-do-not-span-newlines",

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/recurring-git-loose-object-corruption-on-this-machine-repair-recipe.md",
-  "content_hash": "sha256:1f6b39dc6e0f2cbe096f8fcf1f0508200530d35c2152d402ab9e282ba3cc6383",
+  "content_hash": "sha256:1b46586f277ce812ae87554d54b75e34e47a0c3178c7f96d15047216f7466788",
   "created_at": "2026-07-19T03:16:57+03:00",
   "evidence": [],
   "id": "gotcha.recurring-git-loose-object-corruption-on-this-machine-repair-recipe",

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/guard-unquote-exec-flag-payload-blanks-every-other-quoted-string.md",
-  "content_hash": "sha256:bf099f13f46bd9e4f25ada48ee2708a4b6f8debfafe17b9b39e34de1db4eabeb",
+  "content_hash": "sha256:b937de03b88dff6f40ba6804e7cf69aaed3345670ee9ab72baa7913b416b98e5",
   "created_at": "2026-08-04T09:39:35+03:00",
   "evidence": [
     {

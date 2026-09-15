@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/generated-compose-service-healthy-without-a-matching-healthcheck-is-install-green-and-start-dead.md",
-  "content_hash": "sha256:fea9e72d50c1b2798172ba723e5ae420893978fc067cafda63d26f2b3ead2621",
+  "content_hash": "sha256:32a057056889588ede38961988368b570c4ef6ce1dadbf2c0a51875a78035a3c",
   "created_at": "2026-08-17T16:45:35+03:00",
   "evidence": [],
   "id": "gotcha.generated-compose-service-healthy-without-a-matching-healthcheck-is-install-green-and-start-dead",

@@ -69,6 +69,12 @@ class MemoryMigrateTests(unittest.TestCase):
                 "updated_at": "2026-07-08T16:41:17+03:00",
             }
             path = _write_minimal_store(project, original)
+            events = project / ".memory/events.jsonl"
+            events.write_text(
+                '{"actor":"agent","event":"memory.updated","id":"architecture.current",'
+                '"timestamp":"2026-07-08T16:41:17+03:00"}\n',
+                encoding="utf-8",
+            )
             self.assertTrue(hosts.legacy_memory_v5_objects_compatible(project))
             result = hosts.migrate_legacy_memory_store(project)
             self.assertEqual("migrated", result["status"])
@@ -84,7 +90,15 @@ class MemoryMigrateTests(unittest.TestCase):
                 [{"kind": "file", "id": "pom.xml"}, {"kind": "file", "id": "AGENTS.md"}],
                 migrated["evidence"],
             )
+            expected_hash = hosts._memory_object_content_hash(
+                migrated,
+                (project / ".memory/memory/architecture.md").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(expected_hash, migrated["content_hash"])
+            self.assertNotEqual(original["content_hash"], migrated["content_hash"])
             self.assertFalse(hosts.legacy_memory_v5_objects_compatible(project))
+            self.assertIn('"id":"feature.current"', events.read_text(encoding="utf-8"))
+            self.assertNotIn('"id":"architecture.current"', events.read_text(encoding="utf-8"))
 
     def test_transform_error_restores_originals(self):
         hosts = load()

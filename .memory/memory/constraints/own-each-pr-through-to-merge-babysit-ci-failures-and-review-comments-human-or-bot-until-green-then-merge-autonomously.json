@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/own-each-pr-through-to-merge-babysit-ci-failures-and-review-comments-human-or-bot-until-green-then-merge-autonomously.md",
-  "content_hash": "sha256:202a483270e6230da55faa77dc54fed502b86eba153f305ce6a71df23bfd4bbe",
+  "content_hash": "sha256:93f4acd826974475e67953ee646912cffcf09fef8cdfb5bcfbf31da85bfa2993",
   "created_at": "2026-07-17T04:57:14+03:00",
   "evidence": [],
   "id": "gotcha.own-each-pr-through-to-merge-babysit-ci-failures-and-review-comments-human-or-bot-until-green-then-merge-autonomously",

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/worktree-agent-reclamation-can-lose-uncommitted-work.md",
-  "content_hash": "sha256:665d9408de30f47cb1457aca0b1cf24f7c00c2750d6a31b7609d8693b9b7b5a2",
+  "content_hash": "sha256:47241baeb2c4ebe70e1ee4484b60f8ca4e0f99a1a5b1e4679d7670d74b8ec635",
   "created_at": "2026-07-21T15:20:32+03:00",
   "evidence": [],
   "id": "gotcha.worktree-agent-reclamation-can-lose-uncommitted-work",

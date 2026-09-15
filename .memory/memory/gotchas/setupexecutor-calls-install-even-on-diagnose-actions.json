@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/setupexecutor-calls-install-even-on-diagnose-actions.md",
-  "content_hash": "sha256:53c8d263ee22cdf676362d863cce3fb50442c231a23875e0ec2464b14f12621e",
+  "content_hash": "sha256:80936e6e0af20231fbf7eec589e406106aa202de99226dd0e17de072197beb81",
   "created_at": "2026-08-17T18:50:52+03:00",
   "evidence": [
     {
