@@ -82,9 +82,19 @@ class DoctorOverallSoftStatusG1Test(unittest.TestCase):
                 {"status": "recovery-required", "taskImpact": "required"}
             )
         )
+        self.assertTrue(
+            module.component_escalates_overall(
+                {"status": "recovery-required", "taskImpact": "advisory"}
+            )
+        )
         self.assertFalse(
             module.component_escalates_overall(
                 {"status": "absent", "taskImpact": "optional"}
+            )
+        )
+        self.assertFalse(
+            module.component_escalates_overall(
+                {"status": "invalid", "taskImpact": "optional"}
             )
         )
 
@@ -98,7 +108,7 @@ class OfficialHealFollowOn5812_5813Test(unittest.TestCase):
             result = {
                 "status": "recovery-required",
                 "components": {
-                    "mcps": {"status": "recovery-required", "taskImpact": "required"},
+                    "mcps": {"status": "absent", "taskImpact": "required"},
                     "skills": {"status": "absent", "taskImpact": "required"},
                 },
             }

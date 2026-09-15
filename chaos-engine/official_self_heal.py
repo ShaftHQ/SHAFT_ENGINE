@@ -79,6 +79,17 @@ def _doctor_command() -> str:
     return f"{_doctor_cli()} .chaos-engine/install.py doctor --project ."
 
 
+
+def _official_command_or_repair(name: str) -> str:
+    """Return inventory official command, or repair CLI for CE components like tools."""
+    try:
+        return official_command_for(name)
+    except KeyError:
+        return (
+            f"{_doctor_cli()} .chaos-engine/install.py repair --project . "
+            f"--component {name}"
+        )
+
 def official_command_for(item: str) -> str:
     """Return the documented official install command for one inventory item."""
     command = OFFICIAL_INSTALL_COMMANDS.get(item)
@@ -155,20 +166,20 @@ def _call_repair_component(
                 return {
                     "status": "failed",
                     "item": name,
-                    "officialCommand": official_command_for(name),
+                    "officialCommand": _official_command_or_repair(name),
                     "error": f"{type(error).__name__}: {error}",
                 }
         return {
             "status": "failed",
             "item": name,
-            "officialCommand": official_command_for(name),
+            "officialCommand": _official_command_or_repair(name),
             "error": f"{type(type_error).__name__}: {type_error}",
         }
     except Exception as error:  # noqa: BLE001 - surface as heal failure for handoff
         return {
             "status": "failed",
             "item": name,
-            "officialCommand": official_command_for(name),
+            "officialCommand": _official_command_or_repair(name),
             "error": f"{type(error).__name__}: {error}",
         }
 
@@ -648,14 +659,19 @@ def _doctor_heal_repair_components(
         item = components.get(name)
         if not _component_needs_heal(item if isinstance(item, dict) else None):
             continue
+        prior = str(item.get("status") or "") if isinstance(item, dict) else ""
         heal = heal_repair_component(project, name, runner=runner, repair=repair)
         if heal.get("status") == "healed":
             clear_official_self_heal_handoff(project)
             if isinstance(item, dict):
-                item["status"] = "healthy"
-                item["detail"] = "healed-via-official-repair"
                 item["officialCommand"] = official_command_for(name)
-                item.pop("fixNext", None)
+                item["officialHeal"] = "repair-ran"
+                if prior == "absent":
+                    # Missing adapters rematerialized — safe to mark healthy.
+                    item["status"] = "healthy"
+                    item["detail"] = "healed-via-official-repair"
+                    item.pop("fixNext", None)
+                # Else keep probe status/detail/fixNext intact for diagnostics.
             summary["healed"].append(name)  # type: ignore[index]
             continue
         detail = str(heal.get("error") or "official-repair-failed")
@@ -906,6 +922,11 @@ def apply_official_self_heal_fix_next(project: Path, components: object) -> None
             *MANAGED_RUNTIME_ITEMS,
         ):
             item = components.get(name)
-            if isinstance(item, dict) and item.get("status") != "healthy":
-                item["fixNext"] = message
+            if not isinstance(item, dict) or item.get("status") == "healthy":
+                continue
+            # Do not clobber a more specific probe/managed-python fix-next.
+            existing = item.get("fixNext")
+            if isinstance(existing, str) and existing.strip():
+                continue
+            item["fixNext"] = message
 

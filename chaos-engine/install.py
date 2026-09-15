@@ -3504,17 +3504,15 @@ def component_escalates_overall(item: dict[str, object]) -> bool:
     """Return True when one component should flip overall doctor to recovery-required.
 
     Soft statuses (compatible-legacy / sync-advisory / degraded) never escalate
-    overall health (#G1 / #5812 follow-on). Optional absences stay non-blocking.
-    Advisory taskImpact never escalates overall either — those stay info/warning
-    in the human report.
+    overall health (#G1). Optional absences stay non-blocking. Hard fails on
+    advisory stores (e.g. mempalace recovery-required) still escalate so doctor
+    stays strict for broken knowledge stores.
     """
     status = str(item.get("status") or "unknown")
     impact = str(item.get("taskImpact") or "required")
     if status in DOCTOR_NON_ESCALATING_STATUSES:
         return False
-    if status == "absent" and impact == "optional":
-        return False
-    if impact == "advisory":
+    if impact == "optional":
         return False
     return True
 
