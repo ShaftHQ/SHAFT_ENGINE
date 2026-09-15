@@ -701,7 +701,7 @@ def _doctor_heal_context7(
 ) -> None:
     """Heal missing context7/ctx7 via official npm path (#5812)."""
     dependencies = result.get("dependencies")
-    # Avoid expensive tools repair when the account dependency set is already healthy.
+    # Avoid expensive tools repair when the account dependency set is already healthy (#5853).
     if isinstance(dependencies, dict) and dependencies.get("status") == "healthy":
         if not _dependency_component_unhealthy(dependencies, CONTEXT7_ITEM):
             return
@@ -756,6 +756,7 @@ def _doctor_heal_managed_runtimes(
 ) -> None:
     """Heal managed Node/Java/Maven via official CE helpers (#5813)."""
     dependencies = result.get("dependencies")
+    # Skip noop tools repair when doctor already reports healthy deps (#5853).
     if isinstance(dependencies, dict) and dependencies.get("status") == "healthy":
         tools = components.get("tools")
         maven_tools = components.get("maven-tools-mcp")

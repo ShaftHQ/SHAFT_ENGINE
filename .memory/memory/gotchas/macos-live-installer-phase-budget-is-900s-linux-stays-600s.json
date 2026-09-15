@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/macos-live-installer-phase-budget-is-900s-linux-stays-600s.md",
+  "content_hash": "sha256:960fadbcaf44eabdf3ce9a149a1b782b448928a0857e23002979748b9907bf4c",
+  "created_at": "2026-09-15T22:26:50+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5853",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.macos-live-installer-phase-budget-is-900s-linux-stays-600s",
+  "source": {
+    "kind": "agent",
+    "task": "Implement #5853 macOS live installer phase budget learning"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "installer",
+    "macos",
+    "reliability",
+    "permanent"
+  ],
+  "title": "macOS live-installer phase budget is 900s; Linux stays 600s",
+  "type": "gotcha",
+  "updated_at": "2026-09-15T22:26:50+03:00"
+}

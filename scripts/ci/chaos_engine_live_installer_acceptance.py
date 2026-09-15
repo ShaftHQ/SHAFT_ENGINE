@@ -30,7 +30,20 @@ PROBES = {
     "graphify": ["--version"],
     "memory": ["--help"],
 }
-PHASE_TIMEOUT_SECONDS = 900
+# Linux/Windows stay at 600s; macOS live upgrades can exceed that (#5853).
+DEFAULT_PHASE_TIMEOUT_SECONDS = 600
+MACOS_PHASE_TIMEOUT_SECONDS = 900
+
+
+def phase_timeout_seconds(system: str | None = None) -> int:
+    """Return the live-installer phase budget for one host platform."""
+    selected = system if isinstance(system, str) and system else platform.system()
+    if selected == "Darwin":
+        return MACOS_PHASE_TIMEOUT_SECONDS
+    return DEFAULT_PHASE_TIMEOUT_SECONDS
+
+
+PHASE_TIMEOUT_SECONDS = phase_timeout_seconds()
 MCP_START_TIMEOUT_SECONDS = 10
 MCP_PROTOCOL_VERSION = "2025-06-18"
 COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -562,8 +575,9 @@ def run_checked(
     *,
     cwd: Path,
     environment: dict[str, str] | None = None,
-    timeout: int = PHASE_TIMEOUT_SECONDS,
+    timeout: int | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    budget = PHASE_TIMEOUT_SECONDS if timeout is None else timeout
     result = subprocess.run(  # nosec B603
         command,
         cwd=cwd,
@@ -571,7 +585,7 @@ def run_checked(
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        timeout=timeout,
+        timeout=budget,
         check=False,
     )
     if result.returncode:
