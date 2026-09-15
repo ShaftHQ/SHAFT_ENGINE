@@ -3491,6 +3491,60 @@ def required_component_statuses(document: dict[str, object]) -> dict[str, str]:
     return result
 
 
+
+DOCTOR_NON_ESCALATING_STATUSES = frozenset({
+    "healthy",
+    "compatible-legacy",
+    "sync-advisory",
+    "degraded",
+})
+
+
+def component_escalates_overall(item: dict[str, object]) -> bool:
+    """Return True when one component should flip overall doctor to recovery-required.
+
+    Soft statuses (compatible-legacy / sync-advisory / degraded) never escalate
+    overall health (#G1 / #5812 follow-on). Optional absences stay non-blocking.
+    Advisory taskImpact never escalates overall either — those stay info/warning
+    in the human report.
+    """
+    status = str(item.get("status") or "unknown")
+    impact = str(item.get("taskImpact") or "required")
+    if status in DOCTOR_NON_ESCALATING_STATUSES:
+        return False
+    if status == "absent" and impact == "optional":
+        return False
+    if impact == "advisory":
+        return False
+    return True
+
+
+def reconcile_doctor_overall_status(result: dict[str, object]) -> None:
+    """Recompute overall status from components; soft/advisory never force recovery."""
+    components = result.get("components")
+    if not isinstance(components, dict):
+        return
+    if any(
+        isinstance(item, dict) and component_escalates_overall(item)
+        for item in components.values()
+    ):
+        result["status"] = "recovery-required"
+        return
+    # Hosts top-level may still be hard-failed (receipt drift etc.).
+    hosts = result.get("hosts")
+    if isinstance(hosts, dict):
+        host_status = str(hosts.get("status") or "healthy")
+        if host_status not in DOCTOR_NON_ESCALATING_STATUSES and host_status != "not-detected":
+            # Keep existing recovery when hosts themselves are hard-failed.
+            if host_status in {"recovery-required", "broken", "absent"}:
+                result["status"] = "recovery-required"
+                return
+    current = str(result.get("status") or "healthy")
+    if current == "recovery-required":
+        # Downgrade false escalations caused solely by soft/advisory component states.
+        result["status"] = "healthy"
+
+
 def status_subset_of_doctor(
     status_doc: dict[str, object], doctor_doc: dict[str, object]
 ) -> list[str]:
@@ -3640,11 +3694,11 @@ def attach_component_status(
             }
     result["components"] = components
     apply_merge_handoff_fix_next(project, components)
-    if any(
-        item["status"] != "healthy" and item["taskImpact"] != "optional"
-        for item in components.values()
-    ):
+    if any(component_escalates_overall(item) for item in components.values()):
         result["status"] = "recovery-required"
+    elif result.get("status") == "recovery-required":
+        # Soft/advisory-only findings must not keep a prior false overall escalation.
+        result["status"] = "healthy"
 
 
 def status_with_dependencies(project: Path, *, active_probes: bool = False) -> dict[str, object]:
@@ -4408,16 +4462,19 @@ def doctor_with_dependencies(
         if isinstance(commands, dict):
             account_commands = commands
     retrieval = host_controller.retrieval_runtime_status(project.resolve(), account_commands)
-    if retrieval.get("status") != "healthy":
-        result["status"] = "recovery-required"
+    retrieval_status = str(retrieval.get("status") or "recovery-required")
+    if retrieval_status != "healthy":
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("memory"), dict):
-            components["memory"]["status"] = retrieval["status"]
+            components["memory"]["status"] = retrieval_status
             if retrieval.get("reason"):
                 components["memory"]["reason"] = retrieval["reason"]
             code = retrieval.get("code")
             if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,63}", code):
                 components["memory"]["code"] = code
+        # compatible-legacy / sync-advisory / degraded must not flip overall (#G1).
+        if retrieval_status not in DOCTOR_NON_ESCALATING_STATUSES:
+            result["status"] = "recovery-required"
     managed_python = resolve_managed_python(generation_path, account_commands)
     if managed_python is None:
         managed_python = heal_managed_python(
@@ -4498,6 +4555,7 @@ def doctor_with_dependencies(
         "officialSelfHeal",
         {"healed": [], "failed": [], "skipped": []},
     )
+    reconcile_doctor_overall_status(result)
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
@@ -4509,6 +4567,7 @@ def doctor_with_dependencies(
             "learningMetrics",
             {"schemaVersion": 1, "status": "absent"},
         )
+        reconcile_doctor_overall_status(result)
         return result
     apply_plugin_client_health(
         result,
@@ -4543,6 +4602,7 @@ def doctor_with_dependencies(
                 result["learningMetrics"] = _mod.doctor_learning_metrics(project)
     except (OSError, RuntimeError, ValueError, AttributeError):
         result["learningMetrics"] = {"schemaVersion": 1, "status": "absent"}
+    reconcile_doctor_overall_status(result)
     return result
 
 

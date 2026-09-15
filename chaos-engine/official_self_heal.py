@@ -65,6 +65,10 @@ OFFICIAL_INSTALL_COMMANDS: dict[str, str] = {
 BUNDLE_TOOL_ITEMS = ("memory", "mempalace", "graphify")
 COMPANION_ITEMS = ("caveman", "ponytail")
 REPAIR_COMPONENT_ITEMS = ("mcps", "skills")
+CONTEXT7_ITEM = "context7"
+MANAGED_RUNTIME_ITEMS = ("node", "java", "maven")
+# Managed runtimes heal via repair --component tools (official CE helpers).
+MANAGED_RUNTIME_REPAIR_COMPONENT = "tools"
 
 
 def _doctor_cli() -> str:
@@ -219,6 +223,83 @@ def heal_repair_component(
         "officialCommand": official_command_for(name),
         "repair": result if isinstance(result, dict) else {"raw": str(result)},
     }
+
+
+
+
+def heal_context7(
+    project: Path,
+    *,
+    runner=None,
+    repair: Callable[..., dict[str, object]] | None = None,
+) -> dict[str, object]:
+    """Heal missing ctx7 via account tools repair / official npm install path (#5812)."""
+    install = _install_module()
+    repair_fn = repair or install.repair_component
+    # context7 lives under account tools provisioning; repair tools re-runs official npm.
+    result = _call_repair_component(repair_fn, project, "tools", runner=runner)
+    if isinstance(result, dict) and result.get("status") == "failed" and "error" in result:
+        return {
+            **result,
+            "item": CONTEXT7_ITEM,
+            "officialCommand": official_command_for(CONTEXT7_ITEM),
+        }
+    status = "healed"
+    if isinstance(result, dict) and result.get("status") not in {None, "repaired", "healed"}:
+        status = "failed"
+    return {
+        "status": status,
+        "item": CONTEXT7_ITEM,
+        "officialCommand": official_command_for(CONTEXT7_ITEM),
+        "repair": result if isinstance(result, dict) else {"raw": str(result)},
+    }
+
+
+def heal_managed_runtimes(
+    project: Path,
+    *,
+    runner=None,
+    repair: Callable[..., dict[str, object]] | None = None,
+) -> dict[str, object]:
+    """Heal managed Node/Java/Maven via official CE tools repair (#5813)."""
+    install = _install_module()
+    repair_fn = repair or install.repair_component
+    result = _call_repair_component(
+        repair_fn, project, MANAGED_RUNTIME_REPAIR_COMPONENT, runner=runner
+    )
+    if isinstance(result, dict) and result.get("status") == "failed" and "error" in result:
+        return result
+    status = "healed"
+    if isinstance(result, dict) and result.get("status") not in {None, "repaired", "healed"}:
+        status = "failed"
+    return {
+        "status": status,
+        "item": "managed-runtimes",
+        "officialCommand": (
+            f"{official_command_for('node')}; "
+            f"{official_command_for('java')}; "
+            f"{official_command_for('maven')}"
+        ),
+        "repair": result if isinstance(result, dict) else {"raw": str(result)},
+    }
+
+
+def _dependency_component_unhealthy(
+    dependencies: object, name: str
+) -> bool:
+    if not isinstance(dependencies, dict):
+        return False
+    comps = dependencies.get("components")
+    if not isinstance(comps, dict):
+        return False
+    item = comps.get(name)
+    if not isinstance(item, dict):
+        return False
+    status = str(item.get("status") or "")
+    healthy = item.get("healthy")
+    if healthy is False:
+        return True
+    return status in {"absent", "recovery-required", "broken", "migration-required"}
 
 
 def handoff_prompt(item: str, doctor_command: str | None = None) -> str:
@@ -552,6 +633,161 @@ def _doctor_heal_bundle_tools(
         summary["officialSelfHealHandoff"] = str(handoff)
 
 
+
+def _doctor_heal_repair_components(
+    result: dict[str, object],
+    project: Path,
+    *,
+    components: dict[str, object],
+    summary: dict[str, object],
+    runner,
+    repair: Callable[..., dict[str, object]] | None,
+) -> None:
+    """Heal mcps/skills via official repair --component (#5812)."""
+    for name in REPAIR_COMPONENT_ITEMS:
+        item = components.get(name)
+        if not _component_needs_heal(item if isinstance(item, dict) else None):
+            continue
+        heal = heal_repair_component(project, name, runner=runner, repair=repair)
+        if heal.get("status") == "healed":
+            clear_official_self_heal_handoff(project)
+            if isinstance(item, dict):
+                item["status"] = "healthy"
+                item["detail"] = "healed-via-official-repair"
+                item["officialCommand"] = official_command_for(name)
+                item.pop("fixNext", None)
+            summary["healed"].append(name)  # type: ignore[index]
+            continue
+        detail = str(heal.get("error") or "official-repair-failed")
+        handoff = write_official_self_heal_handoff(project, item=name, detail=detail)
+        prompt = handoff_prompt(name)
+        if isinstance(item, dict):
+            item["fixNext"] = (
+                f"Complete the agent heal using {OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE}. "
+                f"Official command: `{official_command_for(name)}`."
+            )
+            item["agentPrompt"] = prompt
+            item["handoff"] = OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE
+            item["officialCommand"] = official_command_for(name)
+        summary["failed"].append(name)  # type: ignore[index]
+        _mark_recovery_required(result)
+        summary["officialSelfHealHandoff"] = str(handoff)
+
+
+def _doctor_heal_context7(
+    result: dict[str, object],
+    project: Path,
+    *,
+    components: dict[str, object],
+    summary: dict[str, object],
+    runner,
+    repair: Callable[..., dict[str, object]] | None,
+) -> None:
+    """Heal missing context7/ctx7 via official npm path (#5812)."""
+    dependencies = result.get("dependencies")
+    needs = _dependency_component_unhealthy(dependencies, CONTEXT7_ITEM)
+    # Also heal when doctor surfaces an explicit context7 component.
+    item = components.get(CONTEXT7_ITEM)
+    if isinstance(item, dict) and _component_needs_heal(item):
+        needs = True
+    if not needs:
+        return
+    heal = heal_context7(project, runner=runner, repair=repair)
+    if heal.get("status") == "healed":
+        clear_official_self_heal_handoff(project)
+        components[CONTEXT7_ITEM] = {
+            "status": "healthy",
+            "taskImpact": "advisory",
+            "detail": "healed-via-official-npm",
+            "officialCommand": official_command_for(CONTEXT7_ITEM),
+        }
+        summary["healed"].append(CONTEXT7_ITEM)  # type: ignore[index]
+        return
+    detail = str(heal.get("error") or "context7-official-install-failed")
+    handoff = write_official_self_heal_handoff(
+        project, item=CONTEXT7_ITEM, detail=detail
+    )
+    prompt = handoff_prompt(CONTEXT7_ITEM)
+    components[CONTEXT7_ITEM] = {
+        "status": "absent",
+        "taskImpact": "advisory",
+        "detail": detail,
+        "fixNext": (
+            f"Complete the agent heal using {OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE}. "
+            f"Official command: `{official_command_for(CONTEXT7_ITEM)}`."
+        ),
+        "agentPrompt": prompt,
+        "handoff": OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE,
+        "officialCommand": official_command_for(CONTEXT7_ITEM),
+    }
+    summary["failed"].append(CONTEXT7_ITEM)  # type: ignore[index]
+    # Advisory — do not escalate overall solely for context7 (#G1 soft rule).
+    summary["officialSelfHealHandoff"] = str(handoff)
+
+
+def _doctor_heal_managed_runtimes(
+    result: dict[str, object],
+    project: Path,
+    *,
+    components: dict[str, object],
+    summary: dict[str, object],
+    runner,
+    repair: Callable[..., dict[str, object]] | None,
+) -> None:
+    """Heal managed Node/Java/Maven via official CE helpers (#5813)."""
+    dependencies = result.get("dependencies")
+    missing = [
+        name
+        for name in MANAGED_RUNTIME_ITEMS
+        if _dependency_component_unhealthy(dependencies, name)
+    ]
+    tools = components.get("tools")
+    maven_tools = components.get("maven-tools-mcp")
+    if isinstance(tools, dict) and _component_needs_heal(tools):
+        if "tools" not in missing:
+            missing.append("tools")
+    if isinstance(maven_tools, dict) and _component_needs_heal(maven_tools):
+        if "maven" not in missing:
+            missing.append("maven")
+    if not missing:
+        return
+    heal = heal_managed_runtimes(project, runner=runner, repair=repair)
+    if heal.get("status") == "healed":
+        clear_official_self_heal_handoff(project)
+        for name in MANAGED_RUNTIME_ITEMS:
+            if name in missing:
+                summary["healed"].append(name)  # type: ignore[index]
+        if "tools" in missing:
+            summary["healed"].append("tools")  # type: ignore[index]
+        if isinstance(tools, dict) and tools.get("status") != "healthy":
+            tools["status"] = "healthy"
+            tools["detail"] = "healed-via-official-tools-repair"
+            tools.pop("fixNext", None)
+        if isinstance(maven_tools, dict):
+            maven_tools["detail"] = "healed-via-official-tools-repair"
+        return
+    detail = str(heal.get("error") or "managed-runtime-official-heal-failed")
+    handoff = write_official_self_heal_handoff(project, item="node", detail=detail)
+    prompt = handoff_prompt("node")
+    for name in MANAGED_RUNTIME_ITEMS:
+        if name not in missing:
+            continue
+        components[name] = {
+            "status": "absent",
+            "taskImpact": "advisory",
+            "detail": detail,
+            "fixNext": (
+                f"Complete the agent heal using {OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE}. "
+                f"Official command: `{official_command_for(name)}`."
+            ),
+            "agentPrompt": prompt,
+            "handoff": OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE,
+            "officialCommand": official_command_for(name),
+        }
+        summary["failed"].append(name)  # type: ignore[index]
+    summary["officialSelfHealHandoff"] = str(handoff)
+
+
 def _doctor_note_missing_gh(components: dict[str, object]) -> None:
     if shutil.which("gh") is not None:
         return
@@ -612,6 +848,30 @@ def apply_doctor_official_self_heal(
         repair=repair,
         bundle_options=bundle_options,
     )
+    _doctor_heal_repair_components(
+        result,
+        project,
+        components=components,
+        summary=summary,
+        runner=runner,
+        repair=repair,
+    )
+    _doctor_heal_context7(
+        result,
+        project,
+        components=components,
+        summary=summary,
+        runner=runner,
+        repair=repair,
+    )
+    _doctor_heal_managed_runtimes(
+        result,
+        project,
+        components=components,
+        summary=summary,
+        runner=runner,
+        repair=repair,
+    )
     _doctor_note_missing_gh(components)
 
     result["officialSelfHeal"] = summary
@@ -639,7 +899,12 @@ def apply_official_self_heal_fix_next(project: Path, components: object) -> None
             f"Complete the agent heal using {OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE}, "
             "run the official install command listed there, then rerun doctor."
         )
-        for name in BUNDLE_TOOL_ITEMS:
+        for name in (
+            *BUNDLE_TOOL_ITEMS,
+            *REPAIR_COMPONENT_ITEMS,
+            CONTEXT7_ITEM,
+            *MANAGED_RUNTIME_ITEMS,
+        ):
             item = components.get(name)
             if isinstance(item, dict) and item.get("status") != "healthy":
                 item["fixNext"] = message
