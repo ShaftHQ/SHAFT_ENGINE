@@ -251,7 +251,7 @@ workflow owner. Missing FreeToken never weakens or disables the canonical
 workflows.
 
 When orchestrating, load
-[process-owner](../../references/process-owner-scrum-master.md) (Scrum-master alias only on explicit ask; "product owner" maps to process-owner).
+[process-owner](../../references/process-owner-scrum-master.md) (Scrum-master alias only on explicit ask; "product owner" maps to process-owner; default live status table is that reference's status report format).
 [Delegation](../../references/delegation.md) owns dispatch, status, integration,
 and review. Apply
 [orchestrator follow-through](../../references/orchestrator-follow-through.md)

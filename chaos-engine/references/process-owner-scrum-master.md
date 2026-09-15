@@ -51,7 +51,9 @@ Assignment alone is not progress.
 
 ### Status report format
 
-When asked for a status report, keep it to one screen and use this shape:
+This format is the **default** whenever orchestrator mode is selected, or when
+the user asks the agent to act as process-owner, product owner, or
+Scrum-master. Keep each report to one screen and use this shape:
 
 1. **RAG line** — `green` / `amber` / `red`, program name, and time.
 2. **Where we are** — one paragraph on current position.

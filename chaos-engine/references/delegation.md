@@ -76,18 +76,15 @@ the same files and cannot be sequenced, or when the work truly belongs to
 different categories. If a delegate omitted an actionable leftover, file the
 missing issue or Memory as an owner-command; do not implement the leftover work.
 
-After every dispatch and after every subagent finishes, post or update a status
-table the owner can read without reconstructing the session. Include completed,
-in progress, planned, and out of scope rows so out of scope is not silently
-dropped. Enhance with blocker, PR/issue links, HEAD SHA, and root-learning
-handoff (`findings` / `nothing durable`). Do not put secrets in the
-table.
-
-| ID / work item | Mode stream | Status | Owner / agent | Dependency | Last update | Details / evidence | Next action |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-
-Status values at least: `planned`, `in progress`, `blocked`, `review`,
-`completed`, `out of scope`.
+After every dispatch and after every subagent finishes, post or update the
+**default live status table** from
+[process-owner status report format](process-owner-scrum-master.md#status-report-format)
+so the owner can read progress without reconstructing the session. Use columns
+`Task ID | Ticket(s) | PR | Scope | Status | Elapsed | ETA` with Status
+`Done` | `InProgress` | `ToDo` (optionally `Blocked`). Include out-of-scope rows
+explicitly in Scope/Status rather than dropping them. Enhance Details in Scope
+or adjacent prose with blocker notes, HEAD SHA, and root-learning handoff
+(`findings` / `nothing durable`) when needed. Do not put secrets in the table.
 
 ## Independent adversarial review
 
