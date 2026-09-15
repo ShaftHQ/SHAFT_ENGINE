@@ -203,14 +203,29 @@ public class TouchActions extends FluentWebDriverAction {
         return this;
     }
 
-    /** Taps a target resolved locally from the current screenshot, with Appium Images as a capability fallback. */
+    /**
+     * Taps a screenshot target. On Appium sessions prefer Appium Images (element click in
+     * driver coordinates) before OpenCV+scale mapping — BrowserStack iOS/Android window size
+     * vs screenshot pixels still drifts after #5778.
+     */
     public TouchActions tap(ImageTarget target) {
         try {
+            if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
+                try {
+                    if (tapUsingAppiumImages(target)) {
+                        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                                Thread.currentThread().getStackTrace()[1].getMethodName(), "typed image target", null, null);
+                        return this;
+                    }
+                } catch (RuntimeException imagesProbeFailed) {
+                    ReportManager.logDiscrete("Appium Images probe failed; falling back to local visual match.");
+                }
+            }
             byte[] screenshot = new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver());
             Optional<ImageMatch> match = findLocalImage(target, screenshot);
             if (match.isPresent()) {
                 performCoordinateTap(mapImageCoordinates(match.orElseThrow(), screenshot));
-            } else if (!tapUsingAppiumImages(target)) {
+            } else {
                 throw new IllegalStateException("Image target was not found by OpenCV or Appium Images.");
             }
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
@@ -741,15 +756,22 @@ public class TouchActions extends FluentWebDriverAction {
             int[] previousPixels = null;
             int stableFrames = 0;
             for (int attempt = 0; attempt < 30; attempt++) {
-                byte[] screenshot = new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver());
-                int[] currentPixels = stablePixels(screenshot, scrollableElementLocator);
+                // Prefer the scroll container's own screenshot so OCR/image search stays in
+                // element-local pixels and avoids BrowserStack window-vs-screenshot scale drift.
+                ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
+                byte[] screenshot = frame.screenshot();
+                int[] currentPixels = frame.containerLocal()
+                        ? screenshotPixels(screenshot)
+                        : stablePixels(screenshot, scrollableElementLocator);
                 ImageTarget effectiveImageTarget = imageTarget == null ? null
-                        : constrainToContainer(imageTarget, scrollableElementLocator, screenshot);
+                        : (frame.containerLocal() ? imageTarget
+                        : constrainToContainer(imageTarget, scrollableElementLocator, screenshot));
                 OcrTarget effectiveOcrTarget = ocrTarget == null ? null
-                        : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot);
+                        : (frame.containerLocal() ? ocrTarget
+                        : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot));
                 boolean found = imageTarget != null
                         ? findLocalImage(effectiveImageTarget, screenshot).isPresent()
-                            || findUsingAppiumImages(effectiveImageTarget).isPresent()
+                            || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent())
                         : findOcr(effectiveOcrTarget, screenshot);
                 if (found) {
                     elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
@@ -772,6 +794,40 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "direction=" + swipeDirection, null, throwable);
             return this;
         }
+    }
+
+    private ContainerSearchFrame captureSwipeSearchFrame(By scrollableElementLocator) {
+        if (scrollableElementLocator != null) {
+            try {
+                Object identified = elementActionsHelper.identifyUniqueElement(
+                        driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                if (identified instanceof WebElement element) {
+                    byte[] elementScreenshot = element.getScreenshotAs(OutputType.BYTES);
+                    if (elementScreenshot != null && elementScreenshot.length > 0) {
+                        return new ContainerSearchFrame(elementScreenshot, true);
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                ReportManager.logDiscrete("Container element screenshot unavailable; using viewport for visual/OCR swipe search.");
+            }
+        }
+        return new ContainerSearchFrame(
+                new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver()), false);
+    }
+
+    private int[] screenshotPixels(byte[] screenshotBytes) {
+        try {
+            BufferedImage screenshot = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+            if (screenshot == null) {
+                throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.");
+            }
+            return screenshot.getRGB(0, 0, screenshot.getWidth(), screenshot.getHeight(), null, 0, screenshot.getWidth());
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private record ContainerSearchFrame(byte[] screenshot, boolean containerLocal) {
     }
 
     /**

@@ -40,6 +40,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @Test(singleThreaded = true)
@@ -150,6 +151,24 @@ public class BrowserActionsCoverageUnitTest {
         browserActions.switchToWindow("window-1");
         browserActions.waitForLazyLoading();
         browserActions.closeCurrentWindow();
+    }
+
+    @Test(description = "Regression for #5825: Safari back/forward must use history script to avoid "
+            + "BrowserStack JdkHttpClient TimeoutException on navigate().back()")
+    public void safariNavigateBackShouldUseHistoryScriptInsteadOfWebDriverBack() {
+        String previousBrowser = SHAFT.Properties.web.targetBrowserName();
+        try {
+            SHAFT.Properties.web.set().targetBrowserName("Safari");
+            when(driver.getCurrentUrl()).thenReturn("https://duckduckgo.com/", "https://www.selenium.dev/selenium/web/xhtmlTest.html");
+            when(((JavascriptExecutor) driver).executeScript("return document.readyState")).thenReturn("complete");
+
+            browserActions.navigateBack();
+
+            verify((JavascriptExecutor) driver).executeScript("history.back();");
+            verify(navigation, Mockito.never()).back();
+        } finally {
+            SHAFT.Properties.web.set().targetBrowserName(previousBrowser == null ? "" : previousBrowser);
+        }
     }
 
     @Test

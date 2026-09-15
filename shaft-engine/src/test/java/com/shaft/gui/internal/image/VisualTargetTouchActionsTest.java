@@ -12,6 +12,7 @@ import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.openqa.selenium.By;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebDriver;
@@ -140,6 +141,32 @@ public class VisualTargetTouchActionsTest {
 
         verify(driver).executeScript("mobile: scroll", Map.of("direction", "down"));
         Assert.assertEquals(provider.targets.size(), 2);
+    }
+
+    @Test
+    public void containerSwipeShouldPreferElementScreenshotWithoutViewportScaleRegion() throws Exception {
+        byte[] viewport = image(false);
+        byte[] containerShot = image(false);
+        SequencedProvider provider = new SequencedProvider(1);
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+        AndroidDriver driver = driver();
+        TestTouchActions actions = actions(driver);
+        By container = By.id("container");
+        ElementActionsHelper helper = actions.helper();
+        RemoteWebElement element = mock(RemoteWebElement.class);
+        when(element.getRect()).thenReturn(new Rectangle(10, 10, 30, 30));
+        when(element.getScreenshotAs(OutputType.BYTES)).thenReturn(containerShot);
+        when(helper.identifyUniqueElement(driver, container)).thenReturn(List.of(container.toString(), element));
+        ImageTarget target = ImageTarget.fromBytes(viewport).matchingMode(ImageMatchingMode.TEMPLATE);
+
+        try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(viewport))) {
+            actions.swipeElementIntoView(container, target, TouchActions.SwipeDirection.DOWN);
+        }
+
+        // Element-local search must not apply a viewport-scaled within() region.
+        Assert.assertTrue(provider.targets.getFirst().searchRegion().isEmpty());
+        verify(element).getScreenshotAs(OutputType.BYTES);
     }
 
     @Test
