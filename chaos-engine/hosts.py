@@ -6387,6 +6387,7 @@ def verify(
 def _load_grok_lean_config():
     """Load installer-owned Grok lean-config helper (optional module)."""
     import importlib.util as _ilu
+    import sys as _sys
 
     path = Path(__file__).resolve().with_name("grok_lean_config.py")
     if not path.is_file():
@@ -6395,7 +6396,12 @@ def _load_grok_lean_config():
     if spec is None or spec.loader is None:
         return None
     mod = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    previous = _sys.dont_write_bytecode
+    _sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        _sys.dont_write_bytecode = previous
     return mod
 
 

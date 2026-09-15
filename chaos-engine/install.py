@@ -4130,6 +4130,7 @@ def apply_ce_plugin_pin_doctor(
 def apply_grok_lean_doctor(result: dict, project: Path) -> None:
     """Attach lean-compat / lean-skills / skill-dedupe advisories (#5802/#5804/#5805)."""
     import importlib.util as _ilu
+    import sys as _sys
 
     path = Path(__file__).resolve().with_name("grok_lean_config.py")
     if not path.is_file():
@@ -4138,7 +4139,12 @@ def apply_grok_lean_doctor(result: dict, project: Path) -> None:
     if spec is None or spec.loader is None:
         return
     mod = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    previous = _sys.dont_write_bytecode
+    _sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        _sys.dont_write_bytecode = previous
     hosts = result.get("hosts")
     if not isinstance(hosts, dict):
         hosts = {}
