@@ -38,7 +38,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Meta-optimize review | [`meta_optimize.py`](../meta_optimize.py) `review`/`cadence` | Periodic aggregation of significance + learning metrics + compress proposals; not continuous (#5664) |
 | Draft skill PR gate | [`draft_skill_pr.py`](../draft_skill_pr.py) `status`/`prepare`/`open` | Opt-in draft PRs only; default OFF; never auto-merge (#5665) |
 | Learn-traces collect | [`learn_traces.py`](../learn_traces.py) `collect --out <dir>` | Portable session-trace run dir |
-| Learn-traces portable /learn | [`learn_traces.py`](../learn_traces.py) `learn --out <dir>` (`prepare`/`offline`/`finalize`) | Map-reduce-verify file contract → `report.md` + git-tracked `actions.json`; never `~/.grok/skills` (#5847) |
+| Learn-traces portable /learn | [`learn_traces.py`](../learn_traces.py) + [`learn_traces_mrv.py`](../learn_traces_mrv.py) `learn --out <dir>` | Map-reduce-verify file contract → `report.md` + git-tracked `actions.json`; never `~/.grok/skills` (#5847) |
 | Deep-research scaffold | [`deep_research.py`](../deep_research.py) `init --query … --out <dir>` | Portable research run dir; phases are host agents |
 
 ## Notes

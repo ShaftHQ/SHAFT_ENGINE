@@ -28,6 +28,9 @@ A first-ever run is step/curate, never auto-delete. See
 Installed path only (`.chaos-engine`). Never treat source `chaos-engine/` as the
 runtime install.
 
+Runner modules: [`learn_traces.py`](../learn_traces.py) (CLI + collect) and
+[`learn_traces_mrv.py`](../learn_traces_mrv.py) (map-reduce-verify file contract).
+
 One-command equivalent of host `/learn` for **git-tracked overlay** policy:
 
 ```bash
