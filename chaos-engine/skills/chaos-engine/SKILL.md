@@ -251,13 +251,13 @@ workflow owner. Missing FreeToken never weakens or disables the canonical
 workflows.
 
 When orchestrating, load
-[process-owner](../../references/process-owner-scrum-master.md) (Scrum-master alias only on explicit ask; "product owner" maps to process-owner; default live status table is that reference's status report format).
+[process-owner](../../references/process-owner-scrum-master.md).
 [Delegation](../../references/delegation.md) owns dispatch, status, integration,
 and review. Apply
 [orchestrator follow-through](../../references/orchestrator-follow-through.md)
 automatically while work is live. [Roles](../../references/roles.md) owns role
-boundaries. The main orchestrator stays available, enforces process-owner
-duties, and owns the sole terminal Learning Session.
+boundaries. Main orchestrator enforces process-owner duties and owns the
+sole terminal Learning Session.
 
 Implementation follows [TDD and its PDCA boundary](../../references/tdd.md#workflow).
 The selected project profile may link its concrete PDCA playbook without
