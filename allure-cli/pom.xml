@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Standalone Maven-publishable zip of the pinned Allure 3 npm CLI (#5815).
+
+  Coordinates: io.github.shafthq:allure-cli:${allure.cli.version}:zip
+  Keep <version> aligned with root POM property allure.cli.version and
+  Internal.allure3Version() (currently 3.17.0). This module is intentionally
+  NOT in the shaft-parent reactor — Central CD still ships SHAFT jars at the
+  engine version; wiring this zip into mavenCentral_cd is deferred (follow-up issue).
+
+  Build / install into the local Maven repo (requires npm on PATH once):
+    mvn -f allure-cli/pom.xml clean install -Dgpg.skip
+
+  Air-gapped consumers then unpack with:
+    mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize
+  or rely on AllureManager.tryProvisionAllureCli (local zip → runtime cache).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.shafthq</groupId>
+    <artifactId>allure-cli</artifactId>
+    <!-- Keep in sync with shaft-parent allure.cli.version / Internal.allure3Version() -->
+    <version>3.17.0</version>
+    <packaging>pom</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>Pinned Allure 3 CLI distribution (npm allure package) as a Maven zip for air-gapped provision into ~/.m2/repository/allure/allure-cli/&lt;version&gt;/.</description>
+    <url>https://shafthq.github.io/</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Mohab Mohie</name>
+            <email>Mohab.MohieElDeen@outlook.com</email>
+            <organization>GitHub</organization>
+            <organizationUrl>https://github.com/ShaftHQ</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/ShaftHQ/SHAFT_ENGINE.git</connection>
+        <developerConnection>scm:git:ssh://github.com/ShaftHQ/SHAFT_ENGINE.git</developerConnection>
+        <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
+    </scm>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <allure.cli.stageDir>${project.build.directory}/allure-cli-stage</allure.cli.stageDir>
+        <!-- Skip Central / GPG until publish infra is wired (#5815 follow-up). Local install works. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <gpg.skip>true</gpg.skip>
+        <skipPublishing>true</skipPublishing>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>prepare-allure-cli-stage</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <delete dir="${allure.cli.stageDir}" quiet="true"/>
+                                <mkdir dir="${allure.cli.stageDir}"/>
+                                <echo file="${allure.cli.stageDir}/package.json"><![CDATA[{
+  "name": "shaft-allure-cli-runtime",
+  "private": true
+}
+]]></echo>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>npm-install-allure-cli</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npm</executable>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                            <arguments>
+                                <argument>--prefix</argument>
+                                <argument>${allure.cli.stageDir}</argument>
+                                <argument>install</argument>
+                                <argument>--no-package-lock</argument>
+                                <argument>--no-save</argument>
+                                <argument>--ignore-scripts</argument>
+                                <argument>allure@${project.version}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.1</version>
+                <executions>
+                    <execution>
+                        <id>zip-allure-cli</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/assembly/dist.xml</descriptor>
+                            </descriptors>
+                            <finalName>${project.artifactId}-${project.version}</finalName>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <attach>false</attach>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-allure-cli-zip</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>${project.build.directory}/${project.artifactId}-${project.version}.zip</file>
+                                    <type>zip</type>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
