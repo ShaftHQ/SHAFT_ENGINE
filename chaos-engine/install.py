@@ -4493,6 +4493,10 @@ def doctor_with_dependencies(
     except (OSError, RuntimeError, ValueError, AttributeError, ImportError, TypeError):
         # Optional #5689/#5811 probes; missing helpers must not crash doctor.
         pass
+    result.setdefault(
+        "officialSelfHeal",
+        {"healed": [], "failed": [], "skipped": []},
+    )
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
@@ -4553,7 +4557,7 @@ _DIAGNOSTIC_FIELDS = {
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
-        "activationProof", "phaseLedger", "learningMetrics",
+        "activationProof", "phaseLedger", "learningMetrics", "officialSelfHeal",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",

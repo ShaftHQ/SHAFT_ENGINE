@@ -465,7 +465,7 @@ def _apply_companion_heal_failure(
         }
         summary["failed"].append(name)  # type: ignore[index]
     _mark_recovery_required(result)
-    result["companionHandoff"] = str(handoff)
+    summary["companionHandoff"] = str(handoff)
 
 
 def _doctor_heal_companions(
@@ -549,7 +549,7 @@ def _doctor_heal_bundle_tools(
             item["officialCommand"] = official_command_for(name)
         summary["failed"].append(name)  # type: ignore[index]
         _mark_recovery_required(result)
-        result["officialSelfHealHandoff"] = str(handoff)
+        summary["officialSelfHealHandoff"] = str(handoff)
 
 
 def _doctor_note_missing_gh(components: dict[str, object]) -> None:
