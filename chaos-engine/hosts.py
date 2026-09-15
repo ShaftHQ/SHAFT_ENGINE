@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import base64
 from contextlib import contextmanager
 import ctypes
@@ -6284,6 +6286,8 @@ def install(
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
                 write_merge_handoff(project, _handoff_doctor_command())
+                with contextlib.suppress(Exception):
+                    next_receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
                 return next_receipt
             except BaseException:
                 reconcile(project, current, (current, wanted))
@@ -6298,6 +6302,8 @@ def install(
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
         write_merge_handoff(project, _handoff_doctor_command())
+        with contextlib.suppress(Exception):
+            receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
         return receipt
 
     before = current_images(project)
@@ -6334,6 +6340,8 @@ def install(
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
         write_merge_handoff(project, _handoff_doctor_command())
+        with contextlib.suppress(Exception):
+            receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
         return receipt
     except BaseException:
         consume_merge_handoffs()
@@ -6375,9 +6383,44 @@ def verify(
     }
 
 
+
+def _load_grok_lean_config():
+    """Load installer-owned Grok lean-config helper (optional module)."""
+    import importlib.util as _ilu
+
+    path = Path(__file__).resolve().with_name("grok_lean_config.py")
+    if not path.is_file():
+        return None
+    spec = _ilu.spec_from_file_location("ce_grok_lean_config", path)
+    if spec is None or spec.loader is None:
+        return None
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def sync_grok_user_lean_config(
+    project: Path,
+    *,
+    lean_skills: bool | None = None,
+    uninstall: bool = False,
+) -> dict[str, object]:
+    """Merge or remove lean Grok user config around host install/uninstall (#5802/#5805)."""
+    mod = _load_grok_lean_config()
+    if mod is None:
+        return {"status": "skipped", "detail": "grok_lean_config-missing"}
+    if lean_skills is None:
+        lean_skills = bool(mod.lean_skills_flag_enabled())
+    return mod.sync_project_grok_lean(
+        project,
+        lean_skills=lean_skills,
+        uninstall=uninstall,
+    )
+
+
 def grok_runtime_status(
     project: Path, *, executable: str | None = None, runner=None
-) -> dict[str, str]:
+) -> dict[str, object]:
     """Verify detected Grok project trust and loaded lifecycle hooks without mutation."""
     command = executable or shutil.which("grok")
     if not command:
@@ -6413,7 +6456,31 @@ def grok_runtime_status(
     }
     if not required.issubset(loaded):
         return {"status": "sync-advisory", "detail": recovery}
-    return {"status": "healthy"}
+    result: dict[str, object] = {"status": "healthy"}
+    lean = _load_grok_lean_config()
+    if lean is not None:
+        compat = lean.doctor_lean_compat(project, heal=True)
+        if isinstance(compat, dict) and compat.get("status") == "sync-advisory":
+            result = {
+                "status": "sync-advisory",
+                "detail": compat.get("fixNext") or compat.get("detail") or recovery,
+                "leanCompat": compat,
+            }
+        else:
+            result["leanCompat"] = compat
+        dedupe = lean.doctor_grok_skill_dedupe(
+            project, executable=command, runner=run
+        )
+        if isinstance(dedupe, dict):
+            result["skillDedupe"] = dedupe
+            if dedupe.get("status") == "sync-advisory" and result.get("status") == "healthy":
+                result = {
+                    "status": "sync-advisory",
+                    "detail": dedupe.get("fixNext") or dedupe.get("detail"),
+                    "leanCompat": result.get("leanCompat"),
+                    "skillDedupe": dedupe,
+                }
+    return result  # type: ignore[return-value]
 
 
 def snapshot(project: Path) -> dict[str, object]:
@@ -6605,6 +6672,8 @@ def finalize_uninstall(project: Path) -> None:
             raise ValueError("ChaosEngine activation marketplace collision")
         activation_plugins_from_root(activation_root, str(activation["marketplaceName"]))
         shutil.rmtree(activation_root)
+    with contextlib.suppress(Exception):
+        sync_grok_user_lean_config(project, uninstall=True)
     receipt_path.unlink()
     anchor.unlink()
 

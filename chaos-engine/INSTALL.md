@@ -63,6 +63,70 @@ On Windows use py -3 instead of python3. A successful install also prints a
 first-session brief and five host onboarding cards. You can stop reading here
 for a normal first install.
 
+
+
+## Grok lean defaults (#5802 / #5803 / #5805)
+
+When Grok CLI is detected or the project already has `.grok/hooks`, install/activate/repair
+merges an owned span into user `~/.grok/config.toml` (or `$GROK_HOME/config.toml`):
+
+```toml
+# CHAOSENGINE-GROK-LEAN:START
+[compat.claude]
+hooks = false
+rules = false
+agents = false
+mcps = false
+skills = false
+sessions = false
+
+[compat.cursor]
+hooks = false
+rules = false
+agents = false
+mcps = false
+skills = false
+sessions = false
+# CHAOSENGINE-GROK-LEAN:END
+```
+
+This keeps native `.grok/hooks` + `AGENTS.md` as the CE path and avoids double-loading
+Claude-compat hooks/skills. Uninstall removes **only** the CE marker span.
+
+### Recommended: `--lean-grok-skills` (opt-in)
+
+Default install does **not** thin Grok's bundled skill catalog. For CE/SHAFT engineering
+sessions, pass the flag (or set `CHAOS_ENGINE_LEAN_GROK_SKILLS=1`):
+
+```bash
+# one-liner / bootstrap
+python3 chaos-engine/bootstrap.py --repository ShaftHQ/SHAFT_ENGINE --lean-grok-skills
+
+# or after overlay exists
+python3 .chaos-engine/install.py install --project . --source … --commit … --lean-grok-skills
+```
+
+That merges:
+
+```toml
+# CHAOSENGINE-GROK-SKILLS:START
+[skills]
+disabled = ["game-animation-frames", "game-asset-core", "game-character-consistency", "game-tilesets", "game-ui-icons", "imagine"]
+# CHAOSENGINE-GROK-SKILLS:END
+```
+
+**Undo:** delete the `# CHAOSENGINE-GROK-SKILLS` span from `~/.grok/config.toml` (or rerun
+uninstall, which strips both CE Grok spans). Doctor may emit a sync-advisory tip when Grok
+is present and the lean-skills flag was not used — never recovery-required.
+
+### Project CE dedupe (#5804)
+
+Host skill adapters under `.agents/skills/chaos-engine/` and `plugins/chaos-engine/skills/`
+remain **pointer** stubs (`skill_adapter_bytes` / load-canonical text). Prefer `AGENTS.md` +
+`.grok/hooks` for Grok. Doctor may sync-advise if `grok inspect` lists duplicate chaos-engine
+skills.
+
+
 ## Advanced topics
 
 Everything below is optional on first run: agent install instruction, payload
