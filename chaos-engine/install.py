@@ -4231,18 +4231,15 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
         # Heal failed — agentic handoff with official install command, not bare doctor choreography.
         doctor = "python3 .chaos-engine/install.py doctor --project ."
         repair = "python3 .chaos-engine/install.py repair --project . --component plugins"
-        oneliner = (
-            'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/'
-            'chaos-engine/install.sh" | bash -s -- '
-            '"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
-        )
+        # Portable tree must not embed origin repo URLs (forbiddenTokens).
+        oneliner = "the ChaosEngine install one-liner from INSTALL.md"
         handoff_dir = project / ".chaos-engine-state"
         handoff_dir.mkdir(parents=True, exist_ok=True)
         handoff = handoff_dir / "companion-handoff.md"
         prompt = (
             f"Heal ChaosEngine companion `{name}` using the official CE installer path. "
-            f"From the project root run `{repair}` (preferred) or the install one-liner "
-            f"`{oneliner}` without `--without-{name}`. Then run `{doctor}`. "
+            f"From the project root run `{repair}` (preferred) or {oneliner} "
+            f"without `--without-{name}`. Then run `{doctor}`. "
             f"Do not invent an alternate installer. See #5811."
         )
         try:
