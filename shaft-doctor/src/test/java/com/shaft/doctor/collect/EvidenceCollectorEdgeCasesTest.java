@@ -55,6 +55,32 @@ class EvidenceCollectorEdgeCasesTest {
     }
 
     @Test
+    void diagnosticsV2ClusterAndOmittedFieldsBecomeAttributes(@TempDir Path temp) throws IOException {
+        Path inputDir = Files.createDirectories(temp.resolve("input"));
+        Files.writeString(inputDir.resolve("diagnostics.json"), """
+                {
+                  "schemaVersion": 2,
+                  "correlation": {"runId": "run-1", "bundleId": "bundle-abc"},
+                  "cluster": {"fingerprint": "fp-abc"},
+                  "omitted": [{"id": "network", "reason": "partial-capture"}]
+                }
+                """, StandardCharsets.UTF_8);
+        EvidenceBundle bundle = collect(temp, inputDir, true, true, DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES);
+
+        EvidenceItem item = bundle.evidence().stream()
+                .filter(evidence -> "true".equals(evidence.attributes().get("diagnostics")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("2", item.attributes().get("schemaVersion"));
+        assertEquals("fp-abc", item.attributes().get("clusterFingerprint"));
+        assertEquals("fp-abc", item.attributes().get("signature"));
+        assertEquals("bundle-abc", item.attributes().get("correlationBundleId"));
+        assertEquals("1", item.attributes().get("omittedCount"));
+        assertTrue(bundle.redaction().omittedItems() >= 1);
+    }
+
+    @Test
     void suffixedDiagnosticsJsonFileIsAlsoDetected(@TempDir Path temp) throws IOException {
         Path inputDir = Files.createDirectories(temp.resolve("input"));
         Files.writeString(inputDir.resolve("shard1-diagnostics.json"),

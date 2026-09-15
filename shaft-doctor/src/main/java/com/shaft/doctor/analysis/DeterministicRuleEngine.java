@@ -159,7 +159,7 @@ public final class DeterministicRuleEngine {
 
         addAttemptObservations(failures, findings);
         RetrySummary retry = addRetryFindings(validAllure, findings, remediations);
-        addHistoricalSignatureFinding(failures, history, findings);
+        addHistoricalSignatureFinding(failures, bundle, history, findings);
         addAccessibilityFindings(bundle, findings);
 
         List<RuleMatch> matches = new ArrayList<>();
@@ -317,18 +317,20 @@ public final class DeterministicRuleEngine {
 
     private static void addHistoricalSignatureFinding(
             List<EvidenceItem> failures,
+            EvidenceBundle current,
             List<EvidenceBundle> history,
             List<Finding> findings) {
         Set<String> historical = new LinkedHashSet<>();
         for (EvidenceBundle older : history == null ? List.<EvidenceBundle>of() : history) {
             older.evidence().stream()
-                    .filter(item -> FAILURE_STATUSES.contains(item.attributes().get("status")))
-                    .map(item -> item.attributes().getOrDefault("signature", ""))
+                    .filter(DeterministicRuleEngine::clusterableFailure)
+                    .map(item -> clusteringKey(item, older.evidence()))
                     .filter(signature -> !signature.isBlank())
                     .forEach(historical::add);
         }
+        List<EvidenceItem> siblings = current == null ? List.of() : current.evidence();
         List<EvidenceItem> repeated = failures.stream()
-                .filter(item -> historical.contains(item.attributes().getOrDefault("signature", "")))
+                .filter(item -> historical.contains(clusteringKey(item, siblings)))
                 .toList();
         if (!repeated.isEmpty()) {
             findings.add(finding("historical-signature", Finding.Kind.OBSERVATION,
@@ -547,6 +549,30 @@ public final class DeterministicRuleEngine {
 
     private static String stableSuffix(String value) {
         return DoctorHashing.sha256(value.getBytes(StandardCharsets.UTF_8)).substring(0, 16);
+    }
+
+    private static boolean clusterableFailure(EvidenceItem item) {
+        String status = item.attributes().get("status");
+        return (status != null && FAILURE_STATUSES.contains(status))
+                || !item.attributes().getOrDefault("clusterFingerprint", "").isBlank();
+    }
+
+    private static String clusteringKey(EvidenceItem item) {
+        return clusteringKey(item, List.of());
+    }
+
+    private static String clusteringKey(EvidenceItem item, List<EvidenceItem> siblings) {
+        String fingerprint = item.attributes().getOrDefault("clusterFingerprint", "");
+        if (!fingerprint.isBlank()) {
+            return fingerprint;
+        }
+        for (EvidenceItem sibling : siblings) {
+            String shared = sibling.attributes().getOrDefault("clusterFingerprint", "");
+            if (!shared.isBlank()) {
+                return shared;
+            }
+        }
+        return item.attributes().getOrDefault("signature", "");
     }
 
     private static long start(EvidenceItem item) {

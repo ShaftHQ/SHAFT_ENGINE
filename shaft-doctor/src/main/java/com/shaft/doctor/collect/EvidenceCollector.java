@@ -699,8 +699,10 @@ public final class EvidenceCollector {
         String text = new String(source, StandardCharsets.UTF_8);
         String schemaVersion = "";
         String sanitized;
+        JsonNode redactedTree = null;
         try {
             JsonNode redacted = redactor.redact(mapper.readTree(text));
+            redactedTree = redacted;
             schemaVersion = redacted.path("schemaVersion").asText("");
             sanitized = mapper.writer().with(printer).writeValueAsString(redacted);
         } catch (JacksonException exception) {
@@ -713,6 +715,20 @@ public final class EvidenceCollector {
         attributes.put("invalid", Boolean.toString(invalid));
         if (!schemaVersion.isBlank()) {
             attributes.put("schemaVersion", schemaVersion);
+        }
+        if (redactedTree != null) {
+            String fingerprint = redactedTree.path("cluster").path("fingerprint").asText("");
+            String bundleId = redactedTree.path("correlation").path("bundleId").asText("");
+            JsonNode omitted = redactedTree.path("omitted");
+            put(attributes, "clusterFingerprint", fingerprint);
+            put(attributes, "correlationBundleId", bundleId);
+            if (omitted.isArray() && omitted.size() > 0) {
+                attributes.put("omittedCount", Integer.toString(omitted.size()));
+                state.omittedItems += omitted.size();
+            }
+            if (!fingerprint.isBlank()) {
+                attributes.put("signature", fingerprint);
+            }
         }
         addTextItem(sourceReference, EvidenceCategory.SHAFT_LOG, "application/json",
                 retained,
