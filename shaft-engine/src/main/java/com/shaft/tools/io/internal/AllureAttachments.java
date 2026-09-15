@@ -1,10 +1,12 @@
 package com.shaft.tools.io.internal;
 
 import io.qameta.allure.Allure;
+import io.qameta.allure.AllureResultsWriteException;
 import io.qameta.allure.AttachmentOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -14,6 +16,11 @@ import java.nio.charset.StandardCharsets;
  * {@link io.qameta.allure.AllureLifecycle#addAttachment} plus {@link AttachmentOptions}.
  * SHAFT call sites use this helper so attachment behaviour stays on the current executable
  * (not wrapped as an attachment-step) while matching the pre-3 signatures.
+ *
+ * <p>Allure 3's {@code FileSystemResultsWriter} uses NIO channels that throw
+ * {@link ClosedByInterruptException} when the caller thread is interrupted. Attachments are
+ * best-effort evidence, so interrupt-driven write failures are logged and swallowed instead of
+ * failing the calling assertion/action.
  */
 public final class AllureAttachments {
 
@@ -27,7 +34,11 @@ public final class AllureAttachments {
     }
 
     public static void add(String name, String type, InputStream content, String fileExtension) {
-        Allure.getLifecycle().addAttachment(name, type, content, options(fileExtension));
+        try {
+            Allure.getLifecycle().addAttachment(name, type, content, options(fileExtension));
+        } catch (AllureResultsWriteException exception) {
+            handleAttachmentWriteFailure(exception);
+        }
     }
 
     public static void add(String name, String type, byte[] content, String fileExtension) {
@@ -39,5 +50,25 @@ public final class AllureAttachments {
             return AttachmentOptions.empty();
         }
         return AttachmentOptions.withFileExtension(fileExtension);
+    }
+
+    private static void handleAttachmentWriteFailure(AllureResultsWriteException exception) {
+        if (isInterruptDrivenWriteFailure(exception)) {
+            Thread.currentThread().interrupt();
+        }
+        ReportManagerHelper.logDiscrete(exception);
+    }
+
+    private static boolean isInterruptDrivenWriteFailure(Throwable throwable) {
+        if (Thread.currentThread().isInterrupted()) {
+            return true;
+        }
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            if (current instanceof ClosedByInterruptException
+                    || current instanceof InterruptedException) {
+                return true;
+            }
+        }
+        return false;
     }
 }
