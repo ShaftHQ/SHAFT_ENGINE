@@ -1476,29 +1476,63 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         String initialURL;
         var newURL = "";
         try {
-            initialURL = driverFactoryHelper.getDriver().getCurrentUrl();
+            WebDriver driver = driverFactoryHelper.getDriver();
+            initialURL = driver.getCurrentUrl();
             forceStopCurrentNavigation();
-            switch (navigationAction) {
-                case FORWARD -> driverFactoryHelper.getDriver().navigate().forward();
-                case BACK -> driverFactoryHelper.getDriver().navigate().back();
-                case REFRESH -> driverFactoryHelper.getDriver().navigate().refresh();
+            // BrowserStack Safari remote often hangs ~3m on navigate().back/forward
+            // (JdkHttpClient TimeoutException). Prefer history script there; keep
+            // classic WebDriver navigation for every other browser.
+            if (usesSafariHistoryScriptNavigation(driver)) {
+                performSafariHistoryNavigation(driver, navigationAction);
+            } else {
+                switch (navigationAction) {
+                    case FORWARD -> driver.navigate().forward();
+                    case BACK -> driver.navigate().back();
+                    case REFRESH -> driver.navigate().refresh();
+                }
             }
-            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
+            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driver);
             if (!navigationAction.equals(NavigationAction.REFRESH)) {
-                browserActionsHelper.waitUntilUrlIsNot(driverFactoryHelper.getDriver(), initialURL);
-                newURL = driverFactoryHelper.getDriver().getCurrentUrl();
+                browserActionsHelper.waitUntilUrlIsNot(driver, initialURL);
+                newURL = driver.getCurrentUrl();
                 if (initialURL != null && !initialURL.equals(newURL)) {
-                    browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Navigate " + navigationAction + " to " + newURL);
+                    browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
                 } else {
-                    browserActionsHelper.failAction(driverFactoryHelper.getDriver(), newURL);
+                    browserActionsHelper.failAction(driver, newURL);
                 }
             } else {
-                browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Navigate " + navigationAction + " to " + newURL);
+                browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
             }
         } catch (Exception rootCauseException) {
             browserActionsHelper.failAction(driverFactoryHelper.getDriver(), newURL, rootCauseException);
         }
         return this;
+    }
+
+    private static boolean usesSafariHistoryScriptNavigation(WebDriver driver) {
+        if (driver instanceof org.openqa.selenium.safari.SafariDriver) {
+            return true;
+        }
+        String browserName = SHAFT.Properties.web.targetBrowserName();
+        return browserName != null
+                && ("safari".equalsIgnoreCase(browserName) || "webkit".equalsIgnoreCase(browserName));
+    }
+
+    private static void performSafariHistoryNavigation(WebDriver driver, NavigationAction navigationAction) {
+        if (!(driver instanceof JavascriptExecutor executor)) {
+            switch (navigationAction) {
+                case FORWARD -> driver.navigate().forward();
+                case BACK -> driver.navigate().back();
+                case REFRESH -> driver.navigate().refresh();
+            }
+            return;
+        }
+        switch (navigationAction) {
+            case FORWARD -> executor.executeScript("history.forward();");
+            case BACK -> executor.executeScript("history.back();");
+            case REFRESH -> executor.executeScript("location.reload();");
+        }
+        new BrowserActionsHelper(true).settleSafariDocument(driver);
     }
 
 

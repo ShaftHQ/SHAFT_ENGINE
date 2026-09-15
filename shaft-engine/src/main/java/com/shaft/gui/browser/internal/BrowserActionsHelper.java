@@ -381,6 +381,14 @@ public class BrowserActionsHelper {
     }
 
     /**
+     * Waits for Safari's document to reach {@code complete} after a classic or history-script
+     * navigation. Used by BrowserStack Safari history fallbacks that skip hung {@code navigate()}.
+     */
+    public void settleSafariDocument(WebDriver driver) {
+        waitUntilSafariDocumentSettles(driver);
+    }
+
+    /**
      * Waits until the browser URL reflects a successful navigation away from the initial URL,
      * and optionally waits until it contains the expected target URL.
      *

@@ -79,6 +79,11 @@ public class FlutterTest {
             SHAFT.Properties.browserStack.set().appUrl("");
         }
 
+        // BrowserStack cold starts often need longer than the 60s default for the
+        // embedded Flutter Integration Server to accept finders.
+        SHAFT.Properties.mobile.set().flutterServerLaunchTimeout(120);
+        SHAFT.Properties.mobile.set().flutterElementWaitTimeout(90);
+
         driver.set(new SHAFT.GUI.WebDriver());
         waitForFlutterFirstFrame();
         waitForFlutterLoginScreen();
@@ -94,13 +99,13 @@ public class FlutterTest {
     }
 
     private void waitForFlutterLoginScreen() {
-        long deadline = System.currentTimeMillis() + 60_000L;
+        long deadline = System.currentTimeMillis() + 90_000L;
         while (System.currentTimeMillis() < deadline) {
             try {
                 var session = driver.get().getDriver();
-                if (!session.findElements(PLEASE_LOGIN_TEXT).isEmpty()
+                if (!session.findElements(USERNAME_FIELD).isEmpty()
                         || !session.findElements(PLEASE_LOGIN_SEMANTICS).isEmpty()
-                        || !session.findElements(USERNAME_FIELD).isEmpty()) {
+                        || !session.findElements(PLEASE_LOGIN_TEXT).isEmpty()) {
                     return;
                 }
             } catch (WebDriverException ignored) {
@@ -110,9 +115,12 @@ public class FlutterTest {
                 Thread.sleep(500);
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
-                return;
+                throw new AssertionError("Interrupted while waiting for Flutter login screen.", interrupted);
             }
         }
+        throw new AssertionError(
+                "Flutter login screen did not expose username_text_field / Please Login within 90s. "
+                        + "Confirm the BrowserStack APK was rebuilt with integration_test/appium.dart.");
     }
 
     /**
@@ -123,8 +131,10 @@ public class FlutterTest {
     public void testFlutterTapTypeAndAssertText() {
         var d = driver.get();
 
-        d.assertThat().element(PLEASE_LOGIN_TEXT).exists().perform();
+        // Keys/semantics are more stable on BrowserStack than exact Text finders during hydration.
+        d.assertThat().element(USERNAME_FIELD).exists().perform();
         d.assertThat().element(PLEASE_LOGIN_SEMANTICS).exists().perform();
+        d.assertThat().element(PLEASE_LOGIN_TEXT).exists().perform();
         d.assertThat().element(TEXT_FIELD_TYPE).exists().perform();
         d.assertThat().element(LOGIN_BUTTON_TEXT).exists().perform();
 
