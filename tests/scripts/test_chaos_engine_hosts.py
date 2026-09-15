@@ -1377,7 +1377,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertNotIn(".memory/memory/*", rendered)
         self.assertNotIn("!.memory/config.json", rendered)
 
-    def test_gitignore_reincludes_every_canonical_harness_root(self):
+    def test_gitignore_keeps_install_overlay_ignored_and_reincludes_other_roots(self):
+        """Install `.chaos-engine/` stays ignored; other harness roots reincluded (#5839)."""
         module = load(HOSTS, "chaos_engine_gitignore_canonical_roots")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -1387,25 +1388,33 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     "".join(f"{root}/\n" for root in ignored_roots).encode()
                 )
             )
-            candidates = (
-                ".chaos-engine/install.py",
+            overlay = ".chaos-engine/install.py"
+            reincluded = (
                 ".agents/skills/chaos-engine/SKILL.md",
                 ".github/skills/chaos-engine/SKILL.md",
                 "plugins/chaos-engine/.codex-plugin/plugin.json",
             )
-            for relative in candidates:
+            for relative in (overlay, *reincluded):
                 path = project / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("tracked\n", encoding="utf-8")
             subprocess.run(["git", "init", "-q", str(project)], check=True)
 
-            result = subprocess.run(
-                ["git", "-C", str(project), "check-ignore", *candidates],
+            ignored = subprocess.run(
+                ["git", "-C", str(project), "check-ignore", "-v", overlay],
                 capture_output=True,
                 text=True,
                 check=False,
             )
+            self.assertEqual(0, ignored.returncode, ignored.stdout + ignored.stderr)
+            self.assertNotIn("!.chaos-engine", ignored.stdout)
 
+            result = subprocess.run(
+                ["git", "-C", str(project), "check-ignore", *reincluded],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
             self.assertEqual(1, result.returncode, result.stdout)
 
     def test_gitignore_keeps_generated_python_bytecode_untracked(self):

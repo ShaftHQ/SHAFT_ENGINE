@@ -33,9 +33,13 @@ class OneSourceOverlayTests(unittest.TestCase):
         cls.inventory = load(INVENTORY, "ce_skill_inventory_5713")
         cls.overlay = load(OVERLAY_TEMP, "ce_overlay_temp_5713")
 
-    def test_adopter_gitignore_force_includes_harness(self):
+    def test_adopter_gitignore_runtime_does_not_force_include_overlay(self):
+        """Install dir is local; RUNTIME no longer allowlists `.chaos-engine/` (#5839)."""
         text = self.hosts.gitignore_content(None).decode("utf-8")
-        self.assertIn("!.chaos-engine/", text)
+        runtime = text.split(self.hosts.GITIGNORE_END, 1)[0]
+        self.assertNotIn("!.chaos-engine/", runtime)
+        self.assertNotIn("!.chaos-engine/**", runtime)
+        self.assertIn(".chaos-engine/**/__pycache__/", runtime)
         self.assertIn("!.agents/", text)
         self.assertIn(self.hosts.GITIGNORE_START, text)
         self.assertIn(self.hosts.GITIGNORE_END, text)
@@ -63,6 +67,11 @@ class OneSourceOverlayTests(unittest.TestCase):
             text.index(self.hosts.ORIGIN_OVERLAY_START),
             text.index(self.hosts.GITIGNORE_END),
         )
+        runtime = text.split(self.hosts.GITIGNORE_END, 1)[0]
+        self.assertNotIn("!.chaos-engine/", runtime)
+        self.assertNotIn("!.chaos-engine/**", runtime)
+        overlay = text.split(self.hosts.ORIGIN_OVERLAY_START, 1)[1]
+        self.assertIn(".chaos-engine/", overlay.split(self.hosts.ORIGIN_OVERLAY_END, 1)[0])
 
     def test_origin_does_not_track_generated_overlay(self):
         result = subprocess.run(
@@ -154,10 +163,9 @@ class OneSourceOverlayTests(unittest.TestCase):
                 text=True,
             )
             detail = ignored.stdout + ignored.stderr
-            self.assertTrue(
-                ignored.returncode != 0 or "!.chaos-engine" in detail,
-                detail,
-            )
+            # RUNTIME no longer force-includes `.chaos-engine/`; adopters may
+            # still track it when nothing ignores the install tree (#5839).
+            self.assertNotEqual(0, ignored.returncode, detail)
             subprocess.run(["git", "add", "-A"], cwd=project, check=True, capture_output=True)
             listed = subprocess.run(
                 ["git", "ls-files"],

@@ -9,7 +9,7 @@ class TestOrchestratorFollowThrough(unittest.TestCase):
         self.assertIn("5 minutes", content)
         self.assertIn("10 minutes", content)
         self.assertIn("15 minutes", content)
-        self.assertIn("Scrum-master", content)
+        self.assertIn("process-owner", content)
 
 if __name__ == '__main__':
     unittest.main()

@@ -4876,7 +4876,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         "# Durable native Memory is tracked. Runtime/private only:\n"
         ".memory/index/\n.memory/context/\n.memory/exports/\n"
         ".memory/recovery/\n.memory/.backup/\n.memory/.lock\n.memory/private/\n"
-        "!.chaos-engine/\n!.chaos-engine/**\n.chaos-engine/**/__pycache__/\n"
+        ".chaos-engine/**/__pycache__/\n"
         "!.agents/\n!.agents/plugins/\n!.agents/plugins/marketplace.json\n"
         "!.agents/skills/\n!.agents/skills/README.md\n"
         "!.agents/skills/chaos-engine/\n!.agents/skills/chaos-engine/**\n"
