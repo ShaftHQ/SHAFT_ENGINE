@@ -27,3 +27,11 @@ repeated instructions into git-tracked policy.
 Curation still uses [self-improve](../skills/self-improve/SKILL.md) after
 delivery. Trace collection and map-reduce live in
 [learn-traces](learn-traces.md).
+
+Portable invocation (installed `.chaos-engine` only):
+
+`python3 .chaos-engine/learn_traces.py learn --out <run-dir>`
+
+That writes `report.md` + `actions.json` aimed at git-tracked overlay PRs, not
+`~/.grok/skills`. Host slash `/learn` adapters are thin pointers to the same
+command; they must not vendor a TUI workflow into the overlay.

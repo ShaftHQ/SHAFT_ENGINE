@@ -20,7 +20,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Harness learn | Tune git-tracked harness from traces; never user-home skill copies | [`harness-learn.md`](harness-learn.md) |
 | Design loop | Write-review-revise a design doc until reviewer reports 0 open issues | [`design-loop.md`](design-loop.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
-| Learn traces | Map-reduce-verify session traces; host TUI is optional | [`learn-traces.md`](learn-traces.md) |
+| Learn traces | Portable /learn map-reduce-verify; host TUI optional | [`learn-traces.md`](learn-traces.md) |
 | Prefer CLI over MCP | CLI when both exist; `gh` when configured; no default GitHub MCP | [`prefer-cli-over-mcp.md`](prefer-cli-over-mcp.md) |
 | Context economy | Bound reads/searches; prefer path+excerpt over dumps | [`context-economy.md`](context-economy.md) |
 | Retrieve-first | A store can shorten discovery; one bounded attempt | [`retrieve-first.md`](retrieve-first.md) |
