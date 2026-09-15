@@ -4169,6 +4169,57 @@ def apply_grok_lean_doctor(result: dict, project: Path) -> None:
     if isinstance(dedupe, dict) and dedupe.get("status") != "skipped":
         hosts["grokSkillDedupe"] = dedupe
 
+def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
+    """Doctor: missing Caveman/Ponytail without opt-out; heal identity.md (#5806/#5807)."""
+    import importlib.util as _ilu
+
+    components = result.get("components")
+    if not isinstance(components, dict):
+        components = {}
+        result["components"] = components
+    bundle = read_bundle_options(project)
+    for name, rel in (
+        ("caveman", "plugins/caveman/skills/caveman/SKILL.md"),
+        ("ponytail", "plugins/ponytail/skills/ponytail/SKILL.md"),
+    ):
+        enabled = bool(bundle.get(name, True))
+        present = (project / rel).is_file()
+        key = f"companion-{name}"
+        if enabled and not present:
+            components[key] = {
+                "status": "absent",
+                "taskImpact": "required",
+                "detail": f"{name}-missing-for-implementation",
+                "fixNext": (
+                    f"Rerun install/repair without --without-{name}, or repair "
+                    f"component plugins so {rel} exists. Implementation entrypoints "
+                    "require Caveman+Ponytail at ultra (#5806)."
+                ),
+            }
+            if result.get("status") == "healthy":
+                result["status"] = "recovery-required"
+        elif not enabled:
+            components[key] = {
+                "status": "absent",
+                "taskImpact": "optional",
+                "detail": f"{name}-disabled-by-bundle",
+            }
+        else:
+            components[key] = {"status": "healthy", "taskImpact": "required"}
+
+    identity_path = Path(__file__).resolve().with_name("identity_md.py")
+    if identity_path.is_file():
+        spec = _ilu.spec_from_file_location("ce_identity_doctor", identity_path)
+        if spec is not None and spec.loader is not None:
+            mod = _ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            identity = mod.ensure_identity_file(project, heal=True)
+            components["identity"] = {
+                "status": "healthy" if identity.get("status") == "healthy" else "sync-advisory",
+                "taskImpact": "advisory",
+                **{k: v for k, v in identity.items() if k != "status"},
+            }
+
 
 def apply_mcp_policy_doctor(
     result: dict[str, object],
@@ -4316,6 +4367,7 @@ def doctor_with_dependencies(
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
                 apply_mcp_policy_doctor(result, components, project.resolve(), _mod)
+                apply_companion_and_identity_doctor(result, project.resolve())
                 apply_ce_plugin_pin_doctor(result, components, project.resolve(), _mod)
                 conflict = _mod.user_instruction_conflict_error(project.resolve())
                 if conflict and isinstance(components.get("hosts"), dict):

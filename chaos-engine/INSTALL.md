@@ -126,6 +126,24 @@ remain **pointer** stubs (`skill_adapter_bytes` / load-canonical text). Prefer `
 `.grok/hooks` for Grok. Doctor may sync-advise if `grok inspect` lists duplicate chaos-engine
 skills.
 
+## Identity and implementation companions (#5806 / #5807)
+
+### [`identity.md`](identity.md) (seed + [`identity_md.py`](identity_md.py))
+
+Install/activate creates tracked `.chaos-engine/identity.md` from the ChaosEngine seed when
+missing (pragmatic / calculating / confident; unabridged Truth; kind mentor + honest worker).
+Host instruction markers and SessionStart inject a **pointer** only. The Truth section is
+wrapped in `CHAOSENGINE-IDENTITY-TRUTH` markers; Learning must not silently rewrite it.
+
+Doctor: create-on-heal when missing.
+
+### Caveman + Ponytail on implementation
+
+Portable `skills/chaos-engine/SKILL.md` requires Caveman and Ponytail at **ultra** on
+implementation entrypoints (router implement path / implementer role) — not every
+SessionStart turn. Opt out only with `--without-caveman` / `--without-ponytail`.
+Doctor flags missing companions when the bundle still enables them.
+
 
 ## Advanced topics
 

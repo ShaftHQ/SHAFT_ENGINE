@@ -1931,13 +1931,38 @@ def guidance_tree(project: Path | None = None) -> str:
     return INSTALLED_TREE
 
 
+
+def _load_identity_md():
+    import importlib.util as _ilu
+
+    path = Path(__file__).resolve().with_name("identity_md.py")
+    if not path.is_file():
+        return None
+    spec = _ilu.spec_from_file_location("ce_identity_md", path)
+    if spec is None or spec.loader is None:
+        return None
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def ensure_project_identity(project: Path) -> dict[str, object]:
+    """Create `.chaos-engine/identity.md` from seed when missing (#5807)."""
+    mod = _load_identity_md()
+    if mod is None:
+        return {"status": "skipped", "detail": "identity_md-missing"}
+    return mod.ensure_identity_file(project, heal=True)
+
+
 def instruction_block(tree: str = INSTALLED_TREE) -> str:
     tree = INSTALLED_TREE
     skill = f"{tree}/skills/chaos-engine/SKILL.md"
     tool = f"{tree}/tool.py"
+    identity = f"{tree}/identity.md"
     return (
         f"{START}\nBefore every task, follow the canonical "
         f"[ChaosEngine]({skill}). "
+        f"Load project identity from [{identity}]({identity}). "
         f"Use `{tool}` for the project-local Memory, MemPalace, and Graphify tools. "
         "Prefer gh for GitHub when gh exists and is configured. "
         "CLI over MCP when both exist. "
@@ -5044,7 +5069,9 @@ def desired_content(
     after["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
-        "That router decides whether to load the bundled Caveman and Ponytail companions.\n"
+        "That router requires Caveman + Ponytail at ultra on implementation entrypoints\n"
+        "(unless installed with --without-caveman/--without-ponytail).\n"
+        "Also load `.chaos-engine/identity.md` for project personality.\n"
     ).encode()
     claude_settings = _merge_or_preserve(
         ".claude/settings.json",
@@ -5960,7 +5987,9 @@ def role_adapter_desired(relative: str) -> bytes | None:
         ),
         "implementer": (
             "Implementer",
-            "Implement one bounded specification before consolidated validation.",
+            "Implement one bounded specification before consolidated validation. "
+            "On this implementation path load Caveman + Ponytail at ultra "
+            "(unless installed with --without-caveman/--without-ponytail).",
         ),
         "reviewer": (
             "Reviewer",
@@ -6288,6 +6317,7 @@ def install(
                 write_merge_handoff(project, _handoff_doctor_command())
                 with contextlib.suppress(Exception):
                     next_receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
+                    next_receipt["identity"] = ensure_project_identity(project)
                 return next_receipt
             except BaseException:
                 reconcile(project, current, (current, wanted))
@@ -6304,6 +6334,7 @@ def install(
         write_merge_handoff(project, _handoff_doctor_command())
         with contextlib.suppress(Exception):
             receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
+            receipt["identity"] = ensure_project_identity(project)
         return receipt
 
     before = current_images(project)
@@ -6342,6 +6373,7 @@ def install(
         write_merge_handoff(project, _handoff_doctor_command())
         with contextlib.suppress(Exception):
             receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
+            receipt["identity"] = ensure_project_identity(project)
         return receipt
     except BaseException:
         consume_merge_handoffs()

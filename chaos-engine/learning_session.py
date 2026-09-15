@@ -71,6 +71,23 @@ def _drain_significance(session_id: str) -> list[dict]:
     return drained if isinstance(drained, list) else []
 
 
+
+def protect_identity_truth_if_present(project, before: bytes | None, after: bytes) -> bytes:
+    """Preserve identity.md Truth markers across Learning proposals (#5807)."""
+    import importlib.util as _ilu
+    from pathlib import Path as _P
+
+    path = _P(__file__).resolve().with_name("identity_md.py")
+    if not path.is_file():
+        return after
+    spec = _ilu.spec_from_file_location("ce_identity_learn", path)
+    if spec is None or spec.loader is None:
+        return after
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.learning_may_write_identity(before, after)
+
+
 def finalize(
     session_id: str,
     *,

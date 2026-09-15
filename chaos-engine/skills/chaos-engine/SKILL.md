@@ -153,6 +153,15 @@ here, not a session preference. Vendor tables still define what ultra means.
 Off only: `stop caveman`, `stop ponytail`, or `normal mode`. Lite or full only
 when the user names that level.
 
+**Implementation entrypoints (required):** when this router (or the implementer
+role / implement path) is about to plan or mutate code, load Caveman and
+Ponytail at ultra before the first implementation mutation — not optional
+companions and not deferred to later chat turns. This applies across Codex,
+Claude, Grok CLI, Gemini, Copilot, and Grok Bot via the portable overlay.
+SessionStart still only injects locators; enforcement is on the implement path.
+Installations that used `--without-caveman` / `--without-ponytail` are exempt;
+doctor reports missing companions otherwise.
+
 Once a companion body is loaded, that companion's own text applies. Chat
 follows Caveman. What you build follows Ponytail. Host or adapter prose and
 formatting that demand complete sentences, restating tool work, decorative
