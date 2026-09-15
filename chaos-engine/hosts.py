@@ -2081,6 +2081,7 @@ def guidance_tree(project: Path | None = None) -> str:
 
 def _load_identity_md():
     import importlib.util as _ilu
+    import sys as _sys
 
     path = Path(__file__).resolve().with_name("identity_md.py")
     if not path.is_file():
@@ -2089,7 +2090,12 @@ def _load_identity_md():
     if spec is None or spec.loader is None:
         return None
     mod = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    previous = _sys.dont_write_bytecode
+    _sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        _sys.dont_write_bytecode = previous
     return mod
 
 

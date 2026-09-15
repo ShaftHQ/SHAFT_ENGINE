@@ -4197,7 +4197,14 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
             if spec is not None and spec.loader is not None:
                 hosts_mod = _ilu.module_from_spec(spec)
                 try:
-                    spec.loader.exec_module(hosts_mod)
+                    import sys as _sys
+
+                    previous = _sys.dont_write_bytecode
+                    _sys.dont_write_bytecode = True
+                    try:
+                        spec.loader.exec_module(hosts_mod)
+                    finally:
+                        _sys.dont_write_bytecode = previous
                     healed = hosts_mod.rematerialize_companions(
                         project, names=tuple(missing_enabled)
                     )
@@ -4278,10 +4285,17 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
 
     identity_path = Path(__file__).resolve().with_name("identity_md.py")
     if identity_path.is_file():
+        import sys as _sys
+
         spec = _ilu.spec_from_file_location("ce_identity_doctor", identity_path)
         if spec is not None and spec.loader is not None:
             mod = _ilu.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            previous = _sys.dont_write_bytecode
+            _sys.dont_write_bytecode = True
+            try:
+                spec.loader.exec_module(mod)
+            finally:
+                _sys.dont_write_bytecode = previous
             identity = mod.ensure_identity_file(project, heal=True)
             components["identity"] = {
                 "status": "healthy" if identity.get("status") == "healthy" else "sync-advisory",

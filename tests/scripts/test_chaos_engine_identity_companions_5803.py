@@ -67,8 +67,8 @@ class CompanionPolicyTests(unittest.TestCase):
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("Implementation entrypoints (required)", skill)
-        self.assertIn("load Caveman and", skill)
+        self.assertIn("Implement path (required)", skill)
+        self.assertIn("load Caveman+Ponytail", skill)
         self.assertIn("Ponytail at ultra", skill)
         self.assertIn("--without-caveman", skill)
 
