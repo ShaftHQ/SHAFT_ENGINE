@@ -14,6 +14,7 @@
   Air-gapped consumers then unpack with:
     mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize
   or rely on AllureManager.tryProvisionAllureCli (local zip → runtime cache).
+  Operator docs: chaos-engine/profiles/shaft/references/shaft-mastery/allure-internals.md
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
