@@ -115,6 +115,16 @@ class VisualOcrWorkflowTest(unittest.TestCase):
                     if "flutter-demo.apk" in step.get("run", "") and "cp " in step.get("run", ""))
         self.assertIn("shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk", wire)
 
+    def test_local_flutter_android_sdk_omits_deprecated_tools_package(self):
+        # Mirror e2eTests Flutter_Demo_App_Build (#5826): Google no longer serves SDK
+        # `tools`, so setup-android must request platform-tools only (#5827).
+        workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
+        setup = next(step for step in steps if step.get("name") == "Setup Android SDK")
+        self.assertEqual("android-actions/setup-android@v4.0.1", setup["uses"])
+        self.assertEqual("platform-tools", setup.get("with", {}).get("packages"))
+        self.assertNotIn("tools", (setup.get("with", {}).get("packages") or "").split())
+
     def test_flutter_emulator_keeps_jdk17_for_apk_and_jdk25_for_maven(self):
         workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
