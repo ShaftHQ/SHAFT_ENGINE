@@ -74,6 +74,15 @@ import java.util.regex.Pattern;
 public class AllureManager {
     private static final int INDEX_PATCH_BUFFER_SIZE = 64 * 1024;
 
+    /**
+     * Default Maven-local cache root for the pinned Allure 3 CLI (#5801).
+     * Layout: {@code <cacheRoot>/<allure3Version>/node_modules/allure/cli.js}.
+     * Override with system property {@code allure.cli.cacheRoot} (tests / custom CI layouts).
+     */
+    private static final String ALLURE_CLI_CACHE_DIR_DEFAULT = System.getProperty("user.home")
+            + File.separator + ".m2" + File.separator + "repository"
+            + File.separator + "allure" + File.separator + "allure-cli" + File.separator;
+
     private AllureManager() {
         throw new IllegalStateException("Utility class");
     }
@@ -635,15 +644,6 @@ public class AllureManager {
     private static final String NODEJS_CACHE_DIR = System.getProperty("user.home")
             + File.separator + ".m2" + File.separator + "repository"
             + File.separator + "nodejs" + File.separator;
-
-    /**
-     * Default Maven-local cache root for the pinned Allure 3 CLI (#5801).
-     * Layout: {@code <cacheRoot>/<allure3Version>/node_modules/allure/cli.js}.
-     * Override with system property {@code allure.cli.cacheRoot} (tests / custom CI layouts).
-     */
-    private static final String ALLURE_CLI_CACHE_DIR_DEFAULT = System.getProperty("user.home")
-            + File.separator + ".m2" + File.separator + "repository"
-            + File.separator + "allure" + File.separator + "allure-cli" + File.separator;
 
     /** Cached resolved command prefix for allure (e.g. provisioned {@code node cli.js} or {@code "npx --yes allure@3.x.x"}).
      *  {@code null} means resolution has not happened yet; {@code ""} means no CLI was found. */
@@ -1966,17 +1966,40 @@ public class AllureManager {
      * @return {@code true} when {@code cli.js} is present after this call
      */
     public static boolean tryProvisionAllureCli(String allure3Version) {
-        if (allure3Version == null || !allure3Version.matches("[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?")) {
+        if (!isValidPinnedAllureVersion(allure3Version)) {
             return false;
         }
         if (isProvisionedAllureCliPresent(allure3Version)) {
             return true;
         }
-        if (Boolean.parseBoolean(System.getProperty("allure.cli.skipProvision", "false"))) {
-            ReportManager.logDiscrete("Skipping Allure CLI Maven-cache provision (allure.cli.skipProvision=true).");
+        if (isAllureCliProvisionSkipped()) {
             return false;
         }
+        return provisionAllureCliIntoCache(allure3Version);
+    }
 
+    /** @return {@code true} when {@code version} looks like a pinned Allure 3 SemVer token. */
+    private static boolean isValidPinnedAllureVersion(String version) {
+        return version != null
+                && version.matches("[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?");
+    }
+
+    /** @return {@code true} when callers opted out via {@code allure.cli.skipProvision=true}. */
+    private static boolean isAllureCliProvisionSkipped() {
+        if (!Boolean.parseBoolean(System.getProperty("allure.cli.skipProvision", "false"))) {
+            return false;
+        }
+        ReportManager.logDiscrete("Skipping Allure CLI Maven-cache provision (allure.cli.skipProvision=true).");
+        return true;
+    }
+
+    /**
+     * Installs {@code allure@<version>} into the Maven-local CLI cache using npm.
+     *
+     * @param allure3Version pinned Allure 3 npm package version
+     * @return {@code true} when {@code cli.js} is present afterwards
+     */
+    private static boolean provisionAllureCliIntoCache(String allure3Version) {
         String nodeBinary = resolveNodeBinaryForCli();
         if (nodeBinary == null) {
             ReportManager.logDiscrete("Cannot provision Allure CLI into Maven cache: Node.js is unavailable.");
@@ -1984,24 +2007,7 @@ public class AllureManager {
         }
 
         String cliHome = getAllureCliHome(allure3Version);
-        File cliHomeDir = new File(cliHome);
-        if (!cliHomeDir.mkdirs() && !cliHomeDir.isDirectory()) {
-            ReportManager.logDiscrete("Cannot create Allure CLI cache directory: " + cliHome);
-            return false;
-        }
-
-        try {
-            Path packageJson = Path.of(cliHome, "package.json");
-            if (!Files.exists(packageJson)) {
-                Files.writeString(packageJson, """
-                        {
-                          "name": "shaft-allure-cli-runtime",
-                          "private": true
-                        }
-                        """);
-            }
-        } catch (IOException e) {
-            ReportManager.logDiscrete("Cannot write Allure CLI package.json: " + e.getMessage());
+        if (!ensureAllureCliHomeReady(cliHome)) {
             return false;
         }
 
@@ -2014,7 +2020,38 @@ public class AllureManager {
         ReportManager.logDiscrete("Provisioning pinned Allure 3 CLI allure@" + allure3Version
                 + " into Maven cache: " + cliHome);
         internalTerminalSession.performTerminalCommand(npmInvocation);
+        return verifyProvisionedAllureCliPresent(allure3Version);
+    }
 
+    /** Creates the CLI cache home and a minimal {@code package.json} when missing. */
+    private static boolean ensureAllureCliHomeReady(String cliHome) {
+        File cliHomeDir = new File(cliHome);
+        if (!cliHomeDir.mkdirs() && !cliHomeDir.isDirectory()) {
+            ReportManager.logDiscrete("Cannot create Allure CLI cache directory: " + cliHome);
+            return false;
+        }
+        return writeAllureCliPackageJson(cliHome);
+    }
+
+    private static boolean writeAllureCliPackageJson(String cliHome) {
+        try {
+            Path packageJson = Path.of(cliHome, "package.json");
+            if (!Files.exists(packageJson)) {
+                Files.writeString(packageJson, """
+                        {
+                          "name": "shaft-allure-cli-runtime",
+                          "private": true
+                        }
+                        """);
+            }
+            return true;
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Cannot write Allure CLI package.json: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean verifyProvisionedAllureCliPresent(String allure3Version) {
         boolean present = isProvisionedAllureCliPresent(allure3Version);
         if (!present) {
             ReportManager.logDiscrete("Allure CLI provision finished but cli.js was not found at "
