@@ -1928,6 +1928,15 @@ def parser() -> argparse.ArgumentParser:
             action="store_true",
             help=f"Disable default-on {bundle_name} (Memory/MemPalace/Graphify/Ponytail/Caveman).",
         )
+    result.add_argument(
+        "--lean-grok-skills",
+        action="store_true",
+        default=False,
+        help=(
+            "Recommended for ChaosEngine: disable Grok bundled game-* and imagine "
+            "skills via ~/.grok/config.toml (or CHAOS_ENGINE_LEAN_GROK_SKILLS=1)."
+        ),
+    )
     result.add_argument("--interactive", action="store_true")
     return result
 

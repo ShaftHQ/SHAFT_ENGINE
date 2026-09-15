@@ -3722,6 +3722,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                             or "Trust and reload Grok project hooks, then rerun doctor."
                         ),
                     }
+            apply_grok_lean_doctor(result, project.resolve())
             removing = project / ".chaos-engine-runtime.removing"
             backup = project / ".chaos-engine-runtime.backup"
             building = project / ".chaos-engine-runtime.building"
@@ -4123,6 +4124,50 @@ def apply_ce_plugin_pin_doctor(
         components["plugins"]["fixNext"] = (
             "Enable only chaos-engine, caveman, and ponytail plugins."
         )
+
+
+
+def apply_grok_lean_doctor(result: dict, project: Path) -> None:
+    """Attach lean-compat / lean-skills / skill-dedupe advisories (#5802/#5804/#5805)."""
+    import importlib.util as _ilu
+    import sys as _sys
+
+    path = Path(__file__).resolve().with_name("grok_lean_config.py")
+    if not path.is_file():
+        return
+    spec = _ilu.spec_from_file_location("ce_grok_lean_doctor", path)
+    if spec is None or spec.loader is None:
+        return
+    mod = _ilu.module_from_spec(spec)
+    previous = _sys.dont_write_bytecode
+    _sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        _sys.dont_write_bytecode = previous
+    hosts = result.get("hosts")
+    if not isinstance(hosts, dict):
+        hosts = {}
+        result["hosts"] = hosts
+    compat = mod.doctor_lean_compat(project, heal=True)
+    if isinstance(compat, dict) and compat.get("status") != "skipped":
+        hosts["grokLeanCompat"] = compat
+        if compat.get("status") == "sync-advisory":
+            hosts.setdefault("hostEnvironment", {})
+            env = hosts["hostEnvironment"]
+            if isinstance(env, dict) and env.get("status") != "sync-advisory":
+                hosts["hostEnvironment"] = {
+                    "status": "sync-advisory",
+                    "detail": "grok-lean-compat",
+                    "fixNext": compat.get("fixNext") or compat.get("detail"),
+                }
+    tip = mod.doctor_lean_skills_tip(project)
+    if isinstance(tip, dict) and tip.get("status") == "sync-advisory":
+        hosts["grokLeanSkills"] = tip
+    # skill dedupe best-effort (also inside grok_runtime_status)
+    dedupe = mod.doctor_grok_skill_dedupe(project)
+    if isinstance(dedupe, dict) and dedupe.get("status") != "skipped":
+        hosts["grokSkillDedupe"] = dedupe
 
 
 def apply_mcp_policy_doctor(
@@ -4815,6 +4860,15 @@ def parser() -> argparse.ArgumentParser:
             action="store_true",
             help=f"Disable default-on {bundle_name} provisioning.",
         )
+    install_command.add_argument(
+        "--lean-grok-skills",
+        action="store_true",
+        default=False,
+        help=(
+            "Recommended for ChaosEngine: merge [skills] disabled for game-* and "
+            "imagine into ~/.grok/config.toml (also CHAOS_ENGINE_LEAN_GROK_SKILLS=1)."
+        ),
+    )
     repair_command = commands.add_parser(
         "repair",
         help="Targeted zero-LLM repair for one component (no full wipe).",
