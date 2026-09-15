@@ -15,6 +15,12 @@ import java.util.regex.Pattern;
 /**
  * Issue #4271: the single deterministic locator-selection policy for every SHAFT surface that
  * identifies an element from captured evidence.
+ *
+ * <p><b>Emission vs engine FR-1 (#5819 / #5457):</b> {@link Tier} order elevates a unique stable
+ * authored id for <em>codegen emission</em>. Runtime resolution, MCP agent context, and heal
+ * suggestions use {@link com.shaft.gui.internal.locator.semantic.SemanticLocatorStrategy}
+ * (ROLE → … → XPATH). See {@link SemanticCaptureMapping} for the documented mapping; do not
+ * invent a second precedence enum in capture.
  */
 public final class LocatorPolicy {
     private static final Set<String> TAGS_WITHOUT_OWN_TEXT = Set.of("input", "textarea", "select");
@@ -196,10 +202,13 @@ public final class LocatorPolicy {
     }
 
     /**
-     * Emission tiers, most preferred first.
+     * Emission tiers, most preferred first (codegen only — not engine FR-1).
+     *
+     * <p>{@link #UNIQUE_ID} intentionally precedes role for generated source stability; engine
+     * {@code SemanticLocatorResolver} still prefers ROLE/NAME semantics at runtime (#5819).
      */
     public enum Tier {
-        /** A unique, stable, human-authored {@code id}. */
+        /** A unique, stable, human-authored {@code id} (codegen preference over role). */
         UNIQUE_ID,
         /** A recorder-verified ARIA role that maps to a {@link Role} constant. */
         VERIFIED_ROLE,
