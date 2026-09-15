@@ -183,15 +183,18 @@ class McpServiceHelperTest {
         assertEquals("click sign in", result.get("userIntent"));
         assertEquals("button", candidate.get("tagName"));
         assertEquals("Sign in", candidate.get("accessibleName"));
-        // Issue #4271: browser_open_intent ranks through the shared LocatorRanker, so it now follows
-        // the unified policy's tiers. This button carries a unique, stable, author-written id
-        // ("submit-login"), which is tier 1 and outranks its ARIA role -- the same ordering codegen
-        // uses. Recommending one locator here and a different one from codegen for the same element
-        // is precisely the divergence issue #4270 exists to remove.
-        assertEquals("ID", bestLocator.get("strategy"));
-        assertTrue(String.valueOf(candidate.get("shaftLocatorCode"))
-                .contains("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"submit-login\").build()"),
+        // Issue #5818 / #5457: MCP agent context follows engine FR-1 (ROLE before UNIQUE_ID).
+        // Capture codegen may still emit UNIQUE_ID via LocatorPolicy; that intentional split is
+        // documented on SemanticCaptureMapping (#5819). Agent bestLocator must not silently prefer id.
+        assertEquals("ROLE", bestLocator.get("strategy"));
+        assertTrue(String.valueOf(candidate.get("shaftLocatorCode")).contains("hasRole")
+                        || String.valueOf(candidate.get("shaftLocatorCode")).contains("Sign in"),
                 String.valueOf(candidate.get("shaftLocatorCode")));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> semantic = (Map<String, Object>) candidate.get("semanticResolution");
+        assertEquals(true, semantic.get("resolved"));
+        assertEquals("ROLE", semantic.get("strategy"));
+        assertEquals(false, semantic.get("ambiguous"));
         @SuppressWarnings("unchecked")
         List<String> nextTools = (List<String>) result.get("nextTools");
         assertTrue(nextTools.contains("element_click"));

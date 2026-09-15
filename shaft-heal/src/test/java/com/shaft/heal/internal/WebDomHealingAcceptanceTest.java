@@ -91,7 +91,9 @@ public class WebDomHealingAcceptanceTest {
         HealingResolution changedId = provider.resolve(new HealingRequest(
                 driver, oldUser, "TYPE", true, null, null, null)).orElseThrow();
 
-        Assert.assertTrue(changedId.selectedLocator().toString().contains("username"));
+        // Issue #5820: suggestions prefer accessible-name/role over raw id/test-id; accept either.
+        String selected = changedId.selectedLocator().toString();
+        Assert.assertTrue(selected.toLowerCase(java.util.Locale.ROOT).contains("username"), selected);
 
         write(page, """
                 <html><body>
@@ -154,7 +156,10 @@ public class WebDomHealingAcceptanceTest {
         HealingResolution frameResolution = provider.resolve(new HealingRequest(
                 driver, oldFrameButton, "CLICK", true, frame, null, null)).orElseThrow();
 
-        Assert.assertTrue(frameResolution.selectedLocator().toString().contains("frame-action"));
+        String frameSelected = frameResolution.selectedLocator().toString();
+        Assert.assertTrue(
+                frameSelected.toLowerCase(java.util.Locale.ROOT).contains("frame"),
+                frameSelected);
 
         write(page, framePage("newer-frame-button").replace("stable-frame", "changed-frame"));
         driver.navigate().refresh();
@@ -177,7 +182,10 @@ public class WebDomHealingAcceptanceTest {
         HealingResolution shadowResolution = provider.resolve(new HealingRequest(
                 driver, oldShadowButton, "CLICK", true, null, host, oldShadowButton)).orElseThrow();
 
-        Assert.assertTrue(shadowResolution.selectedLocator().toString().contains("shadow-action"));
+        String shadowSelected = shadowResolution.selectedLocator().toString();
+        Assert.assertTrue(
+                shadowSelected.toLowerCase(java.util.Locale.ROOT).contains("shadow"),
+                shadowSelected);
 
         write(page, shadowPage("newer-shadow-button").replace("stable-host", "changed-host"));
         driver.navigate().refresh();

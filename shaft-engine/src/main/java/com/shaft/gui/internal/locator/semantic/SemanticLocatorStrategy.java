@@ -4,6 +4,12 @@ package com.shaft.gui.internal.locator.semantic;
  * Locator strategy ordered by user-perceived semantics (issue #5457 FR-1).
  * Lower {@link #ordinal()} = higher precedence. Structural strategies are the
  * deterministic fallback when semantic signals are absent (FR-4).
+ *
+ * <p>Shared single-source ordering for engine resolve, capture ranking (#5819),
+ * MCP agent context (#5818), and heal suggestions (#5820). Capture <em>codegen
+ * emission</em> still elevates a unique stable authored id via
+ * {@code LocatorPolicy.Tier.UNIQUE_ID}; that intentional difference is documented
+ * on the capture policy, not duplicated as a second precedence enum.
  */
 public enum SemanticLocatorStrategy {
     /** ARIA role paired with accessible name. */
@@ -47,5 +53,16 @@ public enum SemanticLocatorStrategy {
             case CSS -> 0.35;
             case XPATH -> 0.25;
         };
+    }
+
+    /**
+     * Integer ranking weight for capture/heal scorers (higher = preferred).
+     * Derived from FR-1 ordinal so surfaces cannot drift from
+     * {@link SemanticLocatorResolver} (#5819).
+     *
+     * @return positive priority aligned with engine precedence
+     */
+    public int rankPriority() {
+        return (values().length - ordinal()) * 100;
     }
 }

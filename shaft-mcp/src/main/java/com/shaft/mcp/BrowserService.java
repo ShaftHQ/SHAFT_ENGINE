@@ -1005,29 +1005,76 @@ public class BrowserService {
 
     private static Map<String, Object> elementCandidate(ScoredElement item) {
         ElementSnapshot snapshot = item.snapshot();
-        Map<String, Object> best = locatorCandidate(item.selection().selected(), snapshot);
-        return Map.of(
-                "tagName", snapshot.tagName(),
-                "role", snapshot.role(),
-                "accessibleName", snapshot.accessibleName(),
-                "label", snapshot.label(),
-                "text", item.text(),
-                "intentScore", item.intentScore(),
-                "bestLocator", best,
-                "alternativeLocators", item.selection().alternatives().stream()
-                        .map(alternative -> locatorCandidate(alternative, snapshot))
-                        .toList(),
-                "shaftLocatorCode", best.get("shaftLocatorCode"));
+        // Issue #5818: agent best locator follows engine SemanticLocatorResolver (FR-1),
+        // not capture UNIQUE_ID emission preference. Ambiguity never silently picks (SC-2).
+        SemanticLocatorAgentBridge.ResolveOutcome semantic = SemanticLocatorAgentBridge.resolve(snapshot);
+        Map<String, Object> semanticPayload = SemanticLocatorAgentBridge.toPayload(semantic);
+        LocatorRanker.ScoredLocator rankedBest = item.selection().selected();
+        Map<String, Object> best = locatorCandidate(rankedBest, snapshot);
+        String shaftCode = (String) best.get("shaftLocatorCode");
+        if (semantic.resolution().isPresent()) {
+            LocatorCandidate preferred = preferredCandidate(snapshot, semantic.resolution().get().strategy().name());
+            if (preferred != null) {
+                best = locatorCandidateFrom(preferred, snapshot, rankedBest.score(), rankedBest.breakdown());
+                shaftCode = (String) best.get("shaftLocatorCode");
+            }
+        } else if (semantic.ambiguous()) {
+            // Do not promote a silent ranked pick as the semantic recommendation.
+            best = new LinkedHashMap<>(best);
+            best.put("semanticSuppressed", true);
+            best.put("reason", "Ambiguous semantic target; explicit review/scope required.");
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("tagName", snapshot.tagName());
+        payload.put("role", snapshot.role());
+        payload.put("accessibleName", snapshot.accessibleName());
+        payload.put("label", snapshot.label());
+        payload.put("text", item.text());
+        payload.put("intentScore", item.intentScore());
+        payload.put("bestLocator", best);
+        payload.put("alternativeLocators", item.selection().alternatives().stream()
+                .map(alternative -> locatorCandidate(alternative, snapshot))
+                .toList());
+        payload.put("shaftLocatorCode", shaftCode);
+        payload.put("semanticResolution", semanticPayload);
+        return Map.copyOf(payload);
+    }
+
+    private static LocatorCandidate preferredCandidate(ElementSnapshot snapshot, String engineStrategy) {
+        for (LocatorCandidate candidate : snapshot.locatorCandidates()) {
+            if (candidate.strategy().name().equalsIgnoreCase(engineStrategy)
+                    || ("ACCESSIBLE_NAME".equalsIgnoreCase(engineStrategy)
+                    && candidate.strategy() == LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME)
+                    || ("TEST_ID".equalsIgnoreCase(engineStrategy)
+                    && candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)) {
+                return candidate;
+            }
+        }
+        // TEXT has no capture enum — fall through to ACCESSIBLE_NAME / LABEL candidates.
+        if ("TEXT".equalsIgnoreCase(engineStrategy)) {
+            for (LocatorCandidate candidate : snapshot.locatorCandidates()) {
+                if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME
+                        || candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
     }
 
     private static Map<String, Object> locatorCandidate(LocatorRanker.ScoredLocator scored, ElementSnapshot target) {
-        LocatorCandidate locator = scored.candidate();
-        return Map.of(
-                "strategy", locator.strategy().name(),
-                "expression", locator.expression(),
-                "score", scored.score(),
-                "scoreBreakdown", scored.breakdown(),
-                "shaftLocatorCode", locatorCode(locator, target));
+        return locatorCandidateFrom(scored.candidate(), target, scored.score(), scored.breakdown());
+    }
+
+    private static Map<String, Object> locatorCandidateFrom(
+            LocatorCandidate locator, ElementSnapshot target, int score, List<String> breakdown) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("strategy", locator.strategy().name());
+        values.put("expression", locator.expression());
+        values.put("score", score);
+        values.put("scoreBreakdown", breakdown);
+        values.put("shaftLocatorCode", locatorCode(locator, target));
+        return Map.copyOf(values);
     }
 
     // Package-private so PlannerService (test_plan_explore) can render the same SHAFT.GUI.Locator

@@ -16,17 +16,15 @@ import java.util.TreeMap;
 
 /**
  * Deterministically ranks captured locator evidence with explainable scoring.
+ *
+ * <p>Within an emission {@link LocatorPolicy.Tier}, strategy preference follows engine
+ * {@link com.shaft.gui.internal.locator.semantic.SemanticLocatorStrategy} FR-1 order via
+ * {@link SemanticCaptureMapping} (issue #5819). Tier boundaries (UNIQUE_ID first for codegen)
+ * remain intentional and documented on {@link LocatorPolicy}.
  */
 public final class LocatorRanker {
-    private static final Map<LocatorCandidate.LocatorStrategy, Integer> STRATEGY_PRIORITY = Map.of(
-            LocatorCandidate.LocatorStrategy.ROLE, 800,
-            LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME, 750,
-            LocatorCandidate.LocatorStrategy.LABEL, 700,
-            LocatorCandidate.LocatorStrategy.TEST_ID, 650,
-            LocatorCandidate.LocatorStrategy.ID, 600,
-            LocatorCandidate.LocatorStrategy.NAME, 550,
-            LocatorCandidate.LocatorStrategy.CSS, 400,
-            LocatorCandidate.LocatorStrategy.XPATH, 200);
+    // Issue #5819: strategy weights come from SemanticLocatorStrategy.rankPriority() via
+    // SemanticCaptureMapping so capture ranking cannot drift from engine FR-1.
 
     /**
      * Selects the strongest candidate for one captured target.
@@ -65,7 +63,7 @@ public final class LocatorRanker {
     public static final Comparator<ScoredLocator> BEST_FIRST =
             Comparator.comparingInt(LocatorRanker::tierRank)
                     .thenComparing(Comparator.comparingInt(ScoredLocator::score).reversed())
-                    .thenComparingInt(item -> -STRATEGY_PRIORITY.get(item.candidate().strategy()))
+                    .thenComparingInt(item -> -SemanticCaptureMapping.rankPriority(item.candidate().strategy()))
                     .thenComparing(item -> item.candidate().strategy().name())
                     .thenComparing(item -> item.candidate().expression());
 
@@ -87,7 +85,7 @@ public final class LocatorRanker {
             EventContext context,
             boolean interaction) {
         Map<String, Integer> components = new TreeMap<>();
-        components.put("strategy", STRATEGY_PRIORITY.get(candidate.strategy()));
+        components.put("strategy", SemanticCaptureMapping.rankPriority(candidate.strategy()));
         components.put("uniqueness", uniqueness(candidate.uniquenessCount()));
         components.put("visibility", candidate.visible() && target.visible() ? 80 : -120);
         components.put("interactability", interaction ? (target.enabled() ? 70 : -180) : 0);

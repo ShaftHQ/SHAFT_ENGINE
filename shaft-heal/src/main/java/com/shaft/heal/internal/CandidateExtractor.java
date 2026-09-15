@@ -73,10 +73,11 @@ final class CandidateExtractor {
             boolean interactable = visible && enabled(element);
             String candidateId = HealingSupport.sha256(
                     proposal.locator() + "\n" + fingerprint).substring(0, 16);
-            List<String> evidence = score.evidenceScores().entrySet().stream()
+            List<String> evidence = new ArrayList<>(score.evidenceScores().entrySet().stream()
                     .filter(item -> item.getValue() > 0)
                     .map(item -> item.getKey() + "=" + String.format(java.util.Locale.ROOT, "%.3f", item.getValue()))
-                    .toList();
+                    .toList());
+            evidence.addAll(proposal.suggestionEvidence());
             HealingCandidate report = new HealingCandidate(
                     candidateId,
                     proposal.locator().toString(),
@@ -112,22 +113,11 @@ final class CandidateExtractor {
         if (fingerprint.platform().nativePlatform()) {
             return nativeDiscoveryLocators(fingerprint);
         }
-        Set<By> locators = new LinkedHashSet<>();
-        addAttribute(locators, "id", fingerprint.id());
-        addAttribute(locators, "name", fingerprint.name());
-        fingerprint.testIds().forEach((attribute, value) -> addAttribute(locators, attribute, value));
-        addAttribute(locators, "aria-label", fingerprint.accessibleName());
-        addAttribute(locators, "aria-label", fingerprint.semanticAttributes().get("aria-label"));
-        addAttribute(locators, "placeholder", fingerprint.placeholder());
-        addAttribute(locators, "title", fingerprint.title());
-        addAttribute(locators, "role", fingerprint.role());
-        if (!shadowContext && !fingerprint.associatedLabel().isBlank()) {
-            String label = xpathLiteral(fingerprint.associatedLabel());
-            locators.add(By.xpath("//*[@id = //label[normalize-space(.)=" + label + "]/@for]"));
-            locators.add(By.xpath("//label[normalize-space(.)=" + label + "]//*"));
-        }
-        if (!shadowContext && !fingerprint.accessibleName().isBlank()) {
-            locators.add(By.xpath("//*[normalize-space(.)=" + xpathLiteral(fingerprint.accessibleName()) + "]"));
+        // Issue #5820: discovery order follows SemanticLocatorStrategy FR-1 via proposals.
+        LinkedHashSet<By> locators = new LinkedHashSet<>();
+        for (SemanticFingerprintProposals.Proposal proposal
+                : SemanticFingerprintProposals.suggestions(fingerprint, shadowContext)) {
+            locators.add(proposal.locator());
         }
         if (!fingerprint.tagName().isBlank()) {
             locators.add(By.tagName(fingerprint.tagName()));
@@ -142,32 +132,30 @@ final class CandidateExtractor {
         if (fingerprint.platform().nativePlatform()) {
             return proposeNativeLocator(context, element, fingerprint);
         }
-        List<By> proposals = new ArrayList<>();
-        fingerprint.testIds().forEach((attribute, value) -> proposals.add(attributeLocator(attribute, value)));
-        if (!fingerprint.id().isBlank()) {
-            proposals.add(By.id(fingerprint.id()));
-        }
-        if (!fingerprint.name().isBlank()) {
-            proposals.add(By.name(fingerprint.name()));
-        }
-        addProposal(proposals, "aria-label", fingerprint.accessibleName());
-        addProposal(proposals, "aria-label", fingerprint.semanticAttributes().get("aria-label"));
-        addProposal(proposals, "placeholder", fingerprint.placeholder());
-        addProposal(proposals, "title", fingerprint.title());
-        for (By proposal : proposals) {
+        // Issue #5820: suggested replacements prefer ROLE/NAME/LABEL/TEST_ID over structure.
+        // Ambiguous (non-unique) proposals are skipped — never silently applied (FR-2).
+        for (SemanticFingerprintProposals.Proposal proposal
+                : SemanticFingerprintProposals.suggestions(fingerprint, false)) {
             try {
-                List<WebElement> matches = context.findElements(proposal);
+                List<WebElement> matches = context.findElements(proposal.locator());
                 if (matches.size() == 1 && matches.getFirst().equals(element)) {
-                    return new LocatorProposal(proposal, true);
+                    List<String> evidence = List.of(
+                            "strategy=" + proposal.strategy().name(),
+                            "confidence=" + String.format(java.util.Locale.ROOT, "%.3f", proposal.confidence()),
+                            "expression=" + proposal.expression());
+                    return new LocatorProposal(proposal.locator(), true, evidence);
                 }
             } catch (WebDriverException ignored) {
-                // Try the next explainable proposal.
+                // Try the next FR-1 proposal.
             }
         }
         By fallback = fingerprint.tagName().isBlank()
                 ? By.cssSelector("*")
                 : By.tagName(fingerprint.tagName());
-        return new LocatorProposal(fallback, false);
+        return new LocatorProposal(fallback, false, List.of(
+                "strategy=CSS",
+                "confidence=0.350",
+                "usedSemanticFallback=" + !SemanticFingerprintProposals.hasSemanticFields(fingerprint)));
     }
 
     private static Optional<SearchContext> searchContext(
@@ -248,11 +236,6 @@ final class CandidateExtractor {
         return new LocatorProposal(fallback, false);
     }
 
-    private static void addAttribute(Set<By> locators, String attribute, String value) {
-        if (value != null && !value.isBlank()) {
-            locators.add(attributeLocator(attribute, value));
-        }
-    }
 
     private static void addNativeAccessibilityId(java.util.Collection<By> locators, String value) {
         if (value != null && !value.isBlank()) {
@@ -278,19 +261,7 @@ final class CandidateExtractor {
         }
     }
 
-    private static void addProposal(List<By> proposals, String attribute, String value) {
-        if (value != null && !value.isBlank()) {
-            proposals.add(attributeLocator(attribute, value));
-        }
-    }
 
-    private static By attributeLocator(String attribute, String value) {
-        String escaped = value.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\r", "\\d ")
-                .replace("\n", "\\a ");
-        return By.cssSelector("[" + attribute + "=\"" + escaped + "\"]");
-    }
 
     private static String xpathLiteral(String value) {
         if (!value.contains("'")) {
@@ -326,6 +297,13 @@ final class CandidateExtractor {
         }
     }
 
-    private record LocatorProposal(By locator, boolean unique) {
+    private record LocatorProposal(By locator, boolean unique, List<String> suggestionEvidence) {
+        private LocatorProposal(By locator, boolean unique) {
+            this(locator, unique, List.of());
+        }
+
+        private LocatorProposal {
+            suggestionEvidence = suggestionEvidence == null ? List.of() : List.copyOf(suggestionEvidence);
+        }
     }
 }
