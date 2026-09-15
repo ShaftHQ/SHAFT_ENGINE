@@ -52,11 +52,16 @@
 <li><a href="#css(java.lang.String)" tabindex="0">css(String)</a></li>
 <li><a href="#xpath(java.lang.String)" tabindex="0">xpath(String)</a></li>
 <li><a href="#text(java.lang.String)" tabindex="0">text(String)</a></li>
+<li><a href="#role(java.lang.String,java.lang.String)" tabindex="0">role(String, String)</a></li>
+<li><a href="#accessibleName(java.lang.String)" tabindex="0">accessibleName(String)</a></li>
+<li><a href="#from(com.shaft.gui.internal.locator.semantic.SemanticLocatorResolution)" tabindex="0">from(SemanticLocatorResolution)</a></li>
 <li><a href="#from(org.openqa.selenium.By)" tabindex="0">from(By)</a></li>
 <li><a href="#strategy()" tabindex="0">strategy()</a></li>
 <li><a href="#value()" tabindex="0">value()</a></li>
+<li><a href="#secondaryValue()" tabindex="0">secondaryValue()</a></li>
 <li><a href="#toBy()" tabindex="0">toBy()</a></li>
 <li><a href="#toPlaywrightLocator(com.microsoft.playwright.Page)" tabindex="0">toPlaywrightLocator(Page)</a></li>
+<li><a href="#toPlaywrightLocator(com.microsoft.playwright.Locator)" tabindex="0">toPlaywrightLocator(Locator)</a></li>
 <li><a href="#toPlaywrightSelector()" tabindex="0">toPlaywrightSelector()</a></li>
 <li><a href="#toString()" tabindex="0">toString()</a></li>
 </ol>
@@ -77,7 +82,13 @@
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">ShaftLocator</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
 <div class="block">Backend-neutral SHAFT locator that resolves to Selenium <code>By</code> or
-Playwright <code>Locator</code>.</div>
+Playwright <code>Locator</code>.
+
+<p>Strategies <a href="ShaftLocator.Strategy.html#ROLE"><code>ShaftLocator.Strategy.ROLE</code></a> and <a href="ShaftLocator.Strategy.html#ACCESSIBLE_NAME"><code>ShaftLocator.Strategy.ACCESSIBLE_NAME</code></a> are the
+portable a11y surface for issue #5821 (Selenium role builders and Playwright
+<code>getByRole</code>/<code>getByLabel</code>). Backend differences: Playwright prefers
+engine role queries; Selenium uses SHAFT <code>Locator.hasRole</code> / aria-label
+when an enum role is known, else role-attribute xpath.</div>
 </div>
 </section>
 <section class="summary">
@@ -109,11 +120,33 @@ Playwright <code>Locator</code>.</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#css(java.lang.String)" class="member-name-link">css</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selector)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#accessibleName(java.lang.String)" class="member-name-link">accessibleName</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;accessibleName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Portable accessible-name locator (aria-label / getByLabel).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#css(java.lang.String)" class="member-name-link">css</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selector)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#from(com.shaft.gui.internal.locator.semantic.SemanticLocatorResolution)" class="member-name-link">from</a><wbr>(<a href="../internal/locator/semantic/SemanticLocatorResolution.html" title="class in com.shaft.gui.internal.locator.semantic">SemanticLocatorResolution</a>&nbsp;resolution)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds a portable locator from a semantic resolution, preserving ROLE /
+ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#from(org.openqa.selenium.By)" class="member-name-link">from</a><wbr>(org.openqa.selenium.By&nbsp;locator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#role(java.lang.String,java.lang.String)" class="member-name-link">role</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;role,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;accessibleName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Portable role + accessible name locator (Selenium + Playwright).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#secondaryValue()" class="member-name-link">secondaryValue</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Secondary value (accessible name for <a href="ShaftLocator.Strategy.html#ROLE"><code>ShaftLocator.Strategy.ROLE</code></a>).</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ShaftLocator.Strategy.html" title="enum class in com.shaft.gui.driver">ShaftLocator.Strategy</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#strategy()" class="member-name-link">strategy</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -124,20 +157,27 @@ Playwright <code>Locator</code>.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toBy()" class="member-name-link">toBy</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Locator</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightLocator(com.microsoft.playwright.Page)" class="member-name-link">toPlaywrightLocator</a><wbr>(com.microsoft.playwright.Page&nbsp;page)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightSelector()" class="member-name-link">toPlaywrightSelector</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightLocator(com.microsoft.playwright.Locator)" class="member-name-link">toPlaywrightLocator</a><wbr>(com.microsoft.playwright.Locator&nbsp;parent)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Resolves this locator scoped under an existing Playwright locator (descendant).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Locator</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightLocator(com.microsoft.playwright.Page)" class="member-name-link">toPlaywrightLocator</a><wbr>(com.microsoft.playwright.Page&nbsp;page)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightSelector()" class="member-name-link">toPlaywrightSelector</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Playwright string selector for CSS/XPATH/TEXT.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#value()" class="member-name-link">value</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#xpath(java.lang.String)" class="member-name-link">xpath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;xpath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#value()" class="member-name-link">value</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#xpath(java.lang.String)" class="member-name-link">xpath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;xpath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -180,6 +220,54 @@ Playwright <code>Locator</code>.</div>
 </section>
 </li>
 <li>
+<section class="detail" id="role(java.lang.String,java.lang.String)">
+<h3>role</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></span>&nbsp;<span class="element-name">role</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;role,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;accessibleName)</span></div>
+<div class="block">Portable role + accessible name locator (Selenium + Playwright).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>role</code> - ARIA role name (e.g. <code>button</code>, <code>link</code>)</dd>
+<dd><code>accessibleName</code> - computed accessible name</dd>
+<dt>Returns:</dt>
+<dd>portable locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="accessibleName(java.lang.String)">
+<h3>accessibleName</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></span>&nbsp;<span class="element-name">accessibleName</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;accessibleName)</span></div>
+<div class="block">Portable accessible-name locator (aria-label / getByLabel).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>accessibleName</code> - accessible name</dd>
+<dt>Returns:</dt>
+<dd>portable locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="from(com.shaft.gui.internal.locator.semantic.SemanticLocatorResolution)">
+<h3>from</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></span>&nbsp;<span class="element-name">from</span><wbr><span class="parameters">(<a href="../internal/locator/semantic/SemanticLocatorResolution.html" title="class in com.shaft.gui.internal.locator.semantic">SemanticLocatorResolution</a>&nbsp;resolution)</span></div>
+<div class="block">Builds a portable locator from a semantic resolution, preserving ROLE /
+ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>resolution</code> - resolver output</dd>
+<dt>Returns:</dt>
+<dd>portable locator for Selenium and Playwright</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="from(org.openqa.selenium.By)">
 <h3>from</h3>
 <div class="horizontal-scroll">
@@ -204,6 +292,19 @@ Playwright <code>Locator</code>.</div>
 </section>
 </li>
 <li>
+<section class="detail" id="secondaryValue()">
+<h3>secondaryValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">secondaryValue</span>()</div>
+<div class="block">Secondary value (accessible name for <a href="ShaftLocator.Strategy.html#ROLE"><code>ShaftLocator.Strategy.ROLE</code></a>).</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>accessible name or empty</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="toBy()">
 <h3>toBy</h3>
 <div class="horizontal-scroll">
@@ -220,10 +321,33 @@ Playwright <code>Locator</code>.</div>
 </section>
 </li>
 <li>
+<section class="detail" id="toPlaywrightLocator(com.microsoft.playwright.Locator)">
+<h3>toPlaywrightLocator</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.microsoft.playwright.Locator</span>&nbsp;<span class="element-name">toPlaywrightLocator</span><wbr><span class="parameters">(com.microsoft.playwright.Locator&nbsp;parent)</span></div>
+<div class="block">Resolves this locator scoped under an existing Playwright locator (descendant).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>parent</code> - Playwright parent locator</dd>
+<dt>Returns:</dt>
+<dd>scoped Playwright locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="toPlaywrightSelector()">
 <h3>toPlaywrightSelector</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">toPlaywrightSelector</span>()</div>
+<div class="block">Playwright string selector for CSS/XPATH/TEXT. ROLE / ACCESSIBLE_NAME must use
+<a href="#toPlaywrightLocator(com.microsoft.playwright.Page)"><code>toPlaywrightLocator(Page)</code></a> / <a href="#toPlaywrightLocator(com.microsoft.playwright.Locator)"><code>toPlaywrightLocator(Locator)</code></a>.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>selector string</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/UnsupportedOperationException.html" title="class or interface in java.lang" class="external-link">UnsupportedOperationException</a></code> - for ROLE / ACCESSIBLE_NAME</dd>
+</dl>
 </div>
 </section>
 </li>
