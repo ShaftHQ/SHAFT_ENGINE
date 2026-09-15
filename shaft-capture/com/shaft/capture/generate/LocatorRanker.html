@@ -79,7 +79,12 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">LocatorRanker</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Deterministically ranks captured locator evidence with explainable scoring.</div>
+<div class="block">Deterministically ranks captured locator evidence with explainable scoring.
+
+<p>Within an emission <a href="LocatorPolicy.Tier.html" title="enum class in com.shaft.capture.generate"><code>LocatorPolicy.Tier</code></a>, strategy preference follows engine
+<a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/locator/semantic/SemanticLocatorStrategy.html" title="class or interface in com.shaft.gui.internal.locator.semantic" class="external-link"><code>SemanticLocatorStrategy</code></a> FR-1 order via
+<a href="SemanticCaptureMapping.html" title="class in com.shaft.capture.generate"><code>SemanticCaptureMapping</code></a> (issue #5819). Tier boundaries (UNIQUE_ID first for codegen)
+remain intentional and documented on <a href="LocatorPolicy.html" title="class in com.shaft.capture.generate"><code>LocatorPolicy</code></a>.</div>
 </div>
 </section>
 <section class="summary">

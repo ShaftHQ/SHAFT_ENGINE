@@ -87,7 +87,10 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public static enum </span><span class="element-name type-name-label">LocatorPolicy.Tier</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Enum.html" title="class or interface in java.lang" class="external-link">Enum</a>&lt;<a href="LocatorPolicy.Tier.html" title="enum class in com.shaft.capture.generate">LocatorPolicy.Tier</a>&gt;</span></div>
-<div class="block">Emission tiers, most preferred first.</div>
+<div class="block">Emission tiers, most preferred first (codegen only — not engine FR-1).
+
+<p><a href="#UNIQUE_ID"><code>UNIQUE_ID</code></a> intentionally precedes role for generated source stability; engine
+<code>SemanticLocatorResolver</code> still prefers ROLE/NAME semantics at runtime (#5819).</div>
 </div>
 </section>
 <section class="summary">
@@ -111,7 +114,7 @@
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code><a href="#UNIQUE_ID" class="member-name-link">UNIQUE_ID</a></code></div>
 <div class="col-last even-row-color">
-<div class="block">A unique, stable, human-authored <code>id</code>.</div>
+<div class="block">A unique, stable, human-authored <code>id</code> (codegen preference over role).</div>
 </div>
 <div class="col-first odd-row-color"><code><a href="#VERIFIED_ROLE" class="member-name-link">VERIFIED_ROLE</a></code></div>
 <div class="col-last odd-row-color">
@@ -171,7 +174,7 @@ the order they are declared.</div>
 <h3>UNIQUE_ID</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="LocatorPolicy.Tier.html" title="enum class in com.shaft.capture.generate">LocatorPolicy.Tier</a></span>&nbsp;<span class="element-name">UNIQUE_ID</span></div>
-<div class="block">A unique, stable, human-authored <code>id</code>.</div>
+<div class="block">A unique, stable, human-authored <code>id</code> (codegen preference over role).</div>
 </div>
 </section>
 </li>

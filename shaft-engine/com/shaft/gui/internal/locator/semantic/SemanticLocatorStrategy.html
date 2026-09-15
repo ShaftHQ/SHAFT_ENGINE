@@ -67,6 +67,7 @@
 <li><a href="#valueOf(java.lang.String)" tabindex="0">valueOf(String)</a></li>
 <li><a href="#isSemantic()" tabindex="0">isSemantic()</a></li>
 <li><a href="#baseConfidence()" tabindex="0">baseConfidence()</a></li>
+<li><a href="#rankPriority()" tabindex="0">rankPriority()</a></li>
 </ol>
 </li>
 </ol>
@@ -92,7 +93,13 @@
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Enum.html" title="class or interface in java.lang" class="external-link">Enum</a>&lt;<a href="SemanticLocatorStrategy.html" title="enum class in com.shaft.gui.internal.locator.semantic">SemanticLocatorStrategy</a>&gt;</span></div>
 <div class="block">Locator strategy ordered by user-perceived semantics (issue #5457 FR-1).
 Lower <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Enum.html#ordinal()" title="class or interface in java.lang" class="external-link"><code>Enum.ordinal()</code></a> = higher precedence. Structural strategies are the
-deterministic fallback when semantic signals are absent (FR-4).</div>
+deterministic fallback when semantic signals are absent (FR-4).
+
+<p>Shared single-source ordering for engine resolve, capture ranking (#5819),
+MCP agent context (#5818), and heal suggestions (#5820). Capture <em>codegen
+emission</em> still elevates a unique stable authored id via
+<code>LocatorPolicy.Tier.UNIQUE_ID</code>; that intentional difference is documented
+on the capture policy, not duplicated as a second precedence enum.</div>
 </div>
 </section>
 <section class="summary">
@@ -174,14 +181,19 @@ deterministic fallback when semantic signals are absent (FR-4).</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Whether this strategy is user-perceived / test-contract semantics rather than structure.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="SemanticLocatorStrategy.html" title="enum class in com.shaft.gui.internal.locator.semantic">SemanticLocatorStrategy</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#valueOf(java.lang.String)" class="member-name-link">valueOf</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rankPriority()" class="member-name-link">rankPriority</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Integer ranking weight for capture/heal scorers (higher = preferred).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="SemanticLocatorStrategy.html" title="enum class in com.shaft.gui.internal.locator.semantic">SemanticLocatorStrategy</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#valueOf(java.lang.String)" class="member-name-link">valueOf</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns the enum constant of this class with the specified name.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="SemanticLocatorStrategy.html" title="enum class in com.shaft.gui.internal.locator.semantic">SemanticLocatorStrategy</a>[]</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#values()" class="member-name-link">values</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="SemanticLocatorStrategy.html" title="enum class in com.shaft.gui.internal.locator.semantic">SemanticLocatorStrategy</a>[]</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#values()" class="member-name-link">values</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns an array containing the constants of this enum class, in
 the order they are declared.</div>
 </div>
@@ -344,6 +356,21 @@ not permitted.)</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">double</span>&nbsp;<span class="element-name">baseConfidence</span>()</div>
 <div class="block">Base confidence when the candidate is unique (FR-3).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="rankPriority()">
+<h3>rankPriority</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">rankPriority</span>()</div>
+<div class="block">Integer ranking weight for capture/heal scorers (higher = preferred).
+Derived from FR-1 ordinal so surfaces cannot drift from
+<a href="SemanticLocatorResolver.html" title="class in com.shaft.gui.internal.locator.semantic"><code>SemanticLocatorResolver</code></a> (#5819).</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>positive priority aligned with engine precedence</dd>
+</dl>
 </div>
 </section>
 </li>

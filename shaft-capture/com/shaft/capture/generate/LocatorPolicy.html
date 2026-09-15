@@ -69,7 +69,13 @@
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">LocatorPolicy</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
 <div class="block">Issue #4271: the single deterministic locator-selection policy for every SHAFT surface that
-identifies an element from captured evidence.</div>
+identifies an element from captured evidence.
+
+<p><b>Emission vs engine FR-1 (#5819 / #5457):</b> <a href="LocatorPolicy.Tier.html" title="enum class in com.shaft.capture.generate"><code>LocatorPolicy.Tier</code></a> order elevates a unique stable
+authored id for <em>codegen emission</em>. Runtime resolution, MCP agent context, and heal
+suggestions use <a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/locator/semantic/SemanticLocatorStrategy.html" title="class or interface in com.shaft.gui.internal.locator.semantic" class="external-link"><code>SemanticLocatorStrategy</code></a>
+(ROLE → … → XPATH). See <a href="SemanticCaptureMapping.html" title="class in com.shaft.capture.generate"><code>SemanticCaptureMapping</code></a> for the documented mapping; do not
+invent a second precedence enum in capture.</div>
 </div>
 </section>
 <section class="summary">
@@ -91,7 +97,7 @@ identifies an element from captured evidence.</div>
 <div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
 <div class="col-second odd-row-color"><code><a href="LocatorPolicy.Tier.html" class="type-name-link" title="enum class in com.shaft.capture.generate">LocatorPolicy.Tier</a></code></div>
 <div class="col-last odd-row-color">
-<div class="block">Emission tiers, most preferred first.</div>
+<div class="block">Emission tiers, most preferred first (codegen only — not engine FR-1).</div>
 </div>
 </div>
 </section>
