@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Universal self-heal via each dependency's official install command (#5811).
+r"""
+Universal self-heal via each dependency's official install command (#5811).
 
 Deterministic first: run the documented official install / CE vendor rematerialize.
 If impossible: write an agentic handoff with the exact official command + pasteable
-agentPrompt — never a bare \"rerun doctor\".
+agentPrompt — never a bare "rerun doctor".
 """
 
 from __future__ import annotations
@@ -122,7 +123,7 @@ def rematerialize_companions(
     *,
     names: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
-    """Delegate to hosts.rematerialize_companions (CE vendor = official publish)."""
+    """Run CE vendor rematerialize for companions (official publish path)."""
     hosts = _hosts_module()
     return hosts.rematerialize_companions(project, names=names)
 
@@ -307,6 +308,7 @@ def clear_companion_handoff(project: Path) -> None:
         try:
             target.unlink()
         except OSError:
+            # Best-effort cleanup; heal path still proceeds without the stale file.
             pass
 
 
@@ -316,6 +318,7 @@ def clear_official_self_heal_handoff(project: Path) -> None:
         try:
             target.unlink()
         except OSError:
+            # Best-effort cleanup; heal path still proceeds without the stale file.
             pass
 
 
@@ -363,36 +366,23 @@ def _component_needs_heal(item: dict[str, object] | None) -> bool:
     }
 
 
-def apply_doctor_official_self_heal(
-    result: dict[str, object],
+def _mark_recovery_required(result: dict[str, object]) -> None:
+    if result.get("status") == "healthy":
+        result["status"] = "recovery-required"
+
+
+def _collect_missing_companions(
     project: Path,
     *,
-    runner=None,
-    rematerialize: Callable[..., dict[str, object]] | None = None,
-    repair: Callable[..., dict[str, object]] | None = None,
-    bundle: dict[str, bool] | None = None,
-) -> dict[str, object]:
-    """Doctor: heal missing enabled third parties via official commands once.
-
-    Returns a summary of heal attempts. Updates `result` components / status /
-    handoffs in place.
-    """
-    project = Path(project).resolve()
-    components = result.get("components")
-    if not isinstance(components, dict):
-        components = {}
-        result["components"] = components
-
-    summary: dict[str, object] = {"healed": [], "failed": [], "skipped": []}
-    rematerialize_fn = rematerialize or rematerialize_companions
-    bundle_options = bundle if bundle is not None else read_bundle_enabled(project)
-
-    # Companions: enabled-but-missing → CE vendor rematerialize.
-    missing_companions: list[str] = []
+    components: dict[str, object],
+    summary: dict[str, object],
+    bundle_options: dict[str, bool],
+) -> list[str]:
+    """Classify companions; return names that still need rematerialize."""
+    missing: list[str] = []
     for name in COMPANION_ITEMS:
         enabled = _bundle_enabled(project, name, bundle=bundle_options)
         key = f"companion-{name}"
-        present = companion_skill_present(project, name)
         if not enabled:
             components[key] = {
                 "status": "absent",
@@ -401,59 +391,113 @@ def apply_doctor_official_self_heal(
             }
             summary["skipped"].append(name)  # type: ignore[index]
             continue
-        if present:
+        if companion_skill_present(project, name):
             components[key] = {
                 "status": "healthy",
                 "taskImpact": "required",
                 "officialCommand": official_command_for(name),
             }
             continue
-        missing_companions.append(name)
+        missing.append(name)
+    return missing
 
-    if missing_companions:
-        try:
-            heal = rematerialize_fn(project, names=tuple(missing_companions))
-        except Exception as error:  # noqa: BLE001
-            heal = {
-                "status": "failed",
-                "error": f"{type(error).__name__}: {error}",
-                "names": missing_companions,
-            }
-        if heal.get("status") == "healed":
-            clear_companion_handoff(project)
-            for name in missing_companions:
-                components[f"companion-{name}"] = {
-                    "status": "healthy",
-                    "taskImpact": "required",
-                    "detail": "healed-via-official-vendor-rematerialize",
-                    "officialCommand": official_command_for(name),
-                }
-                summary["healed"].append(name)  # type: ignore[index]
-        else:
-            detail = str(heal.get("error") or heal.get("status") or "rematerialize-failed")
-            handoff = write_companion_handoff(
-                project, names=missing_companions, detail=detail
-            )
-            prompt = handoff_prompt(missing_companions[0])
-            for name in missing_companions:
-                components[f"companion-{name}"] = {
-                    "status": "absent",
-                    "taskImpact": "required",
-                    "detail": f"{name}-missing-for-implementation",
-                    "fixNext": (
-                        f"Complete the agent heal using {COMPANION_HANDOFF_RELATIVE}. "
-                        f"Official command: `{official_command_for(name)}`."
-                    ),
-                    "agentPrompt": prompt,
-                    "handoff": COMPANION_HANDOFF_RELATIVE,
-                    "officialCommand": official_command_for(name),
-                }
-                summary["failed"].append(name)  # type: ignore[index]
-            if result.get("status") == "healthy":
-                result["status"] = "recovery-required"
-            result["companionHandoff"] = str(handoff)
 
-    # Bundle tools: memory / mempalace / graphify via repair_component.
+def _apply_companion_heal_success(
+    components: dict[str, object],
+    summary: dict[str, object],
+    project: Path,
+    missing_companions: list[str],
+) -> None:
+    clear_companion_handoff(project)
+    for name in missing_companions:
+        components[f"companion-{name}"] = {
+            "status": "healthy",
+            "taskImpact": "required",
+            "detail": "healed-via-official-vendor-rematerialize",
+            "officialCommand": official_command_for(name),
+        }
+        summary["healed"].append(name)  # type: ignore[index]
+
+
+def _apply_companion_heal_failure(
+    result: dict[str, object],
+    components: dict[str, object],
+    summary: dict[str, object],
+    project: Path,
+    missing_companions: list[str],
+    heal: dict[str, object],
+) -> None:
+    detail = str(heal.get("error") or heal.get("status") or "rematerialize-failed")
+    handoff = write_companion_handoff(
+        project, names=missing_companions, detail=detail
+    )
+    prompt = handoff_prompt(missing_companions[0])
+    for name in missing_companions:
+        components[f"companion-{name}"] = {
+            "status": "absent",
+            "taskImpact": "required",
+            "detail": f"{name}-missing-for-implementation",
+            "fixNext": (
+                f"Complete the agent heal using {COMPANION_HANDOFF_RELATIVE}. "
+                f"Official command: `{official_command_for(name)}`."
+            ),
+            "agentPrompt": prompt,
+            "handoff": COMPANION_HANDOFF_RELATIVE,
+            "officialCommand": official_command_for(name),
+        }
+        summary["failed"].append(name)  # type: ignore[index]
+    _mark_recovery_required(result)
+    result["companionHandoff"] = str(handoff)
+
+
+def _doctor_heal_companions(
+    result: dict[str, object],
+    project: Path,
+    *,
+    components: dict[str, object],
+    summary: dict[str, object],
+    rematerialize_fn: Callable[..., dict[str, object]],
+    bundle_options: dict[str, bool],
+) -> None:
+    """Heal enabled-but-missing companions via CE vendor rematerialize."""
+    missing_companions = _collect_missing_companions(
+        project,
+        components=components,
+        summary=summary,
+        bundle_options=bundle_options,
+    )
+    if not missing_companions:
+        return
+
+    try:
+        heal = rematerialize_fn(project, names=tuple(missing_companions))
+    except Exception as error:  # noqa: BLE001
+        heal = {
+            "status": "failed",
+            "error": f"{type(error).__name__}: {error}",
+            "names": missing_companions,
+        }
+    if heal.get("status") == "healed":
+        _apply_companion_heal_success(
+            components, summary, project, missing_companions
+        )
+        return
+    _apply_companion_heal_failure(
+        result, components, summary, project, missing_companions, heal
+    )
+
+
+def _doctor_heal_bundle_tools(
+    result: dict[str, object],
+    project: Path,
+    *,
+    components: dict[str, object],
+    summary: dict[str, object],
+    runner,
+    repair: Callable[..., dict[str, object]] | None,
+    bundle_options: dict[str, bool],
+) -> None:
+    """Heal enabled bundle tools via official install / repair_component."""
     for name in BUNDLE_TOOL_ITEMS:
         if not _bundle_enabled(project, name, bundle=bundle_options):
             summary["skipped"].append(name)  # type: ignore[index]
@@ -470,40 +514,87 @@ def apply_doctor_official_self_heal(
                 item["officialCommand"] = official_command_for(name)
                 item.pop("fixNext", None)
             summary["healed"].append(name)  # type: ignore[index]
-        else:
-            detail = str(heal.get("error") or "official-install-failed")
-            handoff = write_official_self_heal_handoff(
-                project, item=name, detail=detail
-            )
-            prompt = handoff_prompt(name)
-            if isinstance(item, dict):
-                item["fixNext"] = (
-                    f"Complete the agent heal using {OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE}. "
-                    f"Official command: `{official_command_for(name)}`."
-                )
-                item["agentPrompt"] = prompt
-                item["handoff"] = OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE
-                item["officialCommand"] = official_command_for(name)
-            summary["failed"].append(name)  # type: ignore[index]
-            if result.get("status") == "healthy":
-                result["status"] = "recovery-required"
-            result["officialSelfHealHandoff"] = str(handoff)
+            continue
 
-    # Optional probe: gh (document only; no auto-install — operator tool).
-    if shutil.which("gh") is None:
-        components.setdefault(
-            "gh",
-            {
-                "status": "absent",
-                "taskImpact": "advisory",
-                "detail": "gh-cli-missing",
-                "officialCommand": official_command_for("gh"),
-                "fixNext": (
-                    f"Install GitHub CLI via official installer: "
-                    f"`{official_command_for('gh')}`."
-                ),
-            },
+        detail = str(heal.get("error") or "official-install-failed")
+        handoff = write_official_self_heal_handoff(
+            project, item=name, detail=detail
         )
+        prompt = handoff_prompt(name)
+        if isinstance(item, dict):
+            item["fixNext"] = (
+                f"Complete the agent heal using {OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE}. "
+                f"Official command: `{official_command_for(name)}`."
+            )
+            item["agentPrompt"] = prompt
+            item["handoff"] = OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE
+            item["officialCommand"] = official_command_for(name)
+        summary["failed"].append(name)  # type: ignore[index]
+        _mark_recovery_required(result)
+        result["officialSelfHealHandoff"] = str(handoff)
+
+
+def _doctor_note_missing_gh(components: dict[str, object]) -> None:
+    if shutil.which("gh") is not None:
+        return
+    components.setdefault(
+        "gh",
+        {
+            "status": "absent",
+            "taskImpact": "advisory",
+            "detail": "gh-cli-missing",
+            "officialCommand": official_command_for("gh"),
+            "fixNext": (
+                f"Install GitHub CLI via official installer: "
+                f"`{official_command_for('gh')}`."
+            ),
+        },
+    )
+
+
+def apply_doctor_official_self_heal(
+    result: dict[str, object],
+    project: Path,
+    *,
+    runner=None,
+    rematerialize: Callable[..., dict[str, object]] | None = None,
+    repair: Callable[..., dict[str, object]] | None = None,
+    bundle: dict[str, bool] | None = None,
+) -> dict[str, object]:
+    """
+    Heal missing enabled third parties via official commands once during doctor.
+
+    Returns a summary of heal attempts. Updates `result` components / status /
+    handoffs in place.
+    """
+    project = Path(project).resolve()
+    components = result.get("components")
+    if not isinstance(components, dict):
+        components = {}
+        result["components"] = components
+
+    summary: dict[str, object] = {"healed": [], "failed": [], "skipped": []}
+    rematerialize_fn = rematerialize or rematerialize_companions
+    bundle_options = bundle if bundle is not None else read_bundle_enabled(project)
+
+    _doctor_heal_companions(
+        result,
+        project,
+        components=components,
+        summary=summary,
+        rematerialize_fn=rematerialize_fn,
+        bundle_options=bundle_options,
+    )
+    _doctor_heal_bundle_tools(
+        result,
+        project,
+        components=components,
+        summary=summary,
+        runner=runner,
+        repair=repair,
+        bundle_options=bundle_options,
+    )
+    _doctor_note_missing_gh(components)
 
     result["officialSelfHeal"] = summary
     return summary
