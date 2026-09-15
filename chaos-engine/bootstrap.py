@@ -1933,7 +1933,7 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help=(
-            "Recommended for CE/SHAFT: disable Grok bundled game-* and imagine "
+            "Recommended for ChaosEngine: disable Grok bundled game-* and imagine "
             "skills via ~/.grok/config.toml (or CHAOS_ENGINE_LEAN_GROK_SKILLS=1)."
         ),
     )

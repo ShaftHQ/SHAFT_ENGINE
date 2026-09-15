@@ -417,7 +417,7 @@ def doctor_lean_skills_tip(
         "status": "sync-advisory",
         "detail": "lean-skills-recommended",
         "fixNext": (
-            "Recommended for CE/SHAFT: reinstall/activate with "
+            "Recommended for ChaosEngine: reinstall/activate with "
             "--lean-grok-skills (or CHAOS_ENGINE_LEAN_GROK_SKILLS=1) to disable "
             "game-* and imagine bundled skills. Undo by removing the "
             f"{SKILLS_START} span from ~/.grok/config.toml."

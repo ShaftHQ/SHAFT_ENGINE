@@ -95,7 +95,7 @@ Claude-compat hooks/skills. Uninstall removes **only** the CE marker span.
 
 ### Recommended: `--lean-grok-skills` (opt-in)
 
-Default install does **not** thin Grok's bundled skill catalog. For CE/SHAFT engineering
+Default install does **not** thin Grok's bundled skill catalog. For ChaosEngine engineering
 sessions, pass the flag (or set `CHAOS_ENGINE_LEAN_GROK_SKILLS=1`):
 
 ```bash

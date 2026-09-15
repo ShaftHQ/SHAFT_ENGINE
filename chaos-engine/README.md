@@ -230,6 +230,7 @@ Missing telemetry remains the literal `UNAVAILABLE` (never `0`).
 | [`install.ps1`](install.ps1) | Windows one-liner installer for the current working directory |
 | [`install.sh`](install.sh) | macOS and Linux one-liner installer for the current working directory |
 | [`hosts.py`](hosts.py) | Thin native host adapters and ownership receipts |
+| [`grok_lean_config.py`](grok_lean_config.py) | Optional Grok lean compat/skills spans for user config.toml |
 | [`hooks/guard.py`](hooks/guard.py) | Portable lifecycle activation and catastrophic-scope guard |
 | [`hooks/kernel.py`](hooks/kernel.py) | Provider-neutral event normalization, lifecycle graph, rules, and host capability matrix |
 | [`hooks/lifecycle.py`](hooks/lifecycle.py) | Strict JSON protocol and compact startup context |

@@ -4859,7 +4859,7 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help=(
-            "Recommended for CE/SHAFT: merge [skills] disabled for game-* and "
+            "Recommended for ChaosEngine: merge [skills] disabled for game-* and "
             "imagine into ~/.grok/config.toml (also CHAOS_ENGINE_LEAN_GROK_SKILLS=1)."
         ),
     )
