@@ -1036,10 +1036,13 @@
             </build>
         </profile>
 
-        <!-- Option C (#5801): pre-warm ~/.m2/repository/allure/allure-cli/<allure.cli.version>/
-             so report generation can run offline without npx/network. AllureManager resolves this
-             path first and never uses a user PATH allure binary.
-             Usage: mvn -Pprovision-allure-cli -pl shaft-engine -am initialize -->
+        <!-- Option C (#5801/#5815): pre-warm ~/.m2/repository/allure/allure-cli/<allure.cli.version>/
+             so report generation can run offline without npx/network. npm install path (cross-platform).
+             Prefer air-gapped Maven zip unpack via -Pprovision-allure-cli-maven when
+             io.github.shafthq:allure-cli:<version>:zip is available (local or corporate repo).
+             AllureManager also unpacks a local Maven zip before falling back to npm.
+             Usage: mvn -Pprovision-allure-cli -pl shaft-engine -am initialize
+             Air-gap: mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize -->
         <profile>
             <id>provision-allure-cli</id>
             <properties>
@@ -1094,6 +1097,51 @@
                                         <argument>--ignore-scripts</argument>
                                         <argument>allure@${allure.cli.version}</argument>
                                     </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>provision-allure-cli-maven</id>
+            <properties>
+                <allure.cli.cacheRoot>${user.home}/.m2/repository/allure/allure-cli</allure.cli.cacheRoot>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>${allure.cli.maven.groupId}</groupId>
+                    <artifactId>${allure.cli.maven.artifactId}</artifactId>
+                    <version>${allure.cli.version}</version>
+                    <type>zip</type>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>3.8.1</version>
+                        <executions>
+                            <execution>
+                                <id>unpack-allure-cli-zip</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>unpack</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>${allure.cli.maven.groupId}</groupId>
+                                            <artifactId>${allure.cli.maven.artifactId}</artifactId>
+                                            <version>${allure.cli.version}</version>
+                                            <type>zip</type>
+                                            <overWrite>true</overWrite>
+                                            <outputDirectory>${allure.cli.cacheRoot}/${allure.cli.version}</outputDirectory>
+                                        </artifactItem>
+                                    </artifactItems>
                                 </configuration>
                             </execution>
                         </executions>

@@ -63,9 +63,13 @@ import java.util.regex.Pattern;
  *   <li>Portable Node.js under {@code ~/.m2/repository/nodejs/} → its bundled {@code npx} → same
  *       {@code npx --yes allure@&lt;version&gt;} invocation.</li>
  * </ol>
- * Pre-warm the Maven cache offline with {@code mvn -Pprovision-allure-cli -pl shaft-engine
- * -am initialize}. The {@code allure.forceConfiguredCliVersion} property remains a deprecated
- * always-on alias (setting it {@code false} only logs that PATH allure is ignored).
+ * Provision prefers unpacking the Maven zip
+ * {@code io.github.shafthq:allure-cli:&lt;version&gt;:zip} (#5815) into the runtime cache when the
+ * artifact is present locally, then falls back to npm. Air-gap CI:
+ * {@code mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize}. Online warm-up:
+ * {@code mvn -Pprovision-allure-cli -pl shaft-engine -am initialize}. The
+ * {@code allure.forceConfiguredCliVersion} property remains a deprecated always-on alias
+ * (setting it {@code false} only logs that PATH allure is ignored).
  *
  * <p>Thread safety: all public methods are {@code static} and intended to be called from a
  * single thread (the test runner thread). The result directory fields are mutable class-level
@@ -82,6 +86,14 @@ public class AllureManager {
     private static final String ALLURE_CLI_CACHE_DIR_DEFAULT = System.getProperty("user.home")
             + File.separator + ".m2" + File.separator + "repository"
             + File.separator + "allure" + File.separator + "allure-cli" + File.separator;
+
+    /**
+     * Maven coordinates for the pinned Allure 3 CLI zip artifact (#5815).
+     * Layout on disk: {@code ~/.m2/repository/io/github/shafthq/allure-cli/&lt;version&gt;/allure-cli-&lt;version&gt;.zip}
+     */
+    public static final String ALLURE_CLI_MAVEN_GROUP_ID = "io.github.shafthq";
+    /** @see #ALLURE_CLI_MAVEN_GROUP_ID */
+    public static final String ALLURE_CLI_MAVEN_ARTIFACT_ID = "allure-cli";
 
     private AllureManager() {
         throw new IllegalStateException("Utility class");
@@ -1958,9 +1970,9 @@ public class AllureManager {
     }
 
     /**
-     * Best-effort install of the pinned Allure 3 npm package into the Maven-local CLI cache
-     * (#5801). Safe to call when already installed (no-op). Does not use a user PATH
-     * {@code allure} binary.
+     * Best-effort install of the pinned Allure 3 CLI into the Maven-local runtime cache
+     * (#5801/#5815). Prefers a local Maven zip unpack, then npm. Safe to call when already
+     * installed (no-op). Does not use a user PATH {@code allure} binary.
      *
      * @param allure3Version pinned Allure 3 npm package version
      * @return {@code true} when {@code cli.js} is present after this call
@@ -1994,12 +2006,110 @@ public class AllureManager {
     }
 
     /**
-     * Installs {@code allure@<version>} into the Maven-local CLI cache using npm.
+     * Installs the pinned Allure 3 CLI into the Maven-local runtime cache (#5801/#5815).
+     * Prefers unpacking {@code io.github.shafthq:allure-cli:&lt;version&gt;:zip} when present
+     * locally (air-gap friendly), then falls back to {@code npm install allure@&lt;version&gt;}.
      *
      * @param allure3Version pinned Allure 3 npm package version
      * @return {@code true} when {@code cli.js} is present afterwards
      */
     private static boolean provisionAllureCliIntoCache(String allure3Version) {
+        if (tryProvisionAllureCliFromMavenZip(allure3Version)) {
+            return true;
+        }
+        return provisionAllureCliViaNpm(allure3Version);
+    }
+
+    /**
+     * Absolute path to the Maven-local zip for {@code io.github.shafthq:allure-cli:&lt;version&gt;}.
+     * Override with {@code -Dallure.cli.mavenZip=/path/to/allure-cli-&lt;version&gt;.zip}.
+     *
+     * @param allure3Version pinned Allure 3 CLI version
+     * @return absolute zip path
+     */
+    public static String getAllureCliMavenZipPath(String allure3Version) {
+        String override = System.getProperty("allure.cli.mavenZip");
+        if (override != null && !override.isBlank()) {
+            return override;
+        }
+        return System.getProperty("user.home")
+                + File.separator + ".m2" + File.separator + "repository"
+                + File.separator + "io" + File.separator + "github" + File.separator + "shafthq"
+                + File.separator + ALLURE_CLI_MAVEN_ARTIFACT_ID
+                + File.separator + allure3Version
+                + File.separator + ALLURE_CLI_MAVEN_ARTIFACT_ID + "-" + allure3Version + ".zip";
+    }
+
+    /**
+     * Unpacks a local Maven Allure CLI zip into the runtime cache when present (#5815).
+     *
+     * @param allure3Version pinned Allure 3 CLI version
+     * @return {@code true} when {@code cli.js} is present afterwards
+     */
+    public static boolean tryProvisionAllureCliFromMavenZip(String allure3Version) {
+        if (!isValidPinnedAllureVersion(allure3Version)) {
+            return false;
+        }
+        if (isProvisionedAllureCliPresent(allure3Version)) {
+            return true;
+        }
+        File zipFile = new File(getAllureCliMavenZipPath(allure3Version));
+        if (!zipFile.isFile()) {
+            return false;
+        }
+        String cliHome = getAllureCliHome(allure3Version);
+        if (!ensureAllureCliHomeReady(cliHome)) {
+            return false;
+        }
+        ReportManager.logDiscrete("Unpacking Maven Allure CLI zip into runtime cache: "
+                + zipFile.getAbsolutePath() + " -> " + cliHome);
+        if (!unpackAllureCliZip(zipFile, new File(cliHome))) {
+            return false;
+        }
+        return verifyProvisionedAllureCliPresent(allure3Version);
+    }
+
+    /**
+     * Extracts {@code zipFile} into {@code destinationDir} (zip-slip safe).
+     *
+     * @param zipFile         local Maven zip artifact
+     * @param destinationDir  runtime CLI home ({@code .../allure/allure-cli/&lt;version&gt;/})
+     * @return {@code true} on success
+     */
+    public static boolean unpackAllureCliZip(File zipFile, File destinationDir) {
+        Path destPath = destinationDir.toPath().toAbsolutePath().normalize();
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(zipFile)) {
+            var entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                java.util.zip.ZipEntry entry = entries.nextElement();
+                Path target = destPath.resolve(entry.getName()).normalize();
+                if (!target.startsWith(destPath)) {
+                    ReportManager.logDiscrete("Refusing Allure CLI zip entry outside destination: " + entry.getName());
+                    return false;
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(target);
+                    continue;
+                }
+                Files.createDirectories(target.getParent());
+                try (InputStream in = zip.getInputStream(entry)) {
+                    Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+            return true;
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Failed to unpack Allure CLI Maven zip: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Installs {@code allure@&lt;version&gt;} into the Maven-local CLI cache using npm.
+     *
+     * @param allure3Version pinned Allure 3 npm package version
+     * @return {@code true} when {@code cli.js} is present afterwards
+     */
+    private static boolean provisionAllureCliViaNpm(String allure3Version) {
         String nodeBinary = resolveNodeBinaryForCli();
         if (nodeBinary == null) {
             ReportManager.logDiscrete("Cannot provision Allure CLI into Maven cache: Node.js is unavailable.");
@@ -2018,7 +2128,7 @@ public class AllureManager {
         }
 
         ReportManager.logDiscrete("Provisioning pinned Allure 3 CLI allure@" + allure3Version
-                + " into Maven cache: " + cliHome);
+                + " into Maven cache via npm: " + cliHome);
         internalTerminalSession.performTerminalCommand(npmInvocation);
         return verifyProvisionedAllureCliPresent(allure3Version);
     }

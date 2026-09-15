@@ -18,6 +18,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
@@ -1010,6 +1012,7 @@ public class AllureManagerUnitTest {
         setStaticField(AllureManager.class, "realtimeMonitoringProcess", null);
         System.clearProperty("allure.cli.cacheRoot");
         System.clearProperty("allure.cli.skipProvision");
+        System.clearProperty("allure.cli.mavenZip");
         Properties.clearForCurrentThread();
         setStaticField(AllureManager.class, "allureResultsFolderPath", SHAFT.Properties.paths.allureResults());
         setStaticField(AllureManager.class, "allureOutPutDirectory", "");
@@ -1163,6 +1166,94 @@ public class AllureManagerUnitTest {
                     }
                 });
             }
+        }
+    }
+
+    @Test(description = "getAllureCliMavenZipPath should honor allure.cli.mavenZip override and default Maven layout (#5815)")
+    public void getAllureCliMavenZipPathShouldHonorOverrideAndDefaultLayout() {
+        String version = "3.17.0";
+        String defaultPath = AllureManager.getAllureCliMavenZipPath(version);
+        SHAFT.Validations.assertThat().object(defaultPath.contains("io" + File.separator + "github" + File.separator + "shafthq"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(defaultPath.contains(AllureManager.ALLURE_CLI_MAVEN_ARTIFACT_ID)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(defaultPath.endsWith("allure-cli-" + version + ".zip")).isEqualTo(true).perform();
+
+        Path customZip = Path.of("target", "custom-allure-cli.zip");
+        System.setProperty("allure.cli.mavenZip", customZip.toString());
+        SHAFT.Validations.assertThat().object(AllureManager.getAllureCliMavenZipPath(version)).isEqualTo(customZip.toString()).perform();
+    }
+
+    @Test(description = "tryProvisionAllureCliFromMavenZip should unpack zip into runtime cache and expose cli.js (#5815)")
+    public void tryProvisionAllureCliFromMavenZipShouldUnpackIntoRuntimeCache() throws Exception {
+        String version = "3.17.0";
+        Path work = Files.createTempDirectory("shaft-allure-cli-zip-provision");
+        Path cacheRoot = work.resolve("runtime-cache");
+        Path zipPath = work.resolve("allure-cli-" + version + ".zip");
+        createMinimalAllureCliZip(zipPath);
+        System.setProperty("allure.cli.cacheRoot", cacheRoot.toString());
+        System.setProperty("allure.cli.mavenZip", zipPath.toString());
+        System.setProperty("allure.cli.skipProvision", "false");
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+        try {
+            SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent(version)).isEqualTo(false).perform();
+            boolean provisioned = AllureManager.tryProvisionAllureCliFromMavenZip(version);
+            SHAFT.Validations.assertThat().object(provisioned).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent(version)).isEqualTo(true).perform();
+            Path cliJs = cacheRoot.resolve(version).resolve("node_modules").resolve("allure").resolve("cli.js");
+            SHAFT.Validations.assertThat().object(Files.isRegularFile(cliJs)).isEqualTo(true).perform();
+
+            Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
+            resolveAllureCommandPrefix.setAccessible(true);
+            Object prefix = resolveAllureCommandPrefix.invoke(null);
+            SHAFT.Validations.assertThat().object(prefix).isNotNull().perform();
+            SHAFT.Validations.assertThat().object(prefix.toString().contains("cli.js")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(prefix.toString().contains("npx")).isEqualTo(false).perform();
+        } finally {
+            deleteRecursively(work);
+        }
+    }
+
+    @Test(description = "unpackAllureCliZip should reject zip-slip entries (#5815)")
+    public void unpackAllureCliZipShouldRejectZipSlip() throws Exception {
+        Path work = Files.createTempDirectory("shaft-allure-cli-zip-slip");
+        Path zipPath = work.resolve("evil.zip");
+        Path dest = work.resolve("dest");
+        Files.createDirectories(dest);
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+            zos.putNextEntry(new ZipEntry("../evil.txt"));
+            zos.write("nope".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+        boolean ok = AllureManager.unpackAllureCliZip(zipPath.toFile(), dest.toFile());
+        SHAFT.Validations.assertThat().object(ok).isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(Files.exists(work.resolve("evil.txt"))).isEqualTo(false).perform();
+        deleteRecursively(work);
+    }
+
+    /** Builds a minimal Allure CLI zip with {@code node_modules/allure/cli.js} at the archive root. */
+    private static void createMinimalAllureCliZip(Path zipPath) throws Exception {
+        Files.createDirectories(zipPath.getParent());
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+            zos.putNextEntry(new ZipEntry("node_modules/allure/cli.js"));
+            zos.write("#!/usr/bin/env node\nconsole.log('zip-allure-cli');\n".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("package.json"));
+            zos.write("{\n  \"name\": \"shaft-allure-cli-runtime\",\n  \"private\": true\n}\n".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+    }
+
+    private static void deleteRecursively(Path root) throws Exception {
+        if (root == null || !Files.exists(root)) {
+            return;
+        }
+        try (Stream<Path> walk = Files.walk(root)) {
+            walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (Exception ignored) {
+                }
+            });
         }
     }
 

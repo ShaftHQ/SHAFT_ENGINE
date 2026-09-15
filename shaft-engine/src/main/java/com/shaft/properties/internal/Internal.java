@@ -26,14 +26,16 @@ public interface Internal extends EngineProperties<Internal> {
     String watermarkImagePath();
 
     /**
-     * Version of the Allure 3 npm CLI package used by managed report generation (#5801).
+     * Version of the Allure 3 npm CLI package used by managed report generation (#5801/#5815).
      * Keep this aligned with the Allure 3 CLI you expect in CI (independent of
-     * {@code allure-bom} Java adapter coordinates). SHAFT prefers a Maven-provisioned copy under
-     * {@code ~/.m2/repository/allure/allure-cli/&lt;version&gt;/}; otherwise it falls back to
+     * {@code allure-bom} Java adapter coordinates), root POM {@code allure.cli.version}, and
+     * {@code allure-cli/pom.xml}. SHAFT prefers a Maven-provisioned copy under
+     * {@code ~/.m2/repository/allure/allure-cli/&lt;version&gt;/} (optionally unpacked from
+     * {@code io.github.shafthq:allure-cli:&lt;version&gt;:zip}); otherwise it falls back to
      * {@code npx --yes allure@&lt;version&gt;} (or portable Node under {@code ~/.m2/repository/nodejs/}).
      * User {@code PATH} {@code allure} is never used. Update this value to upgrade the pinned CLI
-     * across the engine and the {@code provision-allure-cli} Maven profile
-     * ({@code allure.cli.version} in the root POM). Latest releases:
+     * across the engine, the {@code provision-allure-cli} / {@code provision-allure-cli-maven}
+     * profiles, and the zip module. Latest releases:
      * <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
      */
     @Key("allure3Version")

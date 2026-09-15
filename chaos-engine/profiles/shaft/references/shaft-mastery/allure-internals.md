@@ -39,7 +39,7 @@ issue #3407). The proven pattern (PR #3433, `AllureManager`):
   (style) and before `</body>` (script) — SHAFT's patch constants must never
   themselves contain `</head>`/`</body>` literals or the marker scan breaks.
 
-## Maven-provisioned Allure 3 CLI (#5801)
+## Maven-provisioned Allure 3 CLI (#5801 / #5815)
 SHAFT never calls a user `PATH` `allure` binary (Allure 2 drop: #5798/#5800). Resolution order:
 
 1. **Maven cache (preferred):** `~/.m2/repository/allure/allure-cli/<allure3Version>/node_modules/allure/cli.js`
@@ -47,11 +47,24 @@ SHAFT never calls a user `PATH` `allure` binary (Allure 2 drop: #5798/#5800). Re
 2. `npx --yes allure@<allure3Version>` on PATH.
 3. Portable Node + its `npx`.
 
-**Operators / CI (offline / air-gap):**
-```bash
-mvn -Pprovision-allure-cli -pl shaft-engine -am initialize
-# then tests / report generate can run without npm registry at generate time
-```
-Root POM property `allure.cli.version` must stay aligned with `Internal.allure3Version()` (currently 3.17.0; independent of `allure-bom` 3.0.0 Java adapters).
+**Maven zip coordinates (air-gap, #5815):** `io.github.shafthq:allure-cli:<allure.cli.version>:zip`
+(built from `allure-cli/` via `mvn -f allure-cli/pom.xml clean install -Dgpg.skip` or
+`scripts/maintenance/build-allure-cli-zip.sh`). Zip unpacks into the runtime cache layout above.
+Artifact on disk: `~/.m2/repository/io/github/shafthq/allure-cli/<version>/allure-cli-<version>.zip`.
 
-Overrides: `-Dallure.cli.cacheRoot=...`, `-Dallure.cli.skipProvision=true` (engine bootstrap only).
+**Operators / CI:**
+```bash
+# Online / first warm-up (npm):
+mvn -Pprovision-allure-cli -pl shaft-engine -am initialize
+
+# Air-gap when the zip is in local or corporate Maven repo (never calls npm):
+mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize
+```
+Engine bootstrap also unpacks a **local** Maven zip before falling back to npm.
+Root POM property `allure.cli.version` must stay aligned with `Internal.allure3Version()` and
+`allure-cli/pom.xml` (currently 3.17.0; independent of `allure-bom` 3.0.0 Java adapters).
+
+Overrides: `-Dallure.cli.cacheRoot=...`, `-Dallure.cli.mavenZip=...`, `-Dallure.cli.skipProvision=true`
+(engine bootstrap only).
+
+Maven Central publish of the zip artifact is tracked in #5833.

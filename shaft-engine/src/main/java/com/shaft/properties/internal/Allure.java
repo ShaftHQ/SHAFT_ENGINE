@@ -135,10 +135,11 @@ public interface Allure extends EngineProperties<Allure> {
      * {@code ~/.m2/repository/nodejs/}).
      *
      * <p>Operators / CI: pre-warm the Maven cache with
-     * {@code mvn -Pprovision-allure-cli -pl shaft-engine -am initialize} (uses root POM property
-     * {@code allure.cli.version}, aligned with {@code allure3Version}). Override the cache root
-     * with {@code -Dallure.cli.cacheRoot=...}. Skip runtime provision with
-     * {@code -Dallure.cli.skipProvision=true}.
+     * {@code mvn -Pprovision-allure-cli -pl shaft-engine -am initialize} (npm) or
+     * {@code mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize} (air-gap unpack of
+     * {@code io.github.shafthq:allure-cli:&lt;allure.cli.version&gt;:zip}). Override the cache root
+     * with {@code -Dallure.cli.cacheRoot=...}, the zip path with {@code -Dallure.cli.mavenZip=...}.
+     * Skip runtime provision with {@code -Dallure.cli.skipProvision=true}.
      *
      * <p>Setting this property to {@code false} is a no-op that logs a discrete deprecation note;
      * PATH allure remains ignored. Prefer leaving the default {@code true} or removing the property

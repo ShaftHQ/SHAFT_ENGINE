@@ -64,9 +64,14 @@
         <!-- Dependency BOM Versions -->
         <junit.bom.version>6.1.3</junit.bom.version>
         <allure.bom.version>3.0.0</allure.bom.version>
-        <!-- Pinned Allure 3 npm CLI version for Maven cache provision (#5801); keep aligned with
-             SHAFT.Properties.internal.allure3Version() default in Internal.java -->
+        <!-- Pinned Allure 3 npm CLI version for Maven cache provision (#5801/#5815); keep aligned with
+             SHAFT.Properties.internal.allure3Version() default in Internal.java and allure-cli/pom.xml -->
         <allure.cli.version>3.17.0</allure.cli.version>
+        <!-- Maven zip coordinates for the pinned CLI distribution (#5815). Artifact lives under
+             io/github/shafthq/allure-cli/<version>/; runtime unpack target remains
+             allure/allure-cli/<version>/ (AllureManager cache). -->
+        <allure.cli.maven.groupId>io.github.shafthq</allure.cli.maven.groupId>
+        <allure.cli.maven.artifactId>allure-cli</allure.cli.maven.artifactId>
         <cucumber.bom.version>7.34.8</cucumber.bom.version>
         <jackson.version>3.2.2</jackson.version>
         <jackson.legacy.version>2.22.2</jackson.legacy.version>
