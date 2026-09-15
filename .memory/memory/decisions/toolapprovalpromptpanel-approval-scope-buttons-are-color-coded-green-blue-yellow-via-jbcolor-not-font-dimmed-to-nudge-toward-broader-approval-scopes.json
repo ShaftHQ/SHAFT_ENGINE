@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.toolapprovalpromptpanel-approval-scope-buttons-are-color-coded-green-blue-yellow-via-jbcolor-not-font-dimmed-to-nudge-toward-broader-approval-scopes",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #3694 (Assistant notices-strip layout gap) and #3696 (approval button dimming) in shaft-intellij"

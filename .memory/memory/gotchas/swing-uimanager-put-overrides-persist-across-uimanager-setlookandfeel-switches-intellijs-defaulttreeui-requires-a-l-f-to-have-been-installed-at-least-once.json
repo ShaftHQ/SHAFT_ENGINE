@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.swing-uimanager-put-overrides-persist-across-uimanager-setlookandfeel-switches-intellijs-defaulttreeui-requires-a-l-f-to-have-been-installed-at-least-once",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix light-theme IntelliJLaf checkbox rendering defect in shaft-intellij headless screenshot renderer (issue #3777)"

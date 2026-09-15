@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "gbrain full uninstall requested and executed 2026-07-18"

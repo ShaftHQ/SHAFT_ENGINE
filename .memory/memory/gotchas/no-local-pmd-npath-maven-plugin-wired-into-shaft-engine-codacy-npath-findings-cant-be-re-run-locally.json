@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.no-local-pmd-npath-maven-plugin-wired-into-shaft-engine-codacy-npath-findings-cant-be-re-run-locally",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Codacy NPath complexity fix on GeneratedCodeGuardrails.isSuspiciousSecretLiteral (PR #4251, adjacent finding from PR #4249)"

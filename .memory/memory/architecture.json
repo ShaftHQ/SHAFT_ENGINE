@@ -12,28 +12,13 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "pom.xml",
-      ".agents/skills/",
-      ".github/instructions/",
-      "scripts/ci/"
-    ],
-    "category": "architecture"
-  },
-  "id": "architecture.current",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "feature.current",
   "source": {
     "kind": "system"
   },
   "status": "active",
   "tags": [],
   "title": "Current Architecture",
-  "type": "architecture",
+  "type": "feature",
   "updated_at": "2026-07-08T16:41:17+03:00"
 }

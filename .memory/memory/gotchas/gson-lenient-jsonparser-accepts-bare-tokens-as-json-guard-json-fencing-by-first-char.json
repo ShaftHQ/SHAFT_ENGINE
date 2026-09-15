@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.gson-lenient-jsonparser-accepts-bare-tokens-as-json-guard-json-fencing-by-first-char",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "PR #3718 follow-up wave: MCP tool schema fixes, chat rendering fixes, act-as-mohab distribution"

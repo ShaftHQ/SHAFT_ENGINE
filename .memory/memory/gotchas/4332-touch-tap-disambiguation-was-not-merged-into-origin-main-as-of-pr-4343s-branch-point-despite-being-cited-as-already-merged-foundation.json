@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.4332-touch-tap-disambiguation-was-not-merged-into-origin-main-as-of-pr-4343s-branch-point-despite-being-cited-as-already-merged-foundation",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #4327: extend HealingManager.resolve() to the multi-match branch"

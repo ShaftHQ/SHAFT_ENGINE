@@ -12,19 +12,10 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.mains-only-required-status-check-is-pr-gate-summary-verified-via-the-github-rulesets-api",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.mains-only-required-status-check-is-pr-gate-summary-verified-via-the-github-rulesets-api",
   "source": {
     "kind": "agent",
-    "task": "Issue #4103: fifth Learning Loop entry added mid-session by the orchestrator — main's required status check and the unproven codecov/Codacy gating question"
+    "task": "Issue #4103: fifth Learning Loop entry added mid-session by the orchestrator \u2014 main's required status check and the unproven codecov/Codacy gating question"
   },
   "status": "active",
   "tags": [
@@ -34,6 +25,6 @@
     "pr-gate"
   ],
   "title": "main's only required status check is PR Gate Summary, verified via the GitHub rulesets API",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:52:56+03:00"
 }

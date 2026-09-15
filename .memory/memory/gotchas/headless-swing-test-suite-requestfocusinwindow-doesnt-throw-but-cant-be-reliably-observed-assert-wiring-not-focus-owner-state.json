@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.headless-swing-test-suite-requestfocusinwindow-doesnt-throw-but-cant-be-reliably-observed-assert-wiring-not-focus-owner-state",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "shaft-intellij issue #3631 save transcript to file and #3632 approval prompt keyboard focus"

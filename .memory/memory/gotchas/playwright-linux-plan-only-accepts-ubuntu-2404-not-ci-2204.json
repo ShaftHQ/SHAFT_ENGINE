@@ -12,19 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-infrastructure/src/main/java/com/shaft/infrastructure/PlaywrightHostPlatform.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.playwright-linux-plan-only-accepts-ubuntu-2404-not-ci-2204",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record Playwright Linux host pin vs CI Ubuntu 22.04"

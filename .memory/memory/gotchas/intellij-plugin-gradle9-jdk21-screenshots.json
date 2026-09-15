@@ -20,20 +20,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij",
-      "shaft-engine/src/main/resources/modular-era-feature-catalog"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-plugin-gradle9-jdk21-screenshots",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Optimize agent guidance after issue 3205 IntelliJ Assistant browser-control execution"

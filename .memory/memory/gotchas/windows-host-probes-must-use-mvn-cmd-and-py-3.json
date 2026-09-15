@@ -12,19 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-infrastructure"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.windows-host-probes-must-use-mvn-cmd-and-py-3",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record AGENT_TOOLS increment gotchas from #5052 / #5051 babysit"

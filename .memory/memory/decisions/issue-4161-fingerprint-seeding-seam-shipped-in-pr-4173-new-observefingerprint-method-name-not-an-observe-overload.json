@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.issue-4161-fingerprint-seeding-seam-shipped-in-pr-4173-new-observefingerprint-method-name-not-an-observe-overload",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue 4161 fingerprint seeding seam + maximumPerformanceMode ordering"

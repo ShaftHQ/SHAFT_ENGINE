@@ -10,8 +10,8 @@
   ],
   "from": "decision.utf8-all-runtime-layers",
   "id": "rel.utf8-all-runtime-layers-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
+  "to": "feature.stack-and-tooling",
   "updated_at": "2026-07-29T16:50:50+03:00"
 }

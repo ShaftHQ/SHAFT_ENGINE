@@ -12,13 +12,7 @@
       "kind": "file"
     }
   ],
-  "id": "fact.intellij-mcp-setup-copies-skills-install-flag",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.intellij-mcp-setup-copies-skills-install-flag",
   "source": {
     "kind": "agent",
     "task": "Fix IntelliJ Assistant onboarding blockers from issue 3285"
@@ -31,6 +25,6 @@
     "issue-3285"
   ],
   "title": "IntelliJ MCP setup copies skills install flag",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:50:09+03:00"
 }

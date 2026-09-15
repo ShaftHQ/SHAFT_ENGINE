@@ -8,9 +8,9 @@
       "kind": "memory"
     }
   ],
-  "from": "workflow.start-new-tasks-from-origin-main",
+  "from": "feature.start-new-tasks-from-origin-main",
   "id": "rel.workflow-start-new-tasks-from-origin-main-documents-project-shaft-engine",
-  "predicate": "documents",
+  "predicate": "related_to",
   "status": "active",
   "to": "project.shaft-engine",
   "updated_at": "2026-06-28T10:31:53+03:00"

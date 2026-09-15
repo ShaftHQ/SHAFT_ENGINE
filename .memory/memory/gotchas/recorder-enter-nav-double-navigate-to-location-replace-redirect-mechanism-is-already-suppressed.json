@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.recorder-enter-nav-double-navigate-to-location-replace-redirect-mechanism-is-already-suppressed",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ initial->recorder->codegen end-user workflow audit (2026-07-14 close-all-open-issues loop)"

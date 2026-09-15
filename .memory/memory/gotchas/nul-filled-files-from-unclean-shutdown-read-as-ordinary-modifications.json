@@ -16,19 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/agents/guard.py"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.nul-filled-files-from-unclean-shutdown-read-as-ordinary-modifications",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Issue #4437: harden the harness against abandoned worktrees and NUL-byte corruption (PR #4439)"

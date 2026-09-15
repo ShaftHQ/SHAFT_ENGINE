@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.windows-ci-max-path-checkout-failure-autocrlf-byte-compare-drift",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"

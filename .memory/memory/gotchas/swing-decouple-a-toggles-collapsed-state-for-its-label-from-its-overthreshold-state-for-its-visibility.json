@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.swing-decouple-a-toggles-collapsed-state-for-its-label-from-its-overthreshold-state-for-its-visibility",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "shaft-intellij issue #3629 collapsible long assistant transcript outputs"

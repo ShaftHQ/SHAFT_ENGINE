@@ -16,16 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only",
   "source": {
     "kind": "agent",
     "task": "root markdown docs quality pass (PRs 4295/4296): badge, coordinate and link-check facts"
@@ -37,6 +28,6 @@
     "badges"
   ],
   "title": "pr-gate.yml is the only branch-meaningful CI badge; e2eTests.yml is schedule-only",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:02:05+03:00"
 }

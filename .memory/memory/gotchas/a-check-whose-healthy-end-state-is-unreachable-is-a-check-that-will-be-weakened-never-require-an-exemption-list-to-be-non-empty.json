@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "testing"
-  },
   "id": "gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened-never-require-an-exemption-list-to-be-non-empty",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the design doctrine and the anti-pattern from #4484 / PR #4513, the fourth review round on the superseded-policy scan"

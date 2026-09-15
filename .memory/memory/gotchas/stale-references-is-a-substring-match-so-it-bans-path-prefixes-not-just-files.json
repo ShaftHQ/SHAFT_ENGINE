@@ -16,21 +16,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/ci/validate_agent_guidance.py",
-      "scripts/ci/agent_guidance_budget.json",
-      ".agents/skills/act-as-mohab/references"
-    ],
-    "category": "agent-guidance"
-  },
   "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Preserve TDD failure-mode doctrine as a tracked reference (#4502, PR #4503); record why the file had to be flat and what its name could not be."

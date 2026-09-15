@@ -16,16 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "testing"
-  },
   "id": "gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-hook-can-reach-it-assert-the-wiring-in-the-same-step",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Route the verification lessons from building the guard.py required-action gates (#4541, PR #4539)"

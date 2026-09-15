@@ -20,16 +20,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.recorder-truth-rules-suppress-browser-synthesized-phantom-steps-upgrade-is-agent-performed-verbose-forwards-as-is-on-every-route",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #3426 IntelliJ plugin trustworthy first contact (PR #3427, docs #733)"

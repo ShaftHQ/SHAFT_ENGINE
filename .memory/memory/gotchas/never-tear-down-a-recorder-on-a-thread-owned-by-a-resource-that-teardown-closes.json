@@ -8,19 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3409: recorder stop orphaning the browser, duplicated steps, and codegen replay"

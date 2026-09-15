@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.issue-4234-closed-as-non-issue-preferredheightrow-cannot-reach-wrappingargumentsareas-shrink-below-minimum-bug",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Investigate issue #4234 (AssistantTranscriptView.PreferredHeightRow may share ToolApprovalPromptPanel's missing-getMinimumSize pattern)"

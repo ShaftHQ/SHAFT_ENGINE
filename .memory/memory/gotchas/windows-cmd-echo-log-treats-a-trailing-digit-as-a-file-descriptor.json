@@ -12,19 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "tests/scripts/test_knowledge_stores.py"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.windows-cmd-echo-log-treats-a-trailing-digit-as-a-file-descriptor",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning loop after #5084 knowledge_stores --query: Windows cmd fixture redirect gotcha"

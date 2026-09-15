@@ -16,21 +16,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "docs/start/local-infrastructure.mdx",
-      "docs/agentic/cli.md",
-      "shaft-cli/src/main/java/com/shaft/commandline/command/SetupCommand.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.setup-status-and-verify-print-target-readiness-version-detail-not-the-pin-table",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "PR 988 remaining setup-status doc lies"

@@ -16,6 +16,6 @@
   "id": "rel.gotcha-a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes-related-to-fact-worktree-hygiene-report-and-guard-rule-r10",
   "predicate": "related_to",
   "status": "active",
-  "to": "fact.worktree-hygiene-report-and-guard-rule-r10",
+  "to": "gotcha.worktree-hygiene-report-and-guard-rule-r10",
   "updated_at": "2026-08-10T15:11:29+03:00"
 }

@@ -8,19 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/e2eTests.yml"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.playwright-ci-installation-must-use-an-explicit-exec-maven-plugin-goal",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Resolve #4398 E2E Tests nightly failures"

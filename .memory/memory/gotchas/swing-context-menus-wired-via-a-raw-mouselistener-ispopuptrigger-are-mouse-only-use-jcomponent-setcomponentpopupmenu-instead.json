@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.swing-context-menus-wired-via-a-raw-mouselistener-ispopuptrigger-are-mouse-only-use-jcomponent-setcomponentpopupmenu-instead",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "shaft-intellij issue #3630 keyboard-reachable transcript message context menu"

@@ -8,19 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/gui/element/internal/ElementActionsHelper.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #4332 (touch/tap disambiguation) surfaced a TouchActions exception-type gotcha"

@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.memory-cli-supersede-shorthand-fails-on-windows-with-long-object-ids",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "document Windows MAX_PATH issue with memory CLI supersede shorthand"

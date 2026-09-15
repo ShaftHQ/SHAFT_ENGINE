@@ -8,19 +8,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "D:\\AI\\soup-poc"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.soup-cli-requires-python-3-10-3-12-host-default-3-14-needs-uv-venv",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "5142"

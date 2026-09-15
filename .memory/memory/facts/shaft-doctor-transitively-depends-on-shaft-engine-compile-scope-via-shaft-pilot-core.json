@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.shaft-doctor-transitively-depends-on-shaft-engine-compile-scope-via-shaft-pilot-core",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.shaft-doctor-transitively-depends-on-shaft-engine-compile-scope-via-shaft-pilot-core",
   "source": {
     "kind": "agent",
     "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
@@ -30,6 +21,6 @@
     "dependencies"
   ],
   "title": "shaft-doctor transitively depends on shaft-engine (compile scope via shaft-pilot-core)",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-07-29T16:45:37+03:00"
 }

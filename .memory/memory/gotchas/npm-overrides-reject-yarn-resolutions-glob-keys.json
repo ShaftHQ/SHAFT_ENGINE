@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.npm-overrides-reject-yarn-resolutions-glob-keys",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "docs PR 828"

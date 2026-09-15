@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.shaft-intellij-jlabel-accessible-name-overrides-commonly-hide-live-dynamic-label-text-from-screen-readers",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.shaft-intellij-jlabel-accessible-name-overrides-commonly-hide-live-dynamic-label-text-from-screen-readers",
   "source": {
     "kind": "agent",
     "task": "IntelliJ plugin a11y audit pass over #3601 setup/Assistant/Guided surfaces"
@@ -31,6 +22,6 @@
     "issue-3603"
   ],
   "title": "shaft-intellij: JLabel accessible-name overrides commonly hide live/dynamic label text from screen readers",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-07-29T16:45:37+03:00"
 }

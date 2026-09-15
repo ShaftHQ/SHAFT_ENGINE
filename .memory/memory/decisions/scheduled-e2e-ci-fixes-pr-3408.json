@@ -16,21 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-sikulix/pom.xml",
-      "shaft-engine/src/test/java/testPackage/SHAFTWizard/GUIWizardTests.java",
-      ".github/workflows/e2eLocalTests.yml"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.scheduled-e2e-ci-fixes-pr-3408",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix scheduled E2E CI failures (runs 28916954272, 28917051358)"

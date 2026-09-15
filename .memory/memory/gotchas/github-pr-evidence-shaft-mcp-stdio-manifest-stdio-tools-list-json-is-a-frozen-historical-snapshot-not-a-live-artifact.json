@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.github-pr-evidence-shaft-mcp-stdio-manifest-stdio-tools-list-json-is-a-frozen-historical-snapshot-not-a-live-artifact",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix shaft-mcp capture_start/codegen tools failing MCP JSON-schema validation on the IntelliJ onboarding Record-a-sample-flow quick action (issue #3692)"

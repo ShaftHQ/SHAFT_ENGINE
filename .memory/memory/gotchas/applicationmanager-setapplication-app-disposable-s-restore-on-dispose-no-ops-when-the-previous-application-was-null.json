@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.applicationmanager-setapplication-app-disposable-s-restore-on-dispose-no-ops-when-the-previous-application-was-null",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix shaft-intellij full-suite CI regression on PR #4238 (issue #4233 EditorColorsManager NPE fix)"

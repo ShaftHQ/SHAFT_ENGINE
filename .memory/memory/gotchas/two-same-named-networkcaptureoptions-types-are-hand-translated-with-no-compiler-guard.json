@@ -16,21 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java",
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/NetworkCaptureOptions.java",
-      "shaft-capture/src/main/java/com/shaft/capture/network/NetworkCaptureOptions.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.two-same-named-networkcaptureoptions-types-are-hand-translated-with-no-compiler-guard",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning Loop second pass: record durable gotchas from #4021, #4046, #4066, #4014, #4057"

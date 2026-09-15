@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.mcp-notifications-progress-requires-migrating-tools-from-tool-to-mcptool",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"

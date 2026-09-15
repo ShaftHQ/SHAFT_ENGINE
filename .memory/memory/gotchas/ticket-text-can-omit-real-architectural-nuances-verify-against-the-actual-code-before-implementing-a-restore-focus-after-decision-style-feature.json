@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.ticket-text-can-omit-real-architectural-nuances-verify-against-the-actual-code-before-implementing-a-restore-focus-after-decision-style-feature",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "shaft-intellij issue #3631 save transcript to file and #3632 approval prompt keyboard focus"

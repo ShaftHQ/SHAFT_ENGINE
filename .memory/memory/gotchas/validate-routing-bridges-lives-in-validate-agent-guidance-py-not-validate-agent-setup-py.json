@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.validate-routing-bridges-lives-in-validate-agent-guidance-py-not-validate-agent-setup-py",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "record five durable gotchas from the crash-recovery session (2026-07-26)"

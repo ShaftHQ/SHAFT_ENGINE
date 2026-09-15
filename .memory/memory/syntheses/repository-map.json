@@ -20,24 +20,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "pom.xml",
-      "shaft-engine/",
-      "shaft-intellij/",
-      "scripts/",
-      "tools/",
-      ".github/workflows/"
-    ],
-    "category": "file-layout"
-  },
-  "id": "synthesis.repository-map",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "feature.repository-map",
   "source": {
     "kind": "agent",
     "task": "Fill Repository Map and Stack / Tooling role-coverage gaps from current repo state (#4358)"
@@ -50,6 +33,6 @@
     "modules"
   ],
   "title": "Repository map",
-  "type": "synthesis",
+  "type": "feature",
   "updated_at": "2026-07-29T16:47:24+03:00"
 }

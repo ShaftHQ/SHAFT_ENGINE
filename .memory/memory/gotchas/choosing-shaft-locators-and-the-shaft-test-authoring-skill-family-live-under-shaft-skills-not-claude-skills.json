@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.choosing-shaft-locators-and-the-shaft-test-authoring-skill-family-live-under-shaft-skills-not-claude-skills",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Reconcile locator-strategy guidance across the skill corpus (#4030)"

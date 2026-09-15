@@ -16,21 +16,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "docs/agentic/doctor.mdx",
-      "docs/agentic/pilot.md",
-      "shaft-mcp"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.doctor-propose-fix-and-publish-draft-pr-are-cli-only-not-mcp-tools",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "5147 docs sync gotcha: Doctor full repair publish is CLI-only"

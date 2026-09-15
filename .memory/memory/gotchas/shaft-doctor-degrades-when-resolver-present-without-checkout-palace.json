@@ -16,21 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "chaos-engine/hosts.py",
-      "chaos-engine/tool.py",
-      "tests/scripts/test_chaos_engine_hosts.py"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-doctor-degrades-when-resolver-present-without-checkout-palace",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record #5071 SHAFT doctor degraded-status gotcha after implementing the locked path"

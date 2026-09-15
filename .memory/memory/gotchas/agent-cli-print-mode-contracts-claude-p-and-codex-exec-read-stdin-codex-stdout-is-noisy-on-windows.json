@@ -16,22 +16,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-upgrader/upgrade_to_modular_shaft.py",
-      "scripts/agents/guard.py",
-      ".claude/settings.json",
-      ".codex/hooks.json"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "PR #3446: shaft-cli epic #3443 parts B/D/E and #3440 documentation boundary fix"

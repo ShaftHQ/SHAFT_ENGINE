@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaftassistantpanel-local-agent-streaming-placeholder-replace-last-message-breaks-once-anything-else-can-be-appended-after-it",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ Assistant #3695: remove Run timeline list, move milestones into chat bubbles"

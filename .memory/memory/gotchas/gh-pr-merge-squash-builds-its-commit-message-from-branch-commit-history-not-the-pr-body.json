@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.gh-pr-merge-squash-builds-its-commit-message-from-branch-commit-history-not-the-pr-body",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "PR #3710 squash-merge accidentally auto-closed issue #3708"

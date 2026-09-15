@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.actions-selectvalue-s-native-select-tag-check-was-case-sensitive-unlike-seleniums-own-org-openqa-selenium-support-ui-select-constructor",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Nightly e2eLocalTests.yml MacOSX_Safari_Local triage: fix accessible-name catch-widening and select() tag-name case-insensitivity, run 30237601576"

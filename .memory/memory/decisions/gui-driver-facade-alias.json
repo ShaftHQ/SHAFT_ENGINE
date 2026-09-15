@@ -16,26 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java",
-      "shaft-engine/src/main/java/com/shaft/gui/driver/DriverContract.java",
-      "shaft-engine/src/test/java/testPackage/unitTests/GUIInterfaceCompatibilityCoverageUnitTest.java"
-    ],
-    "category": "decision-rationale",
-    "load_modes": [
-      "coding",
-      "review",
-      "architecture"
-    ]
-  },
   "id": "decision.gui-driver-facade-alias",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Expose generic SHAFT GUI driver facade for Selenium and Playwright"

@@ -8,19 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureEventPipeline.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3409: recorder stop orphaning the browser, duplicated steps, and codegen replay"

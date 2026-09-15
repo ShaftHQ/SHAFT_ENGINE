@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.memory-remember-stdin-tags-must-be-all-lowercase-or-schema-validation-fails-with-no-detail",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "memory remember --stdin schema validation quirk discovered while saving #3695 memory"

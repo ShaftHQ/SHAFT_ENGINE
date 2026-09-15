@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.docusaurus-v4-future-v4-true-upgrade-gotchas-on-the-shaft-docs-site",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"

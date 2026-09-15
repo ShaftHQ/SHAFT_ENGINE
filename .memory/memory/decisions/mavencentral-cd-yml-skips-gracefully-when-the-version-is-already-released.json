@@ -8,20 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/mavenCentral_cd.yml",
-      "scripts/ci/check_maven_release_version.py"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.mavencentral-cd-yml-skips-gracefully-when-the-version-is-already-released",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3372: Maven Central CD workflow red between releases"

@@ -8,22 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/properties/internal/PropertiesHelper.java",
-      "shaft-engine/src/main/java/com/shaft/properties/internal/PropertyFileManager.java",
-      "shaft-engine/src/main/java/com/shaft/properties/internal/ThreadLocalPropertiesManager.java",
-      "shaft-capture/src/main/java/com/shaft/capture/generate/GeneratedTestValidator.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-auto-scaffolded-custom-properties-silently-overrides-d-system-properties",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix release-candidate CI failures on PR #3344 (release/10.3.20260706)"

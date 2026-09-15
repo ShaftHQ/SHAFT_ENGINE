@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.file-dependent-sub-issues-one-branch-pr-merge-per-issue-sequential-not-a-shared-batched-branch",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ Phase 4/5 hardening (#3643 umbrella): sequential branch-per-issue workflow"

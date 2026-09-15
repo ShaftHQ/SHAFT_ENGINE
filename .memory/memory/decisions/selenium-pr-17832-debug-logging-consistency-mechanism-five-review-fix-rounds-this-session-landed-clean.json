@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.selenium-pr-17832-debug-logging-consistency-mechanism-five-review-fix-rounds-this-session-landed-clean",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Selenium PR #17832: self-review by the fix's own author is not enough for multi-round fix chains"

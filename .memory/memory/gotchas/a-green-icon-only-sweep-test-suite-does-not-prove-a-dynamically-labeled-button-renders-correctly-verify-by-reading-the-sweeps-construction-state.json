@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.a-green-icon-only-sweep-test-suite-does-not-prove-a-dynamically-labeled-button-renders-correctly-verify-by-reading-the-sweeps-construction-state",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "intellij #3626 recovery action buttons review"

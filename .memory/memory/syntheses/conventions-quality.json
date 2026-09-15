@@ -12,27 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "AGENTS.md",
-      "PowerShell",
-      "validation"
-    ],
-    "category": "convention",
-    "load_modes": [
-      "coding",
-      "debugging",
-      "review",
-      "onboarding"
-    ]
-  },
-  "id": "synthesis.conventions-quality",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "feature.conventions-quality",
   "source": {
     "kind": "cli",
     "task": "Proposed bootstrap memory patch from deterministic repository analysis"
@@ -46,6 +26,6 @@
     "powershell"
   ],
   "title": "Conventions and quality bar",
-  "type": "synthesis",
+  "type": "feature",
   "updated_at": "2026-06-28T10:31:53+03:00"
 }

@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.completablefuture-supplyasync-wraps-cancellationexception-in-completionexception",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Stabilize flaky AssistantLocalAgentRunnerCancellationTest force-cancel race (issue #3758)"

@@ -8,21 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java",
-      "shaft-engine/src/main/java/com/shaft/api/RequestBuilder.java",
-      "shaft-engine/src/main/java/com/shaft/api/RestActions.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.prefer-shaft-api-builder-facade-for-rest-work",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Implement REST API builder facade and deprecations"

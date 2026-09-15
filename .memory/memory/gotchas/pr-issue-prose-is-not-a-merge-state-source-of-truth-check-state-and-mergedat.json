@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.pr-issue-prose-is-not-a-merge-state-source-of-truth-check-state-and-mergedat",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "record two post-PR-4141 gotchas: negation-blind auto-close keyword matching, and PR prose as false merge-state signal"

@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.guard-py-r1-r2-match-command-heads-quoted-prose-about-maven-no-longer-blocks",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.guard-py-r1-r2-match-command-heads-quoted-prose-about-maven-no-longer-blocks",
   "source": {
     "kind": "agent",
     "task": "Close issue #3422: guided-workflow follow-ups implemented via PR #3424"
@@ -25,6 +16,6 @@
   "status": "active",
   "tags": [],
   "title": "Portable guard matches executable command heads without blocking quoted prose",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:50:09+03:00"
 }

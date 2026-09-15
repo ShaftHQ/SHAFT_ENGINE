@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.local-m2-and-installed-shaft-mcp-are-shadowed-by-2026-07-11-local-builds",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "First-time-user trust pass: fix MCP workspace for external projects, remove codegen/doctor dead ends, intent-first IntelliJ plugin, consumer-project E2E"

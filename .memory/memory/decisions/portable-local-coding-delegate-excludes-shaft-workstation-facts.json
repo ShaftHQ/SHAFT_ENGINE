@@ -8,21 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "chaos-engine/skills/local-coding-delegate/",
-      "chaos-engine/profiles/portable/references/routing.md",
-      "chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.portable-local-coding-delegate-excludes-shaft-workstation-facts",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the locked #5081 portable-versus-SHAFT local-coding split so later work does not reopen it."

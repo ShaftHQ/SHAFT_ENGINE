@@ -8,20 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-mcp/pom.xml",
-      "shaft-capture/pom.xml"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.refresh-shaft-captures-m2-snapshot-too-not-just-shaft-engine-for-shaft-mcp-builds",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Implement MCP network tool pack + capture_start HAR-content wiring (#3350 part 4)"

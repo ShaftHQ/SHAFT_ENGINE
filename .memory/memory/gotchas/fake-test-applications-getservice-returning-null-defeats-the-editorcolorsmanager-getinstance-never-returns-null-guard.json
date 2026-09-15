@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.fake-test-applications-getservice-returning-null-defeats-the-editorcolorsmanager-getinstance-never-returns-null-guard",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #4233 nightly Live Tools E2E NPE in AssistantTranscriptView"

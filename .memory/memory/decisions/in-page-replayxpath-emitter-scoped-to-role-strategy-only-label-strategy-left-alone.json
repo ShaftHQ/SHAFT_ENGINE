@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.in-page-replayxpath-emitter-scoped-to-role-strategy-only-label-strategy-left-alone",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "capture codegen accessible name locator #4026"

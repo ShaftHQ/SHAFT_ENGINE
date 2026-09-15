@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.shaft-properties-bootstrapdirectory-redirects-engine-property-bootstrap-writes",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.shaft-properties-bootstrapdirectory-redirects-engine-property-bootstrap-writes",
   "source": {
     "kind": "agent",
     "task": "Close issue #3422: guided-workflow follow-ups implemented via PR #3424"
@@ -25,6 +16,6 @@
   "status": "active",
   "tags": [],
   "title": "shaft.properties.bootstrapDirectory redirects engine property bootstrap writes",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:50:09+03:00"
 }

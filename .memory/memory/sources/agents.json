@@ -8,28 +8,12 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "AGENTS.md"
-    ],
-    "category": "source",
-    "load_modes": [
-      "onboarding",
-      "architecture"
-    ]
-  },
-  "id": "source.agents",
+  "id": "feature.agents",
   "origin": {
     "digest": "sha256:8786a685dd167fa22914d0b5953055c470b15322e26ac45be05d29663981b43c",
     "kind": "file",
     "locator": "AGENTS.md",
     "media_type": "text/markdown"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "cli",
@@ -41,6 +25,6 @@
     "agents"
   ],
   "title": "Source: AGENTS.md",
-  "type": "source",
+  "type": "feature",
   "updated_at": "2026-08-10T15:11:49+03:00"
 }

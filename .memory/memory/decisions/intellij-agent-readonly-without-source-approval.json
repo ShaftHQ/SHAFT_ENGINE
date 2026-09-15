@@ -24,16 +24,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.intellij-agent-readonly-without-source-approval",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue 3190 IntelliJ assistant no-source agent permission model"

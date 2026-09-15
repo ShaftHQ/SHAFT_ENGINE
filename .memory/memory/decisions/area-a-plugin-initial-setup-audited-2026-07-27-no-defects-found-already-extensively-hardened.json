@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.area-a-plugin-initial-setup-audited-2026-07-27-no-defects-found-already-extensively-hardened",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Area A audit (tracker #4214/#4160): plugin initial setup experience"

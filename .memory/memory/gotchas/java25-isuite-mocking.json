@@ -12,19 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/listeners/internal/TestNGListenerHelper.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.java25-isuite-mocking",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Seed durable SHAFT project memory from the retired high-signal ledger"

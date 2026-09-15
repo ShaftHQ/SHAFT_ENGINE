@@ -12,20 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/local-coding-agent/run_agent.ps1",
-      "scripts/local-coding-agent/shaft-architect.ps1"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.aider-0862-gitpython-cannot-read-git-index-v4",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record durable gotchas from #5072 merge and #5071 review"

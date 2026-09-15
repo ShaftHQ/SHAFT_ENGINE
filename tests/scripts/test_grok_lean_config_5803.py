@@ -155,12 +155,15 @@ class GrokSkillDedupeTests(unittest.TestCase):
         }
         dupes = mod.duplicate_chaos_engine_skills_from_inspect(payload)
         self.assertEqual(len(dupes), 2)
+        self.assertTrue(mod.expected_chaos_engine_pointer_pair(dupes))
         self.assertEqual(
             mod.duplicate_chaos_engine_skills_from_inspect(
                 {"skills": [{"name": "chaos-engine", "path": "a"}]}
             ),
             [],
         )
+        extra = list(dupes) + ["~/.grok/skills/chaos-engine/SKILL.md"]
+        self.assertFalse(mod.expected_chaos_engine_pointer_pair(extra))
 
 
 class SkillAdapterPointerTests(unittest.TestCase):

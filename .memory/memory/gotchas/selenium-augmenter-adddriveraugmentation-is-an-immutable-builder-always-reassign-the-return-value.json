@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.selenium-augmenter-adddriveraugmentation-is-an-immutable-builder-always-reassign-the-return-value",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Issue #3788: grid execution broken -- chromium double-HasCdp augmentation, green-masked example CI, stale sample test data"

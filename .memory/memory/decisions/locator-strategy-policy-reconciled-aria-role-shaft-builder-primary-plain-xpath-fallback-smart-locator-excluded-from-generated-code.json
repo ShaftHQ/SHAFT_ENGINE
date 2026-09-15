@@ -12,16 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.locator-strategy-policy-reconciled-aria-role-shaft-builder-primary-plain-xpath-fallback-smart-locator-excluded-from-generated-code",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Reconcile locator-strategy guidance across the skill corpus (#4030)"

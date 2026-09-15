@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.local-mvn-test-never-fails-the-build-read-surefire-xml-counts-for-verdicts",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "logging/allure reporting accuracy pass (issue #3466, PR #3469)"

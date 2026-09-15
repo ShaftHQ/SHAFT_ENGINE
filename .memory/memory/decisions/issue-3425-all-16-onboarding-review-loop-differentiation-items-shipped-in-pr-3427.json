@@ -20,16 +20,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.issue-3425-all-16-onboarding-review-loop-differentiation-items-shipped-in-pr-3427",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #3425 folded into PR #3427 (onboarding lanes, review loop, differentiation)"

@@ -12,20 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "chaos-engine/references/task-isolation.md",
-      "C:/Users/Mohab/.grok/worktrees/ideaprojects-shaft-engine/setup-browserstack"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.named-setup-worktree-can-be-raced-by-a-sibling-writer",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record durable gotchas from babysitting #5048/#5049"

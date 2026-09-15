@@ -16,20 +16,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/tools/io",
-      "shaft-ocr/src/main/java/com/shaft/ocr"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.pdf-document-ocr-extends-pdffilemanager-with-explicit-bounded-exports",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the durable PDF document OCR architecture delivered for issue 4823"

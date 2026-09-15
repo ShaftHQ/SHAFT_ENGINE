@@ -16,16 +16,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.gradle-daemon-jvm-criteria-gradle-daemon-jvm-properties-takes-precedence-over-java-home-and-dorg-gradle-java-home",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "shaft-intellij Gradle build crashes on JDK 25 daemon; enforce JDK requirement (issue #3784)"

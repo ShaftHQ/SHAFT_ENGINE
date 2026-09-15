@@ -12,19 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.github-429-503-action-downloads-after-maven-green-are-infra",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record AGENT_TOOLS increment gotchas from #5052 / #5051 babysit"

@@ -5037,6 +5037,15 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                 account_commands=account_commands,
             )
             return {"status": "repaired", "component": name, "action": "rebind"}
+        if name == "memory" and hasattr(host_controller, "migrate_legacy_memory_store"):
+            migrated = host_controller.migrate_legacy_memory_store(project)
+            if isinstance(migrated, dict) and migrated.get("status") == "migrated":
+                return {
+                    "status": "repaired",
+                    "component": name,
+                    "action": "migrate-legacy-objects",
+                    "objects": migrated.get("objects"),
+                }
         if name in {"memory", "mempalace", "graphify", "tools"}:
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")

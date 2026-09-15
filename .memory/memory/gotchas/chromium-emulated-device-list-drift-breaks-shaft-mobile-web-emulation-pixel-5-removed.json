@@ -12,16 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.chromium-emulated-device-list-drift-breaks-shaft-mobile-web-emulation-pixel-5-removed",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "2026-07-10 guided-workflow solidifying run (PR #3421, issue #3422)"

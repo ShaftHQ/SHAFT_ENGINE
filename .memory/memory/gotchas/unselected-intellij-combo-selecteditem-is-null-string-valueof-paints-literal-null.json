@@ -12,20 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftUiLabels.java",
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.unselected-intellij-combo-selecteditem-is-null-string-valueof-paints-literal-null",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record #5263 unselected JComboBox display gotcha after implementing Select an option wording"

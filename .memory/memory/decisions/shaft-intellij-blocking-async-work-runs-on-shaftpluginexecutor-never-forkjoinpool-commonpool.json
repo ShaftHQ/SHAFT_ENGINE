@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.shaft-intellij-blocking-async-work-runs-on-shaftpluginexecutor-never-forkjoinpool-commonpool",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ plugin Phase 1 hardening (#3619-#3623)"

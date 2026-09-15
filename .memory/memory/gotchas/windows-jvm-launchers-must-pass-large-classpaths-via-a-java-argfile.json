@@ -8,23 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/java/com/shaft/capture/generate/GeneratedTestValidator.java",
-      "shaft-mcp/src/main/java/com/shaft/mcp/CaptureService.java",
-      "shaft-capture/src/main/java/com/shaft/capture/cli/CaptureCli.java",
-      "shaft-mcp/src/main/java/com/shaft/mcp/ShaftMcpApplication.java",
-      "shaft-cli/src/main/java/com/shaft/commandline/session/McpLauncherLocator.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3409: recorder stop orphaning the browser, duplicated steps, and codegen replay"

@@ -20,26 +20,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/shaft-pilot-release.yml",
-      ".github/workflows/mavenCentral_cd.yml",
-      "scripts/ci/validate_shaft_pilot_release.py",
-      "shaft-intellij/"
-    ],
-    "category": "decision-rationale",
-    "load_modes": [
-      "coding",
-      "review"
-    ]
-  },
   "id": "decision.release-flow-verifies-intellij-plugin-candidate",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "commit": "7d35d993e1",
     "kind": "agent",

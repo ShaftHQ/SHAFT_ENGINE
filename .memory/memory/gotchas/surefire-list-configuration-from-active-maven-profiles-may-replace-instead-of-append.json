@@ -16,22 +16,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/pom.xml",
-      "maven-surefire-plugin",
-      "includeOcrTestRuntime",
-      "includeVisualTestRuntime"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the reusable Maven profile composition gotcha found and fixed while implementing visual/OCR acceptance."

@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.intellij-plugin-ux-program-umbrella-3553-tracks-children-3546-3552",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Ideation session: scan shaft-intellij plugin and file a UX-hardening program tracked via GitHub tickets"

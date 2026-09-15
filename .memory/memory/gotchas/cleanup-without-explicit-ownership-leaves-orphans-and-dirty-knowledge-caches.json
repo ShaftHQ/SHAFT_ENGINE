@@ -16,26 +16,11 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "chaos-engine/skills/chaos-engine/SKILL.md",
-      "chaos-engine/references/cleanup-scopes.md",
-      "scripts/ci/worktree_hygiene.py",
-      "tests/scripts/test_worktree_hygiene.py"
-    ],
-    "category": "agent-guidance"
-  },
   "id": "gotcha.cleanup-without-explicit-ownership-leaves-orphans-and-dirty-knowledge-caches",
   "origin": {
     "captured_at": "2026-08-14T00:00:00+03:00",
     "kind": "user",
     "locator": "approved cleanup plan and portability requirement"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",

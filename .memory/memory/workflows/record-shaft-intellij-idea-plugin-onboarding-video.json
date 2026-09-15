@@ -16,16 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "workflow"
-  },
-  "id": "workflow.record-shaft-intellij-idea-plugin-onboarding-video",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "feature.record-shaft-intellij-idea-plugin-onboarding-video",
   "source": {
     "kind": "agent",
     "task": "Update IntelliJ onboarding recording workflow after July 2026 recording"
@@ -38,6 +29,6 @@
     "jdk21"
   ],
   "title": "Record SHAFT IntelliJ IDEA plugin onboarding video",
-  "type": "workflow",
+  "type": "feature",
   "updated_at": "2026-07-02T21:42:01+03:00"
 }

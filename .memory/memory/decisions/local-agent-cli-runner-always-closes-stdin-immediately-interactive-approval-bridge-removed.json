@@ -16,21 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantLocalAgentRunner.java",
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java",
-      "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureManager.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.local-agent-cli-runner-always-closes-stdin-immediately-interactive-approval-bridge-removed",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix SHAFT Assistant local-agent timeouts, approve-all checkbox, approval-box overflow, recorder stop (PR #3410)"

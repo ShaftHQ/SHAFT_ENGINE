@@ -20,19 +20,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/ci/agent_guidance_budget.json"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.guidance-budgets-bound-each-surface-by-who-pays-not-by-a-shared-pool",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the #4458 guidance-ratchet decision made in PR #4475."

@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.first-time-user-trust-pass-shipped-in-pr-3428-workspace-dead-ends-intent-first-plugin",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "First-time-user trust pass: fix MCP workspace for external projects, remove codegen/doctor dead ends, intent-first IntelliJ plugin, consumer-project E2E"

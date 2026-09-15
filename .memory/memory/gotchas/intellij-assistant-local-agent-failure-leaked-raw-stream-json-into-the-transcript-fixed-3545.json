@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-assistant-local-agent-failure-leaked-raw-stream-json-into-the-transcript-fixed-3545",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ initial->recorder->codegen end-user workflow audit (2026-07-14 close-all-open-issues loop)"

@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-2024-3-daemonfusreporter-codeinsightcontext-multiverse-read-access-soft-assert-is-a-platform-bug-not-shaft-intellij",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Investigate IntelliJ plugin crash reported as release blocker: RuntimeExceptionWithAttachments Read access is allowed from inside read-action only, in DaemonFusReporter/CodeInsightContextManagerImpl (multiverse) chain"

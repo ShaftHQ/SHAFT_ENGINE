@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.gradle-truncates-intellij-live-e2e-assertion-messages-full-text-is-in-the-evidence-artifact",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "#4086 mid-session Learning Loop: record durable lessons from the day's parallel orchestration run (Augmenter closure bug, Surefire report path shape, GLOBAL_TESTING_SCOPE, find/pipefail, nightly signature progression, Gradle evidence artifacts) before session end risk"

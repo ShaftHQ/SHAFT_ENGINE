@@ -12,20 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/agents/knowledge_stores.py",
-      "tools/repository-map/resolve_mempalace.py"
-    ],
-    "category": "agent-guidance"
-  },
-  "id": "fact.shaft-worktrees-query-one-palace-via-knowledge-stores-py",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.shaft-worktrees-query-one-palace-via-knowledge-stores-py",
   "source": {
     "kind": "agent",
     "task": "Record durable #5068 knowledge-store facts after merge"
@@ -38,6 +25,6 @@
     "5068"
   ],
   "title": "SHAFT worktrees query one palace via knowledge_stores.py",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-17T23:49:59+03:00"
 }

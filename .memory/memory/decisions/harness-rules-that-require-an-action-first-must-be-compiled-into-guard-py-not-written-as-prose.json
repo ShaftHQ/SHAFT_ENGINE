@@ -20,16 +20,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "category": "agent-guidance"
-  },
   "id": "decision.harness-rules-that-require-an-action-first-must-be-compiled-into-guard-py-not-written-as-prose",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record why prose harness rules keep being skipped, and the architectural decision it implies (issue #4540, PR #4539)"

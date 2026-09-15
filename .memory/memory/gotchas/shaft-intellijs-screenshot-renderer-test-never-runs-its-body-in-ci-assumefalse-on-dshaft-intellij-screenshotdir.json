@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-intellijs-screenshot-renderer-test-never-runs-its-body-in-ci-assumefalse-on-dshaft-intellij-screenshotdir",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix light-theme IntelliJLaf checkbox rendering defect in shaft-intellij headless screenshot renderer (issue #3777)"

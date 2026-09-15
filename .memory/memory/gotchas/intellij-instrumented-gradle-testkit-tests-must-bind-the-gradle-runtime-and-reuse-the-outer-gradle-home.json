@@ -12,24 +12,11 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/build.gradle.kts",
-      "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home",
   "origin": {
     "captured_at": "2026-08-12T14:00:00+03:00",
     "kind": "file",
     "locator": "shaft-intellij/build.gradle.kts"
-  },
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
   },
   "source": {
     "kind": "agent",

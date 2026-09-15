@@ -16,21 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "tools/soup-delegate-poc",
-      "scripts/local-coding-agent",
-      "chaos-engine/skills/local-coding-delegate/SKILL.md"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.soup-is-a-trainer-for-the-workstation-local-coder-not-its-runtime",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "5142"

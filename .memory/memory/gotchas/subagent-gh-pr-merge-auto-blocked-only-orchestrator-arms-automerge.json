@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.subagent-gh-pr-merge-auto-blocked-only-orchestrator-arms-automerge",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "memory-hygiene 2026-07-28: shorten over-160-char object id (Windows MAX_PATH validator finding)"

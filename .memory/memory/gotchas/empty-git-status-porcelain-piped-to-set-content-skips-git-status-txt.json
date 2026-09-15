@@ -12,20 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/local-coding-agent/run_agent.ps1",
-      "scripts/local-coding-agent/agent.py"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.empty-git-status-porcelain-piped-to-set-content-skips-git-status-txt",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record #5144 Java-flow gotchas after hardened rerun"

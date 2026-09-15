@@ -8,20 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/gui/element/internal/Actions.java",
-      "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsCoverageUnitTest.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.element-actions-normalize-allure-locator-metadata",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix smart locator Allure reporting for element actions"

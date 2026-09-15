@@ -12,20 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/local-coding-agent/shaft-architect.ps1",
-      "scripts/local-coding-agent/run_agent.ps1"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.aider-0-86-2-writes-aider-tags-cache-v4-even-with-history-files-redirected",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record Aider sidecar cache after #5063 architect runs"

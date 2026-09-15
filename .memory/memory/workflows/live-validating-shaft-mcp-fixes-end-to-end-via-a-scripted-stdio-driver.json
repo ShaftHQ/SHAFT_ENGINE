@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "workflow"
-  },
-  "id": "workflow.live-validating-shaft-mcp-fixes-end-to-end-via-a-scripted-stdio-driver",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "feature.live-validating-shaft-mcp-fixes-end-to-end-via-a-scripted-stdio-driver",
   "source": {
     "kind": "agent",
     "task": "IntelliJ plugin expert quality pass: recorder dies after launch, codegen wedge, assistant UX (issue #3429, PR #3431)"
@@ -25,6 +16,6 @@
   "status": "active",
   "tags": [],
   "title": "Live-validating shaft-mcp fixes end to end via a scripted stdio driver",
-  "type": "workflow",
+  "type": "feature",
   "updated_at": "2026-07-11T19:41:58+03:00"
 }

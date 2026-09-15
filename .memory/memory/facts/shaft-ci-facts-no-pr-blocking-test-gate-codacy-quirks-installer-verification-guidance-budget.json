@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget",
   "source": {
     "kind": "agent",
     "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
@@ -30,6 +21,6 @@
     "guidance"
   ],
   "title": "SHAFT CI facts: no PR-blocking test gate, Codacy quirks, installer verification, guidance budget",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-04T14:32:23+03:00"
 }

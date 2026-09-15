@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-engine-example-templates-are-asserted-by-shaft-mcp-tests-path-filtered-ci-masks-the-coupling",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "PR #3718 follow-up wave: MCP tool schema fixes, chat rendering fixes, act-as-mohab distribution"

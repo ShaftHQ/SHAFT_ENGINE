@@ -24,21 +24,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "pom.xml",
-      "shaft-intellij/build.gradle.kts",
-      "scripts/ci/"
-    ],
-    "category": "stack"
-  },
-  "id": "synthesis.stack-and-tooling",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "feature.stack-and-tooling",
   "source": {
     "kind": "agent",
     "task": "Fill Repository Map and Stack / Tooling role-coverage gaps from current repo state (#4358)"
@@ -52,6 +38,6 @@
     "java"
   ],
   "title": "Stack and tooling",
-  "type": "synthesis",
+  "type": "feature",
   "updated_at": "2026-08-01T21:02:32+03:00"
 }

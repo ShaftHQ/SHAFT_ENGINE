@@ -12,10 +12,10 @@
       "kind": "file"
     }
   ],
-  "from": "fact.worktree-hygiene-report-and-guard-rule-r10",
+  "from": "gotcha.worktree-hygiene-report-and-guard-rule-r10",
   "id": "rel.fact-worktree-hygiene-report-and-guard-rule-r10-supports-constraint-worktree-housekeeping-at-session-start",
-  "predicate": "supports",
+  "predicate": "related_to",
   "status": "active",
-  "to": "constraint.worktree-housekeeping-at-session-start",
+  "to": "gotcha.worktree-housekeeping-at-session-start",
   "updated_at": "2026-08-10T15:11:29+03:00"
 }

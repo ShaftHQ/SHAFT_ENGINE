@@ -12,20 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/ci/watch_pr_checks.py",
-      ".github/workflows"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.gh-run-rerun-fails-while-workflow-still-running",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record AGENT_TOOLS increment gotchas from #5052 / #5051 babysit"

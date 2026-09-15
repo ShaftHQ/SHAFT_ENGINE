@@ -8,16 +8,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shafthq-github-io-classic-heading-id-breaks-acorn-mdx-parse-on-md-files-use-heading-id-instead",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Resolve issue #3786 (shaft-intellij DefaultTreeUI/ShaftTestsPanelTest full-suite + screenshotDir combo) and record the verified shafthq.github.io MDX heading-anchor gotcha"

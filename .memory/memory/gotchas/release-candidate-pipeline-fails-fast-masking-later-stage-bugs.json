@@ -8,19 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/shaft-pilot-release.yml"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.release-candidate-pipeline-fails-fast-masking-later-stage-bugs",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix release-candidate CI failures on PR #3344 (release/10.3.20260706)"

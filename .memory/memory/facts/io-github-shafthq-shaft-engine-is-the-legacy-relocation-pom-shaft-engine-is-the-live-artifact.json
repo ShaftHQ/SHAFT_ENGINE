@@ -16,16 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.io-github-shafthq-shaft-engine-is-the-legacy-relocation-pom-shaft-engine-is-the-live-artifact",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.io-github-shafthq-shaft-engine-is-the-legacy-relocation-pom-shaft-engine-is-the-live-artifact",
   "source": {
     "kind": "agent",
     "task": "root markdown docs quality pass (PRs 4295/4296): badge, coordinate and link-check facts"
@@ -37,6 +28,6 @@
     "documentation"
   ],
   "title": "io.github.shafthq:SHAFT_ENGINE is the legacy relocation POM; shaft-engine is the live artifact",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:02:05+03:00"
 }

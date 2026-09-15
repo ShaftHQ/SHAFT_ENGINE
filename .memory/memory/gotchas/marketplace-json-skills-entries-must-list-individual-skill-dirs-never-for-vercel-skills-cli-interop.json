@@ -16,16 +16,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.marketplace-json-skills-entries-must-list-individual-skill-dirs-never-for-vercel-skills-cli-interop",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "wire shaft-skills for external installation via .claude-plugin/marketplace.json (issue 4350, PR 4366)"

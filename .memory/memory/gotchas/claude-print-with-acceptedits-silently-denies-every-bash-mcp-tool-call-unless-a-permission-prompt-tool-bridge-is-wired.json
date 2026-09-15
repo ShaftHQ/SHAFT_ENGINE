@@ -12,19 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantLocalAgentRunner.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.claude-print-with-acceptedits-silently-denies-every-bash-mcp-tool-call-unless-a-permission-prompt-tool-bridge-is-wired",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix SHAFT Assistant codegen-after-recording dead end (issue #3409 item 1, PR #3420)"

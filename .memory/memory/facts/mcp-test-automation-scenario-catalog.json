@@ -20,25 +20,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-mcp/",
-      "https://shafthq.github.io/docs/agentic/mcp"
-    ],
-    "category": "product-feature",
-    "load_modes": [
-      "coding",
-      "review",
-      "onboarding"
-    ]
-  },
-  "id": "fact.mcp-test-automation-scenario-catalog",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.mcp-test-automation-scenario-catalog",
   "source": {
     "kind": "agent",
     "task": "Implement MCP agent test automation scenario plan"
@@ -50,6 +32,6 @@
     "testing"
   ],
   "title": "SHAFT MCP exposes test automation scenario catalog and code guardrails",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-06-28T10:31:53+03:00"
 }

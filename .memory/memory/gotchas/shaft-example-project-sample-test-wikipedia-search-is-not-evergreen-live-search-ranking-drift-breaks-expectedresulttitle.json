@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-example-project-sample-test-wikipedia-search-is-not-evergreen-live-search-ranking-drift-breaks-expectedresulttitle",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Issue #3788: grid execution broken -- chromium double-HasCdp augmentation, green-masked example CI, stale sample test data"

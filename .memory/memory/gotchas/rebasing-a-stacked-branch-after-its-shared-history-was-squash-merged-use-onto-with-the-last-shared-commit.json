@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "2026-07-21 tool-architecture-sweep session close: persist git/build gotchas discovered while multiple agents delivered PRs #3881/#3882/#3886/#3887"

@@ -12,9 +12,9 @@
       "kind": "memory"
     }
   ],
-  "from": "synthesis.repository-map",
+  "from": "feature.repository-map",
   "id": "rel.synthesis-repository-map-documents-project-shaft-engine",
-  "predicate": "documents",
+  "predicate": "related_to",
   "status": "active",
   "to": "project.shaft-engine",
   "updated_at": "2026-07-29T16:47:24+03:00"

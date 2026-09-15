@@ -12,20 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/tools/io/internal/FailureTraceReporter.java",
-      "shaft-engine/src/main/java/com/shaft/tools/io/internal/TraceSessionBudget.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.trace-session-budget-must-reserve-before-writing-zip-or-screenshot-sidecars",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record the #4826 session-budget reserve-before-publish gotcha."

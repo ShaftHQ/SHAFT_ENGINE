@@ -1,5 +1,6 @@
 {
   "body_path": "memory/gotchas/human-prs-need-exactly-one-release-note-classification-label.md",
+  "content_hash": "sha256:e4768f0edae5973b6b4402c68535a212abfef9f77b64a5ac8fbd439175bf6487",
   "created_at": "2026-09-14T14:45:14+03:00",
   "evidence": [
     {
@@ -7,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.human-prs-need-exactly-one-release-note-classification-label",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Deliver open ChaosEngine learning tickets #5767-#5770 in one PR"
@@ -30,6 +22,5 @@
   ],
   "title": "Human PRs need exactly one release-note classification label before merge",
   "type": "gotcha",
-  "updated_at": "2026-09-14T14:45:14+03:00",
-  "content_hash": "sha256:e4768f0edae5973b6b4402c68535a212abfef9f77b64a5ac8fbd439175bf6487"
+  "updated_at": "2026-09-14T14:45:14+03:00"
 }

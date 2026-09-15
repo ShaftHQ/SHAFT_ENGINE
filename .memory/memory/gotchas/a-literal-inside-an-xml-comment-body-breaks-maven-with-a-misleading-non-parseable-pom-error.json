@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.a-literal-inside-an-xml-comment-body-breaks-maven-with-a-misleading-non-parseable-pom-error",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "4034-record-gotchas-memory-scanner-testng-dtest-xml-comment"

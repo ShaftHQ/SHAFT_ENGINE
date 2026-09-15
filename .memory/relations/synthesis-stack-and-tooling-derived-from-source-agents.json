@@ -12,10 +12,10 @@
       "kind": "file"
     }
   ],
-  "from": "synthesis.stack-and-tooling",
+  "from": "feature.stack-and-tooling",
   "id": "rel.synthesis-stack-and-tooling-derived-from-source-agents",
-  "predicate": "derived_from",
+  "predicate": "related_to",
   "status": "active",
-  "to": "source.agents",
+  "to": "feature.agents",
   "updated_at": "2026-07-29T16:47:24+03:00"
 }

@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.browsersignal-browsingcontextid-is-safe-to-treat-as-driver-getwindowhandle-for-passive-tracking-off-the-cdp-callback-thread",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #4090: keep network-event window attribution correct across tab switches"

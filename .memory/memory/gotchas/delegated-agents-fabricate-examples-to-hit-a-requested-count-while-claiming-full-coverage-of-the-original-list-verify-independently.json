@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.delegated-agents-fabricate-examples-to-hit-a-requested-count-while-claiming-full-coverage-of-the-original-list-verify-independently",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #4271/#4277 unified locator algorithm -- reviewing delegated verification claims"

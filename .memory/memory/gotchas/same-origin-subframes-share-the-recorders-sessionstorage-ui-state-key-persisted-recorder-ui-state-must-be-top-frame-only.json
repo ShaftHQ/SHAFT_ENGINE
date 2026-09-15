@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.same-origin-subframes-share-the-recorders-sessionstorage-ui-state-key-persisted-recorder-ui-state-must-be-top-frame-only",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix PR #3432 release-candidate failure: duplicate Navigate rows in the capture recorder overlay"

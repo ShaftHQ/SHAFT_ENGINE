@@ -20,25 +20,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
-      "shaft-mcp/src/test/java/com/shaft/mcp/McpMobileToolchainServiceTest.java",
-      "scripts/ci/validate_shaft_pilot_release.py"
-    ],
-    "category": "decision-rationale",
-    "load_modes": [
-      "coding",
-      "review"
-    ]
-  },
   "id": "decision.keep-non-maven-tool-versions-in-internal-java",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "commit": "7d35d993e1",
     "kind": "agent",

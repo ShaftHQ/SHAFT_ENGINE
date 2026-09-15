@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-intellij-a-click-to-toggle-swing-row-wired-only-with-mouselistener-is-not-keyboard-reachable",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ plugin a11y audit pass over #3601 setup/Assistant/Guided surfaces"

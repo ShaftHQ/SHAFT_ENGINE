@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaftmcpsetuppanel-installerdetailspanel-is-dead-hidden-ui-and-screenshots-reflect-real-machine-state",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "PR #3446: shaft-cli epic #3443 parts B/D/E and #3440 documentation boundary fix"

@@ -16,19 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "chaos-engine/hosts.py"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.grok-lifecycle-hooks-must-merge-not-overwrite-foreign-handlers",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Portable must-run lifecycle hooks"

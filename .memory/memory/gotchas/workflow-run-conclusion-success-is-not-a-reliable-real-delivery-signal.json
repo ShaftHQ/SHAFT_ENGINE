@@ -8,22 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/mavenCentral_cd.yml",
-      ".github/workflows/publish-intellij-plugin.yml",
-      ".github/workflows/publish-shaft-mcp.yml",
-      ".github/workflows/publishJavaDocs.yml"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.workflow-run-conclusion-success-is-not-a-reliable-real-delivery-signal",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix issue #3372: Maven Central CD workflow red between releases"

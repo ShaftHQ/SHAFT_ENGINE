@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.mobile-record-replay-codegen-lives-entirely-in-shaft-mcp-not-shaft-capture",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.mobile-record-replay-codegen-lives-entirely-in-shaft-mcp-not-shaft-capture",
   "source": {
     "kind": "agent",
     "task": "capture generate record replay codegen -- mobile/Playwright replay honesty audit"
@@ -33,6 +24,6 @@
     "architecture"
   ],
   "title": "Mobile record->replay->codegen lives entirely in shaft-mcp, not shaft-capture",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:02:05+03:00"
 }

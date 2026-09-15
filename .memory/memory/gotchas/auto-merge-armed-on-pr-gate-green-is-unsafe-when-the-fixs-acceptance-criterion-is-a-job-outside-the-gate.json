@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.auto-merge-armed-on-pr-gate-green-is-unsafe-when-the-fixs-acceptance-criterion-is-a-job-outside-the-gate",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Issue #4103: delegate CI-watch charter rule + four Learning Loop findings from the 2026-07-26 orchestration run (#4086)"

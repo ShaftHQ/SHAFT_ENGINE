@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.cancel-the-completablefuture-before-the-kill-destroy-action-in-cancellable-invocation-handles",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ streaming perf (#3751 part 2) + docs revamp phase 1 (#822)"

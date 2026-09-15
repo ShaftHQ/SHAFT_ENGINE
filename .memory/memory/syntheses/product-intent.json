@@ -8,21 +8,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "category": "product-intent",
-    "load_modes": [
-      "coding",
-      "architecture",
-      "onboarding"
-    ]
-  },
-  "id": "synthesis.product-intent",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "feature.product-intent",
   "source": {
     "kind": "cli",
     "task": "Proposed bootstrap memory patch from deterministic repository analysis"
@@ -33,6 +19,6 @@
     "product-intent"
   ],
   "title": "Product intent",
-  "type": "synthesis",
+  "type": "feature",
   "updated_at": "2026-06-17T11:19:41+03:00"
 }

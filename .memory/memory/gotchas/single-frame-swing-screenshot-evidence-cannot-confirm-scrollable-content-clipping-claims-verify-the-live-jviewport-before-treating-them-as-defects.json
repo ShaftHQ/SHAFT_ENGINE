@@ -8,19 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.single-frame-swing-screenshot-evidence-cannot-confirm-scrollable-content-clipping-claims-verify-the-live-jviewport-before-treating-them-as-defects",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record two durable gotchas surfaced while fixing issue 4163 (PR #4176)"

@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.playwrightelementvisualvalidationtest-matchesreferenceimage-is-env-flaky-on-local-windows-pre-existing-fails-on-clean-main",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Implement #3502 Allure assertion evidence card (PR #3515)"

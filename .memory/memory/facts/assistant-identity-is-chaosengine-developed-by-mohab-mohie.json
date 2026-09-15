@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.assistant-identity-is-chaosengine-developed-by-mohab-mohie",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.assistant-identity-is-chaosengine-developed-by-mohab-mohie",
   "source": {
     "kind": "agent",
     "task": "Assistant identity: ChaosEngine"
@@ -29,6 +20,6 @@
     "harness"
   ],
   "title": "Assistant identity is ChaosEngine, developed by Mohab Mohie",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-08-01T21:50:09+03:00"
 }

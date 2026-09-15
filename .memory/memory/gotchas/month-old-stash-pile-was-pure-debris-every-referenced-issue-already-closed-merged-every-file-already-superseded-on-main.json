@@ -16,16 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.month-old-stash-pile-was-pure-debris-every-referenced-issue-already-closed-merged-every-file-already-superseded-on-main",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "clean local worktrees/branches/stashes, land dangling work as PRs"

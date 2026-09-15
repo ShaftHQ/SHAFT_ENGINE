@@ -5,6 +5,6 @@
   "id": "rel.actions-precedence-gotcha-related-to-pr-gate-vacuous-green-constraint",
   "predicate": "related_to",
   "status": "active",
-  "to": "constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps",
+  "to": "gotcha.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps",
   "updated_at": "2026-07-26T19:32:42+03:00"
 }

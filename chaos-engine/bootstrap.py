@@ -991,7 +991,13 @@ class InstallReporter:
                 if not isinstance(item, dict):
                     continue
                 total += 1
-                if item.get("status") in {"healthy", "absent"}:
+                if item.get("status") in {
+                    "healthy",
+                    "absent",
+                    "compatible-legacy",
+                    "sync-advisory",
+                    "degraded",
+                }:
                     healthy += 1
         elapsed = self._duration(max(0.0, self.clock() - self.started))
         extra: list[str] = []
@@ -1872,6 +1878,9 @@ def install_latest(
                     "issueUrl": issue_url,
                 }
             raise health_error
+        reporter.complete(
+            "Verify installation", remaining=remaining("Verify installation")
+        )
         confirm("Activate clients")
         reporter.start("Activate clients", remaining=remaining("Activate clients"))
         if interactive:

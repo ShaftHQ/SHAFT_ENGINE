@@ -16,19 +16,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".memory/events.jsonl"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Persistence audit 2026-07-08: capture the .memory/events.jsonl merge-conflict pattern discovered while landing this session's memory migration"

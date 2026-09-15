@@ -8,19 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "out-of-tree soup-poc"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.soup-export-q4-k-m-on-windows-needs-a-prebuilt-llama-quantize",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record workstation soup export/deploy gotchas from #5143/#5144 Batch 4"

@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shafthq-github-io-fresh-git-worktree-needs-yarn-install-before-yarn-test-build",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning Loop: record four durable gotchas from today's session (#4040 thread-local Properties, #4048 worktree node_modules, #4044 guardrail single consumer, concurrent-agent .m2 cache races)"

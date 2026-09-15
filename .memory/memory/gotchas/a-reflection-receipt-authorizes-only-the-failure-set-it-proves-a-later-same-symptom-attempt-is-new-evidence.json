@@ -12,20 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/agents/guard.py",
-      "chaos-engine/hooks/reflection.py"
-    ],
-    "category": "agent-guidance"
-  },
   "id": "gotcha.a-reflection-receipt-authorizes-only-the-failure-set-it-proves-a-later-same-symptom-attempt-is-new-evidence",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Route the correct reflection guard refusal observed during blocked MemPalace task cleanup"

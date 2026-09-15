@@ -8,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.java-awt-gridlayout-reserves-full-row-height-for-invisible-children-unlike-borderlayout-boxlayout-which-collapse-them-to-zero",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Fix #3694 (Assistant notices-strip layout gap) and #3696 (approval button dimming) in shaft-intellij"

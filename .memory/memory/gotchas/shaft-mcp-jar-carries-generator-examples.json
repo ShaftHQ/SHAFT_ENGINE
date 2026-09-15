@@ -20,25 +20,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-mcp/pom.xml",
-      "shaft-mcp/src/main/java/com/shaft/mcp/ShaftProjectService.java",
-      "scripts/ci/validate_maven_publication.py"
-    ],
-    "category": "gotcha",
-    "load_modes": [
-      "coding",
-      "review"
-    ]
-  },
   "id": "gotcha.shaft-mcp-jar-carries-generator-examples",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "commit": "7d35d993e1",
     "kind": "agent",

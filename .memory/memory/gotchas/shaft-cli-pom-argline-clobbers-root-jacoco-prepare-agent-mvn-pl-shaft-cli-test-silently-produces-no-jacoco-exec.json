@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-cli-pom-argline-clobbers-root-jacoco-prepare-agent-mvn-pl-shaft-cli-test-silently-produces-no-jacoco-exec",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "2026-07-21 tool-architecture-sweep session close: persist git/build gotchas discovered while multiple agents delivered PRs #3881/#3882/#3886/#3887"

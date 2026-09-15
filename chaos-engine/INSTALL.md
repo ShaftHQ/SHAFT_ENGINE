@@ -318,7 +318,7 @@ does not heal disabled bundle items. Failed heal handoffs:
 
 See also epic #5803 and policy issue #5811. Follow-ons #5812/#5813.
 
-Overall doctor status stays **healthy** when the only non-healthy findings are `compatible-legacy`, `sync-advisory`, or `degraded` (shown as info/warning). Those soft statuses must not flip overall to `recovery-required`. Hard fails (e.g. `recovery-required` on an advisory store like MemPalace) still escalate.
+Overall doctor status stays **healthy** when the only non-healthy findings are `compatible-legacy`, `sync-advisory`, or `degraded` (shown as info/warning). Those soft statuses must not flip overall to `recovery-required`. Hard fails (e.g. `recovery-required` on an advisory store like MemPalace) still escalate. The install receipt counts those same soft statuses in the `N/N components healthy` line. Historical Memory objects that the current `@aictx/memory` runtime rejects (`scope`/`facets`, extra types, string evidence) are rewritten in place after a copy under `.memory/.backup/`; a failed rewrite restores the originals and stays `compatible-legacy`. MemPalace palace state is still never migrated.
 
 ### Component repair (no full wipe)
 

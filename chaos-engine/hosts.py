@@ -421,11 +421,214 @@ def account_command_environment(account_commands: dict[str, str] | None = None) 
     return environment
 
 
+RUNTIME_MEMORY_OBJECT_TYPES = frozenset(
+    {"project", "feature", "decision", "gotcha", "question"}
+)
+LEGACY_MEMORY_TYPE_MAP = {
+    "architecture": "feature",
+    "constraint": "gotcha",
+    "workflow": "feature",
+    "fact": "gotcha",
+    "synthesis": "feature",
+    "source": "feature",
+}
+RUNTIME_MEMORY_PREDICATES = frozenset({"affects", "depends_on", "supersedes", "related_to"})
+LEGACY_MEMORY_PREDICATE_MAP = {
+    "mentions": "related_to",
+    "documents": "related_to",
+    "derived_from": "related_to",
+    "supports": "related_to",
+    "summarizes": "related_to",
+    "affects": "affects",
+    "supersedes": "supersedes",
+    "related_to": "related_to",
+}
+RUNTIME_MEMORY_OBJECT_FIELDS = frozenset(
+    {
+        "anchors",
+        "body_path",
+        "content_hash",
+        "created_at",
+        "evidence",
+        "id",
+        "origin",
+        "source",
+        "stage",
+        "status",
+        "superseded_by",
+        "tags",
+        "title",
+        "type",
+        "updated_at",
+    }
+)
+
+
+def _normalize_memory_evidence(evidence: object) -> list[dict[str, str]]:
+    if not isinstance(evidence, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    for item in evidence:
+        if (
+            isinstance(item, dict)
+            and isinstance(item.get("kind"), str)
+            and isinstance(item.get("id"), str)
+            and item["kind"]
+            and item["id"]
+        ):
+            kind = item["kind"]
+            if kind not in {"memory", "relation", "file", "commit", "task", "source"}:
+                kind = "source"
+            normalized.append({"kind": kind, "id": item["id"]})
+        elif isinstance(item, str) and item:
+            kind = "file" if ("/" in item or item.endswith((".md", ".py", ".json", ".xml"))) else "source"
+            if item.startswith("http://") or item.startswith("https://"):
+                kind = "source"
+            normalized.append({"kind": kind, "id": item})
+    return normalized
+
+
+def _mapped_memory_type(value: dict[str, object]) -> str:
+    mapped_type = value.get("type")
+    if mapped_type in RUNTIME_MEMORY_OBJECT_TYPES:
+        return str(mapped_type)
+    return LEGACY_MEMORY_TYPE_MAP.get(str(mapped_type), "gotcha")
+
+
+def _remap_memory_id(old_id: object, mapped_type: str) -> str:
+    if not isinstance(old_id, str) or "." not in old_id:
+        return f"{mapped_type}.migrated"
+    rest = old_id.split(".", 1)[1]
+    return f"{mapped_type}.{rest}"
+
+
+def _migrate_one_memory_object(
+    value: dict[str, object], id_map: dict[str, str]
+) -> dict[str, object]:
+    mapped_type = _mapped_memory_type(value)
+    old_id = value.get("id")
+    new_id = id_map.get(str(old_id), _remap_memory_id(old_id, mapped_type))
+    evidence = _normalize_memory_evidence(value.get("evidence"))
+    for item in evidence:
+        if item["kind"] == "memory" and item["id"] in id_map:
+            item["id"] = id_map[item["id"]]
+    migrated: dict[str, object] = {
+        "type": mapped_type,
+        "id": new_id,
+        "evidence": evidence,
+    }
+    superseded = value.get("superseded_by")
+    if isinstance(superseded, str) and superseded in id_map:
+        migrated["superseded_by"] = id_map[superseded]
+    for key in RUNTIME_MEMORY_OBJECT_FIELDS:
+        if key in {"type", "evidence", "id", "superseded_by"}:
+            continue
+        if key in value:
+            migrated[key] = value[key]
+    if "superseded_by" in value and "superseded_by" not in migrated:
+        migrated["superseded_by"] = value["superseded_by"]
+    return migrated
+
+
+def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
+    """Rewrite historical Memory objects to the runtime schema. Fail closed."""
+    from datetime import datetime, timezone
+
+    project = Path(project)
+    if not legacy_memory_v5_objects_compatible(project):
+        return {"status": "skipped", "reason": "not-legacy-v5"}
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    backup = project / ".memory/.backup" / f"pre-runtime-{stamp}"
+    root = project / ".memory/memory"
+    try:
+        backup.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(root, backup / "memory")
+        relations = project / ".memory/relations"
+        if relations.is_dir():
+            shutil.copytree(relations, backup / "relations")
+    except OSError as error:
+        return {"status": "failed", "reason": f"backup-failed:{error}"}
+    originals: list[tuple[Path, bytes]] = []
+    try:
+        objects: list[tuple[Path, dict[str, object], bytes]] = []
+        id_map: dict[str, str] = {}
+        for path in sorted(root.rglob("*.json")):
+            original = path.read_bytes()
+            value = json.loads(original)
+            if not isinstance(value, dict):
+                raise ValueError("memory object is not a JSON object")
+            mapped_type = _mapped_memory_type(value)
+            old_id = str(value.get("id") or "")
+            id_map[old_id] = _remap_memory_id(old_id, mapped_type)
+            objects.append((path, value, original))
+        for path, value, original in objects:
+            payload = json.dumps(
+                _migrate_one_memory_object(value, id_map), indent=2, sort_keys=True
+            ).encode() + b"\n"
+            originals.append((path, original))
+            path.write_bytes(payload)
+        relations_root = project / ".memory/relations"
+        allowed_relation = {
+            "id", "from", "predicate", "to", "status", "confidence",
+            "evidence", "content_hash", "created_at", "updated_at",
+        }
+        for path in sorted(relations_root.rglob("*.json")):
+            original = path.read_bytes()
+            value = json.loads(original)
+            if not isinstance(value, dict):
+                continue
+            rewritten = {key: value[key] for key in allowed_relation if key in value}
+            for key in ("from", "to"):
+                current = rewritten.get(key)
+                if isinstance(current, str) and current in id_map:
+                    rewritten[key] = id_map[current]
+            predicate = rewritten.get("predicate")
+            if predicate not in RUNTIME_MEMORY_PREDICATES:
+                rewritten["predicate"] = LEGACY_MEMORY_PREDICATE_MAP.get(
+                    str(predicate), "related_to"
+                )
+            if "evidence" in rewritten:
+                rewritten["evidence"] = _normalize_memory_evidence(rewritten.get("evidence"))
+            originals.append((path, original))
+            path.write_bytes(
+                json.dumps(rewritten, indent=2, sort_keys=True).encode() + b"\n"
+            )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError) as error:
+        for path, original in reversed(originals):
+            try:
+                path.write_bytes(original)
+            except OSError:
+                pass
+        return {"status": "failed", "reason": f"transform-failed:{error}"}
+    return {"status": "migrated", "backup": str(backup), "objects": len(originals)}
+
+
 def retrieval_runtime_status(
-    project: Path, account_commands: dict[str, str] | None = None
+    project: Path,
+    account_commands: dict[str, str] | None = None,
+    *,
+    migrate: bool = True,
 ) -> dict[str, str]:
     tool = project / ".chaos-engine/tool.py"
     environment = account_command_environment(account_commands)
+
+    def _legacy_result() -> dict[str, str]:
+        return {
+            "status": "compatible-legacy",
+            "compatibility": "legacy-v5-read-only",
+            "reason": "installed Memory runtime rejects known legacy v5 storage",
+        }
+
+    def _try_migrate() -> dict[str, str] | None:
+        if not migrate or not legacy_memory_v5_objects_compatible(project):
+            return None
+        migrated = migrate_legacy_memory_store(project)
+        if migrated.get("status") != "migrated":
+            return None
+        return retrieval_runtime_status(
+            project, account_commands, migrate=False
+        )
+
     for arguments in (("status", "--json"), ("check", "--json")):
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
             [sys.executable, str(tool), "memory", *arguments],
@@ -438,11 +641,10 @@ def retrieval_runtime_status(
         )
         if result.returncode != 0:
             if memory_schema_validation_failure(result.stdout) and legacy_memory_v5_objects_compatible(project):
-                return {
-                    "status": "compatible-legacy",
-                    "compatibility": "legacy-v5-read-only",
-                    "reason": "installed Memory runtime rejects known legacy v5 storage",
-                }
+                retried = _try_migrate()
+                if retried is not None:
+                    return retried
+                return _legacy_result()
             detail = (result.stderr or result.stdout or "memory tool exited non-zero").strip()
             return {
                 "status": "recovery-required",
@@ -464,6 +666,11 @@ def retrieval_runtime_status(
                 "code": f"memory-{arguments[0]}-not-ok",
             }
         if arguments[0] == "check" and payload.get("data", {}).get("valid") is not True:
+            if legacy_memory_v5_objects_compatible(project):
+                retried = _try_migrate()
+                if retried is not None:
+                    return retried
+                return _legacy_result()
             return {
                 "status": "recovery-required",
                 "reason": "memory check reported invalid store",

@@ -16,21 +16,7 @@
       "kind": "source"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".agents/skills/act-as-mohab/references/work-github-playbook.md",
-      "scripts/agents/guard.py",
-      "scripts/ci/worktree_hygiene.py"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.repository-uses-merge-commits-to-preserve-branch-ancestry",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Issue #4667 evidence-based Memory cleanup after merge-policy migration"

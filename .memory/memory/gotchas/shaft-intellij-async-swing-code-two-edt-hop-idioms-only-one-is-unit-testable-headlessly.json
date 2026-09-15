@@ -20,16 +20,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-intellij-async-swing-code-two-edt-hop-idioms-only-one-is-unit-testable-headlessly",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "3627: provider key Test buttons - async EDT-hop testability pattern"

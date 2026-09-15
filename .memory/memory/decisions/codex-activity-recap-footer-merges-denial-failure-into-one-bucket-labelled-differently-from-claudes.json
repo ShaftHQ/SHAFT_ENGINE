@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.codex-activity-recap-footer-merges-denial-failure-into-one-bucket-labelled-differently-from-claudes",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "IntelliJ Assistant issue #3679: wire Codex activity-recap footer parity in AssistantLocalAgentRunner"

@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.mvn-pl-downstream-test-resolves-upstream-deps-from-stale-m2-cache-install-upstream-first",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #4271/#4277 unified locator algorithm -- Maven -pl downstream test resolves upstream deps from stale ~/.m2 cache, not working tree"

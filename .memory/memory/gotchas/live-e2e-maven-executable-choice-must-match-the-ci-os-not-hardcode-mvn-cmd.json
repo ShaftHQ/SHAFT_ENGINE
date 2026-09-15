@@ -12,21 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      ".github/workflows/live-tools-nightly.yml",
-      "shaft-mcp/src/main/java/com/shaft/mcp/HealerService.java",
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftAssistantPanelLiveDiagnosticsToolE2ETest.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.live-e2e-maven-executable-choice-must-match-the-ci-os-not-hardcode-mvn-cmd",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Learning Loop second pass: record durable gotchas from #4021, #4046, #4066, #4014, #4057"

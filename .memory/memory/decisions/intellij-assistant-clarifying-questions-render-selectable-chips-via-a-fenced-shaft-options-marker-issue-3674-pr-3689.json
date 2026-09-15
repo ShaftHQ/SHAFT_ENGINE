@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "decision-rationale"
-  },
   "id": "decision.intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue #3674: selectable-answer chips for agent clarifying questions in shaft-intellij"

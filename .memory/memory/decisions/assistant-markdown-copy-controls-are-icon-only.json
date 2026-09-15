@@ -8,21 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPanelSetupTest.java",
-      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.assistant-markdown-copy-controls-are-icon-only",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Enforce SHAFT-only generated code in IntelliJ Assistant"

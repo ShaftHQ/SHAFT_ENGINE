@@ -8,20 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-capture/src/main/resources/browser/shaft-capture-recorder.js",
-      "shaft-capture/src/test/java/com/shaft/capture/runtime/ManagedCaptureRecorderBrowserTest.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.capture-overlay-is-fixed-height-overflow-hidden-added-content-clips-modal-sub-panels-e2e-runs-the-full-class",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Close-all-open-issues loop session 2026-07-14: durable lessons"

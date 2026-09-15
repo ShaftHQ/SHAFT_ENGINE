@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-intellij-platform-allicons-constants-render-blank-in-the-headless-screenshot-renderer-harness-use-shafticons-bundled-svgs-instead",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "intellij: per-node Run/Debug for SHAFT Tests tree (issue #3664, PR #3686)"

@@ -12,26 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "AGENTS.md",
-      "CLAUDE.md",
-      ".agents/skills/act-as-mohab/",
-      "scripts/agents/guard.py",
-      ".claude/settings.json",
-      ".codex/hooks.json",
-      ".mcp.json",
-      "mempalace.yaml"
-    ],
-    "category": "agent-guidance"
-  },
   "id": "decision.unified-agent-harness-single-entrypoint-capability-tiers",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Repair renamed Memory metadata and record the unified agent-harness policy."

@@ -10,8 +10,8 @@
   ],
   "from": "gotcha.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open",
   "id": "rel.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-rel-repo-map",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.repository-map",
+  "to": "feature.repository-map",
   "updated_at": "2026-07-29T16:50:50+03:00"
 }
