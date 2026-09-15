@@ -21,6 +21,7 @@ com.shaft.gui.internal.exceptions
 com.shaft.gui.internal.healing
 com.shaft.gui.internal.image
 com.shaft.gui.internal.locator
+com.shaft.gui.internal.locator.semantic
 com.shaft.gui.internal.natural
 com.shaft.gui.internal.ocr
 com.shaft.gui.internal.video
