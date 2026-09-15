@@ -191,9 +191,100 @@ class TokenMaxTests(TestCase):
             self.assertTrue(healthy["components"]["core"]["coreMatchesSource"])
 
         with tempfile.TemporaryDirectory() as temporary:
+            # Doctor one-shot heal restores owned bytes from SOURCE (#5794).
             drifted = seed_repository_project(
                 Path(temporary) / "drift", omit="hooks/kernel.py"
             )
+            self.assertFalse(
+                self.overlay.core_matches_source(drifted)["coreMatchesSource"]
+            )
+            result = {
+                "status": "healthy",
+                "components": {"core": {"status": "healthy"}},
+            }
+            self.overlay.apply_doctor_overlay_match(result, drifted)
+            self.assertEqual("healthy", result["status"])
+            self.assertEqual("healthy", result["components"]["core"]["status"])
+            self.assertTrue(result["components"]["core"]["coreMatchesSource"])
+            self.assertTrue(
+                self.overlay.core_matches_source(drifted)["coreMatchesSource"]
+            )
+            self.assertFalse(
+                (drifted / ".chaos-engine-state/overlay-handoff.md").is_file()
+            )
+
+    def test_sync_overlay_from_source_heals_schema_and_playbook_drift(self):
+        """Regression #5794: memory-v5 / shaft playbook style owned drift heals."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = seed_repository_project(Path(temporary) / "repo")
+            # Seed the same class of owned paths observed on ROG after curl install.
+            for relative in (
+                "assets/memory-v5/SCHEMAS.md",
+                "assets/memory-v5/config.schema.json",
+                "assets/memory-v5/event.schema.json",
+                "profiles/shaft/references/playbooks/allure-extent-report-operator.md",
+                "profiles/shaft/references/playbooks/ci-failure-investigator.md",
+            ):
+                source_path = root / "chaos-engine" / relative
+                source_path.parent.mkdir(parents=True, exist_ok=True)
+                source_path.write_text(f"source:{relative}\n", encoding="utf-8")
+                overlay_path = root / ".chaos-engine" / relative
+                overlay_path.parent.mkdir(parents=True, exist_ok=True)
+                overlay_path.write_text(f"remote-payload:{relative}\n", encoding="utf-8")
+            # Minimal manifest so sync can rewrite files digests.
+            install = load(ROOT / "chaos-engine/install.py", "ce_install_seed_5794")
+            files = {
+                path.relative_to(root / ".chaos-engine").as_posix(): install.file_sha256(path)
+                for path in sorted((root / ".chaos-engine").rglob("*"))
+                if path.is_file()
+            }
+            (root / ".chaos-engine/manifest.json").write_text(
+                __import__("json").dumps(
+                    {
+                        "schemaVersion": 1,
+                        "distribution": {"id": "repository", "policySha256": "0" * 64},
+                        "source": {"commit": "a" * 40, "kind": "local"},
+                        "files": files,
+                        "hostToken": "b" * 64,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            before = self.overlay.core_matches_source(root)
+            self.assertFalse(before["coreMatchesSource"])
+            self.assertTrue(
+                any("memory-v5" in item or "playbooks" in item for item in before["mismatches"])
+            )
+            synced = self.overlay.sync_overlay_from_source(root)
+            self.assertTrue(synced["synced"])
+            self.assertGreater(synced["copiedCount"], 0)
+            after = self.overlay.core_matches_source(root)
+            self.assertTrue(after["coreMatchesSource"])
+            # verify_install must remain green after digest rewrite.
+            install.verify_install(root / ".chaos-engine")
+            doctor = {
+                "status": "healthy",
+                "components": {"core": {"status": "healthy"}},
+            }
+            self.overlay.apply_doctor_overlay_match(doctor, root)
+            self.assertEqual("healthy", doctor["status"])
+            self.assertTrue(doctor["components"]["core"]["coreMatchesSource"])
+
+    def test_doctor_overlay_handoff_when_heal_impossible(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            drifted = seed_repository_project(
+                Path(temporary) / "drift", mutate="LICENSE"
+            )
+            # Remove SOURCE skill marker after seed so sync sees repository… wait,
+            # that would flip scope to adopter. Instead make overlay file immutable
+            # by replacing a drifted owned path with a directory of the same name.
+            target = drifted / ".chaos-engine" / "LICENSE"
+            target.unlink()
+            target.mkdir()
+            (target / "blocked").write_text("nope\n", encoding="utf-8")
             result = {
                 "status": "healthy",
                 "components": {"core": {"status": "healthy"}},
@@ -201,13 +292,30 @@ class TokenMaxTests(TestCase):
             self.overlay.apply_doctor_overlay_match(result, drifted)
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual(
-                "recovery-required", result["components"]["core"]["status"]
-            )
-            self.assertFalse(result["components"]["core"]["coreMatchesSource"])
-            self.assertEqual(
                 "overlay-source-mismatch", result["components"]["core"]["detail"]
             )
-            self.assertIn("Reinstall", result["components"]["core"]["fixNext"])
+            self.assertIn(
+                "overlay-handoff.md", result["components"]["core"]["fixNext"]
+            )
+            self.assertNotIn("Reinstall", result["components"]["core"]["fixNext"])
+            handoff = drifted / ".chaos-engine-state/overlay-handoff.md"
+            self.assertTrue(handoff.is_file())
+            body = handoff.read_text(encoding="utf-8")
+            self.assertIn("LICENSE", body)
+            self.assertIn("Agent prompt:", body)
+            self.assertIn("agentPrompt", result["components"]["core"])
+            self.assertIn(
+                "overlay-handoff.md", result["components"]["core"]["agentPrompt"]
+            )
+
+    def test_adopter_sync_is_noop(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            adopter = Path(temporary) / "adopter"
+            adopter.mkdir()
+            _write(adopter / ".chaos-engine/hooks/kernel.py", "overlay only\n")
+            synced = self.overlay.sync_overlay_from_source(adopter)
+            self.assertFalse(synced["synced"])
+            self.assertEqual("adopter", synced["scope"])
 
     def test_retrieve_origin_sync_is_not_store_degraded(self):
         project = ROOT
