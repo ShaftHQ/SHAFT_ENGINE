@@ -32,6 +32,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Status;
@@ -1750,7 +1751,7 @@ public class Actions extends ElementActions {
         // attach screenshot
         if (screenshot != null) {
             long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
-            Allure.addAttachment(SCREENSHOT_ATTACHMENT_FORMATTER.format(ZonedDateTime.now()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
+            AllureAttachments.add(SCREENSHOT_ATTACHMENT_FORMATTER.format(ZonedDateTime.now()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
             TraceEventRecorder.recordScreenshot(event, screenshot);
             if (profilerStart != 0L) {
                 FlakeProfiler.recordEvidenceCapture("report attachment", action,
@@ -1771,7 +1772,7 @@ public class Actions extends ElementActions {
             Allure.getLifecycle().updateStep(update -> update.setStatus(status));
 
             // update test status to failed
-            Allure.getLifecycle().updateTestCase(update -> update.setStatus(Status.FAILED));
+            Allure.getLifecycle().updateTest(update -> update.setStatus(Status.FAILED));
 
             if (exception != null) {
                 // update allure stacktrace

@@ -7,6 +7,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.LoadState;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
@@ -291,7 +292,7 @@ public class AccessibilityHelper {
                         logger.warn("Could not copy accessibility report to Allure results: {}", ioEx.getMessage());
                     }
                     try (FileInputStream fis = new FileInputStream(reportPath.toFile())) {
-                        Allure.addAttachment("Accessibility Report - " + pageName, "text/html", fis, ".html");
+                        AllureAttachments.add("Accessibility Report - " + pageName, "text/html", fis, ".html");
                     }
                     logger.debug("Attached accessibility report for page '{}'.", pageName);
                 } else {
@@ -309,7 +310,7 @@ public class AccessibilityHelper {
                         "Accessibility scan failed for " + pageName + ":\n" + e.getMessage(),
                         StandardCharsets.UTF_8);
                 try (FileInputStream fis = new FileInputStream(fallbackPath)) {
-                    Allure.addAttachment("Accessibility Report - " + pageName,
+                    AllureAttachments.add("Accessibility Report - " + pageName,
                             "text/plain", fis, ".txt");
                 }
             } catch (Exception inner) {
@@ -517,7 +518,7 @@ public class AccessibilityHelper {
                 generateEnhancedHTMLReport(responseJSON, pageName, htmlPath, config,driver);
 
                 try (FileInputStream fis = new FileInputStream(htmlPath)) {
-                    Allure.addAttachment("Accessibility Report - " + pageName, "text/html", fis, ".html");
+                    AllureAttachments.add("Accessibility Report - " + pageName, "text/html", fis, ".html");
                 }
                 logger.debug("Generated and attached accessibility reports for page '{}'.", pageName);
             }
@@ -546,7 +547,7 @@ public class AccessibilityHelper {
                     Files.writeString(Paths.get(fallbackPath), message, StandardCharsets.UTF_8);
 
                     try (FileInputStream fis = new FileInputStream(fallbackPath)) {
-                        Allure.addAttachment("Accessibility Failure Report - " + pageName,
+                        AllureAttachments.add("Accessibility Failure Report - " + pageName,
                                 "text/plain", fis, ".txt");
                     }
 
@@ -620,7 +621,7 @@ public class AccessibilityHelper {
                 writeJsonResults(jsonPath, responseJSON);
                 generateEnhancedHTMLReport(responseJSON, pageName, htmlPath, config, null);
                 try (FileInputStream fis = new FileInputStream(htmlPath)) {
-                    Allure.addAttachment("Accessibility Report - " + pageName, "text/html", fis, ".html");
+                    AllureAttachments.add("Accessibility Report - " + pageName, "text/html", fis, ".html");
                 }
             }
 
@@ -1077,7 +1078,7 @@ public class AccessibilityHelper {
                 Path target = allureDir.resolve(report.getFileName());
                 Files.copy(report, target, StandardCopyOption.REPLACE_EXISTING);
                 try (FileInputStream fis = new FileInputStream(target.toFile())) {
-                    Allure.addAttachment("Accessibility Report - " + pageName, "text/html", fis, ".html");
+                    AllureAttachments.add("Accessibility Report - " + pageName, "text/html", fis, ".html");
                 }
             }
         } catch (Exception e) {
@@ -1113,7 +1114,7 @@ public class AccessibilityHelper {
             Path path = Path.of(filteredReportPath);
             if (Files.exists(path)) {
                 try (FileInputStream fis = new FileInputStream(path.toFile())) {
-                    Allure.addAttachment("Filtered Accessibility Report - " + pageName, "text/html", fis, ".html");
+                    AllureAttachments.add("Filtered Accessibility Report - " + pageName, "text/html", fis, ".html");
                 }
             }
         } catch (Exception e) {

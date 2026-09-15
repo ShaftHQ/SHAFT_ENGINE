@@ -268,10 +268,12 @@ public class AllureActionStepReportingTest extends Tests {
     }
 
     private static JsonObject snapshotCurrentAllureResult() throws IOException {
-        String uuid = Allure.getLifecycle().getCurrentTestCase()
-                .orElseThrow(() -> new AssertionError("Allure has no current test case uuid to snapshot."));
+        java.util.concurrent.atomic.AtomicReference<String> uuidRef = new java.util.concurrent.atomic.AtomicReference<>();
+        Allure.getLifecycle().updateTest(result -> uuidRef.set(result.getUuid()));
+        String uuid = uuidRef.get();
+        Assert.assertNotNull(uuid, "Allure has no current test case uuid to snapshot.");
         Path snapshotDirectory = Files.createTempDirectory("shaft-5220-allure-" + uuid);
-        Allure.getLifecycle().updateTestCase(new FileSystemResultsWriter(snapshotDirectory)::write);
+        Allure.getLifecycle().updateTest(new FileSystemResultsWriter(snapshotDirectory)::write);
         Path resultFile = snapshotDirectory.resolve(uuid + "-result.json");
         Assert.assertTrue(Files.isRegularFile(resultFile),
                 "Expected Allure result JSON at " + resultFile.toAbsolutePath());

@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import io.qameta.allure.*;
+import com.shaft.tools.io.internal.AllureAttachments;
 import org.testng.SkipException;
 import org.testng.annotations.Test;
 
@@ -46,7 +47,7 @@ public class Allure3ReportValidationTests {
         });
 
         Allure.step("Attach a sample screenshot", () ->
-                Allure.addAttachment("screenshot.png", "image/png", new java.io.ByteArrayInputStream(screenshotBytes()), "png"));
+                AllureAttachments.add("screenshot.png", "image/png", new java.io.ByteArrayInputStream(screenshotBytes()), "png"));
     }
 
     /**

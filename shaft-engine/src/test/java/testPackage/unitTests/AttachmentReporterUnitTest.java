@@ -63,7 +63,7 @@ public class AttachmentReporterUnitTest {
                 attachmentType + " - " + attachmentName);
 
         AtomicReference<String> capturedType = new AtomicReference<>(null);
-        Allure.getLifecycle().updateTestCase(result -> {
+        Allure.getLifecycle().updateTest(result -> {
             List<Attachment> attachments = result.getAttachments();
             if (!attachments.isEmpty()) {
                 capturedType.set(attachments.getLast().getType());
@@ -94,7 +94,7 @@ public class AttachmentReporterUnitTest {
                 attachmentType + " - " + attachmentName);
 
         AtomicReference<AttachmentSnapshot> captured = new AtomicReference<>(null);
-        Allure.getLifecycle().updateTestCase(result -> {
+        Allure.getLifecycle().updateTest(result -> {
             List<Attachment> attachments = result.getAttachments();
             if (!attachments.isEmpty()) {
                 Attachment attachment = attachments.getLast();
@@ -129,7 +129,7 @@ public class AttachmentReporterUnitTest {
                 attachmentType + " - " + attachmentName);
 
         AtomicReference<AttachmentSnapshot> captured = new AtomicReference<>(null);
-        Allure.getLifecycle().updateTestCase(result -> {
+        Allure.getLifecycle().updateTest(result -> {
             List<Attachment> attachments = result.getAttachments();
             if (!attachments.isEmpty()) {
                 Attachment attachment = attachments.getLast();

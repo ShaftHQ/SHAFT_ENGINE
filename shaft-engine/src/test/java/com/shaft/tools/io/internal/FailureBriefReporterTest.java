@@ -111,7 +111,7 @@ public class FailureBriefReporterTest {
 
     private static List<Attachment> attachments() {
         List<Attachment> attachments = new ArrayList<>();
-        Allure.getLifecycle().updateTestCase(result -> attachments.addAll(result.getAttachments()));
+        Allure.getLifecycle().updateTest(result -> attachments.addAll(result.getAttachments()));
         return attachments;
     }
 }

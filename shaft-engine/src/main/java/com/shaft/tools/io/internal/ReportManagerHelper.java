@@ -10,6 +10,7 @@ import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Allure;
+import io.qameta.allure.AllureExternalKey;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
@@ -707,17 +708,17 @@ public class ReportManagerHelper {
     }
 
     public static void setTestCaseName(String scenarioName) {
-        Allure.getLifecycle().updateTestCase(testResult -> testResult.setName(scenarioName));
+        Allure.getLifecycle().updateTest(testResult -> testResult.setName(scenarioName));
         if (!"".equals(featureName)) {
-            Allure.getLifecycle().updateTestCase(testResult -> testResult.setFullName(featureName + ": " + scenarioName));
+            Allure.getLifecycle().updateTest(testResult -> testResult.setFullName(featureName + ": " + scenarioName));
         }
     }
 
     public static void setTestCaseDescription(String scenarioSteps) {
         if (scenarioSteps.contains("و")) {
-            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir='rtl'>" + scenarioSteps + "</p>"));
+            Allure.getLifecycle().updateTest(testResult -> testResult.setDescriptionHtml("<p dir='rtl'>" + scenarioSteps + "</p>"));
         } else {
-            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir='ltr'>" + scenarioSteps + "</p>"));
+            Allure.getLifecycle().updateTest(testResult -> testResult.setDescriptionHtml("<p dir='ltr'>" + scenarioSteps + "</p>"));
         }
     }
 
@@ -974,10 +975,10 @@ public class ReportManagerHelper {
             return;
         }
         var lifecycle = Allure.getLifecycle();
-        var uuid = UUID.randomUUID().toString();
-        lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
-        lifecycle.updateStep(uuid, step -> step.setStart(stepStartMillis));
-        lifecycle.stopStep(uuid);
+        var stepKey = AllureExternalKey.of(ReportManagerHelper.class, UUID.randomUUID().toString());
+        lifecycle.startStep(stepKey, new StepResult().setName(logText).setStatus(stepStatus));
+        lifecycle.updateStep(stepKey, step -> step.setStart(stepStartMillis));
+        lifecycle.stopStep();
     }
 
     private static Status getStepStatus() {
@@ -1003,8 +1004,8 @@ public class ReportManagerHelper {
 
     private static boolean isInsideOpenAllureStep() {
         var lifecycle = Allure.getLifecycle();
-        var current = lifecycle.getCurrentTestCaseOrStep();
-        var testCase = lifecycle.getCurrentTestCase();
+        var current = lifecycle.getCurrentExecutableKey();
+        var testCase = lifecycle.getCurrentRootKey();
         return current.isPresent() && testCase.isPresent() && !current.get().equals(testCase.get());
     }
 
@@ -1022,12 +1023,12 @@ public class ReportManagerHelper {
             updateCurrentStepStatus(stepStatus);
             return;
         }
-        var uuid = UUID.randomUUID().toString();
-        lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
+        var stepKey = AllureExternalKey.of(ReportManagerHelper.class, UUID.randomUUID().toString());
+        lifecycle.startStep(stepKey, new StepResult().setName(logText).setStatus(stepStatus));
         try {
             attach(attachments);
             if (stepStatus == Status.FAILED || stepStatus == Status.BROKEN) {
-                lifecycle.updateStep(uuid, update -> {
+                lifecycle.updateStep(stepKey, update -> {
                     update.setStatus(stepStatus);
                     if (attachments != null) {
                         for (List<Object> attachment : attachments) {
@@ -1044,7 +1045,7 @@ public class ReportManagerHelper {
                 });
             }
         } finally {
-            lifecycle.stopStep(uuid);
+            lifecycle.stopStep();
         }
     }
 
