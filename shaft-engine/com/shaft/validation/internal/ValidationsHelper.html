@@ -135,7 +135,7 @@ validation duration.</div>
 <div class="block">Same as <a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)"><code>reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List, long)</code></a>
 for callers that already attached authoritative comparison evidence through a different channel
 before invoking this method (e.g. a Playwright visual-diff image attached directly via
-<code>Allure.addAttachment</code>).</div>
+<code>AllureAttachments.add</code>).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resetVerificationStateAfterFailing()" class="member-name-link">resetVerificationStateAfterFailing</a>()</code></div>
@@ -259,7 +259,7 @@ validation duration.</div>
 <div class="block">Same as <a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)"><code>reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List, long)</code></a>
 for callers that already attached authoritative comparison evidence through a different channel
 before invoking this method (e.g. a Playwright visual-diff image attached directly via
-<code>Allure.addAttachment</code>). When <code>richEvidenceAlreadyAttached</code> is <code>true</code>, the
+<code>AllureAttachments.add</code>). When <code>richEvidenceAlreadyAttached</code> is <code>true</code>, the
 generic "Validation Test Data" Expected/Actual text attachments and the "Assertion evidence"
 card are skipped, since they would otherwise redundantly restate a boolean/opaque comparison
 result that carries no information beyond what the rich evidence already shows (issue #3804).</div>
