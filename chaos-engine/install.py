@@ -4391,6 +4391,7 @@ def doctor_with_dependencies(
         result["activationProof"] = {}
         result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
         result["learningMetrics"] = {"schemaVersion": 1, "status": "absent"}
+        result["officialSelfHeal"] = {"healed": [], "failed": [], "skipped": []}
         return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
