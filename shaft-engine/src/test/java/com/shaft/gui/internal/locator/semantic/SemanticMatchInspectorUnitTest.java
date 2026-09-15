@@ -1,6 +1,10 @@
 package com.shaft.gui.internal.locator.semantic;
 
 import com.shaft.gui.driver.ShaftLocator;
+import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.AriaRole;
+import java.util.Map;
 import com.shaft.gui.internal.aria.AriaNode;
 import org.openqa.selenium.By;
 import org.openqa.selenium.SearchContext;
@@ -10,7 +14,9 @@ import org.testng.annotations.Test;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -158,5 +164,77 @@ public class SemanticMatchInspectorUnitTest {
 
         Assert.expectThrows(IllegalArgumentException.class,
                 () -> SemanticMatchInspector.fromSelenium(driver, seed));
+    }
+
+    @Test(description = "#5835: Selenium path resolves <label for> live association")
+    public void seleniumResolvesLabelForAssociation() {
+        SearchContext driver = mock(SearchContext.class);
+        WebElement target = mock(WebElement.class);
+        WebElement labelEl = mock(WebElement.class);
+        By seed = By.id("email");
+
+        when(driver.findElements(seed)).thenReturn(List.of(target));
+        when(target.getTagName()).thenReturn("input");
+        when(target.getAccessibleName()).thenReturn("Email");
+        when(target.getDomAttribute("role")).thenReturn(null);
+        when(target.getDomAttribute("aria-label")).thenReturn(null);
+        when(target.getDomAttribute("id")).thenReturn("email");
+        when(target.getDomAttribute("name")).thenReturn(null);
+        when(target.getDomAttribute("data-testid")).thenReturn(null);
+        when(target.getDomAttribute("data-test")).thenReturn(null);
+        when(target.getDomAttribute("data-qa")).thenReturn(null);
+        when(target.getDomAttribute("title")).thenReturn(null);
+        when(target.getDomAttribute("href")).thenReturn(null);
+        when(target.getDomAttribute("type")).thenReturn("email");
+        when(target.getText()).thenReturn("");
+        when(target.getAttribute("role")).thenReturn(null);
+        when(target.getAttribute("aria-label")).thenReturn(null);
+        when(target.getAttribute("id")).thenReturn("email");
+        when(labelEl.getText()).thenReturn("Email address");
+
+        when(driver.findElements(argThat(by -> by != null
+                && by.toString().contains("label[for")
+                && by.toString().contains("email"))))
+                .thenReturn(List.of(labelEl));
+
+        when(driver.findElements(argThat(by -> by != null
+                && !by.equals(seed)
+                && !(by.toString().contains("label[for") && by.toString().contains("email")))))
+                .thenReturn(List.of(target));
+
+        SemanticElementEvidence evidence = SemanticMatchInspector.fromSelenium(driver, seed);
+        Assert.assertEquals(evidence.label(), "Email address");
+        Assert.assertTrue(evidence.hasSemanticSignal());
+    }
+
+    @Test(description = "#5835: dedicated fromPlaywright mock unit test")
+    public void fromPlaywrightMockCountsRoleMatches() {
+        Page page = mock(Page.class);
+        Locator target = mock(Locator.class);
+        Locator counted = mock(Locator.class);
+        ShaftLocator seed = ShaftLocator.role("button", "Save");
+
+        when(page.getByRole(eq(AriaRole.BUTTON), any(Page.GetByRoleOptions.class))).thenReturn(target);
+        when(target.count()).thenReturn(1);
+        when(target.evaluate(any(String.class))).thenReturn(Map.of(
+                "role", "button",
+                "accessibleName", "Save",
+                "label", "Save",
+                "visibleText", "Save",
+                "testId", "",
+                "id", "save-btn",
+                "name", "",
+                "css", "#save-btn",
+                "xpath", "//*[@id='save-btn']"
+        ));
+        when(counted.count()).thenReturn(1);
+        when(page.getByLabel(any(String.class), any(Page.GetByLabelOptions.class))).thenReturn(counted);
+        when(page.locator(any(String.class))).thenReturn(counted);
+
+        SemanticElementEvidence evidence = SemanticMatchInspector.fromPlaywright(page, seed);
+        Assert.assertEquals(evidence.role(), "button");
+        Assert.assertEquals(evidence.accessibleName(), "Save");
+        Assert.assertEquals(evidence.matchCount(SemanticLocatorStrategy.ROLE), 1);
+        Assert.assertTrue(evidence.inspectionNotes().contains("playwright"));
     }
 }

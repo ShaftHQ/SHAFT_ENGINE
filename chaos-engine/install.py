@@ -3499,6 +3499,13 @@ DOCTOR_NON_ESCALATING_STATUSES = frozenset({
     "degraded",
 })
 
+# Soft/advisory statuses that must never retain install-failure heal-handoff fixNext (#5831).
+DOCTOR_SOFT_STATUSES = frozenset({
+    "compatible-legacy",
+    "sync-advisory",
+    "degraded",
+})
+
 
 def component_escalates_overall(item: dict[str, object]) -> bool:
     """Return True when one component should flip overall doctor to recovery-required.
@@ -5150,6 +5157,42 @@ def _component_severity(item: dict[str, object]) -> str:
     return "error"
 
 
+def _is_soft_doctor_status(item: dict[str, object]) -> bool:
+    """True for soft/non-escalating component statuses (#5831)."""
+    return str(item.get("status") or "") in DOCTOR_SOFT_STATUSES
+
+
+def _is_install_failure_heal_handoff_fix_next(value: object) -> bool:
+    """Detect leftover install-failure / heal-handoff operator prompts (#5831)."""
+    if not isinstance(value, str):
+        return False
+    lowered = value.casefold()
+    return (
+        "heal-handoff.md" in lowered
+        or "do not rerun the install one-liner" in lowered
+        or "do not invent an alternate companion installer" in lowered
+        or "official-self-heal-handoff.md" in lowered
+    )
+
+
+def clear_soft_status_install_failure_fix_next(components: object) -> None:
+    """Drop leftover install-failure heal-handoff fixNext from soft components (#5831).
+
+    Soft statuses keep their soft-status-specific messaging via component_fix_next
+    when fixNext is absent; they must not print a stale heal handoff after overall
+    is already healthy/soft.
+    """
+    if not isinstance(components, dict):
+        return
+    for item in components.values():
+        if not isinstance(item, dict):
+            continue
+        if not _is_soft_doctor_status(item):
+            continue
+        if _is_install_failure_heal_handoff_fix_next(item.get("fixNext")):
+            item.pop("fixNext", None)
+
+
 def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
     """Point doctor fix-next at the merge handoff instead of a blind reinstall."""
     if not isinstance(components, dict):
@@ -5163,6 +5206,8 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
         for key, item in components.items():
             if not isinstance(item, dict):
                 continue
+            if _is_soft_doctor_status(item):
+                continue
             if str(key).startswith("companion-") and _component_severity(item) != "ok":
                 item["fixNext"] = message
     official = Path(project) / ".chaos-engine-state" / "official-self-heal-handoff.md"
@@ -5174,7 +5219,11 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
         )
         for name in ("memory", "mempalace", "graphify"):
             item = components.get(name)
-            if isinstance(item, dict) and _component_severity(item) != "ok":
+            if not isinstance(item, dict):
+                continue
+            if _is_soft_doctor_status(item):
+                continue
+            if _component_severity(item) != "ok":
                 item["fixNext"] = message
     heal = Path(project) / ".chaos-engine-state" / "heal-handoff.md"
     if heal.is_file() and not is_link_or_reparse(heal):
@@ -5185,9 +5234,10 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
         for item in components.values():
             if not isinstance(item, dict):
                 continue
-            if _component_severity(item) == "ok":
+            if _component_severity(item) == "ok" or _is_soft_doctor_status(item):
                 continue
             item["fixNext"] = message
+        clear_soft_status_install_failure_fix_next(components)
         return
     overlay = Path(project) / ".chaos-engine-state" / "overlay-handoff.md"
     if overlay.is_file() and not is_link_or_reparse(overlay):
@@ -5198,12 +5248,14 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
         for item in components.values():
             if not isinstance(item, dict):
                 continue
-            if _component_severity(item) == "ok":
+            if _component_severity(item) == "ok" or _is_soft_doctor_status(item):
                 continue
             item["fixNext"] = message
+        clear_soft_status_install_failure_fix_next(components)
         return
     handoff = Path(project) / ".chaos-engine-state" / "merge-handoff.md"
     if not handoff.is_file() or is_link_or_reparse(handoff):
+        clear_soft_status_install_failure_fix_next(components)
         return
     message = (
         "Complete the agent merge using .chaos-engine-state/merge-handoff.md, "
@@ -5212,9 +5264,10 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
     for item in components.values():
         if not isinstance(item, dict):
             continue
-        if _component_severity(item) == "ok":
+        if _component_severity(item) == "ok" or _is_soft_doctor_status(item):
             continue
         item["fixNext"] = message
+    clear_soft_status_install_failure_fix_next(components)
 
 
 def _looks_like_fix_next(detail: object) -> bool:

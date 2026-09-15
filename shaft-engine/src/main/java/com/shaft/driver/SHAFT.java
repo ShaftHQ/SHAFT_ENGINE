@@ -13,6 +13,7 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.capabilities.AutomationCapabilities;
 import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.driver.BrowserActionsContract;
+import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
 import com.shaft.gui.element.TouchActions;
@@ -803,6 +804,26 @@ public class SHAFT {
          * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Locators</a>
          */
         public static class Locator extends com.shaft.gui.internal.locator.Locator {
+            /**
+             * Portable ROLE locator (native {@link ShaftLocator}, not xpath) for #5821/#5835.
+             *
+             * @param role ARIA role
+             * @param accessibleName accessible name
+             * @return native ROLE {@link ShaftLocator}
+             */
+            public static ShaftLocator role(String role, String accessibleName) {
+                return ShaftLocator.role(role, accessibleName);
+            }
+
+            /**
+             * Portable accessible-name locator (native {@link ShaftLocator}, not xpath) for #5821/#5835.
+             *
+             * @param accessibleName accessible name / label
+             * @return native ACCESSIBLE_NAME {@link ShaftLocator}
+             */
+            public static ShaftLocator accessibleName(String accessibleName) {
+                return ShaftLocator.accessibleName(accessibleName);
+            }
         }
     }
 
