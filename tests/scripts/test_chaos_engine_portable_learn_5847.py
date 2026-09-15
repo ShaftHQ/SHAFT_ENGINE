@@ -2,25 +2,25 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
 import os
 import sys
 import tempfile
 import unittest
-import unittest.mock as mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-_CLEAR_ENV = {
+_CLEAR_ENV = (
     "CLAUDE_CONFIG",
     "CODEX_HOME",
     "GROK_HOME",
     "GEMINI_HOME",
     "COPILOT_HOME",
     "XDG_CONFIG_HOME",
-}
+)
 
 
 def load(path: Path, name: str):
@@ -33,8 +33,13 @@ def load(path: Path, name: str):
     return module
 
 
-def _clean_env() -> dict[str, str]:
-    return {key: value for key, value in os.environ.items() if key not in _CLEAR_ENV}
+@contextlib.contextmanager
+def _cleared_host_homes():
+    saved = {key: os.environ.pop(key) for key in _CLEAR_ENV if key in os.environ}
+    try:
+        yield
+    finally:
+        os.environ.update(saved)
 
 
 def _write_human_session(path: Path, content: str) -> None:
@@ -76,7 +81,7 @@ class PortableLearn5847Tests(unittest.TestCase):
                 claude / "two.jsonl",
                 "please keep portable learn contract for overlay policy",
             )
-            with mock.patch.dict(os.environ, _clean_env(), clear=True):
+            with _cleared_host_homes():
                 result = self.learn.learn(out, home=home, offline=True)
             self.assertEqual("complete", result["status"])
             self.assertTrue((out / "report.md").is_file())
@@ -97,15 +102,11 @@ class PortableLearn5847Tests(unittest.TestCase):
             self.assertTrue(actions["policy"]["forbidHomeSkills"])
             blob = json.dumps(actions) + report
             self.assertNotIn("SECRET999", blob)
-            self.assertNotIn("~/.grok/skills", "".join(
-                str(item.get("target") or "") for item in actions["actions"]
-            ))
+            targets = "".join(str(item.get("target") or "") for item in actions["actions"])
+            self.assertNotIn("~/.grok/skills", targets)
             for item in actions["actions"]:
                 target = str(item["target"])
-                self.assertTrue(
-                    self.learn.is_git_tracked_overlay_target(target),
-                    msg=target,
-                )
+                self.assertTrue(self.learn.is_git_tracked_overlay_target(target), msg=target)
                 self.assertFalse(self.learn.is_forbidden_target(target))
                 self.assertTrue(item.get("evidenceSessions"))
 
@@ -174,14 +175,13 @@ class PortableLearn5847Tests(unittest.TestCase):
                 home / ".claude" / "projects" / "-x" / "s.jsonl",
                 "hello portable learn",
             )
-            with mock.patch.dict(os.environ, _clean_env(), clear=True):
+            with _cleared_host_homes():
                 result = self.learn.learn(
                     out, home=home, collect_first=True, offline=False
                 )
             self.assertEqual("awaiting_host_map_reduce_verify", result["status"])
             self.assertTrue((out / "prompts" / "map.md").is_file())
             self.assertFalse((out / "report.md").is_file())
-            # No dependency on Grok bundled learn skill path.
             prompts = (out / "prompts" / "map.md").read_text(encoding="utf-8")
             self.assertNotIn("learn-traces.rhai", prompts)
             self.assertNotIn("~/.grok/bundled/skills/learn", prompts)
@@ -190,7 +190,7 @@ class PortableLearn5847Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary)
             out = home / "run"
-            with mock.patch.dict(os.environ, _clean_env(), clear=True):
+            with _cleared_host_homes():
                 manifest = self.learn.collect(home, out)
             self.assertEqual(1, manifest["schemaVersion"])
             self.assertTrue((out / "manifest.json").is_file())
@@ -212,7 +212,6 @@ class PortableLearn5847Tests(unittest.TestCase):
         self.assertNotIn("learn-traces.rhai", traces)
         self.assertIn("learn_traces.py learn", harness)
         self.assertIn("learn --out", catalog)
-        # Overlay must not contain a copied Grok workflow script.
         overlay = ROOT / "chaos-engine"
         hits = list(overlay.rglob("*learn-traces.rhai"))
         self.assertEqual([], hits)

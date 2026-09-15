@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -66,6 +67,7 @@ First-ever run: step/curate deletes — never auto-delete.
 
 
 def load_manifest(run_dir: Path) -> dict[str, object]:
+    """Load and validate run-dir manifest.json."""
     path = run_dir / "manifest.json"
     if not path.is_file():
         raise FileNotFoundError(f"missing manifest.json under {run_dir}")
@@ -76,6 +78,7 @@ def load_manifest(run_dir: Path) -> dict[str, object]:
 
 
 def load_session(run_dir: Path, relative: str) -> dict[str, object]:
+    """Load one redacted session JSON relative to the run dir."""
     path = run_dir / relative
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -96,6 +99,27 @@ def _row_role(row: dict[str, object]) -> str:
     return ""
 
 
+def _append_str(blobs: list[str], value: object) -> None:
+    if isinstance(value, str) and value:
+        blobs.append(value)
+
+
+def _append_from_sequence(blobs: list[str], value: list[object]) -> None:
+    for block in value:
+        if isinstance(block, str):
+            blobs.append(block)
+        elif isinstance(block, dict):
+            _append_str(blobs, block.get("text"))
+
+
+def _append_from_mapping(blobs: list[str], value: dict[str, object]) -> None:
+    for nested in ("content", "text", "role"):
+        _append_str(blobs, value.get(nested))
+    content = value.get("content")
+    if isinstance(content, list):
+        _append_from_sequence(blobs, content)
+
+
 def _text_blobs(row: dict[str, object]) -> list[str]:
     blobs: list[str] = []
     for key in ("content", "text", "message", "prompt", "input"):
@@ -103,31 +127,14 @@ def _text_blobs(row: dict[str, object]) -> list[str]:
         if isinstance(value, str):
             blobs.append(value)
         elif isinstance(value, dict):
-            for nested in ("content", "text", "role"):
-                item = value.get(nested)
-                if isinstance(item, str):
-                    blobs.append(item)
-            content = value.get("content")
-            if isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict):
-                        text = block.get("text")
-                        if isinstance(text, str):
-                            blobs.append(text)
-                    elif isinstance(block, str):
-                        blobs.append(block)
+            _append_from_mapping(blobs, value)
         elif isinstance(value, list):
-            for block in value:
-                if isinstance(block, str):
-                    blobs.append(block)
-                elif isinstance(block, dict):
-                    text = block.get("text")
-                    if isinstance(text, str):
-                        blobs.append(text)
+            _append_from_sequence(blobs, value)
     return blobs
 
 
 def session_user_text(session: dict[str, object]) -> str:
+    """Concatenate human/user message text from a session payload."""
     messages = session.get("messages")
     blobs: list[str] = []
     if not isinstance(messages, list):
@@ -154,6 +161,7 @@ def session_user_text(session: dict[str, object]) -> str:
 
 
 def phrase_counts(text: str) -> dict[str, int]:
+    """Count unigram/bigram tokens for offline map heuristics."""
     counts: dict[str, int] = {}
     tokens = [
         tok.casefold()
@@ -169,6 +177,7 @@ def phrase_counts(text: str) -> dict[str, int]:
 
 
 def is_forbidden_target(target: str) -> bool:
+    """True when target points at ~/.grok skills or equivalents."""
     normalized = target.strip().replace("\\", "/")
     lowered = normalized.casefold()
     if any(marker.casefold() in lowered for marker in FORBIDDEN_TARGET_MARKERS):
@@ -177,6 +186,7 @@ def is_forbidden_target(target: str) -> bool:
 
 
 def is_git_tracked_overlay_target(target: str) -> bool:
+    """True for chaos-engine/ .chaos-engine/ or patches/ write targets."""
     normalized = target.strip().replace("\\", "/").lstrip("./")
     if is_forbidden_target(normalized):
         return False
@@ -564,10 +574,64 @@ def _normalize_action(item: dict[str, object], index: int) -> dict[str, object] 
 
 def _reject_reason(item: dict[str, object]) -> str:
     evidence = item.get("evidenceSessions") or []
-    target = str(item.get("target") or "").strip()
     if not evidence:
         return "missing_evidence"
     return "non_git_tracked_or_home"
+
+
+
+def _write_report(
+    run_dir: Path,
+    *,
+    kept_count: int,
+    cited_count: int,
+    actions: list[dict[str, object]],
+    rejected_count: int,
+    coverage_line: str,
+) -> None:
+    lines = [
+        "# Learn traces report",
+        "",
+        coverage_line,
+        "",
+        "## Overview",
+        "",
+        f"- Sessions kept: {kept_count}",
+        f"- Sessions cited: {cited_count}",
+        f"- Actions proposed: {len(actions)}",
+        f"- Rejected (fail-closed): {rejected_count}",
+        "",
+        "## Actions (git-tracked overlay only)",
+        "",
+    ]
+    if not actions:
+        lines.extend(["_No overlay actions survived verify._", ""])
+    else:
+        lines.extend(
+            [
+                "| id | target | summary | evidence |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for action in actions:
+            evidence = ", ".join(action.get("evidenceSessions") or [])  # type: ignore[arg-type]
+            lines.append(
+                f"| {action.get('id')} | `{action.get('target')}` | "
+                f"{action.get('summary')} | {evidence} |"
+            )
+        lines.append("")
+    lines.extend(
+        [
+            "## Policy",
+            "",
+            "- Targets are git-tracked `chaos-engine/` / `.chaos-engine/` source PR paths or `patches/*.diff`.",
+            "- Never write learned skills under `~/.grok/skills`.",
+            "- First-ever run is step/curate, never auto-delete.",
+            "- Host TUI `/learn` is not required; this runner owns the portable contract.",
+            "",
+        ]
+    )
+    (run_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def finalize(run_dir: Path) -> dict[str, object]:
@@ -609,56 +673,21 @@ def finalize(run_dir: Path) -> dict[str, object]:
         },
     }
     _write_json(run_dir / "actions.json", actions_doc)
-    lines = [
-        "# Learn traces report",
-        "",
-        coverage_line,
-        "",
-        "## Overview",
-        "",
-        f"- Sessions kept: {kept_count}",
-        f"- Sessions cited: {len(cited)}",
-        f"- Actions proposed: {len(actions)}",
-        f"- Rejected (fail-closed): {len(rejected)}",
-        "",
-        "## Actions (git-tracked overlay only)",
-        "",
-    ]
-    if not actions:
-        lines.extend(["_No overlay actions survived verify._", ""])
-    else:
-        lines.extend(
-            [
-                "| id | target | summary | evidence |",
-                "| --- | --- | --- | --- |",
-            ]
-        )
-        for action in actions:
-            evidence = ", ".join(action.get("evidenceSessions") or [])  # type: ignore[arg-type]
-            lines.append(
-                f"| {action.get('id')} | `{action.get('target')}` | "
-                f"{action.get('summary')} | {evidence} |"
-            )
-        lines.append("")
-    lines.extend(
-        [
-            "## Policy",
-            "",
-            "- Targets are git-tracked `chaos-engine/` / `.chaos-engine/` source PR paths or `patches/*.diff`.",
-            "- Never write learned skills under `~/.grok/skills`.",
-            "- First-ever run is step/curate, never auto-delete.",
-            "- Host TUI `/learn` is not required; this runner owns the portable contract.",
-            "",
-        ]
+    _write_report(
+        run_dir,
+        kept_count=kept_count,
+        cited_count=len(cited),
+        actions=actions,
+        rejected_count=len(rejected),
+        coverage_line=coverage_line,
     )
-    (run_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
     return actions_doc
 
 
 def learn(
     run_dir: Path,
     *,
-    collect_fn,
+    collect_fn: Callable[[Path, Path], dict[str, object]],
     home: Path | None = None,
     collect_first: bool = True,
     offline: bool = True,
