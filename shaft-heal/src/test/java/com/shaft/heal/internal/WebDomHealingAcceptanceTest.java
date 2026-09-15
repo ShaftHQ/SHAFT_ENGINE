@@ -91,7 +91,9 @@ public class WebDomHealingAcceptanceTest {
         HealingResolution changedId = provider.resolve(new HealingRequest(
                 driver, oldUser, "TYPE", true, null, null, null)).orElseThrow();
 
-        Assert.assertTrue(changedId.selectedLocator().toString().contains("username"));
+        // Issue #5820: suggestions prefer accessible-name/role over raw id/test-id; accept either.
+        String selected = changedId.selectedLocator().toString();
+        Assert.assertTrue(selected.toLowerCase(java.util.Locale.ROOT).contains("username"), selected);
 
         write(page, """
                 <html><body>
