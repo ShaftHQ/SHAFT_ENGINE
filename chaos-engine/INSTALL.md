@@ -305,9 +305,9 @@ bare "rerun doctor".
 | MemPalace | `uv tool install --with chromadb==1.5.9 mempalace==3.8.0` | `repair --component mempalace` / account provisioner |
 | Graphify | `uv tool install --with tree-sitter-sql==0.3.11 graphifyy==0.9.43` | `repair --component graphify` |
 | Memory | `npm install -g @aictx/memory@0.2.1` | `repair --component memory` |
-| Context7 | `npm install -g ctx7@latest` | account dependency provisioner |
-| uv / Node / Temurin Java / Maven | Astral / nodejs.org / Adoptium / Apache (CE managed helpers) | `repair --component tools` + managed runtime helpers |
-| CE MCPs / skills | `repair --component mcps` / `skills` (hosts rebind) | doctor + repair |
+| Context7 | `npm install -g ctx7@latest` | doctor auto-heal via `repair --component tools` / official npm (#5812) |
+| uv / Node / Temurin Java / Maven | Astral / nodejs.org / Adoptium / Apache (CE managed helpers) | doctor auto-heal via `repair --component tools` + managed helpers (#5813) |
+| CE MCPs / skills | `repair --component mcps` / `skills` (hosts rebind) | doctor auto-heal via official repair (#5812) |
 | GitHub CLI (`gh`) | https://cli.github.com/ | advisory fix-next only (operator tool; CE does not auto-install) |
 
 Opt-out flags (`--without-memory`, `--without-caveman`, …) stay off — doctor
@@ -316,7 +316,9 @@ does not heal disabled bundle items. Failed heal handoffs:
 - `.chaos-engine-state/companion-handoff.md`
 - `.chaos-engine-state/official-self-heal-handoff.md`
 
-See also epic #5803 and policy issue #5811.
+See also epic #5803 and policy issue #5811. Follow-ons #5812/#5813.
+
+Overall doctor status stays **healthy** when the only non-healthy findings are `compatible-legacy`, `sync-advisory`, or `degraded` (shown as info/warning). Those soft statuses must not flip overall to `recovery-required`. Hard fails (e.g. `recovery-required` on an advisory store like MemPalace) still escalate.
 
 ### Component repair (no full wipe)
 
