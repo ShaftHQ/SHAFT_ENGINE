@@ -195,6 +195,26 @@ def doctor_failure_payload(error: BaseException) -> dict[str, object]:
     }
 
 
+FAILURE_ARTIFACT_NAMES = (
+    "heal-handoff.md",
+    "official-self-heal-handoff.md",
+    "install-trace.json",
+    "install-console.log",
+    "doctor-failure.json",
+)
+
+
+def present_state_artifacts(project: Path) -> list[str]:
+    """Return repo-relative failure artifacts that currently exist on disk."""
+    state = Path(project) / ".chaos-engine-state"
+    present: list[str] = []
+    for name in FAILURE_ARTIFACT_NAMES:
+        path = state / name
+        if path.is_file() and not path.is_symlink():
+            present.append(f".chaos-engine-state/{name}")
+    return present
+
+
 def write_failure_artifacts(
     project: Path,
     reporter: InstallReporter | None,
@@ -211,14 +231,21 @@ def write_failure_artifacts(
         encoding="utf-8",
     )
     payload = doctor_failure_payload(error)
-    doctor_rel = "not available"
-    if payload:
-        (state / "doctor-failure.json").write_text(
-            json.dumps(payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        doctor_rel = ".chaos-engine-state/doctor-failure.json"
-    return ".chaos-engine-state/install-console.log", doctor_rel
+    if not payload:
+        payload = {
+            "status": "failed",
+            "commit": None,
+            "components": {},
+            "cause": one_line_cause(error)[:240],
+        }
+    (state / "doctor-failure.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return (
+        ".chaos-engine-state/install-console.log",
+        ".chaos-engine-state/doctor-failure.json",
+    )
 
 
 def redact_report_text(text: str) -> str:
@@ -402,22 +429,49 @@ def heal_issue_reference(issue_url: str) -> str:
     return issue_url
 
 
-def heal_handoff_prompt(doctor_command: str, issue_url: str) -> str:
+def _artifact_read_clause(artifacts: list[str] | None) -> str:
+    """Name only the artifacts the caller proved exist (or the legacy trio)."""
+    if artifacts is None:
+        return (
+            ".chaos-engine-state/heal-handoff.md and the local install-trace.json, "
+            "install-console.log, and doctor-failure.json"
+        )
+    if not artifacts:
+        return "any local installer artifacts under .chaos-engine-state/"
+    if len(artifacts) == 1:
+        return artifacts[0]
+    if len(artifacts) == 2:
+        return f"{artifacts[0]} and {artifacts[1]}"
+    return ", ".join(artifacts[:-1]) + f", and {artifacts[-1]}"
+
+
+def heal_handoff_prompt(
+    doctor_command: str,
+    issue_url: str,
+    *,
+    artifacts: list[str] | None = None,
+) -> str:
     cli = "py -3" if os.name == "nt" else "python3"
     issue_ref = heal_issue_reference(issue_url)
+    read_clause = _artifact_read_clause(artifacts)
     if doctor_command == "not available":
+        restore = (
+            "Restore the portable core with the documented ChaosEngine install one-liner"
+        )
+        if artifacts:
+            restore += f", then read {read_clause}"
+        elif artifacts is None:
+            restore += ", then read .chaos-engine-state/heal-handoff.md"
         return (
             "Continue ChaosEngine install in this folder. Load ChaosEngine if present. "
-            "Restore the portable core with the documented ChaosEngine install one-liner, "
-            "then read .chaos-engine-state/heal-handoff.md. "
+            f"{restore}. "
             f"Open {issue_ref} and comment findings, solutions, and troubleshooting steps. "
             "Ask the user whether they want to attempt a fix by opening an upstream PR "
             "linked to that issue."
         )
     return (
         "Continue ChaosEngine install in this folder. Load ChaosEngine. "
-        "Read .chaos-engine-state/heal-handoff.md and the local install-trace.json, "
-        "install-console.log, and doctor-failure.json. "
+        f"Read {read_clause}. "
         "Do not rerun the install one-liner unless the portable core is missing. "
         "Continue unhealthy components with "
         f"{cli} .chaos-engine/install.py repair --project . --component <name> "
@@ -431,6 +485,12 @@ def heal_handoff_prompt(doctor_command: str, issue_url: str) -> str:
 def write_heal_handoff(project: Path, fields: dict[str, str], issue_url: str) -> Path:
     target = Path(project) / HEAL_HANDOFF_RELATIVE
     target.parent.mkdir(parents=True, exist_ok=True)
+    existing = [
+        rel
+        for rel in present_state_artifacts(project)
+        if rel != HEAL_HANDOFF_RELATIVE
+    ]
+    listed = [HEAL_HANDOFF_RELATIVE, *existing]
     lines = [
         "# Heal handoff",
         "",
@@ -446,9 +506,7 @@ def write_heal_handoff(project: Path, fields: dict[str, str], issue_url: str) ->
         "",
         "Local artifacts:",
         "",
-        "- `.chaos-engine-state/install-trace.json`",
-        "- `.chaos-engine-state/install-console.log`",
-        "- `.chaos-engine-state/doctor-failure.json`",
+        *[f"- `{rel}`" for rel in listed],
         "",
         "Do not rerun the install one-liner unless `.chaos-engine/install.py` is missing.",
         "",
@@ -1053,7 +1111,11 @@ class InstallReporter:
                 pass
             doctor_cli = "py -3" if os.name == "nt" else "python3"
             doctor_command = f"{doctor_cli} .chaos-engine/install.py doctor --project ."
-            prompt = heal_handoff_prompt(doctor_command, issue_url)
+            prompt = heal_handoff_prompt(
+                doctor_command,
+                issue_url,
+                artifacts=present_state_artifacts(project),
+            )
             extra.extend(
                 [
                     "Heal handoff",
@@ -2230,7 +2292,12 @@ def emit_install_failure(
             token=token,
             extra=upgrade_query_extras(error),
         )
-        prompt = heal_handoff_prompt(fields["doctor_command"], issue_url)
+        if project is not None and core_install_py(project):
+            write_heal_handoff(project, fields, issue_url)
+        artifacts = present_state_artifacts(project) if project is not None else []
+        prompt = heal_handoff_prompt(
+            fields["doctor_command"], issue_url, artifacts=artifacts
+        )
         if "issues/new?" in issue_url:
             print("Open issue:", file=sys.stderr)
         else:

@@ -871,43 +871,36 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 "graphify": "/tools/graphify",
                 "memory": "/tools/memory",
             }
+            palace = str(project.resolve() / ".chaos-engine-state/mempalace")
+            init_command = [
+                "/tools/mempalace", "--palace", palace, "--backend", "sqlite_exact",
+                "init", ".", "--yes", "--no-llm",
+            ]
+            mine_command = [
+                "/tools/mempalace", "--palace", palace, "--backend", "sqlite_exact",
+                "mine", ".",
+            ]
             fresh = module.project_setup_plan(project, commands)
-            self.assertEqual(
-                [
-                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
-                    "--auto-mine",
-                ],
-                fresh[0],
-            )
+            self.assertEqual(init_command, fresh[0])
+            self.assertNotIn("--auto-mine", fresh[0])
             self.assertNotIn(["/tools/mempalace", "mine", "."], fresh)
             self.assertEqual(
                 {
-                    "MEMPALACE_PALACE_PATH": str(
-                        project.resolve() / ".chaos-engine-state/mempalace"
-                    ),
+                    "MEMPALACE_PALACE_PATH": palace,
                     "MEMPALACE_BACKEND": "sqlite_exact",
+                    "MEMPALACE_BACKEND_EXPLICIT": "sqlite_exact",
                 },
                 module.mempalace_project_setup_environment(project, fresh[0]),
             )
             project.joinpath("mempalace.yaml").write_text("wing: test\n", encoding="utf-8")
             configured = module.project_setup_plan(project, commands)
-            self.assertNotIn(
-                [
-                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
-                    "--auto-mine",
-                ],
-                configured,
-            )
-            self.assertIn(
-                ["/tools/mempalace", "mine", "."],
-                configured,
-            )
+            self.assertNotIn(init_command, configured)
+            self.assertIn(mine_command, configured)
             self.assertEqual(
                 {
-                    "MEMPALACE_PALACE_PATH": str(
-                        project / ".chaos-engine-state/mempalace"
-                    ),
+                    "MEMPALACE_PALACE_PATH": palace,
                     "MEMPALACE_BACKEND": "sqlite_exact",
+                    "MEMPALACE_BACKEND_EXPLICIT": "sqlite_exact",
                 },
                 module.mempalace_project_setup_environment(project, configured[0]),
             )
@@ -923,30 +916,12 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             state = project / ".chaos-engine-state/mempalace"
             state.mkdir(parents=True)
             state.joinpath(".mined").write_text("current\n", encoding="utf-8")
-            self.assertNotIn(
-                [
-                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
-                    "--auto-mine",
-                ],
-                module.project_setup_plan(project, commands),
-            )
-            self.assertIn(
-                ["/tools/mempalace", "mine", "."],
-                module.project_setup_plan(project, commands),
-            )
+            self.assertNotIn(init_command, module.project_setup_plan(project, commands))
+            self.assertIn(mine_command, module.project_setup_plan(project, commands))
             state.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\\x00")
             state.joinpath(".mined").unlink()
-            self.assertNotIn(
-                [
-                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
-                    "--auto-mine",
-                ],
-                module.project_setup_plan(project, commands),
-            )
-            self.assertNotIn(
-                ["/tools/mempalace", "mine", "."],
-                module.project_setup_plan(project, commands),
-            )
+            self.assertNotIn(init_command, module.project_setup_plan(project, commands))
+            self.assertNotIn(mine_command, module.project_setup_plan(project, commands))
             state.joinpath(".mined").write_text("current\n", encoding="utf-8")
             graph = project / "graphify-out/graph.json"
             graph.parent.mkdir()
@@ -974,14 +949,139 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             project = Path(temporary)
             marker = project / ".chaos-engine-state/mempalace/.mined"
 
-            with self.assertRaisesRegex(RuntimeError, "exact target"):
-                module.mark_mempalace_project_setup(project)
-            self.assertFalse(marker.exists())
+            module.mark_mempalace_project_setup(project)
+            self.assertTrue((marker.parent / "sqlite_exact.sqlite3").is_file())
+            self.assertEqual(b"current\n", marker.read_bytes())
 
-            marker.parent.mkdir(parents=True)
-            marker.parent.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\\x00")
+            marker.unlink()
             module.mark_mempalace_project_setup(project)
             self.assertEqual(b"current\n", marker.read_bytes())
+
+    def test_mempalace_setup_adopts_home_palace_when_project_target_missing(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            home = root / "home"
+            project.mkdir()
+            default = home / ".mempalace/palace"
+            default.mkdir(parents=True)
+            payload = b"SQLite format 3\x00home-exact"
+            default.joinpath("sqlite_exact.sqlite3").write_bytes(payload)
+            default.joinpath("sqlite_exact.sqlite3-wal").write_bytes(b"wal")
+
+            with mock.patch.object(module.Path, "home", return_value=home):
+                module.mark_mempalace_project_setup(project)
+
+            palace = project / ".chaos-engine-state/mempalace"
+            self.assertEqual(payload, palace.joinpath("sqlite_exact.sqlite3").read_bytes())
+            self.assertEqual(b"wal", palace.joinpath("sqlite_exact.sqlite3-wal").read_bytes())
+            self.assertEqual(b"current\n", palace.joinpath(".mined").read_bytes())
+            self.assertEqual(payload, default.joinpath("sqlite_exact.sqlite3").read_bytes())
+
+    def test_mempalace_setup_does_not_mix_home_exact_into_chroma_project_palace(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            home = root / "home"
+            project.mkdir()
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+            palace.joinpath("chroma.sqlite3").write_bytes(b"chroma")
+            default = home / ".mempalace/palace"
+            default.mkdir(parents=True)
+            default.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\x00")
+
+            with mock.patch.object(module.Path, "home", return_value=home):
+                with self.assertRaisesRegex(RuntimeError, "exact target"):
+                    module.mark_mempalace_project_setup(project)
+            self.assertFalse(palace.joinpath("sqlite_exact.sqlite3").exists())
+
+    def test_invoke_tool_runner_accepts_subprocess_run(self):
+        module = load_controller()
+        result = module.invoke_tool_runner(
+            __import__("subprocess").run,
+            [__import__("sys").executable, "-c", "print('ok')"],
+            {},
+        )
+        self.assertEqual(0, result.returncode)
+        self.assertIn("ok", result.stdout)
+
+    def test_empty_project_mempalace_init_pins_exact_palace_without_auto_mine(self):
+
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            planned = module.project_setup_plan(
+                project, {"mempalace": "/tools/mempalace"}
+            )
+            palace = str(project.resolve() / ".chaos-engine-state/mempalace")
+            self.assertEqual(
+                [
+                    "/tools/mempalace", "--palace", palace, "--backend", "sqlite_exact",
+                    "init", ".", "--yes", "--no-llm",
+                ],
+                planned[0],
+            )
+            self.assertNotIn("--auto-mine", planned[0])
+
+    def test_empty_project_mempalace_init_heals_exact_sqlite_when_cli_skips_db(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        commands = {
+            "mempalace": "/tools/mempalace",
+            "uv": "/tools/uv",
+            "npm": "/tools/npm",
+        }
+        local = {
+            name: {"healthy": True, "version": "1.0", "detail": "passed"}
+            for name in (
+                "uv", "python", "node", "java", "mempalace",
+                "graphify", "memory", "context7",
+            )
+        }
+        actions = {name: {"action": "reused"} for name in local}
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            init = module.mempalace_project_cli("/tools/mempalace", "init", project)
+            runner = mock.Mock(
+                return_value=SimpleNamespace(returncode=0, stdout="", stderr="")
+            )
+            with mock.patch.object(
+                module,
+                "discover_account_commands",
+                side_effect=((local, commands), (local, commands)),
+            ), mock.patch.object(
+                module, "resolve_account_actions", return_value=actions
+            ), mock.patch.object(
+                module, "project_setup_plan", return_value=[init]
+            ):
+                module.install_account_dependencies(
+                    project, specification, runner=runner, allow_root=True
+                )
+            palace = project / ".chaos-engine-state/mempalace"
+            self.assertTrue((palace / "sqlite_exact.sqlite3").is_file())
+            self.assertEqual(b"current\n", (palace / ".mined").read_bytes())
+            env = runner.call_args.kwargs["env"]
+            self.assertEqual(str(palace.resolve()), env["MEMPALACE_PALACE_PATH"])
+            self.assertEqual("sqlite_exact", env["MEMPALACE_BACKEND"])
+            self.assertEqual("sqlite_exact", env["MEMPALACE_BACKEND_EXPLICIT"])
+            self.assertIs(module.subprocess.DEVNULL, runner.call_args.kwargs["stdin"])
+            self.assertEqual(
+                [
+                    "/tools/mempalace",
+                    "--palace",
+                    str(palace.resolve()),
+                    "--backend",
+                    "sqlite_exact",
+                    "init",
+                    ".",
+                    "--yes",
+                    "--no-llm",
+                ],
+                runner.call_args.args[0],
+            )
 
     def test_account_setup_retries_two_transient_mempalace_tls_eofs(self):
         module = load_controller()

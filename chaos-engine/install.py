@@ -5061,7 +5061,10 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
             repair = getattr(controller, "repair", None)
             if not callable(repair):
                 raise ValueError("dependency repair is unavailable in this distribution")
-            receipt = repair(runtime, specification, runner=runner, force=True)
+            plan_runner = runner
+            if plan_runner is None or plan_runner is subprocess.run:
+                plan_runner = controller.run_command
+            receipt = repair(runtime, specification, runner=plan_runner, force=True)
             return {
                 "status": "repaired",
                 "component": name,

@@ -931,8 +931,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        if args.budget_seconds < 1 or args.budget_seconds > 600:
-            raise GateError("budget must be between 1 and 600 seconds")
+        if args.budget_seconds < 1 or args.budget_seconds > 900:
+            raise GateError("budget must be between 1 and 900 seconds")
         if not re.fullmatch(r"[0-9a-f]{40}", args.head):
             raise GateError("head must be a full lowercase SHA")
         if args.plan_only and args.write_generated:

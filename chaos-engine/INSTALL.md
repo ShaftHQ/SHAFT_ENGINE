@@ -371,6 +371,11 @@ same folder. Do not rerun the one-liner unless `.chaos-engine/install.py` is
 missing. Console log and doctor JSON are optional on the GitHub form because
 a URL cannot attach files.
 
+`CE-INSTALL-FAILED` with core present (including provision-phase MemPalace
+failures) also writes `.chaos-engine-state/heal-handoff.md`,
+`install-console.log`, and `doctor-failure.json`. The printed agent prompt
+names only artifacts that exist on disk.
+
 
 ## Empty-project smoke (< 5 minutes)
 
