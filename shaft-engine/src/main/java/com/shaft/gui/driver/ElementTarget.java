@@ -95,7 +95,7 @@ public final class ElementTarget {
             if (step instanceof LocatorStep locatorStep) {
                 current = current == null
                         ? locatorStep.locator().toPlaywrightLocator(page)
-                        : current.locator(locatorStep.locator().toPlaywrightSelector());
+                        : locatorStep.locator().toPlaywrightLocator(current);
             } else if (step instanceof IndexStep indexStep) {
                 current = Objects.requireNonNull(current, "Element target root locator").nth(indexStep.index());
             }

@@ -1,10 +1,9 @@
 package com.shaft.gui.internal.locator.semantic;
 
+import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.internal.locator.Locator;
-import com.shaft.gui.internal.locator.Role;
 import org.openqa.selenium.By;
 
-import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -95,10 +94,8 @@ public final class SemanticLocatorResolver {
 
     private static By buildLocator(SemanticLocatorStrategy strategy, String expression, SemanticElementEvidence evidence) {
         By built = switch (strategy) {
-            case ROLE -> roleLocator(evidence.role(), evidence.accessibleName());
-            case ACCESSIBLE_NAME -> Locator.hasAnyTagName()
-                    .containsAttribute("aria-label", expression)
-                    .build();
+            case ROLE -> ShaftLocator.role(evidence.role(), evidence.accessibleName()).toBy();
+            case ACCESSIBLE_NAME -> ShaftLocator.accessibleName(expression).toBy();
             case LABEL, TEXT -> Locator.hasAnyTagName().hasNormalizedText(expression).build();
             case TEST_ID -> By.cssSelector("[data-testid=\"" + cssEscape(expression)
                     + "\"],[data-test=\"" + cssEscape(expression)
@@ -124,33 +121,6 @@ public final class SemanticLocatorResolver {
         return built;
     }
 
-    private static By roleLocator(String role, String accessibleName) {
-        Optional<Role> mapped = mapRole(role);
-        if (mapped.isPresent()) {
-            return Locator.hasRole(mapped.get()).hasNormalizedText(accessibleName).build();
-        }
-        return By.xpath("//*[@role=" + xpathLiteral(role)
-                + " and normalize-space(.)=" + xpathLiteral(accessibleName) + "]");
-    }
-
-    private static Optional<Role> mapRole(String role) {
-        if (role == null || role.isBlank()) {
-            return Optional.empty();
-        }
-        String normalized = role.trim().toUpperCase(Locale.ROOT).replace('-', '_');
-        // ARIA "columnheader" etc. align with Role enum names where possible.
-        try {
-            return Optional.of(Role.valueOf(normalized));
-        } catch (IllegalArgumentException ignored) {
-            return switch (normalized) {
-                case "ROW" -> Optional.of(Role.TABLE_ROW);
-                case "CELL", "GRIDCELL" -> Optional.of(Role.TABLE_CELL);
-                case "COLUMNHEADER" -> Optional.of(Role.TABLE_COLUMNHEADER);
-                default -> Optional.empty();
-            };
-        }
-    }
-
     private static double confidence(
             SemanticLocatorStrategy strategy,
             int matchCount,
@@ -173,16 +143,6 @@ public final class SemanticLocatorResolver {
 
     private static String cssEscape(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
-    private static String xpathLiteral(String value) {
-        if (!value.contains("'")) {
-            return "'" + value + "'";
-        }
-        if (!value.contains("\"")) {
-            return "\"" + value + "\"";
-        }
-        return "concat('" + value.replace("'", "',\"'\",'") + "')";
     }
 
     private static String stripByPrefix(By locator) {
