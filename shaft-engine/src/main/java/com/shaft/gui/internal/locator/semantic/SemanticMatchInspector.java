@@ -157,6 +157,15 @@ public final class SemanticMatchInspector {
             java.util.function.ToIntFunction<SemanticLocatorStrategy> counter) {
         SemanticElementEvidence.Builder builder = SemanticElementEvidence.builder()
                 .inspectionNotes(signals.notes());
+        applySemanticSignals(builder, signals, counter);
+        applyStructuralSignals(builder, signals, counter);
+        return builder.build();
+    }
+
+    private static void applySemanticSignals(
+            SemanticElementEvidence.Builder builder,
+            DomSignals signals,
+            java.util.function.ToIntFunction<SemanticLocatorStrategy> counter) {
         if (!signals.role().isBlank() && !signals.accessibleName().isBlank()) {
             builder.role(signals.role(), signals.accessibleName(),
                     counter.applyAsInt(SemanticLocatorStrategy.ROLE));
@@ -174,6 +183,12 @@ public final class SemanticMatchInspector {
         if (!signals.testId().isBlank()) {
             builder.testId(signals.testId(), counter.applyAsInt(SemanticLocatorStrategy.TEST_ID));
         }
+    }
+
+    private static void applyStructuralSignals(
+            SemanticElementEvidence.Builder builder,
+            DomSignals signals,
+            java.util.function.ToIntFunction<SemanticLocatorStrategy> counter) {
         if (!signals.id().isBlank()) {
             builder.id(signals.id(), counter.applyAsInt(SemanticLocatorStrategy.ID));
         }
@@ -186,7 +201,6 @@ public final class SemanticMatchInspector {
         if (!signals.xpath().isBlank()) {
             builder.xpath(signals.xpath(), counter.applyAsInt(SemanticLocatorStrategy.XPATH));
         }
-        return builder.build();
     }
 
     private static int countSelenium(SearchContext root, SemanticLocatorStrategy strategy, DomSignals signals) {

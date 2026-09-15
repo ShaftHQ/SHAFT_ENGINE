@@ -5,7 +5,6 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
 import com.shaft.gui.internal.locator.Role;
 import com.shaft.gui.internal.locator.semantic.SemanticLocatorResolution;
-import com.shaft.gui.internal.locator.semantic.SemanticLocatorStrategy;
 import org.openqa.selenium.By;
 
 import java.util.Locale;
