@@ -389,10 +389,18 @@ and must avoid generated report files.
 
 <p>Property key: <code>allure.forceConfiguredCliVersion</code> — default: <code>true</code>
 
-<p>After <code>allure-bom</code> 3.0.0 (#5793 / #5798), SHAFT always ignores user-installed
+<p>After <code>allure-bom</code> 3.0.0 (#5793 / #5798 / #5801), SHAFT always ignores user-installed
 <code>allure</code> binaries on <code>PATH</code> (including Allure 2.x) for generate/open/serve and
-uses managed Allure 3 only: <code>npx --yes allure@&lt;allure3Version&gt;</code> (or portable Node.js
-under <code>~/.m2/repository/nodejs/</code>).
+uses managed Allure 3 only, preferring a Maven-provisioned CLI under
+<code>~/.m2/repository/allure/allure-cli/&amp;lt;allure3Version&amp;gt;/</code>, then
+<code>npx --yes allure@&amp;lt;allure3Version&amp;gt;</code> (or portable Node.js under
+<code>~/.m2/repository/nodejs/</code>).
+
+<p>Operators / CI: pre-warm the Maven cache with
+<code>mvn -Pprovision-allure-cli -pl shaft-engine -am initialize</code> (uses root POM property
+<code>allure.cli.version</code>, aligned with <code>allure3Version</code>). Override the cache root
+with <code>-Dallure.cli.cacheRoot=...</code>. Skip runtime provision with
+<code>-Dallure.cli.skipProvision=true</code>.
 
 <p>Setting this property to <code>false</code> is a no-op that logs a discrete deprecation note;
 PATH allure remains ignored. Prefer leaving the default <code>true</code> or removing the property
