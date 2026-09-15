@@ -456,7 +456,7 @@ screen</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(com.shaft.gui.image.ImageTarget)" class="member-name-link">tap</a><wbr>(<a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Taps a target resolved locally from the current screenshot, with Appium Images as a capability fallback.</div>
+<div class="block">Taps a screenshot target.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">tap</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
@@ -681,7 +681,9 @@ natural language.
 <h3>tap</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">tap</span><wbr><span class="parameters">(<a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target)</span></div>
-<div class="block">Taps a target resolved locally from the current screenshot, with Appium Images as a capability fallback.</div>
+<div class="block">Taps a screenshot target. On Appium sessions prefer Appium Images (element click in
+driver coordinates) before OpenCV+scale mapping — BrowserStack iOS/Android window size
+vs screenshot pixels still drifts after #5778.</div>
 </div>
 </section>
 </li>

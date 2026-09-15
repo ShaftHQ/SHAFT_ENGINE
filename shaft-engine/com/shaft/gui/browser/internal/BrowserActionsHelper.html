@@ -69,6 +69,7 @@
 <li><a href="#failAction(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.Exception...)" tabindex="0">failAction(WebDriver, String, String, Exception...)</a></li>
 <li><a href="#confirmThatWebsiteIsNotDown(org.openqa.selenium.WebDriver,java.lang.String)" tabindex="0">confirmThatWebsiteIsNotDown(WebDriver, String)</a></li>
 <li><a href="#navigateToNewUrl(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">navigateToNewUrl(WebDriver, String, String, String)</a></li>
+<li><a href="#settleSafariDocument(org.openqa.selenium.WebDriver)" tabindex="0">settleSafariDocument(WebDriver)</a></li>
 <li><a href="#checkNavigationWasSuccessful(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">checkNavigationWasSuccessful(WebDriver, String, String, String)</a></li>
 <li><a href="#waitUntilUrlIsNot(org.openqa.selenium.WebDriver,java.lang.String)" tabindex="0">waitUntilUrlIsNot(WebDriver, String)</a></li>
 <li><a href="#attemptMaximizeUsingSeleniumWebDriver(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">attemptMaximizeUsingSeleniumWebDriver(WebDriver, String, String, String)</a></li>
@@ -283,9 +284,15 @@ automatically on navigation without requiring an interactive prompt.</div>
 <div class="block">Reports a successful browser action with an explicit action name.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilUrlIsNot(org.openqa.selenium.WebDriver,java.lang.String)" class="member-name-link">waitUntilUrlIsNot</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;initialURL)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#settleSafariDocument(org.openqa.selenium.WebDriver)" class="member-name-link">settleSafariDocument</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits for Safari's document to reach <code>complete</code> after a classic or history-script
+navigation.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilUrlIsNot(org.openqa.selenium.WebDriver,java.lang.String)" class="member-name-link">waitUntilUrlIsNot</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;initialURL)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Waits until the browser URL is no longer equal to the given initial URL.</div>
 </div>
 </div>
@@ -511,6 +518,16 @@ the classic <code>WebDriver.navigate()</code> API for non-BiDi drivers or on tim
 <dd><code>targetUrlAfterRedirection</code> - the expected final URL after any server-side redirects;
                                  pass the same value as <code>targetUrl</code> if no redirect is expected</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="settleSafariDocument(org.openqa.selenium.WebDriver)">
+<h3>settleSafariDocument</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">settleSafariDocument</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
+<div class="block">Waits for Safari's document to reach <code>complete</code> after a classic or history-script
+navigation. Used by BrowserStack Safari history fallbacks that skip hung <code>navigate()</code>.</div>
 </div>
 </section>
 </li>
