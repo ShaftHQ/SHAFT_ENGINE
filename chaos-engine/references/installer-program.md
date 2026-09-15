@@ -245,6 +245,11 @@ Implement #5667 first: it is a live adopter failure and unblocks Windows
 verify. First-install empty next (golden path). Conflict last; it depends on
 success-with-agent-prompt plumbing.
 
+
+## Official self-heal (#5811)
+
+Required third parties self-heal via each item's official install command (CE vendor publish for companions). See [`INSTALL.md`](../INSTALL.md) inventory and [`official_self_heal.py`](../official_self_heal.py). Related: epic #5803, companions slice #5810.
+
 ## Out of scope
 
 - Rewriting the installer in this spec PR.

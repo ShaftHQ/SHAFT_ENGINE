@@ -4391,6 +4391,7 @@ def doctor_with_dependencies(
         result["activationProof"] = {}
         result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
         result["learningMetrics"] = {"schemaVersion": 1, "status": "absent"}
+        result["officialSelfHeal"] = {"healed": [], "failed": [], "skipped": []}
         return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
@@ -4477,9 +4478,26 @@ def doctor_with_dependencies(
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
                 _mod.apply_doctor_overlay_match(result, project.resolve())
-    except (OSError, RuntimeError, ValueError, AttributeError, ImportError):
-        # Optional #5689 probes; missing helpers must not crash doctor.
+        heal_path = Path(__file__).resolve().with_name("official_self_heal.py")
+        if heal_path.is_file() and isinstance(components, dict):
+            _spec = _ilu.spec_from_file_location("ce_official_self_heal_doctor", heal_path)
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                _mod.apply_doctor_official_self_heal(
+                    result,
+                    project.resolve(),
+                    repair=repair_component,
+                    bundle=read_bundle_options(project.resolve()),
+                )
+                _mod.apply_official_self_heal_fix_next(project.resolve(), components)
+    except (OSError, RuntimeError, ValueError, AttributeError, ImportError, TypeError):
+        # Optional #5689/#5811 probes; missing helpers must not crash doctor.
         pass
+    result.setdefault(
+        "officialSelfHeal",
+        {"healed": [], "failed": [], "skipped": []},
+    )
     if not verify_clients:
         # Still attach activationProof from receipt when available (no live CLI probe).
         result.setdefault("activationProof", {})
@@ -4540,7 +4558,7 @@ _DIAGNOSTIC_FIELDS = {
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
-        "activationProof", "phaseLedger", "learningMetrics",
+        "activationProof", "phaseLedger", "learningMetrics", "officialSelfHeal",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
@@ -5075,6 +5093,28 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
     """Point doctor fix-next at the merge handoff instead of a blind reinstall."""
     if not isinstance(components, dict):
         return
+    companion = Path(project) / ".chaos-engine-state" / "companion-handoff.md"
+    if companion.is_file() and not is_link_or_reparse(companion):
+        message = (
+            "Complete the agent heal using .chaos-engine-state/companion-handoff.md, "
+            "then rerun doctor. Do not invent an alternate companion installer."
+        )
+        for key, item in components.items():
+            if not isinstance(item, dict):
+                continue
+            if str(key).startswith("companion-") and _component_severity(item) != "ok":
+                item["fixNext"] = message
+    official = Path(project) / ".chaos-engine-state" / "official-self-heal-handoff.md"
+    if official.is_file() and not is_link_or_reparse(official):
+        message = (
+            "Complete the agent heal using "
+            ".chaos-engine-state/official-self-heal-handoff.md (exact official "
+            "install command), then rerun doctor."
+        )
+        for name in ("memory", "mempalace", "graphify"):
+            item = components.get(name)
+            if isinstance(item, dict) and _component_severity(item) != "ok":
+                item["fixNext"] = message
     heal = Path(project) / ".chaos-engine-state" / "heal-handoff.md"
     if heal.is_file() and not is_link_or_reparse(heal):
         message = (
@@ -5196,10 +5236,32 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         "absent",
         "broken",
     }:
+        official = item.get("officialCommand")
+        if isinstance(official, str) and official.strip():
+            return (
+                f"Run the official install for `{name}`: `{official.strip()}`, "
+                f"or `{cli} .chaos-engine/install.py repair --project . "
+                f"--component {name}`, then "
+                f"`{cli} .chaos-engine/install.py doctor --project .`."
+            )
         return (
-            f"Repair the `{name}` dependency/runtime (receipt + managed tools), "
+            f"Repair the `{name}` dependency/runtime via official install "
+            f"(`{cli} .chaos-engine/install.py repair --project . --component {name}`), "
             f"then rerun `{cli} .chaos-engine/install.py doctor --project .`. "
             + reinstall
+        )
+    if str(name).startswith("companion-") and status in {"absent", "recovery-required", "broken"}:
+        official = item.get("officialCommand")
+        if isinstance(official, str) and official.strip():
+            return (
+                f"Rematerialize companion via official CE vendor publish: "
+                f"`{official.strip()}`, then "
+                f"`{cli} .chaos-engine/install.py doctor --project .`."
+            )
+        return (
+            "Rematerialize Caveman/Ponytail from chaos-engine/vendor via "
+            "hosts.rematerialize_companions (or repair --component plugins), then "
+            f"`{cli} .chaos-engine/install.py doctor --project .`."
         )
     if name == "hooks":
         return (
