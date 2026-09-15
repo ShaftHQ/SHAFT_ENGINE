@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/close-delivery-only-after-verify-evidence-is-inspected.md",
+  "content_hash": "sha256:8a3c21ed4fef7022accf5f48a54006ab676fec6355a2efb2e60068108f96917a",
+  "created_at": "2026-09-15T21:50:47+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5828",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5808",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.close-delivery-only-after-verify-evidence-is-inspected",
+  "source": {
+    "kind": "agent",
+    "task": "G3 Learning Session close-after-verify quality lesson"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "process-owner",
+    "e2e",
+    "quality",
+    "permanent"
+  ],
+  "title": "Close delivery only after verify evidence is inspected",
+  "type": "gotcha",
+  "updated_at": "2026-09-15T21:50:47+03:00"
+}

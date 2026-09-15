@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/constraints/wifi-and-host-network-recovery-are-out-of-scope-for-chaosengine.md",
+  "content_hash": "sha256:416c4082a3d2fb68728071685d7cfe8c63e922eb9b167d266d28aca4bf4471a4",
+  "created_at": "2026-09-15T21:50:47+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5803",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.wifi-and-host-network-recovery-are-out-of-scope-for-chaosengine",
+  "source": {
+    "kind": "agent",
+    "task": "G3 Learning Session WiFi out-of-scope rule"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "process-owner",
+    "scope",
+    "permanent"
+  ],
+  "title": "WiFi and host network recovery are out of scope for ChaosEngine",
+  "type": "gotcha",
+  "updated_at": "2026-09-15T21:50:47+03:00"
+}

@@ -94,6 +94,16 @@ authoritative research to improve the process itself.
 | MUST | Delegation verification before parent-slice completion; TDD/PDCA red/green or automated verifier proof; Evidence-backed status; Impediment removal within authority; consult on ambiguity; recurring-only (2+) process research threshold. |
 | Adaptive | Inspection cadence inside the follow-through band; pressure wording; consult depth; whether to re-spec, upgrade, or kill after evidence; research sources once the 2+ threshold trips. |
 
+## Delivery hygiene (token + quality)
+
+- After every ChaosEngine harness merge: reinstall official CE on the primary
+  desktop checkout and on agent checkouts, then doctor before the next pack
+  (dual-checkout reinstall). Do not start the next harness wave on a drifted overlay.
+- Close a delivery slice only after verify evidence is inspected (CI, silent
+  verify, doctor, or E2E receipts). Narrative green is not Done.
+- Host WiFi and unrelated lab network recovery are out of scope for ChaosEngine
+  delivery and Learning Sessions; escalate outside CE and keep harness work moving.
+
 ## Anti-patterns and self-correction
 
 | Anti-pattern | Self-correction |
@@ -104,3 +114,6 @@ authoritative research to improve the process itself.
 | Impediment theater: noting a blocker without removal or escalation | Remove within authority, coach, or escalate owner-only / paid spend immediately |
 | Research every Learning Session for process polish | Skip unless the failure class has recurred (2+); otherwise capture the single learning and move on |
 | Orchestrator implements while writers are live | Stop self-work; restore orchestrated boundaries; re-dispatch or switch mode only after handover |
+| Premature close: Done without verify receipts | Re-open; require CI, silent verify, doctor, or E2E evidence before Done |
+| WiFi / host-network rabbit hole inside CE delivery | Declare out of scope; escalate outside CE; resume harness or product work |
+| Skip dual-checkout reinstall after a CE harness merge | Reinstall official CE on desktop and agent checkouts; doctor; then continue |

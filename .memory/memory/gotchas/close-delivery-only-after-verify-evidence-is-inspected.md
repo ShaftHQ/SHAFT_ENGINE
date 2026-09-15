@@ -1,0 +1,1 @@
+E2E and delivery slices must not flip to Done from narrative green alone. Inspect CI, silent verify, doctor, or E2E receipts first. Premature close creates reopen cycles and hides residual pack failures.
