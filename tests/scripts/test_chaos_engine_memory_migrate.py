@@ -114,3 +114,72 @@ class MemoryMigrateTests(unittest.TestCase):
             result = hosts.migrate_legacy_memory_store(project)
             self.assertEqual("failed", result["status"])
             self.assertEqual(before, path.read_bytes())
+
+    def test_id_collision_fails_closed(self):
+        hosts = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            first = {
+                "body_path": "memory/architecture.md",
+                "content_hash": "sha256:" + "c" * 64,
+                "created_at": "2026-06-15T16:59:56+03:00",
+                "evidence": [],
+                "id": "architecture.same",
+                "scope": {"kind": "project"},
+                "source": {"kind": "system"},
+                "status": "active",
+                "tags": [],
+                "title": "A",
+                "type": "architecture",
+                "updated_at": "2026-07-08T16:41:17+03:00",
+            }
+            path = _write_minimal_store(project, first)
+            second = dict(first)
+            second["id"] = "workflow.same"
+            second["type"] = "workflow"
+            second["title"] = "B"
+            (project / ".memory/memory" / "workflow.json").write_text(
+                json.dumps(second, indent=2) + "\n", encoding="utf-8"
+            )
+            (project / ".memory/memory" / "workflow.md").write_text("# w\n", encoding="utf-8")
+            before = path.read_bytes()
+            result = hosts.migrate_legacy_memory_store(project)
+            self.assertEqual("failed", result["status"])
+            self.assertIn("collision", str(result.get("reason", "")).lower())
+            self.assertEqual(before, path.read_bytes())
+
+    def test_doctor_probe_does_not_migrate(self):
+        hosts = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            original = {
+                "body_path": "memory/architecture.md",
+                "content_hash": "sha256:" + "d" * 64,
+                "created_at": "2026-06-15T16:59:56+03:00",
+                "evidence": [],
+                "id": "architecture.current",
+                "scope": {"kind": "project"},
+                "source": {"kind": "system"},
+                "status": "active",
+                "tags": [],
+                "title": "Current Architecture",
+                "type": "architecture",
+                "updated_at": "2026-07-08T16:41:17+03:00",
+            }
+            path = _write_minimal_store(project, original)
+            before = path.read_bytes()
+            (project / ".chaos-engine").mkdir()
+            (project / ".chaos-engine/tool.py").write_text("print('noop')\n", encoding="utf-8")
+            payload = json.dumps(
+                {
+                    "ok": True,
+                    "data": {"valid": False, "errors": [{"code": "MemorySchemaValidationFailed"}]},
+                    "error": {"code": "MemorySchemaValidationFailed"},
+                }
+            )
+            completed = type("R", (), {"returncode": 1, "stdout": payload, "stderr": ""})()
+            import unittest.mock as mock
+            with mock.patch.object(hosts.subprocess, "run", return_value=completed):
+                status = hosts.retrieval_runtime_status(project)
+            self.assertEqual("compatible-legacy", status["status"])
+            self.assertEqual(before, path.read_bytes())

@@ -1828,6 +1828,9 @@ def install_latest(
     host_controller = installer.load_installed_controller(target, "hosts")
     try:
         reporter.start("Verify installation", remaining=remaining("Verify installation"))
+        migrate = getattr(host_controller, "migrate_legacy_memory_store", None)
+        if callable(migrate):
+            migrate(project)
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
         if _required_install_unhealthy(doctor):
             health_error = InstallHealthError("Verify installation", doctor)

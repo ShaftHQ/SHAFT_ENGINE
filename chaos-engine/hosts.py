@@ -552,6 +552,7 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
     try:
         objects: list[tuple[Path, dict[str, object], bytes]] = []
         id_map: dict[str, str] = {}
+        seen_new: dict[str, str] = {}
         for path in sorted(root.rglob("*.json")):
             original = path.read_bytes()
             value = json.loads(original)
@@ -559,7 +560,12 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
                 raise ValueError("memory object is not a JSON object")
             mapped_type = _mapped_memory_type(value)
             old_id = str(value.get("id") or "")
-            id_map[old_id] = _remap_memory_id(old_id, mapped_type)
+            new_id = _remap_memory_id(old_id, mapped_type)
+            prior = seen_new.get(new_id)
+            if prior is not None and prior != old_id:
+                raise ValueError(f"memory id collision: {old_id} and {prior} -> {new_id}")
+            seen_new[new_id] = old_id
+            id_map[old_id] = new_id
             objects.append((path, value, original))
         for path, value, original in objects:
             payload = json.dumps(
@@ -576,7 +582,7 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
             original = path.read_bytes()
             value = json.loads(original)
             if not isinstance(value, dict):
-                continue
+                raise ValueError("memory relation is not a JSON object")
             rewritten = {key: value[key] for key in allowed_relation if key in value}
             for key in ("from", "to"):
                 current = rewritten.get(key)
@@ -600,14 +606,14 @@ def migrate_legacy_memory_store(project: Path) -> dict[str, object]:
             except OSError:
                 pass
         return {"status": "failed", "reason": f"transform-failed:{error}"}
-    return {"status": "migrated", "backup": str(backup), "objects": len(originals)}
+    return {"status": "migrated", "backup": str(backup), "objects": len(objects)}
 
 
 def retrieval_runtime_status(
     project: Path,
     account_commands: dict[str, str] | None = None,
     *,
-    migrate: bool = True,
+    migrate: bool = False,
 ) -> dict[str, str]:
     tool = project / ".chaos-engine/tool.py"
     environment = account_command_environment(account_commands)
