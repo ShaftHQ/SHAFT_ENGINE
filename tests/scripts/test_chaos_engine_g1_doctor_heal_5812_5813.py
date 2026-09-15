@@ -242,6 +242,93 @@ class OfficialHealFollowOn5812_5813Test(unittest.TestCase):
             )
             self.assertIn("node", summary["healed"])
 
+    def test_doctor_skips_managed_tools_heal_when_dependencies_healthy(self):
+        module = load(HEAL, "ce_g1_heal_skip_tools")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / ".chaos-engine-state").mkdir(parents=True)
+            result = {
+                "status": "healthy",
+                "components": {
+                    "tools": {"status": "healthy"},
+                    "maven-tools-mcp": {"status": "healthy"},
+                },
+                "dependencies": {
+                    "status": "healthy",
+                    "components": {
+                        "node": {"status": "healthy", "healthy": True},
+                        "java": {"status": "healthy", "healthy": True},
+                        "maven": {"status": "healthy", "healthy": True},
+                        "context7": {"status": "healthy", "healthy": True},
+                    },
+                },
+            }
+            repaired: list[str] = []
+
+            def fake_repair(proj, name, **_kwargs):
+                repaired.append(name)
+                return {"status": "repaired", "component": name}
+
+            def fake_rematerialize(proj, *, names=None):
+                return {"status": "healed", "names": []}
+
+            summary = module.apply_doctor_official_self_heal(
+                result,
+                project,
+                rematerialize=fake_rematerialize,
+                repair=fake_repair,
+                bundle={
+                    "memory": False,
+                    "mempalace": False,
+                    "graphify": False,
+                    "caveman": False,
+                    "ponytail": False,
+                },
+            )
+            self.assertEqual([], repaired)
+            self.assertEqual([], summary.get("healed", []))
+            self.assertNotIn("tools", summary.get("failed", []))
+
+    def test_doctor_skips_context7_tools_repair_when_dependencies_healthy(self):
+        module = load(HEAL, "ce_g1_heal_skip_ctx7")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / ".chaos-engine-state").mkdir(parents=True)
+            result = {
+                "status": "healthy",
+                "components": {},
+                "dependencies": {
+                    "status": "healthy",
+                    "components": {
+                        "context7": {"status": "healthy", "healthy": True},
+                    },
+                },
+            }
+            repaired: list[str] = []
+
+            def fake_repair(proj, name, **_kwargs):
+                repaired.append(name)
+                return {"status": "repaired", "component": name}
+
+            def fake_rematerialize(proj, *, names=None):
+                return {"status": "healed", "names": []}
+
+            summary = module.apply_doctor_official_self_heal(
+                result,
+                project,
+                rematerialize=fake_rematerialize,
+                repair=fake_repair,
+                bundle={
+                    "memory": False,
+                    "mempalace": False,
+                    "graphify": False,
+                    "caveman": False,
+                    "ponytail": False,
+                },
+            )
+            self.assertEqual([], repaired)
+            self.assertNotIn("context7", summary.get("healed", []))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,1 @@
+Fresh ChaosEngine live-installer acceptance on macOS can exceed a 600s phase budget during upgrade-candidate one-liners even when doctor soft-overall is healthy. Keep Darwin phase_timeout_seconds at least 900; leave Linux/Windows at 600. Also skip managed tools/context7 repair heals when dependencies already report healthy so noop repairs do not burn the budget (#5853).

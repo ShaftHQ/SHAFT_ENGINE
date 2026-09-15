@@ -104,8 +104,20 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             module.TOOLS,
             ("uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"),
         )
+        self.assertEqual(600, module.DEFAULT_PHASE_TIMEOUT_SECONDS)
+        self.assertEqual(900, module.MACOS_PHASE_TIMEOUT_SECONDS)
+        self.assertEqual(600, module.phase_timeout_seconds("Linux"))
+        self.assertEqual(600, module.phase_timeout_seconds("Windows"))
+        self.assertEqual(900, module.phase_timeout_seconds("Darwin"))
         self.assertGreater(module.PHASE_TIMEOUT_SECONDS, 0)
-        self.assertLessEqual(module.PHASE_TIMEOUT_SECONDS, 900)
+        self.assertLessEqual(module.PHASE_TIMEOUT_SECONDS, module.MACOS_PHASE_TIMEOUT_SECONDS)
+        self.assertIn(
+            module.PHASE_TIMEOUT_SECONDS,
+            {
+                module.DEFAULT_PHASE_TIMEOUT_SECONDS,
+                module.MACOS_PHASE_TIMEOUT_SECONDS,
+            },
+        )
         imported = set()
         for node in ast.walk(ast.parse(SCRIPT.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Import):
