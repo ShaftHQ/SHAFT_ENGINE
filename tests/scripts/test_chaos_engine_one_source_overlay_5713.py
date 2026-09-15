@@ -163,10 +163,9 @@ class OneSourceOverlayTests(unittest.TestCase):
                 text=True,
             )
             detail = ignored.stdout + ignored.stderr
-            self.assertTrue(
-                ignored.returncode != 0 or "!.chaos-engine" in detail,
-                detail,
-            )
+            # RUNTIME no longer force-includes `.chaos-engine/`; adopters may
+            # still track it when nothing ignores the install tree (#5839).
+            self.assertNotEqual(0, ignored.returncode, detail)
             subprocess.run(["git", "add", "-A"], cwd=project, check=True, capture_output=True)
             listed = subprocess.run(
                 ["git", "ls-files"],

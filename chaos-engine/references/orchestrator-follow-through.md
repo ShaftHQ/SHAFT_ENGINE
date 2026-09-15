@@ -2,7 +2,7 @@
 
 Orchestrators inspect live writers and required checks, consult, remove
 impediments, and continue delivery. Assignment alone is not progress. Enforce
-[process-owner / Scrum-master](process-owner-scrum-master.md) MUST gates by
+[process-owner](process-owner-scrum-master.md) MUST gates by
 link; do not restate those invariants here.
 
 ## Cadence and inspection
@@ -17,7 +17,7 @@ scheduler when available; otherwise the next main-thread wake still owes the
 inspection.
 No live writers or required checks: no scheduler.
 
-Each inspection is a Scrum-master duty: establish blocked or unblocked state,
+Each inspection is a process-owner duty: establish blocked or unblocked state,
 report status with evidence, apply pressure when progress stalls, consult on
 ambiguity, and remove blockers within granted authority. Then keep, re-spec,
 upgrade, or kill. Never send a heartbeat. Validate errors and progress before

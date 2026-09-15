@@ -1,4 +1,4 @@
-# Process owner / Scrum-master
+# process-owner
 
 Normative owner of orchestrator-mode process ownership. Roles, follow-through,
 execution workflows, and the entrypoint link here; they do not restate these
@@ -11,8 +11,9 @@ Kanban. Do not add Scrum ceremonies.
 
 ## Role purpose and authority
 
-The orchestrator is the process owner for live work streams. Scrum-master is
-an alias only when the user explicitly asks.
+The orchestrator is the process-owner for live work streams. Scrum-master is
+an alias only when the user explicitly asks; "product owner" maps to
+process-owner.
 It protects delivery flow, quality gates, and honest status. It does not
 implement task work in orchestrated mode. Authority covers inspection,
 consultation, impediment removal within granted rights, verification of
@@ -54,11 +55,27 @@ When asked for a status report, keep it to one screen and use this shape:
 
 1. **RAG line** — `green` / `amber` / `red`, program name, and time.
 2. **Where we are** — one paragraph on current position.
-3. **Checklist** — sections `Done`, `In progress`, and `To do`.
+3. **One status table** — columns: Task ID | Ticket(s) | PR | Scope | Status | Elapsed | ETA.
+   Status values: `Done` | `InProgress` | `ToDo` (optionally `Blocked`). Do **not**
+   add separate Done / In progress / To do checklist sections; Status lives in
+   the table only.
 4. **Risks and Decisions** — close with open risks and decisions needed.
+
+**Final completion report:** when the program or owned delivery closes, the
+report MUST include actual cost in **USD and EGP**, inferred from tokens ×
+cost-per-token for the current agent/model/effort. Do not omit currency
+conversion when EGP is the owner's reporting currency.
 
 Evidence still binds every claim. Do not invent scheduled routines for status;
 publish on ask or on the existing follow-through inspection cadence.
+
+### Naming
+
+- Canonical role name: **process-owner**.
+- **Scrum-master** is an alias only when the user explicitly asks to act as
+  Scrum-master.
+- Do **not** introduce a separate **product-owner** role. Map user asks that say
+  "product owner" to **process-owner**.
 
 ## Targeted research triggers
 

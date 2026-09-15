@@ -96,6 +96,7 @@ jobs:
               - 'tests/scripts/test_chaos_engine_install_wrappers.py'
               - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
               - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
               - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
             docs:
               - "**/*.md"
@@ -1026,6 +1027,7 @@ jobs:
         run: >-
           python -m unittest
           tests.scripts.test_chaos_engine_installer_ux
+          tests.scripts.test_chaos_engine_same_commit_payload_heal_5839
           tests.scripts.test_chaos_engine_bootstrap
           tests.scripts.test_chaos_engine_install_wrappers -v
       - name: Run fresh-install acceptance
