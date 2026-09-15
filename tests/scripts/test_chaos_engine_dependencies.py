@@ -873,12 +873,12 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             }
             palace = str(project.resolve() / ".chaos-engine-state/mempalace")
             init_command = [
-                "/tools/mempalace", "init", ".", "--yes", "--no-llm",
-                "--backend", "sqlite_exact", "--palace", palace,
+                "/tools/mempalace", "--palace", palace, "--backend", "sqlite_exact",
+                "init", ".", "--yes", "--no-llm",
             ]
             mine_command = [
-                "/tools/mempalace", "mine", ".",
-                "--backend", "sqlite_exact", "--palace", palace,
+                "/tools/mempalace", "--palace", palace, "--backend", "sqlite_exact",
+                "mine", ".",
             ]
             fresh = module.project_setup_plan(project, commands)
             self.assertEqual(init_command, fresh[0])
@@ -967,8 +967,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             palace = str(project.resolve() / ".chaos-engine-state/mempalace")
             self.assertEqual(
                 [
-                    "/tools/mempalace", "init", ".", "--yes", "--no-llm",
-                    "--backend", "sqlite_exact", "--palace", palace,
+                    "/tools/mempalace", "--palace", palace, "--backend", "sqlite_exact",
+                    "init", ".", "--yes", "--no-llm",
                 ],
                 planned[0],
             )
@@ -1015,6 +1015,21 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.assertEqual(str(palace.resolve()), env["MEMPALACE_PALACE_PATH"])
             self.assertEqual("sqlite_exact", env["MEMPALACE_BACKEND"])
             self.assertEqual("sqlite_exact", env["MEMPALACE_BACKEND_EXPLICIT"])
+            self.assertIs(module.subprocess.DEVNULL, runner.call_args.kwargs["stdin"])
+            self.assertEqual(
+                [
+                    "/tools/mempalace",
+                    "--palace",
+                    str(palace.resolve()),
+                    "--backend",
+                    "sqlite_exact",
+                    "init",
+                    ".",
+                    "--yes",
+                    "--no-llm",
+                ],
+                runner.call_args.args[0],
+            )
 
     def test_account_setup_retries_two_transient_mempalace_tls_eofs(self):
         module = load_controller()

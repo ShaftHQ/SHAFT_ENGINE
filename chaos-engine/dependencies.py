@@ -692,18 +692,46 @@ def mempalace_project_palace(project: Path) -> Path:
 def mempalace_project_cli(executable: str, action: str, project: Path) -> list[str]:
     """Pin init/mine to sqlite_exact at the exact project palace (#5854).
 
-    Do not pass ``--auto-mine``: empty or Downloads-like folders must not be
-    mined as a corpus. ``ensure_mempalace_exact_target`` heals the database
-    when the CLI did not create it (user ``~/.mempalace/config.json`` backend
-    otherwise beats ``MEMPALACE_BACKEND``).
+    ``--palace`` / global ``--backend`` must precede the subcommand (MemPalace
+    argparse). Do not pass ``--auto-mine``: empty or Downloads-like folders must
+    not be mined as a corpus. Init without ``--auto-mine`` still prompts to mine;
+    account runners use ``stdin=DEVNULL`` so that prompt EOFs and declines.
+    ``ensure_mempalace_exact_target`` heals the database when the CLI skips it.
     """
+    if action not in {"init", "mine"}:
+        raise ValueError(f"unsupported MemPalace project action: {action}")
     palace = str(mempalace_project_palace(project))
     command = [
-        executable, action, ".", "--backend", "sqlite_exact", "--palace", palace,
+        executable,
+        "--palace",
+        palace,
+        "--backend",
+        "sqlite_exact",
+        action,
+        ".",
     ]
     if action == "init":
-        command[3:3] = ["--yes", "--no-llm"]
+        command.extend(["--yes", "--no-llm"])
     return command
+
+
+def mempalace_project_setup_action(command: list[str]) -> str | None:
+    """Return init/mine when argv is a project-owned palace setup command."""
+    if len(command) < 3:
+        return None
+    index = 1
+    while index < len(command) and command[index].startswith("-"):
+        flag = command[index]
+        if flag in {"--palace", "--backend"}:
+            index += 2
+            continue
+        index += 1
+    if index + 1 >= len(command):
+        return None
+    action = command[index]
+    if action in {"init", "mine"} and command[index + 1] == ".":
+        return action
+    return None
 
 
 def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
@@ -748,7 +776,7 @@ def mempalace_project_setup_environment(
     project: Path, command: list[str]
 ) -> dict[str, str]:
     """Bind non-resolver initialization to its one exact project-owned palace."""
-    if len(command) < 3 or command[1] not in {"init", "mine"} or command[2] != ".":
+    if mempalace_project_setup_action(command) is None:
         return {}
     palace = str(mempalace_project_palace(project))
     return {
@@ -859,6 +887,7 @@ def _run_account_command(
     extra_environment: dict[str, str] | None = None,
     timeout: float = ACCOUNT_COMMAND_TIMEOUT_SECONDS,
     which=shutil.which,
+    stdin=None,
 ) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
     search_path = _account_search_path()
@@ -875,16 +904,18 @@ def _run_account_command(
         )
     except FileNotFoundError as error:
         raise RuntimeError(missing_executable_diagnostic(command[0], error)) from error
+    run_kwargs: dict[str, object] = {
+        "cwd": project,
+        "env": environment,
+        "capture_output": True,
+        "text": True,
+        "check": False,
+        "timeout": timeout,
+    }
+    if stdin is not None:
+        run_kwargs["stdin"] = stdin
     try:
-        result = runner(
-            resolved,
-            cwd=project,
-            env=environment,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=timeout,
-        )
+        result = runner(resolved, **run_kwargs)
     except FileNotFoundError as error:
         raise RuntimeError(missing_executable_diagnostic(resolved[0], error)) from error
     except OSError as error:
@@ -1133,15 +1164,22 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     for command in project_setup_plan(project, commands):
         environment = mempalace_project_setup_environment(project, command)
-        if command == [commands.get("mempalace"), "mine", "."]:
+        action = mempalace_project_setup_action(command)
+        # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
+        stdin = subprocess.DEVNULL if action == "init" else None
+        if action == "mine":
             _run_transient_mempalace_mine(
                 command, project, runner=runner, extra_environment=environment
             )
         else:
             _run_account_command(
-                command, project, runner=runner, extra_environment=environment
+                command,
+                project,
+                runner=runner,
+                extra_environment=environment,
+                stdin=stdin,
             )
-        if command[1:3] in (["init", "."], ["mine", "."]):
+        if action in {"init", "mine"}:
             mark_mempalace_project_setup(project)
 
     final_components: dict[str, dict[str, object]] = {}
