@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shlex-split-eats-bare-backslashes-in-windows-paths.md",
-  "content_hash": "sha256:e08814fc56b2863bb3e0f6ce61e258ca991ef7d9769d73d95bd70631a517ce14",
+  "content_hash": "sha256:f54abc2e8d1bd451344e61a9c922eef19589c641fdebfd923c04f1a4fcb96dac",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [
     {
@@ -8,19 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "scripts/ci/"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.shlex-split-eats-bare-backslashes-in-windows-paths",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"

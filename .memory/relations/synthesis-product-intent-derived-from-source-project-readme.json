@@ -8,10 +8,10 @@
       "kind": "source"
     }
   ],
-  "from": "synthesis.product-intent",
+  "from": "feature.product-intent",
   "id": "rel.synthesis-product-intent-derived-from-source-project-readme",
-  "predicate": "derived_from",
+  "predicate": "related_to",
   "status": "active",
-  "to": "source.project-readme",
+  "to": "feature.project-readme",
   "updated_at": "2026-06-17T11:18:10+03:00"
 }

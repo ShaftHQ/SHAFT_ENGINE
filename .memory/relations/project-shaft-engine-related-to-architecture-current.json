@@ -8,7 +8,7 @@
       "kind": "memory"
     },
     {
-      "id": "architecture.current",
+      "id": "feature.current",
       "kind": "memory"
     }
   ],
@@ -16,6 +16,6 @@
   "id": "rel.project-shaft-engine-related-to-architecture-current",
   "predicate": "related_to",
   "status": "active",
-  "to": "architecture.current",
+  "to": "feature.current",
   "updated_at": "2026-06-15T16:59:56+03:00"
 }

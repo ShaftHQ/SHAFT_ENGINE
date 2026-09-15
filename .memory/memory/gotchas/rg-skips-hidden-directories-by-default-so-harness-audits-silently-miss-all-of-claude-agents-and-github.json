@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/rg-skips-hidden-directories-by-default-so-harness-audits-silently-miss-all-of-claude-agents-and-github.md",
-  "content_hash": "sha256:8804be6cf53ebc0ed9cb63a28f872b8449be21d3c31869bf7da711a7ad67f67c",
+  "content_hash": "sha256:35f9630d2e7f39ef586ea5c713a045205896bdcdcb582962f3d676f746cdfd88",
   "created_at": "2026-07-27T15:59:11+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.rg-skips-hidden-directories-by-default-so-harness-audits-silently-miss-all-of-claude-agents-and-github",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Consolidate the agent harness into a single act-as-mohab orchestrator skill (#4260, PR #4261)"

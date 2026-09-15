@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable.md",
-  "content_hash": "sha256:a4a28b85b37818c0e0b39388542f536cb3de8566bf03b0b6aad7d706679b4777",
+  "content_hash": "sha256:99f2c2b64e7b29cb0442ef7859b228b9487791922daed1275ae2e44137a0d26b",
   "created_at": "2026-07-26T20:23:29+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "issue 4161 fingerprint seeding seam + maximumPerformanceMode ordering"

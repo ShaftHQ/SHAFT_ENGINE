@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/pilot-tests-release-validators-run-fully-only-on-release-prs-mid-cycle-regressions-surface-late.md",
-  "content_hash": "sha256:7a368c77e41f1d5c05d64d4692a9d47b8779f1cbd44429114d9c295e72566902",
+  "content_hash": "sha256:49513451ccd3c6be0872660b81209deb5984491dccdd05923e25965c091ff8ea",
   "created_at": "2026-07-15T10:08:58+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.pilot-tests-release-validators-run-fully-only-on-release-prs-mid-cycle-regressions-surface-late",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"

@@ -1,15 +1,9 @@
 {
   "body_path": "memory/constraints/chaosengine-branch-and-pr-signing-convention.md",
-  "content_hash": "sha256:d9f5e41c5ae96312a7196b22ce48633865da48298a4f261fd9063c4580f1bb6a",
+  "content_hash": "sha256:9d70a319aef10408f3ade3aff9083630e734f99066c9d7b9a6df6457b3c7e087",
   "created_at": "2026-07-17T13:17:03+03:00",
   "evidence": [],
-  "id": "constraint.chaosengine-branch-and-pr-signing-convention",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.chaosengine-branch-and-pr-signing-convention",
   "source": {
     "kind": "agent",
     "task": "Assistant identity: ChaosEngine"
@@ -23,6 +17,6 @@
     "pull-requests"
   ],
   "title": "ChaosEngine branch and PR signing convention",
-  "type": "constraint",
+  "type": "gotcha",
   "updated_at": "2026-08-01T16:07:25+03:00"
 }

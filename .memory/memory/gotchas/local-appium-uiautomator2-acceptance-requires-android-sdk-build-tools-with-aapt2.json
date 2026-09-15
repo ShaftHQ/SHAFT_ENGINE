@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/local-appium-uiautomator2-acceptance-requires-android-sdk-build-tools-with-aapt2.md",
-  "content_hash": "sha256:9c9a46637bd02799559478e525609eaa7ea936f7314424f59bacec1dbb85d45e",
+  "content_hash": "sha256:8dca01b6ac1ca5b27c4956f2a6cf99d0e04a7d043291e4a22047b5e0e966b062",
   "created_at": "2026-08-12T21:18:07+03:00",
   "evidence": [
     {
@@ -12,20 +12,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "applies_to": [
-      "shaft-engine/src/test/java/testPackage/appium/MobileTest.java",
-      "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java"
-    ],
-    "category": "gotcha"
-  },
   "id": "gotcha.local-appium-uiautomator2-acceptance-requires-android-sdk-build-tools-with-aapt2",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Record two non-duplicate completion gotchas from issue #4727 delivery."

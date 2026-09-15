@@ -6,6 +6,6 @@
   "id": "rel.decision-heal-ai-reranking-trigger-gated-affects-fact-deterministic-ai-test-lifecycle-artifacts",
   "predicate": "affects",
   "status": "active",
-  "to": "fact.deterministic-ai-test-lifecycle-artifacts",
+  "to": "gotcha.deterministic-ai-test-lifecycle-artifacts",
   "updated_at": "2026-06-18T13:59:56+03:00"
 }

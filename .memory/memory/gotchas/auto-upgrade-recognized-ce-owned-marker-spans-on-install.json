@@ -1,5 +1,6 @@
 {
   "body_path": "memory/gotchas/auto-upgrade-recognized-ce-owned-marker-spans-on-install.md",
+  "content_hash": "sha256:5739534a9966ac9aa3760f40887da0d6011d6de59b7fd37a9868376e73b60871",
   "created_at": "2026-09-15T06:21:10+03:00",
   "evidence": [
     {
@@ -7,16 +8,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.auto-upgrade-recognized-ce-owned-marker-spans-on-install",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Deliver ChaosEngine learning ticket #5790 auto-upgrade recognized CE owned marker spans"
@@ -31,6 +23,5 @@
   ],
   "title": "Auto-upgrade recognized CE owned marker spans on install",
   "type": "gotcha",
-  "updated_at": "2026-09-15T06:21:10+03:00",
-  "content_hash": "sha256:12e2ddb65140b49bda566721a6a8ecfb205196a12c0c8b496c7556e75a7e307c"
+  "updated_at": "2026-09-15T06:21:10+03:00"
 }

@@ -12,9 +12,9 @@
       "kind": "commit"
     }
   ],
-  "from": "fact.worktree-hygiene-report-and-guard-rule-r10",
+  "from": "gotcha.worktree-hygiene-report-and-guard-rule-r10",
   "id": "rel.fact-worktree-hygiene-report-and-guard-rule-r10-documents-gotcha-nul-filled-files-from-unclean-shutdown-read-as-ordinary-modifications",
-  "predicate": "documents",
+  "predicate": "related_to",
   "status": "active",
   "to": "gotcha.nul-filled-files-from-unclean-shutdown-read-as-ordinary-modifications",
   "updated_at": "2026-08-10T15:11:29+03:00"

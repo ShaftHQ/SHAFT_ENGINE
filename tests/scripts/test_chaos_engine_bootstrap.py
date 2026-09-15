@@ -362,6 +362,44 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             self.assertEqual("healthy", result["doctor"]["status"])
 
+    def test_healthy_install_completes_verify_before_activate(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
+                "createdPlugins": ["codex"]
+            }
+            installer.doctor_with_dependencies.return_value = {
+                "status": "healthy",
+                "components": {"core": {"status": "healthy"}},
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
+            stream = io.StringIO()
+            reporter = module.InstallReporter(stream=stream)
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                    reporter=reporter,
+                )
+            self.assertIn("Verify installation", reporter.completed_operations)
+            self.assertNotIn("Verify installation", reporter._in_flight)
+            self.assertLess(
+                reporter.completed_operations.index("Verify installation"),
+                reporter.completed_operations.index("Activate clients"),
+            )
+            self.assertTrue(
+                any("PASS Verify installation" in line for _t, line in reporter.traces)
+            )
+
     def test_root_pom_xml_enables_maven_tools_without_flag(self):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:

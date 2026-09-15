@@ -1776,10 +1776,70 @@ class ChaosEngineHostsTest(unittest.TestCase):
         module = load(HOSTS, "chaos_engine_legacy_memory_compatibility")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
-            shutil.copytree(ROOT / ".memory", project / ".memory")
+            memory = project / ".memory"
+            (memory / "schema").mkdir(parents=True)
+            (memory / "memory").mkdir()
+            (memory / "relations").mkdir()
+            (memory / "events.jsonl").write_text("", encoding="utf-8")
+            (memory / "config.json").write_text(
+                json.dumps(
+                    {
+                        "version": 5,
+                        "project": {"id": "project.fixture", "name": "fixture"},
+                        "memory": {"autoIndex": True, "defaultTokenBudget": 6000},
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            for name in (
+                "config.schema.json",
+                "event.schema.json",
+                "object.schema.json",
+                "patch.schema.json",
+                "relation.schema.json",
+            ):
+                src = ROOT / "chaos-engine/assets/memory-v5" / name
+                (memory / "schema" / name).write_bytes(src.read_bytes())
+            architecture = memory / "memory/architecture.json"
+            legacy_object = {
+                "body_path": "memory/architecture.md",
+                "content_hash": "sha256:" + "a" * 64,
+                "created_at": "2026-06-15T16:59:56+03:00",
+                "evidence": [],
+                "facets": {"category": "architecture"},
+                "id": "architecture.current",
+                "scope": {"kind": "project", "project": "project.fixture"},
+                "source": {"kind": "system"},
+                "status": "active",
+                "tags": [],
+                "title": "Current Architecture",
+                "type": "architecture",
+                "updated_at": "2026-07-08T16:41:17+03:00",
+            }
+            architecture.write_text(json.dumps(legacy_object, indent=2) + "\n", encoding="utf-8")
+            (memory / "memory/architecture.md").write_text("# architecture\n", encoding="utf-8")
+            relation = memory / "relations/current-rel-repo-map.json"
+            relation.write_text(
+                json.dumps(
+                    {
+                        "content_hash": "sha256:" + "b" * 64,
+                        "created_at": "2026-06-15T16:59:56+03:00",
+                        "from": "architecture.current",
+                        "id": "rel.current-repo-map",
+                        "predicate": "related_to",
+                        "status": "active",
+                        "to": "architecture.current",
+                        "updated_at": "2026-06-15T16:59:56+03:00",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             project.joinpath(".chaos-engine").mkdir()
             project.joinpath(".chaos-engine/tool.py").write_text("# owned\n", encoding="utf-8")
-            architecture = project / ".memory/memory/architecture.json"
             before = architecture.read_bytes()
             incompatible = mock.Mock(
                 returncode=1,
@@ -1809,7 +1869,6 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("recovery-required", rejected["status"])
 
             architecture.write_bytes(before)
-            relation = project / ".memory/relations/current-rel-repo-map.json"
             malformed_relation = json.loads(relation.read_bytes())
             malformed_relation["predicate"] = "unknown"
             relation.write_text(json.dumps(malformed_relation), encoding="utf-8")

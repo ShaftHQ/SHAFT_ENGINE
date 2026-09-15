@@ -479,6 +479,16 @@ def duplicate_chaos_engine_skills_from_inspect(
     return seen if len(seen) >= 2 else []
 
 
+def expected_chaos_engine_pointer_pair(paths: list[str]) -> bool:
+    """True when grok lists only the repo `.agents` + `plugins/` pointer stubs."""
+    if len(paths) != 2:
+        return False
+    norms = [path.replace("\\", "/").casefold() for path in paths]
+    has_agents = any(".agents/skills/chaos-engine" in path for path in norms)
+    has_plugin = any("plugins/chaos-engine/skills/chaos-engine" in path for path in norms)
+    return has_agents and has_plugin
+
+
 def doctor_grok_skill_dedupe(
     project: Path,
     *,
@@ -511,6 +521,12 @@ def doctor_grok_skill_dedupe(
     dupes = duplicate_chaos_engine_skills_from_inspect(payload)
     if not dupes:
         return {"status": "healthy", "detail": "no-duplicate-chaos-engine-skills"}
+    if expected_chaos_engine_pointer_pair(dupes):
+        return {
+            "status": "healthy",
+            "detail": "expected-pointer-adapters",
+            "paths": dupes,
+        }
     return {
         "status": "sync-advisory",
         "detail": "duplicate-chaos-engine-skills",

@@ -8,10 +8,10 @@
       "kind": "file"
     }
   ],
-  "from": "constraint.maven-central-version-immutability",
+  "from": "gotcha.maven-central-version-immutability",
   "id": "rel.maven-central-version-immutability-rel-repo-map",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.repository-map",
+  "to": "feature.repository-map",
   "updated_at": "2026-07-29T16:50:50+03:00"
 }

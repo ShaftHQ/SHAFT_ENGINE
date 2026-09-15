@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-platform-allicons-constants-render-blank-in-the-headless-screenshot-renderer-harness-use-shafticons-bundled-svgs-instead.md",
-  "content_hash": "sha256:d3e53939a05beaa9321065f0c9305fe883c27c649e3abdd7b430e30a762326d9",
+  "content_hash": "sha256:29caee607acc3efbafdb192230ced90ccce8702c29bd43196f3ac7781521d80e",
   "created_at": "2026-07-17T22:00:50+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-intellij-platform-allicons-constants-render-blank-in-the-headless-screenshot-renderer-harness-use-shafticons-bundled-svgs-instead",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "intellij: per-node Run/Debug for SHAFT Tests tree (issue #3664, PR #3686)"

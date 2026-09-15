@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/selenium-augmenter-adddriveraugmentation-is-an-immutable-builder-always-reassign-the-return-value.md",
-  "content_hash": "sha256:4894e072fefbbd11511fa673bcd94e70ef269649372b300204a240471fb30785",
+  "content_hash": "sha256:8771da80bbc9f9b981a72e7a81f9edfefa9d205605f79f4b9a56b08d0180b9b2",
   "created_at": "2026-07-19T22:15:10+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.selenium-augmenter-adddriveraugmentation-is-an-immutable-builder-always-reassign-the-return-value",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Issue #3788: grid execution broken -- chromium double-HasCdp augmentation, green-masked example CI, stale sample test data"

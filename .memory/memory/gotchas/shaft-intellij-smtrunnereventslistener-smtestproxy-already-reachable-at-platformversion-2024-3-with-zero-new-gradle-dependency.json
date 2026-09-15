@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-smtrunnereventslistener-smtestproxy-already-reachable-at-platformversion-2024-3-with-zero-new-gradle-dependency.md",
-  "content_hash": "sha256:8dfcef49b6fcd5b104dccab01587df0f6609fe580a60b1c1a9370a212c47b301",
+  "content_hash": "sha256:d7e3e55221b69c7efca6f95b98aca3dc317e471c1b6c71810d612f68fa58d4e1",
   "created_at": "2026-07-17T22:59:55+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shaft-intellij-smtrunnereventslistener-smtestproxy-already-reachable-at-platformversion-2024-3-with-zero-new-gradle-dependency",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Implement live SM Test Runner status wiring for shaft-intellij SHAFT Tests panel (issue #3688)"

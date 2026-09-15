@@ -1,6 +1,6 @@
 {
   "body_path": "memory/facts/codex-cli-exec-json-item-completed-schema-file-change-command-execution-mcp-tool-call-status-fields.md",
-  "content_hash": "sha256:fbc5e5c2479e18b6167be5e02b84043564a74c1645166b98f234a43116a72cde",
+  "content_hash": "sha256:000b30a7b0a2f71ecca2bdf7b941c8162e0fed8b47f8843819feb0de39350519",
   "created_at": "2026-07-17T21:49:46+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "debugging-fact"
-  },
-  "id": "fact.codex-cli-exec-json-item-completed-schema-file-change-command-execution-mcp-tool-call-status-fields",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
+  "id": "gotcha.codex-cli-exec-json-item-completed-schema-file-change-command-execution-mcp-tool-call-status-fields",
   "source": {
     "kind": "agent",
     "task": "IntelliJ Assistant issue #3679: wire Codex activity-recap footer parity in AssistantLocalAgentRunner"
@@ -31,6 +22,6 @@
     "issue-3679"
   ],
   "title": "Codex CLI exec --json item.completed schema: file_change/command_execution/mcp_tool_call status fields",
-  "type": "fact",
+  "type": "gotcha",
   "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -482,6 +482,24 @@ class InstallerUxTests(unittest.TestCase):
         report = output[output.index("Installation Successful!"):]
         self.assertLessEqual(len(report.splitlines()), 40)
 
+    def test_success_counts_compatible_legacy_in_healthy_total(self):
+        stream = io.StringIO()
+        reporter = BOOTSTRAP.InstallReporter(stream=stream)
+        reporter.success(
+            Path("/project"),
+            {
+                "commit": "a" * 40,
+                "status": "healthy",
+                "components": {
+                    "memory": {"status": "compatible-legacy"},
+                    "core": {"status": "healthy"},
+                },
+            },
+            {"codex": {"status": "healthy"}},
+            repository="ShaftHQ/SHAFT_ENGINE",
+        )
+        self.assertIn("Doctor: healthy (2/2 components healthy)", stream.getvalue())
+
     def test_trace_persists_every_event_beyond_live_tty_limit(self):
         reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
         with tempfile.TemporaryDirectory() as temporary:

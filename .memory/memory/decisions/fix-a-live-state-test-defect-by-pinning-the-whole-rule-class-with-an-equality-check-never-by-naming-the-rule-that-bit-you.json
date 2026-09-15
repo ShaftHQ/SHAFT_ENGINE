@@ -1,22 +1,9 @@
 {
   "body_path": "memory/decisions/fix-a-live-state-test-defect-by-pinning-the-whole-rule-class-with-an-equality-check-never-by-naming-the-rule-that-bit-you.md",
-  "content_hash": "sha256:bfa5d7c0da5b183100f40614edbc46383a5ff1cee0389dedbf65688cda9378f8",
+  "content_hash": "sha256:dbf34916ee38efed3f9d9575bb66bd03970594d01b73eaeb199d38bc1198b6f6",
   "created_at": "2026-08-05T10:56:09+03:00",
   "evidence": [],
-  "facets": {
-    "applies_to": [
-      "tests/scripts/test_guard_lifecycle.py",
-      "scripts/agents/guard.py"
-    ],
-    "category": "decision-rationale"
-  },
   "id": "decision.fix-a-live-state-test-defect-by-pinning-the-whole-rule-class-with-an-equality-check-never-by-naming-the-rule-that-bit-you",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Adversarial review of PR #4539 found two blockers; record the two durable lessons"

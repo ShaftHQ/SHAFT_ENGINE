@@ -10,8 +10,8 @@
   ],
   "from": "gotcha.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open",
   "id": "rel.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-rel-stack-tooling",
-  "predicate": "mentions",
+  "predicate": "related_to",
   "status": "active",
-  "to": "synthesis.stack-and-tooling",
+  "to": "feature.stack-and-tooling",
   "updated_at": "2026-07-29T16:50:50+03:00"
 }

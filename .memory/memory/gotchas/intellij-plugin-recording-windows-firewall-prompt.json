@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/intellij-plugin-recording-windows-firewall-prompt.md",
-  "content_hash": "sha256:2a53c2d30e8307103a567bb716e2151f744f773c99749a6454a6bdef783778b9",
+  "content_hash": "sha256:300613fc13ebe08870a59fdd1c854acc155b39c8b0c36f47d79cc86c1d6a04b9",
   "created_at": "2026-06-30T09:28:28+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "task"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.intellij-plugin-recording-windows-firewall-prompt",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "Document blocker from live SHAFT IntelliJ plugin video recording attempt."

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shafticonbuttons-apply-permanently-clamps-a-button-to-icon-only-32x32-never-settext-on-it-afterward.md",
-  "content_hash": "sha256:cec432b27f3e4291e8859f0239c6f7f38d160c1a0f1159c24e3711ed890e7e1f",
+  "content_hash": "sha256:054f012e06312eb1b3c08c3123abd337b91330bbcd07a656a947ca781b96bbcf",
   "created_at": "2026-07-17T03:21:37+03:00",
   "evidence": [
     {
@@ -12,16 +12,7 @@
       "kind": "file"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.shafticonbuttons-apply-permanently-clamps-a-button-to-icon-only-32x32-never-settext-on-it-afterward",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "intellij #3626 recovery action buttons review"

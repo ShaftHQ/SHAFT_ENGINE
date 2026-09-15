@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/mocked-executescript-suites-cannot-catch-script-body-return-bugs.md",
-  "content_hash": "sha256:5c4b00b019d72c41770caec38c3e3f78372c364aab8379b1c52388a5d9e14433",
+  "content_hash": "sha256:1a225e76135192683ce67b0a9478d9051587bd7fef4c811435d8fdd59c1033b1",
   "created_at": "2026-07-19T16:03:11+03:00",
   "evidence": [
     {
@@ -8,16 +8,7 @@
       "kind": "commit"
     }
   ],
-  "facets": {
-    "category": "gotcha"
-  },
   "id": "gotcha.mocked-executescript-suites-cannot-catch-script-body-return-bugs",
-  "scope": {
-    "branch": null,
-    "kind": "project",
-    "project": "project.shaft-engine",
-    "task": null
-  },
   "source": {
     "kind": "agent",
     "task": "3749 increment D integration"

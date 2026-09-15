@@ -991,7 +991,13 @@ class InstallReporter:
                 if not isinstance(item, dict):
                     continue
                 total += 1
-                if item.get("status") in {"healthy", "absent"}:
+                if item.get("status") in {
+                    "healthy",
+                    "absent",
+                    "compatible-legacy",
+                    "sync-advisory",
+                    "degraded",
+                }:
                     healthy += 1
         elapsed = self._duration(max(0.0, self.clock() - self.started))
         extra: list[str] = []
@@ -1822,6 +1828,9 @@ def install_latest(
     host_controller = installer.load_installed_controller(target, "hosts")
     try:
         reporter.start("Verify installation", remaining=remaining("Verify installation"))
+        migrate = getattr(host_controller, "migrate_legacy_memory_store", None)
+        if callable(migrate):
+            migrate(project)
         doctor = installer.doctor_with_dependencies(project, verify_clients=False)
         if _required_install_unhealthy(doctor):
             health_error = InstallHealthError("Verify installation", doctor)
@@ -1872,6 +1881,9 @@ def install_latest(
                     "issueUrl": issue_url,
                 }
             raise health_error
+        reporter.complete(
+            "Verify installation", remaining=remaining("Verify installation")
+        )
         confirm("Activate clients")
         reporter.start("Activate clients", remaining=remaining("Activate clients"))
         if interactive:

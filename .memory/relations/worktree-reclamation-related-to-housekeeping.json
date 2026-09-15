@@ -5,6 +5,6 @@
   "id": "rel.worktree-reclamation-related-to-housekeeping",
   "predicate": "related_to",
   "status": "active",
-  "to": "constraint.worktree-housekeeping-at-session-start",
+  "to": "gotcha.worktree-housekeeping-at-session-start",
   "updated_at": "2026-08-01T22:08:11+03:00"
 }
