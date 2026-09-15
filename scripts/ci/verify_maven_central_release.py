@@ -11,6 +11,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,20 +30,26 @@ ALLURE_CLI_POM = Path("allure-cli/pom.xml")
 
 def allure_cli_version(root: Path = ROOT) -> str:
     """Return allure-cli/<version> from allure-cli/pom.xml (falls back to root property)."""
-    import xml.etree.ElementTree as ET
-    ns = {"m": "http://maven.apache.org/POM/4.0.0"}
     cli_pom = root / ALLURE_CLI_POM
     if cli_pom.is_file():
-        version = ET.parse(cli_pom).getroot().findtext("m:version", default="", namespaces=ns)
-        if version and version.strip():
-            return version.strip()
-    root_pom = root / "pom.xml"
-    version = ET.parse(root_pom).getroot().findtext(
-        "m:properties/m:allure.cli.version", default="", namespaces=ns
+        text = cli_pom.read_text(encoding="utf-8")
+        match = re.search(
+            r"<artifactId>\s*allure-cli\s*</artifactId>\s*<version>\s*([^<\s]+)\s*</version>",
+            text,
+        )
+        if match is None:
+            # Standalone pom keeps <version> near the project root before packaging.
+            match = re.search(r"<version>\s*([^<\s]+)\s*</version>", text)
+        if match is not None:
+            return match.group(1).strip()
+    root_text = (root / "pom.xml").read_text(encoding="utf-8")
+    match = re.search(
+        r"<allure\.cli\.version>\s*([^<\s]+)\s*</allure\.cli\.version>",
+        root_text,
     )
-    if not version or not version.strip():
+    if match is None:
         raise RuntimeError("Unable to resolve allure.cli.version for Central verification")
-    return version.strip()
+    return match.group(1).strip()
 
 
 def allure_cli_publication_paths(cli_version: str | None = None) -> list[str]:

@@ -44,7 +44,8 @@ MODULE_DIR_BY_ARTIFACT = {
 
 
 def missing_module_dirs(missing_paths: list[str]) -> list[str]:
-    """Reduce missing Central publication paths to their unique reactor module directories.
+    """
+    Reduce missing Central publication paths to their unique reactor module directories.
 
     Skips the standalone ``allure-cli`` zip module (#5833): it is versioned with Allure 3
     and deployed via ``mvn -f allure-cli/pom.xml``, not reactor ``-pl``.
@@ -275,7 +276,7 @@ def reconcile_release(
         if need_allure_cli:
             print("Missing standalone allure-cli zip on Maven Central (#5833).")
             cli_command = build_allure_cli_deploy_command(gpg_keyname, gpg_passphrase)
-            result = subprocess.run(cli_command, cwd=ROOT, check=False)
+            result = subprocess.run(cli_command, cwd=ROOT, check=False)  # nosec B603
             if result.returncode != 0:
                 raise RuntimeError(
                     f"Standalone allure-cli deploy failed (exit {result.returncode})"
