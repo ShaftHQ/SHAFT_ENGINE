@@ -14,6 +14,7 @@ import platform
 import re
 import secrets
 import shutil
+import sqlite3
 import stat
 import subprocess  # nosec B404 - fixed list-form dependency commands from tracked spec.
 import sys
@@ -683,6 +684,28 @@ def write_account_receipt(
     return receipt
 
 
+def mempalace_project_palace(project: Path) -> Path:
+    """Return the one project-owned sqlite_exact palace path."""
+    return project.resolve() / ".chaos-engine-state/mempalace"
+
+
+def mempalace_project_cli(executable: str, action: str, project: Path) -> list[str]:
+    """Pin init/mine to sqlite_exact at the exact project palace (#5854).
+
+    Do not pass ``--auto-mine``: empty or Downloads-like folders must not be
+    mined as a corpus. ``ensure_mempalace_exact_target`` heals the database
+    when the CLI did not create it (user ``~/.mempalace/config.json`` backend
+    otherwise beats ``MEMPALACE_BACKEND``).
+    """
+    palace = str(mempalace_project_palace(project))
+    command = [
+        executable, action, ".", "--backend", "sqlite_exact", "--palace", palace,
+    ]
+    if action == "init":
+        command[3:3] = ["--yes", "--no-llm"]
+    return command
+
+
 def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
     """Plan current-folder initialization without resetting existing project data."""
     project = project.resolve()
@@ -691,9 +714,9 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
         configured = mempalace_project_configuration_exists(project)
         if configured and not mempalace_project_setup_complete(project):
-            planned.append([mempalace, "mine", "."])
+            planned.append(mempalace_project_cli(mempalace, "mine", project))
         elif not configured:
-            planned.append([mempalace, "init", ".", "--yes", "--no-llm", "--auto-mine"])
+            planned.append(mempalace_project_cli(mempalace, "init", project))
     graphify = commands.get("graphify")
     if graphify:
         if not (project / "graphify-out/graph.json").is_file():
@@ -706,9 +729,7 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
 
 def mempalace_project_setup_complete(project: Path) -> bool:
     """Return whether a valid configuration already has exact local state."""
-    project = project.resolve()
-    palace = project / ".chaos-engine-state/mempalace"
-    return (palace / "sqlite_exact.sqlite3").is_file()
+    return (mempalace_project_palace(project) / "sqlite_exact.sqlite3").is_file()
 
 
 def mempalace_project_configuration_exists(project: Path) -> bool:
@@ -727,19 +748,75 @@ def mempalace_project_setup_environment(
     project: Path, command: list[str]
 ) -> dict[str, str]:
     """Bind non-resolver initialization to its one exact project-owned palace."""
-    if command[1:3] not in (["init", "."], ["mine", "."]):
+    if len(command) < 3 or command[1] not in {"init", "mine"} or command[2] != ".":
         return {}
+    palace = str(mempalace_project_palace(project))
     return {
-        "MEMPALACE_PALACE_PATH": str(
-            project.resolve() / ".chaos-engine-state/mempalace"
-        ),
+        "MEMPALACE_PALACE_PATH": palace,
         "MEMPALACE_BACKEND": "sqlite_exact",
+        "MEMPALACE_BACKEND_EXPLICIT": "sqlite_exact",
     }
+
+
+def ensure_mempalace_exact_target(project: Path) -> Path:
+    """Create sqlite_exact when CLI init/mine did not (#5854).
+
+    ``mempalace init`` writes ``mempalace.yaml`` and may add ``.mempalace/origin.json``
+    without creating the sqlite_exact database. User config.json ``backend`` also
+    outranks ``MEMPALACE_BACKEND``, so mine can persist Chroma instead. Heal by
+    creating the empty exact schema next to any allowed sidecar files.
+    """
+    palace = mempalace_project_palace(project)
+    database = palace / "sqlite_exact.sqlite3"
+    if database.is_file() and not is_link_or_reparse(database):
+        return database
+    palace.mkdir(parents=True, exist_ok=True)
+    if is_link_or_reparse(palace) or not palace.is_dir():
+        raise RuntimeError("MemPalace init did not create the exact target")
+    if database.exists() or is_link_or_reparse(database):
+        raise RuntimeError("MemPalace init did not create the exact target")
+    connection = sqlite3.connect(database)
+    try:
+        connection.executescript(
+            """
+            PRAGMA journal_mode=WAL;
+            CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE collections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                dimension INTEGER,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE documents (
+                collection_id INTEGER NOT NULL,
+                id TEXT NOT NULL,
+                document TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                dim INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (collection_id, id),
+                FOREIGN KEY(collection_id) REFERENCES collections(id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_documents_collection ON documents(collection_id);
+            INSERT INTO collections(name, created_at)
+            VALUES ('mempalace_drawers', CURRENT_TIMESTAMP);
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    if not database.is_file():
+        raise RuntimeError("MemPalace init did not create the exact target")
+    return database
 
 
 def mark_mempalace_project_setup(project: Path) -> None:
     """Mark only a successful sqlite_exact project setup as mined."""
-    palace = project.resolve() / ".chaos-engine-state/mempalace"
+    palace = mempalace_project_palace(project)
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        ensure_mempalace_exact_target(project)
     if not (palace / "sqlite_exact.sqlite3").is_file():
         raise RuntimeError("MemPalace init did not create the exact target")
     (palace / ".mined").write_bytes(b"current\n")

@@ -1256,7 +1256,82 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("doctor_json", template_ids)
         self.assertEqual(template_ids, list(BOOTSTRAP.ISSUE_FORM_FIELD_IDS))
 
+    def test_provision_failure_writes_handoff_artifacts_named_by_prompt(self):
+        """#5854: CE-INSTALL-FAILED with core present must write an honest handoff."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            core = project / ".chaos-engine"
+            core.mkdir(parents=True)
+            (core / "install.py").write_text("# installer\n", encoding="utf-8")
+            state = project / ".chaos-engine-state"
+            state.mkdir()
+            (state / "install-trace.json").write_text(
+                '{"status":"failed","error":"CE-INSTALL-FAILED"}\n',
+                encoding="utf-8",
+            )
+            reporter = BOOTSTRAP.InstallReporter(stream=io.StringIO())
+            reporter.traces.append((16.37, "run [path] init . --yes --no-llm --auto-mine"))
+            reporter.traces.append(
+                (110.76, "kept installed core after provision failure for self-heal")
+            )
+            reporter.current_operation = "Provision dependencies"
+            stderr = io.StringIO()
+            error = RuntimeError("MemPalace init did not create the exact target")
+            with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+                BOOTSTRAP.emit_install_failure(
+                    "CE-INSTALL-FAILED",
+                    error,
+                    "owner/repo",
+                    reporter=reporter,
+                    project=project,
+                )
+            output = stderr.getvalue()
+            expected = [
+                ".chaos-engine-state/heal-handoff.md",
+                ".chaos-engine-state/install-trace.json",
+                ".chaos-engine-state/install-console.log",
+                ".chaos-engine-state/doctor-failure.json",
+            ]
+            for relative in expected:
+                self.assertTrue((project / relative).is_file(), relative)
+            prompt_line = next(
+                line.strip("`")
+                for line in output.splitlines()
+                if "Continue ChaosEngine install" in line
+            )
+            for relative in expected:
+                self.assertIn(relative, prompt_line)
+            self.assertNotIn("overlay-handoff.md", prompt_line)
+            payload = json.loads(
+                (project / ".chaos-engine-state/doctor-failure.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertIn("exact target", payload["cause"])
+            handoff = (project / ".chaos-engine-state/heal-handoff.md").read_text(
+                encoding="utf-8"
+            )
+            for relative in expected:
+                self.assertIn(f"`{relative}`", handoff)
+
+    def test_failure_prompt_omits_artifacts_that_were_not_written(self):
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
+            BOOTSTRAP.emit_install_failure(
+                "CE-INSTALL-FAILED",
+                RuntimeError("MemPalace init did not create the exact target"),
+                "owner/repo",
+            )
+        output = stderr.getvalue()
+        prompt_line = next(
+            line for line in output.splitlines() if "Continue ChaosEngine install" in line
+        )
+        self.assertNotIn("heal-handoff.md", prompt_line)
+        self.assertNotIn("install-console.log", prompt_line)
+        self.assertNotIn("doctor-failure.json", prompt_line)
+
     def test_github_token_files_issue_via_api_with_inlined_logs(self):
+
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "project"
             (project / ".chaos-engine-state").mkdir(parents=True)
