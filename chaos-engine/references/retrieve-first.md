@@ -93,7 +93,10 @@ The [learning session](work-github-playbook.md#learned-lessons-workflow) routes
 each learning to its home. That is where a *fact* goes. It does not make the
 task responsible for keeping derived stores usable:
 
-- `memory remember` for a durable fact or decision, with the evidence.
+- `memory save --stdin` for a durable fact, decision, or gotcha, with the
+  evidence (intent-first JSON: `{task, nodes, stale, supersede, delete}`).
+  Do **not** hand-edit `.memory/**` JSON or markdown sidecars; if save rejects,
+  report the reason and fix the input (#5852).
 - A structural change may be flagged for the configured Graphify maintenance
   owner; the task does not refresh or watch it.
 - A cross-session relation may be written when useful; the task never mines the

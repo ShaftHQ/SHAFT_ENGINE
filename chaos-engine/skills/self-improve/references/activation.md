@@ -35,5 +35,7 @@ Activate the full protocol:
    `python3 .chaos-engine/learning.py queue ...` (or the host-equivalent wrapper).
 4. Submit confirmed candidates with `learning.py submit` (GitHub issues, not
    queue-only).
-5. Do **not** auto-edit skills/hooks; propose via queued `proposedChange`.
-6. Report counts: harness queued N / product queued N / nothing durable.
+5. Persist durable Memory knowledge with `memory save --stdin` only — never
+   hand-edit `.memory/**` sidecars (#5852).
+6. Do **not** auto-edit skills/hooks; propose via queued `proposedChange`.
+7. Report counts: harness queued N / product queued N / nothing durable.
