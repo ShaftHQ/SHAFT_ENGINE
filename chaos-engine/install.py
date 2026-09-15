@@ -3514,6 +3514,9 @@ def component_escalates_overall(item: dict[str, object]) -> bool:
         return False
     if impact == "optional":
         return False
+    # Advisory absences (e.g. gh CLI) are info-only; hard advisory fails still escalate.
+    if status == "absent" and impact == "advisory":
+        return False
     return True
 
 

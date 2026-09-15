@@ -40,6 +40,27 @@ class DoctorOverallSoftStatusG1Test(unittest.TestCase):
         module.reconcile_doctor_overall_status(result)
         self.assertEqual("healthy", result["status"])
 
+    def test_advisory_absent_gh_does_not_escalate_overall(self):
+        module = load(INSTALL, "ce_g1_install_gh")
+        result = {
+            "status": "recovery-required",
+            "components": {
+                "core": {"status": "healthy", "taskImpact": "required"},
+                "gh": {
+                    "status": "absent",
+                    "taskImpact": "advisory",
+                    "detail": "gh-cli-missing",
+                },
+                "maven-tools-mcp": {
+                    "status": "absent",
+                    "taskImpact": "optional",
+                },
+            },
+            "hosts": {"status": "healthy"},
+        }
+        module.reconcile_doctor_overall_status(result)
+        self.assertEqual("healthy", result["status"])
+
     def test_sync_advisory_does_not_escalate_overall(self):
         module = load(INSTALL, "ce_g1_install_sync")
         result = {
