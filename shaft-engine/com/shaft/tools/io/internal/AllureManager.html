@@ -77,28 +77,18 @@ producing a ZIP archive.
 <p>This class is not intended for direct use in test code. It is invoked automatically by the
 SHAFT framework listeners at suite start and finish.
 
-<p><b>Allure 2 compatibility:</b> when a system <code>allure</code> binary on <code>PATH</code> reports
-a version starting with <code>2.</code>, SHAFT automatically switches to Allure 2 compatibility mode.
-In this mode the <code>allurerc.yaml</code> configuration is not written, the Allure 3-specific
-<code>statusDetails</code> patch is skipped, the generate command uses the Allure 2 CLI flags
-(<code>--clean</code>), and real-time monitoring is disabled (Allure 2 does not support
-<code>allure watch</code>).
-
-<p><b>Allure 3 CLI resolution order (batteries-included):</b>
+<p><b>Allure CLI resolution (always managed Allure 3):</b> after <code>allure-bom</code> 3.0.0
+(#5793 / #5798), SHAFT never activates a user-installed <code>allure</code> binary on <code>PATH</code>
+for generate/open/serve — including Allure 2.x. Report generation always uses the configured
+Allure 3 CLI:
 <ol>
-  <li>A globally installed <code>allure</code> binary on <code>PATH</code>.
-      <ul>
-        <li>If the binary reports a 2.x version, Allure 2 compatibility mode is activated.</li>
-        <li>If <code>allure.forceConfiguredCliVersion=true</code>, SHAFT additionally verifies that
-            the 3.x binary exactly matches <code>SHAFT.Properties.internal.allure3Version()</code>;
-            mismatched versions are ignored and resolution falls through to npx.</li>
-      </ul>
-  </li>
-  <li><code>npx</code> on <code>PATH</code> → <code>npx --yes allure@&lt;version&gt;</code> (auto-downloads the configured version).</li>
-  <li>Portable Node.js downloaded to <code>~/.m2/repository/nodejs/</code> → its bundled
-      <code>npx</code> → same <code>npx --yes allure@&lt;version&gt;</code> invocation.</li>
+  <li><code>npx</code> on <code>PATH</code> → <code>npx --yes allure@&lt;SHAFT.Properties.internal.allure3Version()&gt;</code>.</li>
+  <li>Portable Node.js under <code>~/.m2/repository/nodejs/</code> → its bundled <code>npx</code> → same
+      <code>npx --yes allure@&lt;version&gt;</code> invocation.</li>
 </ol>
-No manual installation is required; SHAFT handles it transparently.
+The <code>allure.forceConfiguredCliVersion</code> property is retained as a deprecated alias that
+always forces this managed path (setting it <code>false</code> only logs that PATH allure is ignored).
+No manual Allure CLI installation is required; SHAFT handles it transparently.
 
 <p>Thread safety: all public methods are <code>static</code> and intended to be called from a
 single thread (the test runner thread). The result directory fields are mutable class-level

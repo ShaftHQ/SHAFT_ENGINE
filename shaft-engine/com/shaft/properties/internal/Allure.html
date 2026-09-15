@@ -162,7 +162,7 @@ after the test run completes.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#forceConfiguredCliVersion()" class="member-name-link">forceConfiguredCliVersion</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Opt-in switch to enforce usage of the configured Allure 3 CLI version
+<div class="block">Deprecated alias that always forces managed Allure 3 CLI resolution
 (<code>SHAFT.Properties.internal.allure3Version()</code>).</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
@@ -384,22 +384,22 @@ and must avoid generated report files.
 <div class="member-signature"><span class="annotations">@Key("allure.forceConfiguredCliVersion")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">forceConfiguredCliVersion</span>()</div>
-<div class="block">Opt-in switch to enforce usage of the configured Allure 3 CLI version
+<div class="block">Deprecated alias that always forces managed Allure 3 CLI resolution
 (<code>SHAFT.Properties.internal.allure3Version()</code>).
 
 <p>Property key: <code>allure.forceConfiguredCliVersion</code> — default: <code>true</code>
 
-<p>When enabled:
-<ul>
-  <li>SHAFT bypasses system <code>allure</code> binary detection (including Allure 2 compatibility checks).</li>
-  <li>SHAFT uses managed Allure 3 resolution only: <code>npx --yes allure@&lt;allure3Version&gt;</code> (or downloaded Node.js fallback).</li>
-</ul>
+<p>After <code>allure-bom</code> 3.0.0 (#5793 / #5798), SHAFT always ignores user-installed
+<code>allure</code> binaries on <code>PATH</code> (including Allure 2.x) for generate/open/serve and
+uses managed Allure 3 only: <code>npx --yes allure@&lt;allure3Version&gt;</code> (or portable Node.js
+under <code>~/.m2/repository/nodejs/</code>).
 
-<p>When disabled, SHAFT uses PATH-first behavior and may activate Allure 2 compatibility mode
-when a system 2.x binary is detected.</div>
+<p>Setting this property to <code>false</code> is a no-op that logs a discrete deprecation note;
+PATH allure remains ignored. Prefer leaving the default <code>true</code> or removing the property
+from configs.</div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd><code>true</code> to enforce configured Allure 3 CLI usage; <code>false</code> for legacy PATH-first behavior</dd>
+<dd>historically <code>true</code> to enforce configured Allure 3 CLI usage; <code>false</code> is ignored</dd>
 </dl>
 </div>
 </section>
@@ -415,8 +415,7 @@ when a system 2.x binary is detected.</div>
 
 <p>Property key: <code>allure.realtimeMonitoring</code> — default: <code>false</code>
 
-<p>When enabled, SHAFT starts monitoring when Allure 3 CLI resolution succeeds. This feature
-is unavailable in Allure 2 compatibility mode.</div>
+<p>When enabled, SHAFT starts monitoring when managed Allure 3 CLI resolution succeeds.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd><code>true</code> to allow real-time monitoring when Allure 3 is available; <code>false</code> to disable it</dd>

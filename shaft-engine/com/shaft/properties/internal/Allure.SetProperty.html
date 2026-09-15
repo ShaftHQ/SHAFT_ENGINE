@@ -387,10 +387,13 @@ All setter methods return <code>this</code> to support method chaining.
 <h3>forceConfiguredCliVersion</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></span>&nbsp;<span class="element-name">forceConfiguredCliVersion</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
-<div class="block">Overrides the <code>allure.forceConfiguredCliVersion</code> property at runtime.</div>
+<div class="block">Overrides the <code>allure.forceConfiguredCliVersion</code> property at runtime.
+
+<p>Deprecated alias: managed Allure 3 is always used (#5798). <code>false</code> is ignored
+(PATH allure remains unused).</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>value</code> - <code>true</code> to enforce configured <code>allure3Version</code> and ignore mismatched PATH-installed allure binaries</dd>
+<dd><code>value</code> - historically <code>true</code> to enforce configured <code>allure3Version</code>; <code>false</code> is a no-op</dd>
 <dt>Returns:</dt>
 <dd>this <a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal"><code>Allure.SetProperty</code></a> instance for chaining</dd>
 </dl>
