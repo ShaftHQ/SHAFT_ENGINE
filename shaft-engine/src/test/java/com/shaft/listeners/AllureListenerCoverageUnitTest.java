@@ -5,6 +5,7 @@ import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ReportContext;
+import io.qameta.allure.AllureExternalKey;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.FileSystemResultsWriter;
 import io.qameta.allure.model.FixtureResult;
@@ -208,15 +209,16 @@ public class AllureListenerCoverageUnitTest {
         TestResult result = skippedResult("config skip")
                 .setUuid(UUID.randomUUID().toString())
                 .setName("config failure host");
-        lifecycle.scheduleTestCase(result);
-        lifecycle.startTestCase(result.getUuid());
+        AllureExternalKey testKey = AllureExternalKey.of(AllureListenerCoverageUnitTest.class, result.getUuid());
+        lifecycle.scheduleTest(testKey, result);
+        lifecycle.startTest(testKey);
 
         try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
             driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
             listener.beforeTestStop(result);
         } finally {
-            lifecycle.stopTestCase(result.getUuid());
-            lifecycle.writeTestCase(result.getUuid());
+            lifecycle.stopTest(testKey);
+            lifecycle.writeTest(testKey);
         }
 
         assertEquals(result.getStatus(), Status.BROKEN);
@@ -237,12 +239,13 @@ public class AllureListenerCoverageUnitTest {
                 .setStatus(Status.FAILED).setStatusDetails(new StatusDetails()
                 .setMessage("Provider echoed " + sensitiveValue)
                 .setTrace("java.lang.IllegalStateException: Provider echoed " + sensitiveValue));
-        lifecycle.scheduleTestCase(result);
-        lifecycle.startTestCase(result.getUuid());
+        AllureExternalKey testKey = AllureExternalKey.of(AllureListenerCoverageUnitTest.class, result.getUuid());
+        lifecycle.scheduleTest(testKey, result);
+        lifecycle.startTest(testKey);
 
         listener.beforeTestStop(result);
-        lifecycle.stopTestCase(result.getUuid());
-        lifecycle.writeTestCase(result.getUuid());
+        lifecycle.stopTest(testKey);
+        lifecycle.writeTest(testKey);
 
         assertFalse(result.getStatusDetails().getMessage().contains(sensitiveValue));
         assertFalse(result.getStatusDetails().getTrace().contains(sensitiveValue));
@@ -259,15 +262,16 @@ public class AllureListenerCoverageUnitTest {
         TestResult result = skippedResult("config skip")
                 .setUuid(UUID.randomUUID().toString())
                 .setName("sensitive config failure host");
-        lifecycle.scheduleTestCase(result);
-        lifecycle.startTestCase(result.getUuid());
+        AllureExternalKey testKey = AllureExternalKey.of(AllureListenerCoverageUnitTest.class, result.getUuid());
+        lifecycle.scheduleTest(testKey, result);
+        lifecycle.startTest(testKey);
 
         try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
             driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
             listener.beforeTestStop(result);
         } finally {
-            lifecycle.stopTestCase(result.getUuid());
-            lifecycle.writeTestCase(result.getUuid());
+            lifecycle.stopTest(testKey);
+            lifecycle.writeTest(testKey);
         }
 
         assertFalse(result.getStatusDetails().getMessage().contains(sensitiveValue));

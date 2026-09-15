@@ -28,6 +28,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Status;
 import io.restassured.response.Response;
@@ -186,7 +187,7 @@ public class ValidationsHelper {
      * Same as {@link #reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List, long)}
      * for callers that already attached authoritative comparison evidence through a different channel
      * before invoking this method (e.g. a Playwright visual-diff image attached directly via
-     * {@code Allure.addAttachment}). When {@code richEvidenceAlreadyAttached} is {@code true}, the
+     * {@code AllureAttachments.add}). When {@code richEvidenceAlreadyAttached} is {@code true}, the
      * generic "Validation Test Data" Expected/Actual text attachments and the "Assertion evidence"
      * card are skipped, since they would otherwise redundantly restate a boolean/opaque comparison
      * result that carries no information beyond what the rich evidence already shows (issue #3804).
@@ -1003,7 +1004,7 @@ public class ValidationsHelper {
             if (differenceImage != null && differenceImage.length > 0) {
                 content.put("diff", "data:image/png;base64," + Base64.getEncoder().encodeToString(differenceImage));
             }
-            Allure.addAttachment(VISUAL_COMPARISON_ATTACHMENT_NAME, "application/vnd.allure.image.diff", content.toString());
+            AllureAttachments.add(VISUAL_COMPARISON_ATTACHMENT_NAME, "application/vnd.allure.image.diff", content.toString());
             return true;
         } catch (JSONException jsonException) {
             ReportManagerHelper.logDiscrete(jsonException, Level.DEBUG);
@@ -1201,7 +1202,7 @@ public class ValidationsHelper {
      * Terminal implementation for the driver-less Playwright visual-evidence entry point (issue
      * #3804 / PR #3823). Unlike the WebDriver-affiliated overload above, this path can be told that
      * the caller already attached authoritative rich comparison evidence elsewhere (e.g. a
-     * Playwright visual-diff image via {@code Allure.addAttachment}); when {@code
+     * Playwright visual-diff image via {@code AllureAttachments.add}); when {@code
      * richEvidenceAlreadyAttached} is {@code true}, the generic "Validation Test Data" text and the
      * "Assertion evidence" card are skipped since they would otherwise redundantly restate an
      * opaque boolean result. There is no WebDriver on this path, which is why the flag lives here

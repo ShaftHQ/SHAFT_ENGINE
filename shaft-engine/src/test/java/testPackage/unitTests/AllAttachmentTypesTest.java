@@ -140,7 +140,7 @@ public class AllAttachmentTypesTest {
      */
     private String captureLastAttachmentMimeType() {
         AtomicReference<String> capturedType = new AtomicReference<>(null);
-        Allure.getLifecycle().updateTestCase(result -> {
+        Allure.getLifecycle().updateTest(result -> {
             List<Attachment> attachments = result.getAttachments();
             if (!attachments.isEmpty()) {
                 capturedType.set(attachments.getLast().getType());

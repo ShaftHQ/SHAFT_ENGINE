@@ -7,6 +7,7 @@ import com.shaft.heal.ShaftHeal;
 import com.shaft.heal.model.HealingReport;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Allure;
+import io.qameta.allure.AttachmentOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -31,11 +32,11 @@ final class HealingReportWriter {
             ReportManager.logDiscrete("SHAFT Heal report serialization failed.");
             return;
         }
-        Allure.addAttachment(
+        Allure.getLifecycle().addAttachment(
                 "SHAFT Heal " + report.attemptId(),
                 "application/json",
                 new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
-                ".json");
+                AttachmentOptions.withFileExtension(".json"));
         writeLocal(report.attemptId(), content);
         ReportManager.logDiscrete("SHAFT Heal decision: " + report.decision().status()
                 + " for " + report.originalLocator() + ".");

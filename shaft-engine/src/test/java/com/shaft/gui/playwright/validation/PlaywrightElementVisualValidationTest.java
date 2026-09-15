@@ -10,6 +10,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.ValidationsHelper;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -94,10 +95,9 @@ public class PlaywrightElementVisualValidationTest {
         SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
 
         try (MockedStatic<ImageProcessingActions> imageProcessingActions = Mockito.mockStatic(ImageProcessingActions.class);
-             MockedStatic<Allure> allureMocked = Mockito.mockStatic(Allure.class);
+             MockedStatic<AllureAttachments> allureMocked = Mockito.mockStatic(AllureAttachments.class);
              MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class)) {
-            allureMocked.when(Allure::getLifecycle).thenCallRealMethod();
-            imageProcessingActions.when(() -> ImageProcessingActions.getReferenceImage("CSS:#login"))
+                        imageProcessingActions.when(() -> ImageProcessingActions.getReferenceImage("CSS:#login"))
                     .thenReturn(referenceScreenshot);
             imageProcessingActions.when(() -> ImageProcessingActions.compareAgainstBaseline("CSS:#login", actualScreenshot,
                             ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV))
@@ -110,7 +110,7 @@ public class PlaywrightElementVisualValidationTest {
 
             reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
             Assert.assertTrue(attachmentsCaptor.getValue().isEmpty());
-            allureMocked.verify(() -> Allure.addAttachment(eq("Visual Comparison"),
+            allureMocked.verify(() -> AllureAttachments.add(eq("Visual Comparison"),
                     eq("application/vnd.allure.image.diff"), anyString()));
         }
     }

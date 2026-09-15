@@ -936,7 +936,7 @@ public class TraceViewerBrowserAcceptanceTest {
             FailureTraceReporter.attachOnFailure(info, "trace viewer acceptance", List.of());
             Path archive = FailureTraceReporter.traceDirectory(info).resolve("shaft-trace.zip");
             List<Attachment> currentAttachments = new ArrayList<>();
-            Allure.getLifecycle().updateTestCase(result -> currentAttachments.addAll(result.getAttachments()));
+            Allure.getLifecycle().updateTest(result -> currentAttachments.addAll(result.getAttachments()));
             Attachment viewerAttachment = currentAttachments.stream()
                     .filter(attachment -> "text/html".equals(attachment.getType()))
                     .filter(attachment -> attachment.getName().contains("SHAFT Trace Viewer"))

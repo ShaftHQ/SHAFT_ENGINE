@@ -25,6 +25,7 @@ import com.shaft.validation.internal.ValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
 import com.shaft.validation.internal.ValidationsHelper;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Parameter;
 import org.apache.logging.log4j.Level;
@@ -432,7 +433,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             if (differenceImage != null && differenceImage.length > 0) {
                 content.put("diff", "data:image/png;base64," + Base64.getEncoder().encodeToString(differenceImage));
             }
-            Allure.addAttachment(VISUAL_COMPARISON_ATTACHMENT_NAME, "application/vnd.allure.image.diff", content.toString());
+            AllureAttachments.add(VISUAL_COMPARISON_ATTACHMENT_NAME, "application/vnd.allure.image.diff", content.toString());
             return true;
         } catch (JSONException jsonException) {
             ReportManagerHelper.logDiscrete(jsonException, Level.DEBUG);

@@ -6,6 +6,7 @@ import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import io.qameta.allure.Allure;
+import io.qameta.allure.AttachmentOptions;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.listener.ContainerLifecycleListener;
 import io.qameta.allure.listener.FixtureLifecycleListener;
@@ -297,8 +298,8 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
                 getLifecycle().addAttachment(
                         "Exception Stack Trace",
                         "text/plain",
-                        ".txt",
-                        new ByteArrayInputStream(trace.getBytes(StandardCharsets.UTF_8)));
+                        new ByteArrayInputStream(trace.getBytes(StandardCharsets.UTF_8)),
+                        AttachmentOptions.withFileExtension(".txt"));
             }
         }
         TestLifecycleListener.super.beforeTestStop(result);

@@ -11,6 +11,7 @@ import com.google.gson.JsonPrimitive;
 import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.internal.ReportContext;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import io.restassured.filter.Filter;
 import io.restassured.filter.FilterContext;
 import io.restassured.response.Response;
@@ -252,7 +253,7 @@ public class ShaftRestAssuredFilter implements Filter {
     }
 
     private static void addAttachment(String name, String contentType, byte[] content, String fileExtension) {
-        Allure.addAttachment(name, contentType, new ByteArrayInputStream(content), fileExtension);
+        AllureAttachments.add(name, contentType, new ByteArrayInputStream(content), fileExtension);
         ReportContext.recordAttachment(name, contentType, fileExtension, "api", content.length);
     }
 

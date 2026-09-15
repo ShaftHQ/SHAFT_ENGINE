@@ -12,6 +12,7 @@ import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -240,8 +241,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
 
         try (MockedStatic<ImageProcessingActions> imageProcessingMocked = Mockito.mockStatic(ImageProcessingActions.class);
              MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
-             MockedStatic<Allure> allureMocked = Mockito.mockStatic(Allure.class)) {
-            allureMocked.when(Allure::getLifecycle).thenCallRealMethod();
+             MockedStatic<AllureAttachments> allureMocked = Mockito.mockStatic(AllureAttachments.class)) {
             imageProcessingMocked.when(() -> ImageProcessingActions.getReferenceImage(any(By.class)))
                     .thenReturn(referenceScreenshot);
             imageProcessingMocked.when(() -> ImageProcessingActions.compareAgainstBaseline(any(), any(By.class), any(byte[].class), any()))
@@ -255,7 +255,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
             reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
             List<List<Object>> attachments = attachmentsCaptor.getValue();
             Assert.assertTrue(attachments.isEmpty());
-            allureMocked.verify(() -> Allure.addAttachment(eq("Visual Comparison"),
+            allureMocked.verify(() -> AllureAttachments.add(eq("Visual Comparison"),
                     eq("application/vnd.allure.image.diff"), anyString()));
         }
     }
@@ -282,8 +282,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
              MockedConstruction<BrowserActionsHelper> browserActionsHelperMocked = Mockito.mockConstruction(BrowserActionsHelper.class,
                      (mock, context) -> when(mock.capturePageSnapshot(any())).thenReturn("<html/>"));
              MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
-             MockedStatic<Allure> allureMocked = Mockito.mockStatic(Allure.class)) {
-            allureMocked.when(Allure::getLifecycle).thenCallRealMethod();
+             MockedStatic<AllureAttachments> allureMocked = Mockito.mockStatic(AllureAttachments.class)) {
 
             @SuppressWarnings({"rawtypes", "unchecked"})
             ArgumentCaptor<List<List<Object>>> attachmentsCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);

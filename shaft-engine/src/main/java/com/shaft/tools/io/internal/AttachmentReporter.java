@@ -218,7 +218,7 @@ public class AttachmentReporter {
     }
 
     private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
-        Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
+        AllureAttachments.add(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
         ReportContext.recordAttachment(attachmentDescription, contentType, fileExtension, "", content.size());
         if (TestNGListener.isReportPortalEnabled()) {
             File file = null;
@@ -240,7 +240,7 @@ public class AttachmentReporter {
 
     private static void attachFileBased(String attachmentDescription, AttachmentFormat attachmentFormat, Path contentPath) {
         try (InputStream content = java.nio.file.Files.newInputStream(contentPath)) {
-            Allure.addAttachment(attachmentDescription, attachmentFormat.contentType(), content, attachmentFormat.fileExtension());
+            AllureAttachments.add(attachmentDescription, attachmentFormat.contentType(), content, attachmentFormat.fileExtension());
             ReportContext.recordAttachment(attachmentDescription, attachmentFormat.contentType(),
                     attachmentFormat.fileExtension(), "", java.nio.file.Files.size(contentPath));
             if (TestNGListener.isReportPortalEnabled()) {

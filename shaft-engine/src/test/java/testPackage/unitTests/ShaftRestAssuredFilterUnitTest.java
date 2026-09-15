@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.shaft.api.ShaftRestAssuredFilter;
 import com.shaft.driver.SHAFT;
 import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
 import io.restassured.filter.FilterContext;
 import io.restassured.http.Cookie;
 import io.restassured.http.Cookies;
@@ -105,11 +106,11 @@ public class ShaftRestAssuredFilterUnitTest {
         Mockito.when(response.getBody()).thenReturn(responseBody);
         Mockito.when(responseBody.asString()).thenReturn("{\"type\":\"bearer\",\"token\":\"response-token\"}");
 
-        try (MockedStatic<Allure> allure = Mockito.mockStatic(Allure.class)) {
+        try (MockedStatic<AllureAttachments> allure = Mockito.mockStatic(AllureAttachments.class)) {
             filter.filter(requestSpec, responseSpec, filterContext);
 
             ArgumentCaptor<InputStream> requestStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Request - GET /api"), Mockito.eq("text/plain"),
+            allure.verify(() -> AllureAttachments.add(Mockito.eq("API Request - GET /api"), Mockito.eq("text/plain"),
                     requestStream.capture(), Mockito.eq(".txt")));
             String requestMetadata = new String(requestStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(requestMetadata.contains("request-secret"));
@@ -119,21 +120,21 @@ public class ShaftRestAssuredFilterUnitTest {
             org.testng.Assert.assertTrue(requestMetadata.contains("session=********"));
 
             ArgumentCaptor<InputStream> responseStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Response - 200 GET /api - 10ms"), Mockito.eq("text/plain"),
+            allure.verify(() -> AllureAttachments.add(Mockito.eq("API Response - 200 GET /api - 10ms"), Mockito.eq("text/plain"),
                     responseStream.capture(), Mockito.eq(".txt")));
             String responseMetadata = new String(responseStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(responseMetadata.contains("response-secret"));
             org.testng.Assert.assertTrue(responseMetadata.contains("Set-Cookie: ********"));
 
             ArgumentCaptor<InputStream> requestBodyStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Request Body - GET /api"), Mockito.eq("application/json"),
+            allure.verify(() -> AllureAttachments.add(Mockito.eq("API Request Body - GET /api"), Mockito.eq("application/json"),
                     requestBodyStream.capture(), Mockito.eq(".json")));
             String requestBody = new String(requestBodyStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(requestBody.contains("request-password"));
             org.testng.Assert.assertTrue(requestBody.contains("\"password\": \"********\""));
 
             ArgumentCaptor<InputStream> responseBodyStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Response Body - 200 GET /api"), Mockito.eq("application/json"),
+            allure.verify(() -> AllureAttachments.add(Mockito.eq("API Response Body - 200 GET /api"), Mockito.eq("application/json"),
                     responseBodyStream.capture(), Mockito.eq(".json")));
             String responseBodyText = new String(responseBodyStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(responseBodyText.contains("response-token"));
