@@ -9,7 +9,6 @@ import com.shaft.tools.io.internal.AllureManager;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.lang3.SystemUtils;
 import org.mockito.Mockito;
-import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -119,7 +118,6 @@ public class AllureManagerUnitTest {
         Files.createDirectories(resultsDirectory);
         setStaticField(AllureManager.class, "allureResultsFolderPath", resultsDirectory.toString());
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "echo");
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
         SHAFT.Properties.allure.set().forceConfiguredCliVersion(true).accumulateHistory(true);
 
         Method reportDirectoryPath = AllureManager.class.getDeclaredMethod("reportDirectoryPath");
@@ -227,8 +225,8 @@ public class AllureManagerUnitTest {
         }
     }
 
-    @Test(description = "Generated allure serve script should preserve legacy PATH-first behavior when enforcement is disabled")
-    public void generatedAllureServeScriptShouldUseLegacyPathFirstFlowWhenEnforcementDisabled() throws Exception {
+    @Test(description = "Generated allure serve script still uses managed Allure 3 when forceConfiguredCliVersion is false")
+    public void generatedAllureServeScriptShouldUseManagedAllure3WhenEnforcementDisabled() throws Exception {
         Field pathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
         pathField.setAccessible(true);
         pathField.set(null, "allure-results/");
@@ -243,8 +241,10 @@ public class AllureManagerUnitTest {
             scriptMethod.invoke(null);
             String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
 
-            SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
+            SHAFT.Validations.assertThat().object(content.contains("npx --yes allure@" + SHAFT.Properties.internal.allure3Version()))
                     .isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(content.contains("command -v allure")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(content.contains("where allure")).isEqualTo(false).perform();
             SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(false).perform();
         } finally {
             Files.deleteIfExists(scriptPath);
@@ -451,8 +451,8 @@ public class AllureManagerUnitTest {
         }
     }
 
-    @Test(description = "startRealtimeMonitoringIfEligible should skip Allure 2 and start watcher command for Allure 3")
-    public void startRealtimeMonitoringIfEligibleShouldHandleAllure2AndAllure3Flows() throws Exception {
+    @Test(description = "startRealtimeMonitoringIfEligible should start watcher command for managed Allure 3")
+    public void startRealtimeMonitoringIfEligibleShouldStartWatcherForManagedAllure3() throws Exception {
         Method startRealtimeMonitoringIfEligible = AllureManager.class.getDeclaredMethod("startRealtimeMonitoringIfEligible");
         startRealtimeMonitoringIfEligible.setAccessible(true);
 
@@ -464,12 +464,6 @@ public class AllureManagerUnitTest {
             Files.createDirectories(Path.of("allure-results"));
 
             setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "echo");
-            setStaticField(AllureManager.class, "cachedIsAllure2", true);
-            startRealtimeMonitoringIfEligible.invoke(null);
-            Object allure2Process = getStaticField(AllureManager.class, "realtimeMonitoringProcess");
-            SHAFT.Validations.assertThat().object(allure2Process).isNull().perform();
-
-            setStaticField(AllureManager.class, "cachedIsAllure2", false);
             startRealtimeMonitoringIfEligible.invoke(null);
             Process process = (Process) getStaticField(AllureManager.class, "realtimeMonitoringProcess");
             SHAFT.Validations.assertThat().object(process != null).isEqualTo(true).perform();
@@ -492,7 +486,6 @@ public class AllureManagerUnitTest {
         resolveAllureCommandPrefix.setAccessible(true);
 
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
 
         Field internalField = Properties.class.getDeclaredField("internal");
         internalField.setAccessible(true);
@@ -527,7 +520,6 @@ public class AllureManagerUnitTest {
         try {
             SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
             setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-            setStaticField(AllureManager.class, "cachedIsAllure2", false);
             internalField.set(null, ConfigFactory.create(Internal.class));
 
             Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
@@ -549,7 +541,6 @@ public class AllureManagerUnitTest {
         resolveAllureCommandPrefix.setAccessible(true);
 
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
         SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
 
         Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
@@ -666,8 +657,8 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(untouchedIgnored.contains("\"statusDetails\"")).isEqualTo(false).perform();
     }
 
-    @Test(description = "writeAllureReport should generate command lines correctly in both Allure2 and Allure3 cached modes")
-    public void writeAllureReportShouldWorkInAllure2AndAllure3CachedModes() throws Exception {
+    @Test(description = "writeAllureReport should generate managed Allure 3 reports")
+    public void writeAllureReportShouldWorkWithManagedAllure3() throws Exception {
         Method writeAllureReport = AllureManager.class.getDeclaredMethod("writeAllureReport");
         writeAllureReport.setAccessible(true);
 
@@ -676,11 +667,6 @@ public class AllureManagerUnitTest {
         setStaticField(AllureManager.class, "allureResultsFolderPath", resultsDirectory.toString());
 
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "echo");
-        setStaticField(AllureManager.class, "cachedIsAllure2", true);
-        writeAllureReport.invoke(null);
-
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "echo");
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
         writeAllureReport.invoke(null);
 
         Files.deleteIfExists(Path.of(System.getProperty("user.dir"), "allurerc.yaml"));
@@ -727,7 +713,6 @@ public class AllureManagerUnitTest {
         Path categories = resultsDirectory.resolve("categories.json");
         setStaticField(AllureManager.class, "allureResultsFolderPath", resultsDirectory.toString());
 
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
         writeCategories.invoke(null);
         JsonNode root = MAPPER.readTree(categories.toFile());
         SHAFT.Validations.assertThat().object(root.isArray()).isEqualTo(true).perform();
@@ -740,69 +725,87 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(root.toString().contains("SHAFT: soft verification failure")).isEqualTo(true).perform();
 
         Files.deleteIfExists(categories);
-        setStaticField(AllureManager.class, "cachedIsAllure2", true);
-        writeCategories.invoke(null);
-        SHAFT.Validations.assertThat().object(Files.exists(categories)).isEqualTo(false).perform();
     }
 
-    @Test(description = "resolveAllureCommandPrefix should support legacy resolution and cached-empty shortcut")
-    public void resolveAllureCommandPrefixShouldSupportLegacyResolutionAndCachedEmptyShortcut() throws Exception {
+    @Test(description = "resolveAllureCommandPrefix should use managed Allure 3 even when forceConfiguredCliVersion is false")
+    public void resolveAllureCommandPrefixShouldUseManagedAllure3AndCachedEmptyShortcut() throws Exception {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
 
         SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
-        Object legacyResolvedPrefix = resolveAllureCommandPrefix.invoke(null);
-        SHAFT.Validations.assertThat().object(legacyResolvedPrefix == null
-                || legacyResolvedPrefix.toString().equals("allure")
-                || legacyResolvedPrefix.toString().contains("allure@")).isEqualTo(true).perform();
+        Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
+        SHAFT.Validations.assertThat().object(resolvedPrefix == null || resolvedPrefix.toString().contains("allure@"))
+                .isEqualTo(true).perform();
+        if (resolvedPrefix != null) {
+            SHAFT.Validations.assertThat().object(resolvedPrefix.toString().equals("allure")).isEqualTo(false).perform();
+        }
 
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "");
         Object cachedEmptyResolution = resolveAllureCommandPrefix.invoke(null);
         SHAFT.Validations.assertThat().object(cachedEmptyResolution).isNull().perform();
     }
 
-    @Test(description = "resolveAllureCommandPrefix should activate Allure2 compatibility when system allure reports version 2.x")
-    public void resolveAllureCommandPrefixShouldActivateAllure2CompatibilityWhenSystemBinaryReports2x() throws Exception {
+    @Test(description = "resolveAllureCommandPrefix should ignore stub Allure 2.x on PATH and use managed Allure 3")
+    public void resolveAllureCommandPrefixShouldIgnoreStubAllure2OnPathAndUseManagedAllure3() throws Exception {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
-        Method readSystemAllureVersion = AllureManager.class.getDeclaredMethod("readSystemAllureVersion");
-        readSystemAllureVersion.setAccessible(true);
 
-        Object parsedVersion = readSystemAllureVersion.invoke(null);
-        if (parsedVersion == null || !parsedVersion.toString().startsWith("2.")) {
-            throw new SkipException("System allure is not available as a 2.x binary on PATH.");
+        Path allureBinary = getWritablePathDirectory().resolve("allure");
+        boolean binaryAlreadyExists = Files.exists(allureBinary);
+        String originalBinaryContent = binaryAlreadyExists ? Files.readString(allureBinary) : null;
+        try {
+            Files.writeString(allureBinary, "#!/bin/sh\necho \"2.24.0\"\n");
+            allureBinary.toFile().setExecutable(true);
+
+            SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
+            setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+
+            Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
+            SHAFT.Validations.assertThat().object(resolvedPrefix == null || resolvedPrefix.toString().contains("allure@"))
+                    .isEqualTo(true).perform();
+            if (resolvedPrefix != null) {
+                SHAFT.Validations.assertThat().object(resolvedPrefix.toString().equals("allure")).isEqualTo(false).perform();
+            }
+        } finally {
+            if (binaryAlreadyExists) {
+                Files.writeString(allureBinary, originalBinaryContent);
+                allureBinary.toFile().setExecutable(true);
+            } else {
+                Files.deleteIfExists(allureBinary);
+            }
         }
-
-        SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
-
-        Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
-        SHAFT.Validations.assertThat().object(resolvedPrefix).isEqualTo("allure").perform();
-        SHAFT.Validations.assertThat().object(getStaticField(AllureManager.class, "cachedIsAllure2")).isEqualTo(true).perform();
     }
 
-    @Test(description = "resolveAllureCommandPrefix should prefer system allure when version is not 2.x in legacy mode")
-    public void resolveAllureCommandPrefixShouldPreferSystemAllureWhenVersionIsNot2x() throws Exception {
+    @Test(description = "resolveAllureCommandPrefix should ignore non-2.x system allure and use managed Allure 3")
+    public void resolveAllureCommandPrefixShouldIgnoreSystemAllureWhenVersionIsNot2x() throws Exception {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
         resolveAllureCommandPrefix.setAccessible(true);
-        Method readSystemAllureVersion = AllureManager.class.getDeclaredMethod("readSystemAllureVersion");
-        readSystemAllureVersion.setAccessible(true);
 
-        Object parsedVersion = readSystemAllureVersion.invoke(null);
-        if (parsedVersion == null || parsedVersion.toString().startsWith("2.")) {
-            throw new SkipException("System allure is not available as a non-2.x binary on PATH.");
+        Path allureBinary = getWritablePathDirectory().resolve("allure");
+        boolean binaryAlreadyExists = Files.exists(allureBinary);
+        String originalBinaryContent = binaryAlreadyExists ? Files.readString(allureBinary) : null;
+        try {
+            Files.writeString(allureBinary, "#!/bin/sh\necho \"3.5.0\"\n");
+            allureBinary.toFile().setExecutable(true);
+
+            SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
+            setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+
+            Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
+            SHAFT.Validations.assertThat().object(resolvedPrefix == null || resolvedPrefix.toString().contains("allure@"))
+                    .isEqualTo(true).perform();
+            if (resolvedPrefix != null) {
+                SHAFT.Validations.assertThat().object(resolvedPrefix.toString().equals("allure")).isEqualTo(false).perform();
+            }
+        } finally {
+            if (binaryAlreadyExists) {
+                Files.writeString(allureBinary, originalBinaryContent);
+                allureBinary.toFile().setExecutable(true);
+            } else {
+                Files.deleteIfExists(allureBinary);
+            }
         }
-
-        SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
-
-        Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
-        SHAFT.Validations.assertThat().object(resolvedPrefix).isEqualTo("allure").perform();
-        SHAFT.Validations.assertThat().object(getStaticField(AllureManager.class, "cachedIsAllure2")).isEqualTo(false).perform();
     }
 
     @Test(description = "resolveAllureCommandPrefix should ignore system allure in enforce mode")
@@ -819,11 +822,9 @@ public class AllureManagerUnitTest {
 
             SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
             setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-            setStaticField(AllureManager.class, "cachedIsAllure2", false);
 
             Object resolvedPrefix = resolveAllureCommandPrefix.invoke(null);
             SHAFT.Validations.assertThat().object(resolvedPrefix == null || resolvedPrefix.toString().contains("allure@")).isEqualTo(true).perform();
-            SHAFT.Validations.assertThat().object(getStaticField(AllureManager.class, "cachedIsAllure2")).isEqualTo(false).perform();
         } finally {
             if (binaryAlreadyExists) {
                 Files.writeString(allureBinary, originalBinaryContent);
@@ -929,7 +930,6 @@ public class AllureManagerUnitTest {
         Files.writeString(resultsDirectory.resolve("dummy-result.json"), "{\"name\":\"dummy\"}");
         setStaticField(AllureManager.class, "allureResultsFolderPath", resultsDirectory.toString());
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "echo");
-        setStaticField(AllureManager.class, "cachedIsAllure2", true);
 
         SHAFT.Properties.allure.set().generateArchive(true);
         Path archiveRoot = resultsDirectory.getParent();
@@ -995,37 +995,15 @@ public class AllureManagerUnitTest {
     @AfterMethod(alwaysRun = true)
     public void resetAllureManagerCachedState() throws Exception {
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
         setStaticField(AllureManager.class, "realtimeMonitoringProcess", null);
         Properties.clearForCurrentThread();
         setStaticField(AllureManager.class, "allureResultsFolderPath", SHAFT.Properties.paths.allureResults());
         setStaticField(AllureManager.class, "allureOutPutDirectory", "");
     }
 
-    @Test(description = "getCommandToCreateAllureReport should use allure2 --clean syntax when cachedIsAllure2 is true")
-    public void getCommandToCreateAllureReportShouldUseAllure2SyntaxWhenAllure2Detected() throws Exception {
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "allure");
-        setStaticField(AllureManager.class, "cachedIsAllure2", true);
-        setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
-        setStaticField(AllureManager.class, "allureOutPutDirectory", "target/allure-report");
-
-        Method getCommandMethod = AllureManager.class.getDeclaredMethod("getCommandToCreateAllureReport");
-        getCommandMethod.setAccessible(true);
-        String command = (String) getCommandMethod.invoke(null);
-
-        // Allure 2: must use --single-file and --clean, must NOT use --config or allurerc.yaml
-        SHAFT.Validations.assertThat().object(command).contains("--single-file").perform();
-        SHAFT.Validations.assertThat().object(command).contains("--clean").perform();
-        SHAFT.Validations.assertThat().object(command.contains("--config")).isEqualTo(false).perform();
-        SHAFT.Validations.assertThat().object(command.contains("allurerc.yaml")).isEqualTo(false).perform();
-        SHAFT.Validations.assertThat().object(command).contains("generate").perform();
-        SHAFT.Validations.assertThat().object(command).contains("allure-results").perform();
-    }
-
     @Test(description = "getCommandToCreateAllureReport should use allure3 --config syntax when allure3 is detected")
     public void getCommandToCreateAllureReportShouldUseAllure3SyntaxWhenAllure3Detected() throws Exception {
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "allure");
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
         setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
         setStaticField(AllureManager.class, "allureOutPutDirectory", "target/allure-report");
 
@@ -1041,35 +1019,10 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(command).contains("allure-results").perform();
     }
 
-    @Test(description = "Generated allure serve script should use allure2 syntax (no --config) when cachedIsAllure2 is true")
-    public void generatedAllureServeScriptShouldUseAllure2SyntaxWhenAllure2Detected() throws Exception {
-        setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results/");
-        setStaticField(AllureManager.class, "cachedIsAllure2", true);
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "allure");
-
-        Method scriptMethod = AllureManager.class.getDeclaredMethod("writeGenerateReportShellFilesToProjectDirectory");
-        scriptMethod.setAccessible(true);
-
-        String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
-        Path scriptPath = Path.of(scriptFileName);
-        try {
-            scriptMethod.invoke(null);
-            String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
-
-            // Allure 2 script: no --config or allurerc.yaml, just a simple allure serve command
-            SHAFT.Validations.assertThat().object(content.contains("--config")).isEqualTo(false).perform();
-            SHAFT.Validations.assertThat().object(content.contains("allurerc.yaml")).isEqualTo(false).perform();
-            SHAFT.Validations.assertThat().object(content).contains("allure serve").perform();
-        } finally {
-            Files.deleteIfExists(scriptPath);
-        }
-    }
-
     @Test(description = "watchCommandShouldUseSimpleAllure3SyntaxWithOnlyResultsDir when allure3 is used for realtime monitoring")
     public void watchCommandShouldUseSimpleAllure3SyntaxWithOnlyResultsDir() throws Exception {
         // Simulate allure3 state
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "npx --yes allure@3.5.0");
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
         setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
 
         String originalAutomaticallyOpen = String.valueOf(SHAFT.Properties.allure.automaticallyOpen());

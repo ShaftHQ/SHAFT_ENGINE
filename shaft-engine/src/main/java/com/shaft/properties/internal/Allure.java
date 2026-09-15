@@ -122,21 +122,21 @@ public interface Allure extends EngineProperties<Allure> {
     String theme();
 
     /**
-     * Opt-in switch to enforce usage of the configured Allure 3 CLI version
+     * Deprecated alias that always forces managed Allure 3 CLI resolution
      * ({@code SHAFT.Properties.internal.allure3Version()}).
      *
      * <p>Property key: {@code allure.forceConfiguredCliVersion} — default: {@code true}
      *
-     * <p>When enabled:
-     * <ul>
-     *   <li>SHAFT bypasses system {@code allure} binary detection (including Allure 2 compatibility checks).</li>
-     *   <li>SHAFT uses managed Allure 3 resolution only: {@code npx --yes allure@<allure3Version>} (or downloaded Node.js fallback).</li>
-     * </ul>
+     * <p>After {@code allure-bom} 3.0.0 (#5793 / #5798), SHAFT always ignores user-installed
+     * {@code allure} binaries on {@code PATH} (including Allure 2.x) for generate/open/serve and
+     * uses managed Allure 3 only: {@code npx --yes allure@<allure3Version>} (or portable Node.js
+     * under {@code ~/.m2/repository/nodejs/}).
      *
-     * <p>When disabled, SHAFT uses PATH-first behavior and may activate Allure 2 compatibility mode
-     * when a system 2.x binary is detected.
+     * <p>Setting this property to {@code false} is a no-op that logs a discrete deprecation note;
+     * PATH allure remains ignored. Prefer leaving the default {@code true} or removing the property
+     * from configs.
      *
-     * @return {@code true} to enforce configured Allure 3 CLI usage; {@code false} for legacy PATH-first behavior
+     * @return historically {@code true} to enforce configured Allure 3 CLI usage; {@code false} is ignored
      */
     @Key("allure.forceConfiguredCliVersion")
     @DefaultValue("true")
@@ -147,8 +147,7 @@ public interface Allure extends EngineProperties<Allure> {
      *
      * <p>Property key: {@code allure.realtimeMonitoring} — default: {@code false}
      *
-     * <p>When enabled, SHAFT starts monitoring when Allure 3 CLI resolution succeeds. This feature
-     * is unavailable in Allure 2 compatibility mode.
+     * <p>When enabled, SHAFT starts monitoring when managed Allure 3 CLI resolution succeeds.
      *
      * @return {@code true} to allow real-time monitoring when Allure 3 is available; {@code false} to disable it
      */
@@ -337,7 +336,10 @@ public interface Allure extends EngineProperties<Allure> {
         /**
          * Overrides the {@code allure.forceConfiguredCliVersion} property at runtime.
          *
-         * @param value {@code true} to enforce configured {@code allure3Version} and ignore mismatched PATH-installed allure binaries
+         * <p>Deprecated alias: managed Allure 3 is always used (#5798). {@code false} is ignored
+         * (PATH allure remains unused).
+         *
+         * @param value historically {@code true} to enforce configured {@code allure3Version}; {@code false} is a no-op
          * @return this {@link SetProperty} instance for chaining
          */
         public SetProperty forceConfiguredCliVersion(boolean value) {

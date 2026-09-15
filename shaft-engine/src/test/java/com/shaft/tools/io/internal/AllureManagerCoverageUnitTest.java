@@ -136,30 +136,23 @@ public class AllureManagerCoverageUnitTest {
     }
 
     @Test
-    public void getCommandToCreateAllureReportShouldBuildAllure3AndAllure2Commands() throws Exception {
+    public void getCommandToCreateAllureReportShouldBuildManagedAllure3Command() throws Exception {
         Path outputDirectory = testDirectory.resolve("generated-report");
         setField("allureOutPutDirectory", outputDirectory.toString());
-        setField("cachedAllureCommandPrefix", "allure");
-        setField("cachedIsAllure2", false);
+        setField("cachedAllureCommandPrefix", "npx --yes allure@3.5.0");
 
         String allure3Command = (String) invoke("getCommandToCreateAllureReport");
 
-        Assert.assertTrue(allure3Command.startsWith("allure generate --config "), allure3Command);
+        Assert.assertTrue(allure3Command.startsWith("npx --yes allure@3.5.0 generate --config "), allure3Command);
         Assert.assertTrue(allure3Command.contains(quote(Path.of("allurerc.yaml").toAbsolutePath().toString())), allure3Command);
         Assert.assertTrue(allure3Command.contains(quote(allureResultsDirectory.toString())), allure3Command);
         Assert.assertTrue(allure3Command.endsWith(" -o " + quote(outputDirectory.toString())), allure3Command);
-
-        setField("cachedIsAllure2", true);
-        String allure2Command = (String) invoke("getCommandToCreateAllureReport");
-
-        Assert.assertEquals(allure2Command,
-                "allure generate " + quote(allureResultsDirectory.toString())
-                        + " --single-file --clean -o " + quote(outputDirectory.toString()));
+        Assert.assertFalse(allure3Command.contains("--single-file"), allure3Command);
+        Assert.assertFalse(allure3Command.contains("--clean"), allure3Command);
     }
 
     @Test
     public void writeGenerateReportShellFilesShouldUseConfiguredAllureVersionAndTrimResultsPath() throws Exception {
-        setField("cachedIsAllure2", false);
         SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
 
         invoke("writeGenerateReportShellFilesToProjectDirectory");
@@ -596,7 +589,6 @@ public class AllureManagerCoverageUnitTest {
 
     private static void resetAllureManagerState() throws Exception {
         setField("cachedAllureCommandPrefix", null);
-        setField("cachedIsAllure2", false);
         setField("allureResultsFolderPath", "");
         setField("allureOutPutDirectory", "");
         setField("realtimeMonitoringProcess", null);
