@@ -154,6 +154,8 @@ public class AllureManagerCoverageUnitTest {
     @Test
     public void writeGenerateReportShellFilesShouldUseConfiguredAllureVersionAndTrimResultsPath() throws Exception {
         SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
+        // Pin managed npx prefix so script generation does not pick up a machine-local Maven CLI cache (#5801).
+        setField("cachedAllureCommandPrefix", "npx --yes allure@" + SHAFT.Properties.internal.allure3Version());
 
         invoke("writeGenerateReportShellFilesToProjectDirectory");
 

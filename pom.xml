@@ -64,6 +64,9 @@
         <!-- Dependency BOM Versions -->
         <junit.bom.version>6.1.3</junit.bom.version>
         <allure.bom.version>3.0.0</allure.bom.version>
+        <!-- Pinned Allure 3 npm CLI version for Maven cache provision (#5801); keep aligned with
+             SHAFT.Properties.internal.allure3Version() default in Internal.java -->
+        <allure.cli.version>3.17.0</allure.cli.version>
         <cucumber.bom.version>7.34.8</cucumber.bom.version>
         <jackson.version>3.2.2</jackson.version>
         <jackson.legacy.version>2.22.2</jackson.legacy.version>

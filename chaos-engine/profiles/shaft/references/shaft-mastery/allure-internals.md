@@ -38,3 +38,20 @@ issue #3407). The proven pattern (PR #3433, `AllureManager`):
 - Report JS executes at open; theme/branding patches belong in `<head>`
   (style) and before `</body>` (script) — SHAFT's patch constants must never
   themselves contain `</head>`/`</body>` literals or the marker scan breaks.
+
+## Maven-provisioned Allure 3 CLI (#5801)
+SHAFT never calls a user `PATH` `allure` binary (Allure 2 drop: #5798/#5800). Resolution order:
+
+1. **Maven cache (preferred):** `~/.m2/repository/allure/allure-cli/<allure3Version>/node_modules/allure/cli.js`
+   invoked as `node <cli.js>` (portable Node under `~/.m2/repository/nodejs/` when PATH node is missing).
+2. `npx --yes allure@<allure3Version>` on PATH.
+3. Portable Node + its `npx`.
+
+**Operators / CI (offline / air-gap):**
+```bash
+mvn -Pprovision-allure-cli -pl shaft-engine -am initialize
+# then tests / report generate can run without npm registry at generate time
+```
+Root POM property `allure.cli.version` must stay aligned with `Internal.allure3Version()` (currently 3.17.0; independent of `allure-bom` 3.0.0 Java adapters).
+
+Overrides: `-Dallure.cli.cacheRoot=...`, `-Dallure.cli.skipProvision=true` (engine bootstrap only).

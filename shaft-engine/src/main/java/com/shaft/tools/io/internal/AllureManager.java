@@ -52,17 +52,20 @@ import java.util.regex.Pattern;
  * SHAFT framework listeners at suite start and finish.
  *
  * <p><b>Allure CLI resolution (always managed Allure 3):</b> after {@code allure-bom} 3.0.0
- * (#5793 / #5798), SHAFT never activates a user-installed {@code allure} binary on {@code PATH}
- * for generate/open/serve — including Allure 2.x. Report generation always uses the configured
- * Allure 3 CLI:
+ * (#5793 / #5798 / #5801), SHAFT never activates a user-installed {@code allure} binary on
+ * {@code PATH} for generate/open/serve — including Allure 2.x. Report generation uses the
+ * configured Allure 3 CLI in this order:
  * <ol>
- *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<SHAFT.Properties.internal.allure3Version()>}.</li>
+ *   <li>Maven-provisioned / engine-bootstrapped portable CLI under
+ *       {@code ~/.m2/repository/allure/allure-cli/&lt;allure3Version&gt;/}
+ *       (override root with {@code -Dallure.cli.cacheRoot=...}) → {@code node &lt;cli.js&gt;}.</li>
+ *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@&lt;allure3Version&gt;}.</li>
  *   <li>Portable Node.js under {@code ~/.m2/repository/nodejs/} → its bundled {@code npx} → same
- *       {@code npx --yes allure@<version>} invocation.</li>
+ *       {@code npx --yes allure@&lt;version&gt;} invocation.</li>
  * </ol>
- * The {@code allure.forceConfiguredCliVersion} property is retained as a deprecated alias that
- * always forces this managed path (setting it {@code false} only logs that PATH allure is ignored).
- * No manual Allure CLI installation is required; SHAFT handles it transparently.
+ * Pre-warm the Maven cache offline with {@code mvn -Pprovision-allure-cli -pl shaft-engine
+ * -am initialize}. The {@code allure.forceConfiguredCliVersion} property remains a deprecated
+ * always-on alias (setting it {@code false} only logs that PATH allure is ignored).
  *
  * <p>Thread safety: all public methods are {@code static} and intended to be called from a
  * single thread (the test runner thread). The result directory fields are mutable class-level
@@ -633,7 +636,16 @@ public class AllureManager {
             + File.separator + ".m2" + File.separator + "repository"
             + File.separator + "nodejs" + File.separator;
 
-    /** Cached resolved command prefix for allure (e.g. {@code "allure"} or {@code "npx --yes allure@3.x.x"}).
+    /**
+     * Default Maven-local cache root for the pinned Allure 3 CLI (#5801).
+     * Layout: {@code <cacheRoot>/<allure3Version>/node_modules/allure/cli.js}.
+     * Override with system property {@code allure.cli.cacheRoot} (tests / custom CI layouts).
+     */
+    private static final String ALLURE_CLI_CACHE_DIR_DEFAULT = System.getProperty("user.home")
+            + File.separator + ".m2" + File.separator + "repository"
+            + File.separator + "allure" + File.separator + "allure-cli" + File.separator;
+
+    /** Cached resolved command prefix for allure (e.g. provisioned {@code node cli.js} or {@code "npx --yes allure@3.x.x"}).
      *  {@code null} means resolution has not happened yet; {@code ""} means no CLI was found. */
     private static volatile String cachedAllureCommandPrefix = null;
     private static final Pattern SEMVER_IN_TEXT_PATTERN = Pattern.compile("([0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.]+)?)");
@@ -678,6 +690,9 @@ public class AllureManager {
             ReportManager.logDiscrete("Allure report generation is disabled.");
             return;
         }
+        // Best-effort Maven-cache CLI provision (#5801) before resolution so generate/scripts
+        // prefer the pinned offline binary over npx when install succeeds.
+        tryProvisionAllureCli(SHAFT.Properties.internal.allure3Version());
         // Resolve the managed Allure 3 CLI now so helper scripts use the same prefix.
         resolveAllureCommandPrefix();
         writeGenerateReportShellFilesToProjectDirectory();
@@ -845,21 +860,25 @@ public class AllureManager {
 
         // Always managed Allure 3: --config is passed explicitly so singleFile/groupBy/reportName
         // options from writeAllureConfig() are honoured when the user runs the script manually.
-        // User PATH allure (including 2.x) is never preferred (#5798).
+        // Prefer Maven-provisioned CLI when present; never PATH allure (#5798 / #5801).
         String allure3Version = SHAFT.Properties.internal.allure3Version();
+        String cliPrefix = resolveAllureCommandPrefix();
+        if (cliPrefix == null) {
+            cliPrefix = "npx --yes allure@" + allure3Version;
+        }
         String serveArguments = "serve --config \"" + allureConfigPath() + "\" \"" + resultsPath + "\"";
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandsToServeAllureReport = Arrays.asList(
                     "@echo off",
-                    "npx --yes allure@" + allure3Version + " " + serveArguments,
+                    cliPrefix + " " + serveArguments,
                     "pause", "exit");
             internalFileSession.writeToFile(resolveExecutionPath("generate_allure_report.bat").toString(),
                     String.join(System.lineSeparator(), commandsToServeAllureReport));
         } else {
             commandsToServeAllureReport = Arrays.asList(
                     "#!/bin/bash",
-                    "npx --yes allure@" + allure3Version + " " + serveArguments);
+                    cliPrefix + " " + serveArguments);
             Path scriptPath = resolveExecutionPath("generate_allure_report.sh");
             internalFileSession.writeToFile(scriptPath.toString(), String.join(System.lineSeparator(), commandsToServeAllureReport));
             // make script executable on Unix-based shells
@@ -1788,11 +1807,12 @@ public class AllureManager {
      *
      * <p>The result is computed once and cached for the JVM lifetime.
      *
-     * <p>Always uses managed Allure 3 (#5798). User-installed {@code allure} on {@code PATH}
+     * <p>Always uses managed Allure 3 (#5798 / #5801). User-installed {@code allure} on {@code PATH}
      * (including Allure 2.x) is never selected for generate/open/serve.
      *
      * <p>Resolution order:
      * <ol>
+     *   <li>Maven-provisioned CLI under {@link #allureCliCacheRoot()} → {@code node cli.js}.</li>
      *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<version>}.</li>
      *   <li>Portable Node.js downloaded to {@value #NODEJS_CACHE_DIR} → its {@code npx}.</li>
      * </ol>
@@ -1800,7 +1820,7 @@ public class AllureManager {
      * <p>{@code allure.forceConfiguredCliVersion=false} is a deprecated no-op: PATH allure remains
      * ignored and a discrete log explains the migration.
      *
-     * @return the command prefix (e.g. {@code "npx --yes allure@3.x.x"}),
+     * @return the command prefix (e.g. quoted {@code node}/{@code cli.js} or {@code "npx --yes allure@3.x.x"}),
      *         or {@code null} when no CLI could be resolved or downloaded
      */
     private static String resolveAllureCommandPrefix() {
@@ -1832,6 +1852,15 @@ public class AllureManager {
                     + "user-installed 'allure' on PATH is ignored. Using managed Allure 3 CLI.");
         }
 
+        // Option C (#5801): prefer Maven-provisioned / engine-bootstrapped CLI over npx.
+        String provisionedPrefix = resolveProvisionedAllureCommandPrefix(allure3Version);
+        if (provisionedPrefix != null) {
+            cachedAllureCommandPrefix = provisionedPrefix;
+            ReportManager.logDiscrete("Allure 3 CLI resolved: using Maven-provisioned binary at "
+                    + getProvisionedAllureCliJs(allure3Version) + ".");
+            return cachedAllureCommandPrefix;
+        }
+
         if (isExecutableOnPath("npx")) {
             cachedAllureCommandPrefix = "npx --yes allure@" + allure3Version;
             ReportManager.logDiscrete("Allure 3 CLI resolved: using configured npx allure@" + allure3Version + ".");
@@ -1848,6 +1877,183 @@ public class AllureManager {
 
         cachedAllureCommandPrefix = "";
         return null;
+    }
+
+    /**
+     * Returns the Maven-local cache root for pinned Allure 3 CLI installs (#5801).
+     *
+     * <p>Default: {@code ~/.m2/repository/allure/allure-cli/}. Override with
+     * {@code -Dallure.cli.cacheRoot=/custom/path/} (trailing separator optional).
+     *
+     * @return absolute cache root directory path ending with the platform separator
+     */
+    public static String allureCliCacheRoot() {
+        String override = System.getProperty("allure.cli.cacheRoot");
+        if (override != null && !override.isBlank()) {
+            return override.endsWith(File.separator) ? override : override + File.separator;
+        }
+        return ALLURE_CLI_CACHE_DIR_DEFAULT;
+    }
+
+    /**
+     * @param allure3Version pinned Allure 3 npm package version (already SemVer-validated)
+     * @return {@code <cacheRoot>/<version>/} install home
+     */
+    public static String getAllureCliHome(String allure3Version) {
+        return allureCliCacheRoot() + allure3Version + File.separator;
+    }
+
+    /**
+     * @param allure3Version pinned Allure 3 npm package version
+     * @return absolute path to {@code node_modules/allure/cli.js} under the CLI home
+     */
+    public static String getProvisionedAllureCliJs(String allure3Version) {
+        return getAllureCliHome(allure3Version)
+                + "node_modules" + File.separator + "allure" + File.separator + "cli.js";
+    }
+
+    /**
+     * @param allure3Version pinned Allure 3 npm package version
+     * @return {@code true} when the provisioned {@code cli.js} exists
+     */
+    public static boolean isProvisionedAllureCliPresent(String allure3Version) {
+        return new File(getProvisionedAllureCliJs(allure3Version)).isFile();
+    }
+
+    /**
+     * Builds a command prefix that invokes the provisioned Allure 3 CLI with a resolved Node
+     * binary (PATH {@code node} or portable Node under {@value #NODEJS_CACHE_DIR}).
+     *
+     * @param allure3Version pinned Allure 3 npm package version
+     * @return command prefix, or {@code null} when the CLI or a Node runtime is missing
+     */
+    private static String resolveProvisionedAllureCommandPrefix(String allure3Version) {
+        if (!isProvisionedAllureCliPresent(allure3Version)) {
+            return null;
+        }
+        String nodeBinary = resolveNodeBinaryForCli();
+        if (nodeBinary == null) {
+            ReportManager.logDiscrete("Maven-provisioned Allure CLI is present but no Node.js runtime was found to execute it.");
+            return null;
+        }
+        String nodePart = nodeBinary.contains(File.separator) || nodeBinary.contains(" ")
+                ? q(nodeBinary) : nodeBinary;
+        return nodePart + " " + q(getProvisionedAllureCliJs(allure3Version));
+    }
+
+    /**
+     * Resolves a Node.js binary for executing the provisioned Allure CLI or for provisioning.
+     *
+     * @return {@code "node"} when on PATH, absolute portable node path, or {@code null}
+     */
+    private static String resolveNodeBinaryForCli() {
+        if (isExecutableOnPath("node")) {
+            return "node";
+        }
+        String portableNode = getNodeBinPath();
+        if (new File(portableNode).exists()) {
+            return portableNode;
+        }
+        return downloadNodeJsPortable() != null ? getNodeBinPath() : null;
+    }
+
+    /**
+     * Best-effort install of the pinned Allure 3 npm package into the Maven-local CLI cache
+     * (#5801). Safe to call when already installed (no-op). Does not use a user PATH
+     * {@code allure} binary.
+     *
+     * @param allure3Version pinned Allure 3 npm package version
+     * @return {@code true} when {@code cli.js} is present after this call
+     */
+    public static boolean tryProvisionAllureCli(String allure3Version) {
+        if (allure3Version == null || !allure3Version.matches("[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?")) {
+            return false;
+        }
+        if (isProvisionedAllureCliPresent(allure3Version)) {
+            return true;
+        }
+        if (Boolean.parseBoolean(System.getProperty("allure.cli.skipProvision", "false"))) {
+            ReportManager.logDiscrete("Skipping Allure CLI Maven-cache provision (allure.cli.skipProvision=true).");
+            return false;
+        }
+
+        String nodeBinary = resolveNodeBinaryForCli();
+        if (nodeBinary == null) {
+            ReportManager.logDiscrete("Cannot provision Allure CLI into Maven cache: Node.js is unavailable.");
+            return false;
+        }
+
+        String cliHome = getAllureCliHome(allure3Version);
+        File cliHomeDir = new File(cliHome);
+        if (!cliHomeDir.mkdirs() && !cliHomeDir.isDirectory()) {
+            ReportManager.logDiscrete("Cannot create Allure CLI cache directory: " + cliHome);
+            return false;
+        }
+
+        try {
+            Path packageJson = Path.of(cliHome, "package.json");
+            if (!Files.exists(packageJson)) {
+                Files.writeString(packageJson, """
+                        {
+                          "name": "shaft-allure-cli-runtime",
+                          "private": true
+                        }
+                        """);
+            }
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Cannot write Allure CLI package.json: " + e.getMessage());
+            return false;
+        }
+
+        String npmInvocation = buildNpmInstallInvocation(nodeBinary, cliHome, allure3Version);
+        if (npmInvocation == null) {
+            ReportManager.logDiscrete("Cannot provision Allure CLI: npm is unavailable.");
+            return false;
+        }
+
+        ReportManager.logDiscrete("Provisioning pinned Allure 3 CLI allure@" + allure3Version
+                + " into Maven cache: " + cliHome);
+        internalTerminalSession.performTerminalCommand(npmInvocation);
+
+        boolean present = isProvisionedAllureCliPresent(allure3Version);
+        if (!present) {
+            ReportManager.logDiscrete("Allure CLI provision finished but cli.js was not found at "
+                    + getProvisionedAllureCliJs(allure3Version));
+        }
+        return present;
+    }
+
+    /**
+     * Builds an {@code npm install} command that installs {@code allure@<version>} into
+     * {@code cliHome} using either PATH npm or the portable Node distribution's npm-cli.js.
+     */
+    private static String buildNpmInstallInvocation(String nodeBinary, String cliHome, String allure3Version) {
+        String installArgs = "--prefix " + q(cliHome)
+                + " install --no-package-lock --no-save --ignore-scripts allure@" + allure3Version;
+        if (isExecutableOnPath("npm") && "node".equals(nodeBinary)) {
+            return "npm " + installArgs;
+        }
+        String npmCli = getNpmCliJsPath();
+        if (npmCli != null && new File(npmCli).isFile()) {
+            String nodePart = nodeBinary.contains(File.separator) || nodeBinary.contains(" ")
+                    ? q(nodeBinary) : nodeBinary;
+            return nodePart + " " + q(npmCli) + " " + installArgs;
+        }
+        if (isExecutableOnPath("npm")) {
+            return "npm " + installArgs;
+        }
+        return null;
+    }
+
+    /** @return absolute path to portable {@code npm-cli.js}, or {@code null} when unavailable. */
+    private static String getNpmCliJsPath() {
+        String base = NODEJS_CACHE_DIR + getNodeJsFolderName() + File.separator;
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return base + "node_modules" + File.separator + "npm" + File.separator
+                    + "bin" + File.separator + "npm-cli.js";
+        }
+        return base + "lib" + File.separator + "node_modules" + File.separator + "npm"
+                + File.separator + "bin" + File.separator + "npm-cli.js";
     }
 
     /**
