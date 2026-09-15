@@ -1221,3 +1221,4 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.absorb-open-scaffold-prs-before-stacking-host-parity-follow-ons","timestamp":"2026-09-14T23:36:35+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.auto-upgrade-recognized-ce-owned-marker-spans-on-install","timestamp":"2026-09-15T06:21:10+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.grok-hook-trust-is-host-gated-sync-advisory-not-install-recovery","timestamp":"2026-09-15T06:21:11+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.repository-install-must-sync-overlay-from-local-source-before-doctor","timestamp":"2026-09-15T07:07:00+03:00"}

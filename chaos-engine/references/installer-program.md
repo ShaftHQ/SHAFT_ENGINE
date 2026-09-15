@@ -158,6 +158,16 @@ Doctor after a handoff may still report `hooks` / `mcps` / instruction files
 as not yet healthy. That is expected until the agent finishes the prompt.
 `fix-next` must name the handoff file, not "reinstall".
 
+Repository overlay SOURCE sync (not host-file merge): on checkouts where
+`chaos-engine/skills/chaos-engine/SKILL.md` is present, after core
+install/rematerialize and once during doctor before flipping
+`overlay-source-mismatch`, deterministically copy `owned_source_files()`
+from local `chaos-engine/` → `.chaos-engine/` (byte-identical) and rewrite
+overlay `manifest.json` `files` digests. Only if heal is still impossible:
+write `.chaos-engine-state/overlay-handoff.md` and print one backtick-wrapped
+agentic prompt (same UX as merge-handoff; no bare "Reinstall…" fixNext).
+Adopter projects (no SOURCE) are unchanged. Cite #5795 / product #5794.
+
 ## Install guide
 
 Human path. Python is not required before the wrapper.
