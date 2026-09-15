@@ -200,7 +200,8 @@ class InstallerUxTests(unittest.TestCase):
     def test_narrow_width_uses_brand_narrow(self):
         lines = BOOTSTRAP.brand_lines(width=27, color=False, unicode=False)
         self.assertEqual(list(BOOTSTRAP.BRAND_NARROW), lines)
-        self.assertIn("/C|*|E/", "\n".join(lines))
+        self.assertIn("C|*|Ǝ", "\n".join(lines))
+        self.assertNotIn("/", lines[0])
         self.assertNotEqual(
             BOOTSTRAP.brand_lines(width=27, color=False, unicode=False),
             BOOTSTRAP.brand_lines(width=28, color=False, unicode=False),
@@ -221,7 +222,8 @@ class InstallerUxTests(unittest.TestCase):
             reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
             reporter.close()
         output = stream.getvalue()
-        self.assertIn("/C|*|E/", output)
+        self.assertIn("C|*|Ǝ", output)
+        self.assertNotIn("/C|", output)
         self.assertIn("ChaosEngine", output)
 
     def test_wide_brands_use_reversed_e_and_keep_red_core(self):
@@ -241,7 +243,10 @@ class InstallerUxTests(unittest.TestCase):
                 for line, bar in zip(lines[:5], bars):
                     self.assertIn(bar, line)
                 self.assertIn(BOOTSTRAP.CYBERNETIC_RED, colored)
-                self.assertIn("/C|*|E/", "\n".join(BOOTSTRAP.brand_lines(width=27, color=False)))
+                self.assertIn("C|*|Ǝ", "\n".join(BOOTSTRAP.brand_lines(width=27, color=False)))
+                plain_wide = "\n".join(lines[:5])
+                self.assertNotIn("/", plain_wide)
+                self.assertNotIn("╱", plain_wide)
 
     def test_download_progress_uses_measured_bytes_and_rolling_rate(self):
         class Tty(io.StringIO):
@@ -806,6 +811,7 @@ class InstallerUxTests(unittest.TestCase):
             self.assertNotIn("Current action: Download bootstrap", document)
             self.assertIn("Installing ChaosEngine into", document)
             self.assertNotIn("/C|*|E/", document)
+            self.assertNotIn("C|*|Ǝ", document)
 
     def test_main_emits_stable_actionable_error_codes(self):
         cases = (

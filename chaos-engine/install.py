@@ -2107,16 +2107,17 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                     "installed ChaosEngine distribution differs; uninstall before changing it"
                 )
             if current_commit == commit:
-                if (
-                    not legacy_distribution
-                    and current_distribution.get("policySha256") != policy_digest
-                ):
-                    raise ValueError(
-                        "same commit resolved to a different ChaosEngine distribution policy"
-                    )
-                if current["files"] != ownership:
-                    raise ValueError("same commit resolved to a different ChaosEngine payload")
-                if current["source"] == desired_source:
+                # Identical no-op only when policy + owned payload + provenance
+                # all match. Overlay sync and transport filters can rewrite owned
+                # digests while keeping the same SOURCE commit; rematerialize
+                # from the newly resolved tree instead of fail-closing (#5839).
+                # hostToken is preserved in the publish path below.
+                same_policy = legacy_distribution or (
+                    current_distribution.get("policySha256") == policy_digest
+                )
+                same_payload = current["files"] == ownership
+                same_source = current["source"] == desired_source
+                if same_policy and same_payload and same_source:
                     current_capabilities = current.get("capabilities")
                     current_capability_digest = current.get("capabilityPolicySha256")
                     manifest_changed = False
@@ -2148,8 +2149,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                                 temporary_manifest.unlink()
                     sync_repository_overlay_from_source(project)
                     return target
-                if current["source"].get("kind") != "local":  # type: ignore[union-attr]
-                    raise ValueError("same commit resolved from different ChaosEngine provenance")
+                # Drift at the same commit: fall through to rematerialize.
         if backup.exists():
             require_absent(old_backup, "obsolete backup path")
         stage = Path(tempfile.mkdtemp(prefix=f"{INSTALL_DIRECTORY}-stage-", dir=project))

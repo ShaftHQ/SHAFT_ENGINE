@@ -290,8 +290,6 @@ graphify-out/
 .memory/.backup/
 .memory/.lock
 .memory/private/
-!.chaos-engine/
-!.chaos-engine/**
 .chaos-engine/**/__pycache__/
 !.agents/
 !.agents/plugins/
