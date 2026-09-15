@@ -655,7 +655,11 @@ jobs:
           flutter-version: 3.22.1
           channel: stable
       - name: Setup Android SDK
+        # Default packages include deprecated `tools`, which Google stopped
+        # serving (android-actions/setup-android#537). Request only what we need.
         uses: android-actions/setup-android@v4.0.1
+        with:
+          packages: platform-tools
       - name: Checkout pinned appium-flutter-server demo-app
         uses: actions/checkout@v7.0.1
         with:
@@ -762,11 +766,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
       - name: Download freshly-built Flutter demo-app APK
+        id: download_flutter_demo_apk
+        # Mirror Android_Native: Flutter_Demo_App_Build is continue-on-error, so a
+        # missing artifact must not skip FlutterTest entirely. Fall through to the
+        # checked-in APK when the overnight build did not upload one.
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           name: flutter-demo-apk
           path: ${{ runner.temp }}/flutter-demo-apk
       - name: Wire Flutter demo APK into FlutterTest path
+        if: steps.download_flutter_demo_apk.outcome == 'success'
         run: cp "${{ runner.temp }}/flutter-demo-apk/app-debug.apk" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
