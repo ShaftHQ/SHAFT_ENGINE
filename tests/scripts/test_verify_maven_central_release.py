@@ -9,6 +9,7 @@ import scripts.ci.verify_maven_central_release as verify
 FIXTURE_GOALS = verify.FIXTURE_GOALS
 fixture_commands = verify.fixture_commands
 publication_paths = verify.publication_paths
+allure_cli_publication_paths = verify.allure_cli_publication_paths
 write_settings = verify.write_settings
 
 
@@ -76,6 +77,17 @@ class VerifyMavenCentralReleaseTest(unittest.TestCase):
 
         self.assertEqual(set(verify.JAR_ARTIFACTS), expected_jars)
         self.assertEqual(set(verify.POM_ARTIFACTS), expected_poms)
+
+
+    def test_publication_paths_include_standalone_allure_cli_zip(self):
+        paths = publication_paths("1.2.3")
+        cli_paths = allure_cli_publication_paths()
+        for path in cli_paths:
+            self.assertIn(path, paths)
+        # allure-cli version is independent of the SHAFT release version argument
+        self.assertTrue(any("/allure-cli/" in p and p.endswith(".zip") for p in paths))
+        self.assertTrue(any(p.endswith(".zip.asc") for p in cli_paths))
+        self.assertTrue(any(p.endswith(".pom.asc") for p in cli_paths))
 
     def test_settings_force_the_requested_repository(self):
         with tempfile.TemporaryDirectory() as temp_dir:

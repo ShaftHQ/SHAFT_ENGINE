@@ -22,6 +22,40 @@ JAR_ARTIFACTS = (
     "shaft-mcp", "shaft-cli",
 )
 POM_ARTIFACTS = ("shaft-parent", "shaft-bom", "SHAFT_ENGINE")
+# Standalone zip module versioned with Allure 3, not shaftEngineVersion (#5833).
+ALLURE_CLI_ARTIFACT = "allure-cli"
+ALLURE_CLI_POM = Path("allure-cli/pom.xml")
+
+
+def allure_cli_version(root: Path = ROOT) -> str:
+    """Return allure-cli/<version> from allure-cli/pom.xml (falls back to root property)."""
+    import xml.etree.ElementTree as ET
+    ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+    cli_pom = root / ALLURE_CLI_POM
+    if cli_pom.is_file():
+        version = ET.parse(cli_pom).getroot().findtext("m:version", default="", namespaces=ns)
+        if version and version.strip():
+            return version.strip()
+    root_pom = root / "pom.xml"
+    version = ET.parse(root_pom).getroot().findtext(
+        "m:properties/m:allure.cli.version", default="", namespaces=ns
+    )
+    if not version or not version.strip():
+        raise RuntimeError("Unable to resolve allure.cli.version for Central verification")
+    return version.strip()
+
+
+def allure_cli_publication_paths(cli_version: str | None = None) -> list[str]:
+    """Expected Central paths for the standalone allure-cli zip (+ pom/asc)."""
+    version = cli_version or allure_cli_version()
+    base = f"{GROUP_PATH}/{ALLURE_CLI_ARTIFACT}/{version}/{ALLURE_CLI_ARTIFACT}-{version}"
+    return [
+        f"{base}.pom",
+        f"{base}.pom.asc",
+        f"{base}.zip",
+        f"{base}.zip.asc",
+    ]
+
 FIXTURE_GOALS = {
     "api": "test-compile",
     "combined-modules": "verify",
@@ -44,7 +78,7 @@ def maven_executable(system: str | None = None) -> str:
     raise RuntimeError("Maven executable was not found on PATH.")
 
 
-def publication_paths(version: str) -> list[str]:
+def publication_paths(version: str, *, include_allure_cli: bool = True) -> list[str]:
     paths = []
     for artifact in JAR_ARTIFACTS:
         base = f"{GROUP_PATH}/{artifact}/{version}/{artifact}-{version}"
@@ -56,6 +90,9 @@ def publication_paths(version: str) -> list[str]:
     for artifact in POM_ARTIFACTS:
         base = f"{GROUP_PATH}/{artifact}/{version}/{artifact}-{version}.pom"
         paths.extend((base, f"{base}.asc"))
+    if include_allure_cli:
+        # Version tracks Allure 3; may differ from the SHAFT release version (#5833).
+        paths.extend(allure_cli_publication_paths())
     return paths
 
 
