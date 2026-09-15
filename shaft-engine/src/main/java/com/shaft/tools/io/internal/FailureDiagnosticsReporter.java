@@ -72,7 +72,7 @@ public final class FailureDiagnosticsReporter {
         Redactor redactor = new Redactor();
         Throwable throwable = info == null ? null : info.throwable();
         SourceContext source = FailureTraceReporter.containsSensitiveThrowable(throwable)
-                ? new SourceContext("", "", "", "") : sourceContext(throwable);
+                ? new SourceContext("", "", "", "", "") : sourceContext(throwable);
         List<String> logLines = logLines(logText, redactor);
         List<ArtifactReference> artifactReferences = artifactReferences(attachments, redactor, info);
 
@@ -83,8 +83,8 @@ public final class FailureDiagnosticsReporter {
                 throwable == null ? "" : throwable.getMessage());
         List<Channel> channels = channels(artifactReferences, FailureTraceReporter.shouldAttachTrace(info));
         List<Omitted> omitted = omitted(channels, omittedLogLines(logText, logLines.size()));
-        String fingerprint = sha256(failureType + '|' + source.frame() + '|' + messageShape(failureMessage));
-        String bundleId = sha256(className + '|' + methodName + '|' + failureType + '|' + source.frame()
+        String fingerprint = sha256(failureType + '|' + source.clusterKey() + '|' + messageShape(failureMessage));
+        String bundleId = sha256(className + '|' + methodName + '|' + failureType + '|' + source.clusterKey()
                 + '|' + failureMessage + '|' + fingerprint + '|' + channels.stream()
                 .map(channel -> channel.id() + ':' + channel.status())
                 .reduce((left, right) -> left + ',' + right).orElse(""));
@@ -288,14 +288,16 @@ public final class FailureDiagnosticsReporter {
     private static SourceContext sourceContext(Throwable throwable) {
         StackTraceElement frame = relevantFrame(throwable);
         if (frame == null) {
-            return new SourceContext("", "", "", "");
+            return new SourceContext("", "", "", "", "");
         }
         Path sourceFile = findSourceFile(frame);
+        String clusterKey = frame.getClassName() + "#" + frame.getMethodName();
         if (sourceFile == null) {
-            return new SourceContext(frame.toString(), "", String.valueOf(frame.getLineNumber()), frame.toString());
+            return new SourceContext(frame.toString(), "", String.valueOf(frame.getLineNumber()), frame.toString(),
+                    clusterKey);
         }
         return new SourceContext(frame.toString(), relative(sourceFile), String.valueOf(frame.getLineNumber()),
-                snippet(sourceFile, frame.getLineNumber()));
+                snippet(sourceFile, frame.getLineNumber()), clusterKey);
     }
 
     private static StackTraceElement relevantFrame(Throwable throwable) {
@@ -565,7 +567,7 @@ public final class FailureDiagnosticsReporter {
         return value == null ? "" : value;
     }
 
-    private record SourceContext(String frame, String file, String line, String snippet) {
+    private record SourceContext(String frame, String file, String line, String snippet, String clusterKey) {
     }
 
     private record ArtifactReference(String id, String type, String path) {

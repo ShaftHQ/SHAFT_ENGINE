@@ -67,11 +67,10 @@ public class FailureDiagnosticsReporterTest {
             Assert.assertFalse(json.contains("raw-token"), json);
             Assert.assertFalse(json.contains("raw-cookie"), json);
             Assert.assertFalse(json.contains("raw-password"), json);
-            byte[] zipBytes = FailureDiagnosticsReporter.renderDiagnosticsZip(json);
-            String zipText = new String(zipBytes, java.nio.charset.StandardCharsets.UTF_8);
-            Assert.assertFalse(zipText.contains("raw-token"), zipText);
-            Assert.assertFalse(zipText.contains("raw-cookie"), zipText);
-            Assert.assertFalse(zipText.contains("raw-password"), zipText);
+            String zipJson = unzipDiagnostics(FailureDiagnosticsReporter.renderDiagnosticsZip(json));
+            Assert.assertFalse(zipJson.contains("raw-token"), zipJson);
+            Assert.assertFalse(zipJson.contains("raw-cookie"), zipJson);
+            Assert.assertFalse(zipJson.contains("raw-password"), zipJson);
         } finally {
             ReportContext.clear();
             Properties.clearForCurrentThread();

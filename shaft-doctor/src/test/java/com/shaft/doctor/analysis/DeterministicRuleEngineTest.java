@@ -198,6 +198,20 @@ class DeterministicRuleEngineTest {
     }
 
     @Test
+    void historicalClusteringReadsFingerprintFromSiblingDiagnosticsItem() {
+        EvidenceItem currentFailure = failure("e-now", "test-now", "message-now");
+        EvidenceItem currentDiagnostics = diagnostics("e-diag-now", "fp-stable");
+        EvidenceItem historicalFailure = failure("e-old", "test-old", "message-old");
+        EvidenceItem historicalDiagnostics = diagnostics("e-diag-old", "fp-stable");
+
+        Diagnosis diagnosis = ENGINE.diagnose(bundle(List.of(currentFailure, currentDiagnostics)),
+                List.of(bundle(List.of(historicalFailure, historicalDiagnostics))));
+
+        assertTrue(diagnosis.findings().stream()
+                .anyMatch(finding -> "historical-signature-correlation".equals(finding.ruleId())));
+    }
+
+    @Test
     void accessibilityFindingsMapSeverityFromViolationCountsAndSkipZeroViolationAudits() {
         EvidenceItem passedAllure = passedAllure("e-passed", "test-ok");
         EvidenceItem healthyAudit = accessibilityAudit("e-a0", "HealthyPage", 0, 0, 0, 0, 0, "");
@@ -306,6 +320,21 @@ class DeterministicRuleEngineTest {
 
     private static EvidenceItem failure(String id, String name, String message) {
         return attempt(id, name, "failed", name, message, 1);
+    }
+
+    private static EvidenceItem diagnostics(String id, String fingerprint) {
+        return new EvidenceItem(
+                id,
+                EvidenceCategory.SHAFT_LOG,
+                "application/json",
+                "",
+                "sha-" + id,
+                8,
+                "{}",
+                false,
+                false,
+                Map.of("diagnostics", "true", "clusterFingerprint", fingerprint),
+                new EvidenceProvenance("shaft-diagnostics-json", "root/" + id + ".json", "sha-" + id));
     }
 
     private static EvidenceItem clusteredFailure(String id, String name, String message, String fingerprint) {
