@@ -122,8 +122,8 @@ public final class SemanticMatchInspector {
                     "Seed locator matched " + seeds.size() + " elements (must be unique): " + seedLocator);
         }
         WebElement target = seeds.get(0);
-        DomSignals signals = readDomSignals(target);
         SearchContext root = driver instanceof WebDriver webDriver ? webDriver : driver;
+        DomSignals signals = readDomSignals(root, target);
         return buildEvidenceFromSignals(signals, strategy -> countSelenium(root, strategy, signals));
     }
 
@@ -244,13 +244,13 @@ public final class SemanticMatchInspector {
         };
     }
 
-    private static DomSignals readDomSignals(WebElement element) {
+    private static DomSignals readDomSignals(SearchContext root, WebElement element) {
         String role = firstNonBlank(attr(element, "role"), implicitRole(element));
         String accessibleName = safe(element.getAccessibleName());
         if (accessibleName.isBlank()) {
             accessibleName = firstNonBlank(attr(element, "aria-label"), attr(element, "title"), safe(element.getText()).trim());
         }
-        String label = attr(element, "aria-label");
+        String label = firstNonBlank(attr(element, "aria-label"), resolveLabelForAssociation(root, element));
         String visibleText = normalize(safe(element.getText()));
         String testId = firstNonBlank(attr(element, "data-testid"), attr(element, "data-test"), attr(element, "data-qa"));
         String id = attr(element, "id");
@@ -259,6 +259,28 @@ public final class SemanticMatchInspector {
         String xpath = id.isBlank() ? "" : "//*[@id=" + xpathLiteral(id) + "]";
         return new DomSignals(role, accessibleName, label, visibleText, testId, id, name, css, xpath,
                 "selenium DOM inspection");
+    }
+
+    /**
+     * Resolves a document-level {@code <label for="id">} association for the target
+     * element (#5835 / parent #5457). Returns empty when the target has no id or no
+     * matching label exists in the search context.
+     */
+    private static String resolveLabelForAssociation(SearchContext root, WebElement element) {
+        String id = attr(element, "id");
+        if (id.isBlank()) {
+            return "";
+        }
+        try {
+            By labelFor = By.cssSelector("label[for=\"" + cssEscape(id) + "\"]");
+            List<WebElement> labels = root.findElements(labelFor);
+            if (labels.isEmpty()) {
+                return "";
+            }
+            return normalize(safe(labels.get(0).getText()));
+        } catch (RuntimeException ignored) {
+            return "";
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -273,12 +295,23 @@ public final class SemanticMatchInspector {
                   const id = attr('id');
                   const name = attr('name');
                   const testId = attr('data-testid') || attr('data-test') || attr('data-qa');
+                  let labelForText = '';
+                  if (id) {
+                    try {
+                      const doc = el.ownerDocument || document;
+                      const safeId = String(id).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                      const lab = doc.querySelector('label[for="' + safeId + '"]');
+                      if (lab) {
+                        labelForText = (lab.innerText || lab.textContent || '').replace(/\s+/g, ' ').trim();
+                      }
+                    } catch (e) { /* ignore */ }
+                  }
                   let accessibleName = ariaLabel || title || text;
                   try {
                     if (el.accessibleName) { accessibleName = el.accessibleName; }
                   } catch (e) { /* ignore */ }
                   return {
-                    role, accessibleName, label: ariaLabel, visibleText: text,
+                    role, accessibleName, label: ariaLabel || labelForText, visibleText: text,
                     testId, id, name,
                     css: id ? ('#' + id) : '',
                     xpath: id ? ("//*[@id='" + id.replace(/'/g, "\\\\'") + "']") : ''

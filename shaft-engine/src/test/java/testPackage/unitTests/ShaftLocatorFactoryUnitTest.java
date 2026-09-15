@@ -1,6 +1,7 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.ShaftLocator;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.By;
 import org.testng.annotations.Test;
@@ -45,6 +46,19 @@ public class ShaftLocatorFactoryUnitTest {
                 AppiumBy.flutterKey("LoginButton"),
                 AppiumBy.flutterType("Scaffold"));
         assertLocatorStrategy(ancestor, "flutterAncestor");
+    }
+
+
+    @Test
+    public void semanticRoleFactoriesReturnNativeShaftLocatorNotXpathBuilder() {
+        ShaftLocator role = SHAFT.GUI.Locator.role("button", "Sign in");
+        org.testng.Assert.assertEquals(role.strategy(), ShaftLocator.Strategy.ROLE);
+        org.testng.Assert.assertEquals(role.value(), "button");
+        org.testng.Assert.assertEquals(role.secondaryValue(), "Sign in");
+
+        ShaftLocator name = SHAFT.GUI.Locator.accessibleName("Email address");
+        org.testng.Assert.assertEquals(name.strategy(), ShaftLocator.Strategy.ACCESSIBLE_NAME);
+        org.testng.Assert.assertEquals(name.value(), "Email address");
     }
 
     private void assertLocatorContains(By locator, String expectedToken) {
