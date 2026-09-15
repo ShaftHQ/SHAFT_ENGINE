@@ -30,36 +30,44 @@ public final class SemanticLocatorResolver {
      */
     public static SemanticLocatorResolution resolve(SemanticElementEvidence evidence) {
         for (SemanticLocatorStrategy strategy : SemanticLocatorStrategy.values()) {
-            Optional<String> expression = expressionFor(evidence, strategy);
-            if (expression.isEmpty()) {
-                continue;
+            Optional<SemanticLocatorResolution> candidate = tryResolveStrategy(evidence, strategy);
+            if (candidate.isPresent()) {
+                return candidate.get();
             }
-            int matchCount = evidence.matchCount(strategy);
-            if (matchCount == 0) {
-                // Signal present in evidence bag but inspection found no matches — skip.
-                continue;
-            }
-            boolean scoped = evidence.scopedIndex().isPresent() || evidence.scopeRoot().isPresent();
-            if (matchCount > 1 && !scoped) {
-                throw new AmbiguousSemanticLocatorException(strategy, expression.get(), matchCount);
-            }
-            By locator = buildLocator(strategy, expression.get(), evidence);
-            double confidence = confidence(strategy, matchCount, scoped, evidence.hasSemanticSignal());
-            // usedSemanticFallback = we had to drop below semantic strategies
-            boolean usedSemanticFallback = !strategy.isSemantic();
-            return new SemanticLocatorResolution(
-                    locator,
-                    strategy,
-                    expression.get(),
-                    confidence,
-                    matchCount,
-                    scoped && matchCount > 1,
-                    usedSemanticFallback,
-                    evidence);
         }
         throw new IllegalArgumentException(
                 "No usable locator signal in evidence (semantic and structural fallbacks empty)."
                         + (evidence.inspectionNotes().isBlank() ? "" : " notes=" + evidence.inspectionNotes()));
+    }
+
+    private static Optional<SemanticLocatorResolution> tryResolveStrategy(
+            SemanticElementEvidence evidence, SemanticLocatorStrategy strategy) {
+        Optional<String> expression = expressionFor(evidence, strategy);
+        if (expression.isEmpty()) {
+            return Optional.empty();
+        }
+        int matchCount = evidence.matchCount(strategy);
+        if (matchCount == 0) {
+            // Signal present in evidence bag but inspection found no matches — skip.
+            return Optional.empty();
+        }
+        boolean scoped = evidence.scopedIndex().isPresent() || evidence.scopeRoot().isPresent();
+        if (matchCount > 1 && !scoped) {
+            throw new AmbiguousSemanticLocatorException(strategy, expression.get(), matchCount);
+        }
+        By locator = buildLocator(strategy, expression.get(), evidence);
+        double confidence = confidence(strategy, matchCount, scoped, evidence.hasSemanticSignal());
+        // usedSemanticFallback = we had to drop below semantic strategies
+        boolean usedSemanticFallback = !strategy.isSemantic();
+        return Optional.of(new SemanticLocatorResolution(
+                locator,
+                strategy,
+                expression.get(),
+                confidence,
+                matchCount,
+                scoped && matchCount > 1,
+                usedSemanticFallback,
+                evidence));
     }
 
     private static Optional<String> expressionFor(SemanticElementEvidence evidence, SemanticLocatorStrategy strategy) {
