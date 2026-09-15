@@ -15,7 +15,8 @@ HOSTS = ROOT / "chaos-engine/hosts.py"
 
 def load():
     spec = importlib.util.spec_from_file_location("hosts_memory_migrate_5845", HOSTS)
-    assert spec is not None and spec.loader is not None
+    if spec is None or spec.loader is None:
+        raise RuntimeError("memory migrate test module could not be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
