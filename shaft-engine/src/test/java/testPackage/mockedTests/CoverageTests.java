@@ -77,12 +77,19 @@ public class CoverageTests {
         waitForDocumentReady();
         driver.get().getDriver().get(testElement);
         waitForDocumentReady();
-        driver.get().getDriver().navigate().back();
-        waitForDocumentReady();
-        driver.get().getDriver().navigate().forward();
-        waitForDocumentReady();
-        driver.get().getDriver().navigate().refresh();
-        waitForDocumentReady();
+        // Safari can hang ~pageLoadTimeout on native goBack/forward/refresh (same class as
+        // #5825 BrowserStack navigate().back). Soft-degrade like window minimize/maximize so
+        // the rest of the native listener proof still runs (#5827).
+        try {
+            driver.get().getDriver().navigate().back();
+            waitForDocumentReady();
+            driver.get().getDriver().navigate().forward();
+            waitForDocumentReady();
+            driver.get().getDriver().navigate().refresh();
+            waitForDocumentReady();
+        } catch (TimeoutException safariNavigation) {
+            waitForDocumentReady();
+        }
         try {
             driver.get().getDriver().manage().window().minimize();
             waitForDocumentReady();

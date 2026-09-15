@@ -83,6 +83,23 @@ public class BrowserActionsHelperCoverageUnitTest {
     }
 
     @Test
+    public void safariNavigateTimeoutShouldFailActionInsteadOfSoftPassing() {
+        // Regression for #5827: classic Safari path must not swallow pageLoadTimeout and
+        // soft-pass; hang proofs (never-respond) require navigateToURL to fail.
+        org.openqa.selenium.safari.SafariDriver safari = mock(org.openqa.selenium.safari.SafariDriver.class,
+                Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebDriver.Navigation safariNavigation = mock(WebDriver.Navigation.class);
+        when(safari.navigate()).thenReturn(safariNavigation);
+        org.mockito.Mockito.doThrow(new TimeoutException("page load timeout"))
+                .when(safariNavigation).to("https://example.com/hang");
+        when(((JavascriptExecutor) safari).executeScript(anyString())).thenReturn("complete");
+
+        Assert.assertThrows(RuntimeException.class,
+                () -> helper.navigateToNewUrl(safari, "about:blank", "https://example.com/hang",
+                        "https://example.com/hang"));
+    }
+
+    @Test
     public void shouldCoverWebsiteDownAndFailureReportingBranches() {
         when(driver.getPageSource()).thenReturn("<html>healthy page</html>", "This site can’t be reached");
 

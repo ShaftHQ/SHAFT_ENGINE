@@ -339,7 +339,15 @@ public class BrowserActionsHelper {
                 try {
                     driver.navigate().to(internalURL);
                 } catch (TimeoutException timeoutException) {
-                    ReportManager.logDiscrete("Safari navigation timed out; waiting for document readiness.", Level.WARN);
+                    // Soft-settling leaves the session usable for evidence, but pageLoadTimeout
+                    // means the navigate action did not complete. Swallowing here made Safari
+                    // Local E2E report passAction for never-respond hang proofs (#5827 / #5528).
+                    ReportManager.logDiscrete(
+                            "Safari navigation timed out; stopping load and failing the navigate action.",
+                            Level.WARN);
+                    tryStopInFlightNavigation(driver);
+                    waitUntilSafariDocumentSettles(driver);
+                    failAction(driver, targetUrl, timeoutException);
                 }
                 waitUntilSafariDocumentSettles(driver);
                 return;

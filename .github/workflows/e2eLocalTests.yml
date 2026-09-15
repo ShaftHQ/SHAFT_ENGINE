@@ -660,7 +660,11 @@ jobs:
           flutter-version: 3.22.1
           channel: stable
       - name: Setup Android SDK
+        # Default packages include deprecated `tools`, which Google stopped
+        # serving (android-actions/setup-android#537). Request only what we need.
         uses: android-actions/setup-android@v4.0.1
+        with:
+          packages: platform-tools
       - name: Flutter emulator preflight
         run: bash scripts/ci/flutter_emulator_preflight.sh
       - name: Checkout pinned appium-flutter-server demo-app
