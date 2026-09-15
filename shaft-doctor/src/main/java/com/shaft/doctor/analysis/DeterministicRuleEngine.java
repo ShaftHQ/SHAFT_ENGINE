@@ -322,13 +322,13 @@ public final class DeterministicRuleEngine {
         Set<String> historical = new LinkedHashSet<>();
         for (EvidenceBundle older : history == null ? List.<EvidenceBundle>of() : history) {
             older.evidence().stream()
-                    .filter(item -> FAILURE_STATUSES.contains(item.attributes().get("status")))
-                    .map(item -> item.attributes().getOrDefault("signature", ""))
+                    .filter(DeterministicRuleEngine::clusterableFailure)
+                    .map(DeterministicRuleEngine::clusteringKey)
                     .filter(signature -> !signature.isBlank())
                     .forEach(historical::add);
         }
         List<EvidenceItem> repeated = failures.stream()
-                .filter(item -> historical.contains(item.attributes().getOrDefault("signature", "")))
+                .filter(item -> historical.contains(clusteringKey(item)))
                 .toList();
         if (!repeated.isEmpty()) {
             findings.add(finding("historical-signature", Finding.Kind.OBSERVATION,
@@ -547,6 +547,16 @@ public final class DeterministicRuleEngine {
 
     private static String stableSuffix(String value) {
         return DoctorHashing.sha256(value.getBytes(StandardCharsets.UTF_8)).substring(0, 16);
+    }
+
+    private static boolean clusterableFailure(EvidenceItem item) {
+        return FAILURE_STATUSES.contains(item.attributes().get("status"))
+                || !item.attributes().getOrDefault("clusterFingerprint", "").isBlank();
+    }
+
+    private static String clusteringKey(EvidenceItem item) {
+        String fingerprint = item.attributes().getOrDefault("clusterFingerprint", "");
+        return fingerprint.isBlank() ? item.attributes().getOrDefault("signature", "") : fingerprint;
     }
 
     private static long start(EvidenceItem item) {

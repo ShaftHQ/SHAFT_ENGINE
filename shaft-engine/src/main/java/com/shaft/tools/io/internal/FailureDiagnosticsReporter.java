@@ -11,10 +11,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -72,13 +76,36 @@ public final class FailureDiagnosticsReporter {
         List<String> logLines = logLines(logText, redactor);
         List<ArtifactReference> artifactReferences = artifactReferences(attachments, redactor, info);
 
+        String className = value(info == null ? null : info.className());
+        String methodName = value(info == null ? null : info.methodName());
+        String failureType = throwable == null ? "" : throwable.getClass().getName();
+        String failureMessage = FailureTraceReporter.redactThrowableText(throwable,
+                throwable == null ? "" : throwable.getMessage());
+        List<Channel> channels = channels(artifactReferences, FailureTraceReporter.shouldAttachTrace(info));
+        List<Omitted> omitted = omitted(channels, omittedLogLines(logText, logLines.size()));
+        String fingerprint = sha256(failureType + '|' + source.frame() + '|' + messageShape(failureMessage));
+        String bundleId = sha256(className + '|' + methodName + '|' + failureType + '|' + source.frame()
+                + '|' + failureMessage + '|' + fingerprint + '|' + channels.stream()
+                .map(channel -> channel.id() + ':' + channel.status())
+                .reduce((left, right) -> left + ',' + right).orElse(""));
+        String captureSessionId = captureSessionId(attachments, redactor);
+
         StringBuilder json = new StringBuilder();
         json.append("{\n");
-        numberField(json, 1, "schemaVersion", 1, true);
+        numberField(json, 1, "schemaVersion", 2, true);
         stringField(json, 1, "generatedAt", Instant.now().toString(), true, redactor);
+        objectStart(json, 1, "correlation");
+        stringField(json, 2, "runId", value(info == null ? null : info.stableId()), true, redactor);
+        stringField(json, 2, "bundleId", bundleId, true, null);
+        stringField(json, 2, "captureSessionId", captureSessionId, false, null);
+        objectEnd(json, 1, true);
+        objectStart(json, 1, "provenance");
+        stringField(json, 2, "adapter", "shaft-engine-failure-diagnostics", true, null);
+        stringField(json, 2, "sourceReference", "allure-attachment/shaft-diagnostics.zip", false, null);
+        objectEnd(json, 1, true);
         objectStart(json, 1, "test");
-        stringField(json, 2, "className", value(info == null ? null : info.className()), true, redactor);
-        stringField(json, 2, "methodName", value(info == null ? null : info.methodName()), true, redactor);
+        stringField(json, 2, "className", className, true, redactor);
+        stringField(json, 2, "methodName", methodName, true, redactor);
         stringField(json, 2, "displayName", value(info == null ? null : info.displayName()), true, redactor);
         stringField(json, 2, "description", value(info == null ? null : info.description()), true, redactor);
         numberField(json, 2, "retryAttempt", info != null && info.retried() ? 1 : 0, true);
@@ -87,9 +114,8 @@ public final class FailureDiagnosticsReporter {
         objectEnd(json, 1, true);
         objectStart(json, 1, "failure");
         stringField(json, 2, "status", status(), true, redactor);
-        stringField(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true, redactor);
-        stringField(json, 2, "message", FailureTraceReporter.redactThrowableText(throwable,
-                throwable == null ? "" : throwable.getMessage()), true, redactor);
+        stringField(json, 2, "type", failureType, true, redactor);
+        stringField(json, 2, "message", failureMessage, true, redactor);
         stringField(json, 2, "stacktrace", FailureTraceReporter.redactThrowableText(throwable,
                 ReportManagerHelper.formatStackTraceToLogEntry(throwable)), true, redactor);
         stringField(json, 2, "topProjectFrame", source.frame(), true, redactor);
@@ -117,6 +143,11 @@ public final class FailureDiagnosticsReporter {
         objectEnd(json, 1, true);
         stringArray(json, 1, "logs", logLines, true, redactor);
         artifacts(json, 1, artifactReferences, true);
+        writeChannels(json, 1, channels, true);
+        writeOmitted(json, 1, omitted, true);
+        objectStart(json, 1, "cluster");
+        stringField(json, 2, "fingerprint", fingerprint, false, null);
+        objectEnd(json, 1, true);
         stringArray(json, 1, "nextCommands", List.of(
                 "shaft-doctor analyze --input allure-results --allowed-root . --output-dir target/shaft-doctor",
                 "doctor_analyze_failed_allure(allureResultPaths=[\"allure-results\"])"), true, redactor);
@@ -388,6 +419,113 @@ public final class FailureDiagnosticsReporter {
         json.append("]").append(comma ? "," : "").append("\n");
     }
 
+    private static List<Channel> channels(List<ArtifactReference> references, boolean traceAttached) {
+        boolean screenshot = hasArtifact(references, ".png", ".gif", ".jpg", ".jpeg", ".webp");
+        boolean network = hasArtifact(references, ".har", "network");
+        boolean console = hasArtifact(references, "console");
+        return List.of(
+                new Channel("framework", "present", ""),
+                channel("browser", traceAttached, traceAttached ? "" : "partial-capture"),
+                channel("network", network, network ? "" : "partial-capture"),
+                channel("console", console, console ? "" : "partial-capture"),
+                channel("screenshot", screenshot, screenshot ? "" : "partial-capture"),
+                channel("agent-action", traceAttached, traceAttached ? "" : "partial-capture"));
+    }
+
+    private static Channel channel(String id, boolean present, String omittedReason) {
+        return present ? new Channel(id, "present", "") : new Channel(id, "omitted", omittedReason);
+    }
+
+    private static boolean hasArtifact(List<ArtifactReference> references, String... needles) {
+        for (ArtifactReference reference : references) {
+            String path = reference.path().toLowerCase(Locale.ROOT);
+            for (String needle : needles) {
+                if (path.contains(needle)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static List<Omitted> omitted(List<Channel> channels, int omittedLogLines) {
+        List<Omitted> omitted = new ArrayList<>();
+        for (Channel channel : channels) {
+            if ("omitted".equals(channel.status())) {
+                omitted.add(new Omitted(channel.id(), channel.reason()));
+            }
+        }
+        if (omittedLogLines > 0) {
+            omitted.add(new Omitted("logs", "budget"));
+        }
+        return List.copyOf(omitted);
+    }
+
+    private static String captureSessionId(List<String> attachments, Redactor redactor) {
+        if (attachments == null) {
+            return "";
+        }
+        for (String attachment : attachments) {
+            if (attachment != null && attachment.toLowerCase(Locale.ROOT).contains("capture")
+                    && attachment.toLowerCase(Locale.ROOT).endsWith(".json")) {
+                return redactor.redact(Path.of(attachment).getFileName().toString());
+            }
+        }
+        return "";
+    }
+
+    private static String messageShape(String message) {
+        return value(message).toLowerCase(Locale.ROOT)
+                .replaceAll("0x[0-9a-f]+", "<hex>")
+                .replaceAll("\\b\\d+\\b", "<n>")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private static String sha256(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable.", exception);
+        }
+    }
+
+    private static void writeChannels(
+            StringBuilder json,
+            int indent,
+            List<Channel> channels,
+            boolean comma) {
+        indent(json, indent).append("\"channels\": [");
+        for (int i = 0; i < channels.size(); i++) {
+            Channel channel = channels.get(i);
+            if (i > 0) {
+                json.append(", ");
+            }
+            json.append("{\"id\": \"").append(escapeJson(channel.id())).append("\", ")
+                    .append("\"status\": \"").append(escapeJson(channel.status())).append("\", ")
+                    .append("\"reason\": \"").append(escapeJson(channel.reason())).append("\"}");
+        }
+        json.append("]").append(comma ? "," : "").append("\n");
+    }
+
+    private static void writeOmitted(
+            StringBuilder json,
+            int indent,
+            List<Omitted> omitted,
+            boolean comma) {
+        indent(json, indent).append("\"omitted\": [");
+        for (int i = 0; i < omitted.size(); i++) {
+            Omitted item = omitted.get(i);
+            if (i > 0) {
+                json.append(", ");
+            }
+            json.append("{\"id\": \"").append(escapeJson(item.id())).append("\", ")
+                    .append("\"reason\": \"").append(escapeJson(item.reason())).append("\"}");
+        }
+        json.append("]").append(comma ? "," : "").append("\n");
+    }
+
     private static void artifacts(
             StringBuilder json,
             int indent,
@@ -431,6 +569,12 @@ public final class FailureDiagnosticsReporter {
     }
 
     private record ArtifactReference(String id, String type, String path) {
+    }
+
+    private record Channel(String id, String status, String reason) {
+    }
+
+    private record Omitted(String id, String reason) {
     }
 
     static final class Redactor {

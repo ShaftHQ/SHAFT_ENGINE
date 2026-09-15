@@ -48,16 +48,70 @@ public class FailureDiagnosticsReporterTest {
                             info("failingScenario", failure()),
                             "Authorization: Bearer raw-token\ncookie: session=raw-cookie\npassword=raw-password",
                             List.of("target/raw-secret-video.mp4"))));
-            Assert.assertTrue(json.contains("\"schemaVersion\": 1"), json);
+            Assert.assertTrue(json.contains("\"schemaVersion\": 2"), json);
             Assert.assertTrue(json.contains("\"className\": \"customer.LoginTest\""), json);
             Assert.assertTrue(json.contains("\"status\": \"failed\""), json);
             Assert.assertTrue(json.contains("\"topProjectFrame\": \"customer.LoginTest.failingScenario(LoginTest.java:27)\""), json);
             Assert.assertTrue(json.contains("\"path\": \"shaft-trace.zip\""), json);
             Assert.assertFalse(json.contains("\"trace-report\""), json);
             Assert.assertTrue(json.contains("\"authorization-header\""), json);
+            Assert.assertTrue(json.contains("\"runId\": \"id-failingScenario\""), json);
+            Assert.assertTrue(json.contains("\"adapter\": \"shaft-engine-failure-diagnostics\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"framework\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"browser\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"network\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"console\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"screenshot\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"agent-action\""), json);
+            Assert.assertTrue(json.contains("\"fingerprint\": \""), json);
             Assert.assertFalse(json.contains("raw-token"), json);
             Assert.assertFalse(json.contains("raw-cookie"), json);
             Assert.assertFalse(json.contains("raw-password"), json);
+            byte[] zipBytes = FailureDiagnosticsReporter.renderDiagnosticsZip(json);
+            String zipText = new String(zipBytes, java.nio.charset.StandardCharsets.UTF_8);
+            Assert.assertFalse(zipText.contains("raw-token"), zipText);
+            Assert.assertFalse(zipText.contains("raw-cookie"), zipText);
+            Assert.assertFalse(zipText.contains("raw-password"), zipText);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Cluster fingerprint and bundleId stay stable when generatedAt would differ")
+    public void clusterFingerprintIsStableAcrossRenders() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(true).traceEnabled(false);
+            ReportContext.start(info("failingScenario", failure()));
+            ReportContext.setStatus(Status.FAILED);
+            String first = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("failingScenario", failure()), "line-1\nline-2", List.of("target/fail.png"));
+            String second = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("failingScenario", failure()), "line-1\nline-2", List.of("target/fail.png"));
+            Assert.assertEquals(field(first, "fingerprint"), field(second, "fingerprint"));
+            Assert.assertEquals(field(first, "bundleId"), field(second, "bundleId"));
+            Assert.assertTrue(first.contains("\"status\": \"present\"") && first.contains("\"id\": \"screenshot\""), first);
+            Assert.assertTrue(first.contains("\"reason\": \"partial-capture\""), first);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Omitted log lines are recorded instead of treated as complete")
+    public void omittedLogLinesAreRecorded() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(true);
+            ReportContext.start(info("failingScenario", failure()));
+            ReportContext.setStatus(Status.FAILED);
+            StringBuilder log = new StringBuilder();
+            for (int i = 0; i < 201; i++) {
+                log.append("log-line-").append(i).append('\n');
+            }
+            String json = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("failingScenario", failure()), log.toString(), List.of());
+            Assert.assertTrue(json.contains("\"logLinesOmitted\": 1"), json);
+            Assert.assertTrue(json.contains("\"reason\": \"budget\""), json);
         } finally {
             ReportContext.clear();
             Properties.clearForCurrentThread();
@@ -150,6 +204,15 @@ public class FailureDiagnosticsReporterTest {
             }
         }
         throw new AssertionError("diagnostics.json was not present in shaft-diagnostics.zip");
+    }
+
+    private static String field(String json, String key) {
+        String needle = "\"" + key + "\": \"";
+        int start = json.indexOf(needle);
+        Assert.assertTrue(start >= 0, key + " missing in " + json);
+        start += needle.length();
+        int end = json.indexOf('"', start);
+        return json.substring(start, end);
     }
 
     private static List<Attachment> attachments() {

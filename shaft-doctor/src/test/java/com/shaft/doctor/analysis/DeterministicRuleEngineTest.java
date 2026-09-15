@@ -186,6 +186,18 @@ class DeterministicRuleEngineTest {
     }
 
     @Test
+    void historicalClusteringUsesClusterFingerprintOverMessageSignature() {
+        EvidenceItem currentFailure = clusteredFailure("e-now", "test-now", "message-now", "fp-stable");
+        EvidenceItem historicalFailure = clusteredFailure("e-old", "test-old", "message-old", "fp-stable");
+
+        Diagnosis diagnosis = ENGINE.diagnose(bundle(List.of(currentFailure)),
+                List.of(bundle(List.of(historicalFailure))));
+
+        assertTrue(diagnosis.findings().stream()
+                .anyMatch(finding -> "historical-signature-correlation".equals(finding.ruleId())));
+    }
+
+    @Test
     void accessibilityFindingsMapSeverityFromViolationCountsAndSkipZeroViolationAudits() {
         EvidenceItem passedAllure = passedAllure("e-passed", "test-ok");
         EvidenceItem healthyAudit = accessibilityAudit("e-a0", "HealthyPage", 0, 0, 0, 0, 0, "");
@@ -294,6 +306,15 @@ class DeterministicRuleEngineTest {
 
     private static EvidenceItem failure(String id, String name, String message) {
         return attempt(id, name, "failed", name, message, 1);
+    }
+
+    private static EvidenceItem clusteredFailure(String id, String name, String message, String fingerprint) {
+        EvidenceItem base = attempt(id, name, "failed", name, message, 1);
+        java.util.HashMap<String, String> attributes = new java.util.HashMap<>(base.attributes());
+        attributes.put("clusterFingerprint", fingerprint);
+        return new EvidenceItem(base.id(), base.category(), base.mediaType(), base.relativePath(),
+                base.sha256(), base.sizeBytes(), base.content(), base.redacted(), base.truncated(),
+                attributes, base.provenance());
     }
 
     private static EvidenceItem attempt(
