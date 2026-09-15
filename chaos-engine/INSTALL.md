@@ -363,6 +363,10 @@ reference profile. Local/CI fixture helper:
 If doctor is not healthy, follow every `fix-next` line, then open a GitHub
 issue and paste the full doctor output (including fix-next lines).
 
+## Self-heal (official install paths)
+
+Required third-party companions, dependencies, skills, and MCPs are **self-healed** by the ChaosEngine installer/doctor using each item's official install or CE vendor publish path (not ad-hoc workarounds). If deterministic heal is impossible, doctor writes an agentic handoff with the exact official command. Policy: [#5811](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5811).
+
 ## Troubleshooting
 
 ### `status` healthy but `doctor` unhealthy (false-healthy)

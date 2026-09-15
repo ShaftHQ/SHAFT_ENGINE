@@ -83,3 +83,37 @@ class CompanionPolicyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompanionHealTests(unittest.TestCase):
+    def test_rematerialize_companions_from_vendor(self):
+        hosts = load(ROOT / "chaos-engine/hosts.py", "hosts_heal_5806")
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            result = hosts.rematerialize_companions(project)
+            self.assertEqual(result["status"], "healthy")
+            self.assertTrue(
+                (project / "plugins/caveman/skills/caveman/SKILL.md").is_file()
+            )
+            self.assertTrue(
+                (project / "plugins/ponytail/skills/ponytail/SKILL.md").is_file()
+            )
+
+    def test_doctor_self_heals_missing_companion(self):
+        install = load(ROOT / "chaos-engine/install.py", "install_heal_5806")
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            # Minimal bundle options default-on
+            state = project / ".chaos-engine-state"
+            state.mkdir(parents=True)
+            result = {"status": "healthy", "components": {}}
+            install.apply_companion_and_identity_doctor(result, project)
+            self.assertEqual(
+                result["components"]["companion-caveman"]["status"], "healthy"
+            )
+            self.assertEqual(
+                result["components"]["companion-ponytail"]["status"], "healthy"
+            )
+            self.assertTrue(
+                (project / "plugins/caveman/skills/caveman/SKILL.md").is_file()
+            )

@@ -4170,7 +4170,7 @@ def apply_grok_lean_doctor(result: dict, project: Path) -> None:
         hosts["grokSkillDedupe"] = dedupe
 
 def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
-    """Doctor: missing Caveman/Ponytail without opt-out; heal identity.md (#5806/#5807)."""
+    """Doctor: self-heal companions + identity via official CE publish paths (#5806/#5807/#5811)."""
     import importlib.util as _ilu
 
     components = result.get("components")
@@ -4178,6 +4178,32 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
         components = {}
         result["components"] = components
     bundle = read_bundle_options(project)
+    missing_enabled: list[str] = []
+    for name, rel in (
+        ("caveman", "plugins/caveman/skills/caveman/SKILL.md"),
+        ("ponytail", "plugins/ponytail/skills/ponytail/SKILL.md"),
+    ):
+        enabled = bool(bundle.get(name, True))
+        present = (project / rel).is_file()
+        if enabled and not present:
+            missing_enabled.append(name)
+
+    healed: dict[str, object] = {}
+    if missing_enabled:
+        # Official CE companion install = rematerialize vendor pins (same bytes as install).
+        hosts_path = Path(__file__).resolve().with_name("hosts.py")
+        if hosts_path.is_file():
+            spec = _ilu.spec_from_file_location("ce_hosts_companion_heal", hosts_path)
+            if spec is not None and spec.loader is not None:
+                hosts_mod = _ilu.module_from_spec(spec)
+                try:
+                    spec.loader.exec_module(hosts_mod)
+                    healed = hosts_mod.rematerialize_companions(
+                        project, names=tuple(missing_enabled)
+                    )
+                except (OSError, ValueError, AttributeError) as error:
+                    healed = {"status": "failed", "error": str(error), "missing": missing_enabled}
+
     for name, rel in (
         ("caveman", "plugins/caveman/skills/caveman/SKILL.md"),
         ("ponytail", "plugins/ponytail/skills/ponytail/SKILL.md"),
@@ -4185,27 +4211,72 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
         enabled = bool(bundle.get(name, True))
         present = (project / rel).is_file()
         key = f"companion-{name}"
-        if enabled and not present:
-            components[key] = {
-                "status": "absent",
-                "taskImpact": "required",
-                "detail": f"{name}-missing-for-implementation",
-                "fixNext": (
-                    f"Rerun install/repair without --without-{name}, or repair "
-                    f"component plugins so {rel} exists. Implementation entrypoints "
-                    "require Caveman+Ponytail at ultra (#5806)."
-                ),
-            }
-            if result.get("status") == "healthy":
-                result["status"] = "recovery-required"
-        elif not enabled:
+        if not enabled:
             components[key] = {
                 "status": "absent",
                 "taskImpact": "optional",
                 "detail": f"{name}-disabled-by-bundle",
             }
-        else:
-            components[key] = {"status": "healthy", "taskImpact": "required"}
+            continue
+        if present:
+            detail = f"{name}-healthy"
+            if name in missing_enabled and healed.get("status") == "healthy":
+                detail = f"{name}-self-healed-from-vendor"
+            components[key] = {
+                "status": "healthy",
+                "taskImpact": "required",
+                "detail": detail,
+            }
+            continue
+        # Heal failed — agentic handoff with official install command, not bare doctor choreography.
+        doctor = "python3 .chaos-engine/install.py doctor --project ."
+        repair = "python3 .chaos-engine/install.py repair --project . --component plugins"
+        oneliner = (
+            'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/'
+            'chaos-engine/install.sh" | bash -s -- '
+            '"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
+        )
+        handoff_dir = project / ".chaos-engine-state"
+        handoff_dir.mkdir(parents=True, exist_ok=True)
+        handoff = handoff_dir / "companion-handoff.md"
+        prompt = (
+            f"Heal ChaosEngine companion `{name}` using the official CE installer path. "
+            f"From the project root run `{repair}` (preferred) or the install one-liner "
+            f"`{oneliner}` without `--without-{name}`. Then run `{doctor}`. "
+            f"Do not invent an alternate installer. See #5811."
+        )
+        try:
+            handoff.write_text(
+                "\n".join(
+                    [
+                        "# Companion handoff",
+                        "",
+                        f"- Missing: `{rel}`",
+                        f"- Official repair: `{repair}`",
+                        f"- Official install one-liner: `{oneliner}`",
+                        "",
+                        "Pasteable agent prompt:",
+                        "",
+                        f"`{prompt}`",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+        components[key] = {
+            "status": "sync-advisory",
+            "taskImpact": "required",
+            "detail": f"{name}-missing-after-heal-attempt",
+            "fixNext": (
+                f"Complete companion heal using .chaos-engine-state/companion-handoff.md "
+                f"(official repair/install), then rerun doctor. (#5806/#5811)"
+            ),
+            "agentPrompt": prompt,
+        }
+        # Keep overall status advisory when heal attempted; do not force recovery-required
+        # when an official install path is documented for the operator/agent.
 
     identity_path = Path(__file__).resolve().with_name("identity_md.py")
     if identity_path.is_file():
