@@ -128,6 +128,47 @@ def rematerialize_companions(
     return hosts.rematerialize_companions(project, names=names)
 
 
+
+def _call_repair_component(
+    repair_fn: Callable[..., dict[str, object]],
+    project: Path,
+    name: str,
+    *,
+    runner=None,
+) -> dict[str, object] | object:
+    """Invoke repair_component; never let TypeError escape as a doctor crash."""
+    kwargs = {}
+    if runner is not None:
+        kwargs["runner"] = runner
+    try:
+        return repair_fn(Path(project).resolve(), name, **kwargs)
+    except TypeError as type_error:
+        # Signature mismatch only — subprocess TypeError must not be retried naked.
+        if kwargs and "unexpected keyword" in str(type_error).lower():
+            try:
+                return repair_fn(Path(project).resolve(), name)
+            except Exception as error:  # noqa: BLE001
+                return {
+                    "status": "failed",
+                    "item": name,
+                    "officialCommand": official_command_for(name),
+                    "error": f"{type(error).__name__}: {error}",
+                }
+        return {
+            "status": "failed",
+            "item": name,
+            "officialCommand": official_command_for(name),
+            "error": f"{type(type_error).__name__}: {type_error}",
+        }
+    except Exception as error:  # noqa: BLE001 - surface as heal failure for handoff
+        return {
+            "status": "failed",
+            "item": name,
+            "officialCommand": official_command_for(name),
+            "error": f"{type(error).__name__}: {error}",
+        }
+
+
 def heal_bundle_tool(
     project: Path,
     name: str,
@@ -140,21 +181,9 @@ def heal_bundle_tool(
         raise ValueError(f"not a bundle tool item: {name}")
     install = _install_module()
     repair_fn = repair or install.repair_component
-    kwargs = {}
-    if runner is not None:
-        kwargs["runner"] = runner
-    try:
-        result = repair_fn(Path(project).resolve(), name, **kwargs)
-    except TypeError:
-        # Older repair_component signatures omit runner.
-        result = repair_fn(Path(project).resolve(), name)
-    except Exception as error:  # noqa: BLE001 - surface as heal failure for handoff
-        return {
-            "status": "failed",
-            "item": name,
-            "officialCommand": official_command_for(name),
-            "error": f"{type(error).__name__}: {error}",
-        }
+    result = _call_repair_component(repair_fn, project, name, runner=runner)
+    if isinstance(result, dict) and result.get("status") == "failed" and "error" in result:
+        return result
     status = "healed"
     if isinstance(result, dict) and result.get("status") not in {None, "repaired", "healed"}:
         status = "failed"
@@ -178,20 +207,9 @@ def heal_repair_component(
         raise ValueError(f"not a repair-component heal item: {name}")
     install = _install_module()
     repair_fn = repair or install.repair_component
-    kwargs = {}
-    if runner is not None:
-        kwargs["runner"] = runner
-    try:
-        result = repair_fn(Path(project).resolve(), name, **kwargs)
-    except TypeError:
-        result = repair_fn(Path(project).resolve(), name)
-    except Exception as error:  # noqa: BLE001
-        return {
-            "status": "failed",
-            "item": name,
-            "officialCommand": official_command_for(name),
-            "error": f"{type(error).__name__}: {error}",
-        }
+    result = _call_repair_component(repair_fn, project, name, runner=runner)
+    if isinstance(result, dict) and result.get("status") == "failed" and "error" in result:
+        return result
     status = "healed"
     if isinstance(result, dict) and result.get("status") not in {None, "repaired", "healed"}:
         status = "failed"

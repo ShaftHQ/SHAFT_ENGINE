@@ -54,7 +54,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 
 ## Official self-heal (#5811)
 
-Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in `official_self_heal.py` + `INSTALL.md`. Opt-out `--without-*` stays off. Parent epic: #5803.
+Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in [`official_self_heal.py`](../official_self_heal.py) + [`INSTALL.md`](../INSTALL.md). Opt-out `--without-*` stays off. Parent epic: #5803.
 
 ## How to refresh
 

@@ -294,7 +294,8 @@ and keeps Caveman on. Disable only with flags (combinable):
 
 Doctor heals **required** third-party / bundle items by running each item's
 **official install command** (or CE's bundled vendor publish when CE vendors the
-bytes). Deterministic first; if heal is impossible, doctor writes a pasteable
+bytes). Implementation: [`official_self_heal.py`](official_self_heal.py).
+Deterministic first; if heal is impossible, doctor writes a pasteable
 handoff under `.chaos-engine-state/` with the exact official command — never a
 bare "rerun doctor".
 

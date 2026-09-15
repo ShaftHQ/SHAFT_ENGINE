@@ -4490,7 +4490,7 @@ def doctor_with_dependencies(
                     bundle=read_bundle_options(project.resolve()),
                 )
                 _mod.apply_official_self_heal_fix_next(project.resolve(), components)
-    except (OSError, RuntimeError, ValueError, AttributeError, ImportError):
+    except (OSError, RuntimeError, ValueError, AttributeError, ImportError, TypeError):
         # Optional #5689/#5811 probes; missing helpers must not crash doctor.
         pass
     if not verify_clients:
