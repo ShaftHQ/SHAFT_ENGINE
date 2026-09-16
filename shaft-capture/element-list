@@ -1,6 +1,7 @@
 com.shaft.capture.cli
 com.shaft.capture.collector
 com.shaft.capture.control
+com.shaft.capture.coverage
 com.shaft.capture.format
 com.shaft.capture.generate
 com.shaft.capture.generate.api

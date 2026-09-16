@@ -1,6 +1,7 @@
 com.shaft.api
 com.shaft.api.internal
 com.shaft.cli
+com.shaft.coverage.journey
 com.shaft.cucumber
 com.shaft.db
 com.shaft.driver
