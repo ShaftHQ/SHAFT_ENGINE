@@ -33,6 +33,15 @@ more. Seed list absorbed from #5864 (2026-09-16 process-owner wave with
   `omniroute run`, record an explicit OmniRoute blocker or
   `RUNTIME_EXHAUSTED` and continue on a qualified native path when the adopter
   allows fallback. Do not infinite-probe.
+- **Local `/docs` is a SPA.** `http://127.0.0.1:20128/docs` returns HTTP 200
+  while serve is up, but durable text for study comes from OpenAPI
+  (`/openapi.yaml`), `omniroute --help` / subcommand help, and upstream guide
+  markdown (CLI-Integrations, Auto-Combo, Remote-Mode) aligned to the installed
+  version — not from scraping the empty shell HTML alone.
+- **Skill byte budget applies to OmniRoute `SKILL.md` too.**
+  `validate_agent_setup` enforces ≤20000 bytes on portable skill bodies
+  including `chaos-engine/skills/omniroute/SKILL.md`. Prefer references for
+  long continuity / lessons / study notes.
 
 ## How to append
 
