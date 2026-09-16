@@ -51,15 +51,16 @@ public final class StableIdentity {
     }
 
     private static String stripQueryAndFragment(String value) {
-        int query = value.indexOf('?');
+        String withoutQuery = value;
+        int query = withoutQuery.indexOf('?');
         if (query >= 0) {
-            value = value.substring(0, query);
+            withoutQuery = withoutQuery.substring(0, query);
         }
-        int hash = value.indexOf('#');
+        int hash = withoutQuery.indexOf('#');
         if (hash >= 0) {
-            value = value.substring(0, hash);
+            withoutQuery = withoutQuery.substring(0, hash);
         }
-        return value;
+        return withoutQuery;
     }
 
     private static String parameterizePath(String value) {
