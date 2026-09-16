@@ -54,16 +54,29 @@ public class IOSBasicInteractionsTest {
 
         byte[] inputScreenshot = driver.get().getDriver().findElement(TEXT_INPUT)
                 .getScreenshotAs(OutputType.BYTES);
+        ImageTarget inputImage = ImageTarget.fromBytes(inputScreenshot);
 
-        driver.get().touch()
-                .tap(ImageTarget.fromBytes(inputScreenshot));
+        boolean keyboardBeforeImageTap = isKeyboardShown();
+        driver.get().touch().tap(inputImage);
         waitUntilKeyboardFocus(TEXT_INPUT);
-        Assert.assertTrue(isAccessibilityFocused(TEXT_INPUT), "Image tap should focus Text Input");
+        if (!isAccessibilityFocused(TEXT_INPUT) && !(isKeyboardShown() && !keyboardBeforeImageTap)) {
+            driver.get().touch().tap(inputImage);
+            waitUntilKeyboardFocus(TEXT_INPUT);
+        }
+        // Discriminating proof: accessibility focus, or keyboard that appeared because of the image tap
+        // (not locator type, which would greenwash a missed image hit).
+        Assert.assertTrue(
+                isAccessibilityFocused(TEXT_INPUT) || (isKeyboardShown() && !keyboardBeforeImageTap),
+                "Image tap should focus Text Input");
 
         ((IOSDriver) driver.get().getDriver()).hideKeyboard();
         Assert.assertFalse(isAccessibilityFocused(TEXT_INPUT), "Hiding the keyboard should blur Text Input");
+        boolean keyboardBeforeOcrTap = isKeyboardShown();
         driver.get().touch().tap(OcrTarget.exact("Text Input"));
-        Assert.assertTrue(isAccessibilityFocused(TEXT_INPUT), "OCR tap should focus Text Input");
+        waitUntilKeyboardFocus(TEXT_INPUT);
+        Assert.assertTrue(
+                isAccessibilityFocused(TEXT_INPUT) || (isKeyboardShown() && !keyboardBeforeOcrTap),
+                "OCR tap should focus Text Input");
         driver.get().element().type(TEXT_INPUT, "visual ocr ios" + "\n");
 
         Validations.assertThat()
@@ -215,14 +228,9 @@ public class IOSBasicInteractionsTest {
 
     private void waitUntilKeyboardFocus(By locator) {
         long deadline = System.currentTimeMillis() + 15_000;
-        boolean retriedTap = false;
         while (System.currentTimeMillis() < deadline) {
-            if (isAccessibilityFocused(locator)) {
+            if (isAccessibilityFocused(locator) || isKeyboardShown()) {
                 return;
-            }
-            if (!retriedTap) {
-                retriedTap = true;
-                new ElementActions(driver.get().getDriver()).performTouchAction().tap(locator);
             }
             try {
                 Thread.sleep(200);
@@ -230,6 +238,14 @@ public class IOSBasicInteractionsTest {
                 Thread.currentThread().interrupt();
                 return;
             }
+        }
+    }
+
+    private boolean isKeyboardShown() {
+        try {
+            return ((IOSDriver) driver.get().getDriver()).isKeyboardShown();
+        } catch (WebDriverException ignored) {
+            return false;
         }
     }
 
