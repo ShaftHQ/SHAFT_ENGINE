@@ -170,9 +170,11 @@ companions.
 
 Shared probe skill covers FreeToken and OpenAI-compat backends (and similar
 servers via loopback `--url`). Local OpenCode dispatch uses ephemeral
-`OPENCODE_CONFIG` against a READY runtime — never `ft launch`, never silent
-cloud OmniRoute. See epic [#5867](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5867)
-and [#5872](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5872).
+`OPENCODE_CONFIG` with `enabled_providers` limited to the READY local runtime —
+never `ft launch`, never silent OmniRoute. OpenCode still merges global config;
+the allowlist is what keeps other providers out of that process. See epic
+[#5867](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5867) and
+[#5872](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5872).
 
 ### Recommended add-on: OmniRoute
 
@@ -207,12 +209,13 @@ installs or starts these servers. Missing them is normal.
 ### Optional local agency: OpenCode
 
 [Local-agency skill](skills/local-agency/SKILL.md) routes adopter requests for
-OpenCode (or peer OSS agency) to a READY local runtime with ephemeral
-`OPENCODE_CONFIG` — never durable `~/.config/opencode` rewrites, never
-`ft launch`. Operator installs OpenCode from
-[upstream docs](https://opencode.ai/docs); ChaosEngine never installs it.
-Missing OpenCode or a local runtime is normal and leaves session agents /
-`SOLO` / explicit OmniRoute valid when asked. See
+OpenCode to a READY local runtime with ephemeral `OPENCODE_CONFIG` and
+`enabled_providers` limited to that runtime. CE refuses writes into durable
+`~/.config/opencode` paths and never runs `ft launch`. `--pure` only disables
+OpenCode external plugins; it is not the cloud isolation mechanism. Operator
+installs OpenCode from [upstream docs](https://opencode.ai/docs); ChaosEngine
+never installs it. Missing OpenCode or a local runtime is normal and leaves
+session agents / `SOLO` / explicit OmniRoute valid when asked. See
 [local-agency guide](guides/local-agency.md).
 
 ## Installer-owned companions (automatic)

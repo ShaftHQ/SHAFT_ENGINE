@@ -24,12 +24,14 @@ first.
 - Prefer a **READY** local runtime: FreeToken (`:1919`), then Ollama / LM Studio /
   llamacpp via [local-openai-compat](../local-openai-compat/SKILL.md).
 - Configure OpenCode with **ephemeral** `OPENCODE_CONFIG` /
-  `OPENCODE_CONFIG_CONTENT` — **never** rewrite `~/.config/opencode`, **never**
-  `ft launch` / `ft serve`, **never** start local servers from ChaosEngine.
+  `OPENCODE_CONFIG_CONTENT` that sets `enabled_providers` to the READY local
+  provider. OpenCode merges global config; the allowlist keeps other providers
+  out of that process. `--pure` only disables external plugins.
+- **Never** write into durable `~/.config/opencode` (helper refuses those paths),
+  **never** `ft launch` / `ft serve`, **never** start local servers from CE.
 - Do **not** silently fall back to cloud OmniRoute. Missing local runtime:
   tell the operator; continue with session agents / `SOLO` / OmniRoute only when
-  the adopter asked for that path (dispatch helper: `--allow-cloud` acknowledges
-  permission and still does not launch OmniRoute).
+  the adopter explicitly asked for that path.
 - Do **not** install OpenCode from this skill. Operator install stays on vendor
   docs (README third-party table).
 - Installer / doctor / status must **not** fail because OpenCode or a local

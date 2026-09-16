@@ -6,10 +6,10 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import unittest.mock as mock
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,7 +104,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             payload = dispatch.resolve_local()
         self.assertEqual(payload["state"], "READY")
         chosen = payload["chosen"]
-        assert isinstance(chosen, dict)
+        self.assertIsInstance(chosen, dict)
         self.assertEqual(chosen["runtime"], "freetoken")
         self.assertEqual(chosen["opencode_model"], "freetoken/gpt-oss-20b")
 
@@ -175,6 +175,62 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertIn("--pure", argv)
         self.assertIn("freetoken/gpt-oss-20b", argv)
         self.assertIn("PONG", argv)
+
+    def test_opencode_config_enables_only_local_provider(self):
+        chosen = {
+            "runtime": "freetoken",
+            "provider_id": "freetoken",
+            "openai_base_url": "http://127.0.0.1:1919/v1",
+            "model": "gpt-oss-20b",
+            "opencode_model": "freetoken/gpt-oss-20b",
+        }
+        cfg = dispatch.opencode_config(chosen)
+        self.assertEqual(cfg["enabled_providers"], ["freetoken"])
+
+    def test_refuses_durable_opencode_dir(self):
+        chosen = {
+            "runtime": "freetoken",
+            "provider_id": "freetoken",
+            "openai_base_url": "http://127.0.0.1:1919/v1",
+            "model": "gpt-oss-20b",
+            "opencode_model": "freetoken/gpt-oss-20b",
+        }
+        with self.assertRaises(ValueError):
+            dispatch.write_ephemeral_config(chosen, Path.home() / ".config" / "opencode")
+
+    def test_fallthrough_when_freetoken_ready_but_empty_models(self):
+        def probe(runtime: str):
+            if runtime == "freetoken":
+                return {
+                    "runtime": "freetoken",
+                    "state": "READY",
+                    "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE,
+                    "models": [],
+                    "provider_id": "freetoken",
+                }
+            if runtime == "ollama":
+                return {
+                    "runtime": "ollama",
+                    "state": "READY",
+                    "openai_base_url": dispatch.OPENAI_COMPAT_BASES["ollama"],
+                    "models": ["coder"],
+                    "provider_id": "ollama",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            payload = dispatch.resolve_local()
+        self.assertEqual(payload["state"], "READY")
+        chosen = payload["chosen"]
+        self.assertIsInstance(chosen, dict)
+        self.assertEqual(chosen["runtime"], "ollama")
+        self.assertEqual(chosen["opencode_model"], "ollama/coder")
 
 
 if __name__ == "__main__":

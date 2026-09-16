@@ -1,8 +1,8 @@
 ---
 name: local-coding-delegate
 description: >-
-  Compat shim: hardware size-class probe plus pointer to local-agency /
-  FreeToken for local-weights OpenCode dispatch.
+  Use when an optional hardware size-class probe is needed, or when looking up
+  the folded local-coding-delegate pointer to local-agency / FreeToken.
 license: MIT
 ---
 
@@ -16,7 +16,7 @@ This skill is a **compatibility shim**.
 - Prefer [FreeToken](../freetoken/SKILL.md) for local-weights probe/attest when
   the ask is FreeToken / local MoE inference without an agency CLI.
 - Prefer [local-openai-compat](../local-openai-compat/SKILL.md) for Ollama /
-  LM Studio / llama.cpp peers.
+  LM Studio / llamacpp peers.
 
 ## What remains here
 
@@ -39,4 +39,5 @@ loops are mechanical or default-capability labor only. Close that writer after
 its PR exists. Do not use a local loop for review, the GitHub playbook, or
 public-API changes unless both the probe and the task say it is enough.
 
-Never `ft launch`. Never silently fall back to cloud OmniRoute unless asked.
+Never `ft launch`. Never silently fall back to cloud OmniRoute; use OmniRoute
+only when the adopter explicitly asked for that path.

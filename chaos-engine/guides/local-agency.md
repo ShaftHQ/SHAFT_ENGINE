@@ -2,10 +2,12 @@
 
 Operator-facing companion for [local-agency](../skills/local-agency/SKILL.md).
 
-ChaosEngine does **not** install OpenCode. When you want a local OSS coding
-agency against already-running local weights, CE routes to a READY loopback
-runtime and emits ephemeral OpenCode config — never `ft launch`, never a
-silent cloud OmniRoute hop.
+ChaosEngine does **not** install OpenCode. When you want OpenCode against
+already-running local weights, CE routes to a READY loopback runtime and emits
+ephemeral OpenCode config with `enabled_providers` limited to that runtime —
+never `ft launch`, never a silent OmniRoute hop. OpenCode merges global config;
+the allowlist (not `--pure`) is what keeps other providers out of that process.
+`--pure` only disables external plugins.
 
 ## Official install (vendor)
 

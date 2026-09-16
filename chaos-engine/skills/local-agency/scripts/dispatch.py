@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Resolve a READY local runtime and emit ephemeral OpenCode dispatch material.
+"""
+Resolve a READY local runtime and emit ephemeral OpenCode dispatch material.
 
 Stdlib only. Never installs OpenCode, never starts servers, never invokes FreeToken
 launch/serve helpers, and never falls back to OmniRoute unless the caller passes
@@ -34,7 +35,21 @@ OPENAI_COMPAT_BASES = {
 }
 
 
+DURABLE_OPENCODE_MARKERS = (".config/opencode", ".opencode")
+
+
+def is_durable_opencode_dir(directory: Path) -> bool:
+    """True when a write would land in a durable OpenCode config location."""
+    resolved = directory.expanduser().resolve()
+    parts = {part.lower() for part in resolved.parts}
+    if "opencode" in parts and (".config" in parts or "xdg" in str(resolved).lower()):
+        return True
+    rendered = str(resolved).replace("\\", "/").lower()
+    return any(marker in rendered for marker in DURABLE_OPENCODE_MARKERS)
+
+
 def _load_module(name: str, path: Path) -> ModuleType:
+    """Load a sibling probe module by path."""
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"unable to load {path}")
@@ -44,10 +59,12 @@ def _load_module(name: str, path: Path) -> ModuleType:
 
 
 def freetoken_probe() -> ModuleType:
+    """Import the FreeToken probe helper."""
     return _load_module("freetoken_probe", SKILLS_ROOT / "freetoken/scripts/probe.py")
 
 
 def local_openai_probe() -> ModuleType:
+    """Import the local OpenAI-compat probe helper."""
     return _load_module(
         "local_openai_compat_probe",
         SKILLS_ROOT / "local-openai-compat/scripts/probe.py",
@@ -57,16 +74,16 @@ def local_openai_probe() -> ModuleType:
 def loopback_openai_base(url: str) -> bool:
     """Accept only http loopback OpenAI-compat base URLs ending in /v1."""
     parsed = urlsplit(url)
-    if parsed.scheme != "http" or parsed.username or parsed.password:
-        return False
     host = (parsed.hostname or "").lower()
-    if host not in {"127.0.0.1", "localhost", "::1"}:
-        return False
-    if parsed.path.rstrip("/") != "/v1":
-        return False
-    if parsed.query or parsed.fragment:
-        return False
-    return True
+    return (
+        parsed.scheme == "http"
+        and not parsed.username
+        and not parsed.password
+        and host in {"127.0.0.1", "localhost", "::1"}
+        and parsed.path.rstrip("/") == "/v1"
+        and not parsed.query
+        and not parsed.fragment
+    )
 
 
 def agency_present(binary: str = "opencode") -> bool:
@@ -74,16 +91,19 @@ def agency_present(binary: str = "opencode") -> bool:
     return shutil.which(binary) is not None
 
 
+def _ready_models(fetch_models, is_models_payload, parse_model_ids, models_url: str) -> list[str]:
+    answered, body = fetch_models(models_url)
+    if answered and is_models_payload(body):
+        return parse_model_ids(body)
+    return []
+
+
 def probe_runtime(runtime: str) -> dict[str, object]:
     """Return state / base URL / models for one ranked runtime."""
     if runtime == "freetoken":
         ft = freetoken_probe()
         state = ft.probe(FREETOKEN_MODELS_URL)
-        models: list[str] = []
-        if state == "READY":
-            answered, body = ft.fetch_models(FREETOKEN_MODELS_URL)
-            if answered and ft.is_models_payload(body):
-                models = ft.parse_model_ids(body)
+        models = _ready_models(ft.fetch_models, ft.is_models_payload, ft.parse_model_ids, FREETOKEN_MODELS_URL) if state == "READY" else []
         return {
             "runtime": "freetoken",
             "state": state,
@@ -97,11 +117,11 @@ def probe_runtime(runtime: str) -> dict[str, object]:
 
     loc = local_openai_probe()
     state = loc.probe_backend(runtime)
-    models = []
-    if state == "READY":
-        answered, body = loc.fetch_models(loc.default_url(runtime))
-        if answered and loc.is_models_payload(body):
-            models = loc.parse_model_ids(body)
+    models = (
+        _ready_models(loc.fetch_models, loc.is_models_payload, loc.parse_model_ids, loc.default_url(runtime))
+        if state == "READY"
+        else []
+    )
     return {
         "runtime": runtime,
         "state": state,
@@ -111,23 +131,17 @@ def probe_runtime(runtime: str) -> dict[str, object]:
     }
 
 
-def resolve_local(
-    *,
-    prefer: str | None = None,
-    model: str | None = None,
-    allow_cloud: bool = False,
-) -> dict[str, object]:
-    """Pick the first READY local runtime. Never silent OmniRoute fallback."""
+def _prefer_order(prefer: str | None) -> list[str]:
     order = list(RUNTIME_RANK)
-    if prefer is not None:
-        if prefer not in RUNTIME_RANK:
-            raise ValueError(f"unknown prefer runtime: {prefer}")
-        order = [prefer] + [item for item in order if item != prefer]
+    if prefer is None:
+        return order
+    if prefer not in RUNTIME_RANK:
+        raise ValueError(f"unknown prefer runtime: {prefer}")
+    return [prefer] + [item for item in order if item != prefer]
 
-    probed = [probe_runtime(runtime) for runtime in order]
-    chosen = next((row for row in probed if row["state"] == "READY"), None)
 
-    payload: dict[str, object] = {
+def _empty_payload(order: list[str], probed: list[dict[str, object]], allow_cloud: bool) -> dict[str, object]:
+    return {
         "mode": "local-agency",
         "agency_cli": "opencode",
         "agency_on_path": agency_present(),
@@ -142,46 +156,64 @@ def resolve_local(
         "durable_config_rewrite": False,
     }
 
-    if chosen is None:
-        payload["state"] = "ABSENT"
-        payload["chosen"] = None
-        payload["advice"] = (
-            "No READY local runtime. Start FreeToken/Ollama/LM Studio/llamacpp "
-            "yourself, or ask explicitly for cloud OmniRoute / session agents."
-        )
-        if allow_cloud:
-            payload["advice"] += " --allow-cloud set: caller may use OmniRoute deliberately."
-        return payload
 
+def _select_model(chosen: dict[str, object], model: str | None) -> tuple[str | None, str | None]:
     models = list(chosen["models"])  # type: ignore[arg-type]
-    selected_model = model if model else (models[0] if models else None)
     if model and models and model not in models:
-        payload["state"] = "UNHEALTHY"
-        payload["chosen"] = None
-        payload["advice"] = f"model {model!r} not listed by READY runtime {chosen['runtime']}"
-        return payload
-    if selected_model is None:
-        payload["state"] = "UNHEALTHY"
-        payload["chosen"] = None
-        payload["advice"] = f"READY runtime {chosen['runtime']} listed no models"
+        return None, f"model {model!r} not listed by READY runtime {chosen['runtime']}"
+    if model:
+        return model, None
+    if models:
+        return models[0], None
+    return None, f"READY runtime {chosen['runtime']} listed no models"
+
+
+def resolve_local(
+    *,
+    prefer: str | None = None,
+    model: str | None = None,
+    allow_cloud: bool = False,
+) -> dict[str, object]:
+    """Pick the first READY local runtime. Never silent OmniRoute fallback."""
+    order = _prefer_order(prefer)
+    probed = [probe_runtime(runtime) for runtime in order]
+    payload = _empty_payload(order, probed, allow_cloud)
+    last_error = None
+    for chosen in (row for row in probed if row["state"] == "READY"):
+        selected_model, error = _select_model(chosen, model)
+        if error is not None:
+            last_error = error
+            continue
+        provider_id = str(chosen["provider_id"])
+        base = str(chosen["openai_base_url"])
+        if not loopback_openai_base(base):
+            last_error = "non-loopback OpenAI base rejected"
+            continue
+        payload["state"] = "READY"
+        payload["chosen"] = {
+            "runtime": chosen["runtime"],
+            "provider_id": provider_id,
+            "openai_base_url": base,
+            "model": selected_model,
+            "opencode_model": f"{provider_id}/{selected_model}",
+        }
         return payload
 
-    provider_id = str(chosen["provider_id"])
-    base = str(chosen["openai_base_url"])
-    if not loopback_openai_base(base):
+    if last_error is not None:
         payload["state"] = "UNHEALTHY"
         payload["chosen"] = None
-        payload["advice"] = "non-loopback OpenAI base rejected"
+        payload["advice"] = last_error
         return payload
 
-    payload["state"] = "READY"
-    payload["chosen"] = {
-        "runtime": chosen["runtime"],
-        "provider_id": provider_id,
-        "openai_base_url": base,
-        "model": selected_model,
-        "opencode_model": f"{provider_id}/{selected_model}",
-    }
+    payload["state"] = "ABSENT"
+    payload["chosen"] = None
+    advice = (
+        "No READY local runtime. Start FreeToken/Ollama/LM Studio/llamacpp "
+        "yourself, or ask explicitly for cloud OmniRoute / session agents."
+    )
+    if allow_cloud:
+        advice += " --allow-cloud set: caller may use OmniRoute deliberately."
+    payload["advice"] = advice
     return payload
 
 
@@ -192,6 +224,9 @@ def opencode_config(chosen: dict[str, object]) -> dict[str, object]:
     base = str(chosen["openai_base_url"])
     return {
         "$schema": "https://opencode.ai/config.json",
+        # Restrict this process to the local provider. OpenCode merges configs;
+        # without this allowlist, durable global providers can remain reachable.
+        "enabled_providers": [provider_id],
         "provider": {
             provider_id: {
                 "npm": "@ai-sdk/openai-compatible",
@@ -210,8 +245,13 @@ def opencode_config(chosen: dict[str, object]) -> dict[str, object]:
 
 
 def write_ephemeral_config(chosen: dict[str, object], directory: Path | None = None) -> Path:
-    """Write OpenCode config under a temp dir. Never touches ~/.config/opencode."""
-    root = Path(directory) if directory is not None else Path(tempfile.mkdtemp(prefix="ce-local-agency-"))
+    """Write OpenCode config under a temp dir. Refuse durable OpenCode paths."""
+    if directory is None:
+        root = Path(tempfile.mkdtemp(prefix="ce-local-agency-"))
+    else:
+        root = Path(directory)
+        if is_durable_opencode_dir(root):
+            raise ValueError("refusing durable OpenCode config directory")
     root.mkdir(parents=True, exist_ok=True)
     path = root / "opencode.json"
     path.write_text(json.dumps(opencode_config(chosen), indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -239,6 +279,14 @@ def opencode_argv(
     return argv
 
 
+def _chosen_or_fail(payload: dict[str, object]) -> dict[str, object] | None:
+    chosen = payload.get("chosen")
+    if payload.get("state") == "READY" and isinstance(chosen, dict):
+        return chosen
+    print(json.dumps(payload, sort_keys=True))
+    return None
+
+
 def cmd_resolve(args: argparse.Namespace) -> int:
     payload = resolve_local(prefer=args.prefer, model=args.model, allow_cloud=args.allow_cloud)
     print(json.dumps(payload, sort_keys=True))
@@ -247,12 +295,14 @@ def cmd_resolve(args: argparse.Namespace) -> int:
 
 def cmd_config(args: argparse.Namespace) -> int:
     payload = resolve_local(prefer=args.prefer, model=args.model, allow_cloud=args.allow_cloud)
-    if payload.get("state") != "READY" or not isinstance(payload.get("chosen"), dict):
-        print(json.dumps(payload, sort_keys=True))
+    chosen = _chosen_or_fail(payload)
+    if chosen is None:
         return 1
-    chosen = payload["chosen"]
-    assert isinstance(chosen, dict)
-    path = write_ephemeral_config(chosen, Path(args.dir) if args.dir else None)
+    try:
+        path = write_ephemeral_config(chosen, Path(args.dir) if args.dir else None)
+    except ValueError as error:
+        print(json.dumps({"state": "UNHEALTHY", "advice": str(error), "durable_config_rewrite": True}, sort_keys=True))
+        return 2
     content = json.dumps(opencode_config(chosen), separators=(",", ":"), sort_keys=True)
     out = {
         "state": "READY",
@@ -265,6 +315,7 @@ def cmd_config(args: argparse.Namespace) -> int:
         "durable_config_rewrite": False,
         "may_ft_launch": False,
         "omniroute_fallback": False,
+        "note": "OpenCode merges configs; enabled_providers limits this process to the local provider",
     }
     print(json.dumps(out, sort_keys=True))
     return 0
@@ -272,12 +323,14 @@ def cmd_config(args: argparse.Namespace) -> int:
 
 def cmd_argv(args: argparse.Namespace) -> int:
     payload = resolve_local(prefer=args.prefer, model=args.model, allow_cloud=args.allow_cloud)
-    if payload.get("state") != "READY" or not isinstance(payload.get("chosen"), dict):
-        print(json.dumps(payload, sort_keys=True))
+    chosen = _chosen_or_fail(payload)
+    if chosen is None:
         return 1
-    chosen = payload["chosen"]
-    assert isinstance(chosen, dict)
-    path = write_ephemeral_config(chosen, Path(args.dir) if args.dir else None)
+    try:
+        path = write_ephemeral_config(chosen, Path(args.dir) if args.dir else None)
+    except ValueError as error:
+        print(json.dumps({"state": "UNHEALTHY", "advice": str(error), "durable_config_rewrite": True}, sort_keys=True))
+        return 2
     argv = opencode_argv(
         chosen,
         prompt=args.prompt,
@@ -285,15 +338,20 @@ def cmd_argv(args: argparse.Namespace) -> int:
         auto=args.auto,
         pure=not args.no_pure,
     )
+    content = json.dumps(opencode_config(chosen), separators=(",", ":"), sort_keys=True)
     out = {
         "state": "READY",
         "chosen": chosen,
         "opencode_config_path": str(path),
-        "env": {"OPENCODE_CONFIG": str(path)},
+        "env": {
+            "OPENCODE_CONFIG": str(path),
+            "OPENCODE_CONFIG_CONTENT": content,
+        },
         "argv": argv,
         "durable_config_rewrite": False,
         "may_ft_launch": False,
         "omniroute_fallback": False,
+        "note": "OpenCode merges configs; enabled_providers limits this process to the local provider",
     }
     print(json.dumps(out, sort_keys=True))
     return 0

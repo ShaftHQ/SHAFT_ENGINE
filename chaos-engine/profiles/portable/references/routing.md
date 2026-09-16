@@ -12,7 +12,8 @@ Never infer a provider, organization, default branch, language, build system,
 companion repository, deployment target, or issue taxonomy from ChaosEngine.
 When the deliverable is open or rewrite a work item, load the portable
 `chaos-engine/skills/work-item/SKILL.md`; keep merged-PR delivery on the
-GitHub playbook. When the adopter asked for a local coding loop, load the
-optional
-[local coding delegate](../../../skills/local-coding-delegate/SKILL.md); the
-most-intelligent or default capability stays the decider.
+GitHub playbook. When the adopter asked for OpenCode / local OSS agency against local weights,
+load [local-agency](../../../skills/local-agency/SKILL.md). When they need only
+the hardware size-class probe, load the
+[local-coding-delegate](../../../skills/local-coding-delegate/SKILL.md) compat
+shim. The most-intelligent or default capability stays the decider.
