@@ -1227,6 +1227,117 @@ def restore_project_setup_outputs(
                 root.rmdir()
 
 
+_LOCK_BUSY_FIX_NEXT = (
+    "wait for the listed PID(s) to finish; "
+    "do not run install one-liner in parallel with doctor/install/repair; "
+    "do not delete `.chaos-engine.lock`"
+)
+_LOCK_CMDLINE_MAX = 120
+
+
+def format_lock_holder_detail(holders):
+    """Format lock holder tuples for busy-lock errors.
+
+    Each holder is ``(pid, cmdline, elapsed_or_none)``. Empty input yields "".
+    """
+    parts = []
+    for pid, cmdline, elapsed in holders:
+        piece = f"pid={pid}"
+        text = (cmdline or "").strip()
+        if text:
+            if len(text) > _LOCK_CMDLINE_MAX:
+                text = text[: _LOCK_CMDLINE_MAX - 3] + "..."
+            piece += f" cmdline={text}"
+        if elapsed:
+            piece += f" elapsed={elapsed}"
+        parts.append(piece)
+    if not parts:
+        return ""
+    return "holder(s): " + "; ".join(parts)
+
+
+def _pid_cmdline(pid: int) -> str:
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return ""
+    return raw.replace(b"\x00", b" ").decode("utf-8", "replace").strip()
+
+
+def _pid_elapsed(pid: int):
+    try:
+        ticks = os.sysconf(os.SYS_SC_CLK_TCK)
+        stat_text = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+        fields = stat_text[stat_text.rfind(")") + 2 :].split()
+        starttime = int(fields[19])
+        uptime = float(Path("/proc/uptime").read_text(encoding="utf-8").split()[0])
+        elapsed = max(0.0, uptime - (starttime / float(ticks)))
+    except (OSError, ValueError, IndexError, AttributeError, TypeError):
+        return None
+    if elapsed < 60:
+        return f"{int(elapsed)}s"
+    if elapsed < 3600:
+        return f"{int(elapsed // 60)}m"
+    return f"{elapsed / 3600:.1f}h"
+
+
+def linux_flock_holders(lock_path: Path):
+    """Best-effort Linux flock holders for ``lock_path`` via ``/proc/locks``.
+
+    Returns a list of ``(pid, cmdline, elapsed_or_none)``. Empty on race,
+    non-Linux, or unreadable ``/proc``.
+    """
+    if os.name == "nt" or not Path("/proc/locks").is_file():
+        return []
+    try:
+        named = os.stat(lock_path, follow_symlinks=False)
+    except OSError:
+        return []
+    major = os.major(named.st_dev)
+    minor = os.minor(named.st_dev)
+    inode = named.st_ino
+    holders = []
+    seen = set()
+    try:
+        lines = Path("/proc/locks").read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        parts = line.split()
+        if len(parts) < 6:
+            continue
+        identity = parts[5]
+        if identity.count(":") != 2:
+            continue
+        maj_s, min_s, ino_s = identity.split(":")
+        try:
+            if int(maj_s, 16) != major or int(min_s, 16) != minor or int(ino_s) != inode:
+                continue
+            pid = int(parts[4])
+        except ValueError:
+            continue
+        if pid in seen or pid <= 0:
+            continue
+        seen.add(pid)
+        holders.append((pid, _pid_cmdline(pid), _pid_elapsed(pid)))
+    return holders
+
+
+def lock_busy_message(operation: str, lock_path: Path, *, holders=None) -> str:
+    """Build the busy-lock RuntimeError text with holder detail and fix-next."""
+    if holders is None:
+        if os.name == "nt":
+            detail = "holder unknown on Windows"
+        else:
+            detail = format_lock_holder_detail(linux_flock_holders(lock_path))
+    else:
+        detail = format_lock_holder_detail(holders)
+    message = f"another {operation} is already running"
+    if detail:
+        message = f"{message}; {detail}"
+    return f"{message}. fix-next: {_LOCK_BUSY_FIX_NEXT}"
+
+
 @contextmanager
 def project_lock(project: Path):
     project = project.resolve()
@@ -1258,7 +1369,9 @@ def project_lock(project: Path):
             try:
                 lock_contents = lock_file.read()
             except PermissionError as error:
-                raise RuntimeError("another ChaosEngine operation is already running") from error
+                raise RuntimeError(
+                    lock_busy_message("ChaosEngine operation", lock_path)
+                ) from error
             if lock_contents != LOCK_MAGIC:
                 raise ValueError(f"ChaosEngine lock collision: {lock_path}")
         lock_file.seek(0)
@@ -1272,7 +1385,7 @@ def project_lock(project: Path):
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError as error:
         lock_file.close()
-        raise RuntimeError("another ChaosEngine operation is already running") from error
+        raise RuntimeError(lock_busy_message("ChaosEngine operation", lock_path)) from error
     except BaseException:
         lock_file.close()
         raise
@@ -1319,7 +1432,9 @@ def dependency_runtime_lock(runtime: Path):
             try:
                 contents = stream.read()
             except PermissionError as error:
-                raise RuntimeError("another dependency runtime operation is already running") from error
+                raise RuntimeError(
+                    lock_busy_message("dependency runtime operation", lock_path)
+                ) from error
             if contents != DEPENDENCY_LOCK_MAGIC:
                 raise ValueError(f"dependency lock collision: {lock_path}")
         stream.seek(0)
@@ -1333,7 +1448,9 @@ def dependency_runtime_lock(runtime: Path):
             fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError as error:
         stream.close()
-        raise RuntimeError("another dependency runtime operation is already running") from error
+        raise RuntimeError(
+            lock_busy_message("dependency runtime operation", lock_path)
+        ) from error
     except BaseException:
         stream.close()
         raise
