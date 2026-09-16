@@ -244,11 +244,9 @@ Select exactly one mode from [execution workflows](../../references/execution-wo
 the sole owner of workflow names, selection, switching, capacity fallback, and
 writer limits. Use optional local transport only through the
 [OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens or
-disables the canonical workflows. FreeToken is an optional loopback probe via
-[the FreeToken skill](../freetoken/SKILL.md): a private local-weights server on
-`127.0.0.1:1919`, not a replacement for OmniRoute, not a proxy, and not a
-workflow owner. Missing FreeToken never weakens or disables the canonical
-workflows.
+disables the canonical workflows. FreeToken ([skill](../freetoken/SKILL.md)) and local OpenAI-compat
+([skill](../local-openai-compat/SKILL.md)) are optional loopback peers, not
+OmniRoute replacements. Missing them never weakens workflows.
 
 When orchestrating, load
 [process-owner](../../references/process-owner-scrum-master.md).
@@ -324,9 +322,10 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | chaos-engine | Canonical provider-neutral skill router and working contract. | `skills/chaos-engine/SKILL.md` |
 | work-item | Open or rewrite a work item on any git-based SCM. | `skills/work-item/SKILL.md` |
 | self-improve | Learning Session dual-track harness and product lessons. | `skills/self-improve/SKILL.md` |
-| omniroute | Optional local OmniRoute dispatch for bounded implementation. | `skills/omniroute/SKILL.md` |
-| freetoken | Optional local FreeToken process for bounded implementation. | `skills/freetoken/SKILL.md` |
-| local-coding-delegate | Optional local coding loop as mechanical or default delegate. | `skills/local-coding-delegate/SKILL.md` |
+| omniroute | Optional local OmniRoute dispatch for bounded work. | `skills/omniroute/SKILL.md` |
+| freetoken | Optional local FreeToken process for bounded work. | `skills/freetoken/SKILL.md` |
+| local-openai-compat | Optional Ollama/LM Studio/llamacpp peers. | `skills/local-openai-compat/SKILL.md` |
+| local-coding-delegate | Optional local coding loop as mechanical/default delegate. | `skills/local-coding-delegate/SKILL.md` |
 | caveman | Ultra-compressed chat style; intensity ultra unless stopped. | `vendor/caveman/skills/caveman/SKILL.md` |
 | ponytail | Laziest solution that works; intensity ultra unless stopped. | `vendor/ponytail/skills/ponytail/SKILL.md` |
 | orchestrator | Plan, architecture, synthesis, and final verification. | `references/roles.md#orchestrator` |
