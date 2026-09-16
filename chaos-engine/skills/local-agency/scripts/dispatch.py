@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Resolve a READY local runtime and emit ephemeral OpenCode dispatch material.
+"""Resolve a READY local runtime and emit ephemeral OpenCode dispatch material.
 
 Stdlib only. Never installs OpenCode, never starts servers, never invokes FreeToken
 launch/serve helpers, and never falls back to OmniRoute unless the caller passes

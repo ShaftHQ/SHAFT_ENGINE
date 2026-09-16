@@ -169,7 +169,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             "model": "gpt-oss-20b",
             "opencode_model": "freetoken/gpt-oss-20b",
         }
-        argv = dispatch.opencode_argv(chosen, prompt="PONG", workdir="/tmp/wt", auto=False, pure=True)
+        argv = dispatch.opencode_argv(chosen, prompt="PONG", workdir="worktree-fixture", auto=False, pure=True)
         self.assertEqual(argv[0], "opencode")
         self.assertIn("run", argv)
         self.assertIn("--pure", argv)
