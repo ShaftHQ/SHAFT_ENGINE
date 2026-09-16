@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/chaos-engine-busy-lock-is-live-flock-not-a-corrupt-lock-file.md",
-  "content_hash": "sha256:8022df35532e5b95549c22d629e5b8a3470777daa654f5ce1c4f914033bed2b6",
+  "content_hash": "sha256:b51344fd42acf77beab89d016638f665fca63ab28a54a6e43f223574761c294e",
   "created_at": "2026-09-16T21:40:43+03:00",
   "evidence": [
     {

@@ -186,6 +186,60 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         }
         cfg = dispatch.opencode_config(chosen)
         self.assertEqual(cfg["enabled_providers"], ["freetoken"])
+        self.assertEqual(list(cfg["provider"].keys()), ["freetoken"])
+        self.assertNotIn("openai", cfg.get("enabled_providers", []))
+        self.assertNotIn("anthropic", cfg.get("enabled_providers", []))
+
+    def test_config_command_env_includes_enabled_providers_allowlist(self):
+        """#5882: ephemeral OPENCODE_CONFIG must emit enabled_providers (merge-safe)."""
+        def probe(runtime: str):
+            if runtime == "freetoken":
+                return {
+                    "runtime": "freetoken",
+                    "state": "READY",
+                    "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE,
+                    "models": ["gpt-oss-20b"],
+                    "provider_id": "freetoken",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            with tempfile.TemporaryDirectory() as temporary:  # nosec B108
+                args = dispatch.parse_args(["--prefer", "freetoken", "config", "--dir", temporary])
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    code = dispatch.cmd_config(args)
+                payload = json.loads(buf.getvalue())
+                self.assertEqual(code, 0)
+                cfg_path = Path(payload["env"]["OPENCODE_CONFIG"])
+                on_disk = json.loads(cfg_path.read_text(encoding="utf-8"))
+                self.assertEqual(on_disk["enabled_providers"], ["freetoken"])
+                content = json.loads(payload["env"]["OPENCODE_CONFIG_CONTENT"])
+                self.assertEqual(content["enabled_providers"], ["freetoken"])
+                self.assertIn("enabled_providers", payload["note"])
+
+    def test_opencode_config_allowlist_matches_each_runtime_provider_id(self):
+        for provider_id, base in (
+            ("freetoken", "http://127.0.0.1:1919/v1"),
+            ("ollama", "http://127.0.0.1:11434/v1"),
+            ("lmstudio", "http://127.0.0.1:1234/v1"),
+            ("llamacpp", "http://127.0.0.1:8080/v1"),
+        ):
+            chosen = {
+                "runtime": provider_id,
+                "provider_id": provider_id,
+                "openai_base_url": base,
+                "model": "m",
+                "opencode_model": f"{provider_id}/m",
+            }
+            cfg = dispatch.opencode_config(chosen)
+            self.assertEqual(cfg["enabled_providers"], [provider_id], provider_id)
 
     def test_refuses_durable_opencode_dir(self):
         chosen = {

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/guidance-forbid-regex-llama-catches-llamacpp-vendor-names.md",
-  "content_hash": "sha256:731e1ef40448b5df0a9aec85ecb181b5f50e32562b3dd8fbc6715c2ba34feff2",
+  "content_hash": "sha256:df2f8b47d33fa8ae6dedf3f9dde988ea2b0bbad1ff7ae0a1f8128925aa016f57",
   "created_at": "2026-09-16T21:40:43+03:00",
   "evidence": [
     {
