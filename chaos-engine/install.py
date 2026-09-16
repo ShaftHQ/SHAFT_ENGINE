@@ -1281,13 +1281,14 @@ def _pid_elapsed(pid: int):
     return f"{elapsed / 3600:.1f}h"
 
 
-def linux_flock_holders(lock_path: Path):
+def linux_flock_holders(lock_path: Path, *, locks_text=None, cmdline_by_pid=None):
     """Best-effort Linux flock holders for ``lock_path`` via ``/proc/locks``.
 
     Returns a list of ``(pid, cmdline, elapsed_or_none)``. Empty on race,
-    non-Linux, or unreadable ``/proc``.
+    non-Linux, or unreadable ``/proc``. ``locks_text`` / ``cmdline_by_pid``
+    are test seams that skip live ``/proc`` reads when provided.
     """
-    if os.name == "nt" or not Path("/proc/locks").is_file():
+    if locks_text is None and (os.name == "nt" or not Path("/proc/locks").is_file()):
         return []
     try:
         named = os.stat(lock_path, follow_symlinks=False)
@@ -1298,10 +1299,13 @@ def linux_flock_holders(lock_path: Path):
     inode = named.st_ino
     holders = []
     seen = set()
-    try:
-        lines = Path("/proc/locks").read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return []
+    if locks_text is None:
+        try:
+            lines = Path("/proc/locks").read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return []
+    else:
+        lines = str(locks_text).splitlines()
     for line in lines:
         parts = line.split()
         if len(parts) < 6:
@@ -1319,7 +1323,13 @@ def linux_flock_holders(lock_path: Path):
         if pid in seen or pid <= 0:
             continue
         seen.add(pid)
-        holders.append((pid, _pid_cmdline(pid), _pid_elapsed(pid)))
+        if cmdline_by_pid is not None:
+            cmdline = str(cmdline_by_pid.get(pid, ""))
+            elapsed = None
+        else:
+            cmdline = _pid_cmdline(pid)
+            elapsed = _pid_elapsed(pid)
+        holders.append((pid, cmdline, elapsed))
     return holders
 
 

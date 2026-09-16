@@ -4077,7 +4077,7 @@ module.install_with_dependencies(project, source, "3" * 40)
             message = str(raised.exception)
             self.assertIn("fix-next:", message)
             self.assertIn("do not delete `.chaos-engine.lock`", message)
-            if os.name != "nt":
+            if Path("/proc/locks").is_file():
                 self.assertIn(f"pid={os.getpid()}", message)
 
     def test_format_lock_holder_detail_includes_pid_and_truncates_cmdline(self):
@@ -4095,6 +4095,25 @@ module.install_with_dependencies(project, source, "3" * 40)
         self.assertIn("pid=7", detail)
         self.assertEqual("", MODULE.format_lock_holder_detail([]))
 
+    def test_linux_flock_holders_parses_hex_maj_min_from_proc_locks(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            lock_path = Path(temporary) / ".chaos-engine.lock"
+            lock_path.write_bytes(MODULE.LOCK_MAGIC)
+            named = os.stat(lock_path, follow_symlinks=False)
+            identity = (
+                f"{os.major(named.st_dev):x}:"
+                f"{os.minor(named.st_dev):02x}:"
+                f"{named.st_ino}"
+            )
+            holders = MODULE.linux_flock_holders(
+                lock_path,
+                locks_text=(
+                    f"1: FLOCK  ADVISORY  WRITE 424242 {identity} 0 EOF\n"
+                    "2: FLOCK  ADVISORY  WRITE 7 0:0:1 0 EOF\n"
+                ),
+                cmdline_by_pid={424242: "python3 .chaos-engine/install.py doctor"},
+            )
+            self.assertEqual([(424242, "python3 .chaos-engine/install.py doctor", None)], holders)
     def test_lock_busy_message_uses_injected_holders_and_empty_race_guidance(self):
         with tempfile.TemporaryDirectory() as temporary:
             lock_path = Path(temporary) / ".chaos-engine.lock"
