@@ -4071,9 +4071,69 @@ module.install_with_dependencies(project, source, "3" * 40)
             project = Path(temporary) / "consumer"
             project.mkdir()
             with MODULE.project_lock(project):
-                with self.assertRaisesRegex(RuntimeError, "already running"):
+                with self.assertRaisesRegex(RuntimeError, "already running") as raised:
                     with MODULE.project_lock(project):
                         self.fail("contended lock was acquired")
+            message = str(raised.exception)
+            self.assertIn("fix-next:", message)
+            self.assertIn("do not delete `.chaos-engine.lock`", message)
+            if Path("/proc/locks").is_file():
+                self.assertIn(f"pid={os.getpid()}", message)
+
+    def test_format_lock_holder_detail_includes_pid_and_truncates_cmdline(self):
+        detail = MODULE.format_lock_holder_detail(
+            [
+                (4242, "python3 " + ("x" * 200), "12s"),
+                (7, "", None),
+            ]
+        )
+        self.assertIn("pid=4242", detail)
+        self.assertIn("elapsed=12s", detail)
+        self.assertIn("cmdline=", detail)
+        self.assertIn("...", detail)
+        self.assertLessEqual(len(detail), 400)
+        self.assertIn("pid=7", detail)
+        self.assertEqual("", MODULE.format_lock_holder_detail([]))
+
+    def test_linux_flock_holders_parses_hex_maj_min_from_proc_locks(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            lock_path = Path(temporary) / ".chaos-engine.lock"
+            lock_path.write_bytes(MODULE.LOCK_MAGIC)
+            named = os.stat(lock_path, follow_symlinks=False)
+            identity = (
+                f"{os.major(named.st_dev):x}:"
+                f"{os.minor(named.st_dev):02x}:"
+                f"{named.st_ino}"
+            )
+            holders = MODULE.linux_flock_holders(
+                lock_path,
+                locks_text=(
+                    f"1: FLOCK  ADVISORY  WRITE 424242 {identity} 0 EOF\n"
+                    "2: FLOCK  ADVISORY  WRITE 7 0:0:1 0 EOF\n"
+                ),
+                cmdline_by_pid={424242: "python3 .chaos-engine/install.py doctor"},
+            )
+            self.assertEqual([(424242, "python3 .chaos-engine/install.py doctor", None)], holders)
+    def test_lock_busy_message_uses_injected_holders_and_empty_race_guidance(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            lock_path = Path(temporary) / ".chaos-engine.lock"
+            lock_path.write_bytes(MODULE.LOCK_MAGIC)
+            with_holders = MODULE.lock_busy_message(
+                "ChaosEngine operation",
+                lock_path,
+                holders=[(99901, "python3 .chaos-engine/install.py doctor", "3s")],
+            )
+            self.assertIn("pid=99901", with_holders)
+            self.assertIn("install.py doctor", with_holders)
+            self.assertIn("fix-next:", with_holders)
+            self.assertIn("do not delete `.chaos-engine.lock`", with_holders)
+            empty = MODULE.lock_busy_message(
+                "ChaosEngine operation", lock_path, holders=[]
+            )
+            self.assertIn("already running", empty)
+            self.assertNotIn("holder(s):", empty)
+            self.assertIn("fix-next:", empty)
+            self.assertIn("do not run install one-liner in parallel", empty)
 
     def test_uninstall_removes_only_a_verified_install(self):
         with tempfile.TemporaryDirectory() as temporary:

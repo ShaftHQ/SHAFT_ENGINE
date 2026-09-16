@@ -404,6 +404,17 @@ Required third-party companions, dependencies, skills, and MCPs are **self-heale
 
 ## Troubleshooting
 
+### `another ChaosEngine operation is already running`
+
+Install, doctor, and repair take an exclusive project lock (`.chaos-engine.lock`).
+The lock file existing with magic `chaos-engine-lock-v1` is normal; the flock is
+released when the holding process exits. Do **not** delete the lock file.
+
+If a concurrent one-liner hits the lock, the error lists Linux holder PID(s) and
+cmdline when `/proc` can see them, plus a `fix-next` line. Wait for those
+PID(s) to finish. Do not run the install one-liner in parallel with
+doctor/install/repair.
+
 ### `status` healthy but `doctor` unhealthy (false-healthy)
 
 For **required** components this must not happen. If you still see it on an
