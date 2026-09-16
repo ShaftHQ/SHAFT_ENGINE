@@ -11,6 +11,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.flutter.FlutterDriverOptions;
+import io.appium.java_client.remote.AutomationName;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import lombok.Getter;
 import lombok.Setter;
@@ -295,12 +296,21 @@ public class OptionsManager {
             Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
             caps.forEach((capabilityName, value) -> {
                 if (!value.isBlank()) {
+                    String appiumCapabilityName = capabilityName.replace("mobile_", "appium:");
+                    // SHAFT stores these Flutter timeouts in seconds; Appium/FlutterDriverOptions expect millis.
+                    if ("mobile_flutterServerLaunchTimeout".equals(capabilityName)
+                            || "mobile_flutterElementWaitTimeout".equals(capabilityName)) {
+                        if (StringUtils.isStrictlyNumeric(value.trim())) {
+                            appiumCapabilities.setCapability(appiumCapabilityName, Integer.parseInt(value.trim()) * 1000);
+                        }
+                        return;
+                    }
                     if (Arrays.asList("true", "false").contains(value.trim().toLowerCase())) {
-                        appiumCapabilities.setCapability(capabilityName.replace("mobile_", "appium:"), Boolean.valueOf(value));
+                        appiumCapabilities.setCapability(appiumCapabilityName, Boolean.valueOf(value));
                     } else if (StringUtils.isStrictlyNumeric(value.trim())) {
-                        appiumCapabilities.setCapability(capabilityName.replace("mobile_", "appium:"), Integer.valueOf(value));
+                        appiumCapabilities.setCapability(appiumCapabilityName, Integer.valueOf(value));
                     } else {
-                        appiumCapabilities.setCapability(capabilityName.replace("mobile_", "appium:"), value);
+                        appiumCapabilities.setCapability(appiumCapabilityName, value);
                     }
                 }
             });
@@ -310,6 +320,10 @@ public class OptionsManager {
                 if (appCap != null && !String.valueOf(appCap).isBlank()
                         && appiumCapabilities.getCapability("appium:appWaitActivity") == null) {
                     appiumCapabilities.setCapability("appium:appWaitActivity", "*");
+                }
+                // Flutter Android cold starts need a forced relaunch when the app is already backgrounded.
+                if (isFlutterMobileSession() && appiumCapabilities.getCapability("appium:forceAppLaunch") == null) {
+                    appiumCapabilities.setCapability("appium:forceAppLaunch", true);
                 }
             }
         }
@@ -372,6 +386,23 @@ public class OptionsManager {
          */
 
         ReportManager.log(appiumCapabilities.toString());
+    }
+
+    private boolean isFlutterMobileSession() {
+        Object automationName = appiumCapabilities.getCapability("appium:automationName");
+        if (automationName == null) {
+            automationName = appiumCapabilities.getCapability("automationName");
+        }
+        if (automationName == null) {
+            automationName = SHAFT.Properties.mobile.automationName();
+        }
+        if (automationName != null
+                && AutomationName.FLUTTER_INTEGRATION.equalsIgnoreCase(String.valueOf(automationName))) {
+            return true;
+        }
+        return appiumCapabilities.getCapability("appium:flutterServerLaunchTimeout") != null
+                || appiumCapabilities.getCapability("appium:flutterElementWaitTimeout") != null
+                || appiumCapabilities.getCapability("appium:flutterSystemPort") != null;
     }
 
     @SuppressWarnings("SpellCheckingInspection")

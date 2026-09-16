@@ -788,6 +788,13 @@ public class TouchActions extends FluentWebDriverAction {
                     break;
                 }
                 firstAttempt = false;
+                // Delay after every OCR/image scroll to let the viewport settle before the next search.
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
             throw new IllegalStateException("Target was not found before the view reached its scroll boundary.");
         } catch (Throwable throwable) {
@@ -1639,7 +1646,7 @@ public class TouchActions extends FluentWebDriverAction {
                 case RIGHT ->
                         scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
                 case LEFT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX() + (elementRectangle.getWidth() * 30 / 100), "top", elementRectangle.getY()));
             }
         } else {
             //scrolling inside the screen

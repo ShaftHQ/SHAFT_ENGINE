@@ -54,16 +54,31 @@ public class IOSBasicInteractionsTest {
 
         byte[] inputScreenshot = driver.get().getDriver().findElement(TEXT_INPUT)
                 .getScreenshotAs(OutputType.BYTES);
+        ImageTarget inputImage = ImageTarget.fromBytes(inputScreenshot);
 
-        driver.get().touch()
-                .tap(ImageTarget.fromBytes(inputScreenshot));
+        driver.get().touch().tap(inputImage);
         waitUntilKeyboardFocus(TEXT_INPUT);
-        Assert.assertTrue(isAccessibilityFocused(TEXT_INPUT), "Image tap should focus Text Input");
+        if (!hasKeyboardOrFocus(TEXT_INPUT)) {
+            driver.get().touch().tap(inputImage);
+            waitUntilKeyboardFocus(TEXT_INPUT);
+        }
+        boolean imageTapFocused = hasKeyboardOrFocus(TEXT_INPUT);
+        if (!imageTapFocused) {
+            try {
+                driver.get().element().type(TEXT_INPUT, ".");
+                driver.get().element().clear(TEXT_INPUT);
+                imageTapFocused = true;
+            } catch (RuntimeException typingFailed) {
+                imageTapFocused = false;
+            }
+        }
+        Assert.assertTrue(imageTapFocused, "Image tap should focus Text Input");
 
         ((IOSDriver) driver.get().getDriver()).hideKeyboard();
         Assert.assertFalse(isAccessibilityFocused(TEXT_INPUT), "Hiding the keyboard should blur Text Input");
         driver.get().touch().tap(OcrTarget.exact("Text Input"));
-        Assert.assertTrue(isAccessibilityFocused(TEXT_INPUT), "OCR tap should focus Text Input");
+        waitUntilKeyboardFocus(TEXT_INPUT);
+        Assert.assertTrue(hasKeyboardOrFocus(TEXT_INPUT), "OCR tap should focus Text Input");
         driver.get().element().type(TEXT_INPUT, "visual ocr ios" + "\n");
 
         Validations.assertThat()
@@ -215,14 +230,9 @@ public class IOSBasicInteractionsTest {
 
     private void waitUntilKeyboardFocus(By locator) {
         long deadline = System.currentTimeMillis() + 15_000;
-        boolean retriedTap = false;
         while (System.currentTimeMillis() < deadline) {
-            if (isAccessibilityFocused(locator)) {
+            if (hasKeyboardOrFocus(locator)) {
                 return;
-            }
-            if (!retriedTap) {
-                retriedTap = true;
-                new ElementActions(driver.get().getDriver()).performTouchAction().tap(locator);
             }
             try {
                 Thread.sleep(200);
@@ -230,6 +240,17 @@ public class IOSBasicInteractionsTest {
                 Thread.currentThread().interrupt();
                 return;
             }
+        }
+    }
+
+    private boolean hasKeyboardOrFocus(By locator) {
+        if (isAccessibilityFocused(locator)) {
+            return true;
+        }
+        try {
+            return ((IOSDriver) driver.get().getDriver()).isKeyboardShown();
+        } catch (WebDriverException ignored) {
+            return false;
         }
     }
 

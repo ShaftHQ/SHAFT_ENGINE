@@ -302,6 +302,27 @@ public class OptionsManagerCoverageUnitTest {
     }
 
     @Test
+    public void flutterTimeoutsStayMillisAfterInitializeMobileDesiredCapabilities() {
+        SHAFT.Properties.platform.set().targetPlatform("android");
+        SHAFT.Properties.mobile.set().browserName("")
+                .automationName(io.appium.java_client.remote.AutomationName.FLUTTER_INTEGRATION)
+                .flutterElementWaitTimeout(5)
+                .flutterServerLaunchTimeout(20)
+                .flutterSystemPort(8300)
+                .flutterEnableMockCamera(true);
+
+        OptionsManager manager = new OptionsManager();
+        manager.setDriverOptions(DriverFactory.DriverType.APPIUM_FLUTTER, new MutableCapabilities());
+        manager.initializeMobileDesiredCapabilities();
+
+        Assert.assertEquals(((Number) manager.getAppiumCapabilities().getCapability("appium:flutterElementWaitTimeout")).longValue(), 5_000L);
+        Assert.assertEquals(((Number) manager.getAppiumCapabilities().getCapability("appium:flutterServerLaunchTimeout")).longValue(), 20_000L);
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:flutterSystemPort"), 8300);
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:flutterEnableMockCamera"), true);
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:forceAppLaunch"), true);
+    }
+
+    @Test
     public void shouldBuildFlutterCapabilitiesWhenCustomDriverOptionsIsNull() {
         SHAFT.Properties.platform.set().targetPlatform("android");
         SHAFT.Properties.mobile.set().browserName("");
