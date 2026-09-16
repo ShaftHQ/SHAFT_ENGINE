@@ -91,6 +91,13 @@ actionable blocker). Stay quiet when unchanged. Never heartbeat. Never echo
 secrets. Retune x after every cycle from the latest evidence, not from a fixed
 timer chosen at dispatch.
 
+
+### Unattended default
+
+Unless the owner chose interactive or moderate attendance at plan time, work
+**fully unattended**: babysit CI, merge green in-scope PRs (merge commits when
+the repo forbids squash), and do not wait for a per-PR "merge?" decision.
+
 ### Naming
 
 - Canonical role name: **process-owner**.

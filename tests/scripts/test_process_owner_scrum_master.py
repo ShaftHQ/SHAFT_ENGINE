@@ -98,6 +98,10 @@ class ProcessOwnerScrumMasterTest(unittest.TestCase):
                 "adaptive follow-up",
                 "Adaptive follow-up",
             ),
+            (
+                "unattended default",
+                "Unattended default",
+            ),
         )
         for label, phrase in required:
             with self.subTest(label=label):

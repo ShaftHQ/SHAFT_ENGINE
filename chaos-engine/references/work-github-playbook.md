@@ -165,7 +165,7 @@ transcripts, private routes, model identities, credentials, and local paths.
 
 The entrypoint makes this a duty. The terminal states are merged, red,
 conflicting, and stale; a watcher observes only green and red.
-When the owner says babysit and merge it when green, follow this PR-merger
+When attendance is fully unattended (default) or the owner says babysit and merge it when green, follow this PR-merger
 (arm auto-merge, watch, fix, confirm). Bundled `pr-babysit` forbids merge;
 do not copy that rule into ChaosEngine and do not edit the bundled skill in place.
 
