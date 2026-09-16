@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import stat
-import subprocess
+import subprocess  # nosec B404 - tests drive the fixed local probe with controlled argv.
 import sys
 import threading
 import unittest
@@ -69,7 +69,12 @@ class LocalServer:
         return False
 
 
-def run_cli(url: str, extra_env: dict | None = None, path: str | None = None) -> subprocess.CompletedProcess:
+def run_cli(
+    url: str,
+    extra_env: dict | None = None,
+    path: str | None = None,
+    extra_argv: list[str] | None = None,
+) -> subprocess.CompletedProcess:
     env = os.environ.copy()
     env.pop("FREETOKEN_BASE_URL", None)
     env["http_proxy"] = "http://127.0.0.1:1"
@@ -80,8 +85,11 @@ def run_cli(url: str, extra_env: dict | None = None, path: str | None = None) ->
         env["PATH"] = path
     if extra_env:
         env.update(extra_env)
-    return subprocess.run(
-        [sys.executable, str(PROBE), "--url", url],
+    command = [sys.executable, str(PROBE), "--url", url]
+    if extra_argv:
+        command.extend(extra_argv)
+    return subprocess.run(  # nosec B603 - fixed interpreter and repository probe script.
+        command,
         capture_output=True,
         text=True,
         check=False,
@@ -168,6 +176,28 @@ class FreeTokenProbeTest(unittest.TestCase):
         self.assertNotIn("ft launch", text)
         self.assertNotIn("ft serve", text)
         self.assertNotIn("subprocess", text)
+
+
+
+    def test_attest_json_when_ready(self):
+        body = json.dumps({"data": [{"id": "secret-model"}]}).encode("utf-8")
+        with LocalServer(body) as url:
+            completed = run_cli(url, path="/usr/bin:/bin", extra_argv=["attest"])
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["state"], "READY")
+        self.assertFalse(payload["install"])
+        self.assertFalse(payload["may_ft_launch"])
+        self.assertFalse(payload["omniroute_required"])
+        self.assertNotIn("secret-model", completed.stdout)
+
+    def test_models_lists_ids_only_when_ready(self):
+        body = json.dumps({"data": [{"id": "coding-moe"}]}).encode("utf-8")
+        with LocalServer(body) as url:
+            completed = run_cli(url, path="/usr/bin:/bin", extra_argv=["models", "--json"])
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["models"], ["coding-moe"])
 
 
 if __name__ == "__main__":

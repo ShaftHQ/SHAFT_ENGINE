@@ -1,27 +1,50 @@
 ---
 name: freetoken
-description: Use when an orchestrated workflow may dispatch bounded implementation through an optional local FreeToken process.
+description: >-
+  Use when an orchestrated workflow may dispatch bounded implementation through
+  an optional local FreeToken process (standalone; not OmniRoute).
 license: MIT
 ---
 
 # FreeToken
 
-Optional local-weights server. It is not a router and not a workflow owner.
-Select the canonical workflow in [execution workflows](../../references/execution-workflows.md)
-first. OmniRoute remains the optional cloud-quota gateway. Missing FreeToken
-is normal: use OmniRoute, a qualified native implementer, or `SOLO`.
+Optional **local MoE / local-weights** companion from
+[FlashML-org/FreeToken](https://github.com/FlashML-org/FreeToken). It is not a
+workflow owner; select the canonical workflow in
+[execution workflows](../../references/execution-workflows.md) first.
 
-Do not install FreeToken, download weights, start a server, or rewrite
-Claude, Codex, or OpenCode config. Do not clear cloud API keys. Receipts and
-repository files never persist route, model, or provider IDs. Live stdout of
-this probe may name models for the current session only; do not write them.
+**Standalone from OmniRoute.** FreeToken loopback is
+`http://127.0.0.1:1919`. OmniRoute is `http://127.0.0.1:20128`. Neither
+requires the other. Missing FreeToken is normal: use OmniRoute (if READY), a
+qualified native implementer, `SOLO`, or another local OpenAI-compat runtime
+when those skills exist.
 
-## Probe only
+## Hard rails (never regress)
 
-Fixed probe. Ignore non-loopback URLs. No redirect. No ambient
-`FREETOKEN_BASE_URL` override of the fixed probe host.
+- Do **not** install FreeToken, download weights, start `ft serve`, or run
+  `ft launch` (launch rewrites host agent configs and can clear cloud API keys).
+- Do **not** rewrite Claude / Codex / OpenCode config files from this skill.
+- Do **not** clear cloud API keys. Do not persist route, model, or provider IDs
+  in receipts or repository files.
+- Installer / doctor / status must **not** fail because FreeToken is missing.
+- Never bind or probe a non-loopback FreeToken URL from ChaosEngine.
 
-Use the standard-library [probe](scripts/probe.py):
+Operator install stays on vendor docs. See the
+[FreeToken guide](../../guides/freetoken.md).
+
+## Agent machine vs user machine
+
+FreeToken is almost always on the **user's GPU machine** (for GPU-backed operator hosts such as a
+laptop ROG). An agent box loopback is a different host: `127.0.0.1:1919` there is not
+the user's FreeToken. If the adopter asked for FreeToken and Shell is not on
+the user machine, say so, require Local Execution / the user host, and stop.
+Do not invent remote `--base-url` workarounds from ChaosEngine.
+
+## Probe → attest → models → dispatch
+
+### 1. Probe
+
+Probe helper: [`chaos-engine/skills/freetoken/scripts/probe.py`](scripts/probe.py).
 
 ```text
 command -v ft
@@ -29,36 +52,50 @@ curl -sf --max-time 2 http://127.0.0.1:1919/v1/models
 python3 chaos-engine/skills/freetoken/scripts/probe.py
 ```
 
-Ready when the API answers. Do not install. If the binary exists but health
-fails, do not auto-serve (weights and GPU are unknown). Tell the operator the
-vendor command is `ft serve` (not `ft launch`) and ChaosEngine will not start
-it. Never invoke `ft launch`. That rewrites host configs and clears
-`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`.
-
-The probe emits only `ABSENT`, `UNHEALTHY`, or `READY`:
+Ambient `FREETOKEN_BASE_URL` is ignored for the probe host. States:
 
 | State | Meaning |
 | --- | --- |
-| `ABSENT` | `ft` is missing and nothing answers on the fixed loopback port. Normal. |
-| `UNHEALTHY` | `ft` exists but the port is closed, or something answers without a models payload. Do not start the server. |
-| `READY` | A JSON list or an object with a `models`/`data` array came back. |
+| `ABSENT` | `ft` missing and nothing answers on the fixed loopback port. Normal. |
+| `UNHEALTHY` | `ft` exists but the port is closed, or the response is not a models payload. Do not start the server. |
+| `READY` | JSON list or object with `models`/`data` array. |
 
-No catalog ranking. No `omniroute run` equivalent.
+### 2. Attest
 
-## Dispatch when READY
+On `READY`, confirm OpenAI (`http://127.0.0.1:1919/v1`) and optionally Anthropic
+(`http://127.0.0.1:1919/v1/messages`) answer for this session only:
 
-If healthy, a bounded implementer may set the loopback OpenAI-compatible base
-URL `http://127.0.0.1:1919/v1` for that dispatch only. Do not rewrite host
-config files. Do not clear cloud API keys. Do not persist the model id.
+```text
+python3 chaos-engine/skills/freetoken/scripts/probe.py attest
+```
 
-`ABSENT` and `UNHEALTHY` leave OmniRoute, native implementers, and `SOLO`
-valid. They never fail install, doctor, or the selected workflow.
+### 3. Models (session stdout only)
 
-Installer doctor/status must not fail because FreeToken is missing. This
-probe is the capability check. FreeToken is not an installer bundle component
-and is not installed by default.
+```text
+python3 chaos-engine/skills/freetoken/scripts/probe.py models --json
+```
 
-Operator install stays on vendor docs. See the
-[FreeToken guide](../../guides/freetoken.md). Hardware note only: NVIDIA RTX
-30 series or newer, as documented by FlashML-org/FreeToken. Apache-2.0.
-ChaosEngine does not install the package or start `ft serve`.
+Prefer smaller coding MoEs on constrained GPUs (e.g. RTX 3060 Laptop 6 GB +
+~22 GB RAM). Do not assume 35B is reliable on that class until soak-proven.
+Optional size-class hint (stdlib, no downloads):
+
+```text
+python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
+```
+
+### 4. Dispatch when READY
+
+For a bounded implementer, set **ephemeral** env for that process only, for
+example `OPENAI_BASE_URL=http://127.0.0.1:1919/v1` (and Anthropic base URL when
+the client needs it). Point OpenCode / Claude Code / Codex at that loopback
+**without** `ft launch` and without rewriting durable host config.
+
+`ABSENT` / `UNHEALTHY`: tell the operator FreeToken is optional; point at the
+guide; continue with other qualified paths. Never auto-serve.
+
+## Related
+
+- Guide: [freetoken.md](../../guides/freetoken.md)
+- Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
+- OmniRoute (cloud-quota peer, not a dependency): [omniroute skill](../omniroute/SKILL.md)
+- Local OpenCode agency (later): GitHub #5872

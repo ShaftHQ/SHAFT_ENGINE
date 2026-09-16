@@ -15,7 +15,11 @@ except on dispatch, completion, failure, or owner/delegate interrupt. First
 inspect as soon as dispatch yields a live handle. Use the host timer or
 scheduler when available; otherwise the next main-thread wake still owes the
 inspection.
-No live writers or required checks: no scheduler.
+No live writers or required checks: no scheduler — **unless** the owner asked
+for unattended babysitting or adaptive follow-ups; then follow
+[process-owner adaptive follow-up](process-owner-scrum-master.md#adaptive-follow-up-orchestrator-duty)
+and retune **x** each cycle from evidence (tighten under active CI/downloads,
+stretch when quiet, stop when terminal).
 
 Each inspection is a process-owner duty: establish blocked or unblocked state,
 report status with evidence, apply pressure when progress stalls, consult on

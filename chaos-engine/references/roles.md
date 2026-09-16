@@ -24,7 +24,9 @@ delivered. Follow [orchestrator follow-through](orchestrator-follow-through.md).
 Load [process-owner](process-owner-scrum-master.md) in orchestrated mode
 (Scrum-master is an alias only when the user explicitly asks; "product owner"
 maps to process-owner). Its standing process-owner duty is to automatically
-inspect and adapt live work on that policy's scope-selected cadence. Status
+inspect and adapt live work on that policy's scope-selected cadence, including
+[adaptive follow-up](process-owner-scrum-master.md#adaptive-follow-up-orchestrator-duty)
+when the owner asks for unattended babysitting or dynamic follow-ups. Status
 reports use the [status report format](process-owner-scrum-master.md#status-report-format).
 
 ## Implementer
