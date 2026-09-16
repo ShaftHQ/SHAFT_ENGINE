@@ -347,7 +347,8 @@ public class BrowserActionsHelper {
                             Level.WARN);
                     tryStopInFlightNavigation(driver);
                     waitUntilSafariDocumentSettles(driver);
-                    failAction(driver, targetUrl, timeoutException);
+                    // Explicit name: stack would report navigateToNewUrl (#5876 Allure matcher).
+                    failAction(driver, "navigateToUrl", targetUrl, timeoutException);
                 }
                 waitUntilSafariDocumentSettles(driver);
                 return;

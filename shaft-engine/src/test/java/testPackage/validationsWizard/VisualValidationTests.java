@@ -8,6 +8,7 @@ import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
 
 public class VisualValidationTests {
     protected static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
@@ -38,7 +39,7 @@ public class VisualValidationTests {
     @BeforeMethod
     public void beforeMethod(){
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL(TestPageServer.url("visualValidationFixture.html"));
     }
 
     @AfterMethod(alwaysRun = true)
