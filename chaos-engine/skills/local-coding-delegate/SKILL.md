@@ -1,8 +1,8 @@
 ---
 name: local-coding-delegate
 description: >-
-  Deprecated alias: optional local coding labor now routes through FreeToken
-  and future local OpenAI-compat skills. Keep for catalog reachability.
+  Use when an optional local coding loop or hardware size-class probe is
+  needed; prefer FreeToken for local-weights dispatch (compat shim).
 license: MIT
 ---
 
@@ -15,6 +15,8 @@ adopter asked for FreeToken / local MoE inference.
 ## What remains here
 
 Stdlib hardware size-class probe (no downloads, no vendor model names):
+
+See [`scripts/probe_hardware.py`](scripts/probe_hardware.py):
 
 ```text
 python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py

@@ -44,6 +44,8 @@ Do not invent remote `--base-url` workarounds from ChaosEngine.
 
 ### 1. Probe
 
+Probe helper: [`scripts/probe.py`](scripts/probe.py).
+
 ```text
 command -v ft
 curl -sf --max-time 2 http://127.0.0.1:1919/v1/models
