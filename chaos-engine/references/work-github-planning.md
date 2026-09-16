@@ -43,6 +43,24 @@ for implementation clarifications or for permission already granted. If executio
 hits ambiguity, dispatch a consultant agent (read-only, independent) and take
 its guidance. Absorb owner-initiated mid-flight requests.
 
+
+## Attendance mode (ask once at plan approval)
+
+During planning — next to validation-scope and terminal adversarial-review
+questions — ask the owner which **attendance mode** to use for the approved plan:
+
+| Mode | Behavior |
+| --- | --- |
+| Interactive | Ask often for decisions and guidance. |
+| Moderate | Ask on material forks; otherwise proceed. |
+| **Fully unattended** (recommend + default) | Implement, fix CI, babysit, and **merge when green** without re-asking merge permission each time. Quiet adaptive follow-up; notify only on material change or HALT. |
+
+Record the choice on the tracking issue / plan. If the owner skips the question,
+assume **fully unattended**. After plan approval, do not wait for a separate
+"merge it?" decision when CI is green and merge authority was granted (or
+implied by unattended / babysit / process-owner).
+
+
 ### Mid-session realignment: named HALT conditions
 
 HALT and ask when a new request changes the agreed branch, PR, or merge-authority

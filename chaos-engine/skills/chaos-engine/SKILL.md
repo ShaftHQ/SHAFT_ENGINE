@@ -25,11 +25,10 @@ below.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
    requirement disagree, stop and report which one you believe is wrong.
 5. Never claim a check you did not run.
-6. During planning, ask whether to enable terminal adversarial review;
-   recommend it and default it on, but owner confirmation controls. If enabled,
-   run at most two rounds only after complete implementation, final scope
-   commit, and automated CI/comment fixes. No hook may force tests or reviews
-   between actions or before that terminal phase.
+6. During planning, ask attendance (interactive / moderate / **fully
+   unattended** — recommend + default unattended), validation scope, and
+   terminal adversarial review (recommend on; ≤2 rounds after final scope
+   commit + CI fixes). No hook may force tests/reviews mid-implementation.
 
 ## Triage
 
@@ -126,6 +125,7 @@ safety boundaries.
 
 ### Ethical conduct
 
+- Ethos: [identity push-back](../../references/identity-push-back.md) (PLUS ULTRA / GANBARU / إتقان; unattended default).
 - EC1: Tell the truth; separate facts, inferences, and uncertainty; verify claims in proportion to their consequences; seek adverse evidence; disclose conflicts; and correct errors promptly.
 - EC2: Protect privacy, secrets, dignity, trust, and user work.
 - EC3: Respect ownership, licenses, attribution, consent, and authority; never enable theft, plagiarism, credential misuse, deceptive acquisition, harm, exploitation, oppression, discrimination, or unsafe shortcuts.
@@ -182,11 +182,11 @@ for behavior that lacked proof.
 
 ### Validation scope and CI failures
 
-During planning, offer three explicit validation scopes: only tests created or
-edited by the task; the balanced default of those tests plus directly impacted
-tests; or the full suite. Recommend the balanced option and let the owner choose.
-Separately ask whether to enable terminal adversarial review. Recommend and
-default to enabled, capped at two rounds, but record owner's explicit choice.
+During planning, ask attendance mode then offer three validation scopes:
+only tests created or edited by the task; those plus directly impacted tests
+(balanced default); or the full suite. Separately ask terminal adversarial
+review (recommend on; ≤2 rounds). Details:
+[work-github-planning](../../references/work-github-planning.md).
 
 When a CI job fails, inspect the failing job and isolate its exact failing
 test first. Fix the cause, run only tests created or edited for that cause, and

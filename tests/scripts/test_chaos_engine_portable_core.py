@@ -979,6 +979,19 @@ class OrchestratorModeContractTest(unittest.TestCase):
         ]
         return re.sub(r"\s+", " ", "\n".join(texts))
 
+    def test_planning_asks_attendance_mode_default_unattended(self):
+        """Attendance mode sits with review/PR planning; default fully unattended."""
+        planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
+        identity = (CORE / "references/identity-push-back.md").read_text(encoding="utf-8")
+        skill = (CORE / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Attendance mode", planning)
+        self.assertIn("Fully unattended", planning)
+        self.assertIn("PLUS ULTRA", identity)
+        self.assertIn("GANBARU", identity)
+        self.assertIn("يُتْقِنَهُ", identity)
+        self.assertIn("attendance", skill.lower())
+
+
     def test_orchestrator_follow_through_is_inspect_and_adapt_not_waiting(self):
         follow_through = CORE / "references/orchestrator-follow-through.md"
         self.assertTrue(follow_through.is_file())
