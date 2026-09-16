@@ -1,16 +1,22 @@
 ---
 name: local-coding-delegate
 description: >-
-  Use when an optional local coding loop or hardware size-class probe is
-  needed; prefer FreeToken for local-weights dispatch (compat shim).
+  Compat shim: hardware size-class probe plus pointer to local-agency /
+  FreeToken for local-weights OpenCode dispatch.
 license: MIT
 ---
 
 # Local coding delegate (folded)
 
-This skill is a **compatibility shim**. Prefer the
-[FreeToken skill](../freetoken/SKILL.md) for local-weights dispatch when the
-adopter asked for FreeToken / local MoE inference.
+This skill is a **compatibility shim**.
+
+- Prefer [local-agency](../local-agency/SKILL.md) when the adopter asks for
+  **OpenCode / local OSS agency** against a READY local runtime (not session
+  subagents).
+- Prefer [FreeToken](../freetoken/SKILL.md) for local-weights probe/attest when
+  the ask is FreeToken / local MoE inference without an agency CLI.
+- Prefer [local-openai-compat](../local-openai-compat/SKILL.md) for Ollama /
+  LM Studio / llama.cpp peers.
 
 ## What remains here
 
@@ -22,7 +28,7 @@ See [`chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py`](scri
 python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
 ```
 
-Use it as an optional hint before choosing a FreeToken checkpoint size class
+Use it as an optional hint before choosing a checkpoint size class
 (`small` / `medium` / `large` / `refuse`). Honest `refuse` is a valid
 completion.
 
@@ -33,5 +39,4 @@ loops are mechanical or default-capability labor only. Close that writer after
 its PR exists. Do not use a local loop for review, the GitHub playbook, or
 public-API changes unless both the probe and the task say it is enough.
 
-Full local OpenCode / agency routing against FreeToken or other local runtimes
-is tracked under GitHub #5872.
+Never `ft launch`. Never silently fall back to cloud OmniRoute unless asked.

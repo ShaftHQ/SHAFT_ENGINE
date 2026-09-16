@@ -100,7 +100,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         }
         self.assertEqual(
             packaged_skills,
-            {"chaos-engine", "freetoken", "local-coding-delegate", "local-openai-compat", "omniroute", "self-improve", "work-item"},
+            {"chaos-engine", "freetoken", "local-agency", "local-coding-delegate", "local-openai-compat", "omniroute", "self-improve", "work-item"},
         )
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))

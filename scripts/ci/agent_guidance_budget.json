@@ -115,6 +115,7 @@
     "chaos-engine/skills": [
       "chaos-engine",
       "freetoken",
+      "local-agency",
       "local-coding-delegate",
       "local-openai-compat",
       "omniroute",

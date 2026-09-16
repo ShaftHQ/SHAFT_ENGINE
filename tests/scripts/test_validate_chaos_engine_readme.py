@@ -46,6 +46,7 @@ class ChaosEngineReadmeInventoryTest(unittest.TestCase):
             "caveman",
             "ponytail",
             "freetoken",
+            "local-agency",
             "local-coding-delegate",
             "local-openai-compat",
             "omniroute",

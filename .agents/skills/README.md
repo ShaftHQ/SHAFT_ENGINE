@@ -81,6 +81,7 @@ flowchart LR
     OP --> T
     T --> OR["Optional OmniRoute"]
     T --> FT["Optional FreeToken"]
+    T --> LA["Optional local-agency"]
     T --> N["Native implementer"]
 ```
 
@@ -116,7 +117,9 @@ step with the first.
 | [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
 | [OmniRoute](../../chaos-engine/skills/omniroute/SKILL.md) | Optional local OmniRoute transport for a workflow already selected by the canonical execution-workflow owner. Missing service or qualification falls back without weakening normal workflows. |
 | [FreeToken](../../chaos-engine/skills/freetoken/SKILL.md) | Optional local FreeToken weights server for a workflow already selected by the canonical execution-workflow owner. Missing service never weakens normal workflows and does not replace OmniRoute. |
-| [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) | Optional. Not always-loaded. A local coding loop the decider may use as a mechanical or default delegate after a hardware probe. |
+| [local-openai-compat](../../chaos-engine/skills/local-openai-compat/SKILL.md) | Optional Ollama / LM Studio / llamacpp OpenAI-compat peers. Probe and ephemeral dispatch only; CE never installs or starts them. |
+| [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) | Optional OpenCode / local OSS agency against a READY local runtime (not session subagents). Ephemeral `OPENCODE_CONFIG`; never `ft launch`; no silent OmniRoute fallback. |
+| [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) | Compat shim: hardware size-class probe; prefer local-agency / FreeToken for local-weights agency dispatch. |
 | [work-item](../../chaos-engine/skills/work-item/SKILL.md) | Optional. Not always-loaded. Open or rewrite a work item under the portable Spec Kit contract; SCM adapters are separate. |
 
 The entrypoint reaches the internal [consultation](../../chaos-engine/references/consult-first.md)
