@@ -94,6 +94,10 @@ class ProcessOwnerScrumMasterTest(unittest.TestCase):
                 "recurring-only research threshold",
                 "recurring process-failure / impediment classes (2+)",
             ),
+            (
+                "adaptive follow-up",
+                "Adaptive follow-up",
+            ),
         )
         for label, phrase in required:
             with self.subTest(label=label):

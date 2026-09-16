@@ -16,7 +16,7 @@ adopter asked for FreeToken / local MoE inference.
 
 Stdlib hardware size-class probe (no downloads, no vendor model names):
 
-See [`scripts/probe_hardware.py`](scripts/probe_hardware.py):
+See [`chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py`](scripts/probe_hardware.py):
 
 ```text
 python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py

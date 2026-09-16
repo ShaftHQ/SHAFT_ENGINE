@@ -44,7 +44,7 @@ Do not invent remote `--base-url` workarounds from ChaosEngine.
 
 ### 1. Probe
 
-Probe helper: [`scripts/probe.py`](scripts/probe.py).
+Probe helper: [`chaos-engine/skills/freetoken/scripts/probe.py`](scripts/probe.py).
 
 ```text
 command -v ft

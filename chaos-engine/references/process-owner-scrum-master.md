@@ -68,8 +68,28 @@ report MUST include actual cost in **USD and EGP**, inferred from tokens ×
 cost-per-token for the current agent/model/effort. Do not omit currency
 conversion when EGP is the owner's reporting currency.
 
-Evidence still binds every claim. Do not invent scheduled routines for status;
-publish on ask or on the existing follow-through inspection cadence.
+Evidence still binds every claim. Publish on ask, on follow-through inspection,
+or when an **adaptive follow-up** fires with material change (see below).
+
+### Adaptive follow-up (orchestrator duty)
+
+When the owner asks to proceed unattended, babysit delivery, or "follow up every
+X minutes," the process-owner **MUST** run an **adaptive follow-up** loop as part
+of orchestrator mode — not as an ad-hoc host memory. Prefer a portable host
+scheduler / standing watch when available; otherwise use the next main-thread
+wake. Cadence **x** is chosen and retuned from evidence each cycle:
+
+| Situation | Default x |
+| --- | --- |
+| Active download, pending CI, or serve/start still converging | ~5–10 minutes |
+| Serve READY and CI mostly green (non-blocking checks ok) | ~30 minutes |
+| Two quiet cycles with nothing actionable | ~60 minutes (tell the owner once you slowed down) |
+| Terminal: owned proof done and in-scope PRs merged/closed | Stop the watch |
+
+Notify only on **material** change (download done, serve READY, CI flip,
+actionable blocker). Stay quiet when unchanged. Never heartbeat. Never echo
+secrets. Retune x after every cycle from the latest evidence, not from a fixed
+timer chosen at dispatch.
 
 ### Naming
 
@@ -91,8 +111,8 @@ authoritative research to improve the process itself.
 
 | Class | Items |
 | --- | --- |
-| MUST | Delegation verification before parent-slice completion; TDD/PDCA red/green or automated verifier proof; Evidence-backed status; Impediment removal within authority; consult on ambiguity; recurring-only (2+) process research threshold. |
-| Adaptive | Inspection cadence inside the follow-through band; pressure wording; consult depth; whether to re-spec, upgrade, or kill after evidence; research sources once the 2+ threshold trips. |
+| MUST | Delegation verification before parent-slice completion; TDD/PDCA red/green or automated verifier proof; Evidence-backed status; Impediment removal within authority; consult on ambiguity; recurring-only (2+) process research threshold; **Adaptive follow-up** when the owner asks for unattended babysitting / dynamic follow-ups (retune x; quiet unless material). |
+| Adaptive | Inspection cadence inside the follow-through band (and the numeric x inside adaptive follow-up); pressure wording; consult depth; whether to re-spec, upgrade, or kill after evidence; research sources once the 2+ threshold trips. |
 
 ## Delivery hygiene (token + quality)
 
@@ -106,6 +126,8 @@ authoritative research to improve the process itself.
 - Learning Session Memory writes use `memory save --stdin` as the default path
   (#5852). Drop manual `.memory/**` sidecar authoring; report save failures
   instead of hand-editing runtime-shaped JSON/markdown.
+
+See also [identity push-back](identity-push-back.md) (fact-grounded opinion / push-back).
 
 ## Anti-patterns and self-correction
 
