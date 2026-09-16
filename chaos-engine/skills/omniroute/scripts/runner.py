@@ -3038,6 +3038,167 @@ def complete(  # noqa: MC0001 - receipt validation remains one fail-closed audit
     return receipt
 
 
+_PROBE_CALL_LOG_MODELS = frozenset({
+    "connection-test",
+    "credentialhealth",
+    "credential-health",
+})
+_PROBE_CLAIMED_STEPS = frozenset({
+    "probe",
+    "health",
+    "candidates",
+    "catalog",
+    "models",
+    "quota",
+    "credentialhealth",
+    "credential-health",
+    "token-health",
+    "api/health",
+})
+
+
+def call_log_is_probe(entry: object) -> bool:
+    """True for CredentialHealth / connection-test / catalog-style probe rows."""
+    if not isinstance(entry, dict):
+        return True
+    model = str(entry.get("model") or "").strip().casefold()
+    if not model or model in _PROBE_CALL_LOG_MODELS:
+        return True
+    compact = model.replace(" ", "").replace("_", "").replace("-", "")
+    if "credentialhealth" in compact:
+        return True
+    for key in ("source", "kind", "type", "caller", "client", "origin"):
+        value = str(entry.get(key) or "").casefold().replace(" ", "")
+        if not value:
+            continue
+        if "credentialhealth" in value or value in {"health", "probe", "catalog"}:
+            return True
+    return False
+
+
+def call_log_is_coding_completion(entry: object) -> bool:
+    """True for a non-probe completion row suitable as OmniRoute coding proof."""
+    if not isinstance(entry, dict) or call_log_is_probe(entry):
+        return False
+    model = str(entry.get("model") or "").strip()
+    if not model:
+        return False
+    method = str(entry.get("method") or "POST").strip().upper()
+    if method and method != "POST":
+        return False
+    status = entry.get("status")
+    if status is not None:
+        try:
+            if int(status) >= 400:
+                return False
+        except (TypeError, ValueError):
+            return False
+    tokens = entry.get("tokens")
+    if isinstance(tokens, (int, float)) and tokens > 0:
+        return True
+    # Live OmniRoute CredentialHealth rows use model=connection-test with
+    # tokens=0. After probe filtering, a successful POST to a real model id
+    # counts as coding completion traffic even when token counts are absent.
+    return True
+
+
+def run_receipt_proves_dispatch(receipt: object) -> bool:
+    """True when a ChaosEngine OmniRoute runner receipt proves `omniroute run`."""
+    if not isinstance(receipt, dict):
+        return False
+    if receipt.get("omnirouteRun") is True or receipt.get("dispatchProved") is True:
+        return True
+    outcome = str(receipt.get("outcome") or "").casefold()
+    status = str(receipt.get("status") or "").casefold()
+    exit_code = receipt.get("exitCode")
+    if outcome == "success" and status in {"completed", "review", "success"}:
+        return True
+    if exit_code == 0 and status == "completed":
+        return True
+    return False
+
+
+def evaluate_required_dispatch_proof(
+    *,
+    omniroute_required: bool,
+    run_receipt: dict[str, Any] | None = None,
+    call_logs: list[Any] | None = None,
+    claimed_steps: list[str] | None = None,
+) -> dict[str, Any]:
+    """Fail closed when OmniRoute was opted in but only probes ran.
+
+    Catalog / candidates / health / CredentialHealth alone never prove dispatch.
+    Accept either a runner `omniroute run` receipt or a coding completion call_log.
+    """
+    if not omniroute_required:
+        return {
+            "state": "NOT_REQUIRED",
+            "proved": True,
+            "blocker": None,
+            "proofKind": None,
+            "probeOnlyEvidence": False,
+        }
+    if run_receipt_proves_dispatch(run_receipt):
+        return {
+            "state": "PROVED",
+            "proved": True,
+            "blocker": None,
+            "proofKind": "run_receipt",
+            "probeOnlyEvidence": False,
+        }
+    coding_logs = [
+        entry for entry in (call_logs or [])
+        if call_log_is_coding_completion(entry)
+    ]
+    if coding_logs:
+        return {
+            "state": "PROVED",
+            "proved": True,
+            "blocker": None,
+            "proofKind": "coding_call_log",
+            "probeOnlyEvidence": False,
+        }
+    normalized_steps = [
+        str(step).strip().casefold().replace("_", "-")
+        for step in (claimed_steps or [])
+        if str(step).strip()
+    ]
+    probe_only = (
+        not normalized_steps
+        or all(step in _PROBE_CLAIMED_STEPS for step in normalized_steps)
+    )
+    blocker = (
+        "OmniRoute was required but no omniroute run receipt or coding "
+        "completion call_log was found. Catalog/candidates/health probes "
+        "alone are not OmniRoute progress."
+    )
+    return {
+        "state": "BLOCKED",
+        "proved": False,
+        "blocker": blocker,
+        "proofKind": None,
+        "probeOnlyEvidence": probe_only,
+    }
+
+
+def _load_optional_json_object(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise OmniRouteError("JSON object required")
+    return value
+
+
+def _load_optional_json_list(path: Path | None) -> list[Any] | None:
+    if path is None:
+        return None
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, list):
+        raise OmniRouteError("JSON array required")
+    return value
+
+
 def _print(value: dict[str, Any]) -> int:
     print(json.dumps(value, sort_keys=True))
     return 0
@@ -3113,6 +3274,30 @@ def main(argv: list[str] | None = None) -> int:
         choices=sorted(_CODING_TASKS | {"general"}),
         help="coding|implementation applies the coding allow/deny filter even outside default capability",
     )
+    proof_parser = commands.add_parser(
+        "proof",
+        help="Evaluate OmniRoute proof-of-dispatch when the adopter required OmniRoute",
+    )
+    proof_parser.add_argument(
+        "--required",
+        action="store_true",
+        help="Adopter/process-owner opted into OmniRoute for this delivery",
+    )
+    proof_parser.add_argument(
+        "--receipt",
+        type=Path,
+        help="Path to a runner complete/dispatch receipt JSON object",
+    )
+    proof_parser.add_argument(
+        "--call-logs",
+        type=Path,
+        help="Path to a JSON array of OmniRoute usage call_log rows",
+    )
+    proof_parser.add_argument(
+        "--steps",
+        default="",
+        help="Comma-separated claimed steps (probe,candidates,omniroute-run,...)",
+    )
     args = parser.parse_args(raw_arguments)
     try:
         if args.command == "probe":
@@ -3122,6 +3307,16 @@ def main(argv: list[str] | None = None) -> int:
                 required_capability=args.capability,
                 task=None if args.task == "general" else args.task,
             ))
+        if args.command == "proof":
+            steps = [part for part in str(args.steps).split(",") if part.strip()]
+            result = evaluate_required_dispatch_proof(
+                omniroute_required=bool(args.required),
+                run_receipt=_load_optional_json_object(args.receipt),
+                call_logs=_load_optional_json_list(args.call_logs),
+                claimed_steps=steps,
+            )
+            _print(result)
+            return 0 if result.get("proved") else 2
         if args.command == "attest":
             return _print(attest(config_path=args.config, contract_path=args.contract))
         if args.command == "dispatch":
@@ -3157,6 +3352,9 @@ def main(argv: list[str] | None = None) -> int:
             clean=contract["clean"], checks=contract["checks"], blockers=contract["blockers"],
             adjacent_findings=contract["adjacentFindings"]))
     except OmniRouteError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    except (OSError, json.JSONDecodeError) as error:
         print(str(error), file=sys.stderr)
         return 1
 

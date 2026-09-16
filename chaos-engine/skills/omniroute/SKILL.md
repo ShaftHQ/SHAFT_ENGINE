@@ -19,18 +19,46 @@ code outside the approved bounded task. Receipts and repository files never
 persist route, model, or provider IDs; live stdout of `candidates` may name
 them for the current dispatch only.
 
+Operator guide: [guides/omniroute.md](../../guides/omniroute.md). Docs study:
+[references/docs-study-notes.md](references/docs-study-notes.md). Living
+lessons: [references/living-lessons.md](references/living-lessons.md).
+
+## Agent machine vs user machine
+
+`127.0.0.1:20128` is **host-local** to wherever `omniroute serve` runs (often
+the user ROG). An agent box loopback is a different host and cannot see the
+user dashboard. When the adopter asked for OmniRoute and Shell is not on that
+user machine, say so, require Local Execution / the correct user `machineId`,
+and stop. Do not invent remote `--base-url`. If OmniRoute is missing on the
+user machine, guide install/serve from the operator guide — never install or
+create provider accounts for the operator.
+
+## Proof of dispatch when required
+
+When the adopter/process-owner opts into OmniRoute, absence of an
+`omniroute run` receipt (or a coding completion call_log) is a **failed
+attempt / explicit blocker**. Catalog, `candidates`, health, and
+CredentialHealth / `connection-test` probes alone are not progress. Normative
+rules and CLI: [references/proof-of-dispatch.md](references/proof-of-dispatch.md).
+
+```text
+python3 chaos-engine/skills/omniroute/scripts/runner.py proof --required \
+  --receipt <private-receipt.json>
+```
+
 ## Ensure the local gateway
 
-Dashboard: `http://127.0.0.1:20128/home`. Health (anonymous JSON
-`status`/`timestamp` is enough here):
+Dashboard: `http://127.0.0.1:20128/home` (on the serve host). Health (anonymous
+JSON `status`/`timestamp` is enough here):
 
 ```text
 command -v omniroute
 curl -sf --max-time 2 http://127.0.0.1:20128/api/health
 ```
 
-If `omniroute` is missing, do not install it; use native host-session models.
-If the binary exists and health fails, start loopback only:
+If `omniroute` is missing, do not install it; guide the operator or use native
+host-session models when OmniRoute was not required. If the binary exists and
+health fails, start loopback only **on that same host**:
 
 ```text
 OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open
@@ -142,7 +170,12 @@ Anti-patterns: static model allowlists as primary selector; `candidates` then na
 4. On fail: skip identity/provider, requery, next id.
 5. Native host only on `RUNTIME_EXHAUSTED`, empty catalog, sealed-launcher `78`, or `ABSENT`.
 
-**Process failure:** `candidates` then native host while READY is not success. Catalog ≠ dispatch.
+**Process failure:** `candidates` then native host while READY is not success.
+Catalog ≠ dispatch. When OmniRoute was required, that failure is a delivery
+blocker unless [proof-of-dispatch](references/proof-of-dispatch.md) is met.
+After repeated 429 / unrecognized_model thrash with no productive run, dismiss
+OmniRoute with an explicit blocker or `RUNTIME_EXHAUSTED` (see
+[living-lessons](references/living-lessons.md)).
 
 Retry from failure, not a pinned profile:
 
@@ -215,6 +248,7 @@ Use only the standard-library [runner](scripts/runner.py):
 python3 chaos-engine/skills/omniroute/scripts/runner.py probe
 python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability mechanical|default|most-intelligent
 python3 chaos-engine/skills/omniroute/scripts/runner.py candidates --capability default --task coding
+python3 chaos-engine/skills/omniroute/scripts/runner.py proof --required --receipt <private-state>/receipt.json
 python3 chaos-engine/skills/omniroute/scripts/runner.py dispatch --contract <private-state>/dispatch.json
 python3 chaos-engine/skills/omniroute/scripts/runner.py status ...
 python3 chaos-engine/skills/omniroute/scripts/runner.py cancel ...
@@ -291,34 +325,6 @@ file is not a failure. Unsafe files are skipped in favor of the PATH launcher.
 
 ## Delegate continuity
 
-Dispatch may opt into bounded continuity. Omit `continuity` for unchanged
-legacy behavior. Continuity freezes capability floor, maximum attempts,
-retryable exit codes, bounded backoff, authority/checkpoint hashes, completed
-action hashes, tracker/PR hashes, and ordered alternate identity/session hashes.
-At most four writers may participate: one initial writer plus no more than three
-alternates, with no more than four total attempts. Each private alternate also
-carries one validated target and bounded argument list. The supervisor keeps the
-sealed launcher fixed while selecting those inputs in memory for each attempt.
-Raw prompts, credentials, links, provider/model names, commands, and local paths
-never enter continuity state.
-
-Replacement starts only after prior process-group death is proven. Lower
-capability alternates are skipped. Learning registration precedes launch;
-registration failure creates no participant or process. One live replacement
-sets `replacement_running`, making repeated resume calls idempotent. Exhausted
-attempts open the breaker and block; unverifiable process death or identity
-quarantines. Terminal receipts include only redacted continuity hashes,
-attempt/state, and participant hashes. Root still owns final evidence import and
-the sole Learning Session.
-
-For opted-in dispatches, runner starts its private `_supervise` process instead
-of one-shot `_capture`. Supervisor retains raw alternate session identifiers
-only in its inherited process environment, removes them before launching any
-delegate, and never writes them to disk. It observes sealed-launcher exit,
-proves process-group death, applies backoff and capability selection, registers
-replacement, then launches candidate-specific private inputs against the same
-frozen task and authority. Final successful evidence
-moves normal `status` flow to review without owner input. `_supervise` is an
-internal runner command, not an operator-facing interface.
-The original timezone-aware deadline bounds all attempts, backoff, and process
-runtime. Expiry blocks continuity before another launch.
+Opt-in bounded continuity (capability floor, alternates, `_supervise`) lives in
+[references/delegate-continuity.md](references/delegate-continuity.md). Omit
+`continuity` for unchanged legacy one-shot dispatch.

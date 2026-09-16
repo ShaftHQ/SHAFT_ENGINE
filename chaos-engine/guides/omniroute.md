@@ -6,14 +6,52 @@ canonical [execution workflow](../references/execution-workflows.md) is
 selected. The goal is to make a running local OmniRoute easy to use, not to
 fence operators behind restricted keys or attestation hashes.
 
-OmniRoute probes only `http://127.0.0.1:20128/`. Missing OmniRoute is normal and
-leaves native delegation and `SOLO` valid. Missing
+OmniRoute probes only `http://127.0.0.1:20128/` **on the machine where
+`omniroute serve` is bound**. Missing OmniRoute is normal and leaves native
+delegation and `SOLO` valid when OmniRoute was not required. Missing
 `~/.config/chaos-engine/omniroute.json` is also normal: the runner uses
 `chaosengine-omniroute` or `omniroute` from PATH.
 
 This is an operator integration guide, not a second workflow definition.
 ChaosEngine does not install OmniRoute, create provider accounts, retain
 provider credentials, start a service, or choose a provider on your behalf.
+
+## Agent machine vs user machine
+
+OmniRoute loopback is almost always on the **user machine** (for example the
+ROG laptop where the dashboard at `http://127.0.0.1:20128/home` is watched).
+An agent box is a different computer: its `127.0.0.1:20128` is not the user's
+gateway.
+
+| Situation | Correct action |
+| --- | --- |
+| Adopter asked for OmniRoute; agent Shell is on a remote box | Stop. Require Local Execution / the user host `machineId` so Shell hits the serve machine and checkout. |
+| `curl 127.0.0.1:20128` refused on the agent box | Expected. Not proof that OmniRoute is down on the user machine. |
+| OmniRoute missing on the user machine | Guide the operator through install/serve below. Do not invent remote `--base-url`, do not install credentials for the operator, do not claim OmniRoute progress. |
+| OmniRoute required for the delivery | Prove `omniroute run` (or a coding completion call_log). See [proof-of-dispatch](../skills/omniroute/references/proof-of-dispatch.md). |
+
+Docs study notes from the local gateway:
+[docs-study-notes.md](../skills/omniroute/references/docs-study-notes.md).
+Living lessons:
+[living-lessons.md](../skills/omniroute/references/living-lessons.md).
+
+## Proof of dispatch (when OmniRoute is required)
+
+CredentialHealth probes and catalog refresh create call_logs (often
+`model=connection-test`, `tokens=0`) while `/home` still looks idle for coding.
+Those rows are **not** coding progress.
+
+```bash
+python3 chaos-engine/skills/omniroute/scripts/runner.py proof --required \
+  --receipt "$HOME/.local/state/chaos-engine/omniroute/receipts/<run>.json"
+# or:
+omniroute --output json usage logs --limit 50 > /tmp/or-call-logs.json
+python3 chaos-engine/skills/omniroute/scripts/runner.py proof --required \
+  --call-logs /tmp/or-call-logs.json
+```
+
+Exit `2` / `state=BLOCKED` means the delivery must surface an explicit
+OmniRoute blocker — not a silent native-only success story.
 
 > **Research snapshot — 2026-09-01.** Dispatch and CLI wiring were reviewed
 > against OmniRoute docs on `release/v3.8.51`
@@ -533,8 +571,13 @@ used first for the reviewed release.
 
 ## Sources
 
+- Local operator gateway docs (when serve is up): `http://127.0.0.1:20128/docs`
+  — study notes:
+  [docs-study-notes.md](../skills/omniroute/references/docs-study-notes.md)
 - [OmniRoute v3.8.50 free-tier reference](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/reference/FREE_TIERS.md)
 - [OmniRoute v3.8.50 quick start](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/getting-started/QUICK-START.md)
+- [CLI Integrations](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/guides/CLI-INTEGRATIONS.md)
+- [Auto-Combo](https://github.com/diegosouzapw/OmniRoute/blob/release/v3.8.50/docs/routing/AUTO-COMBO.md)
 - [Groq free-plan rate limits](https://console.groq.com/docs/rate-limits)
 - [Google AI Studio](https://aistudio.google.com/), [Gemini 3.1 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite), and [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing)
 - [Cohere trial-key rate limits](https://docs.cohere.com/v2/docs/rate-limits) and [trial-key onboarding](https://docs.cohere.com/v2/docs/going-live)
