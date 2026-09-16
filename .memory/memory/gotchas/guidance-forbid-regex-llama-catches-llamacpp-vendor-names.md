@@ -1,0 +1,1 @@
+Active-guidance named-model forbid patterns use a `llama` word boundary, so scanned skill prose that spells the llama.cpp product name fails validation. Prefer the backend id `llamacpp` in scanned skills and agent maps; keep vendor product spelling in unscanned operator guides only. Issue #5883.

@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/release-note-classification-must-be-exactly-one-label-not-two.md",
+  "content_hash": "sha256:26bcde81428b955f3fb6ac06dfedecd179ea373ee81ff4bcb19f8cda7206fa1e",
+  "created_at": "2026-09-16T21:40:43+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5885",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.release-note-classification-must-be-exactly-one-label-not-two",
+  "source": {
+    "kind": "agent",
+    "task": "2026-09-16 #5885 release-note double-label stall"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "release-notes",
+    "pr-gate",
+    "gotcha"
+  ],
+  "title": "Release-note classification must be exactly one label not two",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T21:40:43+03:00"
+}

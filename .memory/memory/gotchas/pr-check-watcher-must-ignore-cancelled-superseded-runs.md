@@ -1,0 +1,1 @@
+Fail-fast PR check watchers that treat cancelled jobs from a superseded workflow as delivery failure will false-red a green newer SHA. Ignore cancelled or superseded check runs when a newer head still has required jobs pending or green.

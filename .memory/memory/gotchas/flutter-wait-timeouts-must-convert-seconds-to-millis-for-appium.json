@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/flutter-wait-timeouts-must-convert-seconds-to-millis-for-appium.md",
+  "content_hash": "sha256:b188a08c57fd25f1a9b864b63610f25417c26737c7a0802f7ab20da9f7ccf4ec",
+  "created_at": "2026-09-16T21:40:43+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5875",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5886",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.flutter-wait-timeouts-must-convert-seconds-to-millis-for-appium",
+  "source": {
+    "kind": "agent",
+    "task": "2026-09-16 nightly E2E remediation"
+  },
+  "status": "active",
+  "tags": [
+    "flutter",
+    "appium",
+    "e2e",
+    "gotcha"
+  ],
+  "title": "Flutter wait timeouts must convert seconds to millis for Appium",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T21:40:43+03:00"
+}

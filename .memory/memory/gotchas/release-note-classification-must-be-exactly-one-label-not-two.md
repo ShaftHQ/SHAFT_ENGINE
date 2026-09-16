@@ -1,0 +1,1 @@
+Release-note governance also fails when *two* classification labels are present (for example both `bug` and `enhancement`). Keep exactly one of `breaking-change`, `bug`, `enhancement`, or `skip-release-notes`. Complements the missing-label gotcha from #5768.

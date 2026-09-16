@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/pr-check-watcher-must-ignore-cancelled-superseded-runs.md",
+  "content_hash": "sha256:f9b8ec872080217da0468dd76ad48e950b2e1fd56e5d4d231d8d440b48105ca9",
+  "created_at": "2026-09-16T21:40:43+03:00",
+  "evidence": [],
+  "id": "gotcha.pr-check-watcher-must-ignore-cancelled-superseded-runs",
+  "source": {
+    "kind": "agent",
+    "task": "2026-09-16 process-owner CI babysitting"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "pr-babysit",
+    "reliability",
+    "gotcha"
+  ],
+  "title": "PR check watcher must ignore cancelled superseded runs",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T21:40:43+03:00"
+}
