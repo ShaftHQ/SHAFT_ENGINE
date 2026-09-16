@@ -39,7 +39,9 @@ fi
 echo "Appium Flutter session opened: $SESSION_ID"
 curl --max-time 30 -fsS -X DELETE "http://127.0.0.1:4723/session/$SESSION_ID" || true
 # Preflight uses noReset, so the demo app can stay warm without a Flutter server for Maven.
+# CI-built APK uses appium_testing_app; older checked-in APK used demo_app — uninstall both.
 adb uninstall com.example.appium_testing_app || true
+adb uninstall com.example.demo_app || true
 
 TEST_SELECTOR="${FLUTTER_TEST_SELECTOR:-testPackage.appium.FlutterTest}"
 mvn -f "$GITHUB_WORKSPACE/pom.xml" -pl shaft-engine -e test \
