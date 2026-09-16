@@ -1,0 +1,1 @@
+When asserting live flock holder PIDs from ChaosEngine project_lock diagnostics, gate on Path('/proc/locks').is_file() (or inject locks_text). macOS CI is non-Windows but has no /proc/locks; production correctly returns the empty-holder message there. Asserting pid= on all non-Windows hosts fails cross-platform CI.
