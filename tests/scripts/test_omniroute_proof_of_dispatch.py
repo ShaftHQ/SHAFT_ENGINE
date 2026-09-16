@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
-import subprocess
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+PROOF_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/proof.py"
 RUNNER_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/runner.py"
 SKILL_PATH = ROOT / "chaos-engine/skills/omniroute/SKILL.md"
 GUIDE_PATH = ROOT / "chaos-engine/guides/omniroute.md"
@@ -21,10 +23,11 @@ WORKFLOWS = ROOT / "chaos-engine/references/execution-workflows.md"
 ROUTER = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 
 
-def load_runner():
-    spec = importlib.util.spec_from_file_location("omniroute_runner_proof", RUNNER_PATH)
+def load_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"unable to load {path}")
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
 
@@ -32,16 +35,17 @@ def load_runner():
 class OmniRouteProofOfDispatchTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.runner = load_runner()
+        cls.proof = load_module("omniroute_proof_5863", PROOF_PATH)
+        cls.runner = load_module("omniroute_runner_proof_cli", RUNNER_PATH)
 
     def test_not_required_is_pass(self):
-        result = self.runner.evaluate_required_dispatch_proof(omniroute_required=False)
+        result = self.proof.evaluate_required_dispatch_proof(omniroute_required=False)
         self.assertTrue(result["proved"])
         self.assertEqual("NOT_REQUIRED", result["state"])
         self.assertIsNone(result["blocker"])
 
     def test_required_with_only_probes_blocks(self):
-        result = self.runner.evaluate_required_dispatch_proof(
+        result = self.proof.evaluate_required_dispatch_proof(
             omniroute_required=True,
             claimed_steps=["probe", "candidates", "health"],
             call_logs=[
@@ -68,7 +72,7 @@ class OmniRouteProofOfDispatchTest(unittest.TestCase):
         self.assertIn("probes alone", result["blocker"])
 
     def test_required_with_run_receipt_proves(self):
-        result = self.runner.evaluate_required_dispatch_proof(
+        result = self.proof.evaluate_required_dispatch_proof(
             omniroute_required=True,
             run_receipt={"outcome": "success", "status": "completed", "exitCode": 0},
             claimed_steps=["probe", "candidates"],
@@ -78,7 +82,7 @@ class OmniRouteProofOfDispatchTest(unittest.TestCase):
         self.assertEqual("run_receipt", result["proofKind"])
 
     def test_required_with_coding_call_log_proves(self):
-        result = self.runner.evaluate_required_dispatch_proof(
+        result = self.proof.evaluate_required_dispatch_proof(
             omniroute_required=True,
             call_logs=[
                 {
@@ -102,15 +106,15 @@ class OmniRouteProofOfDispatchTest(unittest.TestCase):
 
     def test_probe_helpers_classify_connection_test(self):
         self.assertTrue(
-            self.runner.call_log_is_probe({"model": "connection-test", "tokens": 0})
+            self.proof.call_log_is_probe({"model": "connection-test", "tokens": 0})
         )
         self.assertFalse(
-            self.runner.call_log_is_coding_completion(
+            self.proof.call_log_is_coding_completion(
                 {"model": "connection-test", "tokens": 0, "status": 200, "method": "POST"}
             )
         )
         self.assertTrue(
-            self.runner.call_log_is_coding_completion(
+            self.proof.call_log_is_coding_completion(
                 {
                     "model": "moonshot/kimi-k2.7-code",
                     "tokens": 12,
@@ -135,41 +139,28 @@ class OmniRouteProofOfDispatchTest(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            ok = subprocess.run(
-                [
-                    "python3",
-                    str(RUNNER_PATH),
-                    "proof",
-                    "--required",
-                    "--receipt",
-                    str(receipt),
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(0, ok.returncode, ok.stderr)
-            payload = json.loads(ok.stdout)
-            self.assertTrue(payload["proved"])
+            ok_buf = io.StringIO()
+            with redirect_stdout(ok_buf):
+                ok_code = self.runner.main(
+                    ["proof", "--required", "--receipt", str(receipt)]
+                )
+            self.assertEqual(0, ok_code)
+            self.assertTrue(json.loads(ok_buf.getvalue())["proved"])
 
-            blocked = subprocess.run(
-                [
-                    "python3",
-                    str(RUNNER_PATH),
-                    "proof",
-                    "--required",
-                    "--call-logs",
-                    str(probes),
-                    "--steps",
-                    "probe,candidates",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(2, blocked.returncode, blocked.stdout)
-            blocked_payload = json.loads(blocked.stdout)
-            self.assertEqual("BLOCKED", blocked_payload["state"])
+            blocked_buf = io.StringIO()
+            with redirect_stdout(blocked_buf):
+                blocked_code = self.runner.main(
+                    [
+                        "proof",
+                        "--required",
+                        "--call-logs",
+                        str(probes),
+                        "--steps",
+                        "probe,candidates",
+                    ]
+                )
+            self.assertEqual(2, blocked_code)
+            self.assertEqual("BLOCKED", json.loads(blocked_buf.getvalue())["state"])
 
     def test_skill_guide_and_notes_cover_rails(self):
         skill = SKILL_PATH.read_text(encoding="utf-8")
@@ -200,6 +191,7 @@ class OmniRouteProofOfDispatchTest(unittest.TestCase):
 
     def test_router_skill_stays_under_size_budget(self):
         self.assertLessEqual(ROUTER.stat().st_size, 20000)
+        self.assertLessEqual(SKILL_PATH.stat().st_size, 20000)
 
 
 if __name__ == "__main__":
