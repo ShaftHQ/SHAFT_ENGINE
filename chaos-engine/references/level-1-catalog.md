@@ -32,6 +32,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/omniroute/SKILL.md) |
 | FreeToken | Optional standalone local MoE companion (`:1919`); never CE-installed; not OmniRoute | [`../skills/freetoken/SKILL.md`](../skills/freetoken/SKILL.md) · [guide](../guides/freetoken.md) |
+| Local OpenAI-compat | Optional Ollama / LM Studio / llama.cpp OpenAI-compat peers; never CE-installed; not OmniRoute/FreeToken plugins | [`../skills/local-openai-compat/SKILL.md`](../skills/local-openai-compat/SKILL.md) · [guide](../guides/local-openai-compat.md) |
 
 Load **one** row when the core router points here; return to the core skill after
 the deliverable.

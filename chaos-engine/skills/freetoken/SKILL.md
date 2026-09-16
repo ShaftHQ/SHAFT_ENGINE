@@ -98,4 +98,5 @@ guide; continue with other qualified paths. Never auto-serve.
 - Guide: [freetoken.md](../../guides/freetoken.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
 - OmniRoute (cloud-quota peer, not a dependency): [omniroute skill](../omniroute/SKILL.md)
+- Local OpenAI-compat peers (Ollama / LM Studio / llama.cpp): [local-openai-compat](../local-openai-compat/SKILL.md)
 - Local OpenCode agency (later): GitHub #5872
