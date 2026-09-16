@@ -242,7 +242,7 @@ implementer fallback.
 
 ## Runner
 
-Use only the standard-library [runner](scripts/runner.py):
+Use only the standard-library [runner](scripts/runner.py) (proof helpers in [proof](scripts/proof.py)):
 
 ```text
 python3 chaos-engine/skills/omniroute/scripts/runner.py probe
