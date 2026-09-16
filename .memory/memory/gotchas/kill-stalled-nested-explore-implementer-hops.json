@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/kill-stalled-nested-explore-implementer-hops.md",
+  "content_hash": "sha256:404f7d4d8fb7a8e5ef9397b24d833716f6441ba913c759025facd987eaa6196c",
+  "created_at": "2026-09-16T21:40:43+03:00",
+  "evidence": [],
+  "id": "gotcha.kill-stalled-nested-explore-implementer-hops",
+  "source": {
+    "kind": "agent",
+    "task": "2026-09-16 process-owner delivery wave"
+  },
+  "status": "active",
+  "tags": [
+    "orchestration",
+    "delegation",
+    "reliability",
+    "gotcha"
+  ],
+  "title": "Kill stalled nested-explore implementer hops",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T21:40:43+03:00"
+}

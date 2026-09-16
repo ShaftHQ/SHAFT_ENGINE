@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/local-agency-opencode-needs-enabled-providers-allowlist.md",
+  "content_hash": "sha256:8b0795f3fe93bf4cd3770268ae044ef8cc409f61e790816580f0f670c84c0ee2",
+  "created_at": "2026-09-16T21:40:43+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5882",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.local-agency-opencode-needs-enabled-providers-allowlist",
+  "source": {
+    "kind": "agent",
+    "task": "2026-09-16 OpenCode local-agency #5872 delivery"
+  },
+  "status": "active",
+  "tags": [
+    "local-agency",
+    "opencode",
+    "freetoken",
+    "gotcha"
+  ],
+  "title": "Local agency OpenCode needs enabled_providers allowlist",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T21:40:43+03:00"
+}
