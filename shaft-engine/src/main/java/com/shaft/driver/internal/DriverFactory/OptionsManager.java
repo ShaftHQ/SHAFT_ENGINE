@@ -396,13 +396,8 @@ public class OptionsManager {
         if (automationName == null) {
             automationName = SHAFT.Properties.mobile.automationName();
         }
-        if (automationName != null
-                && AutomationName.FLUTTER_INTEGRATION.equalsIgnoreCase(String.valueOf(automationName))) {
-            return true;
-        }
-        return appiumCapabilities.getCapability("appium:flutterServerLaunchTimeout") != null
-                || appiumCapabilities.getCapability("appium:flutterElementWaitTimeout") != null
-                || appiumCapabilities.getCapability("appium:flutterSystemPort") != null;
+        return automationName != null
+                && AutomationName.FLUTTER_INTEGRATION.equalsIgnoreCase(String.valueOf(automationName));
     }
 
     @SuppressWarnings("SpellCheckingInspection")

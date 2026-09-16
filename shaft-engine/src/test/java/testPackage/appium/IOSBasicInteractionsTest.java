@@ -56,29 +56,27 @@ public class IOSBasicInteractionsTest {
                 .getScreenshotAs(OutputType.BYTES);
         ImageTarget inputImage = ImageTarget.fromBytes(inputScreenshot);
 
+        boolean keyboardBeforeImageTap = isKeyboardShown();
         driver.get().touch().tap(inputImage);
         waitUntilKeyboardFocus(TEXT_INPUT);
-        if (!hasKeyboardOrFocus(TEXT_INPUT)) {
+        if (!isAccessibilityFocused(TEXT_INPUT) && !(isKeyboardShown() && !keyboardBeforeImageTap)) {
             driver.get().touch().tap(inputImage);
             waitUntilKeyboardFocus(TEXT_INPUT);
         }
-        boolean imageTapFocused = hasKeyboardOrFocus(TEXT_INPUT);
-        if (!imageTapFocused) {
-            try {
-                driver.get().element().type(TEXT_INPUT, ".");
-                driver.get().element().clear(TEXT_INPUT);
-                imageTapFocused = true;
-            } catch (RuntimeException typingFailed) {
-                imageTapFocused = false;
-            }
-        }
-        Assert.assertTrue(imageTapFocused, "Image tap should focus Text Input");
+        // Discriminating proof: accessibility focus, or keyboard that appeared because of the image tap
+        // (not locator type, which would greenwash a missed image hit).
+        Assert.assertTrue(
+                isAccessibilityFocused(TEXT_INPUT) || (isKeyboardShown() && !keyboardBeforeImageTap),
+                "Image tap should focus Text Input");
 
         ((IOSDriver) driver.get().getDriver()).hideKeyboard();
         Assert.assertFalse(isAccessibilityFocused(TEXT_INPUT), "Hiding the keyboard should blur Text Input");
+        boolean keyboardBeforeOcrTap = isKeyboardShown();
         driver.get().touch().tap(OcrTarget.exact("Text Input"));
         waitUntilKeyboardFocus(TEXT_INPUT);
-        Assert.assertTrue(hasKeyboardOrFocus(TEXT_INPUT), "OCR tap should focus Text Input");
+        Assert.assertTrue(
+                isAccessibilityFocused(TEXT_INPUT) || (isKeyboardShown() && !keyboardBeforeOcrTap),
+                "OCR tap should focus Text Input");
         driver.get().element().type(TEXT_INPUT, "visual ocr ios" + "\n");
 
         Validations.assertThat()
@@ -231,7 +229,7 @@ public class IOSBasicInteractionsTest {
     private void waitUntilKeyboardFocus(By locator) {
         long deadline = System.currentTimeMillis() + 15_000;
         while (System.currentTimeMillis() < deadline) {
-            if (hasKeyboardOrFocus(locator)) {
+            if (isAccessibilityFocused(locator) || isKeyboardShown()) {
                 return;
             }
             try {
@@ -243,10 +241,7 @@ public class IOSBasicInteractionsTest {
         }
     }
 
-    private boolean hasKeyboardOrFocus(By locator) {
-        if (isAccessibilityFocused(locator)) {
-            return true;
-        }
+    private boolean isKeyboardShown() {
         try {
             return ((IOSDriver) driver.get().getDriver()).isKeyboardShown();
         } catch (WebDriverException ignored) {

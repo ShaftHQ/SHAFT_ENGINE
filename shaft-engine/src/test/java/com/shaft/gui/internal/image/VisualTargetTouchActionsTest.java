@@ -78,6 +78,43 @@ public class VisualTargetTouchActionsTest {
     }
 
     @Test
+    public void containerHorizontalScrollGeometryShouldMirrorLeftAndRight() throws Exception {
+        byte[] screenshot = image(false);
+        AndroidDriver driver = driver();
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TestTouchActions actions = actions(driver);
+        By container = By.id("tabs");
+        // Selenium Rectangle(x, y, height, width)
+        Rectangle bounds = new Rectangle(10, 20, 40, 100);
+        container(actions, driver, container, bounds);
+        ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.TEMPLATE);
+
+        Map<Object, Object> right;
+        Map<Object, Object> left;
+        try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            VisualProcessingProviderRegistry.setProviderForTesting(new SequencedProvider(2));
+            actions.swipeElementIntoView(container, target, TouchActions.SwipeDirection.RIGHT);
+            ArgumentCaptor<Map<Object, Object>> rightCap = ArgumentCaptor.forClass(Map.class);
+            verify(driver).executeScript(eq("mobile: scrollGesture"), rightCap.capture());
+            right = rightCap.getValue();
+
+            VisualProcessingProviderRegistry.setProviderForTesting(new SequencedProvider(2));
+            actions.swipeElementIntoView(container, target, TouchActions.SwipeDirection.LEFT);
+            ArgumentCaptor<Map<Object, Object>> leftCap = ArgumentCaptor.forClass(Map.class);
+            verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), leftCap.capture());
+            left = leftCap.getAllValues().get(1);
+        }
+
+        Assert.assertEquals(right.get("direction"), TouchActions.SwipeDirection.RIGHT.name());
+        Assert.assertEquals(left.get("direction"), TouchActions.SwipeDirection.LEFT.name());
+        Assert.assertEquals(right.get("width"), bounds.getWidth() * 70 / 100);
+        Assert.assertEquals(left.get("width"), bounds.getWidth() * 70 / 100);
+        Assert.assertEquals(right.get("left"), bounds.getX());
+        Assert.assertEquals(left.get("left"), bounds.getX() + (bounds.getWidth() * 30 / 100));
+    }
+
+    @Test
     public void containerShouldIntersectExistingImageRegionInScreenshotPixels() throws Exception {
         byte[] screenshot = image(false);
         SequencedProvider provider = new SequencedProvider(1);

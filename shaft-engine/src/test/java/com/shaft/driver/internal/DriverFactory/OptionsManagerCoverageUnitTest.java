@@ -333,6 +333,25 @@ public class OptionsManagerCoverageUnitTest {
         Assert.assertNotNull(manager.getAppiumCapabilities());
     }
 
+    @Test
+    public void uiAutomator2ShouldNotGetForceAppLaunchFromFlutterTimeoutProperties() {
+        SHAFT.Properties.platform.set().targetPlatform("android");
+        SHAFT.Properties.mobile.set().browserName("")
+                .automationName(io.appium.java_client.remote.AutomationName.ANDROID_UIAUTOMATOR2)
+                .flutterServerLaunchTimeout(20)
+                .flutterElementWaitTimeout(5);
+
+        OptionsManager manager = new OptionsManager();
+        manager.setDriverOptions(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, new MutableCapabilities());
+        manager.initializeMobileDesiredCapabilities();
+
+        Assert.assertNull(manager.getAppiumCapabilities().getCapability("appium:forceAppLaunch"));
+        // Property copy still converts Flutter timeouts to millis when present on the bag.
+        Assert.assertEquals(
+                ((Number) manager.getAppiumCapabilities().getCapability("appium:flutterServerLaunchTimeout")).longValue(),
+                20_000L);
+    }
+
     private static void assertSilentChromiumDownloads(ChromiumOptions<?> options) {
         Assert.assertEquals(options.getCapability(CapabilityType.ENABLE_DOWNLOADS), true);
         Map<String, Object> prefs = chromiumPrefs(options);
