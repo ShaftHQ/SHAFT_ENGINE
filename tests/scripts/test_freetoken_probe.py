@@ -170,5 +170,39 @@ class FreeTokenProbeTest(unittest.TestCase):
         self.assertNotIn("subprocess", text)
 
 
+
+    def test_attest_json_when_ready(self):
+        body = json.dumps({"data": [{"id": "secret-model"}]}).encode("utf-8")
+        with LocalServer(body) as url:
+            completed = subprocess.run(
+                [sys.executable, str(PROBE), "--url", url, "attest"],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**os.environ, "PATH": "/usr/bin:/bin", "http_proxy": "http://127.0.0.1:1", "https_proxy": "http://127.0.0.1:1", "HTTP_PROXY": "http://127.0.0.1:1", "HTTPS_PROXY": "http://127.0.0.1:1"},
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["state"], "READY")
+        self.assertFalse(payload["install"])
+        self.assertFalse(payload["may_ft_launch"])
+        self.assertFalse(payload["omniroute_required"])
+        self.assertNotIn("secret-model", completed.stdout)
+
+    def test_models_lists_ids_only_when_ready(self):
+        body = json.dumps({"data": [{"id": "coding-moe"}]}).encode("utf-8")
+        with LocalServer(body) as url:
+            completed = subprocess.run(
+                [sys.executable, str(PROBE), "--url", url, "models", "--json"],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**os.environ, "PATH": "/usr/bin:/bin", "http_proxy": "http://127.0.0.1:1", "https_proxy": "http://127.0.0.1:1", "HTTP_PROXY": "http://127.0.0.1:1", "HTTPS_PROXY": "http://127.0.0.1:1"},
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["models"], ["coding-moe"])
+
+
 if __name__ == "__main__":
     unittest.main()

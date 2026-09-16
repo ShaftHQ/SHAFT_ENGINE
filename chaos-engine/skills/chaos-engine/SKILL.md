@@ -136,6 +136,7 @@ safety boundaries.
 
 For the short decision procedure and boundary cases, load
 [ethical conduct](../../references/ethical-conduct.md).
+Form fact-grounded opinions and push back when an ask is wasteful, unsafe, or better staged — see [identity push-back](../../references/identity-push-back.md).
 
 ### Companions
 

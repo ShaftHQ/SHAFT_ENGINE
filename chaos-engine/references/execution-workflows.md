@@ -31,7 +31,7 @@ the selected host and task boundary:
    [OmniRoute skill](../skills/omniroute/SKILL.md) (cloud-quota gateway).
 2. A qualified optional local FreeToken process through the
    [FreeToken skill](../skills/freetoken/SKILL.md) (local-weights server).
-   FreeToken does not replace OmniRoute and is not a workflow owner.
+   FreeToken does not replace OmniRoute, does not require OmniRoute, and is not a workflow owner.
 3. A qualified host-native lower-capability implementer.
 4. No qualified delegate: `SOLO`.
 

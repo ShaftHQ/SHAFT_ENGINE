@@ -12,6 +12,8 @@ import urllib.request
 from urllib.parse import urlsplit
 
 DEFAULT_URL = "http://127.0.0.1:1919/v1/models"
+DEFAULT_OPENAI_BASE = "http://127.0.0.1:1919/v1"
+DEFAULT_ANTHROPIC_BASE = "http://127.0.0.1:1919/v1/messages"
 TIMEOUT_SECONDS = 2
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 STATES = ("ABSENT", "UNHEALTHY", "READY")
@@ -90,6 +92,71 @@ def probe(url: str = DEFAULT_URL, *, timeout: float = TIMEOUT_SECONDS) -> str:
     return classify(ft_present(), answered, answered and is_models_payload(body))
 
 
+def parse_model_ids(body: bytes) -> list[str]:
+    """Extract model ids from a models payload for session stdout only."""
+    value = json.loads(body.decode("utf-8"))
+    rows: list = []
+    if isinstance(value, list):
+        rows = value
+    elif isinstance(value, dict):
+        if isinstance(value.get("data"), list):
+            rows = value["data"]
+        elif isinstance(value.get("models"), list):
+            rows = value["models"]
+    ids: list[str] = []
+    for row in rows:
+        if isinstance(row, str):
+            ids.append(row)
+        elif isinstance(row, dict):
+            mid = row.get("id") or row.get("model") or row.get("name")
+            if isinstance(mid, str) and mid:
+                ids.append(mid)
+    return ids
+
+
+def cmd_probe(args: argparse.Namespace) -> int:
+    if not loopback_models_url(args.url):
+        print("non-loopback FreeToken URL ignored", file=sys.stderr)
+        return 2
+    print(probe(args.url))
+    return 0
+
+
+def cmd_attest(args: argparse.Namespace) -> int:
+    state = probe(args.url)
+    payload = {
+        "state": state,
+        "ft_on_path": ft_present(),
+        "openai_base_url": DEFAULT_OPENAI_BASE,
+        "anthropic_base_url": DEFAULT_ANTHROPIC_BASE,
+        "models_url": DEFAULT_URL,
+        "install": False,
+        "may_ft_launch": False,
+        "may_ft_serve": False,
+        "omniroute_required": False,
+    }
+    print(json.dumps(payload, sort_keys=True))
+    return 0 if state == "READY" else 1
+
+
+def cmd_models(args: argparse.Namespace) -> int:
+    if not loopback_models_url(args.url):
+        print("non-loopback FreeToken URL ignored", file=sys.stderr)
+        return 2
+    answered, body = fetch_models(args.url)
+    state = classify(ft_present(), answered, answered and is_models_payload(body))
+    if state != "READY":
+        print(state)
+        return 1
+    ids = parse_model_ids(body)
+    if args.json:
+        print(json.dumps({"state": state, "models": ids}, sort_keys=True))
+    else:
+        for mid in ids:
+            print(mid)
+    return 0
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -97,18 +164,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_URL,
         help="loopback models URL (default: %(default)s)",
     )
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("probe", help="print ABSENT|UNHEALTHY|READY (default)")
+    sub.add_parser("attest", help="JSON readiness attestation for dispatch")
+    models_p = sub.add_parser("models", help="list model ids when READY (session only)")
+    models_p.add_argument("--json", action="store_true", help="JSON object with models array")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    if not loopback_models_url(args.url):
-        print("non-loopback FreeToken URL ignored", file=sys.stderr)
-        return 2
-    # Ambient FREETOKEN_BASE_URL is intentionally unread. The probe host is fixed
-    # unless a test passes an explicit loopback --url.
-    print(probe(args.url))
-    return 0
+    # Ambient FREETOKEN_BASE_URL is intentionally unread.
+    command = args.command or "probe"
+    if command == "probe":
+        return cmd_probe(args)
+    if command == "attest":
+        return cmd_attest(args)
+    if command == "models":
+        return cmd_models(args)
+    print(f"unknown command: {command}", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

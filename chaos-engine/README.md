@@ -151,25 +151,55 @@ prefix, companion repositories, and routing table. The
 show the complete shape. The public install path selects the neutral profile by
 default; repository-specific distributions require an explicit selection.
 
-## Recommended add-on: OmniRoute
+## Third-party companions (probe / use — do not install)
 
-[OmniRoute](skills/omniroute/SKILL.md) provides an optional, provider-neutral
-transport for a locally installed [OmniRoute](guides/omniroute.md) gateway.
-[Execution workflows](references/execution-workflows.md) remains the sole owner
-of `SOLO`, `ORCHESTRATOR + SINGLE IMPLEMENTER`, and `ORCHESTRATOR + PARALLEL
-IMPLEMENTERS`; OmniRoute only carries qualified delegated work. ChaosEngine
-never installs, configures, starts, or authenticates OmniRoute. An absent or
-unqualified gateway leaves every normal workflow valid through native
-implementers or `SOLO`.
+ChaosEngine ships skills and guides for some third-party tools it can **use**
+when the operator already installed them. For each of those, this README links
+both **our** implementation and the **official vendor install** documentation.
+ChaosEngine never installs, configures, authenticates, or starts these
+companions.
 
-## Optional local inference: FreeToken
+| Companion | Our skill / guide | Official install (vendor) | ChaosEngine role |
+| --- | --- | --- | --- |
+| OmniRoute | [skill](skills/omniroute/SKILL.md) · [guide](guides/omniroute.md) | [OmniRoute docs / guides](https://github.com/diegosouzapw/OmniRoute/tree/release/v3.8.51/docs/guides) (npm: see guide § Install) | Optional cloud-quota gateway on `127.0.0.1:20128` |
+| FreeToken | [skill](skills/freetoken/SKILL.md) · [guide](guides/freetoken.md) | [FreeToken install.md](https://github.com/FlashML-org/FreeToken/blob/main/docs/install.md) | Optional local MoE / weights on `127.0.0.1:1919` |
 
-[FreeToken](skills/freetoken/SKILL.md) is an optional local-weights server on
-`127.0.0.1:1919`, companion to the [FreeToken guide](guides/freetoken.md).
-OmniRoute remains the optional cloud-quota gateway. ChaosEngine never
-installs, configures, starts, or authenticates FreeToken, and never runs
-`ft launch` or `ft serve`. An absent or unhealthy server leaves every normal
-workflow valid through OmniRoute, native implementers, or `SOLO`.
+Future local OpenAI-compat peers (Ollama, LM Studio, llama.cpp, and similar)
+follow the same pattern: our skill + vendor install link; never CE-installed.
+See epic [#5867](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5867).
+
+### Recommended add-on: OmniRoute
+
+[OmniRoute skill](skills/omniroute/SKILL.md) provides an optional,
+provider-neutral transport for a locally installed OmniRoute gateway. Operator
+setup: follow the [official OmniRoute guides](https://github.com/diegosouzapw/OmniRoute/tree/release/v3.8.51/docs/guides)
+and our [OmniRoute guide](guides/omniroute.md) (account-local `npm install`
+of a reviewed release). ChaosEngine selects the workflow first (`ORCHESTRATED`,
+`SOLO`, or `IMPLEMENTERS`); OmniRoute only carries qualified delegated work.
+An absent or unhealthy gateway leaves native implementers and `SOLO` valid.
+
+### Optional local inference: FreeToken
+
+[FreeToken skill](skills/freetoken/SKILL.md) is an optional standalone local
+MoE / local-weights companion on `127.0.0.1:1919` (not an OmniRoute dependency).
+Operator setup: follow the
+[official FreeToken install guide](https://github.com/FlashML-org/FreeToken/blob/main/docs/install.md)
+and our [FreeToken guide](guides/freetoken.md). ChaosEngine never runs
+`ft launch` or `ft serve`. Missing FreeToken is normal and leaves the selected
+workflow valid through OmniRoute (if READY), native implementers, `SOLO`, or
+other local runtimes when those skills exist.
+
+## Installer-owned companions (automatic)
+
+These **are** provisioned by the ChaosEngine installer from their official
+distributions / pins (not optional “bring your own” peers). Do not treat them
+like OmniRoute or FreeToken:
+
+- **Caveman** and **Ponytail** — pinned skills installed with the harness
+- **Memory** and **MemPalace** — installed/configured with the harness
+  (alongside Graphify and other managed tools listed under
+  [What gets installed](#what-gets-installed))
+
 
 ## OmniRoute decision-quality evidence
 
@@ -219,8 +249,8 @@ Missing telemetry remains the literal `UNAVAILABLE` (never `0`).
 | Path | Responsibility |
 | --- | --- |
 | [`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md) | Canonical router, lifecycle, safety rules, and completion contract |
-| [`skills/omniroute/SKILL.md`](skills/omniroute/SKILL.md) | Optional fail-closed local transport for qualified delegated work |
-| [`skills/freetoken/SKILL.md`](skills/freetoken/SKILL.md) | Optional local-weights loopback probe; not installed, not a workflow owner |
+| [`skills/omniroute/SKILL.md`](skills/omniroute/SKILL.md) | Optional fail-closed transport; CE does not install OmniRoute — see [Third-party companions](#third-party-companions-probe--use--do-not-install) |
+| [`skills/freetoken/SKILL.md`](skills/freetoken/SKILL.md) | Optional FreeToken companion skill; not installed, not a workflow owner — see [Third-party companions](#third-party-companions-probe--use--do-not-install) |
 | [`LICENSE`](LICENSE) | MIT license for this portable tree |
 | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Companion pins and reimplemented-pattern attribution |
 | [`references/`](references/) | Focused methods loaded only when their trigger fires |
@@ -411,7 +441,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | chaos-engine | >- | chaos-engine/skills/chaos-engine/SKILL.md | required | all hosts | core or pinned vendor installer | canonical skill | required skill blocks routing; optional skill reports capability gap |
-| freetoken | Use when an orchestrated workflow may dispatch bounded implementation through an optional local FreeToken process. | chaos-engine/skills/freetoken/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
+| freetoken | >- | chaos-engine/skills/freetoken/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
 | local-coding-delegate | >- | chaos-engine/skills/local-coding-delegate/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
 | omniroute | >- | chaos-engine/skills/omniroute/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
 | self-improve | > | chaos-engine/skills/self-improve/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
