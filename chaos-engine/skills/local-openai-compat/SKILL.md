@@ -2,7 +2,7 @@
 name: local-openai-compat
 description: >-
   Use when an orchestrated workflow may dispatch bounded implementation through
-  an optional local OpenAI-compatible runtime (Ollama, LM Studio, llama.cpp).
+  an optional local OpenAI-compatible runtime (Ollama, LM Studio, llamacpp).
 license: MIT
 ---
 
@@ -28,7 +28,7 @@ slot when the models path is loopback `/v1/models`.
 
 ## Hard rails (never regress)
 
-- Do **not** install Ollama, LM Studio, llama.cpp, or download weights from this
+- Do **not** install Ollama, LM Studio, llamacpp, or download weights from this
   skill. Do **not** start their servers from ChaosEngine.
 - Do **not** rewrite Claude / Codex / OpenCode durable host config from here.
 - Do **not** clear cloud API keys. Do not persist route, model, or provider IDs

@@ -56,4 +56,6 @@ harness.
 ## Local proof
 
 ROG adoption and soak notes are tracked under GitHub #5867 / #5870 on the
-operator host.
+operator host. Closeout evidence for the FreeToken coding loop and children
+#5868–#5872 / #5882–#5883 lives in
+[freetoken-5867-closeout-proof.md](./freetoken-5867-closeout-proof.md).
