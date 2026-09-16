@@ -50,7 +50,12 @@ only. Receipts and repository files never persist route, model, or provider IDs.
 `RUNTIME_EXHAUSTED`, an empty remaining catalog, or sealed-launcher exit code
 `78` falls back to the current host session's native models or `SOLO`. OmniRoute is absent,
 unhealthy, unauthenticated, or unqualified does the same. This is
-normal fallback, not harness failure. FreeToken is the local-weights
+normal fallback, not harness failure. When the adopter or process-owner
+**requires** OmniRoute for a delivery, absence of an `omniroute run` receipt
+(or coding completion call_log) is a failed OmniRoute attempt / explicit
+blocker — catalog, candidates, and CredentialHealth probes alone never count
+([proof-of-dispatch](../skills/omniroute/references/proof-of-dispatch.md)).
+OmniRoute loopback is host-local; box agents must Shell on the serve host. FreeToken is the local-weights
 sibling, still not a workflow owner. Probe only
 `http://127.0.0.1:1919/v1/models` through the FreeToken skill. `READY` may
 set that loopback base URL for one bounded dispatch. `ABSENT` and

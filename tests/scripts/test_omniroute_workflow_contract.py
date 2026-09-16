@@ -52,6 +52,9 @@ class OmniRouteWorkflowContractTest(unittest.TestCase):
             self.assertIn("omniroute --output json usage quota", text)
             self.assertIn("RUNTIME_EXHAUSTED", normalized)
         self.assertIn("Built-in `spawn_agent` cannot select OmniRoute", guide)
+        self.assertIn("proof-of-dispatch", workflows)
+        self.assertIn("Agent machine vs user machine", omniroute)
+        self.assertIn("Agent machine vs user machine", guide)
 
     def test_cadence_has_one_numeric_owner(self):
         follow_through = self.read("chaos-engine/references/orchestrator-follow-through.md")
