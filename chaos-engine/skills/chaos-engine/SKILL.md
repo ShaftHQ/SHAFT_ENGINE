@@ -243,10 +243,10 @@ that page reach.
 Select exactly one mode from [execution workflows](../../references/execution-workflows.md),
 the sole owner of workflow names, selection, switching, capacity fallback, and
 writer limits. Use optional local transport only through the
-[OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens or
-disables the canonical workflows. FreeToken ([skill](../freetoken/SKILL.md)) and local OpenAI-compat
-([skill](../local-openai-compat/SKILL.md)) are optional loopback peers, not
-OmniRoute replacements. Missing them never weakens workflows.
+[OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens
+workflows. FreeToken, local OpenAI-compat, and
+[local-agency](../local-agency/SKILL.md) (OpenCode) are optional loopback peers,
+not OmniRoute replacements. Missing them never weakens workflows.
 
 When orchestrating, load
 [process-owner](../../references/process-owner-scrum-master.md).
@@ -325,7 +325,8 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | omniroute | Optional local OmniRoute dispatch for bounded work. | `skills/omniroute/SKILL.md` |
 | freetoken | Optional local FreeToken process for bounded work. | `skills/freetoken/SKILL.md` |
 | local-openai-compat | Optional Ollama/LM Studio/llamacpp peers. | `skills/local-openai-compat/SKILL.md` |
-| local-coding-delegate | Optional local coding loop as mechanical/default delegate. | `skills/local-coding-delegate/SKILL.md` |
+| local-agency | Local OpenCode agency vs session agents. | `skills/local-agency/SKILL.md` |
+| local-coding-delegate | Compat shim; hardware probe. | `skills/local-coding-delegate/SKILL.md` |
 | caveman | Ultra-compressed chat style; intensity ultra unless stopped. | `vendor/caveman/skills/caveman/SKILL.md` |
 | ponytail | Laziest solution that works; intensity ultra unless stopped. | `vendor/ponytail/skills/ponytail/SKILL.md` |
 | orchestrator | Plan, architecture, synthesis, and final verification. | `references/roles.md#orchestrator` |

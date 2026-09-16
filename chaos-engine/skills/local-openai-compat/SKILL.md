@@ -106,5 +106,6 @@ guide; continue with other qualified paths. Never auto-serve.
 
 - Guide: [local-openai-compat.md](../../guides/local-openai-compat.md)
 - FreeToken peer: [freetoken skill](../freetoken/SKILL.md)
+- Local OpenCode agency: [local-agency](../local-agency/SKILL.md)
 - OmniRoute peer (cloud-quota, not a dependency): [omniroute skill](../omniroute/SKILL.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)

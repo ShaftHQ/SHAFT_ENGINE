@@ -40,7 +40,8 @@ Encode lasting behavior in this Level-1 ref +
 [chaos-engine skill](../skills/chaos-engine/SKILL.md) /
 [delegation](delegation.md) — never Grok-Bot-only memory.
 
-Optional local labor: [FreeToken](../skills/freetoken/SKILL.md) (primary); [local-coding-delegate](../skills/local-coding-delegate/SKILL.md) (compat shim)
+Optional local labor: [local-agency](../skills/local-agency/SKILL.md) (OpenCode);
+[FreeToken](../skills/freetoken/SKILL.md); [local-coding-delegate](../skills/local-coding-delegate/SKILL.md) (compat shim)
 or [OmniRoute](../skills/omniroute/SKILL.md) when the decider chooses them;
 missing optional transport never weakens this firewall.
 
