@@ -116,6 +116,7 @@
       "chaos-engine",
       "freetoken",
       "local-coding-delegate",
+      "local-openai-compat",
       "omniroute",
       "self-improve",
       "work-item"

@@ -324,7 +324,7 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | self-improve | Learning Session dual-track harness and product lessons. | `skills/self-improve/SKILL.md` |
 | omniroute | Optional local OmniRoute dispatch for bounded work. | `skills/omniroute/SKILL.md` |
 | freetoken | Optional local FreeToken process for bounded work. | `skills/freetoken/SKILL.md` |
-| local-openai-compat | Optional Ollama/LM Studio/llama.cpp peers. | `skills/local-openai-compat/SKILL.md` |
+| local-openai-compat | Optional Ollama/LM Studio/llamacpp peers. | `skills/local-openai-compat/SKILL.md` |
 | local-coding-delegate | Optional local coding loop as mechanical/default delegate. | `skills/local-coding-delegate/SKILL.md` |
 | caveman | Ultra-compressed chat style; intensity ultra unless stopped. | `vendor/caveman/skills/caveman/SKILL.md` |
 | ponytail | Laziest solution that works; intensity ultra unless stopped. | `vendor/ponytail/skills/ponytail/SKILL.md` |
