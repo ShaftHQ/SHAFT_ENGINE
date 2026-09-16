@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/non-windows-is-not-linux-for-proc-lock-holder-tests.md",
+  "content_hash": "sha256:3c1cb8fbf1199b1f8efa56b3a7ebc796fe6746ec28adf0545d6421e1da3d1108",
+  "created_at": "2026-09-16T13:32:56+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5879",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.non-windows-is-not-linux-for-proc-lock-holder-tests",
+  "source": {
+    "kind": "agent",
+    "task": "Learning Session after #5879 lock-holder diagnostics delivery"
+  },
+  "status": "active",
+  "tags": [
+    "chaos-engine",
+    "flock",
+    "testing",
+    "macos"
+  ],
+  "title": "Non-Windows is not Linux for /proc lock-holder tests",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T13:32:56+03:00"
+}
