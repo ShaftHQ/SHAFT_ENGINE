@@ -46,7 +46,8 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 def binary_present(backend: str) -> bool:
     """Return whether a known CLI for this backend is on PATH. Never executes it."""
     binaries = BACKENDS[backend]["binaries"]
-    assert isinstance(binaries, tuple)
+    if not isinstance(binaries, tuple):
+        return False
     return any(shutil.which(name) is not None for name in binaries)
 
 

@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PROBE = ROOT / "chaos-engine/skills/local-openai-compat/scripts/probe.py"
 
 _SPEC = importlib.util.spec_from_file_location("local_openai_compat_probe", PROBE)
-assert _SPEC is not None and _SPEC.loader is not None
+if _SPEC is None or _SPEC.loader is None:
+    raise RuntimeError(f"unable to load probe module from {PROBE}")
 probe = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(probe)
 
@@ -41,12 +42,15 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def log_message(self, fmt, *args):  # noqa: A003
+    def log_message(self, format, *args):  # noqa: A003
         return
 
 
 class LocalServer:
+    """Tiny loopback models server for probe contract tests."""
+
     def __init__(self, payload: bytes, status: int = 200, redirect: str | None = None):
+        """Bind payload/status for one ephemeral listener."""
         self.payload = payload
         self.status = status
         self.redirect = redirect
@@ -54,6 +58,7 @@ class LocalServer:
         self.thread = None
 
     def __enter__(self):
+        """Start the listener and return a loopback `/v1/models` URL."""
         handler = type(
             "Handler",
             (_Handler,),
@@ -66,6 +71,7 @@ class LocalServer:
         return f"http://{host}:{port}/v1/models"
 
     def __exit__(self, exc_type, exc, tb):
+        """Stop the listener."""
         self.httpd.shutdown()
         self.httpd.server_close()
         self.thread.join(timeout=2)
@@ -157,10 +163,11 @@ class LocalOpenAICompatProbeTest(unittest.TestCase):
     def test_unhealthy_when_cli_exists_but_port_closed(self):
         import tempfile
 
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory() as temporary:  # nosec B108 - isolated test dir
             binary = Path(temporary) / "ollama"
+            marker = Path(temporary) / "must-not-run"
             binary.write_text(
-                "#!/bin/sh\necho launched > /tmp/local-openai-compat-must-not-run\nexit 99\n",
+                f"#!/bin/sh\necho launched > {marker}\nexit 99\n",
                 encoding="utf-8",
             )
             binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
@@ -170,7 +177,7 @@ class LocalOpenAICompatProbeTest(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 0)
             self.assertEqual(completed.stdout.strip(), "UNHEALTHY")
-            self.assertFalse(Path("/tmp/local-openai-compat-must-not-run").exists())
+            self.assertFalse(marker.exists())
 
     def test_ready_models_payload_and_does_not_print_model_ids(self):
         body = json.dumps({"data": [{"id": "x"}]}).encode("utf-8")
