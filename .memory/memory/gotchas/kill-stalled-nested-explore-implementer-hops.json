@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/kill-stalled-nested-explore-implementer-hops.md",
-  "content_hash": "sha256:404f7d4d8fb7a8e5ef9397b24d833716f6441ba913c759025facd987eaa6196c",
+  "content_hash": "sha256:726f23edd3919b719dd4a87230fba0f562f8b040649f4698e4d5c2557d579c4f",
   "created_at": "2026-09-16T21:40:43+03:00",
   "evidence": [],
   "id": "gotcha.kill-stalled-nested-explore-implementer-hops",

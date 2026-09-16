@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/pr-check-watcher-must-ignore-cancelled-superseded-runs.md",
-  "content_hash": "sha256:f9b8ec872080217da0468dd76ad48e950b2e1fd56e5d4d231d8d440b48105ca9",
+  "content_hash": "sha256:208d4eb9675d71d66ebd0d5cb7ffa5f251637b661ef015c75b34f9445e0b1815",
   "created_at": "2026-09-16T21:40:43+03:00",
   "evidence": [],
   "id": "gotcha.pr-check-watcher-must-ignore-cancelled-superseded-runs",

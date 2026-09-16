@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/release-note-classification-must-be-exactly-one-label-not-two.md",
-  "content_hash": "sha256:26bcde81428b955f3fb6ac06dfedecd179ea373ee81ff4bcb19f8cda7206fa1e",
+  "content_hash": "sha256:9d99e5953a062d1122788426bfa613ad00353942ce60f53d00c0a06b14920d75",
   "created_at": "2026-09-16T21:40:43+03:00",
   "evidence": [
     {
