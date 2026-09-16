@@ -86,6 +86,7 @@ public class BrowserActionsHelperCoverageUnitTest {
     public void safariNavigateTimeoutShouldFailActionInsteadOfSoftPassing() {
         // Regression for #5827: classic Safari path must not swallow pageLoadTimeout and
         // soft-pass; hang proofs (never-respond) require navigateToURL to fail.
+        // #5876: Allure step must use navigateToUrl, not stack-derived navigateToNewUrl.
         org.openqa.selenium.safari.SafariDriver safari = mock(org.openqa.selenium.safari.SafariDriver.class,
                 Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
         WebDriver.Navigation safariNavigation = mock(WebDriver.Navigation.class);
@@ -94,9 +95,14 @@ public class BrowserActionsHelperCoverageUnitTest {
                 .when(safariNavigation).to("https://example.com/hang");
         when(((JavascriptExecutor) safari).executeScript(anyString())).thenReturn("complete");
 
-        Assert.assertThrows(RuntimeException.class,
+        RuntimeException thrown = Assert.expectThrows(RuntimeException.class,
                 () -> helper.navigateToNewUrl(safari, "about:blank", "https://example.com/hang",
                         "https://example.com/hang"));
+        String message = thrown.getMessage() == null ? "" : thrown.getMessage().toLowerCase();
+        Assert.assertTrue(message.contains("navigate to url"),
+                "Safari timeout Allure/fail name must be navigateToUrl, was: " + thrown.getMessage());
+        Assert.assertFalse(message.contains("navigate to new url"),
+                "Safari timeout must not report stack-derived navigateToNewUrl, was: " + thrown.getMessage());
     }
 
     @Test
