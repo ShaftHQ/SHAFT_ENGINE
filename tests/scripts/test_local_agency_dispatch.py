@@ -31,6 +31,11 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertNotIn("subprocess", text)
         self.assertIn("may_ft_launch", text)
 
+    def test_skill_says_orchestrator_runs_command_when_opencode_mutates_nothing(self):
+        skill = (ROOT / "chaos-engine/skills/local-agency/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("mutates nothing", skill)
+        self.assertIn("runs that same command", skill)
+
     def test_loopback_openai_base_rejects_non_loopback(self):
         self.assertTrue(dispatch.loopback_openai_base("http://127.0.0.1:1919/v1"))
         self.assertFalse(dispatch.loopback_openai_base("http://10.1.1.1:1919/v1"))

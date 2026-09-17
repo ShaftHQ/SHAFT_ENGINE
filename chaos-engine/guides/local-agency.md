@@ -36,6 +36,8 @@ turn after verbose logs, or miss gitignored trees via glob.
 
 - Orchestrator writes one bounded runner; OpenCode runs exactly one command.
 - EXIT 0 with zero tool calls after a multi-step spec is a writer failure.
+  Run the same one command in the worktree yourself; do not retry the
+  oversized prompt.
 - Use exact paths; OpenCode glob may skip gitignored trees (including Memory).
 - Do not feed verbose unit-test logs into the next model turn.
 - Advertised `context_length` is not usable KV. On `context_length_exceeded`,
