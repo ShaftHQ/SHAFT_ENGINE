@@ -54,6 +54,7 @@
 <li><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(String, byte[])</a></li>
 <li><a href="#findImageWithinCurrentPage(com.shaft.gui.image.ImageTarget,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(ImageTarget, byte[])</a></li>
 <li><a href="#isImageTargetPresent(com.shaft.gui.image.ImageTarget,byte%5B%5D)" tabindex="0">isImageTargetPresent(ImageTarget, byte[])</a></li>
+<li><a href="#isUniqueImageTargetInView(com.shaft.gui.image.ImageTarget,byte%5B%5D)" tabindex="0">isUniqueImageTargetInView(ImageTarget, byte[])</a></li>
 <li><a href="#formatElementLocatorToImagePath(org.openqa.selenium.By)" tabindex="0">formatElementLocatorToImagePath(By)</a></li>
 <li><a href="#formatElementLocatorToImagePath(java.lang.String)" tabindex="0">formatElementLocatorToImagePath(String)</a></li>
 <li><a href="#getReferenceImage(org.openqa.selenium.By)" tabindex="0">getReferenceImage(By)</a></li>
@@ -199,12 +200,18 @@ baseline using a pixel-level diff.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">True when at least one match is present.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCV()" class="member-name-link">loadOpenCV</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isUniqueImageTargetInView(com.shaft.gui.image.ImageTarget,byte%5B%5D)" class="member-name-link">isUniqueImageTargetInView</a><wbr>(<a href="../../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ byte[]&nbsp;currentPageScreenshot)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Swipe-into-view needs a unique match.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCVIfAvailable()" class="member-name-link">loadOpenCVIfAvailable</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCV()" class="member-name-link">loadOpenCV</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCVIfAvailable()" class="member-name-link">loadOpenCVIfAvailable</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Loads the optional visual processing provider when it is available.</div>
 </div>
 </div>
@@ -278,6 +285,16 @@ controls cannot be clicked nondeterministically.</div>
  byte[]&nbsp;currentPageScreenshot)</span></div>
 <div class="block">True when at least one match is present. Repeated identical controls are visible, not absent.
 Presence uses match count, never exception text.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isUniqueImageTargetInView(com.shaft.gui.image.ImageTarget,byte[])">
+<h3>isUniqueImageTargetInView</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isUniqueImageTargetInView</span><wbr><span class="parameters">(<a href="../../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ byte[]&nbsp;currentPageScreenshot)</span></div>
+<div class="block">Swipe-into-view needs a unique match. Any-match presence would stop on lookalike tabs.</div>
 </div>
 </section>
 </li>
