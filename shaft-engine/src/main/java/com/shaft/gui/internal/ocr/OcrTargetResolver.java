@@ -41,6 +41,9 @@ final class OcrTargetResolver {
             String expected = normalize(target.expectedText(), target);
             if (target.matchMode() == OcrMatchMode.EXACT && observed.equals(expected)) {
                 matches.add(new OcrMatch(normalizeWhitespace(line.text()), line.bounds(), line.confidence()));
+            } else if (target.matchMode() == OcrMatchMode.EXACT
+                    && compact(observed).equals(compact(expected)) && !compact(expected).isEmpty()) {
+                matches.add(new OcrMatch(normalizeWhitespace(line.text()), line.bounds(), line.confidence()));
             } else if (target.matchMode() == OcrMatchMode.EXACT) {
                 matches.addAll(exactConsecutiveWords(result.blocks(), line, expected, target));
             } else if (target.matchMode() == OcrMatchMode.CONTAINS && observed.contains(expected)) {
@@ -183,5 +186,9 @@ final class OcrTargetResolver {
 
     private static String normalizeWhitespace(String text) {
         return text == null ? "" : text.strip().replaceAll("\\s+", " ");
+    }
+
+    private static String compact(String text) {
+        return text == null ? "" : text.replace(" ", "");
     }
 }
