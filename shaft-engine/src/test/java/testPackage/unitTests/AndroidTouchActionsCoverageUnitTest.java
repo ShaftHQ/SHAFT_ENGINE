@@ -648,6 +648,18 @@ public class AndroidTouchActionsCoverageUnitTest {
 
         SHAFT.Validations.assertThat().object(Files.exists(iosPulledPath)).isTrue().perform();
 
+        IOSDriver wdaKeyboardDriver = mock(IOSDriver.class);
+        doThrow(new WebDriverException("WDA did not know how to dismiss the keyboard."))
+                .when(wdaKeyboardDriver).hideKeyboard();
+        when(wdaKeyboardDriver.executeScript("mobile: hideKeyboard")).thenReturn(null);
+        ElementActionsHelper wdaKeyboardHelper = mock(ElementActionsHelper.class);
+        TouchActions wdaKeyboardActions = new TouchActions(wdaKeyboardDriver);
+        injectElementActionsHelper(wdaKeyboardActions, wdaKeyboardHelper);
+        wdaKeyboardActions.hideNativeKeyboard();
+        verify(wdaKeyboardDriver).hideKeyboard();
+        verify(wdaKeyboardDriver).executeScript("mobile: hideKeyboard");
+        verify(wdaKeyboardHelper).passAction(eq(wdaKeyboardDriver), isNull(By.class), anyString(), isNull(), isNull(), isNull());
+
     }
 
     @Test

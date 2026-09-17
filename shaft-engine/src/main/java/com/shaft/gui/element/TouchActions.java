@@ -151,7 +151,17 @@ public class TouchActions extends FluentWebDriverAction {
             if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
                 androidDriver.hideKeyboard();
             } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-                iosDriver.hideKeyboard();
+                try {
+                    iosDriver.hideKeyboard();
+                } catch (Exception hideKeyboardException) {
+                    // WDA often cannot guess a dismiss key ("did not know how to dismiss the keyboard").
+                    try {
+                        iosDriver.executeScript("mobile: hideKeyboard");
+                    } catch (Exception hideKeyboardFallback) {
+                        hideKeyboardException.addSuppressed(hideKeyboardFallback);
+                        throw hideKeyboardException;
+                    }
+                }
             } else {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
             }
@@ -770,7 +780,7 @@ public class TouchActions extends FluentWebDriverAction {
                         : (frame.containerLocal() ? ocrTarget
                         : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot));
                 boolean found = imageTarget != null
-                        ? findLocalImage(effectiveImageTarget, screenshot).isPresent()
+                        ? ImageProcessingActions.isImageTargetPresent(effectiveImageTarget, screenshot)
                             || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent())
                         : findOcr(effectiveOcrTarget, screenshot);
                 if (found) {

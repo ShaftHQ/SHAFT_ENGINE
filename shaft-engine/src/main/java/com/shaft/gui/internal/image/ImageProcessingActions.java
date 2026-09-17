@@ -196,6 +196,20 @@ public class ImageProcessingActions {
         return matches.stream().findFirst();
     }
 
+    /**
+     * True when at least one match is present. Repeated identical controls are visible, not absent.
+     */
+    public static boolean isImageTargetPresent(ImageTarget target, byte[] currentPageScreenshot) {
+        try {
+            return findImageWithinCurrentPage(target, currentPageScreenshot).isPresent();
+        } catch (IllegalStateException ambiguous) {
+            if (ambiguous.getMessage() != null && ambiguous.getMessage().startsWith("Image target is ambiguous")) {
+                return true;
+            }
+            throw ambiguous;
+        }
+    }
+
     private static final ConcurrentHashMap<String, String> locatorHashMapping = new ConcurrentHashMap<>();
 
     /**
