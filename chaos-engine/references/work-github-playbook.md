@@ -208,7 +208,12 @@ and focused proofs observed; it must not represent remote checks as green.
    stale: clear only that new observable state, then run one replacement
    acceptance against the new exact head. Unchanged state never triggers a retry.
 4. **Arm** immediately after that acceptance remains current:
-   `gh pr merge <n> --auto --merge`.
+   `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
+
+Nightly trackers that wait on `E2E Tests` and `Local E2E Tests` auto-close
+**only** when those workflows succeed with `jobs=all` (empty or the literal
+`all`). A targeted workflow_dispatch must not close them. Prove-close
+dispatches must pass `jobs=all`.
 5. **Watch** from the target repository with
    `gh pr checks <n> --watch --fail-fast`. Pass `--repo` for an explicit
    cross-repository target.

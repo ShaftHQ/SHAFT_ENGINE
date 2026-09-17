@@ -97,6 +97,8 @@ timer chosen at dispatch.
 Unless the owner chose interactive or moderate attendance at plan time, work
 **fully unattended**: babysit CI, merge green in-scope PRs (merge commits when
 the repo forbids squash), and do not wait for a per-PR "merge?" decision.
+Continue until in-scope issues are merged or closed or the owner HALTs.
+Compaction is not stop.
 
 ### Naming
 
