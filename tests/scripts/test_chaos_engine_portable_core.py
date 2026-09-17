@@ -991,6 +991,20 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("يُتْقِنَهُ", identity)
         self.assertIn("attendance", skill.lower())
 
+    def test_unattended_persistence_survives_compaction_in_overlay(self):
+        planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
+        playbook = (CORE / "references/work-github-playbook.md").read_text(encoding="utf-8")
+        identity = (CORE / "references/identity-push-back.md").read_text(encoding="utf-8")
+        process = (CORE / "references/process-owner-scrum-master.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Compaction is not stop", planning)
+        self.assertIn("gh pr merge --merge --auto", planning)
+        self.assertIn("jobs=all", playbook)
+        self.assertIn("A targeted workflow_dispatch must not close them", playbook)
+        self.assertIn("Compaction is not stop", identity)
+        self.assertIn("Compaction is not stop", process)
+
 
     def test_orchestrator_follow_through_is_inspect_and_adapt_not_waiting(self):
         follow_through = CORE / "references/orchestrator-follow-through.md"

@@ -62,8 +62,8 @@ Treat a READY local coder as a **mechanical runner**, not a designer.
 
 1. Orchestrator writes one bounded command (a short script with exact paths).
 2. OpenCode invokes **exactly that one bash command**. Multi-step specs in
-   chat are writer failures: EXIT 0 with zero tool calls is not success.
-   When OpenCode mutates nothing, the orchestrator **runs that same command**
+   chat are writer failures: EXIT 0 with zero tool calls is writer failure,
+   not success. When OpenCode mutates nothing, the orchestrator **runs that same command**
    in the worktree. Do not retry the same oversized prompt.
 3. Never glob gitignored trees (including Memory). Use pathlib / exact paths.
    Zero glob matches on a gitignored path is not success.

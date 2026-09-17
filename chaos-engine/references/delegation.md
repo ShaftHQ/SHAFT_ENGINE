@@ -27,6 +27,14 @@ Spec-exact repetitive edits, inventory, formatting, deterministic
 transformation, and log or result triage. The `helper` adapters carry the
 mechanical-helper role from [roles](roles.md) to both subagent hosts.
 
+Treat a READY local FreeToken/OpenCode coder as a **mechanical one-command
+runner**, not a designer. Orchestrator does not write product chunks; it hands
+one exact command. EXIT 0 with zero tool calls is writer failure: run that
+command yourself; do not retry an oversized prompt. ChaosEngine never
+`ft launch` / `ft serve` and never pins model ids in receipts. Independent
+adversarial review stays on the host **most-intelligent** subagent, not the
+local model.
+
 
 ## Research / explore firewall
 
