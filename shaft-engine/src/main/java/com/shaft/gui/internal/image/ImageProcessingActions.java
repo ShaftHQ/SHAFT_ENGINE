@@ -212,8 +212,15 @@ public class ImageProcessingActions {
      * Swipe-into-view needs a unique match. Any-match presence would stop on lookalike tabs.
      */
     public static boolean isUniqueImageTargetInView(ImageTarget target, byte[] currentPageScreenshot) {
-        if (hasUniqueMatch(target, currentPageScreenshot)) {
+        List<ImageMatch> matches = listImageMatches(target, currentPageScreenshot);
+        if (target.occurrence().isPresent()) {
+            return target.occurrence().getAsInt() < matches.size();
+        }
+        if (matches.size() == 1) {
             return true;
+        }
+        if (!matches.isEmpty()) {
+            return false;
         }
         ImageMatchingMode mode = target.matchingMode();
         if (mode == ImageMatchingMode.FEATURE || mode == ImageMatchingMode.AUTO) {

@@ -350,6 +350,29 @@ public class ImageProcessingActionsCoverageUnitTest {
     }
 
     @Test
+    public void uniqueImageTargetInViewDoesNotFallbackWhenFeatureIsAmbiguous() {
+        ImageTarget target = ImageTarget.fromBytes(encodePng(createImage(8, 8, Color.GREEN)))
+                .matchingMode(ImageMatchingMode.FEATURE);
+        byte[] screenshot = encodePng(createImage(40, 20, Color.WHITE));
+        ImageMatch featureOne = new ImageMatch(new ImageRectangle(1, 1, 8, 8), 0.91, 1.0,
+                ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY, Map.of());
+        ImageMatch featureTwo = new ImageMatch(new ImageRectangle(20, 1, 8, 8), 0.90, 1.0,
+                ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY, Map.of());
+        ImageMatch uniqueTemplate = new ImageMatch(new ImageRectangle(1, 1, 8, 8), 0.95, 1.0,
+                ImageMatchingAlgorithm.TEMPLATE_COLOR, Map.of());
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.findImageMatches(any(ImageTarget.class), any())).thenAnswer(invocation -> {
+            ImageTarget asked = invocation.getArgument(0);
+            return asked.matchingMode() == ImageMatchingMode.TEMPLATE
+                    ? List.of(uniqueTemplate)
+                    : List.of(featureOne, featureTwo);
+        });
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        Assert.assertFalse(ImageProcessingActions.isUniqueImageTargetInView(target, screenshot));
+    }
+
+    @Test
     public void typedImageMatchingShouldKeepOverlappingOccurrencesAtDifferentScales() {
         BufferedImage targetImage = createReferenceTarget(20, 16);
         BufferedImage screenshotImage = createImage(90, 60, Color.WHITE);

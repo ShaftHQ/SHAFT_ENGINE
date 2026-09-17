@@ -122,6 +122,30 @@ public class OcrGuiActionContractTest {
     }
 
     @Test
+    public void findPropagatesScaledMissTextWhen2xAlsoMisses() throws Exception {
+        BufferedImage tiny = new BufferedImage(16, 8, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageIO.write(tiny, "png", output);
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                try {
+                    BufferedImage decoded = ImageIO.read(new java.io.ByteArrayInputStream(image));
+                    String text = decoded != null && decoded.getWidth() >= 32 ? "scaled-only" : "original-only";
+                    return new OcrResult(text, List.of(new OcrTextBlock(
+                            text, new OcrRectangle(1, 1, 4, 4), 0.96, OcrBlockLevel.LINE)));
+                } catch (Exception exception) {
+                    throw new IllegalStateException(exception);
+                }
+            }
+        }));
+
+        IllegalStateException miss = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrProcessingActions.find(output.toByteArray(), OcrTarget.exact("Text Input")));
+        Assert.assertTrue(miss.getMessage().contains("scaled-only"));
+    }
+
+    @Test
     public void playwrightElementActionClicksScaledMatchCenter() {
         PlaywrightSession session = mock(PlaywrightSession.class);
         Page page = mock(Page.class);

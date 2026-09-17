@@ -243,6 +243,37 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         }
     }
 
+    @Test(description = "does-not-exist must not pass when Flutter locator is displayed despite count 0")
+    public void validateElementExistsNegativeShouldFailWhenDisplayedDespiteZeroCount() {
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.HARD_ASSERT);
+        By locator = By.id("flutter-still-there");
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement element = mock(WebElement.class);
+        SHAFT.Properties.reporting.set().captureElementName(false);
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(0.05);
+        when(driver.findElement(locator)).thenReturn(element);
+        when(element.isDisplayed()).thenReturn(true);
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(new byte[]{1});
+
+        boolean failed = false;
+        try (MockedConstruction<ElementActions> ignoredActions = Mockito.mockConstruction(ElementActions.class,
+                (mock, context) -> when(mock.getElementsCount(locator)).thenReturn(0));
+             MockedConstruction<ScreenshotManager> ignoredScreenshots = Mockito.mockConstruction(ScreenshotManager.class,
+                     (mock, context) -> when(mock.takeScreenshot(any(), any(), anyString(), any(Boolean.class)))
+                             .thenReturn(List.of()))) {
+            try {
+                helper.validateElementExists(driver, locator, ValidationEnums.ValidationType.NEGATIVE);
+            } catch (RuntimeException | AssertionError expected) {
+                failed = true;
+            }
+        }
+        Assert.assertTrue(failed, "NEGATIVE exists must not pass when the locator is displayed.");
+    }
+
     @Test(description = "Generated element assertion messages should not repeat locator text")
     public void generatedElementAssertionMessageShouldLeaveLocatorForParametersOnly() {
         ValidationsBuilder builder = new ValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT);

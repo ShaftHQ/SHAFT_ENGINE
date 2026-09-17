@@ -78,7 +78,7 @@ public final class OcrProcessingActions {
                 OcrMatch scaledMatch = OcrTargetResolver.resolve(recognize(scaled, target.options()), target);
                 return attachSelectedMatch(mapMatchToOriginalScale(scaledMatch), target);
             } catch (IllegalStateException scaledMiss) {
-                throw noMatch;
+                throw scaledMiss;
             }
         }
     }
