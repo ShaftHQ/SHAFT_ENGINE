@@ -183,8 +183,7 @@ public class ImageProcessingActions {
         if (currentPageScreenshot == null || currentPageScreenshot.length == 0) {
             return Optional.empty();
         }
-        List<ImageMatch> matches = VisualProcessingProviderRegistry.requireProvider()
-                .findImageMatches(target, currentPageScreenshot);
+        List<ImageMatch> matches = listImageMatches(target, currentPageScreenshot);
         if (target.occurrence().isPresent()) {
             int occurrence = target.occurrence().getAsInt();
             return occurrence < matches.size() ? Optional.of(matches.get(occurrence)) : Optional.empty();
@@ -198,16 +197,23 @@ public class ImageProcessingActions {
 
     /**
      * True when at least one match is present. Repeated identical controls are visible, not absent.
+     * Presence uses match count, never exception text.
      */
     public static boolean isImageTargetPresent(ImageTarget target, byte[] currentPageScreenshot) {
-        try {
-            return findImageWithinCurrentPage(target, currentPageScreenshot).isPresent();
-        } catch (IllegalStateException ambiguous) {
-            if (ambiguous.getMessage() != null && ambiguous.getMessage().startsWith("Image target is ambiguous")) {
-                return true;
-            }
-            throw ambiguous;
+        List<ImageMatch> matches = listImageMatches(target, currentPageScreenshot);
+        if (target.occurrence().isPresent()) {
+            return target.occurrence().getAsInt() < matches.size();
         }
+        return !matches.isEmpty();
+    }
+
+    private static List<ImageMatch> listImageMatches(ImageTarget target, byte[] currentPageScreenshot) {
+        Objects.requireNonNull(target, "Image target cannot be null.");
+        if (currentPageScreenshot == null || currentPageScreenshot.length == 0) {
+            return List.of();
+        }
+        return VisualProcessingProviderRegistry.requireProvider()
+                .findImageMatches(target, currentPageScreenshot);
     }
 
     private static final ConcurrentHashMap<String, String> locatorHashMapping = new ConcurrentHashMap<>();
