@@ -53,7 +53,8 @@ final class OcrTargetResolver {
 
         if (matches.isEmpty()) {
             throw new IllegalStateException("No OCR match found for '" + target.expectedText()
-                    + "' at minimum confidence " + target.options().minimumConfidence() + ".");
+                    + "' at minimum confidence " + target.options().minimumConfidence()
+                    + ". Recognized text: '" + recognizedSnippet(result) + "'");
         }
         if (target.requireUniqueMatch()) {
             if (matches.size() != 1) {
@@ -190,5 +191,13 @@ final class OcrTargetResolver {
 
     private static String compact(String text) {
         return text == null ? "" : text.replace(" ", "");
+    }
+
+    static String recognizedSnippet(OcrResult result) {
+        String text = result == null || result.fullText() == null ? "" : result.fullText().strip();
+        if (text.isEmpty()) {
+            return "(empty)";
+        }
+        return text.length() <= 200 ? text : text.substring(0, 200) + "...";
     }
 }

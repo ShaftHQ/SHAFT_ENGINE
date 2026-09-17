@@ -15,6 +15,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageMatchingAlgorithm;
 import com.shaft.gui.image.ImageRectangle;
 import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageTarget;
@@ -308,6 +309,67 @@ public class ImageProcessingActionsCoverageUnitTest {
         Assert.assertTrue(ImageProcessingActions.isImageTargetPresent(target.occurrence(1), encodePng(screenshotImage)));
         Assert.assertTrue(ImageProcessingActions.isUniqueImageTargetInView(target.occurrence(0), encodePng(screenshotImage)));
         Assert.assertFalse(ImageProcessingActions.isImageTargetPresent(target.occurrence(2), encodePng(screenshotImage)));
+    }
+
+    @Test
+    public void uniqueImageTargetInViewFallsBackToSingleTemplateMatch() {
+        ImageTarget target = ImageTarget.fromBytes(encodePng(createImage(8, 8, Color.RED)))
+                .matchingMode(ImageMatchingMode.FEATURE);
+        byte[] screenshot = encodePng(createImage(20, 20, Color.WHITE));
+        ImageMatch uniqueTemplate = new ImageMatch(new ImageRectangle(1, 1, 8, 8), 0.91, 1.0,
+                ImageMatchingAlgorithm.TEMPLATE_COLOR, Map.of());
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.findImageMatches(any(ImageTarget.class), any())).thenAnswer(invocation -> {
+            ImageTarget asked = invocation.getArgument(0);
+            return asked.matchingMode() == ImageMatchingMode.TEMPLATE ? List.of(uniqueTemplate) : List.of();
+        });
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        Assert.assertTrue(ImageProcessingActions.isUniqueImageTargetInView(target, screenshot));
+        Assert.assertTrue(ImageProcessingActions.isUniqueImageTargetInView(
+                target.matchingMode(ImageMatchingMode.AUTO), screenshot));
+    }
+
+    @Test
+    public void uniqueImageTargetInViewRejectsAmbiguousTemplateFallback() {
+        ImageTarget target = ImageTarget.fromBytes(encodePng(createImage(8, 8, Color.BLUE)))
+                .matchingMode(ImageMatchingMode.FEATURE);
+        byte[] screenshot = encodePng(createImage(40, 20, Color.WHITE));
+        ImageMatch first = new ImageMatch(new ImageRectangle(1, 1, 8, 8), 0.91, 1.0,
+                ImageMatchingAlgorithm.TEMPLATE_COLOR, Map.of());
+        ImageMatch second = new ImageMatch(new ImageRectangle(20, 1, 8, 8), 0.90, 1.0,
+                ImageMatchingAlgorithm.TEMPLATE_COLOR, Map.of());
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.findImageMatches(any(ImageTarget.class), any())).thenAnswer(invocation -> {
+            ImageTarget asked = invocation.getArgument(0);
+            return asked.matchingMode() == ImageMatchingMode.TEMPLATE ? List.of(first, second) : List.of();
+        });
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        Assert.assertFalse(ImageProcessingActions.isUniqueImageTargetInView(target, screenshot));
+    }
+
+    @Test
+    public void uniqueImageTargetInViewDoesNotFallbackWhenFeatureIsAmbiguous() {
+        ImageTarget target = ImageTarget.fromBytes(encodePng(createImage(8, 8, Color.GREEN)))
+                .matchingMode(ImageMatchingMode.FEATURE);
+        byte[] screenshot = encodePng(createImage(40, 20, Color.WHITE));
+        ImageMatch featureOne = new ImageMatch(new ImageRectangle(1, 1, 8, 8), 0.91, 1.0,
+                ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY, Map.of());
+        ImageMatch featureTwo = new ImageMatch(new ImageRectangle(20, 1, 8, 8), 0.90, 1.0,
+                ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY, Map.of());
+        ImageMatch uniqueTemplate = new ImageMatch(new ImageRectangle(1, 1, 8, 8), 0.95, 1.0,
+                ImageMatchingAlgorithm.TEMPLATE_COLOR, Map.of());
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.findImageMatches(any(ImageTarget.class), any())).thenAnswer(invocation -> {
+            ImageTarget asked = invocation.getArgument(0);
+            return asked.matchingMode() == ImageMatchingMode.TEMPLATE
+                    ? List.of(uniqueTemplate)
+                    : List.of(featureOne, featureTwo);
+        });
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        Assert.assertFalse(ImageProcessingActions.isUniqueImageTargetInView(target, screenshot));
     }
 
     @Test
