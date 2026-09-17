@@ -261,7 +261,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
 
         // Exact OCR on short tab labels failed on BrowserStack; return with the selected-state tab12 crop.
         driver.get().touch().swipeElementIntoView(tabs,
-                ImageTarget.fromBytes(tab12Screenshot).matchingMode(ImageMatchingMode.AUTO),
+                ImageTarget.fromBytes(tab12Screenshot).matchingMode(ImageMatchingMode.FEATURE),
                 TouchActions.SwipeDirection.RIGHT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
 

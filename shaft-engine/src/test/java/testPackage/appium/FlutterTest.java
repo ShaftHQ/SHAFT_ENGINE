@@ -132,7 +132,11 @@ public class FlutterTest {
     }
 
     private static boolean flutterLocatorPresent(org.openqa.selenium.WebDriver session, By locator) {
-        return !session.findElements(locator).isEmpty();
+        try {
+            return session.findElement(locator).isDisplayed();
+        } catch (WebDriverException missing) {
+            return false;
+        }
     }
 
     /**
