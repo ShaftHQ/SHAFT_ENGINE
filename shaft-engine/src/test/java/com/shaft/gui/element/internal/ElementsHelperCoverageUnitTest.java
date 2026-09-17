@@ -172,6 +172,19 @@ public class ElementsHelperCoverageUnitTest {
     }
 
     @Test
+    public void waitForElementPresenceShouldTolerateClassCastOnGetRect() {
+        when(element.getRect()).thenThrow(new ClassCastException("class java.lang.String cannot be cast to class java.lang.Number"));
+
+        try (MockedStatic<DriverFactoryHelper> ignoredDriverFactoryHelper = mockDesktopExecution();
+             MockedConstruction<SynchronizationManager> ignored = mockSynchronizationManagerApplyingCondition()) {
+            List<Object> information = helper.waitForElementPresence(driver, locator, true);
+
+            Assert.assertEquals(information.get(0), 1);
+            Assert.assertSame(information.get(1), element);
+        }
+    }
+
+    @Test
     public void getMatchingElementsInformationShouldHandleNullAndHtmlLocatorsWithoutDriverLookup() {
         List<Object> nullLocatorInformation = helper.getMatchingElementsInformation(driver, null, true);
         List<Object> htmlLocatorInformation = helper.getMatchingElementsInformation(driver, By.tagName("html"), true);

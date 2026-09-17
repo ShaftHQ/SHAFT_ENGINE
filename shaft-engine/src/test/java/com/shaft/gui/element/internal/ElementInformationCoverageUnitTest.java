@@ -41,6 +41,36 @@ public class ElementInformationCoverageUnitTest {
     }
 
     @Test
+    public void fromListShouldParseStringElementCountWithoutCasting() {
+        WebElement firstElement = mock(WebElement.class);
+        Rectangle rectangle = new Rectangle(1, 2, 3, 4);
+        List<Object> payload = List.of(
+                "1",
+                firstElement,
+                By.id("sample"),
+                "<button>Click</button>",
+                "Click",
+                "sampleElement",
+                "success",
+                rectangle
+        );
+
+        ElementInformation information = ElementInformation.fromList(payload);
+
+        Assert.assertEquals(information.getNumberOfFoundElements(), 1);
+        Assert.assertSame(information.getFirstElement(), firstElement);
+    }
+
+    @Test
+    public void parseFoundElementCountShouldRejectNonNumericString() {
+        IllegalArgumentException exception = Assert.expectThrows(
+                IllegalArgumentException.class,
+                () -> ElementInformation.parseFoundElementCount("not-a-number"));
+        Assert.assertTrue(exception.getMessage().contains("not-a-number"));
+        Assert.assertTrue(exception.getCause() instanceof NumberFormatException);
+    }
+
+    @Test
     public void toListShouldExportFieldsInLegacyOrder() {
         WebElement firstElement = mock(WebElement.class);
         Rectangle rectangle = new Rectangle(11, 22, 33, 44);
