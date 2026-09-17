@@ -62,6 +62,15 @@ public class ElementInformationCoverageUnitTest {
     }
 
     @Test
+    public void parseFoundElementCountShouldRejectNonNumericString() {
+        IllegalArgumentException exception = Assert.expectThrows(
+                IllegalArgumentException.class,
+                () -> ElementInformation.parseFoundElementCount("not-a-number"));
+        Assert.assertTrue(exception.getMessage().contains("not-a-number"));
+        Assert.assertTrue(exception.getCause() instanceof NumberFormatException);
+    }
+
+    @Test
     public void toListShouldExportFieldsInLegacyOrder() {
         WebElement firstElement = mock(WebElement.class);
         Rectangle rectangle = new Rectangle(11, 22, 33, 44);

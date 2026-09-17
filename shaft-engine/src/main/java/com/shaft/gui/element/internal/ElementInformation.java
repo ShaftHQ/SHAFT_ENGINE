@@ -71,7 +71,11 @@ public class ElementInformation {
         if (count instanceof Number number) {
             return number.intValue();
         }
-        return Integer.parseInt(String.valueOf(count));
+        try {
+            return Integer.parseInt(String.valueOf(count));
+        } catch (NumberFormatException nfe) {
+            throw new IllegalArgumentException("Element count must be numeric, got: " + count, nfe);
+        }
     }
 
     //TODO: generalize this approach to parse all element information and not have to fetch it again
