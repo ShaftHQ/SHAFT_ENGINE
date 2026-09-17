@@ -25,8 +25,8 @@ python3 chaos-engine/skills/freetoken/scripts/probe.py models --json
 Not the ChaosEngine installer. Do not add FreeToken to the default installer
 bundle. Do not run `ft launch` from ChaosEngine.
 
-Typical vendor sequence on an NVIDIA RTX 30+ Linux host with driver r580+ /
-CUDA 13 (see upstream `docs/install.md`):
+Typical vendor sequence on a Linux host with a vendor-supported GPU driver
+(see upstream `docs/install.md`):
 
 ```bash
 uv venv && source .venv/bin/activate
@@ -38,13 +38,20 @@ ft serve --model /path/or/HF-id
 API surfaces: OpenAI `/v1/chat/completions`, `/v1/models`; Anthropic
 `/v1/messages`. Server ready log mentions `127.0.0.1:1919`.
 
-## Hardware honesty (ROG G14 class)
+## Size-class soak (probe_hardware.py)
 
-On an RTX 3060 Laptop (**6 GB** VRAM) with ~**22 GB** RAM, start with a
-**small/medium** known-good coding MoE and measure tokens/s and tool-loop
-stability before stretching toward 35B-class checkpoints. Upstream marketing
-for “35B on 8 GB laptops” is not a promise for 6 GB chassis. Put large weights
-on a volume with enough free space (often `/media/...`, not a full `/home`).
+Use [`probe_hardware.py`](../skills/local-coding-delegate/scripts/probe_hardware.py)
+(`small` / `medium` / `large` / `refuse`). Start with a small/medium known-good
+coding MoE. Prove the READY checkpoint with mechanical dispatch knobs
+(one command, `--variant` low/medium, tiny tool output) before stretching
+checkpoints. Advertised `context_length` from `/v1/models` is not usable KV;
+on `context_length_exceeded` shrink prompt and variant first.
+
+If quality is still insufficient and the probe is `medium` or `large`, the
+operator may serve the next known-good coding MoE from **vendor docs**.
+ChaosEngine never selects, downloads, or starts that serve. `refuse`: do not
+recommend a larger checkpoint. Put large weights on a volume with enough
+free space.
 
 ## Agent vs user machine
 
@@ -55,7 +62,6 @@ harness.
 
 ## Local proof
 
-ROG adoption and soak notes are tracked under GitHub #5867 / #5870 on the
-operator host. Closeout evidence for the FreeToken coding loop and children
-#5868–#5872 / #5882–#5883 lives in
+Operator soak notes stay on the operator host. Closeout evidence for the
+FreeToken coding loop lives in
 [freetoken-5867-closeout-proof.md](./freetoken-5867-closeout-proof.md).

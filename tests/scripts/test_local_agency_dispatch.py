@@ -173,8 +173,43 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertEqual(argv[0], "opencode")
         self.assertIn("run", argv)
         self.assertIn("--pure", argv)
+        self.assertIn("--variant", argv)
+        self.assertEqual(argv[argv.index("--variant") + 1], "medium")
         self.assertIn("freetoken/gpt-oss-20b", argv)
         self.assertIn("PONG", argv)
+
+    def test_argv_cli_emits_pure_and_variant(self):
+        def probe(runtime: str):
+            if runtime == "freetoken":
+                return {
+                    "runtime": "freetoken",
+                    "state": "READY",
+                    "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE,
+                    "models": ["coding-moe"],
+                    "provider_id": "freetoken",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            with tempfile.TemporaryDirectory() as temporary:  # nosec B108
+                args = dispatch.parse_args(
+                    ["argv", "--prompt", "one-command", "--workdir", "wt", "--dir", temporary]
+                )
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    code = dispatch.cmd_argv(args)
+                payload = json.loads(buf.getvalue())
+        self.assertEqual(code, 0)
+        argv = payload["argv"]
+        self.assertIn("--pure", argv)
+        self.assertIn("--variant", argv)
+        self.assertEqual(argv[argv.index("--variant") + 1], "medium")
 
     def test_opencode_config_enables_only_local_provider(self):
         chosen = {

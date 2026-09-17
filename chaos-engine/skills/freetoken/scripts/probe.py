@@ -94,6 +94,11 @@ def probe(url: str = DEFAULT_URL, *, timeout: float = TIMEOUT_SECONDS) -> str:
 
 def parse_model_ids(body: bytes) -> list[str]:
     """Extract model ids from a models payload for session stdout only."""
+    return [item["id"] for item in parse_model_rows(body) if "id" in item]
+
+
+def parse_model_rows(body: bytes) -> list[dict[str, object]]:
+    """Session-only model rows. Echo advertised context_length when present; never invent."""
     value = json.loads(body.decode("utf-8"))
     rows: list = []
     if isinstance(value, list):
@@ -103,15 +108,25 @@ def parse_model_ids(body: bytes) -> list[str]:
             rows = value["data"]
         elif isinstance(value.get("models"), list):
             rows = value["models"]
-    ids: list[str] = []
+    out: list[dict[str, object]] = []
     for row in rows:
         if isinstance(row, str):
-            ids.append(row)
-        elif isinstance(row, dict):
-            mid = row.get("id") or row.get("model") or row.get("name")
-            if isinstance(mid, str) and mid:
-                ids.append(mid)
-    return ids
+            if row:
+                out.append({"id": row})
+            continue
+        if not isinstance(row, dict):
+            continue
+        mid = row.get("id") or row.get("model") or row.get("name")
+        if not isinstance(mid, str) or not mid:
+            continue
+        item: dict[str, object] = {"id": mid}
+        advertised = row.get("context_length")
+        if advertised is None:
+            advertised = row.get("max_model_len")
+        if isinstance(advertised, int) and not isinstance(advertised, bool) and advertised > 0:
+            item["context_length"] = advertised
+        out.append(item)
+    return out
 
 
 def cmd_probe(args: argparse.Namespace) -> int:
@@ -148,12 +163,12 @@ def cmd_models(args: argparse.Namespace) -> int:
     if state != "READY":
         print(state)
         return 1
-    ids = parse_model_ids(body)
+    rows = parse_model_rows(body)
     if args.json:
-        print(json.dumps({"state": state, "models": ids}, sort_keys=True))
+        print(json.dumps({"state": state, "models": rows}, sort_keys=True))
     else:
-        for mid in ids:
-            print(mid)
+        for row in rows:
+            print(row["id"])
     return 0
 
 

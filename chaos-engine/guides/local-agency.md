@@ -26,14 +26,31 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt 'smok
 
 `config` prints JSON with `env.OPENCODE_CONFIG` pointing at a temp
 `opencode.json`. Export that for one process only. Do not merge it into
-`~/.config/opencode/opencode.json`.
+`~/.config/opencode/opencode.json`. `argv` includes `--pure` and `--variant`
+(default `medium`).
 
-## Proven path (ROG + FreeToken)
+## Mechanical dispatch
 
-With FreeToken serving on `http://127.0.0.1:1919` (`gpt-oss-20b`):
+Small-context local models often exit 0 without tools, overflow on the next
+turn after verbose logs, or miss gitignored trees via glob.
 
-1. `dispatch.py resolve` → `state=READY`, `chosen.runtime=freetoken`
-2. `OPENCODE_CONFIG=<ephemeral>` `opencode run --pure --model freetoken/gpt-oss-20b …`
+- Orchestrator writes one bounded runner; OpenCode runs exactly one command.
+- EXIT 0 with zero tool calls after a multi-step spec is a writer failure.
+- Use exact paths; OpenCode glob may skip gitignored trees (including Memory).
+- Do not feed verbose unit-test logs into the next model turn.
+- Advertised `context_length` is not usable KV. On `context_length_exceeded`,
+  shrink prompt and variant; do not start `ft serve` from ChaosEngine.
+- Size-class soak (`probe_hardware.py`: small / medium / large / refuse):
+  knobs first. If still insufficient and class is medium or large, the
+  operator may serve the next known-good coding MoE from vendor docs.
+  `refuse`: do not recommend a larger checkpoint.
+
+## Proven path (loopback + ephemeral config)
+
+With a READY local runtime on loopback:
+
+1. `dispatch.py resolve` → `state=READY` and a chosen local runtime
+2. `OPENCODE_CONFIG=<ephemeral>` `opencode run --pure --variant medium …`
 3. Durable `~/.config/opencode/opencode.json` hash unchanged
 
 ## Session agents vs local agency

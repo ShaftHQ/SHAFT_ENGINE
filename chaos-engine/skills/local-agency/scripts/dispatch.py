@@ -264,11 +264,14 @@ def opencode_argv(
     workdir: str | None = None,
     auto: bool = False,
     pure: bool = True,
+    variant: str | None = "medium",
 ) -> list[str]:
     """Build ``opencode run`` argv. Caller sets OPENCODE_CONFIG for the process."""
     argv = ["opencode", "run"]
     if pure:
         argv.append("--pure")
+    if variant:
+        argv.extend(["--variant", variant])
     if auto:
         argv.append("--auto")
     argv.extend(["--model", str(chosen["opencode_model"])])
@@ -336,6 +339,7 @@ def cmd_argv(args: argparse.Namespace) -> int:
         workdir=args.workdir,
         auto=args.auto,
         pure=not args.no_pure,
+        variant=args.variant,
     )
     content = json.dumps(opencode_config(chosen), separators=(",", ":"), sort_keys=True)
     out = {
@@ -380,6 +384,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     argv_p.add_argument("--dir", default=None, help="directory for ephemeral opencode.json")
     argv_p.add_argument("--auto", action="store_true", help="pass --auto to opencode")
     argv_p.add_argument("--no-pure", action="store_true", help="omit --pure")
+    argv_p.add_argument(
+        "--variant",
+        default="medium",
+        choices=("low", "medium", "high"),
+        help="OpenCode --variant for tool loops (default: medium)",
+    )
     return parser.parse_args(argv)
 
 

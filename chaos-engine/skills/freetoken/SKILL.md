@@ -34,11 +34,11 @@ Operator install stays on vendor docs. See the
 
 ## Agent machine vs user machine
 
-FreeToken is almost always on the **user's GPU machine** (for GPU-backed operator hosts such as a
-laptop ROG). An agent box loopback is a different host: `127.0.0.1:1919` there is not
-the user's FreeToken. If the adopter asked for FreeToken and Shell is not on
-the user machine, say so, require Local Execution / the user host, and stop.
-Do not invent remote `--base-url` workarounds from ChaosEngine.
+FreeToken is almost always on the **user's GPU machine**. An agent box
+loopback is a different host: `127.0.0.1:1919` there is not the user's
+FreeToken. If the adopter asked for FreeToken and Shell is not on the user
+machine, say so, require Local Execution / the user host, and stop. Do not
+invent remote `--base-url` workarounds from ChaosEngine.
 
 ## Probe → attest → models → dispatch
 
@@ -75,8 +75,11 @@ python3 chaos-engine/skills/freetoken/scripts/probe.py attest
 python3 chaos-engine/skills/freetoken/scripts/probe.py models --json
 ```
 
-Prefer smaller coding MoEs on constrained GPUs (e.g. RTX 3060 Laptop 6 GB +
-~22 GB RAM). Do not assume 35B is reliable on that class until soak-proven.
+Prefer smaller coding MoEs when
+[`probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py)
+returns `small` or `medium`. Do not stretch to a larger checkpoint until
+mechanical dispatch knobs are proven. Advertised `context_length` is not
+usable KV; on `context_length_exceeded` shrink prompt and variant first.
 Optional size-class hint (stdlib, no downloads):
 
 ```text
