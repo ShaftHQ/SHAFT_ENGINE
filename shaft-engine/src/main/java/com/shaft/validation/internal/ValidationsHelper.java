@@ -715,6 +715,15 @@ public class ValidationsHelper {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 elementCount.set(new ElementActions(driver, true).getElementsCount(locator));
+                if (elementCount.get() == 0) {
+                    try {
+                        if (Boolean.TRUE.equals(driver.findElement(locator).isDisplayed())) {
+                            elementCount.set(1);
+                        }
+                    } catch (WebDriverException ignored) {
+                        // Flutter (and similar) locators can be displayed while findElements count is 0.
+                    }
+                }
                 expected.set(validationType.getValue());
                 actual.set(elementCount.get() > 0);
                 // force validation type to be positive since the expected and actual values have been adjusted already

@@ -117,6 +117,18 @@ public class OcrTargetResolverTest {
 
         Assert.assertTrue(notFound.getMessage().contains("0.8"));
         Assert.assertTrue(notFound.getMessage().contains("Pay now"));
+        Assert.assertTrue(notFound.getMessage().contains("Recognized text:"));
+    }
+
+    @Test
+    public void missingMatchExceptionIncludesTruncatedRecognizedText() {
+        String recognized = "x".repeat(220);
+        OcrResult result = new OcrResult(recognized, List.of(line("Other", 10, 20, 80, 20, 0.94)));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("Missing")));
+
+        Assert.assertTrue(notFound.getMessage().contains("Recognized text: '" + "x".repeat(200) + "...'"));
     }
 
     private static OcrResult result(OcrTextBlock... blocks) {

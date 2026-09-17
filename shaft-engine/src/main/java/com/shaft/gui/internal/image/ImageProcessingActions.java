@@ -1,6 +1,7 @@
 package com.shaft.gui.internal.image;
 
 import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageTarget;
 import com.shaft.tools.io.internal.CheckpointStatus;
 import io.qameta.allure.model.Status;
@@ -211,6 +212,17 @@ public class ImageProcessingActions {
      * Swipe-into-view needs a unique match. Any-match presence would stop on lookalike tabs.
      */
     public static boolean isUniqueImageTargetInView(ImageTarget target, byte[] currentPageScreenshot) {
+        if (hasUniqueMatch(target, currentPageScreenshot)) {
+            return true;
+        }
+        ImageMatchingMode mode = target.matchingMode();
+        if (mode == ImageMatchingMode.FEATURE || mode == ImageMatchingMode.AUTO) {
+            return hasUniqueMatch(target.matchingMode(ImageMatchingMode.TEMPLATE), currentPageScreenshot);
+        }
+        return false;
+    }
+
+    private static boolean hasUniqueMatch(ImageTarget target, byte[] currentPageScreenshot) {
         List<ImageMatch> matches = listImageMatches(target, currentPageScreenshot);
         if (target.occurrence().isPresent()) {
             return target.occurrence().getAsInt() < matches.size();

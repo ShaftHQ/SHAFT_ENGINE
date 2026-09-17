@@ -21,6 +21,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import com.shaft.gui.element.ElementActions;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.OutputType;
@@ -214,6 +215,31 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
                     new StringBuilder()).elementRole().isEqualTo("button");
             helper.validateElementMatches(driver, locator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV,
                     ValidationEnums.ValidationType.POSITIVE);
+        }
+    }
+
+    @Test(description = "exists() should treat a displayed Flutter locator as present when getElementsCount is 0")
+    public void validateElementExistsShouldAcceptDisplayedElementWhenCountIsZero() {
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.HARD_ASSERT);
+        By locator = By.id("flutter-displayed");
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement element = mock(WebElement.class);
+        SHAFT.Properties.reporting.set().captureElementName(false);
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        when(driver.findElement(locator)).thenReturn(element);
+        when(element.isDisplayed()).thenReturn(true);
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(new byte[]{1});
+
+        try (MockedConstruction<ElementActions> ignoredActions = Mockito.mockConstruction(ElementActions.class,
+                (mock, context) -> when(mock.getElementsCount(locator)).thenReturn(0));
+             MockedConstruction<ScreenshotManager> ignoredScreenshots = Mockito.mockConstruction(ScreenshotManager.class,
+                     (mock, context) -> when(mock.takeScreenshot(any(), any(), anyString(), any(Boolean.class)))
+                             .thenReturn(List.of()))) {
+            helper.validateElementExists(driver, locator, ValidationEnums.ValidationType.POSITIVE);
         }
     }
 

@@ -26,6 +26,8 @@ import org.testng.annotations.Test;
 import io.appium.java_client.AppiumDriver;
 
 import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
@@ -84,6 +86,39 @@ public class OcrGuiActionContractTest {
         Map<String, Object> move = actions.getFirst();
         Assert.assertEquals(((Number) move.get("x")).intValue(), 500);
         Assert.assertEquals(((Number) move.get("y")).intValue(), 250);
+    }
+
+    @Test
+    public void findRetriesOn2xScaleAndMapsBoundsToOriginalPixels() throws Exception {
+        BufferedImage tiny = new BufferedImage(20, 10, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = tiny.createGraphics();
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, 20, 10);
+        graphics.dispose();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageIO.write(tiny, "png", output);
+        byte[] tinyPng = output.toByteArray();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                try {
+                    BufferedImage decoded = ImageIO.read(new java.io.ByteArrayInputStream(image));
+                    if (decoded != null && decoded.getWidth() >= 40) {
+                        return new OcrResult("Text Input", List.of(new OcrTextBlock(
+                                "Text Input", new OcrRectangle(20, 10, 20, 10), 0.96, OcrBlockLevel.LINE)));
+                    }
+                    return new OcrResult("unrelated", List.of(new OcrTextBlock(
+                            "unrelated", new OcrRectangle(1, 1, 4, 4), 0.96, OcrBlockLevel.LINE)));
+                } catch (Exception exception) {
+                    throw new IllegalStateException(exception);
+                }
+            }
+        }));
+
+        var match = OcrProcessingActions.find(tinyPng, OcrTarget.exact("Text Input"));
+
+        Assert.assertEquals(match.bounds(), new OcrRectangle(10, 5, 10, 5));
+        Assert.assertEquals(match.text(), "Text Input");
     }
 
     @Test
