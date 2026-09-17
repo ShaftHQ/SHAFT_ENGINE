@@ -790,6 +790,7 @@ public class TouchActions extends FluentWebDriverAction {
             boolean firstAttempt = true;
             int[] previousPixels = null;
             int stableFrames = 0;
+            String lastOcrMiss = null;
             for (int attempt = 0; attempt < 30; attempt++) {
                 // Prefer the scroll container's own screenshot so OCR/image search stays in
                 // element-local pixels and avoids BrowserStack window-vs-screenshot scale drift.
@@ -804,10 +805,14 @@ public class TouchActions extends FluentWebDriverAction {
                 OcrTarget effectiveOcrTarget = ocrTarget == null ? null
                         : (frame.containerLocal() ? ocrTarget
                         : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot));
-                boolean found = imageTarget != null
-                        ? ImageProcessingActions.isUniqueImageTargetInView(effectiveImageTarget, screenshot)
-                            || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent())
-                        : findOcr(effectiveOcrTarget, screenshot);
+                boolean found;
+                if (imageTarget != null) {
+                    found = ImageProcessingActions.isUniqueImageTargetInView(effectiveImageTarget, screenshot)
+                            || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent());
+                } else {
+                    lastOcrMiss = ocrFindMiss(effectiveOcrTarget, screenshot);
+                    found = lastOcrMiss == null;
+                }
                 if (found) {
                     elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                             Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
@@ -831,7 +836,11 @@ public class TouchActions extends FluentWebDriverAction {
                     break;
                 }
             }
-            throw new IllegalStateException("Target was not found before the view reached its scroll boundary.");
+            String miss = "Target was not found before the view reached its scroll boundary.";
+            if (lastOcrMiss != null && !lastOcrMiss.isBlank()) {
+                miss += " " + lastOcrMiss;
+            }
+            throw new IllegalStateException(miss);
         } catch (Throwable throwable) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "direction=" + swipeDirection, null, throwable);
             return this;
@@ -1587,13 +1596,18 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     private boolean findOcr(OcrTarget target, byte[] screenshot) {
+        return ocrFindMiss(target, screenshot) == null;
+    }
+
+    /** Null when OCR matched; otherwise the last miss including recognized fullText. */
+    private String ocrFindMiss(OcrTarget target, byte[] screenshot) {
         try {
             OcrProcessingActions.find(screenshot, target);
-            return true;
+            return null;
         } catch (IllegalStateException noMatch) {
             if (noMatch.getMessage() != null && (noMatch.getMessage().startsWith("No OCR match")
                     || noMatch.getMessage().contains("OCR occurrence"))) {
-                return false;
+                return noMatch.getMessage();
             }
             throw noMatch;
         }

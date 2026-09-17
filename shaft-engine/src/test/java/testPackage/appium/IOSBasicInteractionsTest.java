@@ -71,8 +71,12 @@ public class IOSBasicInteractionsTest {
 
         driver.get().touch().hideNativeKeyboard();
         Assert.assertFalse(isAccessibilityFocused(TEXT_INPUT), "Hiding the keyboard should blur Text Input");
+        // Sample-iOS does not paint accessibility id "Text Input"; paint a unique token then OCR-tap it.
+        final String paintedToken = "ocrpaint";
+        driver.get().element().type(TEXT_INPUT, paintedToken);
+        driver.get().touch().hideNativeKeyboard();
         boolean keyboardBeforeOcrTap = isKeyboardShown();
-        driver.get().touch().tap(OcrTarget.containing("Text Input"));
+        driver.get().touch().tap(OcrTarget.containing(paintedToken));
         waitUntilKeyboardFocus(TEXT_INPUT);
         Assert.assertTrue(
                 isAccessibilityFocused(TEXT_INPUT) || (isKeyboardShown() && !keyboardBeforeOcrTap),

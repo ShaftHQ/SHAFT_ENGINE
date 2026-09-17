@@ -620,8 +620,10 @@ jobs:
           cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
           cache_root="$RUNNER_TEMP/shaft-android-cache"
           data_root="$cache_root/data"
+          plan="$RUNNER_TEMP/shaft-android-plan.json"
+          digest="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['digest'])" "$plan")"
           test -s "$data_root/state/mobile-android-runtime.json"
-          java -jar "$cli_jar" setup stop --profile MOBILE_ANDROID \
+          java -jar "$cli_jar" setup stop --plan "$plan" --approve "$digest" \
             --cache-root "$cache_root" --data-root "$data_root" --shutdown-timeout PT1M
           test ! -e "$data_root/state/mobile-android-runtime.json"
       - name: Post-Test Report and Check
