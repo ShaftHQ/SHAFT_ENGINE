@@ -109,6 +109,11 @@ public class FlutterTest {
                         && flutterLocatorPresent(session, TEXT_FIELD_TYPE)
                         && flutterLocatorPresent(session, LOGIN_BUTTON_TEXT)
                         && flutterLocatorPresent(session, SHAFT.GUI.Locator.flutterTextContaining("Please"))) {
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
                     return;
                 }
             } catch (WebDriverException ignored) {

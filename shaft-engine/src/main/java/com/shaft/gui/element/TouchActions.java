@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Base64;
@@ -151,17 +152,7 @@ public class TouchActions extends FluentWebDriverAction {
             if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
                 androidDriver.hideKeyboard();
             } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-                try {
-                    iosDriver.hideKeyboard();
-                } catch (Exception hideKeyboardException) {
-                    // WDA often cannot guess a dismiss key ("did not know how to dismiss the keyboard").
-                    try {
-                        iosDriver.executeScript("mobile: hideKeyboard");
-                    } catch (Exception hideKeyboardFallback) {
-                        hideKeyboardException.addSuppressed(hideKeyboardFallback);
-                        throw hideKeyboardException;
-                    }
-                }
+                hideIosKeyboard(iosDriver);
             } else {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
             }
@@ -170,6 +161,40 @@ public class TouchActions extends FluentWebDriverAction {
         }
         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         return this;
+    }
+
+    private static void hideIosKeyboard(IOSDriver iosDriver) {
+        try {
+            iosDriver.hideKeyboard();
+            return;
+        } catch (Exception hideKeyboardException) {
+            for (Object args : Arrays.asList(
+                    null,
+                    Map.of("keys", List.of("Done")),
+                    Map.of("keys", List.of("Return")))) {
+                try {
+                    if (args == null) {
+                        iosDriver.executeScript("mobile: hideKeyboard");
+                    } else {
+                        iosDriver.executeScript("mobile: hideKeyboard", args);
+                    }
+                    return;
+                } catch (Exception fallback) {
+                    hideKeyboardException.addSuppressed(fallback);
+                }
+            }
+            try {
+                if (!iosDriver.isKeyboardShown()) {
+                    return;
+                }
+            } catch (Exception shown) {
+                hideKeyboardException.addSuppressed(shown);
+            }
+            if (hideKeyboardException instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException("Failed to hide the iOS keyboard.", hideKeyboardException);
+        }
     }
 
     /**
@@ -782,9 +807,7 @@ public class TouchActions extends FluentWebDriverAction {
                 boolean found = imageTarget != null
                         ? ImageProcessingActions.isImageTargetPresent(effectiveImageTarget, screenshot)
                             || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent())
-                        : findOcr(effectiveOcrTarget, screenshot)
-                            || (frame.containerLocal() && findOcr(ocrTarget,
-                                    new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver())));
+                        : findOcr(effectiveOcrTarget, screenshot);
                 if (found) {
                     elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                             Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
