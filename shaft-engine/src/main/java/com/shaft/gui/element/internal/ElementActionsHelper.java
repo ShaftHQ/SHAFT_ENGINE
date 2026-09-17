@@ -350,9 +350,9 @@ public class ElementActionsHelper {
                             // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
                             try {
                                 elementInformation.setElementRect(targetElement.getRect());
-                            } catch (ElementNotInteractableException elementNotInteractableException) {
-                                // this exception happens sometimes with certain browsers and causes a timeout
-                                // this empty block should handle that issue
+                            } catch (ClassCastException | WebDriverException ignored) {
+                                // Flutter Integration Driver can return String sizes from getRect.
+                                // Optional metadata must not fail an otherwise successful locate.
                             }
                             // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
                             if (isValidToCheckForVisibility) {
@@ -580,7 +580,7 @@ public class ElementActionsHelper {
         information.setLocator(resolution.selectedLocator());
         try {
             information.setElementRect(element.getRect());
-        } catch (WebDriverException ignored) {
+        } catch (ClassCastException | WebDriverException ignored) {
             // Optional metadata must not invalidate an otherwise safe recovery.
         }
         if (!DriverFactoryHelper.isMobileNativeExecution() && GET_ELEMENT_HTML) {

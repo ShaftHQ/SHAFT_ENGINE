@@ -53,7 +53,7 @@ public class ElementInformation {
      */
     public static ElementInformation fromList(List<Object> elementInformation) {
         var temp = new ElementInformation();
-        temp.setNumberOfFoundElements((int) elementInformation.get(0));
+        temp.setNumberOfFoundElements(parseFoundElementCount(elementInformation.get(0)));
         temp.setFirstElement((WebElement) elementInformation.get(1));
         temp.setLocator((By) elementInformation.get(2));
         temp.setOuterHTML((String) elementInformation.get(3));
@@ -62,6 +62,16 @@ public class ElementInformation {
         temp.setActionResult((String) elementInformation.get(6));
         temp.setElementRect((Rectangle) elementInformation.get(7));
         return temp;
+    }
+
+    /**
+     * Flutter Integration Driver may return element counts as {@link String} rather than {@link Number}.
+     */
+    static int parseFoundElementCount(Object count) {
+        if (count instanceof Number number) {
+            return number.intValue();
+        }
+        return Integer.parseInt(String.valueOf(count));
     }
 
     //TODO: generalize this approach to parse all element information and not have to fetch it again
