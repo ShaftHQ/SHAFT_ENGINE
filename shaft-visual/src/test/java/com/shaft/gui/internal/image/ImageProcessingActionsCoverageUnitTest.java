@@ -298,6 +298,11 @@ public class ImageProcessingActionsCoverageUnitTest {
         Assert.assertEquals(matches.get(0).bounds(), new ImageRectangle(8, 10, 20, 16));
         Assert.assertEquals(matches.get(1).bounds(), new ImageRectangle(62, 39, 20, 16));
         Assert.assertTrue(matches.stream().allMatch(match -> match.confidence() >= 0.95));
+
+        IllegalStateException ambiguous = Assert.expectThrows(IllegalStateException.class,
+                () -> ImageProcessingActions.findImageWithinCurrentPage(target, encodePng(screenshotImage)));
+        Assert.assertTrue(ambiguous.getMessage().startsWith("Image target is ambiguous"));
+        Assert.assertTrue(ImageProcessingActions.isImageTargetPresent(target, encodePng(screenshotImage)));
     }
 
     @Test

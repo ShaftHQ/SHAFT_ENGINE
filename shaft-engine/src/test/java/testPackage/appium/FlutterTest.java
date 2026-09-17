@@ -103,9 +103,12 @@ public class FlutterTest {
         while (System.currentTimeMillis() < deadline) {
             try {
                 var session = driver.get().getDriver();
-                if (!session.findElements(USERNAME_FIELD).isEmpty()
-                        || !session.findElements(PLEASE_LOGIN_SEMANTICS).isEmpty()
-                        || !session.findElements(PLEASE_LOGIN_TEXT).isEmpty()) {
+                if (flutterLocatorPresent(session, USERNAME_FIELD)
+                        && flutterLocatorPresent(session, PLEASE_LOGIN_SEMANTICS)
+                        && flutterLocatorPresent(session, PLEASE_LOGIN_TEXT)
+                        && flutterLocatorPresent(session, TEXT_FIELD_TYPE)
+                        && flutterLocatorPresent(session, LOGIN_BUTTON_TEXT)
+                        && flutterLocatorPresent(session, SHAFT.GUI.Locator.flutterTextContaining("Please"))) {
                     return;
                 }
             } catch (WebDriverException ignored) {
@@ -121,6 +124,10 @@ public class FlutterTest {
         throw new AssertionError(
                 "Flutter login screen did not expose username_text_field / Please Login within 90s. "
                         + "Confirm the BrowserStack APK was rebuilt with integration_test/appium.dart.");
+    }
+
+    private static boolean flutterLocatorPresent(org.openqa.selenium.WebDriver session, By locator) {
+        return !session.findElements(locator).isEmpty();
     }
 
     /**

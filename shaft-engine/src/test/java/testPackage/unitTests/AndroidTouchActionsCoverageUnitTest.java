@@ -119,9 +119,12 @@ public class AndroidTouchActionsCoverageUnitTest {
         byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
         ImageTarget target = ImageTarget.fromBytes(screenshot).within(new ImageRectangle(0, 0, 1, 1));
 
-        try (MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+        try (MockedStatic<ImageProcessingActions> imageProcessing = mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
                 ScreenshotManager.class,
                 (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            imageProcessing.when(() -> ImageProcessingActions.isImageTargetPresent(any(ImageTarget.class),
+                    any(byte[].class))).thenReturn(false);
             touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.DOWN);
         }
 
@@ -139,9 +142,12 @@ public class AndroidTouchActionsCoverageUnitTest {
         byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
         ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.FEATURE);
 
-        try (MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+        try (MockedStatic<ImageProcessingActions> imageProcessing = mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
                 ScreenshotManager.class,
                 (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            imageProcessing.when(() -> ImageProcessingActions.isImageTargetPresent(any(ImageTarget.class),
+                    any(byte[].class))).thenReturn(false);
             touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.LEFT);
         }
 
@@ -647,6 +653,18 @@ public class AndroidTouchActionsCoverageUnitTest {
                 .pullFile("/tmp/ios-result.txt", iosPulledPath.toString());
 
         SHAFT.Validations.assertThat().object(Files.exists(iosPulledPath)).isTrue().perform();
+
+        IOSDriver wdaKeyboardDriver = mock(IOSDriver.class);
+        doThrow(new WebDriverException("WDA did not know how to dismiss the keyboard."))
+                .when(wdaKeyboardDriver).hideKeyboard();
+        when(wdaKeyboardDriver.executeScript("mobile: hideKeyboard")).thenReturn(null);
+        ElementActionsHelper wdaKeyboardHelper = mock(ElementActionsHelper.class);
+        TouchActions wdaKeyboardActions = new TouchActions(wdaKeyboardDriver);
+        injectElementActionsHelper(wdaKeyboardActions, wdaKeyboardHelper);
+        wdaKeyboardActions.hideNativeKeyboard();
+        verify(wdaKeyboardDriver).hideKeyboard();
+        verify(wdaKeyboardDriver).executeScript("mobile: hideKeyboard");
+        verify(wdaKeyboardHelper).passAction(eq(wdaKeyboardDriver), isNull(By.class), anyString(), isNull(), isNull(), isNull());
 
     }
 

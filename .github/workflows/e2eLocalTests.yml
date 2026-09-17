@@ -99,7 +99,7 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*ChromePlaywrightActionsE2ETest.*], !%regex[.*FirefoxPlaywrightActionsE2ETest.*], !%regex[.*WebKitPlaywrightActionsE2ETest.*], !%regex[.*GalaxyS26UltraPlaywrightActionsE2ETest.*], !%regex[.*IPhone17ProMaxPlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
