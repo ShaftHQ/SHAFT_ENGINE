@@ -102,6 +102,13 @@ public class OcrTargetResolverTest {
     }
 
     @Test
+    public void exactMatchAcceptsCompactedWhitespace() {
+        OcrResult result = result(line("TextInput", 10, 20, 80, 24, 0.94));
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("Text Input"));
+        Assert.assertEquals(match.text(), "TextInput");
+    }
+
+    @Test
     public void excludesLowConfidenceAndReportsThreshold() {
         OcrResult result = result(line("Pay now", 10, 20, 80, 20, 0.55));
 

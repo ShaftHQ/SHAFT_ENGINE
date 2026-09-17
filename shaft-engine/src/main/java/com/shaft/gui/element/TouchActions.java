@@ -805,7 +805,7 @@ public class TouchActions extends FluentWebDriverAction {
                         : (frame.containerLocal() ? ocrTarget
                         : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot));
                 boolean found = imageTarget != null
-                        ? ImageProcessingActions.isImageTargetPresent(effectiveImageTarget, screenshot)
+                        ? ImageProcessingActions.isUniqueImageTargetInView(effectiveImageTarget, screenshot)
                             || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent())
                         : findOcr(effectiveOcrTarget, screenshot);
                 if (found) {

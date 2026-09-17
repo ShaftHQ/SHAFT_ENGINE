@@ -303,8 +303,10 @@ public class ImageProcessingActionsCoverageUnitTest {
                 () -> ImageProcessingActions.findImageWithinCurrentPage(target, encodePng(screenshotImage)));
         Assert.assertTrue(ambiguous.getMessage().startsWith("Image target is ambiguous"));
         Assert.assertTrue(ImageProcessingActions.isImageTargetPresent(target, encodePng(screenshotImage)));
+        Assert.assertFalse(ImageProcessingActions.isUniqueImageTargetInView(target, encodePng(screenshotImage)));
         Assert.assertFalse(ImageProcessingActions.isImageTargetPresent(target, new byte[0]));
         Assert.assertTrue(ImageProcessingActions.isImageTargetPresent(target.occurrence(1), encodePng(screenshotImage)));
+        Assert.assertTrue(ImageProcessingActions.isUniqueImageTargetInView(target.occurrence(0), encodePng(screenshotImage)));
         Assert.assertFalse(ImageProcessingActions.isImageTargetPresent(target.occurrence(2), encodePng(screenshotImage)));
     }
 

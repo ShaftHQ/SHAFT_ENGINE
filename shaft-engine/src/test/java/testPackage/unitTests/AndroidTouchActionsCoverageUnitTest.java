@@ -123,7 +123,7 @@ public class AndroidTouchActionsCoverageUnitTest {
              MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
                 ScreenshotManager.class,
                 (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
-            imageProcessing.when(() -> ImageProcessingActions.isImageTargetPresent(any(ImageTarget.class),
+            imageProcessing.when(() -> ImageProcessingActions.isUniqueImageTargetInView(any(ImageTarget.class),
                     any(byte[].class))).thenReturn(false);
             touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.DOWN);
         }
@@ -146,7 +146,7 @@ public class AndroidTouchActionsCoverageUnitTest {
              MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
                 ScreenshotManager.class,
                 (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
-            imageProcessing.when(() -> ImageProcessingActions.isImageTargetPresent(any(ImageTarget.class),
+            imageProcessing.when(() -> ImageProcessingActions.isUniqueImageTargetInView(any(ImageTarget.class),
                     any(byte[].class))).thenReturn(false);
             touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.LEFT);
         }
