@@ -807,9 +807,7 @@ public class TouchActions extends FluentWebDriverAction {
                 boolean found = imageTarget != null
                         ? ImageProcessingActions.isUniqueImageTargetInView(effectiveImageTarget, screenshot)
                             || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent())
-                        : findOcr(effectiveOcrTarget, screenshot)
-                            || (frame.containerLocal() && ocrTarget != null && findOcr(ocrTarget,
-                                    new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver())));
+                        : findOcr(effectiveOcrTarget, screenshot);
                 if (found) {
                     elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                             Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
