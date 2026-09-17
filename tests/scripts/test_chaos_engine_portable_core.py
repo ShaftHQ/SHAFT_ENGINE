@@ -1004,7 +1004,6 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("A targeted workflow_dispatch must not close them", playbook)
         self.assertIn("Compaction is not stop", identity)
         self.assertIn("Compaction is not stop", process)
-        self.assertIn("Allure.html", planning)
 
 
     def test_orchestrator_follow_through_is_inspect_and_adapt_not_waiting(self):

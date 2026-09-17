@@ -71,8 +71,6 @@ compaction. Do not treat a compacted context as a session end.
 - Do not weaken or delete tests to reach green.
 - Adversarial review (recommend on; ≤2 rounds after final scope commit + CI)
   uses the host **most-intelligent** subagent, never the local mechanical model.
-- Allure.html GitHub artifacts are often SPA HTML, not a zip. Missing OCR
-  images in that HTML is not proof that OCR ran empty; read the job logs.
 - Nightly tracker autoclose and prove-close dispatch live in the
   [delivery playbook](work-github-playbook.md#pr-merger-workflow-arm-watch-fix-confirm).
   Targeted `jobs` values must not close full-matrix trackers.
