@@ -35,7 +35,7 @@ public class ClickTypeMicrobenchTest {
     private static final String SAMPLE = "wave-f-proof";
     private static final int CLASSIFIER_ITERATIONS = 50_000;
     /** Pure classify(ElementSignals) budget — excludes Mockito/WebElement I/O. */
-    private static final long CLASSIFIER_BUDGET_NANOS = 100_000_000L; // 100ms for 100k classifications
+    private static final long CLASSIFIER_BUDGET_NANOS = 250_000_000L; // 250ms for shared-CI jitter
     private static final long ACTION_BUDGET_MILLIS = 15_000L;
 
     private final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();

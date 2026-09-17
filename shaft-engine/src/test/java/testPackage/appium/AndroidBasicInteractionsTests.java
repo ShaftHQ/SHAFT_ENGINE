@@ -253,16 +253,12 @@ public class AndroidBasicInteractionsTests extends MobileTest {
 
         driver.get().touch().swipeElementIntoView(tabs, tab12, TouchActions.SwipeDirection.RIGHT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
-        byte[] tab12Screenshot = driver.get().getDriver().findElement(tab12).getScreenshotAs(OutputType.BYTES);
 
         // TAB 1 captured while selected does not match the unselected strip after leaving it.
         driver.get().touch().swipeElementIntoView(tabs, OcrTarget.exact("TAB 1"), TouchActions.SwipeDirection.LEFT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab1).isDisplayed());
 
-        // Exact OCR on short tab labels failed on BrowserStack; return with the selected-state tab12 crop.
-        driver.get().touch().swipeElementIntoView(tabs,
-                ImageTarget.fromBytes(tab12Screenshot).matchingMode(ImageMatchingMode.FEATURE),
-                TouchActions.SwipeDirection.RIGHT);
+        driver.get().touch().swipeElementIntoView(tabs, OcrTarget.exact("TAB 12"), TouchActions.SwipeDirection.RIGHT);
         Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
 
         // Exact "TAB 1" — containing("TAB 1") also matches TAB 10–13.
