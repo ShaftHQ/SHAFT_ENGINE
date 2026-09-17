@@ -75,6 +75,10 @@ python3 chaos-engine/skills/freetoken/scripts/probe.py attest
 python3 chaos-engine/skills/freetoken/scripts/probe.py models --json
 ```
 
+JSON `models` is an array of objects `{id}` plus `context_length` only when the
+loopback payload advertised a positive integer. Session stdout only; never
+persist ids or measured KV in git.
+
 Prefer smaller coding MoEs when
 [`probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py)
 returns `small` or `medium`. Do not stretch to a larger checkpoint until

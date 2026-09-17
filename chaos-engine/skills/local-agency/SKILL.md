@@ -52,8 +52,9 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt '…'
 `resolve` ranks FreeToken then OpenAI-compat peers. On `READY`, `config` /
 `argv` emit ephemeral OpenCode material (`OPENCODE_CONFIG` path). Run OpenCode
 yourself with that env; do not persist the config into the durable user file.
-`argv` always includes `--pure` and `--variant` (default `medium`; use `low`
-or `medium` for tool loops). `--pure` still only disables plugins.
+`argv` defaults include `--pure` and `--variant` (`medium`; use `low` or
+`medium` for tool loops). `--no-pure` exists for callers that already isolate
+plugins. `--pure` still only disables plugins.
 
 ## Mechanical dispatch (small-context local models)
 
