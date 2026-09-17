@@ -666,6 +666,19 @@ public class AndroidTouchActionsCoverageUnitTest {
         verify(wdaKeyboardDriver).executeScript("mobile: hideKeyboard");
         verify(wdaKeyboardHelper).passAction(eq(wdaKeyboardDriver), isNull(By.class), anyString(), isNull(), isNull(), isNull());
 
+        IOSDriver keyedKeyboardDriver = mock(IOSDriver.class);
+        doThrow(new WebDriverException("WDA did not know how to dismiss the keyboard."))
+                .when(keyedKeyboardDriver).hideKeyboard();
+        doThrow(new WebDriverException("bare mobile: hideKeyboard failed"))
+                .when(keyedKeyboardDriver).executeScript("mobile: hideKeyboard");
+        when(keyedKeyboardDriver.executeScript(eq("mobile: hideKeyboard"), any())).thenReturn(null);
+        ElementActionsHelper keyedKeyboardHelper = mock(ElementActionsHelper.class);
+        TouchActions keyedKeyboardActions = new TouchActions(keyedKeyboardDriver);
+        injectElementActionsHelper(keyedKeyboardActions, keyedKeyboardHelper);
+        keyedKeyboardActions.hideNativeKeyboard();
+        verify(keyedKeyboardDriver).executeScript(eq("mobile: hideKeyboard"), any());
+        verify(keyedKeyboardHelper).passAction(eq(keyedKeyboardDriver), isNull(By.class), anyString(), isNull(), isNull(), isNull());
+
     }
 
     @Test
