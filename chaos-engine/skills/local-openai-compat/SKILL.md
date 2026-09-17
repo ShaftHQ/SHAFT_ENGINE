@@ -85,7 +85,8 @@ python3 chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollam
 python3 chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollama models --json
 ```
 
-Prefer smaller coding models on constrained GPUs (e.g. RTX 3060 Laptop 6 GB).
+Prefer smaller coding models when hardware probe returns `small` or `medium`.
+Prove the READY checkpoint with mechanical dispatch knobs before stretching.
 Optional size-class hint:
 
 ```text

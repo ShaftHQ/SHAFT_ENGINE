@@ -52,17 +52,43 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt '…'
 `resolve` ranks FreeToken then OpenAI-compat peers. On `READY`, `config` /
 `argv` emit ephemeral OpenCode material (`OPENCODE_CONFIG` path). Run OpenCode
 yourself with that env; do not persist the config into the durable user file.
+`argv` defaults include `--pure` and `--variant` (`medium`; use `low` or
+`medium` for tool loops). `--no-pure` exists for callers that already isolate
+plugins. `--pure` still only disables plugins.
 
-Example (session only):
+## Mechanical dispatch (small-context local models)
+
+Treat a READY local coder as a **mechanical runner**, not a designer.
+
+1. Orchestrator writes one bounded command (a short script with exact paths).
+2. OpenCode invokes **exactly that one bash command**. Multi-step specs in
+   chat are writer failures: EXIT 0 with zero tool calls is not success.
+3. Never glob gitignored trees (including Memory). Use pathlib / exact paths.
+   Zero glob matches on a gitignored path is not success.
+4. Keep tool output tiny. Do not feed verbose unit-test logs into the next
+   model turn.
+5. On `context_length_exceeded`, fail the turn. Shrink prompt and tool output
+   and drop a high/reasoning variant before asking the operator to serve a
+   larger checkpoint. Advertised `context_length` from `/v1/models` is not
+   usable KV.
+6. Size-class soak: prove the current READY checkpoint with these knobs.
+   Only if quality is still insufficient **and**
+   [`probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py)
+   returns `medium` or `large` may the operator serve the next known-good
+   coding MoE from **vendor docs**. `refuse`: do not recommend a larger
+   checkpoint. ChaosEngine never downloads weights or starts serve.
+
+Example (session only; model id is not a git pin):
 
 ```text
 python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken config
 # export OPENCODE_CONFIG from the JSON env map for one process only
-OPENCODE_CONFIG=<ephemeral-path> opencode run --pure --model freetoken/gpt-oss-20b --dir '<worktree>' '<prompt>'
+OPENCODE_CONFIG=<ephemeral-path> opencode run --pure --variant medium --dir '<worktree>' '<one command>'
 ```
 
-Hardware size-class hint (optional):
-[`local-coding-delegate/scripts/probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py).
+Hardware size-class hint:
+[`local-coding-delegate/scripts/probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py)
+(`small` / `medium` / `large` / `refuse`).
 
 ## Folded: local-coding-delegate
 

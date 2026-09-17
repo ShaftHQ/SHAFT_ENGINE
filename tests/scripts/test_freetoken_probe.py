@@ -197,7 +197,24 @@ class FreeTokenProbeTest(unittest.TestCase):
             completed = run_cli(url, path="/usr/bin:/bin", extra_argv=["models", "--json"])
         self.assertEqual(completed.returncode, 0, completed.stderr)
         payload = json.loads(completed.stdout)
-        self.assertEqual(payload["models"], ["coding-moe"])
+        self.assertEqual(payload["models"], [{"id": "coding-moe"}])
+
+    def test_models_json_echoes_advertised_context_length_when_present(self):
+        body = json.dumps(
+            {"data": [{"id": "coding-moe", "context_length": 32768}]}
+        ).encode("utf-8")
+        with LocalServer(body) as url:
+            completed = run_cli(url, path="/usr/bin:/bin", extra_argv=["models", "--json"])
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["models"], [{"id": "coding-moe", "context_length": 32768}])
+
+    def test_models_json_omits_context_length_when_absent(self):
+        body = json.dumps({"data": [{"id": "coding-moe"}]}).encode("utf-8")
+        with LocalServer(body) as url:
+            completed = run_cli(url, path="/usr/bin:/bin", extra_argv=["models", "--json"])
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["models"], [{"id": "coding-moe"}])
+        self.assertNotIn("context_length", payload["models"][0])
 
 
 if __name__ == "__main__":

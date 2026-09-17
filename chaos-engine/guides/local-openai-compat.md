@@ -40,12 +40,15 @@ bundle. Do not start their servers from ChaosEngine.
 - LM Studio: [OpenAI compatibility docs](https://lmstudio.ai/docs/developer/openai-compat)
 - llama.cpp: [serve docs](https://github.com/ggml-org/llama.cpp) (default `127.0.0.1:8080`)
 
-## Hardware honesty (ROG G14 class)
+## Size-class soak (probe_hardware.py)
 
-On an RTX 3060 Laptop (**6 GB** VRAM) with ~**22 GB** RAM, start with a
-**small/medium** coding model and measure tokens/s and tool-loop stability
-before stretching toward large checkpoints. Put large weights on a volume with
-enough free space.
+Use [`probe_hardware.py`](../skills/local-coding-delegate/scripts/probe_hardware.py)
+(`small` / `medium` / `large` / `refuse`). Start with a small/medium coding
+model. Prove the READY checkpoint with mechanical dispatch knobs before
+stretching. If quality is still insufficient and the probe is `medium` or
+`large`, the operator may serve the next known-good coding model from vendor
+docs. ChaosEngine never starts those servers. `refuse`: do not recommend a
+larger checkpoint. Put large weights on a volume with enough free space.
 
 ## Agent vs user machine
 
@@ -55,4 +58,4 @@ install/serve there. Do not invent remote OpenAI-compat URLs from the harness.
 
 ## Local proof
 
-ROG adoption notes are tracked under GitHub #5867 / #5871 on the operator host.
+Operator soak notes stay on the operator host.
