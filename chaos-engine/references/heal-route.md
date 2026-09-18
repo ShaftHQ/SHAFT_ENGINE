@@ -6,7 +6,7 @@ points here; do not require plugin activation to heal.
 
 ## Prefer (zero-LLM)
 
-1. Doctor: `python3 .chaos-engine/install.py doctor --project .`
+1. Doctor: `python3 .chaos-engine/install.py doctor --project . --json`
 2. Fix-next only: `… doctor --project . --fix-next-only`
 3. Component repair (no full wipe):  
    `python3 .chaos-engine/install.py repair --project . --component <id>`  
