@@ -217,6 +217,9 @@ public class ImageProcessingActions {
             return target.occurrence().getAsInt() < matches.size();
         }
         if (matches.size() == 1) {
+            if (target.matchingMode() == ImageMatchingMode.AUTO) {
+                return hasUniqueMatch(target.matchingMode(ImageMatchingMode.TEMPLATE), currentPageScreenshot);
+            }
             return true;
         }
         if (!matches.isEmpty()) {
