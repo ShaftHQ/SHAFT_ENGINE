@@ -3,6 +3,10 @@ package com.shaft.gui.internal.image;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.ocr.OcrMatch;
+import com.shaft.gui.ocr.OcrRectangle;
+import com.shaft.gui.ocr.OcrTarget;
 import com.shaft.gui.image.ImageMatchingAlgorithm;
 import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageRectangle;
@@ -11,6 +15,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.openqa.selenium.By;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Dimension;
@@ -29,12 +34,15 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -229,6 +237,32 @@ public class VisualTargetTouchActionsTest {
 
         verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), anyMap());
         Assert.assertEquals(provider.targets.size(), 3);
+    }
+
+    @Test
+    public void ocrSwipeShouldKeepGesturingAfterAppiumReportsNoMoreScrollOnMiss() throws Exception {
+        byte[] screenshot = image(false);
+        AndroidDriver driver = driver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TestTouchActions actions = actions(driver);
+        By container = By.id("expandable");
+        container(actions, driver, container, new Rectangle(10, 10, 80, 80));
+        OcrTarget target = OcrTarget.exact("Group 1");
+        OcrMatch hit = new OcrMatch("Group 1", new OcrRectangle(12, 12, 20, 10), 0.9);
+        AtomicInteger finds = new AtomicInteger();
+        try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot));
+             MockedStatic<OcrProcessingActions> ocr = mockStatic(OcrProcessingActions.class)) {
+            ocr.when(() -> OcrProcessingActions.find(any(), any())).thenAnswer(invocation -> {
+                if (finds.incrementAndGet() < 3) {
+                    throw new IllegalStateException("No OCR match for 'Group 1'. fullText=Group 8");
+                }
+                return hit;
+            });
+            actions.swipeElementIntoView(container, target, TouchActions.SwipeDirection.UP);
+        }
+        verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), anyMap());
+        Assert.assertEquals(finds.get(), 3);
     }
 
     private static TestTouchActions actions(WebDriver driver) {

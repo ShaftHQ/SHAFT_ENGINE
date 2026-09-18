@@ -826,7 +826,8 @@ public class TouchActions extends FluentWebDriverAction {
                     break;
                 }
                 previousPixels = currentPixels;
-                if (!performImageScrollStep(scrollableElementLocator, swipeDirection, firstAttempt)) {
+                if (!performImageScrollStep(scrollableElementLocator, swipeDirection, firstAttempt)
+                        && (ocrTarget == null || lastOcrMiss == null)) {
                     break;
                 }
                 firstAttempt = false;
