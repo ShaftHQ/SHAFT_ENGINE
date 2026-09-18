@@ -62,6 +62,7 @@ public final class ShaftPanelBackgroundWorkExtension implements InvocationInterc
         try {
             invocation.proceed();
         } finally {
+            ShaftToolWindowPanel.disposeLivePanels();
             ShaftAssistantPanel.disposeLivePanels();
         }
     }

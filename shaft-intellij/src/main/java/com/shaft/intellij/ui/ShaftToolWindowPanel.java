@@ -28,7 +28,11 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.stream.Stream;
 
 /**
@@ -39,6 +43,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     static final String STAGE_DESIGN = "Analysis & Design";
     static final String STAGE_AUTOMATION = "Automation";
     static final String STAGE_REPORTING = "Reporting & Analytics";
+    private static final Set<ShaftToolWindowPanel> LIVE_PANELS =
+            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
     private final Project project;
     private final ShaftSettingsState.Settings settings;
@@ -95,6 +101,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         this.readinessProbe = readinessProbe;
         this.deepReadinessProbe = deepReadinessProbe;
         this.assistantChatState = assistantChatState;
+        LIVE_PANELS.add(this);
         if (mcpReady(settings)) {
             showMainView();
         } else {
@@ -348,7 +355,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             // -- routing through RecorderToolPanel#prefillTool both keeps that identity match working
             // for selectWorkflow() below and expands its Advanced section for a tool the curated
             // Quick Start section does not surface.
-            boolean isRecorderFeaturePanel = recorderPanel != null && panel == recorderPanel.featurePanel();
+            boolean isRecorderFeaturePanel = recorderPanel != null
+                    && Objects.equals(panel, recorderPanel.featurePanel());
             boolean matched = isRecorderFeaturePanel
                     ? recorderPanel.prefillTool(toolName, arguments)
                     : panel.prefillTool(toolName, arguments);
@@ -571,7 +579,21 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
      */
     @Override
     public void dispose() {
+        LIVE_PANELS.remove(this);
         disposeActiveChildren();
+    }
+
+    /**
+     * Test seam: dispose every tool window still live in this JVM so Guided/Recorder children
+     * cannot leak Swing timers across tests (issue #5942, same pattern as
+     * {@link ShaftAssistantPanel#disposeLivePanels()}).
+     */
+    static void disposeLivePanels() {
+        List<ShaftToolWindowPanel> panels;
+        synchronized (LIVE_PANELS) {
+            panels = new ArrayList<>(LIVE_PANELS);
+        }
+        panels.forEach(ShaftToolWindowPanel::dispose);
     }
 
     /**
@@ -637,34 +659,55 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     }
 
     private void showSurfaceForComponent(JComponent component) {
-        if (component == recorderPanel || (recorderPanel != null && component == recorderPanel.featurePanel())) {
-            showSurface(STAGE_AUTOMATION, "Recorder", recorderPanel);
-            return;
-        }
-        if (component == guidedWorkflowPanel) {
-            showSurface(STAGE_AUTOMATION, "Guided", guidedWorkflowPanel);
-            return;
-        }
-        if (component == apiRecordingPanel) {
-            showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
-            return;
-        }
-        String inspector = tabTitleOf(automationTabs, component);
-        if (inspector != null) {
-            showSurface(STAGE_AUTOMATION, inspector, component);
-            return;
-        }
-        String reporting = tabTitleOf(reportingTabs, component);
-        if (reporting != null) {
-            showSurface(STAGE_REPORTING, reporting, component);
-            return;
-        }
-        if (moreToolsPanel != null && (component == moreToolsPanel || moreToolsPanel.isAncestorOf(component))) {
-            String more = tabTitleOf(firstTabbedPane(moreToolsPanel), component);
-            showSurface("More", more == null ? "Advanced" : more, component);
+        if (showKnownAutomationSurface(component)
+                || showTabbedSurface(automationTabs, STAGE_AUTOMATION, component)
+                || showTabbedSurface(reportingTabs, STAGE_REPORTING, component)
+                || showMoreSurface(component)) {
             return;
         }
         selectWorkflow(component);
+    }
+
+    private boolean showKnownAutomationSurface(JComponent component) {
+        if (isRecorderComponent(component)) {
+            showSurface(STAGE_AUTOMATION, "Recorder", recorderPanel);
+            return true;
+        }
+        if (Objects.equals(component, guidedWorkflowPanel)) {
+            showSurface(STAGE_AUTOMATION, "Guided", guidedWorkflowPanel);
+            return true;
+        }
+        if (Objects.equals(component, apiRecordingPanel)) {
+            showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isRecorderComponent(JComponent component) {
+        return Objects.equals(component, recorderPanel)
+                || (recorderPanel != null && Objects.equals(component, recorderPanel.featurePanel()));
+    }
+
+    private boolean showTabbedSurface(JBTabbedPane tabs, String stage, JComponent component) {
+        String title = tabTitleOf(tabs, component);
+        if (title == null) {
+            return false;
+        }
+        showSurface(stage, title, component);
+        return true;
+    }
+
+    private boolean showMoreSurface(JComponent component) {
+        if (moreToolsPanel == null) {
+            return false;
+        }
+        if (!Objects.equals(component, moreToolsPanel) && !moreToolsPanel.isAncestorOf(component)) {
+            return false;
+        }
+        String more = tabTitleOf(firstTabbedPane(moreToolsPanel), component);
+        showSurface("More", more == null ? "Advanced" : more, component);
+        return true;
     }
 
     private void showSurface(String stage, String tabTitle, JComponent component) {
@@ -731,7 +774,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         }
         for (int index = 0; index < tabs.getTabCount(); index++) {
             Component page = tabs.getComponentAt(index);
-            if (page == component || (page instanceof JComponent parent && parent.isAncestorOf(component))) {
+            if (Objects.equals(page, component)
+                    || (page instanceof JComponent parent && parent.isAncestorOf(component))) {
                 return tabs.getTitleAt(index);
             }
         }
@@ -802,7 +846,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
 
     private void selectWorkflow(JComponent component) {
         for (WorkflowView view : workflowViews) {
-            if (view.component() == component) {
+            if (Objects.equals(view.component(), component)) {
                 workflowSelector.setSelectedItem(view);
                 workflowLayout.show(workflowCards, view.label());
                 return;
