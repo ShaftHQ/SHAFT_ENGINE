@@ -791,7 +791,9 @@ public class TouchActions extends FluentWebDriverAction {
             int[] previousPixels = null;
             int stableFrames = 0;
             String lastOcrMiss = null;
-            for (int attempt = 0; attempt < 50; attempt++) {
+            int maxAttempts = ocrTarget != null ? 50 : 30;
+            int maxStableFrames = ocrTarget != null ? 8 : 2;
+            for (int attempt = 0; attempt < maxAttempts; attempt++) {
                 // Prefer the scroll container's own screenshot so OCR/image search stays in
                 // element-local pixels and avoids BrowserStack window-vs-screenshot scale drift.
                 ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
@@ -820,7 +822,7 @@ public class TouchActions extends FluentWebDriverAction {
                 }
                 stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
                         ? stableFrames + 1 : 0;
-                if (stableFrames >= 8) {
+                if (stableFrames >= maxStableFrames) {
                     break;
                 }
                 previousPixels = currentPixels;

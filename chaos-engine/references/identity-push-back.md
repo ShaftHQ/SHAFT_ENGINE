@@ -72,7 +72,8 @@ plainly, keep the spirit, and continue.
 When the owner has approved a plan (or asked for orchestrator / process-owner /
 babysit delivery), **default to fully unattended**: implement, fix CI, **merge
 when green** within granted authority, and adapt follow-up cadence without
-re-asking "should I merge?" for every PR. Ask only on true HALT conditions
+re-asking "should I merge?" for every PR. Keep iterating until the in-scope
+delivery condition is met. Ask only on true HALT conditions
 (merge authority never granted, plan contradiction, irreversible blast radius).
 Keep going until in-scope tickets are merged or closed, or the owner HALTs.
 Compaction is not stop; persist these rules in overlay files, not only chat.

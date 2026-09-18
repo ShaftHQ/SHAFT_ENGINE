@@ -38,6 +38,13 @@ coach the owner through how-to-work impediments; escalate owner-only decisions.
 Opening a PR does not complete follow-through. Continue until the in-scope
 delivery condition is met.
 
+When the owner asks to **deliver**, **babysit**, or keep the work going, that
+is the goal: finalize the in-scope outcome in the best honest way. Keep
+iterating after red CI, a merged partial slice, or a stalled delegate. Re-spec,
+expedite, and support writers. Compaction is not stop. A quiet interval with no
+live writer is not permission to end babysit until the delivery condition is
+met or a named HALT applies.
+
 Escalate using portable capability levels: mechanical, default, and most
 intelligent. Host dispatch prompts may map those levels to their own capability
 labels; portable policy never binds them to a vendor.
