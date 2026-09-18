@@ -812,7 +812,7 @@ public class TouchActions extends FluentWebDriverAction {
                     found = ImageProcessingActions.isUniqueImageTargetInView(effectiveImageTarget, screenshot)
                             || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent());
                 } else {
-                    lastOcrMiss = ocrFindMiss(effectiveOcrTarget, screenshot);
+                    lastOcrMiss = ocrFindMiss(effectiveOcrTarget, screenshot, swipeDirection);
                     found = lastOcrMiss == null;
                 }
                 if (found) {
@@ -1599,13 +1599,16 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     private boolean findOcr(OcrTarget target, byte[] screenshot) {
-        return ocrFindMiss(target, screenshot) == null;
+        return ocrFindMiss(target, screenshot, null) == null;
     }
 
     /** Null when OCR matched; otherwise the last miss including recognized fullText. */
-    private String ocrFindMiss(OcrTarget target, byte[] screenshot) {
+    private String ocrFindMiss(OcrTarget target, byte[] screenshot, SwipeDirection swipeDirection) {
         try {
-            OcrProcessingActions.find(screenshot, target);
+            var match = OcrProcessingActions.find(screenshot, target);
+            if (ocrMatchClippedAtIncomingEdge(match, screenshot, swipeDirection)) {
+                return "OCR match clipped at incoming edge: " + match;
+            }
             return null;
         } catch (IllegalStateException noMatch) {
             if (noMatch.getMessage() != null && (noMatch.getMessage().startsWith("No OCR match")
@@ -1613,6 +1616,29 @@ public class TouchActions extends FluentWebDriverAction {
                 return noMatch.getMessage();
             }
             throw noMatch;
+        }
+    }
+
+
+    private boolean ocrMatchClippedAtIncomingEdge(com.shaft.gui.ocr.OcrMatch match, byte[] screenshot,
+                                                  SwipeDirection swipeDirection) {
+        if (match == null || swipeDirection == null || screenshot == null || screenshot.length == 0) {
+            return false;
+        }
+        try {
+            java.awt.image.BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshot));
+            if (image == null) {
+                return false;
+            }
+            var bounds = match.bounds();
+            return switch (swipeDirection) {
+                case LEFT -> bounds.right() >= image.getWidth();
+                case RIGHT -> bounds.x() <= 0;
+                case UP -> bounds.bottom() >= image.getHeight();
+                case DOWN -> bounds.y() <= 0;
+            };
+        } catch (IOException ignored) {
+            return false;
         }
     }
 

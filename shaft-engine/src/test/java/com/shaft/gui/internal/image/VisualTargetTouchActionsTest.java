@@ -265,6 +265,33 @@ public class VisualTargetTouchActionsTest {
         Assert.assertEquals(finds.get(), 3);
     }
 
+    @Test
+    public void ocrSwipeShouldKeepGesturingWhenExactMatchIsClippedAtTrailingEdge() throws Exception {
+        byte[] screenshot = image(false);
+        AndroidDriver driver = driver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TestTouchActions actions = actions(driver);
+        By container = By.id("tabs");
+        container(actions, driver, container, new Rectangle(10, 10, 80, 80));
+        OcrTarget target = OcrTarget.exact("TAB 1");
+        OcrMatch clipped = new OcrMatch("TAB 1", new OcrRectangle(90, 10, 10, 10), 0.91);
+        OcrMatch fullyInView = new OcrMatch("TAB 1", new OcrRectangle(12, 10, 20, 10), 0.91);
+        AtomicInteger finds = new AtomicInteger();
+        try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot));
+             MockedStatic<OcrProcessingActions> ocr = mockStatic(OcrProcessingActions.class)) {
+            ocr.when(() -> OcrProcessingActions.find(any(), any())).thenAnswer(invocation -> {
+                if (finds.incrementAndGet() < 3) {
+                    return clipped;
+                }
+                return fullyInView;
+            });
+            actions.swipeElementIntoView(container, target, TouchActions.SwipeDirection.LEFT);
+        }
+        verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), anyMap());
+        Assert.assertEquals(finds.get(), 3);
+    }
+
     private static TestTouchActions actions(WebDriver driver) {
         return new TestTouchActions(driver, mock(ElementActionsHelper.class));
     }
