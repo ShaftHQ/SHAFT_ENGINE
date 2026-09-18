@@ -74,7 +74,7 @@ public class VisualTargetTouchActionsTest {
         Assert.assertEquals(provider.targets.size(), 2);
         ArgumentCaptor<Map<Object, Object>> parameters = ArgumentCaptor.forClass(Map.class);
         verify(driver).executeScript(eq("mobile: scrollGesture"), parameters.capture());
-        Assert.assertEquals(parameters.getValue().get("direction"), direction.name());
+        Assert.assertEquals(parameters.getValue().get("direction"), direction.name().toLowerCase());
     }
 
     @Test
@@ -106,8 +106,10 @@ public class VisualTargetTouchActionsTest {
             left = leftCap.getAllValues().get(1);
         }
 
-        Assert.assertEquals(right.get("direction"), TouchActions.SwipeDirection.RIGHT.name());
-        Assert.assertEquals(left.get("direction"), TouchActions.SwipeDirection.LEFT.name());
+        Assert.assertEquals(right.get("direction"), "right");
+        Assert.assertEquals(left.get("direction"), "left");
+        Assert.assertEquals(right.get("elementId"), "container-element");
+        Assert.assertEquals(left.get("elementId"), "container-element");
         Assert.assertEquals(right.get("width"), bounds.getWidth() * 70 / 100);
         Assert.assertEquals(left.get("width"), bounds.getWidth() * 70 / 100);
         Assert.assertEquals(right.get("left"), bounds.getX());
@@ -236,6 +238,7 @@ public class VisualTargetTouchActionsTest {
     private static void container(TestTouchActions actions, AndroidDriver driver, By locator, Rectangle rectangle) {
         ElementActionsHelper helper = actions.helper();
         RemoteWebElement element = mock(RemoteWebElement.class);
+        when(element.getId()).thenReturn("container-element");
         when(element.getRect()).thenReturn(rectangle);
         when(helper.identifyUniqueElement(driver, locator)).thenReturn(List.of(locator.toString(), element));
     }
