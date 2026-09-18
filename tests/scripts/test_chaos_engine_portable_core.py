@@ -87,6 +87,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("`mine` / `sweep` / `sync`", refresh)
         self.assertIn("Do not mine from a linked worktree", refresh)
         self.assertIn("graphify update .", refresh)
+        self.assertIn("--palace", refresh)
 
     def test_portable_profile_owns_a_real_routing_surface(self):
         profile = ROOT / "chaos-engine/profiles/portable/entrypoint.md"
