@@ -92,6 +92,10 @@ plan. Otherwise absorb the request into the owned plan.
   and merge. Update task status as work proceeds; ordinary tasks never refresh a
   derived store.
 - Keep one issue as a work stream; only dispatch independently scoped work.
+- Linked-worktree `python3 -m unittest tests.scripts...` can import the primary
+  checkout copy of the test module if that tree is on `PYTHONPATH`. Run with
+  `PYTHONPATH=<worktree>` or `python3 <worktree>/tests/scripts/<file>.py`.
+  CI on the PR branch is the source of truth.
 
 ## 3. Work items in dependency order, front-loading risk
 

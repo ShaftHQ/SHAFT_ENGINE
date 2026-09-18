@@ -1015,6 +1015,11 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("Compaction is not stop", identity)
         self.assertIn("Compaction is not stop", process)
 
+    def test_worktree_unittest_uses_worktree_pythonpath(self):
+        planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
+        self.assertIn("PYTHONPATH=<worktree>", planning)
+        self.assertIn("CI on the PR branch is the source of truth", planning)
+
     def test_host_model_reviews_even_when_implementation_is_local(self):
         delegation = (CORE / "references/delegation.md").read_text(encoding="utf-8")
         agency = (CORE / "skills/local-agency/SKILL.md").read_text(encoding="utf-8")
