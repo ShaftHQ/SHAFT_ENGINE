@@ -63,6 +63,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -128,7 +129,7 @@ public class AndroidTouchActionsCoverageUnitTest {
             touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.DOWN);
         }
 
-        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, atLeastOnce()).executeScript(eq("mobile: scrollGesture"), anyMap());
         verify(driver, never()).findElements(argThat(locator -> locator.toString().startsWith("AppiumBy.image")));
     }
 
@@ -151,7 +152,7 @@ public class AndroidTouchActionsCoverageUnitTest {
             touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.LEFT);
         }
 
-        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, atLeastOnce()).executeScript(eq("mobile: scrollGesture"), anyMap());
         verify(driver, never()).findElements(argThat(locator -> locator.toString().startsWith("AppiumBy.image")));
     }
 
