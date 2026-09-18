@@ -231,10 +231,10 @@ index as authority over a live file.
 Prefer the Zero-LLM / Heal rows before opening host chat for recovery. Iron-law
 Route: doctor and `repair --component` catalog entries beat discovery chat.
 
-The repository skills map at `.agents/skills/README.md` inventories every
-harness surface, adapter, hook, script and check, including the lifecycle guard
-that interrupts you. Nothing in the harness sits outside what this file and
-that page reach.
+The live overlay skills map is `.chaos-engine/skills/` (runtime). Host adapter
+inventories such as `.agents/skills/README.md` copy that map; they are not a
+second policy root. Nothing in the harness sits outside what this file and
+the live overlay reach.
 
 ## Roles and capability levels
 
