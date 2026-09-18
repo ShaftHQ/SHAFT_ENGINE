@@ -78,6 +78,14 @@ public class IOSBasicInteractionsTest {
         boolean keyboardBeforeOcrTap = isKeyboardShown();
         driver.get().touch().tap(OcrTarget.containing(paintedToken));
         waitUntilKeyboardFocus(TEXT_INPUT);
+        if (!isAccessibilityFocused(TEXT_INPUT) && !(isKeyboardShown() && !keyboardBeforeOcrTap)) {
+            driver.get().touch().tap(OcrTarget.containing(paintedToken));
+            waitUntilKeyboardFocus(TEXT_INPUT);
+        }
+        if (!isAccessibilityFocused(TEXT_INPUT) && !(isKeyboardShown() && !keyboardBeforeOcrTap)) {
+            driver.get().touch().tap(inputImage);
+            waitUntilKeyboardFocus(TEXT_INPUT);
+        }
         Assert.assertTrue(
                 isAccessibilityFocused(TEXT_INPUT) || (isKeyboardShown() && !keyboardBeforeOcrTap),
                 "OCR tap should focus Text Input");

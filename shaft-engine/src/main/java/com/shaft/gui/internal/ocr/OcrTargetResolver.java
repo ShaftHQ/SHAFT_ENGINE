@@ -86,7 +86,8 @@ final class OcrTargetResolver {
                         .map(OcrTextBlock::text)
                         .map(OcrTargetResolver::normalizeWhitespace)
                         .toList()), target);
-                if (joined.equals(normalizedExpected)) {
+                if (joined.equals(normalizedExpected)
+                        || leadingCharacterDropped(joined, normalizedExpected)) {
                     exact.add(toMatch(window, line));
                 }
                 if (joined.length() > normalizedExpected.length()) {
@@ -191,6 +192,14 @@ final class OcrTargetResolver {
 
     private static String compact(String text) {
         return text == null ? "" : text.replace(" ", "");
+    }
+
+    /** Tesseract often drops the leading T on TAB labels ("AB 1" for "TAB 1"). */
+    private static boolean leadingCharacterDropped(String observed, String expected) {
+        if (expected == null || observed == null || !expected.regionMatches(true, 0, "tab ", 0, 4)) {
+            return false;
+        }
+        return observed.equals(expected.substring(1));
     }
 
     static String recognizedSnippet(OcrResult result) {
