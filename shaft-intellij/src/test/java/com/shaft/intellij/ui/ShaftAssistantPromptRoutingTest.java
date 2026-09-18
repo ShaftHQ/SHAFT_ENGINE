@@ -53,7 +53,7 @@ class ShaftAssistantPromptRoutingTest {
         ShaftAssistantPanel assistantPanel = toolWindow.assistantPanel();
         assertNotNull(assistantPanel, "showMainView() must always build and retain the Assistant panel");
         assertEquals("Heal my last failed test run", assistantPanel.promptText());
-        assertEquals("Assistant", selectedWorkflowLabel(toolWindow));
+        assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, toolWindow.selectedStageLabel());
     }
 
     @Test
@@ -67,11 +67,6 @@ class ShaftAssistantPromptRoutingTest {
         toolWindow.prefillAssistantPrompt("Diagnose my last failed test run");
 
         assertNull(toolWindow.assistantPanel());
-    }
-
-    private static String selectedWorkflowLabel(ShaftToolWindowPanel toolWindow) {
-        Object selected = toolWindow.workflowSelector().getSelectedItem();
-        return selected instanceof ShaftToolWindowPanel.WorkflowView view ? view.label() : "";
     }
 
     private static ShaftSettingsState.Settings connectedMcpSettings() {

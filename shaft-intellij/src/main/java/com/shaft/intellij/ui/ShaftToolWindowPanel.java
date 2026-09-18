@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.ui.JBSplitter;
+import com.intellij.ui.components.JBTabbedPane;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.java.JavaTargetContext;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
@@ -30,9 +32,14 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Top-level SHAFT IntelliJ tool window content.
+ * Top-level SHAFT IntelliJ tool window content: three stages (Design, Automation, Reporting)
+ * with a docked Assistant. Issue #5942.
  */
 public final class ShaftToolWindowPanel extends JPanel implements Disposable {
+    static final String STAGE_DESIGN = "Analysis & Design";
+    static final String STAGE_AUTOMATION = "Automation";
+    static final String STAGE_REPORTING = "Reporting & Analytics";
+
     private final Project project;
     private final ShaftSettingsState.Settings settings;
     private final ShaftAssistantChatState assistantChatState;
@@ -51,6 +58,10 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private ApiRecordingSessionPanel apiRecordingPanel;
     private GuidedWorkflowPanel guidedWorkflowPanel;
     private JLabel workflowSelectorLabel;
+    private DesignStagePanel designStagePanel;
+    private JBTabbedPane automationTabs;
+    private JBTabbedPane reportingTabs;
+    private JPanel moreToolsPanel;
 
     public ShaftToolWindowPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -105,6 +116,10 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         advancedTools = null;
         assistantPanel = null;
         recorderPanel = null;
+        designStagePanel = null;
+        automationTabs = null;
+        reportingTabs = null;
+        moreToolsPanel = null;
         featurePanels = List.of();
         workflowViews = List.of();
         add(setup, BorderLayout.CENTER);
@@ -126,46 +141,65 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         preferredFocusComponent = assistant.preferredFocusComponent();
         workflowLayout = new CardLayout();
         workflowCards = new JPanel(workflowLayout);
-        workflowCards.getAccessibleContext().setAccessibleName("SHAFT workflow content");
+        workflowCards.getAccessibleContext().setAccessibleName("SHAFT stage content");
         featurePanels = new ArrayList<>();
-        List<WorkflowView> views = new ArrayList<>();
-        views.add(new WorkflowView("Assistant", assistant, ShaftIcons.SEND));
+
+        DesignStagePanel design = new DesignStagePanel();
+        designStagePanel = design;
+
+        GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
+        guidedWorkflowPanel = guided;
+        RecorderToolPanel recorder = new RecorderToolPanel(project, settings);
+        recorderPanel = recorder;
+        ShaftFeaturePanel inspectorTools = new ShaftFeaturePanel(project, settings,
+                List.of(new ToolCategory("Inspector", ToolTemplates.inspector())));
+        ShaftTestsPanel shaftTests = new ShaftTestsPanel(project);
+        featurePanels.add(recorder.featurePanel());
+        featurePanels.add(inspectorTools);
+
+        automationTabs = new JBTabbedPane();
+        automationTabs.getAccessibleContext().setAccessibleName("SHAFT automation surfaces");
+        automationTabs.addTab("Guided", ShaftIcons.CODE, guided);
+        automationTabs.addTab("Recorder", ShaftIcons.VIEW, recorder);
+        automationTabs.addTab("Inspector", ShaftIcons.SEARCH, inspectorTools);
+        automationTabs.addTab("SHAFT Tests", ShaftIcons.RERUN, shaftTests);
+        automationTabs.addChangeListener(event -> persistSelectedWorkflowView());
+
+        EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
+        VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
+        ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
+                List.of(new ToolCategory("Evidence", Stream.concat(
+                        ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
+        featurePanels.add(evidenceTools);
+        reportingTabs = new JBTabbedPane();
+        reportingTabs.getAccessibleContext().setAccessibleName("SHAFT reporting surfaces");
+        reportingTabs.addTab("Triage", ShaftIcons.CHECK, triage);
+        reportingTabs.addTab("Visual Baselines", ShaftIcons.VIEW, visualBaselines);
+        reportingTabs.addTab("Evidence", ShaftIcons.EDIT, evidenceTools);
+        reportingTabs.addChangeListener(event -> persistSelectedWorkflowView());
+
+        moreToolsPanel = new JPanel(new BorderLayout());
+        moreToolsPanel.getAccessibleContext().setAccessibleName("SHAFT more tools");
         if (settings.advancedUiEnabled) {
-            GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
-            guidedWorkflowPanel = guided;
-            views.add(new WorkflowView("Guided", guided, ShaftIcons.CODE));
-            EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
-            ShaftTestsPanel shaftTests = new ShaftTestsPanel(project);
-            VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
-            RecorderToolPanel recorder = new RecorderToolPanel(project, settings);
-            recorderPanel = recorder;
-            ShaftFeaturePanel inspectorTools = new ShaftFeaturePanel(project, settings,
-                    List.of(new ToolCategory("Inspector", ToolTemplates.inspector())));
-            ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
-                    List.of(new ToolCategory("Evidence", Stream.concat(
-                            ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
             ShaftFeaturePanel projectsTools = new ShaftFeaturePanel(project, settings,
                     List.of(new ToolCategory("Projects", ToolTemplates.projects())));
             advancedTools = new ShaftFeaturePanel(project, settings);
-            featurePanels.add(recorder.featurePanel());
-            featurePanels.add(inspectorTools);
-            featurePanels.add(evidenceTools);
             featurePanels.add(projectsTools);
             featurePanels.add(advancedTools);
-            views.add(new WorkflowView("Recorder", recorder, ShaftIcons.VIEW));
-            views.add(new WorkflowView("Inspector", inspectorTools, ShaftIcons.SEARCH));
-            views.add(new WorkflowView("Triage", triage, ShaftIcons.CHECK));
-            views.add(new WorkflowView("SHAFT Tests", shaftTests, ShaftIcons.RERUN));
-            views.add(new WorkflowView("Visual Baselines", visualBaselines, ShaftIcons.VIEW));
-            views.add(new WorkflowView("Evidence", evidenceTools, ShaftIcons.EDIT));
-            views.add(new WorkflowView("Projects", projectsTools, ShaftIcons.SETTINGS));
-            views.add(new WorkflowView("Advanced", advancedTools, ShaftIcons.HELP));
+            JBTabbedPane moreTabs = new JBTabbedPane();
+            moreTabs.addTab("Projects", ShaftIcons.SETTINGS, projectsTools);
+            moreTabs.addTab("Advanced", ShaftIcons.HELP, advancedTools);
+            moreToolsPanel.add(moreTabs, BorderLayout.CENTER);
         } else {
-            // The Assistant is the product for regular users: it understands recording, code
-            // generation, diagnosis, and upgrade intents in plain language. Every specialist
-            // view stays behind the explicit expert-mode opt-in because those raw-tool surfaces
-            // are unusable without MCP tool knowledge and only dilute first contact.
             advancedTools = null;
+        }
+
+        List<WorkflowView> views = new ArrayList<>();
+        views.add(new WorkflowView(STAGE_DESIGN, design, ShaftIcons.EDIT));
+        views.add(new WorkflowView(STAGE_AUTOMATION, automationTabs, ShaftIcons.CODE));
+        views.add(new WorkflowView(STAGE_REPORTING, reportingTabs, ShaftIcons.CHECK));
+        if (settings.advancedUiEnabled) {
+            views.add(new WorkflowView("More", moreToolsPanel, ShaftIcons.SETTINGS));
         }
         workflowViews = List.copyOf(views);
         for (WorkflowView view : workflowViews) {
@@ -173,7 +207,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         }
         workflowSelector = new JComboBox<>(new DefaultComboBoxModel<>(
                 workflowViews.toArray(new WorkflowView[0])));
-        workflowSelector.getAccessibleContext().setAccessibleName("SHAFT workflow selector");
+        workflowSelector.getAccessibleContext().setAccessibleName("SHAFT stage selector");
         workflowSelector.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list,
@@ -187,8 +221,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
                 if (value instanceof WorkflowView workflow) {
                     label.setIcon(workflow.icon());
                     label.setIconTextGap(6);
-                    // Screen readers announce what each workflow does, not just its short name
-                    // (issue #3538 G4).
                     String description = workflowDescription(workflow.label());
                     if (!description.isBlank()) {
                         label.getAccessibleContext().setAccessibleDescription(description);
@@ -197,11 +229,11 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
                 return label;
             }
         });
-        workflowSelector.setPrototypeDisplayValue(new WorkflowView("Assistant", assistant, ShaftIcons.SEND));
+        workflowSelector.setPrototypeDisplayValue(new WorkflowView(STAGE_REPORTING, reportingTabs, ShaftIcons.CHECK));
         Dimension selectorSize = workflowSelector.getPreferredSize();
         int selectorHeight = Math.max(30, selectorSize.height);
-        workflowSelector.setPreferredSize(JBUI.size(Math.max(150, selectorSize.width), selectorHeight));
-        workflowSelector.setMinimumSize(JBUI.size(140, selectorHeight));
+        workflowSelector.setPreferredSize(JBUI.size(Math.max(180, selectorSize.width), selectorHeight));
+        workflowSelector.setMinimumSize(JBUI.size(160, selectorHeight));
         restoreSelectedWorkflowView();
         workflowSelector.addActionListener(event -> {
             showSelectedWorkflow();
@@ -209,15 +241,20 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         });
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         header.setBorder(JBUI.Borders.empty(6, 8, 4, 8));
-        JLabel label = new JLabel("Workflow");
+        JLabel label = new JLabel("Stage");
         label.setFont(label.getFont().deriveFont(Font.BOLD));
         label.setLabelFor(workflowSelector);
         workflowSelectorLabel = label;
         header.add(label);
         header.add(workflowSelector);
-        refreshWorkflowSelectorVisibility();
+
+        JBSplitter split = new JBSplitter(true, 0.48f);
+        split.setFirstComponent(workflowCards);
+        split.setSecondComponent(assistant);
+        split.getAccessibleContext().setAccessibleName("SHAFT stage and assistant");
+
         add(header, BorderLayout.NORTH);
-        add(workflowCards, BorderLayout.CENTER);
+        add(split, BorderLayout.CENTER);
         revalidate();
         repaint();
     }
@@ -292,9 +329,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             return;
         }
         recorderPanel.startRecordingAtTarget(context);
-        if (workflowSelector != null) {
-            selectWorkflow(recorderPanel);
-        }
+        showSurface(STAGE_AUTOMATION, "Recorder", recorderPanel);
     }
 
     /**
@@ -318,26 +353,15 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
                     ? recorderPanel.prefillTool(toolName, arguments)
                     : panel.prefillTool(toolName, arguments);
             if (matched) {
-                selectWorkflow(isRecorderFeaturePanel ? recorderPanel : panel);
+                showSurfaceForComponent(isRecorderFeaturePanel ? recorderPanel : panel);
                 return;
             }
         }
-        // No existing tab owns this tool: surface the Advanced tools tab on demand — the
-        // progressive-disclosure default hides it until a workflow actually needs it (#3425 A4).
-        if (advancedTools == null) {
-            advancedTools = new ShaftFeaturePanel(project, settings);
-            featurePanels = new ArrayList<>(featurePanels);
-            featurePanels.add(advancedTools);
-            WorkflowView advancedView = new WorkflowView("Advanced", advancedTools, ShaftIcons.HELP);
-            List<WorkflowView> updated = new ArrayList<>(workflowViews);
-            updated.add(advancedView);
-            workflowViews = updated;
-            workflowCards.add(advancedTools, advancedView.label());
-            workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
-            refreshWorkflowSelectorVisibility();
+        ensureMoreTools();
+        if (advancedTools != null) {
+            advancedTools.prefillTool(toolName, arguments);
+            showSurface("More", "Advanced", advancedTools);
         }
-        advancedTools.prefillTool(toolName, arguments);
-        selectWorkflow(advancedTools);
     }
 
     /**
@@ -356,9 +380,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             return;
         }
         assistantPanel.prefillPrompt(text);
-        if (workflowSelector != null) {
-            selectWorkflow(assistantPanel);
-        }
     }
 
     /**
@@ -378,9 +399,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             return;
         }
         assistantPanel.runToolAndRenderCard(toolName, arguments);
-        if (workflowSelector != null) {
-            selectWorkflow(assistantPanel);
-        }
     }
 
     /**
@@ -396,15 +414,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         }
         disposeApiRecordingPanel();
         apiRecordingPanel = new ApiRecordingSessionPanel(project, targetUrl, null);
-        WorkflowView apiRecordingView = new WorkflowView("API Recording", apiRecordingPanel, ShaftIcons.VIEW);
-        List<WorkflowView> updated = new ArrayList<>(workflowViews);
-        updated.removeIf(view -> "API Recording".equals(view.label()));
-        updated.add(apiRecordingView);
-        workflowViews = updated;
-        workflowCards.add(apiRecordingPanel, apiRecordingView.label());
-        workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
-        refreshWorkflowSelectorVisibility();
-        selectWorkflow(apiRecordingPanel);
+        addAutomationTab("API Recording", apiRecordingPanel);
+        showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
 
         ShaftMcpInvocationService.getInstance(project)
                 .startTool("capture_api_start", startArguments)
@@ -437,15 +448,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         disposeApiRecordingPanel();
         apiRecordingPanel = new ApiRecordingSessionPanel(
                 project, ApiRecordingSessionPanel.CaptureMode.PURE_API, headerText, null);
-        WorkflowView apiRecordingView = new WorkflowView("API Recording", apiRecordingPanel, ShaftIcons.VIEW);
-        List<WorkflowView> updated = new ArrayList<>(workflowViews);
-        updated.removeIf(view -> "API Recording".equals(view.label()));
-        updated.add(apiRecordingView);
-        workflowViews = updated;
-        workflowCards.add(apiRecordingPanel, apiRecordingView.label());
-        workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
-        refreshWorkflowSelectorVisibility();
-        selectWorkflow(apiRecordingPanel);
+        addAutomationTab("API Recording", apiRecordingPanel);
+        showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
 
         ShaftMcpInvocationService.getInstance(project)
                 .startTool("capture_api_start", startArguments)
@@ -501,6 +505,12 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
      */
     private void disposeApiRecordingPanel() {
         if (apiRecordingPanel != null) {
+            if (automationTabs != null) {
+                int index = automationTabs.indexOfComponent(apiRecordingPanel);
+                if (index >= 0) {
+                    automationTabs.removeTabAt(index);
+                }
+            }
             Disposer.dispose(apiRecordingPanel);
             apiRecordingPanel = null;
         }
@@ -565,16 +575,14 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     }
 
     /**
-     * A selector with one entry is noise: regular users see just the Assistant, and the workflow
-     * picker appears only when expert mode or a runtime flow adds real choices.
+     * Three stages are always the product IA (#5942); the selector stays visible.
      */
     private void refreshWorkflowSelectorVisibility() {
-        boolean multipleViews = workflowViews.size() > 1;
         if (workflowSelector != null) {
-            workflowSelector.setVisible(multipleViews);
+            workflowSelector.setVisible(true);
         }
         if (workflowSelectorLabel != null) {
-            workflowSelectorLabel.setVisible(multipleViews);
+            workflowSelectorLabel.setVisible(true);
         }
     }
 
@@ -583,6 +591,165 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         if (view != null && workflowLayout != null && workflowCards != null) {
             workflowLayout.show(workflowCards, view.label());
         }
+    }
+
+    private void addAutomationTab(String title, JComponent component) {
+        if (automationTabs == null) {
+            return;
+        }
+        for (int index = 0; index < automationTabs.getTabCount(); index++) {
+            if (title.equals(automationTabs.getTitleAt(index))) {
+                automationTabs.setComponentAt(index, component);
+                return;
+            }
+        }
+        automationTabs.addTab(title, ShaftIcons.VIEW, component);
+    }
+
+    private void ensureMoreTools() {
+        if (moreToolsPanel == null || workflowCards == null || workflowSelector == null) {
+            return;
+        }
+        if (advancedTools == null) {
+            advancedTools = new ShaftFeaturePanel(project, settings);
+            featurePanels = new ArrayList<>(featurePanels);
+            featurePanels.add(advancedTools);
+            moreToolsPanel.removeAll();
+            JBTabbedPane moreTabs = new JBTabbedPane();
+            moreTabs.addTab("Advanced", ShaftIcons.HELP, advancedTools);
+            moreToolsPanel.add(moreTabs, BorderLayout.CENTER);
+        }
+        boolean hasMore = false;
+        for (WorkflowView view : workflowViews) {
+            if ("More".equals(view.label())) {
+                hasMore = true;
+                break;
+            }
+        }
+        if (!hasMore) {
+            WorkflowView moreView = new WorkflowView("More", moreToolsPanel, ShaftIcons.SETTINGS);
+            List<WorkflowView> updated = new ArrayList<>(workflowViews);
+            updated.add(moreView);
+            workflowViews = updated;
+            workflowCards.add(moreToolsPanel, moreView.label());
+            workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
+        }
+    }
+
+    private void showSurfaceForComponent(JComponent component) {
+        if (component == recorderPanel || (recorderPanel != null && component == recorderPanel.featurePanel())) {
+            showSurface(STAGE_AUTOMATION, "Recorder", recorderPanel);
+            return;
+        }
+        if (component == guidedWorkflowPanel) {
+            showSurface(STAGE_AUTOMATION, "Guided", guidedWorkflowPanel);
+            return;
+        }
+        if (component == apiRecordingPanel) {
+            showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
+            return;
+        }
+        String inspector = tabTitleOf(automationTabs, component);
+        if (inspector != null) {
+            showSurface(STAGE_AUTOMATION, inspector, component);
+            return;
+        }
+        String reporting = tabTitleOf(reportingTabs, component);
+        if (reporting != null) {
+            showSurface(STAGE_REPORTING, reporting, component);
+            return;
+        }
+        if (moreToolsPanel != null && (component == moreToolsPanel || moreToolsPanel.isAncestorOf(component))) {
+            String more = tabTitleOf(firstTabbedPane(moreToolsPanel), component);
+            showSurface("More", more == null ? "Advanced" : more, component);
+            return;
+        }
+        selectWorkflow(component);
+    }
+
+    private void showSurface(String stage, String tabTitle, JComponent component) {
+        selectStage(stage);
+        JBTabbedPane tabs = tabsForStage(stage);
+        if (tabs != null && tabTitle != null) {
+            for (int index = 0; index < tabs.getTabCount(); index++) {
+                if (tabTitle.equals(tabs.getTitleAt(index))) {
+                    tabs.setSelectedIndex(index);
+                    persistSelectedWorkflowView();
+                    return;
+                }
+            }
+        }
+        if (component != null) {
+            selectWorkflow(component);
+        }
+        persistSelectedWorkflowView();
+    }
+
+    private void selectStage(String stage) {
+        if (workflowSelector == null) {
+            return;
+        }
+        for (WorkflowView view : workflowViews) {
+            if (view.label().equals(stage)) {
+                workflowSelector.setSelectedItem(view);
+                workflowLayout.show(workflowCards, view.label());
+                return;
+            }
+        }
+    }
+
+    private JBTabbedPane tabsForStage(String stage) {
+        if (STAGE_AUTOMATION.equals(stage)) {
+            return automationTabs;
+        }
+        if (STAGE_REPORTING.equals(stage)) {
+            return reportingTabs;
+        }
+        if ("More".equals(stage)) {
+            return firstTabbedPane(moreToolsPanel);
+        }
+        return null;
+    }
+
+    private static JBTabbedPane firstTabbedPane(JComponent root) {
+        if (root instanceof JBTabbedPane tabs) {
+            return tabs;
+        }
+        if (root != null) {
+            for (Component child : root.getComponents()) {
+                if (child instanceof JBTabbedPane tabs) {
+                    return tabs;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String tabTitleOf(JBTabbedPane tabs, JComponent component) {
+        if (tabs == null || component == null) {
+            return null;
+        }
+        for (int index = 0; index < tabs.getTabCount(); index++) {
+            Component page = tabs.getComponentAt(index);
+            if (page == component || (page instanceof JComponent parent && parent.isAncestorOf(component))) {
+                return tabs.getTitleAt(index);
+            }
+        }
+        return null;
+    }
+
+    String selectedStageLabel() {
+        Object selected = workflowSelector == null ? null : workflowSelector.getSelectedItem();
+        return selected instanceof WorkflowView view ? view.label() : "";
+    }
+
+    String selectedSurfaceLabel() {
+        String stage = selectedStageLabel();
+        JBTabbedPane tabs = tabsForStage(stage);
+        if (tabs != null && tabs.getSelectedIndex() >= 0) {
+            return tabs.getTitleAt(tabs.getSelectedIndex());
+        }
+        return STAGE_DESIGN.equals(stage) ? STAGE_DESIGN : stage;
     }
 
     /**
@@ -600,21 +767,37 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         if (savedKey == null) {
             return;
         }
-        for (WorkflowView view : workflowViews) {
-            if (view.label().equals(savedKey)) {
-                workflowSelector.setSelectedItem(view);
-                workflowLayout.show(workflowCards, view.label());
-                return;
-            }
+        SurfaceTarget target = surfaceTarget(savedKey);
+        showSurface(target.stage, target.tab, target.component);
+    }
+
+    /** Persists the currently selected surface so {@link #restoreSelectedWorkflowView()} can find it next time. */
+    private void persistSelectedWorkflowView() {
+        String surface = selectedSurfaceLabel();
+        if (!surface.isBlank()) {
+            ShaftUiState.getInstance(project).setWorkflowView(surface);
         }
     }
 
-    /** Persists the currently selected workflow view's key so {@link #restoreSelectedWorkflowView()} can find it next time. */
-    private void persistSelectedWorkflowView() {
-        WorkflowView selected = (WorkflowView) workflowSelector.getSelectedItem();
-        if (selected != null) {
-            ShaftUiState.getInstance(project).setWorkflowView(selected.label());
-        }
+    private SurfaceTarget surfaceTarget(String savedKey) {
+        return switch (savedKey) {
+            case "Assistant", STAGE_DESIGN -> new SurfaceTarget(STAGE_DESIGN, STAGE_DESIGN, designStagePanel);
+            case "Guided" -> new SurfaceTarget(STAGE_AUTOMATION, "Guided", guidedWorkflowPanel);
+            case "Recorder" -> new SurfaceTarget(STAGE_AUTOMATION, "Recorder", recorderPanel);
+            case "Inspector" -> new SurfaceTarget(STAGE_AUTOMATION, "Inspector", null);
+            case "SHAFT Tests" -> new SurfaceTarget(STAGE_AUTOMATION, "SHAFT Tests", null);
+            case "API Recording" -> new SurfaceTarget(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
+            case "Triage" -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
+            case "Visual Baselines" -> new SurfaceTarget(STAGE_REPORTING, "Visual Baselines", null);
+            case "Evidence" -> new SurfaceTarget(STAGE_REPORTING, "Evidence", null);
+            case "Projects", "Advanced", "More" -> new SurfaceTarget("More", savedKey, null);
+            case STAGE_AUTOMATION -> new SurfaceTarget(STAGE_AUTOMATION, "Recorder", recorderPanel);
+            case STAGE_REPORTING -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
+            default -> new SurfaceTarget(STAGE_DESIGN, STAGE_DESIGN, designStagePanel);
+        };
+    }
+
+    private record SurfaceTarget(String stage, String tab, JComponent component) {
     }
 
     private void selectWorkflow(JComponent component) {
@@ -638,16 +821,10 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
      */
     private static String workflowDescription(String label) {
         return switch (label) {
-            case "Assistant" -> "Chat with the SHAFT Assistant to record, generate, and diagnose tests";
-            case "Guided" -> "Step-by-step guided workflow across recording, code generation, and diagnosis";
-            case "Recorder" -> "Record browser or mobile actions into SHAFT test code";
-            case "Inspector" -> "Inspect page or app elements and pick resilient locators";
-            case "Triage" -> "Review failed test evidence and get suggested fixes";
-            case "SHAFT Tests" -> "Run and review SHAFT Engine test suites";
-            case "Visual Baselines" -> "Manage and compare visual regression baselines";
-            case "Evidence" -> "Doctor and healer tools for failure evidence";
-            case "Projects" -> "Create or upgrade SHAFT projects";
-            case "Advanced" -> "Raw SHAFT MCP tool catalog for advanced users";
+            case STAGE_DESIGN -> "Turn a user story or requirements into reviewable Gherkin, then hand off to Automation";
+            case STAGE_AUTOMATION -> "Record, inspect, run, and generate SHAFT fluent Java";
+            case STAGE_REPORTING -> "Analyze Allure, Doctor, flake, and heal evidence";
+            case "More" -> "Project setup and raw MCP tools";
             default -> "";
         };
     }

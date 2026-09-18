@@ -61,9 +61,9 @@ intellijPlatform {
         name = "SHAFT"
         version = project.version.toString()
         description = """
-            <p>SHAFT's official IntelliJ IDEA companion: record, generate, run, and heal automated tests powered by
-            <a href="https://shafthq.github.io">SHAFT Engine</a> — through an Assistant-first, chat-driven workflow
-            backed by the SHAFT MCP server.</p>
+            <p>SHAFT's official IntelliJ IDEA companion: design Gherkin from a story, record and generate fluent Java,
+            then analyze Allure/Doctor/heal evidence — powered by
+            <a href="https://shafthq.github.io">SHAFT Engine</a> and the SHAFT MCP server.</p>
 
             <h3>Highlights</h3>
             <ul>
