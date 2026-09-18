@@ -79,6 +79,15 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             },
         )
 
+    def test_graphify_refresh_is_primary_ff_only_then_mempalace(self):
+        guidance = (CORE / "references/graphify.md").read_text(encoding="utf-8")
+        refresh = guidance.split("## Refresh", 1)[1]
+        self.assertIn("git fetch origin main && git merge --ff-only origin/main", refresh)
+        self.assertIn("resolve_mempalace.py", refresh)
+        self.assertIn("`mine` / `sweep` / `sync`", refresh)
+        self.assertIn("Do not mine from a linked worktree", refresh)
+        self.assertIn("graphify update .", refresh)
+
     def test_portable_profile_owns_a_real_routing_surface(self):
         profile = ROOT / "chaos-engine/profiles/portable/entrypoint.md"
         routing = ROOT / "chaos-engine/profiles/portable/references/routing.md"
