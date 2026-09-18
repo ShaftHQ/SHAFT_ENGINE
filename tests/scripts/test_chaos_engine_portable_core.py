@@ -1053,11 +1053,12 @@ class OrchestratorModeContractTest(unittest.TestCase):
 
     def test_harness_merge_reinstalls_overlay_from_main(self):
         playbook = (CORE / "references/work-github-playbook.md").read_text(encoding="utf-8")
-        self.assertIn("python3 chaos-engine/bootstrap.py --project . --repository ShaftHQ/SHAFT_ENGINE --branch main", playbook)
+        self.assertIn("python3 chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main", playbook)
         self.assertIn("python3 .chaos-engine/install.py doctor --project .", playbook)
         self.assertIn("git merge --ff-only origin/main", playbook)
         self.assertIn("Reload host hooks and skills", playbook)
         self.assertIn("Do not call", playbook)
+        self.assertNotIn("ShaftHQ/", playbook)
 
     def test_orchestrator_does_not_implement_when_local_ready(self):
         delegation = (CORE / "references/delegation.md").read_text(encoding="utf-8")
