@@ -1033,6 +1033,8 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("keep, re-spec, upgrade, or kill", policy)
         self.assertIn("Never send a heartbeat", policy)
         self.assertIn("Opening a PR does not complete follow-through", policy)
+        self.assertIn("not permission to end babysit", policy)
+        self.assertIn("in-scope delivery condition", policy)
 
     def test_entrypoint_auto_switches_and_forbids_self_work_with_serial_default(self):
         skill = self._skill()
