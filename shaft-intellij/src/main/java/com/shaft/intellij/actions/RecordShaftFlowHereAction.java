@@ -15,7 +15,6 @@ import com.shaft.intellij.java.JavaTargetContext;
 import com.shaft.intellij.java.JavaTargetContextResolver;
 import com.shaft.intellij.notifications.ShaftNotifier;
 import com.shaft.intellij.project.ShaftProjectDetector;
-import com.shaft.intellij.settings.ShaftSettingsState;
 import com.shaft.intellij.ui.ShaftToolWindowPanel;
 import org.jetbrains.annotations.NotNull;
 
@@ -39,21 +38,8 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
             return;
         }
 
-        if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
-            // Default mode: route to the Assistant with an equivalent plain-language request instead
-            // of copying raw MCP JSON to the clipboard and leaving the user to paste it somewhere
-            // (issue #3552) -- prefillTool() only exists on the raw Tools panel that stays hidden here.
-            openAssistantPrompt(project, recordFlowPrompt(context));
-            ShaftNotifier.info(project, NOTIFICATION_TITLE,
-                    "Record-at-target request ready in the Assistant for " + context.displayName() + ".");
-            return;
-        }
-        // Advanced mode (issue #3661): start a live capture_start recording anchored at the resolved
-        // caret target directly, instead of copying a capture_record_at_target_code_blocks request to
-        // the clipboard for the user to run manually after recording elsewhere -- RecorderToolPanel
-        // #startRecordingAtTarget owns the live status indicator and routes into its review/insert
-        // flow once the user stops, collapsing caret -> live recording -> review/insert into this one
-        // action.
+        // Issue #5942: Automation/Recorder is a product stage, not expert-only. Always start a
+        // live capture_start anchored at the caret (issue #3661).
         startLiveRecording(project, context);
         ShaftNotifier.info(project, NOTIFICATION_TITLE,
                 "Live SHAFT recording starting, anchored at " + context.displayName() + ".");
@@ -77,21 +63,6 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
      */
     static String recordFlowPrompt(JavaTargetContext context) {
         return "Record a SHAFT flow at " + context.methodName() + " in " + context.className();
-    }
-
-    private static void openAssistantPrompt(Project project, String text) {
-        ToolWindowManager.getInstance(project).invokeLater(() -> {
-            ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
-            if (toolWindow == null) {
-                return;
-            }
-            toolWindow.show(() -> {
-                Content content = toolWindow.getContentManager().getContent(0);
-                if (content != null && content.getComponent() instanceof ShaftToolWindowPanel panel) {
-                    panel.prefillAssistantPrompt(text);
-                }
-            });
-        });
     }
 
     private static void startLiveRecording(Project project, JavaTargetContext context) {

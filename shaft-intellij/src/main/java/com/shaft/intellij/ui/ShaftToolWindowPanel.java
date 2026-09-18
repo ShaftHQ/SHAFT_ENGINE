@@ -313,21 +313,20 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     }
 
     /**
-     * Package-private test accessor: the retained Recorder tab panel, or {@code null} when advanced
-     * UI is disabled or before setup.
+     * Package-private test accessor: the retained Recorder surface, or {@code null} before setup.
      */
     RecorderToolPanel recorderPanel() {
         return recorderPanel;
     }
 
+    DesignStagePanel designStagePanel() {
+        return designStagePanel;
+    }
+
     /**
-     * Selects the Recorder tab and starts a live {@code capture_start} recording anchored at a
-     * resolved Java caret target (issue #3661): {@code RecordShaftFlowHereAction}'s advanced mode
-     * calls this instead of copying a {@code capture_record_at_target_code_blocks} request to the
-     * clipboard and leaving the user to run it manually after recording elsewhere. A no-op when the
-     * Recorder tab does not exist -- advanced UI disabled, or the main view has not been built yet
-     * (setup view still showing) -- same rationale as {@link #prefillAssistantPrompt}: the tool
-     * window itself already surfaces the setup panel or the Assistant explaining what to do next.
+     * Selects Automation/Recorder and starts a live {@code capture_start} recording anchored at a
+     * resolved Java caret target (issue #3661 / #5942). A no-op only when the main view has not
+     * been built yet (setup overlay still showing).
      *
      * @param context resolved Java caret target the generated code will be anchored at
      */
@@ -594,18 +593,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             panels = new ArrayList<>(LIVE_PANELS);
         }
         panels.forEach(ShaftToolWindowPanel::dispose);
-    }
-
-    /**
-     * Three stages are always the product IA (#5942); the selector stays visible.
-     */
-    private void refreshWorkflowSelectorVisibility() {
-        if (workflowSelector != null) {
-            workflowSelector.setVisible(true);
-        }
-        if (workflowSelectorLabel != null) {
-            workflowSelectorLabel.setVisible(true);
-        }
     }
 
     private void showSelectedWorkflow() {

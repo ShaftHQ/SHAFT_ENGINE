@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Covers issue #3661: {@code RecordShaftFlowHereAction}'s advanced mode used to copy a prefilled
+ * Covers issue #3661 / #5942: {@code RecordShaftFlowHereAction} used to copy a prefilled
  * {@code capture_record_at_target_code_blocks} request to the clipboard and open the tool window,
  * leaving a live browser recording several manual steps away. {@link
  * ShaftToolWindowPanel#startRecordingAtTarget} is the new direct entry point: it selects the
