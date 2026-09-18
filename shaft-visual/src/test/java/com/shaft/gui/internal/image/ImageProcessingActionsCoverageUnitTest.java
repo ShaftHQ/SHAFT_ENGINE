@@ -373,6 +373,25 @@ public class ImageProcessingActionsCoverageUnitTest {
     }
 
     @Test
+    public void uniqueAutoMatchShouldRequireTemplateConfirmation() {
+        ImageTarget target = ImageTarget.fromBytes(encodePng(createImage(8, 8, Color.ORANGE)))
+                .matchingMode(ImageMatchingMode.AUTO);
+        byte[] screenshot = encodePng(createImage(40, 20, Color.WHITE));
+        ImageMatch featureLookalike = new ImageMatch(new ImageRectangle(1, 1, 8, 8), 0.91, 1.0,
+                ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY, Map.of("fixture", "lookalike"));
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.findImageMatches(any(ImageTarget.class), any())).thenAnswer(invocation -> {
+            ImageTarget asked = invocation.getArgument(0);
+            return asked.matchingMode() == ImageMatchingMode.TEMPLATE
+                    ? List.of()
+                    : List.of(featureLookalike);
+        });
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        Assert.assertFalse(ImageProcessingActions.isUniqueImageTargetInView(target, screenshot));
+    }
+
+    @Test
     public void typedImageMatchingShouldKeepOverlappingOccurrencesAtDifferentScales() {
         BufferedImage targetImage = createReferenceTarget(20, 16);
         BufferedImage screenshotImage = createImage(90, 60, Color.WHITE);
