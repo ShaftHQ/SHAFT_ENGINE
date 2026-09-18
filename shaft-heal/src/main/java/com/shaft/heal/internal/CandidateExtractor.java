@@ -64,6 +64,9 @@ final class CandidateExtractor {
         List<RankedCandidate> candidates = new ArrayList<>();
         for (WebElement element : elements) {
             LocatorFingerprint fingerprint = fingerprintExtractor.extract(driver, element);
+            if (!tagCompatible(original.tagName(), fingerprint.tagName())) {
+                continue;
+            }
             HealingScore score = scorer.score(original, fingerprint);
             if (score.deterministicScore() <= 0) {
                 continue;
@@ -295,6 +298,17 @@ final class CandidateExtractor {
         } catch (WebDriverException exception) {
             return false;
         }
+    }
+
+    static boolean tagCompatible(String originalTag, String candidateTag) {
+        String original = originalTag == null ? "" : originalTag.toLowerCase(java.util.Locale.ROOT);
+        String candidate = candidateTag == null ? "" : candidateTag.toLowerCase(java.util.Locale.ROOT);
+        if (original.isBlank() || candidate.isBlank() || original.equals(candidate)) {
+            return true;
+        }
+        boolean originalField = original.equals("input") || original.equals("textarea");
+        boolean candidateButton = candidate.equals("button");
+        return !(originalField && candidateButton);
     }
 
     private record LocatorProposal(By locator, boolean unique, List<String> suggestionEvidence) {
