@@ -59,6 +59,8 @@ plugins. `--pure` still only disables plugins.
 ## Mechanical dispatch (small-context local models)
 
 Treat a READY local coder as a **mechanical runner**, not a designer.
+Never use it for independent adversarial review. Review stays a new instance of
+the host session model (see [delegation](../../references/delegation.md)).
 
 1. Orchestrator writes one bounded command (a short script with exact paths).
 2. OpenCode invokes **exactly that one bash command**. Multi-step specs in

@@ -1005,6 +1005,18 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("Compaction is not stop", identity)
         self.assertIn("Compaction is not stop", process)
 
+    def test_host_model_reviews_even_when_implementation_is_local(self):
+        delegation = (CORE / "references/delegation.md").read_text(encoding="utf-8")
+        agency = (CORE / "skills/local-agency/SKILL.md").read_text(encoding="utf-8")
+        identity = (CORE / "identity.md").read_text(encoding="utf-8")
+        self.assertIn("same host model", delegation)
+        self.assertIn("Never assign that review to", delegation)
+        self.assertIn("Never use it for independent adversarial review", agency)
+        self.assertIn("## Engineering", identity)
+        self.assertIn("never weaken, delete, or rewrite a test to reach green", identity)
+        self.assertIn("## Self-development", identity)
+        self.assertIn("Self-development has no cap", identity)
+
 
     def test_orchestrator_follow_through_is_inspect_and_adapt_not_waiting(self):
         follow_through = CORE / "references/orchestrator-follow-through.md"
