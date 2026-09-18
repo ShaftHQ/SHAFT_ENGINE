@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Covers issue #3661: {@code RecordShaftFlowHereAction}'s advanced mode used to copy a prefilled
@@ -34,11 +33,11 @@ class RecordShaftFlowHereActionRoutingTest {
         assertNotNull(recorder, "Recorder tab must be created when advancedUiEnabled is true");
         assertEquals("Record a SHAFT flow at logsIn in LoginTest",
                 recorder.captureStartArguments().get("sessionGoal").getAsString());
-        assertEquals("Recorder", selectedWorkflowLabel(toolWindow));
+        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
     }
 
     @Test
-    void startRecordingAtTargetIsANoOpWhenAdvancedUiIsDisabled() {
+    void startRecordingAtTargetWorksWhenAdvancedUiIsDisabled() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpSetupComplete = true;
         settings.mcpCommand = "shaft-mcp";
@@ -50,11 +49,7 @@ class RecordShaftFlowHereActionRoutingTest {
 
         toolWindow.startRecordingAtTarget(context);
 
-        assertNull(toolWindow.recorderPanel(), "No Recorder tab exists outside advanced UI mode");
-    }
-
-    private static String selectedWorkflowLabel(ShaftToolWindowPanel toolWindow) {
-        Object selected = toolWindow.workflowSelector().getSelectedItem();
-        return selected instanceof ShaftToolWindowPanel.WorkflowView view ? view.label() : "";
+        assertNotNull(toolWindow.recorderPanel(), "Recorder is part of the Automation stage, not expert-only");
+        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
     }
 }

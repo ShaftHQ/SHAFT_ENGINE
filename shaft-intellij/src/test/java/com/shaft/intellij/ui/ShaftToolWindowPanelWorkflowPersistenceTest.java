@@ -31,8 +31,8 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
     void aFreshPanelWithNothingStoredDefaultsToTheFirstWorkflowView() {
         ShaftToolWindowPanel panel = newPanel(new FakePropertiesComponent());
 
-        assertEquals("Assistant", selectedLabel(panel),
-                "with nothing persisted yet, the existing first-item default must still apply");
+        assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, selectedLabel(panel),
+                "with nothing persisted yet, Analysis & Design is the default stage");
     }
 
     @Test
@@ -41,10 +41,10 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
         ShaftToolWindowPanel panel = newPanel(properties);
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = panel.workflowSelector();
 
-        selectItemLabeled(selector, "Recorder");
+        selectItemLabeled(selector, ShaftToolWindowPanel.STAGE_AUTOMATION);
 
-        assertEquals("Recorder", properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY),
-                "selecting a different workflow view must persist its key immediately");
+        assertEquals("Guided", properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY),
+                "selecting Automation persists the selected inner surface, defaulting to Guided");
     }
 
     @Test
@@ -54,8 +54,9 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
 
         ShaftToolWindowPanel panel = newPanel(properties);
 
-        assertEquals("Inspector", selectedLabel(panel),
-                "a fresh panel must restore the last-selected workflow view, not default back to Assistant");
+        assertEquals(ShaftToolWindowPanel.STAGE_AUTOMATION, selectedLabel(panel));
+        assertEquals("Inspector", panel.selectedSurfaceLabel(),
+                "a fresh panel must restore the last-selected surface, not default back to Design");
     }
 
     @Test
@@ -66,8 +67,8 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
 
         ShaftToolWindowPanel panel = newPanel(properties);
 
-        assertEquals("Assistant", selectedLabel(panel),
-                "an unmatched stored key must fall back silently to the default first item");
+        assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, selectedLabel(panel),
+                "an unmatched stored key must fall back silently to Analysis & Design");
     }
 
     private static void selectItemLabeled(JComboBox<ShaftToolWindowPanel.WorkflowView> selector, String label) {

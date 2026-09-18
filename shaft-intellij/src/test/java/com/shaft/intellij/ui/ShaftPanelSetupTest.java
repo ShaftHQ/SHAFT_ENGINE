@@ -3280,9 +3280,8 @@ class ShaftPanelSetupTest {
     void toolWindowHidesAdvancedWorkflowsByDefault() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
-        // Regular users see only the Assistant: it understands recording, codegen, diagnosis, and
-        // upgrade intents in plain language. Every specialist view stays behind the explicit
-        // expert-mode opt-in, and a one-entry workflow selector stays hidden as noise.
+        // Issue #5942: three stages are the product. Expert More (Projects/Advanced) stays off
+        // until advancedUiEnabled. The Assistant is docked, not a fourth stage.
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
         assertNotNull(selector);
         List<String> labels = new ArrayList<>();
@@ -3290,12 +3289,11 @@ class ShaftPanelSetupTest {
             labels.add(selector.getItemAt(index).label());
         }
         assertAll(
-                () -> assertEquals(List.of("Assistant"), labels),
-                () -> assertFalse(selector.isVisible()),
-                // The MCP-status/Recheck chip used to ride in this shared header above every
-                // workflow tab. Issue #3676 removed it from ShaftToolWindowPanel entirely --
-                // not just hidden on the Assistant tab -- per explicit user feedback that it was
-                // unwanted noise once already connected.
+                () -> assertEquals(List.of(
+                        ShaftToolWindowPanel.STAGE_DESIGN,
+                        ShaftToolWindowPanel.STAGE_AUTOMATION,
+                        ShaftToolWindowPanel.STAGE_REPORTING), labels),
+                () -> assertTrue(selector.isVisible()),
                 () -> assertNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)));
     }
 
@@ -3387,8 +3385,11 @@ class ShaftPanelSetupTest {
             labels.add(selector.getItemAt(index).label());
         }
 
-        assertEquals(List.of("Assistant", "Guided", "Recorder", "Inspector", "Triage", "SHAFT Tests",
-                "Visual Baselines", "Evidence", "Projects", "Advanced"), labels);
+        assertEquals(List.of(
+                ShaftToolWindowPanel.STAGE_DESIGN,
+                ShaftToolWindowPanel.STAGE_AUTOMATION,
+                ShaftToolWindowPanel.STAGE_REPORTING,
+                "More"), labels);
     }
 
     @Test
@@ -3408,23 +3409,23 @@ class ShaftPanelSetupTest {
         JsonObject arguments = JsonParser.parseString("{}").getAsJsonObject();
 
         toolWindow.prefillTool("capture_start", arguments);
-        assertEquals("Recorder", selectedWorkflow(toolWindow));
+        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
         assertEquals("Recorder", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("capture_record_at_target_code_blocks", arguments);
-        assertEquals("Recorder", selectedWorkflow(toolWindow));
+        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
         assertEquals("Recorder", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("mobile_get_accessibility_tree", arguments);
-        assertEquals("Inspector", selectedWorkflow(toolWindow));
+        assertEquals("Inspector", toolWindow.selectedSurfaceLabel());
         assertEquals("Inspector", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("doctor_analyze_trace", arguments);
-        assertEquals("Evidence", selectedWorkflow(toolWindow));
+        assertEquals("Evidence", toolWindow.selectedSurfaceLabel());
         assertEquals("Evidence", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("shaft_project_create", arguments);
-        assertEquals("Projects", selectedWorkflow(toolWindow));
+        assertEquals("Projects", toolWindow.selectedSurfaceLabel());
         assertEquals("Projects", selectedCategory(toolWindow));
     }
 
@@ -9080,7 +9081,18 @@ class ShaftPanelSetupTest {
         if (!(selected instanceof ShaftToolWindowPanel.WorkflowView view)) {
             return null;
         }
-        return view.component();
+        Component stage = view.component();
+        if (stage instanceof javax.swing.JTabbedPane tabs && tabs.getSelectedComponent() != null) {
+            return tabs.getSelectedComponent();
+        }
+        if (stage instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                if (child instanceof javax.swing.JTabbedPane tabs && tabs.getSelectedComponent() != null) {
+                    return tabs.getSelectedComponent();
+                }
+            }
+        }
+        return stage;
     }
 
     private static JComboBox<ShaftToolWindowPanel.WorkflowView> toolWindowWorkflowSelector(ShaftToolWindowPanel toolWindow) {
