@@ -102,6 +102,19 @@ public class OcrTargetResolverTest {
     }
 
     @Test
+    public void exactTabOneMatchesDroppedLeadingT() {
+        OcrResult result = result(
+                line("AB 1 TAB 2", 10, 20, 180, 24, 0.90),
+                word("AB", 10, 20, 30, 24, 0.91),
+                word("1", 45, 20, 16, 24, 0.92),
+                word("TAB", 80, 20, 40, 24, 0.94),
+                word("2", 125, 20, 16, 24, 0.93));
+
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1"));
+        Assert.assertEquals(match.text(), "AB 1");
+    }
+
+    @Test
     public void exactMatchAcceptsCompactedWhitespace() {
         OcrResult result = result(line("TextInput", 10, 20, 80, 24, 0.94));
         OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("Text Input"));

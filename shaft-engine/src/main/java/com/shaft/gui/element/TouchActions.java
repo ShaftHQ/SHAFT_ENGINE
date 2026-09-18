@@ -791,7 +791,7 @@ public class TouchActions extends FluentWebDriverAction {
             int[] previousPixels = null;
             int stableFrames = 0;
             String lastOcrMiss = null;
-            for (int attempt = 0; attempt < 30; attempt++) {
+            for (int attempt = 0; attempt < 50; attempt++) {
                 // Prefer the scroll container's own screenshot so OCR/image search stays in
                 // element-local pixels and avoids BrowserStack window-vs-screenshot scale drift.
                 ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
@@ -820,7 +820,7 @@ public class TouchActions extends FluentWebDriverAction {
                 }
                 stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
                         ? stableFrames + 1 : 0;
-                if (stableFrames >= 2) {
+                if (stableFrames >= 8) {
                     break;
                 }
                 previousPixels = currentPixels;
@@ -1691,7 +1691,7 @@ public class TouchActions extends FluentWebDriverAction {
             //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
             switch (swipeDirection) {
                 case UP, DOWN ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
                 case RIGHT ->
                         scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
                 case LEFT ->
