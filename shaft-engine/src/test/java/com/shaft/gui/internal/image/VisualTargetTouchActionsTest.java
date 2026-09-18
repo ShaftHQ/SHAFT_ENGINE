@@ -292,6 +292,28 @@ public class VisualTargetTouchActionsTest {
         Assert.assertEquals(finds.get(), 3);
     }
 
+    @Test
+    public void imageSwipeShouldKeepGesturingAfterAppiumReportsNoMoreScrollOnMiss() throws Exception {
+        byte[] screenshot = image(false);
+        byte[] crop = image(true);
+        AndroidDriver driver = driver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TestTouchActions actions = actions(driver);
+        By container = By.id("expandable");
+        container(actions, driver, container, new Rectangle(10, 10, 80, 80));
+        ImageTarget target = ImageTarget.fromBytes(crop).matchingMode(ImageMatchingMode.AUTO);
+        AtomicInteger finds = new AtomicInteger();
+        try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot));
+             MockedStatic<ImageProcessingActions> images = mockStatic(ImageProcessingActions.class)) {
+            images.when(() -> ImageProcessingActions.isUniqueImageTargetInView(any(), any()))
+                    .thenAnswer(invocation -> finds.incrementAndGet() >= 3);
+            actions.swipeElementIntoView(container, target, TouchActions.SwipeDirection.DOWN);
+        }
+        verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), anyMap());
+        Assert.assertEquals(finds.get(), 3);
+    }
+
     private static TestTouchActions actions(WebDriver driver) {
         return new TestTouchActions(driver, mock(ElementActionsHelper.class));
     }
