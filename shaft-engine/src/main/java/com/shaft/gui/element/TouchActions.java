@@ -1686,7 +1686,12 @@ public class TouchActions extends FluentWebDriverAction {
 
         if (scrollableElementLocator != null) {
             //scrolling inside an element
-            Rectangle elementRectangle = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
+            WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                    driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+            if (scrollableElement instanceof RemoteWebElement remoteElement) {
+                scrollParameters.put("elementId", remoteElement.getId());
+            }
+            Rectangle elementRectangle = scrollableElement.getRect();
             scrollParameters.putAll(ImmutableMap.of(
                     "height", elementRectangle.getHeight() * 90 / 100
             ));
@@ -1714,7 +1719,7 @@ public class TouchActions extends FluentWebDriverAction {
             }
         }
         scrollParameters.putAll(ImmutableMap.of(
-                "direction", swipeDirection.toString()
+                "direction", swipeDirection.name().toLowerCase(Locale.ROOT)
         ));
         return scrollParameters;
     }
