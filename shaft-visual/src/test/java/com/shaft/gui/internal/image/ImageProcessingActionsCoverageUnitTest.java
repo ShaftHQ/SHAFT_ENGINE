@@ -36,7 +36,9 @@ import org.testng.annotations.Test;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -389,6 +391,24 @@ public class ImageProcessingActionsCoverageUnitTest {
         VisualProcessingProviderRegistry.setProviderForTesting(provider);
 
         Assert.assertFalse(ImageProcessingActions.isUniqueImageTargetInView(target, screenshot));
+    }
+
+    @Test
+    public void groupEighteenCropShouldNotBeUniqueOnGroupZeroThroughEleven() throws Exception {
+        BufferedImage crop = groupRow("Group 18");
+        BufferedImage screenshot = createImage(320, 520, Color.WHITE);
+        Graphics2D graphics = screenshot.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, 320, 520);
+            for (int group = 0; group <= 11; group++) {
+                graphics.drawImage(groupRow("Group " + group), 16, 12 + group * 40, null);
+            }
+        } finally {
+            graphics.dispose();
+        }
+        ImageTarget target = ImageTarget.fromBytes(encodePng(crop)).matchingMode(ImageMatchingMode.AUTO);
+        Assert.assertFalse(ImageProcessingActions.isUniqueImageTargetInView(target, encodePng(screenshot)));
     }
 
     @Test
@@ -1007,6 +1027,22 @@ public class ImageProcessingActionsCoverageUnitTest {
         graphics.fillRect(0, 0, width, height);
         graphics.dispose();
         return image;
+    }
+
+    private static BufferedImage groupRow(String label) {
+        BufferedImage row = createImage(280, 36, Color.WHITE);
+        Graphics2D graphics = row.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, 280, 36);
+            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            graphics.setColor(Color.BLACK);
+            graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 22));
+            graphics.drawString(label, 8, 26);
+        } finally {
+            graphics.dispose();
+        }
+        return row;
     }
 
     private static byte[] encodePng(BufferedImage image) {

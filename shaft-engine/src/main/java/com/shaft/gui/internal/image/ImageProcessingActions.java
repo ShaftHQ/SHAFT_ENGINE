@@ -218,7 +218,7 @@ public class ImageProcessingActions {
         }
         if (matches.size() == 1) {
             if (target.matchingMode() == ImageMatchingMode.AUTO) {
-                return hasUniqueMatch(target.matchingMode(ImageMatchingMode.TEMPLATE), currentPageScreenshot);
+                return hasDiscriminatingUniqueTemplate(target, currentPageScreenshot);
             }
             return true;
         }
@@ -227,9 +227,27 @@ public class ImageProcessingActions {
         }
         ImageMatchingMode mode = target.matchingMode();
         if (mode == ImageMatchingMode.FEATURE || mode == ImageMatchingMode.AUTO) {
-            return hasUniqueMatch(target.matchingMode(ImageMatchingMode.TEMPLATE), currentPageScreenshot);
+            return hasDiscriminatingUniqueTemplate(target, currentPageScreenshot);
         }
         return false;
+    }
+
+    private static boolean hasDiscriminatingUniqueTemplate(ImageTarget target, byte[] currentPageScreenshot) {
+        double reportedThreshold = target.minimumConfidence().orElseGet(
+                () -> SHAFT.Properties.visuals.visualMatchingThreshold());
+        double floor = Math.min(reportedThreshold, 0.50);
+        List<ImageMatch> ranked = listImageMatches(
+                target.matchingMode(ImageMatchingMode.TEMPLATE).minimumConfidence(floor),
+                currentPageScreenshot).stream()
+                .sorted(java.util.Comparator.comparingDouble(ImageMatch::confidence).reversed())
+                .toList();
+        if (ranked.isEmpty() || ranked.getFirst().confidence() < reportedThreshold) {
+            return false;
+        }
+        if (ranked.size() == 1) {
+            return true;
+        }
+        return ranked.getFirst().confidence() - ranked.get(1).confidence() >= 0.08;
     }
 
     private static boolean hasUniqueMatch(ImageTarget target, byte[] currentPageScreenshot) {
