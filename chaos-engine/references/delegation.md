@@ -136,6 +136,10 @@ OmniRoute, or any writer that is not the host session model, the orchestrator
 **must** still trigger independent adversarial review as a **new instance of
 the same host model** (native reviewer subagent). Never assign that review to
 the local or OmniRoute writer. Transport does not change the reviewer.
+When FreeToken is READY and the owner selected orchestrator mode, the
+orchestrator must not implement product or overlay chunks; dispatch a
+file-disjoint local writer. OPENCODE `context_length_exceeded` is a writer
+failure: shrink the prompt, do not retry the same text.
 
 ### Recording a finding
 

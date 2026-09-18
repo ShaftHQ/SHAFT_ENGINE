@@ -172,6 +172,13 @@ do not copy that rule into ChaosEngine and do not edit the bundled skill in plac
 This repository uses merge commits so a delivered branch remains identifiable
 by ancestry. Squash and rebase merging are disabled; do not substitute them.
 
+After **you** merge a PR that changes `chaos-engine/`, immediately rebuild the
+live overlay from the new `origin/main` on the **primary checkout**:
+`git fetch origin main && git merge --ff-only origin/main`, then
+`python3 chaos-engine/install.py install --project .` and
+`python3 .chaos-engine/install.py doctor --project .`. Reload host hooks and
+skills before the next turn so work builds on what is now on main.
+
 An owner-authorized history correction binds the expected remote tip and uses
 `git push --force-with-lease origin HEAD:<branch>`; unguarded `--force` is never
 safe. A rewrite-only gate waiver is machine-readable, names exact non-protected

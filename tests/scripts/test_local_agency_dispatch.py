@@ -37,6 +37,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertIn("runs that same command", skill)
         self.assertIn("zero tool calls is writer failure", skill)
         self.assertIn("Never use it for independent adversarial review", skill)
+        self.assertIn("Do not OpenCode-`Read` a 200-line Java file", skill)
         self.assertIn("`ft launch` / `ft serve`", skill)
 
     def test_delegation_treats_local_coder_as_mechanical_runner(self):
