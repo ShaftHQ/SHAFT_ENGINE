@@ -56,6 +56,13 @@ refresh, retry-loop, clear or replace the lock or cache, or alter the primary
 checkout to manufacture freshness. Only the maintenance owner updates derived
 store state.
 
+After landing PRs, the maintenance owner first
+`git fetch origin main && git merge --ff-only origin/main` on the primary
+checkout, then Graphify `update` plus diagnose, then MemPalace
+`mine` / `sweep` / `sync` against
+`python3 tools/repository-map/resolve_mempalace.py`. `--palace` is a global
+flag before the subcommand. Do not mine from a linked worktree.
+
 An extract line that says files were not classified (no supported extension or
 shebang) means the scanner saw those paths and has no file type. It is coverage
 policy, not a missing install, corrupt cache, or doctor failure. File types are
