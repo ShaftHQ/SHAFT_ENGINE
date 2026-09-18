@@ -206,12 +206,17 @@ public class MobileInteractionStrategiesTest {
 
     @Test
     public void hideKeyboardRunsWhenFlagEnabled() {
+        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+        SHAFT.Properties.mobile.set().browserName("");
         SHAFT.Properties.flags.set().hideKeyboardAfterTyping(true);
         AppiumDriver driver = mockAppiumDriver();
         WebElement element = nativeElement("android.widget.EditText");
         when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
 
-        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             var factory = org.mockito.Mockito.mockStatic(DriverFactoryHelper.class,
+                     org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            factory.when(DriverFactoryHelper::isMobileNativeExecution).thenReturn(true);
             new Actions(helperFor(driver)).type(LOCATOR, "typed");
             verify((HidesKeyboard) driver).hideKeyboard();
         }
