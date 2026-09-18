@@ -493,8 +493,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         @SuppressWarnings("unchecked")
         Map<Object, Object> leftParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.LEFT, null, null);
 
-        SHAFT.Validations.assertThat().object(upParameters.get("direction")).isEqualTo("UP").perform();
-        SHAFT.Validations.assertThat().object(leftParameters.get("direction")).isEqualTo("LEFT").perform();
+        SHAFT.Validations.assertThat().object(upParameters.get("direction")).isEqualTo("up").perform();
+        SHAFT.Validations.assertThat().object(leftParameters.get("direction")).isEqualTo("left").perform();
         SHAFT.Validations.assertThat().object(leftParameters.containsKey("left")).isTrue().perform();
         SHAFT.Validations.assertThat().object(touchActions.and()).isEqualTo(touchActions).perform();
 
