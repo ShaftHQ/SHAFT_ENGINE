@@ -74,7 +74,9 @@ the host session model (see [delegation](../../references/delegation.md)).
 5. On `context_length_exceeded`, fail the turn. Shrink prompt and tool output
    and drop a high/reasoning variant before asking the operator to serve a
    larger checkpoint. Advertised `context_length` from `/v1/models` is not
-   usable KV.
+   usable KV. Do not OpenCode-`Read` a 200-line Java file; pass the exact
+   line change. Soak on this class of host: keep the prompt well under 8k
+   combined prompt+generation.
 6. Size-class soak: prove the current READY checkpoint with these knobs.
    Only if quality is still insufficient **and**
    [`probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py)

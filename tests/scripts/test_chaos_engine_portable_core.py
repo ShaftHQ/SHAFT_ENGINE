@@ -1051,6 +1051,19 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("not permission to end babysit", policy)
         self.assertIn("in-scope delivery condition", policy)
 
+    def test_harness_merge_reinstalls_overlay_from_main(self):
+        playbook = (CORE / "references/work-github-playbook.md").read_text(encoding="utf-8")
+        self.assertIn("python3 chaos-engine/install.py install --project .", playbook)
+        self.assertIn("python3 .chaos-engine/install.py doctor --project .", playbook)
+        self.assertIn("git merge --ff-only origin/main", playbook)
+        self.assertIn("Reload host hooks and skills", playbook)
+
+    def test_orchestrator_does_not_implement_when_local_ready(self):
+        delegation = (CORE / "references/delegation.md").read_text(encoding="utf-8")
+        self.assertIn("When FreeToken is READY", delegation)
+        self.assertIn("orchestrator must not implement", delegation)
+        self.assertIn("context_length_exceeded", delegation)
+
     def test_entrypoint_auto_switches_and_forbids_self_work_with_serial_default(self):
         skill = self._skill()
         self.assertIn("Select exactly one mode from [execution workflows]", skill)
