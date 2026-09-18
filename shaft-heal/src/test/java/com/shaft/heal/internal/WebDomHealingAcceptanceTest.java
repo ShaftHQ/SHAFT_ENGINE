@@ -199,6 +199,25 @@ public class WebDomHealingAcceptanceTest {
         driver.navigate().refresh();
         Assert.assertTrue(provider.resolve(new HealingRequest(
                 driver, oldUser, "TYPE", true, null, null, null)).isEmpty());
+
+        write(page, """
+                <html><body>
+                  <label for="old-user">Username</label>
+                  <input id="old-user" name="username" data-testid="username" aria-label="Username">
+                </body></html>
+                """);
+        driver.navigate().refresh();
+        provider.observe(new HealingObservation(
+                driver, oldUser, driver.findElement(oldUser), "TYPE", null, null, null));
+        write(page, """
+                <html><body>
+                  <button id="old-user" name="username" data-testid="username" aria-label="Username">Login</button>
+                </body></html>
+                """);
+        driver.navigate().refresh();
+        Assert.assertTrue(provider.resolve(new HealingRequest(
+                driver, oldUser, "TYPE", true, null, null, null)).isEmpty(),
+                "A product regression that keeps the test-id but changes the control into a button must not heal TYPE to green.");
     }
 
     private void open(Path page) {
