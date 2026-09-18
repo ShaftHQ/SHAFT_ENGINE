@@ -196,15 +196,10 @@ final class OcrTargetResolver {
 
     /** Tesseract often drops the leading T on TAB labels ("AB 1" for "TAB 1"). */
     private static boolean leadingCharacterDropped(String observed, String expected) {
-        if (expected == null || expected.length() < 4 || observed == null) {
+        if (expected == null || observed == null || !expected.regionMatches(true, 0, "tab ", 0, 4)) {
             return false;
         }
-        int space = expected.indexOf(' ');
-        if (space < 2) {
-            return false;
-        }
-        String dropped = expected.substring(1);
-        return observed.equals(dropped);
+        return observed.equals(expected.substring(1));
     }
 
     static String recognizedSnippet(OcrResult result) {

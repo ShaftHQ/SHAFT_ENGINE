@@ -115,6 +115,17 @@ public class OcrTargetResolverTest {
     }
 
     @Test
+    public void exactNameOneDoesNotMatchDroppedLeadingLetter() {
+        OcrResult result = result(
+                line("ame 1", 10, 20, 80, 24, 0.90),
+                word("ame", 10, 20, 40, 24, 0.91),
+                word("1", 55, 20, 16, 24, 0.92));
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("Name 1")));
+        Assert.assertTrue(notFound.getMessage().contains("Name 1"));
+    }
+
+    @Test
     public void exactMatchAcceptsCompactedWhitespace() {
         OcrResult result = result(line("TextInput", 10, 20, 80, 24, 0.94));
         OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("Text Input"));
