@@ -38,6 +38,9 @@ Research/explore isolation (harness): [../../references/context-firewall.md](../
 3. Queue through `learning.py` so privacy gates + GitHub filing invariants hold.
 4. Never auto-install skill patches; stage proposals for human/CI review.
 5. "Nothing durable" is a valid outcome.
+6. Refine this protocol when traces show skipped Learning Sessions, local
+   writers reviewing their own diffs, or queue-only lessons that never became
+   issues. Self-development has no cap.
 
 Example:
 

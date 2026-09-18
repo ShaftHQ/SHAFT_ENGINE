@@ -131,6 +131,12 @@ individual implementation steps. Independence remains mandatory when enabled:
 A self-review is not a review. Neither is a delegate's own report on its own
 work.
 
+When implementation is delegated to a local runtime (FreeToken / OpenCode),
+OmniRoute, or any writer that is not the host session model, the orchestrator
+**must** still trigger independent adversarial review as a **new instance of
+the same host model** (native reviewer subagent). Never assign that review to
+the local or OmniRoute writer. Transport does not change the reviewer.
+
 ### Recording a finding
 
 Each finding is one block, in this form. A finding that cannot fill `Scenario`

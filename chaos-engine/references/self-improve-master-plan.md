@@ -19,6 +19,7 @@ detail. This portable file stays free of product-locked tokens.
 | Caveman + Ponytail companions | Shipped |
 | Issues-first; eval-gated draft skill PRs opt-in later | Locked |
 | Merge commits only | Locked |
+| Host same-model reviewer even when implementation is local | Shipped |
 
 ## Current ability (summary)
 

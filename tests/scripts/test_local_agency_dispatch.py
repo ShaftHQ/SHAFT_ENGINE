@@ -36,12 +36,14 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertIn("mutates nothing", skill)
         self.assertIn("runs that same command", skill)
         self.assertIn("zero tool calls is writer failure", skill)
+        self.assertIn("Never use it for independent adversarial review", skill)
         self.assertIn("`ft launch` / `ft serve`", skill)
 
     def test_delegation_treats_local_coder_as_mechanical_runner(self):
         text = (ROOT / "chaos-engine/references/delegation.md").read_text(encoding="utf-8")
         self.assertIn("mechanical one-command", text)
         self.assertIn("EXIT 0 with zero tool calls is writer failure", text)
+        self.assertIn("same host model", text)
         self.assertIn("most-intelligent", text)
         self.assertIn("`ft launch`", text)
 
