@@ -212,21 +212,21 @@ public class ImageProcessingActions {
      * Swipe-into-view needs a unique match. Any-match presence would stop on lookalike tabs.
      */
     public static boolean isUniqueImageTargetInView(ImageTarget target, byte[] currentPageScreenshot) {
-        List<ImageMatch> matches = listImageMatches(target, currentPageScreenshot);
         if (target.occurrence().isPresent()) {
+            List<ImageMatch> matches = listImageMatches(target, currentPageScreenshot);
             return target.occurrence().getAsInt() < matches.size();
         }
+        if (target.matchingMode() == ImageMatchingMode.AUTO) {
+            return hasDiscriminatingUniqueTemplate(target, currentPageScreenshot);
+        }
+        List<ImageMatch> matches = listImageMatches(target, currentPageScreenshot);
         if (matches.size() == 1) {
-            if (target.matchingMode() == ImageMatchingMode.AUTO) {
-                return hasDiscriminatingUniqueTemplate(target, currentPageScreenshot);
-            }
             return true;
         }
         if (!matches.isEmpty()) {
             return false;
         }
-        ImageMatchingMode mode = target.matchingMode();
-        if (mode == ImageMatchingMode.FEATURE || mode == ImageMatchingMode.AUTO) {
+        if (target.matchingMode() == ImageMatchingMode.FEATURE) {
             return hasDiscriminatingUniqueTemplate(target, currentPageScreenshot);
         }
         return false;
@@ -235,19 +235,11 @@ public class ImageProcessingActions {
     private static boolean hasDiscriminatingUniqueTemplate(ImageTarget target, byte[] currentPageScreenshot) {
         double reportedThreshold = target.minimumConfidence().orElseGet(
                 () -> SHAFT.Properties.visuals.visualMatchingThreshold());
-        double floor = Math.min(reportedThreshold, 0.50);
+        double uniqueFloor = Math.max(reportedThreshold, 0.98);
         List<ImageMatch> ranked = listImageMatches(
-                target.matchingMode(ImageMatchingMode.TEMPLATE).minimumConfidence(floor),
-                currentPageScreenshot).stream()
-                .sorted(java.util.Comparator.comparingDouble(ImageMatch::confidence).reversed())
-                .toList();
-        if (ranked.isEmpty() || ranked.getFirst().confidence() < reportedThreshold) {
-            return false;
-        }
-        if (ranked.size() == 1) {
-            return true;
-        }
-        return ranked.getFirst().confidence() - ranked.get(1).confidence() >= 0.08;
+                target.matchingMode(ImageMatchingMode.TEMPLATE).minimumConfidence(uniqueFloor),
+                currentPageScreenshot);
+        return ranked.size() == 1;
     }
 
     private static boolean hasUniqueMatch(ImageTarget target, byte[] currentPageScreenshot) {

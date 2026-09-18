@@ -412,6 +412,26 @@ public class ImageProcessingActionsCoverageUnitTest {
     }
 
     @Test
+    public void groupEighteenCropShouldBeUniqueWhenThatRowIsOnScreen() throws Exception {
+        BufferedImage crop = groupRow("Group 18");
+        BufferedImage screenshot = createImage(320, 520, Color.WHITE);
+        Graphics2D graphics = screenshot.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, 320, 520);
+            for (int index = 0; index <= 11; index++) {
+                int group = 8 + index;
+                BufferedImage row = group == 18 ? crop : groupRow("Group " + group);
+                graphics.drawImage(row, 16, 12 + index * 40, null);
+            }
+        } finally {
+            graphics.dispose();
+        }
+        ImageTarget target = ImageTarget.fromBytes(encodePng(crop)).matchingMode(ImageMatchingMode.AUTO);
+        Assert.assertTrue(ImageProcessingActions.isUniqueImageTargetInView(target, encodePng(screenshot)));
+    }
+
+    @Test
     public void typedImageMatchingShouldKeepOverlappingOccurrencesAtDifferentScales() {
         BufferedImage targetImage = createReferenceTarget(20, 16);
         BufferedImage screenshotImage = createImage(90, 60, Color.WHITE);
