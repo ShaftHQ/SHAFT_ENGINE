@@ -4888,14 +4888,21 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             captureReviewPanel.setVisible(false);
             return;
         }
-        String captureReviewStatusText = captureReviewSummary(pendingCaptureReview.markdown());
+        JsonObject reviewJson = pendingReviewJson();
+        boolean productionReady = CaptureReplayProof.isProductionReady(reviewJson);
+        String proofLabel = CaptureReplayProof.canvasLabel(reviewJson);
+        String captureReviewStatusText = proofLabel + " — " + captureReviewSummary(pendingCaptureReview.markdown());
         captureReviewStatus.setText(captureReviewStatusText);
         captureReviewStatus.getAccessibleContext().setAccessibleDescription(captureReviewStatusText);
-        approveCaptureReview.setEnabled(!running);
+        // Issue #5962: Approve / Create / Insert are production Keep — require SUCCESS.
+        approveCaptureReview.setEnabled(!running && productionReady);
         copyCaptureReview.setEnabled(!running);
+        copyCaptureReview.setToolTipText(productionReady
+                ? "Copy Capture review"
+                : "Copy UNCONFIRMED draft (explicit escape hatch; not a production Keep)");
         dismissCaptureReview.setEnabled(!running);
-        createTestClassFromReview.setEnabled(!running);
-        insertReviewAtOpenFile.setEnabled(!running);
+        createTestClassFromReview.setEnabled(!running && productionReady);
+        insertReviewAtOpenFile.setEnabled(!running && productionReady);
         openCaptureReview.setEnabled(!running);
         captureEvidencePack.setEnabled(!running);
         compareCaptureBackends.setEnabled(!running);
@@ -4906,6 +4913,13 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
     private void approvePendingCaptureReview() {
         if (pendingCaptureReview == null || running) {
+            return;
+        }
+        JsonObject reviewJson = pendingReviewJson();
+        if (!CaptureReplayProof.isProductionReady(reviewJson)) {
+            setStatus(CaptureReplayProof.canvasLabel(reviewJson) + " "
+                    + CaptureReplayProof.evidenceSummary(reviewJson)
+                    + " Approve/Keep requires SUCCESS.");
             return;
         }
         prompt.setText("approve");
@@ -4986,7 +5000,14 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             setStatus("No reviewed code available");
             return;
         }
-        String code = firstJavaClassBlock(pendingReviewJson());
+        JsonObject reviewJson = pendingReviewJson();
+        if (!CaptureReplayProof.isProductionReady(reviewJson)) {
+            setStatus(CaptureReplayProof.canvasLabel(reviewJson) + " "
+                    + CaptureReplayProof.evidenceSummary(reviewJson)
+                    + " Use Copy for the UNCONFIRMED draft.");
+            return;
+        }
+        String code = firstJavaClassBlock(reviewJson);
         if (code.isBlank()) {
             setStatus("The review has no full-class code block");
             return;
@@ -5030,6 +5051,13 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
      */
     private void insertReviewIntoOpenFile() {
         if (running || pendingCaptureReview == null) {
+            return;
+        }
+        JsonObject reviewJson = pendingReviewJson();
+        if (!CaptureReplayProof.isProductionReady(reviewJson)) {
+            setStatus(CaptureReplayProof.canvasLabel(reviewJson) + " "
+                    + CaptureReplayProof.evidenceSummary(reviewJson)
+                    + " Use Copy for the UNCONFIRMED draft.");
             return;
         }
         InsertionAnchor anchor = InsertionAnchorResolver.resolve(project, selectedEditor());
