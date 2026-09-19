@@ -100,6 +100,7 @@ public final class AllureHistoryModels {
      * @param statusDetails optional status details message
      * @param durationMs duration when known
      * @param kind always {@code HISTORY} for cross-run rows
+     * @param commitSha optional CI/git commit when present in history metadata (never required)
      */
     public record LaunchStatus(
             String launchUuid,
@@ -108,13 +109,27 @@ public final class AllureHistoryModels {
             String status,
             String statusDetails,
             long durationMs,
-            String kind) {
+            String kind,
+            String commitSha) {
         public LaunchStatus {
             launchUuid = launchUuid == null ? "" : launchUuid;
             launchName = launchName == null ? "" : launchName;
             status = status == null ? "" : status;
             statusDetails = statusDetails == null ? "" : statusDetails;
             kind = blankToDefault(kind, "HISTORY");
+            commitSha = commitSha == null ? "" : commitSha.trim();
+        }
+
+        /** Back-compat constructor without CI metadata (S3-01 callers). */
+        public LaunchStatus(
+                String launchUuid,
+                String launchName,
+                long timestamp,
+                String status,
+                String statusDetails,
+                long durationMs,
+                String kind) {
+            this(launchUuid, launchName, timestamp, status, statusDetails, durationMs, kind, "");
         }
     }
 

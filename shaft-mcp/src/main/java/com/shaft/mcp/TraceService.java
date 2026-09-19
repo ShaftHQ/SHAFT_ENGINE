@@ -6,6 +6,8 @@ import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.history.AllureHistoryIngestor;
 import com.shaft.doctor.history.AllureHistoryModels;
+import com.shaft.doctor.history.DualFlakeComputer;
+import com.shaft.doctor.history.FlakeModels;
 import com.shaft.doctor.shard.FlakyCluster;
 import com.shaft.doctor.shard.MergedReport;
 import com.shaft.doctor.shard.ShardIntelligence;
@@ -269,6 +271,38 @@ public class TraceService {
                 allureResultsPath, "target/allure-results", "Allure results directory");
         int limit = limitPerHistoryId == null ? 10 : limitPerHistoryId;
         return AllureHistoryIngestor.ingest(history, doctor, results, limit);
+    }
+
+    /**
+     * Dual flake table: retry-hidden (intra-run) and cross-launch transitions as separate columns
+     * (issue #5968 / S3-02). Never collapses into one score. CI commit metadata is optional.
+     * Insufficient history is {@code unknown}, not a fabricated 0% rate; 100% failing is not flaky.
+     *
+     * @param historyPath optional history.jsonl; blank defaults to {@code target/history.jsonl}
+     * @param doctorReportPath optional Doctor JSON
+     * @param allureResultsPath optional allure-results for retry-hidden detection
+     * @param limitPerHistoryId max launches in the transition window (default 10, max 50)
+     * @param transitionThreshold min flips to tag transitions (default 3)
+     * @return flake table with independent retry-hidden and transition assessments
+     */
+    @Tool(name = "report_flake",
+            description = "builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional")
+    public FlakeModels.FlakeTable reportFlake(
+            @ToolParam(required = false) String historyPath,
+            @ToolParam(required = false) String doctorReportPath,
+            @ToolParam(required = false) String allureResultsPath,
+            @ToolParam(required = false) Integer limitPerHistoryId,
+            @ToolParam(required = false) Integer transitionThreshold) {
+        Path history = resolveOptionalReadable(
+                historyPath, "target/history.jsonl", "Allure history.jsonl");
+        Path doctor = resolveOptionalReadable(doctorReportPath, null, "Doctor report JSON");
+        Path results = resolveOptionalReadable(
+                allureResultsPath, "target/allure-results", "Allure results directory");
+        int limit = limitPerHistoryId == null ? 10 : limitPerHistoryId;
+        int threshold = transitionThreshold == null ? 3 : transitionThreshold;
+        AllureHistoryModels.HistoryView view =
+                AllureHistoryIngestor.ingest(history, doctor, results, limit);
+        return DualFlakeComputer.compute(view, limit, threshold);
     }
 
     private Path resolveOptionalReadable(String value, String defaultRelative, String label) {

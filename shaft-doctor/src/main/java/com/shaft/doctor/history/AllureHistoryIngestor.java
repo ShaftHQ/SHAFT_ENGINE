@@ -161,8 +161,41 @@ public final class AllureHistoryIngestor {
                     series.computeIfAbsent(historyId, AllureHistoryModels.SeriesBuilder::new);
             builder.noteNames(name, fullName);
             builder.addLaunch(new AllureHistoryModels.LaunchStatus(
-                    launchUuid, launchName, timestamp, status, details, duration, "HISTORY"));
+                    launchUuid, launchName, timestamp, status, details, duration, "HISTORY",
+                    commitSha(launch, result)));
         }
+    }
+
+    /**
+     * Optional CI/git SHA from launch or result metadata. Never required for flake v1 (FR-002).
+     */
+    private static String commitSha(JsonNode launch, JsonNode result) {
+        String fromResult = firstNonBlank(
+                text(result, "commitSha", "commit", "sha", "gitCommit"),
+                text(result.path("labels"), "commit", "sha"),
+                nestedText(result, "git", "commit", "sha", "commitSha"),
+                nestedText(result, "ci", "commit", "sha", "commitSha"));
+        if (!fromResult.isBlank()) {
+            return fromResult;
+        }
+        return firstNonBlank(
+                text(launch, "commitSha", "commit", "sha", "gitCommit"),
+                nestedText(launch, "git", "commit", "sha", "commitSha"),
+                nestedText(launch, "ci", "commit", "sha", "commitSha"));
+    }
+
+    private static String nestedText(JsonNode root, String objectField, String... fields) {
+        if (root == null || root.isNull()) {
+            return "";
+        }
+        JsonNode child = root.get(objectField);
+        if (child == null || child.isNull()) {
+            return "";
+        }
+        if (child.isTextual()) {
+            return child.asText("").trim();
+        }
+        return text(child, fields);
     }
 
     private static void joinDoctor(

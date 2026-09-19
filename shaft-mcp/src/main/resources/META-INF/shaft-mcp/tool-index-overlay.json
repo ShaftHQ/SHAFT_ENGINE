@@ -922,6 +922,20 @@
         "report history",
         "show test history"
       ]
+    },
+    "report_flake": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report flake",
+      "intentKeywords": [
+        "flake table",
+        "retry-hidden",
+        "flaky transitions",
+        "dual flake",
+        "report flake",
+        "flaky tests",
+        "transition count"
+      ]
     }
   }
 }

@@ -11,13 +11,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReportCommandTest {
     @Test
-    void helpListsHistoryAction() {
+    void helpListsHistoryAndFlakeActions() {
         StringWriter out = new StringWriter();
         CommandLine commandLine = new CommandLine(new ReportCommand());
         commandLine.setOut(new PrintWriter(out));
         int code = commandLine.execute("--help");
         assertEquals(0, code);
-        assertTrue(out.toString().contains("history"));
+        String help = out.toString();
+        assertTrue(help.contains("history"));
+        assertTrue(help.contains("flake"));
     }
 
     @Test

@@ -738,6 +738,12 @@
       "mutation": true,
       "sensitive": true,
       "deprecated": false
+    },
+    {
+      "name": "report_flake",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
     }
   ]
 }
