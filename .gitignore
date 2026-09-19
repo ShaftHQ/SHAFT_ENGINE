@@ -263,6 +263,10 @@ replay_pid*.log
 # MemPalace generated/runtime data; mempalace.yaml is canonical input.
 entities.json
 mempalace_embedder.json
+# Authenticated browser storage state (issue #5965 / S2-09) — secret-bearing; never commit
+**/storage-state.json
+**/storage-state*.json
+**/.auth/
 # CHAOSENGINE-RUNTIME:START
 .chaos-engine-runtime/
 .chaos-engine-runtime.lock

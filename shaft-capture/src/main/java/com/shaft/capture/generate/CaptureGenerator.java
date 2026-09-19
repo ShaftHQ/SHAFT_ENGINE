@@ -1096,6 +1096,12 @@ public final class CaptureGenerator {
         if (!sessionGoal.isBlank()) {
             line(source, "    // Capture goal: " + safeComment(sessionGoal));
         }
+        if (authenticatedStorageReuse(session)) {
+            // Issue #5965 / S2-09: never emit raw Cookie headers or storage-state JSON contents.
+            line(source, "    // Authenticated storage reuse: inject path at runtime "
+                    + "(e.g. -Dshaft.storageStatePath=...); do not commit storage-state JSON.");
+            line(source, "    // Placeholder path: " + safeComment(storageStatePathPlaceholder(session)));
+        }
         line(source, "    private SHAFT.GUI." + backend.driverClassName() + " driver;");
         line(source, "    private SHAFT.TestData.JSON testData;");
         line(source, "    private final Map<String, String> windows = new HashMap<>();");
@@ -1200,6 +1206,20 @@ public final class CaptureGenerator {
         return targets.stream()
                 .filter(target -> !target.selection().alternatives().isEmpty())
                 .count();
+    }
+
+
+    private static boolean authenticatedStorageReuse(CaptureSession session) {
+        JsonNode value = session.extensions().get("authenticatedStorageReuse");
+        return value != null && !value.isNull() && "true".equalsIgnoreCase(value.asText());
+    }
+
+    private static String storageStatePathPlaceholder(CaptureSession session) {
+        JsonNode value = session.extensions().get("storageStatePathPlaceholder");
+        if (value == null || value.isNull() || value.asText().isBlank()) {
+            return "${shaft.storageStatePath}";
+        }
+        return value.asText();
     }
 
     private static String sessionGoal(CaptureSession session) {

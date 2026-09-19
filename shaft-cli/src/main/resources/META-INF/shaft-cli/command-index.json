@@ -11,7 +11,7 @@
     },
     {
       "name": "capture",
-      "description": "Capture shortcuts: start | stop | status | code | step-delete | step-reorder."
+      "description": "Capture shortcuts: start | stop | status | code | step-delete | step-reorder. Start auth reuse: loadStoragePath / saveStoragePath / userDataDirectory (CLI --load-storage / --save-storage / --user-data-dir)."
     },
     {
       "name": "codegen",
