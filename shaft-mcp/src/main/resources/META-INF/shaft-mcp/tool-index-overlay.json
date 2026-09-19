@@ -904,6 +904,11 @@
         },
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
+    },
+    "design_handoff": {
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
     }
   }
 }

@@ -265,4 +265,30 @@ class DesignStagePanelTest {
         assertEquals("draft", panel.readinessTable().getValueAt(0, 0));
     }
 
+
+    @Test
+    void handoffPopulatesTable() {
+        DesignStagePanel panel = new DesignStagePanel();
+        assertNotNull(panel.handoffButton());
+        assertNotNull(panel.handoffTable());
+        panel.applyHandoffJson("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "blocked",
+                  "message": "Pack is not Ready; Automation handoff is disabled.",
+                  "unmetConditions": ["accept: user has not accepted the pack"],
+                  "scenarios": [],
+                  "acceptanceCriteria": [],
+                  "examples": [],
+                  "gapMap": [],
+                  "oracles": [],
+                  "optionalUrl": "",
+                  "automationPrefill": {},
+                  "wroteFiles": false
+                }
+                """);
+        assertTrue(panel.handoffTable().getRowCount() >= 1);
+        assertEquals("blocked", panel.handoffTable().getValueAt(0, 0));
+    }
+
 }

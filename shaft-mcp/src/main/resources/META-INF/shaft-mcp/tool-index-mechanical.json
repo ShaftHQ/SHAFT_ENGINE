@@ -981,6 +981,56 @@
       "description" : null
     } ]
   }, {
+    "name" : "design_handoff",
+    "service" : "DesignService",
+    "description" : "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); sourceUrl is optional start URL only when supplied by the user — never invents locators/URLs or writes Java",
+    "params" : [ {
+      "name" : "accept",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "acceptedGapIds",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "acceptedGherkinSnapshot",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "coverageWaived",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "filePath",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "gherkin",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "lintWaived",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "sourceUrl",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "text",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "design_ingest",
     "service" : "DesignService",
     "description" : "turns pasted user-story or acceptance-criteria text, or a workspace file, into a structured Design pack with actor, outcome, and numbered AC IDs; never writes files and does not fetch URLs",

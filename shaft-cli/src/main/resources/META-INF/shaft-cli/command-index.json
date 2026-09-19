@@ -19,7 +19,7 @@
     },
     {
       "name": "design",
-      "description": "Design shortcuts: ingest | analyze | gherkin | examples | lexicon | coverage | lint | gap-map | readiness."
+      "description": "Design shortcuts: ingest | analyze | gherkin | examples | lexicon | coverage | lint | gap-map | readiness | handoff."
     },
     {
       "name": "doctor",
