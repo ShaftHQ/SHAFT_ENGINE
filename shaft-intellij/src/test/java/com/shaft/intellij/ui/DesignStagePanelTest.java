@@ -28,6 +28,24 @@ class DesignStagePanelTest {
         assertNull(findByAccessibleName(panel, "Ingested design pack", JComponent.class));
         assertFalse(panel.gherkinButton().isEnabled());
         assertFalse(panel.ingestButton().isEnabled());
+        assertNotNull(panel.gherkinDraftArea());
+        assertNotNull(findByAccessibleName(panel, "Gherkin draft", JComponent.class));
+    }
+
+    @Test
+    void draftJsonFillsEditableGherkinArea() {
+        DesignStagePanel panel = new DesignStagePanel();
+        panel.applyDraftJson("""
+                {
+                  "status": "drafted",
+                  "message": "Gherkin draft ready for review. Not written to the repository.",
+                  "feature": "Feature: Check out",
+                  "wroteFiles": false
+                }
+                """);
+        assertTrue(panel.gherkinDraftArea().getText().contains("Feature:"));
+        assertTrue(panel.gherkinDraftArea().isEditable());
+        assertFalse(panel.gherkinDraftArea().getText().toLowerCase().contains("xpath"));
     }
 
     @Test
