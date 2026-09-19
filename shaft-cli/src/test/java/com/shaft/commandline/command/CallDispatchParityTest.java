@@ -150,4 +150,15 @@ class CallDispatchParityTest {
         assertEquals(0, exit);
         assertTrue(out.toString().contains("called design_lint"));
     }
+
+    @Test
+    void designGapMapAliasDispatchesDesignGapMap() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("gap-map", "gherkin=Feature: x\n  Scenario: s\n    Then total should equal 1");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_gap_map"));
+    }
 }

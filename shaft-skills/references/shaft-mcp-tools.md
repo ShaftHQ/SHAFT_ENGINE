@@ -73,6 +73,7 @@ Agents should use these exact tool names instead of guessing or listing tools at
 - `design_lexicon` — suggests or accepts project-local business phrases; never indexes SHAFT locator steps
 - `design_coverage` — maps AC IDs to Gherkin @AC-* scenario tags; uncovered AC blocks Ready unless waived with a reason
 - `design_lint` — lints a Gherkin draft for missing Then, click/xpath smells, duplicates, and invented SHAFT APIs; fail closed on errors
+- `design_gap_map` — classifies accepted Gherkin steps as mapped to SHAFT fluent API, new-helper, needs-recording, or ambiguous; never writes production Java
 
 ## Doctor (DoctorService)
 

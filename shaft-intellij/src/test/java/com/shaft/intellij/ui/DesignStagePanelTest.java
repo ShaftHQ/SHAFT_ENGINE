@@ -220,4 +220,30 @@ class DesignStagePanelTest {
         AccessibleContext context = component.getAccessibleContext();
         return context == null ? "" : context.getAccessibleName();
     }
+    @Test
+    void fluentGapMapFillsTable() {
+        DesignStagePanel panel = new DesignStagePanel();
+        assertNotNull(panel.fluentMapButton());
+        assertNotNull(panel.fluentMapTable());
+        panel.applyAnalysisJson("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "ok",
+                  "message": "Mapped 1 step(s).",
+                  "wroteFiles": false,
+                  "steps": [{
+                    "stepText": "Then total should equal 1",
+                    "classification": "mapped",
+                    "shaftType": "Validations",
+                    "shaftMethod": "assertThat",
+                    "candidates": [],
+                    "note": "Validations.assertThat().object(...).isEqualTo(...)"
+                  }]
+                }
+                """);
+        assertEquals(1, panel.fluentMapTable().getRowCount());
+        assertEquals("mapped", panel.fluentMapTable().getValueAt(0, 1));
+        assertEquals("Validations", panel.fluentMapTable().getValueAt(0, 2));
+    }
+
 }

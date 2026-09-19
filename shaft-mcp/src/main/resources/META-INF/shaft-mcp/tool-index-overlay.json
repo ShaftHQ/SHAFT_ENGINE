@@ -722,47 +722,76 @@
       }
     },
     "setup_catalog": {
-      "intentKeywords": ["setup catalog", "setup profiles", "available infrastructure"],
+      "intentKeywords": [
+        "setup catalog",
+        "setup profiles",
+        "available infrastructure"
+      ],
       "mutation": false,
       "sensitive": false
     },
     "setup_doctor": {
-      "intentKeywords": ["diagnose setup", "setup doctor", "infrastructure prerequisites"],
+      "intentKeywords": [
+        "diagnose setup",
+        "setup doctor",
+        "infrastructure prerequisites"
+      ],
       "mutation": false,
       "sensitive": false
     },
     "setup_install": {
-      "intentKeywords": ["install approved setup", "apply setup plan"],
+      "intentKeywords": [
+        "install approved setup",
+        "apply setup plan"
+      ],
       "mutation": true,
       "sensitive": false
     },
     "setup_logs": {
-      "intentKeywords": ["setup logs", "infrastructure logs"],
+      "intentKeywords": [
+        "setup logs",
+        "infrastructure logs"
+      ],
       "mutation": false,
       "sensitive": true
     },
     "setup_plan": {
-      "intentKeywords": ["create setup plan", "plan infrastructure install"],
+      "intentKeywords": [
+        "create setup plan",
+        "plan infrastructure install"
+      ],
       "mutation": false,
       "sensitive": false
     },
     "setup_start": {
-      "intentKeywords": ["start setup service", "start managed infrastructure"],
+      "intentKeywords": [
+        "start setup service",
+        "start managed infrastructure"
+      ],
       "mutation": true,
       "sensitive": false
     },
     "setup_status": {
-      "intentKeywords": ["setup status", "infrastructure readiness"],
+      "intentKeywords": [
+        "setup status",
+        "infrastructure readiness"
+      ],
       "mutation": false,
       "sensitive": false
     },
     "setup_stop": {
-      "intentKeywords": ["stop setup service", "stop managed infrastructure"],
+      "intentKeywords": [
+        "stop setup service",
+        "stop managed infrastructure"
+      ],
       "mutation": true,
       "sensitive": false
     },
     "setup_verify": {
-      "intentKeywords": ["verify setup", "verify infrastructure"],
+      "intentKeywords": [
+        "verify setup",
+        "verify infrastructure"
+      ],
       "mutation": false,
       "sensitive": false
     },
@@ -853,6 +882,17 @@
         },
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
+    },
+    "design_gap_map": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design gap-map",
+      "intentKeywords": [
+        "fluent gap map",
+        "gherkin shaft mapping",
+        "needs recording",
+        "design gap map"
+      ]
     }
   }
 }
