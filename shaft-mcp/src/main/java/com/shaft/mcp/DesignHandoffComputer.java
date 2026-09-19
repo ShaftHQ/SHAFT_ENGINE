@@ -24,29 +24,17 @@ final class DesignHandoffComputer {
             McpDesignExamples examples,
             String gherkin,
             String optionalUrl) {
-        if (readiness == null) {
-            return blocked("Readiness is required before handoff.", List.of("readiness: missing"));
+        McpDesignHandoff blocked = blockedIfNotReady(readiness, gherkin);
+        if (blocked != null) {
+            return blocked;
         }
-        if (!readiness.handoffAllowed()
-                || !McpDesignReadiness.STATUS_READY.equals(readiness.status())) {
-            List<String> unmet = readiness.unmetConditions().isEmpty()
-                    ? List.of("readiness: status is " + readiness.status())
-                    : readiness.unmetConditions();
-            return blocked("Pack is not Ready; Automation handoff is disabled.", unmet);
-        }
-        String feature = gherkin == null ? "" : gherkin.strip();
-        if (feature.isEmpty()) {
-            return blocked("Accepted Gherkin is required for handoff.", List.of("gherkin: empty"));
-        }
+        String feature = gherkin.strip();
         List<String> scenarios = scenarios(feature);
         List<String> acIds = acceptanceCriteria(coverage, feature);
         List<Map<String, String>> exampleRows = exampleRows(examples);
-        List<McpDesignGapMapStep> gaps = gapMap == null || gapMap.steps() == null
-                ? List.of() : gapMap.steps();
-        List<McpDesignOracle> oracles = analysis == null || analysis.oracles() == null
-                ? List.of() : analysis.oracles();
+        List<McpDesignGapMapStep> gaps = gapMap == null ? List.of() : gapMap.steps();
+        List<McpDesignOracle> oracles = analysis == null ? List.of() : analysis.oracles();
         String url = optionalUrl == null ? "" : optionalUrl.strip();
-        Map<String, String> prefill = automationPrefill(scenarios, acIds, oracles, url, feature);
         return new McpDesignHandoff(
                 McpDesignHandoff.CURRENT_SCHEMA_VERSION,
                 McpDesignHandoff.STATUS_READY,
@@ -58,8 +46,25 @@ final class DesignHandoffComputer {
                 gaps,
                 oracles,
                 url,
-                prefill,
+                automationPrefill(scenarios, acIds, oracles, url, feature),
                 false);
+    }
+
+    private static McpDesignHandoff blockedIfNotReady(McpDesignReadiness readiness, String gherkin) {
+        if (readiness == null) {
+            return blocked("Readiness is required before handoff.", List.of("readiness: missing"));
+        }
+        if (!readiness.handoffAllowed()
+                || !McpDesignReadiness.STATUS_READY.equals(readiness.status())) {
+            List<String> unmet = readiness.unmetConditions().isEmpty()
+                    ? List.of("readiness: status is " + readiness.status())
+                    : readiness.unmetConditions();
+            return blocked("Pack is not Ready; Automation handoff is disabled.", unmet);
+        }
+        if (gherkin == null || gherkin.isBlank()) {
+            return blocked("Accepted Gherkin is required for handoff.", List.of("gherkin: empty"));
+        }
+        return null;
     }
 
     private static McpDesignHandoff blocked(String message, List<String> unmet) {
@@ -80,16 +85,8 @@ final class DesignHandoffComputer {
 
     private static List<String> scenarios(String feature) {
         List<String> names = new ArrayList<>();
-        for (String raw : feature.split("\\R")) {
-            String line = raw.strip();
-            while (line.startsWith("@")) {
-                int space = line.indexOf(' ');
-                if (space < 0) {
-                    line = "";
-                    break;
-                }
-                line = line.substring(space + 1).strip();
-            }
+        for (String raw : feature.lines().toList()) {
+            String line = stripLeadingTags(raw.strip());
             String lower = line.toLowerCase(Locale.ROOT);
             if (lower.startsWith("scenario outline:")) {
                 names.add(line.substring("scenario outline:".length()).strip());
@@ -100,13 +97,25 @@ final class DesignHandoffComputer {
         return List.copyOf(names);
     }
 
+    private static String stripLeadingTags(String line) {
+        String current = line;
+        while (current.startsWith("@")) {
+            int space = current.indexOf(' ');
+            if (space < 0) {
+                return "";
+            }
+            current = current.substring(space + 1).strip();
+        }
+        return current;
+    }
+
     private static List<String> acceptanceCriteria(McpDesignCoverage coverage, String feature) {
-        if (coverage != null && coverage.covered() != null && !coverage.covered().isEmpty()) {
+        if (coverage != null && !coverage.covered().isEmpty()) {
             return List.copyOf(coverage.covered());
         }
         List<String> tags = new ArrayList<>();
-        for (String raw : feature.split("\\R")) {
-            for (String token : raw.strip().split("\\s+")) {
+        for (String raw : feature.lines().toList()) {
+            for (String token : raw.strip().split(" ")) {
                 if (token.regionMatches(true, 0, "@AC-", 0, 4)) {
                     String id = token.substring(1).toUpperCase(Locale.ROOT);
                     if (!tags.contains(id)) {
@@ -119,14 +128,14 @@ final class DesignHandoffComputer {
     }
 
     private static List<Map<String, String>> exampleRows(McpDesignExamples examples) {
-        if (examples == null || examples.rows() == null || examples.rows().isEmpty()) {
+        if (examples == null || examples.rows().isEmpty()) {
             return List.of();
         }
-        List<String> headers = examples.headers() == null ? List.of() : examples.headers();
+        List<String> headers = examples.headers();
         List<Map<String, String>> rows = new ArrayList<>();
         for (McpDesignExampleRow row : examples.rows()) {
             Map<String, String> mapped = new LinkedHashMap<>();
-            List<String> cells = row.cells() == null ? List.of() : row.cells();
+            List<String> cells = row.cells();
             for (int i = 0; i < cells.size(); i++) {
                 String key = i < headers.size() ? headers.get(i) : "col" + (i + 1);
                 mapped.put(key, cells.get(i));

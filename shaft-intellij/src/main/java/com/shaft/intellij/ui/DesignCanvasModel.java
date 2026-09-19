@@ -190,6 +190,7 @@ final class DesignCanvasModel {
     }
 
     
+
     static List<String[]> handoffRows(String raw) {
         JsonObject root = parseAnalysisObject(raw);
         if (root == null) {
@@ -202,32 +203,34 @@ final class DesignCanvasModel {
                 string(root, "optionalUrl"),
                 ""
         });
-        JsonElement unmet = root.get("unmetConditions");
-        if (unmet != null && unmet.isJsonArray()) {
-            for (JsonElement item : unmet.getAsJsonArray()) {
-                if (item.isJsonPrimitive()) {
-                    rows.add(new String[]{"unmet", item.getAsString(), "", ""});
-                }
-            }
-        }
-        JsonElement scenarios = root.get("scenarios");
-        if (scenarios != null && scenarios.isJsonArray()) {
-            for (JsonElement item : scenarios.getAsJsonArray()) {
-                if (item.isJsonPrimitive()) {
-                    rows.add(new String[]{"scenario", item.getAsString(), "", ""});
-                }
-            }
-        }
-        JsonElement prefill = root.get("automationPrefill");
-        if (prefill != null && prefill.isJsonObject()) {
-            for (var entry : prefill.getAsJsonObject().entrySet()) {
-                if (entry.getValue().isJsonPrimitive()) {
-                    rows.add(new String[]{"prefill", entry.getKey(), entry.getValue().getAsString(), ""});
-                }
-            }
-        }
+        appendStringArrayRows(rows, root.get("unmetConditions"), "unmet");
+        appendStringArrayRows(rows, root.get("scenarios"), "scenario");
+        appendPrefillRows(rows, root.get("automationPrefill"));
         return rows;
     }
+
+    private static void appendStringArrayRows(List<String[]> rows, JsonElement element, String kind) {
+        if (element == null || !element.isJsonArray()) {
+            return;
+        }
+        for (JsonElement item : element.getAsJsonArray()) {
+            if (item.isJsonPrimitive()) {
+                rows.add(new String[]{kind, item.getAsString(), "", ""});
+            }
+        }
+    }
+
+    private static void appendPrefillRows(List<String[]> rows, JsonElement element) {
+        if (element == null || !element.isJsonObject()) {
+            return;
+        }
+        for (var entry : element.getAsJsonObject().entrySet()) {
+            if (entry.getValue().isJsonPrimitive()) {
+                rows.add(new String[]{"prefill", entry.getKey(), entry.getValue().getAsString(), ""});
+            }
+        }
+    }
+
 
     static List<String[]> readinessRows(String raw) {
         JsonObject root = parseAnalysisObject(raw);
