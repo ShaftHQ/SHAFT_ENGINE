@@ -27,6 +27,7 @@ final class AutomationStagePanel extends JPanel {
     private final GuidedWorkflowPanel guided;
     private final JBTabbedPane surfaces;
     private final JBLabel packStrip;
+    private boolean readyPackApplied;
 
     AutomationStagePanel(
             @Nullable Project project,
@@ -80,8 +81,17 @@ final class AutomationStagePanel extends JPanel {
      * @param url optional target URL from {@code automationPrefill.url}
      * @param intent optional session goal / intent from {@code automationPrefill.intent}
      */
+    String readyPackUrl() {
+        return readyPackApplied ? guided.targetUrlField().getText().trim() : "";
+    }
+
+    String readyPackIntent() {
+        return readyPackApplied ? guided.intentField().getText().trim() : "";
+    }
+
     void applyReadyPackPrefill(@Nullable String url, @Nullable String intent) {
         guided.applyReadyPackPrefill(url, intent);
+        readyPackApplied = (url != null && !url.isBlank()) || (intent != null && !intent.isBlank());
         showLiveRecord();
         String urlText = url == null || url.isBlank() ? "—" : url.trim();
         String intentText = intent == null || intent.isBlank() ? "—" : intent.trim();

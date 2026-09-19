@@ -349,11 +349,16 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         if (recorderPanel == null && automationStagePanel == null) {
             return;
         }
-        if (recorderPanel != null) {
-            recorderPanel.startRecordingAtTarget(context);
-        }
+        String readyIntent = "";
+        String readyUrl = "";
         if (automationStagePanel != null) {
+            readyIntent = automationStagePanel.readyPackIntent();
+            readyUrl = automationStagePanel.readyPackUrl();
             automationStagePanel.showLiveRecord();
+        }
+        if (recorderPanel != null) {
+            recorderPanel.applyReadyPackUrl(readyUrl);
+            recorderPanel.startRecordingAtTarget(context, readyIntent);
         }
         showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
     }

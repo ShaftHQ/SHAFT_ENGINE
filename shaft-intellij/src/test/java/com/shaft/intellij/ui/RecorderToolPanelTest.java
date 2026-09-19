@@ -550,6 +550,36 @@ class RecorderToolPanelTest {
     }
 
     @Test
+    void readyPackIntentPrefersDesignHandoffInSessionGoal() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/CheckoutTest.java", "tests", "CheckoutTest", "pays");
+        panel.startRecordingAtTarget(context, "valid payment places the order");
+        String goal = panel.captureStartArguments().get("sessionGoal").getAsString();
+        assertTrue(goal.contains("valid payment places the order"), goal);
+        assertTrue(goal.contains("pays"), goal);
+        assertEquals(
+                "valid payment places the order (at pays in CheckoutTest)",
+                RecorderToolPanel.sessionGoalForTarget(context, "valid payment places the order"));
+    }
+
+    @Test
+    void skipDuplicateLinesDropsLinesAlreadyInOwnerClass() {
+        String existing = """
+                public class CheckoutTest {
+                    By checkout = SHAFT.GUI.Locator.hasTagName("button").build();
+                }
+                """;
+        String generated = """
+                    By checkout = SHAFT.GUI.Locator.hasTagName("button").build();
+                    By pay = SHAFT.GUI.Locator.hasTagName("input").build();
+                """;
+        String filtered = RecorderToolPanel.skipDuplicateLines(existing, generated);
+        assertFalse(filtered.contains("checkout"), filtered);
+        assertTrue(filtered.contains("pay"), filtered);
+    }
+
+    @Test
     void startRecordingAtTargetGuardsOnUnconfiguredMcpWithoutCrashing() {
         RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
         javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
