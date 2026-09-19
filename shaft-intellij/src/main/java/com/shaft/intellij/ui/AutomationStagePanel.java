@@ -44,8 +44,9 @@ final class AutomationStagePanel extends JPanel {
         JBLabel title = new JBLabel("Automation");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
         JBLabel hint = new JBLabel(
-                "<html>Live record is the default. Start a session, interact, then stop and "
-                        + "generate SHAFT fluent Java. Expert raw MCP stays under More.</html>");
+                "<html>Live record is the default. Start a session, interact, then stop. "
+                        + "Review code is a draft (UNCONFIRMED); Insert/Create replay-prove and Keep only on SUCCESS. "
+                        + "Expert raw MCP stays under More.</html>");
         hint.setAllowAutoWrapping(true);
         packStrip = new JBLabel("Ready pack: —");
         packStrip.getAccessibleContext().setAccessibleName("Automation ready pack summary");

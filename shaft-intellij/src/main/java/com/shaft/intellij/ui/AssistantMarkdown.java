@@ -635,10 +635,20 @@ final class AssistantMarkdown {
         JsonObject compilation = validationObject(report, "compilation");
         JsonObject replay = validationObject(report, "replay");
         String replayStatus = string(replay, "status", "SKIPPED");
+        String reportStatus = string(report, "status", "");
         List<String> sections = new ArrayList<>();
-        sections.add(successful
-                ? "**" + ShaftStatusPresentation.SUCCESS_ICON + " Test generated, compiled, and verified**"
-                : "**" + ShaftStatusPresentation.WARNING_ICON + " Test generation finished with problems — details below**");
+        // Issue #5962: name SUCCESS vs UNCONFIRMED explicitly so the Automation canvas / sticky
+        // review strip never confuses a draft for a Keep-ready result.
+        if (CaptureReplayProof.SUCCESS.equals(reportStatus) || (successful && reportStatus.isBlank())) {
+            sections.add("**" + ShaftStatusPresentation.SUCCESS_ICON
+                    + " SUCCESS — Test generated, compiled, and verified**");
+        } else if (CaptureReplayProof.UNCONFIRMED.equals(reportStatus)) {
+            sections.add("**" + ShaftStatusPresentation.WARNING_ICON
+                    + " UNCONFIRMED — draft only; Keep/insert blocked until replay proves SUCCESS**");
+        } else {
+            sections.add("**" + ShaftStatusPresentation.WARNING_ICON
+                    + " Test generation finished with problems — details below**");
+        }
         sections.add(captureReplayStory(object, report, compilation, replay));
         appendNonBlank(sections, validationDetails("Compilation", compilation));
         appendNonBlank(sections, validationDetails("Replay", replay));

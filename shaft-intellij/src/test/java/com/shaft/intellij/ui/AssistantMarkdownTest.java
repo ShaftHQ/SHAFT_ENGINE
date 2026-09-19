@@ -41,6 +41,7 @@ class AssistantMarkdownTest {
                 """);
 
         assertAll(
+                () -> assertTrue(markdown.contains("SUCCESS"), markdown),
                 () -> assertTrue(markdown.contains("Test generated, compiled, and verified"), markdown),
                 () -> assertTrue(markdown.contains("What happened"), markdown),
                 () -> assertTrue(markdown.contains("RecordedFlowTest.java"), markdown),
@@ -48,6 +49,31 @@ class AssistantMarkdownTest {
                 () -> assertTrue(markdown.contains("Generated code"), markdown),
                 () -> assertTrue(markdown.contains("```java"), markdown),
                 () -> assertTrue(markdown.contains("report.json"), markdown));
+    }
+
+    @Test
+    void captureUnconfirmedResultNamesUnconfirmedAndBlocksKeepInCopy() {
+        // Issue #5962: draft codegen must say UNCONFIRMED out loud.
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_code_blocks", """
+                {
+                  "sourcePath": "target/generated/DraftTest.java",
+                  "successful": false,
+                  "codeBlocks": [{"id": "full-class", "language": "java",
+                    "code": "public class DraftTest {}"}],
+                  "report": {
+                    "status": "UNCONFIRMED",
+                    "compilation": {"status": "PASSED", "diagnostics": [], "allureResultCount": 0},
+                    "replay": {"status": "SKIPPED", "diagnostics": ["replay not requested"], "allureResultCount": 0},
+                    "warnings": []
+                  },
+                  "warnings": []
+                }
+                """);
+
+        assertAll(
+                () -> assertTrue(markdown.contains("UNCONFIRMED"), markdown),
+                () -> assertTrue(markdown.contains("Keep/insert blocked"), markdown),
+                () -> assertTrue(markdown.contains("Generated code"), markdown));
     }
 
     @Test

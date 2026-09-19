@@ -542,38 +542,49 @@ class GuidedWorkflowPanelTest {
     }
 
     @Test
-    void insertAtCaretAndCreateTestClassGenerateFromTheSameToolAsReviewCode() {
-        // Issue #3548 item 1: without a live project (no MCP connection, no open editor -- the
-        // state every headless unit test runs in), invocationService() is null and these buttons
-        // fall back to the same review-only prefill "Review code" already uses, so the recorder
-        // stays testable with PickLocatorAtCaretActionTest's pure-logic style even though the
-        // WriteCommandAction/PSI insertion path itself is not unit-testable here.
+    void insertAtCaretAndCreateTestClassPrefillReplayProveNotDraftCodeBlocks() {
+        // Issue #5962 / S2-06: production Keep (Insert/Create) prefills capture_generate_replay with
+        // replay=true. Review code stays on capture_code_blocks for unproven drafts.
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
         expandAdvanced(panel);
         JButton insertAtCaret = findButton(panel, "Insert at caret");
         JButton createTestClass = findButton(panel, "Create test class");
+        JButton reviewCode = findButton(panel, "Review code");
         assertNotNull(insertAtCaret);
         assertNotNull(createTestClass);
+        assertNotNull(reviewCode);
+
+        reviewCode.doClick();
+        assertEquals("capture_code_blocks", last(invocations).toolName());
 
         insertAtCaret.doClick();
         CapturedInvocation insert = last(invocations);
         assertAll(
-                () -> assertEquals("capture_code_blocks", insert.toolName()),
+                () -> assertEquals("capture_generate_replay", insert.toolName()),
+                () -> assertTrue(insert.arguments().get("replay").getAsBoolean()),
                 () -> assertEquals("driver", insert.arguments().get("driverVariableName").getAsString()));
 
         createTestClass.doClick();
         CapturedInvocation create = last(invocations);
-        assertEquals("capture_code_blocks", create.toolName());
+        assertAll(
+                () -> assertEquals("capture_generate_replay", create.toolName()),
+                () -> assertTrue(create.arguments().get("replay").getAsBoolean()));
 
         select(findByAccessibleName(panel, "Guided workflow backend", JComboBox.class), "Mobile (web emulation)");
         insertAtCaret.doClick();
-        assertEquals("capture_code_blocks", last(invocations).toolName());
+        CapturedInvocation mobile = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_generate_replay", mobile.toolName()),
+                () -> assertEquals("mobile", mobile.arguments().get("backend").getAsString()));
 
         select(findByAccessibleName(panel, "Guided workflow backend", JComboBox.class), "Playwright");
         createTestClass.doClick();
-        assertEquals("capture_code_blocks", last(invocations).toolName());
+        CapturedInvocation playwright = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_generate_replay", playwright.toolName()),
+                () -> assertEquals("playwright", playwright.arguments().get("backend").getAsString()));
     }
 
     @Test
@@ -695,7 +706,7 @@ class GuidedWorkflowPanelTest {
                 () -> assertEquals("Use template", accessibleName(useTemplate)),
                 () -> assertFalse(accessibleDescription(useTemplate).isBlank()),
                 () -> assertNotNull(reviewCode),
-                () -> assertTrue(accessibleDescription(reviewCode).contains("reviewed SHAFT code")));
+                () -> assertTrue(accessibleDescription(reviewCode).contains("unproven draft")));
     }
 
     @Test

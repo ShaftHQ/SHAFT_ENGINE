@@ -3662,6 +3662,42 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void unconfirmedCaptureReviewDisablesProductionKeepActions() throws Exception {
+        // Issue #5962: sticky strip must block Approve/Create/Insert on UNCONFIRMED.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "captureReviewGenerationRunning", true);
+        showAssistantResult(panel, "capture_generate_replay", ShaftMcpToolResult.success(mcpText("""
+                {
+                  "successful": false,
+                  "codeBlocks": [
+                    {"language":"java","code":"public class UnconfirmedDraft {}"}
+                  ],
+                  "report": {
+                    "status": "UNCONFIRMED",
+                    "compilation": {"status": "PASSED", "diagnostics": []},
+                    "replay": {"status": "SKIPPED", "diagnostics": ["replay not requested"]}
+                  }
+                }
+                """)));
+
+        JComponent reviewPanel = findByAccessibleName(panel, "Capture review approval", JComponent.class);
+        JButton approve = findButton(reviewPanel, "Approve");
+        JButton create = findButton(reviewPanel, "Create test class");
+        JButton insert = findButton(reviewPanel, "Insert into open class");
+        JLabel status = findByAccessibleName(reviewPanel, "Capture review status", JLabel.class);
+        assertAll(
+                () -> assertNotNull(reviewPanel),
+                () -> assertTrue(reviewPanel.isVisible()),
+                () -> assertNotNull(approve),
+                () -> assertFalse(approve.isEnabled(), "Approve must require SUCCESS"),
+                () -> assertFalse(create.isEnabled(), "Create test class must require SUCCESS"),
+                () -> assertFalse(insert.isEnabled(), "Insert must require SUCCESS"),
+                () -> assertNotNull(status),
+                () -> assertTrue(status.getText().contains("UNCONFIRMED"), status.getText()),
+                () -> assertTrue(status.getText().contains("Keep"), status.getText()));
+    }
+
+    @Test
     void assistantKeepsShaftWrapperForCuratedMcpToolResponses() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
 

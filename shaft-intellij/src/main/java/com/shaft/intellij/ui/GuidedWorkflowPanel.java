@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
@@ -36,6 +37,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.Icon;
 import java.awt.BorderLayout;
+import java.awt.datatransfer.StringSelection;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
@@ -96,6 +98,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final JButton acceptOracleButton = button("Accept suggested checkpoint",
             "Accept the selected Ready-pack Then oracle as a SHAFT ASSERTION checkpoint", ShaftIcons.CHECK,
             this::acceptSuggestedOracleCheckpoint);
+    /** Explicit escape hatch for UNCONFIRMED drafts (issue #5962); disabled until a blocked Keep. */
+    private final JButton copyUnconfirmedButton = button("Copy unconfirmed draft",
+            "Copy the last UNCONFIRMED generated code without treating it as production Keep",
+            ShaftIcons.CODE, this::copyUnconfirmedDraft);
+    private String lastUnconfirmedSnippet = "";
     private final ToolPrefill prefill;
     private final ShaftSettingsState.Settings settings;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
@@ -231,15 +238,18 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 button("Pause recording", "Pause or resume the active SHAFT recording", ShaftIcons.VIEW, this::pauseRecording),
                 button("Stop recording", "Stop the active SHAFT recording", ShaftIcons.CANCEL, this::stopRecording),
                 button("Clear recording", "Discard the active SHAFT recording and clear captured steps", ShaftIcons.DELETE, this::clearRecording),
-                button("Review code", "Generate reviewed SHAFT code blocks from a recording", ShaftIcons.CODE, this::generateCode),
-                // Closes the recorder -> editor loop (issue #3548 item 1): "Review code" only
-                // prefills the Tools panel for manual copy; these execute the same *_code_blocks
-                // tool and write the result into the editor, mirroring the Assistant Capture-review
-                // strip's "Insert into open class"/"Create test class" seams.
-                button("Insert at caret", "Insert generated SHAFT code at the editor caret", ShaftIcons.EDIT,
-                        this::insertCodeAtCaret),
-                button("Create test class", "Create a test class from the generated recording", ShaftIcons.CODE,
-                        this::createTestClassFromRecording));
+                button("Review code",
+                        "Generate an unproven draft (capture_code_blocks); use Insert/Create to replay-prove",
+                        ShaftIcons.CODE, this::generateCode),
+                // Issue #5962 / S2-06: production Keep uses capture_generate_replay and inserts only
+                // on report.status=SUCCESS. Review code stays on capture_code_blocks for drafts.
+                button("Insert at caret",
+                        "Replay-prove (capture_generate_replay) then insert SUCCESS code at the caret",
+                        ShaftIcons.EDIT, this::insertCodeAtCaret),
+                button("Create test class",
+                        "Replay-prove then create a test class only when report.status is SUCCESS",
+                        ShaftIcons.CODE, this::createTestClassFromRecording),
+                copyUnconfirmedButton);
         JPanel locator = section("Locator",
                 button("Inspect locator", "Inspect the page and propose locator candidates", ShaftIcons.SEARCH, this::inspectLocator),
                 button("Guardrail check", "Check generated SHAFT code for automation anti-patterns", ShaftIcons.CHECK, this::guardrailCheck));
@@ -254,6 +264,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         stepButtons.add(moveStepDownButton);
         stepButtons.add(addCheckpointButton);
 
+        copyUnconfirmedButton.setEnabled(false);
         oracleSuggestions.getAccessibleContext().setAccessibleName("Suggested checkpoints from Ready-pack Then oracles");
         oracleSuggestions.setVisibleRowCount(3);
         acceptOracleButton.setEnabled(false);
@@ -887,7 +898,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         return;
                     }
                     recordingPaused = false;
-                    setRecorderStatus("Recording stopped. Use Review code to generate the reviewed test.");
+                    setRecorderStatus("Recording stopped. Review code = draft; Insert/Create = replay-prove then Keep on SUCCESS.");
                 }));
     }
 
@@ -1099,6 +1110,54 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     /**
+     * Production Keep tool (issue #5962): {@code capture_generate_replay} (or API generate with
+     * {@code replay=true}) so Keep only proceeds on {@code report.status=SUCCESS}.
+     */
+    private String productionKeepToolName() {
+        return api() ? "capture_api_generate" : "capture_generate_replay";
+    }
+
+    private JsonObject productionKeepArguments() {
+        if (api()) {
+            JsonObject arguments = apiGenerateArguments();
+            arguments.addProperty("replay", true);
+            return arguments;
+        }
+        JsonObject arguments = codeBlocksArguments();
+        arguments.addProperty("replay", true);
+        arguments.addProperty("useAi", false);
+        arguments.addProperty("allowLocalAi", false);
+        arguments.addProperty("allowRemoteAi", false);
+        arguments.addProperty("overwrite", true);
+        return arguments;
+    }
+
+    private void rememberUnconfirmed(String snippet, JsonObject raw) {
+        lastUnconfirmedSnippet = snippet == null ? "" : snippet;
+        copyUnconfirmedButton.setEnabled(!lastUnconfirmedSnippet.isBlank());
+        setRecorderStatus(CaptureReplayProof.canvasLabel(raw) + " " + CaptureReplayProof.evidenceSummary(raw)
+                + " Use Copy unconfirmed draft if you still need the text.");
+    }
+
+    private void clearUnconfirmedDraft() {
+        lastUnconfirmedSnippet = "";
+        copyUnconfirmedButton.setEnabled(false);
+    }
+
+    private void copyUnconfirmedDraft() {
+        if (lastUnconfirmedSnippet == null || lastUnconfirmedSnippet.isBlank()) {
+            setRecorderStatus("No UNCONFIRMED draft to copy.");
+            return;
+        }
+        try {
+            CopyPasteManager.getInstance().setContents(new StringSelection(lastUnconfirmedSnippet));
+            setRecorderStatus("Copied UNCONFIRMED draft to the clipboard (not a production Keep).");
+        } catch (RuntimeException | Error headless) {
+            setRecorderStatus("Could not copy UNCONFIRMED draft: " + headless.getMessage());
+        }
+    }
+
+    /**
      * Returns the {@code capture_code_blocks} MCP tool, shared by "Review code", "Insert at caret",
      * and "Create test class" so the three actions always generate from the same recording.
      */
@@ -1165,15 +1224,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void insertCodeAtCaret() {
         ShaftMcpInvocationService invocationService = invocationService();
         if (invocationService == null) {
-            prefill.prefill(generateToolName(), generateToolArguments());
+            prefill.prefill(productionKeepToolName(), productionKeepArguments());
             return;
         }
         if (selectedJavaEditor() == null) {
             setRecorderStatus("Open a Java file in the editor first.");
             return;
         }
-        setRecorderStatus("Generating code to insert at caret...");
-        invocationService.startTool(generateToolName(), generateToolArguments())
+        setRecorderStatus("Replay-proving generated code before insert...");
+        invocationService.startTool(productionKeepToolName(), productionKeepArguments())
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> applyInsertAtCaret(result, error)));
     }
@@ -1192,6 +1251,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             setRecorderStatus("The generated result has no insertable code block.");
             return;
         }
+        if (!CaptureReplayProof.isProductionReady(raw)) {
+            rememberUnconfirmed(snippet, raw);
+            return;
+        }
         Editor editor = selectedJavaEditor();
         if (editor == null) {
             setRecorderStatus("Open a Java file in the editor first.");
@@ -1207,26 +1270,27 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         WriteCommandAction.writeCommandAction(project)
                 .withName("Insert SHAFT Recorded Code")
                 .run(() -> document.insertString(offset, toInsert));
-        setRecorderStatus("Inserted generated code at the caret.");
+        clearUnconfirmedDraft();
+        setRecorderStatus(CaptureReplayProof.canvasLabel(raw) + " Inserted at the caret.");
     }
 
     /**
-     * "Create test class" (issue #3548 item 1): executes the same {@code *_code_blocks} tool, then
-     * writes the {@code FULL_CLASS} block into {@code src/test/java} (never overwriting) and opens
-     * it, mirroring {@code ShaftAssistantPanel#createTestClassFromReview}.
+     * "Create test class" (issue #5962): replay-proves via {@code capture_generate_replay}, then
+     * writes the {@code FULL_CLASS} block into {@code src/test/java} only when
+     * {@code report.status=SUCCESS}.
      */
     private void createTestClassFromRecording() {
         ShaftMcpInvocationService invocationService = invocationService();
         if (invocationService == null) {
-            prefill.prefill(generateToolName(), generateToolArguments());
+            prefill.prefill(productionKeepToolName(), productionKeepArguments());
             return;
         }
         if (project == null || project.getBasePath() == null) {
             setRecorderStatus("No open project.");
             return;
         }
-        setRecorderStatus("Generating test class...");
-        invocationService.startTool(generateToolName(), generateToolArguments())
+        setRecorderStatus("Replay-proving before creating test class...");
+        invocationService.startTool(productionKeepToolName(), productionKeepArguments())
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> applyCreateTestClass(result, error)));
     }
@@ -1242,6 +1306,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             setRecorderStatus("The generated result has no full-class code block.");
             return;
         }
+        if (!CaptureReplayProof.isProductionReady(raw)) {
+            rememberUnconfirmed(code, raw);
+            return;
+        }
         Matcher classMatcher = Pattern.compile("class\\s+(\\w+)").matcher(code);
         Matcher packageMatcher = Pattern.compile("package\\s+([\\w.]+)\\s*;").matcher(code);
         if (!classMatcher.find()) {
@@ -1255,11 +1323,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 .resolve(packagePath).resolve(classMatcher.group(1) + ".java");
         try {
             if (Files.exists(target)) {
-                setRecorderStatus("Already exists - opened " + target.getFileName() + " (not overwritten).");
+                clearUnconfirmedDraft();
+                setRecorderStatus(CaptureReplayProof.canvasLabel(raw)
+                        + " Already exists - opened " + target.getFileName() + " (not overwritten).");
             } else {
                 Files.createDirectories(target.getParent());
                 Files.writeString(target, body);
-                setRecorderStatus("Created " + target.getFileName() + " in src/test/java.");
+                clearUnconfirmedDraft();
+                setRecorderStatus(CaptureReplayProof.canvasLabel(raw)
+                        + " Created " + target.getFileName() + " in src/test/java.");
             }
             openFileInEditor(target);
         } catch (IOException writeFailure) {
