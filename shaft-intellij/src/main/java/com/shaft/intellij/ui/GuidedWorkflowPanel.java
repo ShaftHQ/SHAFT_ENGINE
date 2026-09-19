@@ -69,6 +69,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final JBTextField currentSourcePath;
     private final JBTextField artifactPaths;
     private final JBTextField sessionPath;
+    /** Playwright-compatible authenticated storage reuse (issue #5965 / S2-09). */
+    private final JBTextField loadStoragePath;
+    private final JBTextField saveStoragePath;
+    private final JBTextField userDataDirectory;
     private final JCheckBox headlessBrowser;
     private final JComboBox<String> recorderBrowser;
     private final JLabel headlessPolicyHint;
@@ -157,6 +161,18 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         currentSourcePath = field("Current source path", "");
         artifactPaths = field("Evidence paths", "");
         sessionPath = field("Session path", "recordings/intellij-capture.json");
+        loadStoragePath = field("Load storage state", "");
+        loadStoragePath.setToolTipText(
+                "Playwright --load-storage path. Restores cookies/local storage before recording. "
+                        + "Secret-bearing file — do not commit. Missing file fails closed.");
+        saveStoragePath = field("Save storage state", "");
+        saveStoragePath.setToolTipText(
+                "Playwright --save-storage path. Persists cookies/local storage when recording stops. "
+                        + "Secret-bearing — defaults under target/; do not commit or git-add.");
+        userDataDirectory = field("User data dir", "");
+        userDataDirectory.setToolTipText(
+                "Playwright --user-data-dir persistent browser profile. "
+                        + "May contain secrets — do not commit the profile directory.");
         headlessBrowser = new JCheckBox("Headless browser", this.settings.recorderHeadless);
         headlessBrowser.getAccessibleContext().setAccessibleName("Headless browser");
         headlessBrowser.getAccessibleContext().setAccessibleDescription(
@@ -234,6 +250,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         advancedFields.add(row("Current source", 'R', currentSourcePath));
         advancedFields.add(row("Evidence paths", 'E', artifactPaths));
         advancedFields.add(row("Session path", 'S', sessionPath));
+        advancedFields.add(row("Load storage state", 'L', loadStoragePath));
+        advancedFields.add(row("Save storage state", 'V', saveStoragePath));
+        advancedFields.add(row("User data dir", 'D', userDataDirectory));
 
         JPanel partner = section("Coding Partner",
                 button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation", ShaftIcons.CODE,
@@ -519,6 +538,23 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 : playwrightBackend
                 ? "Playwright recording JSON output path (capture_start outputPath)."
                 : "Capture session JSON output path (capture_start outputPath).");
+        // Auth storage reuse (issue #5965 / S2-09): WebDriver capture_start via codegenOptions only.
+        boolean webdriverStorage = !playwrightBackend && !apiBackend && !mobile();
+        loadStoragePath.setEnabled(webdriverStorage);
+        saveStoragePath.setEnabled(webdriverStorage);
+        userDataDirectory.setEnabled(webdriverStorage);
+        loadStoragePath.setToolTipText(webdriverStorage
+                ? "Playwright --load-storage path. Restores cookies/local storage before recording. "
+                        + "Secret-bearing file — do not commit. Missing file fails closed."
+                : "Authenticated storage reuse is available for the WebDriver backend (capture_start codegenOptions).");
+        saveStoragePath.setToolTipText(webdriverStorage
+                ? "Playwright --save-storage path. Persists cookies/local storage when recording stops. "
+                        + "Secret-bearing — defaults under target/; do not commit or git-add."
+                : "Authenticated storage reuse is available for the WebDriver backend (capture_start codegenOptions).");
+        userDataDirectory.setToolTipText(webdriverStorage
+                ? "Playwright --user-data-dir persistent browser profile. "
+                        + "May contain secrets — do not commit the profile directory."
+                : "Authenticated storage reuse is available for the WebDriver backend (capture_start codegenOptions).");
         // Issue #5964 / #3639: keep the unified step inspector visible for every backend. Playwright
         // and Mobile edit via capture_step_delete/capture_step_reorder; WEB/API keep the list readable
         // and surface CaptureService#noStepEditorFor wording on inspector actions (never a silent no-op).
@@ -689,6 +725,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             setRecorderStatus(tourGuidance + " (Run the prepared capture_start request to begin.)");
             return;
         }
+        String missingStorage = missingLoadStorageMessage();
+        if (missingStorage != null) {
+            setRecorderStatus(missingStorage);
+            return;
+        }
         invocationService.startTool("capture_start", webdriverCaptureStartArguments())
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> {
@@ -735,6 +776,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             arguments.addProperty("outputPath", sessionPath.getText().trim());
             arguments.addProperty("sessionGoal", intent.getText().trim());
         } else {
+            String missingStorage = missingLoadStorageMessage();
+            if (missingStorage != null) {
+                setRecorderStatus(missingStorage);
+                return;
+            }
             arguments = webdriverCaptureStartArguments();
         }
         // With an MCP-connected project, Start recording runs the request directly (matching the
@@ -761,12 +807,38 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private JsonObject webdriverCaptureStartArguments() {
+        String loadStorage = loadStoragePath.getText().trim();
+        String saveStorage = saveStoragePath.getText().trim();
+        String userDataDir = userDataDirectory.getText().trim();
+        boolean hasAuthStorage = !loadStorage.isEmpty() || !saveStorage.isEmpty() || !userDataDir.isEmpty();
+        if (!hasAuthStorage) {
+            JsonObject arguments = new JsonObject();
+            arguments.addProperty("outputPath", sessionPath.getText().trim());
+            arguments.addProperty("targetUrl", targetUrl.getText().trim());
+            arguments.addProperty("browser", (String) recorderBrowser.getSelectedItem());
+            arguments.addProperty("headless", headlessBrowser.isSelected());
+            arguments.addProperty("sessionGoal", intent.getText().trim());
+            return arguments;
+        }
+        // Nested codegenOptions is the only MCP path that carries Playwright-compatible
+        // loadStoragePath / saveStoragePath / userDataDirectory (issue #5965).
+        JsonObject codegen = new JsonObject();
+        codegen.addProperty("targetUrl", targetUrl.getText().trim());
+        codegen.addProperty("browser", (String) recorderBrowser.getSelectedItem());
+        codegen.addProperty("outputPath", sessionPath.getText().trim());
+        codegen.addProperty("headless", headlessBrowser.isSelected());
+        codegen.addProperty("sessionGoal", intent.getText().trim());
+        if (!loadStorage.isEmpty()) {
+            codegen.addProperty("loadStoragePath", loadStorage);
+        }
+        if (!saveStorage.isEmpty()) {
+            codegen.addProperty("saveStoragePath", saveStorage);
+        }
+        if (!userDataDir.isEmpty()) {
+            codegen.addProperty("userDataDirectory", userDataDir);
+        }
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("outputPath", sessionPath.getText().trim());
-        arguments.addProperty("targetUrl", targetUrl.getText().trim());
-        arguments.addProperty("browser", (String) recorderBrowser.getSelectedItem());
-        arguments.addProperty("headless", headlessBrowser.isSelected());
-        arguments.addProperty("sessionGoal", intent.getText().trim());
+        arguments.add("codegenOptions", codegen);
         return arguments;
     }
 
@@ -779,6 +851,29 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         arguments.addProperty("sessionGoal", intent.getText().trim());
         return arguments;
     }
+
+    /**
+     * Fail-closed check for issue #5965: a configured load-storage path that is not a readable
+     * file must block recording start (never proceed unauthenticated with a silent warn).
+     *
+     * @return status message when the file is missing; {@code null} when OK to proceed
+     */
+    private String missingLoadStorageMessage() {
+        String loadStorage = loadStoragePath.getText().trim();
+        if (loadStorage.isEmpty()) {
+            return null;
+        }
+        Path path = Path.of(loadStorage);
+        if (!path.isAbsolute() && project != null && project.getBasePath() != null) {
+            path = Path.of(project.getBasePath()).resolve(loadStorage).normalize();
+        }
+        if (Files.isRegularFile(path)) {
+            return null;
+        }
+        return "Load storage state file not found (fail closed): " + loadStorage
+                + ". Provide an existing storage-state JSON, or clear Load storage state.";
+    }
+
 
     /**
      * One-click mobile recording: the emulated Chrome session and the recorder are started as one

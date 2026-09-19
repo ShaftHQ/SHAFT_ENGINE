@@ -160,6 +160,9 @@ class CaptureCliTest {
         assertTrue(usage.contains("--disable-fallback-locators"));
         assertTrue(usage.contains("--enable-fallback-locators"));
         assertTrue(usage.contains("--backend webdriver|playwright"));
+        assertTrue(usage.contains("--load-storage"), "S2-09: CLI help must mention --load-storage");
+        assertTrue(usage.contains("--save-storage"), "S2-09: CLI help must mention --save-storage");
+        assertTrue(usage.contains("--user-data-dir"), "S2-09: CLI help must mention --user-data-dir");
         assertTrue(usage.contains("--target-source"));
         assertTrue(usage.contains("--insert-after"));
         assertTrue(usage.contains("--control-flow-preview"));
@@ -345,4 +348,25 @@ class CaptureCliTest {
         method.setAccessible(true);
         return method.invoke(target, arguments);
     }
+
+    @Test
+    void loadStorageMissingFileFailsClosed() {
+        // Issue #5965 / S2-09: configured --load-storage path that is not a readable file fails closed.
+        InvocationTargetException thrown = assertThrows(InvocationTargetException.class, () -> invokeStatic(
+                "requireLoadStorageExists",
+                new Class<?>[] {String.class},
+                "target/missing-auth-storage-state-5965.json"));
+        Throwable cause = thrown.getCause();
+        assertInstanceOf(IllegalArgumentException.class, cause);
+        assertTrue(
+                cause.getMessage() != null && cause.getMessage().contains("fail closed"),
+                () -> "expected fail-closed message, got: " + cause);
+    }
+
+    @Test
+    void loadStorageBlankPathIsAllowed() throws Exception {
+        invokeStatic("requireLoadStorageExists", new Class<?>[] {String.class}, "");
+        invokeStatic("requireLoadStorageExists", new Class<?>[] {String.class}, (Object) null);
+    }
+
 }

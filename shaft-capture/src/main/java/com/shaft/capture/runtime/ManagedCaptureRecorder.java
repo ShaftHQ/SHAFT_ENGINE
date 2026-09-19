@@ -197,11 +197,24 @@ class ManagedCaptureRecorder {
 
     private CaptureSession startSession(BrowserMetadata metadata) {
         CaptureSession session = CaptureSession.start(sessionId, startedAt, metadata);
-        if (request.options().sessionGoal().isBlank()) {
+        Map<String, tools.jackson.databind.JsonNode> extensions = new LinkedHashMap<>(session.extensions());
+        boolean changed = false;
+        if (!request.options().sessionGoal().isBlank()) {
+            extensions.put("sessionGoal", StringNode.valueOf(request.options().sessionGoal()));
+            changed = true;
+        }
+        // Issue #5965: record that auth storage was used so codegen emits a path placeholder
+        // (never inline cookies). The concrete path stays out of generated Java.
+        if (!request.options().loadStoragePath().isBlank()) {
+            extensions.put("authenticatedStorageReuse", StringNode.valueOf("true"));
+            extensions.put(
+                    "storageStatePathPlaceholder",
+                    StringNode.valueOf("${shaft.storageStatePath}"));
+            changed = true;
+        }
+        if (!changed) {
             return session;
         }
-        Map<String, tools.jackson.databind.JsonNode> extensions = new LinkedHashMap<>(session.extensions());
-        extensions.put("sessionGoal", StringNode.valueOf(request.options().sessionGoal()));
         return new CaptureSession(
                 session.schemaVersion(),
                 session.sessionId(),
@@ -696,6 +709,13 @@ class ManagedCaptureRecorder {
         if (request.options().loadStoragePath().isBlank()) {
             return;
         }
+        Path storagePath = Path.of(request.options().loadStoragePath());
+        // Issue #5965 / S2-09: missing authenticated storage must fail closed — never continue
+        // the recording unauthenticated after a silent warning.
+        if (!Files.isRegularFile(storagePath)) {
+            throw new IllegalStateException(
+                    "Capture load-storage path does not exist (fail closed): " + storagePath);
+        }
         try {
             String origin = targetOrigin();
             if (!origin.isBlank()) {
@@ -703,7 +723,9 @@ class ManagedCaptureRecorder {
             }
             BrowserStorageStateManager.load(driver, request.options().loadStoragePath());
         } catch (RuntimeException exception) {
-            warn("Requested capture storage state could not be loaded.");
+            throw new IllegalStateException(
+                    "Requested capture storage state could not be loaded from " + storagePath + ".",
+                    exception);
         }
     }
 

@@ -498,7 +498,7 @@ public final class CaptureCli {
     }
 
     private static CaptureStartOptions startOptions(Arguments options) {
-        return new CaptureStartOptions(
+        CaptureStartOptions startOptions = new CaptureStartOptions(
                 options.value("target", ""),
                 options.value("test-id-attribute", ""),
                 options.value("channel", ""),
@@ -524,6 +524,23 @@ public final class CaptureCli {
                         ? Path.of(options.value("user-data-dir", ""))
                         : null,
                 options.value("session-goal", ""));
+        requireLoadStorageExists(startOptions.loadStoragePath());
+        return startOptions;
+    }
+
+    /**
+     * Issue #5965 / S2-09: a configured {@code --load-storage} path that is not a readable file
+     * fails closed before the browser launches.
+     */
+    private static void requireLoadStorageExists(String loadStoragePath) {
+        if (loadStoragePath == null || loadStoragePath.isBlank()) {
+            return;
+        }
+        Path path = Path.of(loadStoragePath);
+        if (!Files.isRegularFile(path)) {
+            throw new IllegalArgumentException(
+                    "Capture --load-storage path does not exist (fail closed): " + path);
+        }
     }
 
     private static CaptureGenerator.CodegenBackend generationBackend(Arguments options) {

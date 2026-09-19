@@ -1069,4 +1069,81 @@ class GuidedWorkflowPanelTest {
                 panel.addCheckpointButton().getAccessibleContext().getAccessibleName());
     }
 
+
+    @Test
+    void advancedStorageFieldsExposePlaywrightCompatibleAuthReuseWithoutInliningSecrets() {
+        // Issue #5965 / S2-09: Automation canvas Advanced options must expose load/save storage and
+        // user-data-dir, and capture_start must receive paths (never cookie contents).
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
+
+        javax.swing.text.JTextComponent loadStorage =
+                findByAccessibleName(panel, "Load storage state", javax.swing.text.JTextComponent.class);
+        javax.swing.text.JTextComponent saveStorage =
+                findByAccessibleName(panel, "Save storage state", javax.swing.text.JTextComponent.class);
+        javax.swing.text.JTextComponent userDataDir =
+                findByAccessibleName(panel, "User data dir", javax.swing.text.JTextComponent.class);
+        assertAll(
+                () -> assertNotNull(loadStorage),
+                () -> assertNotNull(saveStorage),
+                () -> assertNotNull(userDataDir),
+                () -> assertEquals("", saveStorage.getText(), "save path stays empty until the user opts in"));
+
+        Path existing = Path.of("target/shaft-browser-test-storage-state.json");
+        try {
+            Files.createDirectories(existing.getParent());
+            Files.writeString(existing, "{\"cookies\":[]}");
+            loadStorage.setText(existing.toString());
+            saveStorage.setText("target/shaft-browser/storage-state.json");
+            userDataDir.setText("target/shaft-browser/profile");
+
+            JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+            select(backend, "WebDriver");
+            findButton(panel, "Start recording").doClick();
+
+            CapturedInvocation start = last(invocations);
+            assertEquals("capture_start", start.toolName());
+            assertTrue(start.arguments().has("codegenOptions"),
+                    "storage fields must ride nested codegenOptions so CaptureService receives them");
+            var codegen = start.arguments().getAsJsonObject("codegenOptions");
+            assertAll(
+                    () -> assertEquals(existing.toString(), codegen.get("loadStoragePath").getAsString()),
+                    () -> assertEquals("target/shaft-browser/storage-state.json",
+                            codegen.get("saveStoragePath").getAsString()),
+                    () -> assertEquals("target/shaft-browser/profile",
+                            codegen.get("userDataDirectory").getAsString()),
+                    () -> assertFalse(codegen.toString().toLowerCase().contains("cookie:"),
+                            "generated start args must not inline cookie headers"));
+        } catch (Exception exception) {
+            throw new AssertionError(exception);
+        } finally {
+            try {
+                Files.deleteIfExists(existing);
+            } catch (Exception ignored) {
+                // best-effort cleanup
+            }
+        }
+    }
+
+    @Test
+    void missingLoadStoragePathFailsClosedBeforeCaptureStart() {
+        // Issue #5965 edge case: missing storage-state file must fail closed (no capture_start).
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
+        javax.swing.text.JTextComponent loadStorage =
+                findByAccessibleName(panel, "Load storage state", javax.swing.text.JTextComponent.class);
+        loadStorage.setText("target/does-not-exist-storage-state.json");
+        findButton(panel, "Start recording").doClick();
+        assertTrue(invocations.isEmpty(), "missing load-storage must not invoke capture_start");
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+        assertNotNull(status);
+        assertTrue(status.getText().toLowerCase().contains("fail closed")
+                        || status.getText().toLowerCase().contains("not found"),
+                status.getText());
+    }
+
 }

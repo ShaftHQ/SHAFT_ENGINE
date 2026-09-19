@@ -20,7 +20,7 @@ import java.util.concurrent.Callable;
  */
 @Command(mixinStandardHelpOptions = true,
         name = "capture",
-        description = "Capture shortcuts: start | stop | status | code | step-delete | step-reorder.")
+        description = "Capture shortcuts: start | stop | status | code | step-delete | step-reorder. Start auth reuse: loadStoragePath / saveStoragePath / userDataDirectory (CLI --load-storage / --save-storage / --user-data-dir).")
 public final class CaptureCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.of(
@@ -35,7 +35,8 @@ public final class CaptureCommand implements Callable<Integer> {
             description = "start | stop | status | code | step-delete | step-reorder")
     private String action;
 
-    @Parameters(index = "1..*", paramLabel = "key=value", description = "Arguments as key=value pairs.")
+    @Parameters(index = "1..*", paramLabel = "key=value",
+            description = "Arguments as key=value pairs. For start auth reuse: loadStoragePath=, saveStoragePath=, userDataDirectory= (Playwright --load-storage / --save-storage / --user-data-dir).")
     private List<String> keyValues = new ArrayList<>();
 
     @Mixin

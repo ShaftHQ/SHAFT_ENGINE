@@ -119,7 +119,11 @@ final class CaptureWorkbenchHtml {
                         <div><label for="browser">Browser</label><select id="browser"><option>chrome</option><option>edge</option><option>chromium</option></select></div>
                         <div><label for="viewport">Viewport</label><input id="viewport" placeholder="1280,720"></div>
                         <div><label for="testid">Test id attribute</label><input id="testid" placeholder="data-testid"></div>
+                        <div><label for="loadStorage">Load storage (--load-storage)</label><input id="loadStorage" placeholder="target/shaft-browser/storage-state.json"></div>
+                        <div><label for="saveStorage">Save storage (--save-storage)</label><input id="saveStorage" placeholder="target/shaft-browser/storage-state.json"></div>
+                        <div><label for="userDataDir">User data dir (--user-data-dir)</label><input id="userDataDir" placeholder="target/shaft-browser/profile"></div>
                       </div>
+                      <p><em>Storage-state and user-data-dir files are secret-bearing — keep them under target/ and never commit them.</em></p>
                       <button type="button" onclick="recordCommand()">Build record command</button>
                       <pre id="recordOut">capture start --url https://example.com</pre>
                     </section>
@@ -161,6 +165,9 @@ final class CaptureWorkbenchHtml {
                       const args = ['capture start --url', quote(url.value), '--browser', browser.value];
                       if (viewport.value.trim()) args.push('--viewport-size', quote(viewport.value.trim()));
                       if (testid.value.trim()) args.push('--test-id-attribute', quote(testid.value.trim()));
+                      if (loadStorage.value.trim()) args.push('--load-storage', quote(loadStorage.value.trim()));
+                      if (saveStorage.value.trim()) args.push('--save-storage', quote(saveStorage.value.trim()));
+                      if (userDataDir.value.trim()) args.push('--user-data-dir', quote(userDataDir.value.trim()));
                       recordOut.textContent = args.join(' ');
                     }
                     function checkpointCommand() {
@@ -338,10 +345,11 @@ final class CaptureWorkbenchHtml {
         String source = sourcePath == null ? "<generated-source.java>" : sourcePath.toString();
         return """
                 capture start --url "https://example.com" --browser chrome --session-goal "record the critical user flow"
+                capture start --url "https://example.com" --load-storage "target/shaft-browser/storage-state.json" --save-storage "target/shaft-browser/storage-state.json" --user-data-dir "target/shaft-browser/profile"
                 capture checkpoint --description "assert the current page state" --kind ASSERTION
                 capture generate --session <capture.json> --control-flow-preview
                 capture generate --session <capture.json> --target-source "%s" --insert-after <method>
-                MCP capture_start_codegen: {"targetUrl":"https://example.com","browser":"chrome","sessionGoal":"record the critical user flow"}
+                MCP capture_start codegenOptions: {"targetUrl":"https://example.com","loadStoragePath":"${shaft.storageStatePath}","saveStoragePath":"target/shaft-browser/storage-state.json","userDataDirectory":"target/shaft-browser/profile"}
                 MCP code blocks: use sourcePath %s from session %s
                 """.formatted(source, source, report.sessionId()).stripIndent();
     }
