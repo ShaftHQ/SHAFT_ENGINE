@@ -20,7 +20,7 @@ import java.util.concurrent.Callable;
  */
 @Command(mixinStandardHelpOptions = true,
         name = "capture",
-        description = "Capture shortcuts: start | stop | status | code | step-delete | step-reorder. For start, Playwright-compatible auth reuse keys include loadStoragePath= / saveStoragePath= / userDataDirectory= (or use capture CLI --load-storage / --save-storage / --user-data-dir). Storage-state files are secret-bearing — do not commit.")
+        description = "Capture shortcuts: start | stop | status | code | step-delete | step-reorder. Start auth reuse: loadStoragePath / saveStoragePath / userDataDirectory (CLI --load-storage / --save-storage / --user-data-dir).")
 public final class CaptureCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.of(
