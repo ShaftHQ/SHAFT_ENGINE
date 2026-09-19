@@ -178,6 +178,8 @@ class CaptureServiceDispatchTest {
         UnsupportedOperationException failure = assertThrows(UnsupportedOperationException.class,
                 () -> service.stepDelete("m1"));
         assertTrue(failure.getMessage().contains("WEB"), failure.getMessage());
+        assertEquals(CaptureService.noStepEditorMessage(ActiveEngine.WEB, "capture_step_delete"),
+                failure.getMessage());
     }
 
     @Test

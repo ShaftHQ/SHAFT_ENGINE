@@ -15,10 +15,11 @@ import java.awt.BorderLayout;
 import java.awt.Font;
 
 /**
- * Automation stage canvas (issue #5957): live record is the default product surface, not an
- * expert tab. The primary tab hosts {@link GuidedWorkflowPanel} (start/pause/stop/clear) so
- * recording works with {@code advancedUiEnabled} false. Expert raw MCP and secondary surfaces
- * stay available as extra tabs or under More.
+ * Automation stage canvas (issues #5957 / #5964): live record is the default product surface, not an
+ * expert tab. The primary tab hosts {@link GuidedWorkflowPanel} (start/pause/stop/clear plus the
+ * unified step inspector) so recording and step edit/delete/reorder work with
+ * {@code advancedUiEnabled} false. Expert raw MCP and secondary surfaces stay available as extra
+ * tabs or under More.
  */
 final class AutomationStagePanel extends JPanel {
     static final String ACCESSIBLE_NAME = "SHAFT automation";
@@ -39,7 +40,7 @@ final class AutomationStagePanel extends JPanel {
         setBorder(JBUI.Borders.empty(8));
         getAccessibleContext().setAccessibleName(ACCESSIBLE_NAME);
         getAccessibleContext().setAccessibleDescription(
-                "Live record start, pause, stop, and clear for web, Playwright, mobile, and API");
+                "Live record start, pause, stop, clear, and unified step inspector for web, Playwright, mobile, and API");
 
         JBLabel title = new JBLabel("Automation");
         title.setFont(title.getFont().deriveFont(Font.BOLD));

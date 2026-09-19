@@ -74,22 +74,32 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final JLabel headlessPolicyHint;
     private final JBTextArea codeSnippet;
     private final JLabel recorderStatus;
-    // Per-step review list (issue #3639): a pure projection of the latest polled recording status's
-    // "steps" array (McpMobileRecordingStatus#steps) -- no separate client-side state store. Only
-    // populated for the Playwright and Mobile backends, since capture_status (WebDriver) carries no
-    // per-step summaries, and capture_step_delete/capture_step_reorder throw an actionable error for
-    // the WebDriver backend's WEB CDP engine anyway (no step editor for that recording format).
+    // Unified step inspector (issues #3639 / #5964): pure projection of the latest polled status
+    // "steps" array (McpMobileRecordingStatus#steps) -- no separate client-side state store. Always
+    // on the Live record primary surface. Playwright/Mobile populate rows and wire delete/reorder;
+    // WebDriver/API stay empty from capture_status and surface CaptureService#noStepEditorFor
+    // wording on inspector actions instead of a silent no-op.
     private final DefaultListModel<StepRow> stepListModel = new DefaultListModel<>();
     private final JBList<StepRow> stepList = new JBList<>(stepListModel);
+    // Unified step inspector (issue #5964 / S2-08): same Delete/Move/Edit/Recapture affordances
+    // across WebDriver, Playwright, Mobile, and API. Playwright/Mobile wire capture_step_delete /
+    // capture_step_reorder; WEB/API surface CaptureService#noStepEditorFor wording instead of a
+    // silent no-op. Full WEB JSON step editor deferred (SC-002).
     private final JButton deleteStepButton = button("Delete",
-            "Delete the selected recorded step (Playwright and Mobile recordings only)", ShaftIcons.DELETE,
+            "Delete the selected recorded step when the engine supports step editing", ShaftIcons.DELETE,
             this::deleteSelectedStep);
     private final JButton moveStepUpButton = button("Move Up",
-            "Move the selected recorded step earlier (Playwright and Mobile recordings only)", ShaftIcons.MOVE_UP,
+            "Move the selected recorded step earlier when the engine supports step editing", ShaftIcons.MOVE_UP,
             () -> moveSelectedStep("up"));
     private final JButton moveStepDownButton = button("Move Down",
-            "Move the selected recorded step later (Playwright and Mobile recordings only)", ShaftIcons.MOVE_DOWN,
+            "Move the selected recorded step later when the engine supports step editing", ShaftIcons.MOVE_DOWN,
             () -> moveSelectedStep("down"));
+    private final JButton editStepButton = button("Edit",
+            "Edit the selected recorded step's locator when the engine supports step editing", ShaftIcons.EDIT,
+            this::editSelectedStep);
+    private final JButton recaptureStepButton = button("Recapture",
+            "Recapture a single element for the selected step without restarting the flow", ShaftIcons.RERUN,
+            this::recaptureSelectedStep);
     private final JButton addCheckpointButton = button("Add checkpoint",
             "Record a SHAFT ASSERTION checkpoint on the active capture session", ShaftIcons.CHECK,
             this::addAssertionCheckpoint);
@@ -262,6 +272,8 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         stepButtons.add(deleteStepButton);
         stepButtons.add(moveStepUpButton);
         stepButtons.add(moveStepDownButton);
+        stepButtons.add(editStepButton);
+        stepButtons.add(recaptureStepButton);
         stepButtons.add(addCheckpointButton);
 
         copyUnconfirmedButton.setEnabled(false);
@@ -286,13 +298,19 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
 
         JPanel stepsPanel = new JPanel(new BorderLayout(4, 4));
         stepsPanel.setBorder(JBUI.Borders.emptyTop(8));
-        stepsPanel.add(new JLabel("Recorded steps"), BorderLayout.NORTH);
+        stepsPanel.getAccessibleContext().setAccessibleName("Step inspector");
+        stepsPanel.getAccessibleContext().setAccessibleDescription(
+                "Unified recorded-step inspector: delete, reorder, edit, or recapture when the engine allows.");
+        JLabel stepsHeading = new JLabel("Recorded steps");
+        stepsHeading.getAccessibleContext().setAccessibleName("Recorded steps heading");
+        stepsPanel.add(stepsHeading, BorderLayout.NORTH);
         stepsPanel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
         stepsPanel.add(stepsSouth, BorderLayout.SOUTH);
 
+        // Issue #5964: step inspector lives on the Live record primary surface (AutomationStagePanel
+        // canvas), not behind Advanced options — same affordances for every backend.
         JPanel reviewArea = new JPanel(new BorderLayout(6, 6));
-        reviewArea.add(row("Code", 'C', codeSnippet), BorderLayout.NORTH);
-        reviewArea.add(stepsPanel, BorderLayout.CENTER);
+        reviewArea.add(row("Code", 'C', codeSnippet), BorderLayout.CENTER);
 
         JPanel advancedCenter = new JPanel(new BorderLayout(6, 6));
         advancedCenter.add(advancedFields, BorderLayout.NORTH);
@@ -338,9 +356,13 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         primarySouth.add(advancedHint, BorderLayout.NORTH);
         primarySouth.add(advancedToggle, BorderLayout.SOUTH);
 
+        JPanel primaryCenter = new JPanel(new BorderLayout(6, 6));
+        primaryCenter.add(recorder, BorderLayout.NORTH);
+        primaryCenter.add(stepsPanel, BorderLayout.CENTER);
+
         JPanel primaryPanel = new JPanel(new BorderLayout(6, 6));
         primaryPanel.add(primaryFields, BorderLayout.NORTH);
-        primaryPanel.add(recorder, BorderLayout.CENTER);
+        primaryPanel.add(primaryCenter, BorderLayout.CENTER);
         primaryPanel.add(primarySouth, BorderLayout.SOUTH);
 
         JPanel body = new JPanel(new BorderLayout(6, 6));
@@ -497,15 +519,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 : playwrightBackend
                 ? "Playwright recording JSON output path (capture_start outputPath)."
                 : "Capture session JSON output path (capture_start outputPath).");
-        // Critical scope boundary (issue #3639): capture_step_delete/capture_step_reorder throw an
-        // actionable error for the WebDriver backend's WEB CDP engine (no step editor for that recording
-        // format), and capture_status carries no per-step summaries to select from either, so the whole
-        // steps review UI is disabled rather than ever targeting an unsupported engine.
+        // Issue #5964 / #3639: keep the unified step inspector visible for every backend. Playwright
+        // and Mobile edit via capture_step_delete/capture_step_reorder; WEB/API keep the list readable
+        // and surface CaptureService#noStepEditorFor wording on inspector actions (never a silent no-op).
         boolean stepEditingSupported = stepEditingSupported();
-        stepList.setEnabled(stepEditingSupported);
+        stepList.setEnabled(true);
         stepList.setToolTipText(stepEditingSupported
-                ? "Recorded steps for the active session; select one to delete or reorder it."
-                : "Per-step delete/reorder is only available for the Playwright and Mobile recorders.");
+                ? "Recorded steps for the active session; select one to delete, reorder, edit, or recapture."
+                : "Step delete/reorder/edit needs Playwright or Mobile. WebDriver/API show an actionable "
+                        + "unsupported message instead of silently ignoring the request.");
         updateStepButtonsEnabled();
     }
 
@@ -1674,27 +1696,57 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     /**
-     * Whether the active backend supports per-step review at all -- the unified
+     * Whether the active backend supports per-step surgery via the unified
      * {@code capture_step_delete}/{@code capture_step_reorder} tools (dispatching on the MCP session's
-     * active engine server-side, {@code CaptureService#stepDelete}/{@code #stepReorder}) throw an
-     * actionable error for the WebDriver backend's WEB CDP engine, which has no step editor for that
-     * recording format.
+     * active engine server-side, {@code CaptureService#stepDelete}/{@code #stepReorder}). WebDriver
+     * (WEB CDP) and API recordings have no step editor for that JSON format — the inspector still
+     * shows and surfaces {@link #unsupportedStepEditorMessage(String)} instead of a silent no-op
+     * (issue #5964 SC-002).
      */
     private boolean stepEditingSupported() {
         return mobile() || playwright();
     }
 
-    /** Enables Delete/Move Up/Move Down only when a step is selected and the backend supports it. */
+    /**
+     * Mirrors {@code CaptureService#noStepEditorFor} wording for WEB CDP sessions so the Live record
+     * inspector never silently ignores delete/reorder/edit/recapture on unsupported engines.
+     * Package-private for {@code GuidedWorkflowPanelTest}.
+     */
+    static String unsupportedStepEditorMessage(String toolName) {
+        String name = toolName == null || toolName.isBlank() ? "capture_step_delete" : toolName.trim();
+        return name + " is not supported for the active engine (WEB): a WEB CDP capture_start recording "
+                + "has no step editor for this JSON format. Start a capture_start recording with a "
+                + "Playwright or mobile engine active to edit steps.";
+    }
+
+    /**
+     * Enables inspector actions when a step is selected on Playwright/Mobile; on WebDriver/API keeps
+     * the same buttons enabled so a click can publish the actionable unsupported message (#5964).
+     */
     private void updateStepButtonsEnabled() {
-        boolean hasSelection = stepEditingSupported() && stepList.getSelectedIndex() >= 0;
+        if (!stepEditingSupported()) {
+            deleteStepButton.setEnabled(true);
+            moveStepUpButton.setEnabled(true);
+            moveStepDownButton.setEnabled(true);
+            editStepButton.setEnabled(true);
+            recaptureStepButton.setEnabled(true);
+            return;
+        }
+        boolean hasSelection = stepList.getSelectedIndex() >= 0;
         deleteStepButton.setEnabled(hasSelection);
         moveStepUpButton.setEnabled(hasSelection);
         moveStepDownButton.setEnabled(hasSelection);
+        editStepButton.setEnabled(hasSelection);
+        recaptureStepButton.setEnabled(hasSelection);
     }
 
     private void deleteSelectedStep() {
+        if (!stepEditingSupported()) {
+            setRecorderStatus(unsupportedStepEditorMessage("capture_step_delete"));
+            return;
+        }
         StepRow selected = stepList.getSelectedValue();
-        if (selected == null || !stepEditingSupported()) {
+        if (selected == null) {
             return;
         }
         JsonObject arguments = new JsonObject();
@@ -1703,14 +1755,60 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private void moveSelectedStep(String direction) {
+        if (!stepEditingSupported()) {
+            setRecorderStatus(unsupportedStepEditorMessage("capture_step_reorder"));
+            return;
+        }
         StepRow selected = stepList.getSelectedValue();
-        if (selected == null || !stepEditingSupported()) {
+        if (selected == null) {
             return;
         }
         JsonObject arguments = new JsonObject();
         arguments.addProperty("stepId", selected.stepId());
         arguments.addProperty("direction", direction);
         invokeStepTool("capture_step_reorder", arguments);
+    }
+
+    private void editSelectedStep() {
+        if (!stepEditingSupported()) {
+            setRecorderStatus(unsupportedStepEditorMessage("capture_step_edit"));
+            return;
+        }
+        StepRow selected = stepList.getSelectedValue();
+        if (selected == null) {
+            return;
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", targetUrl.getText().trim());
+        arguments.addProperty("userIntent",
+                "Edit recorded step " + selected.stepId() + " (" + selected.locatorStrategy() + ": "
+                        + selected.locatorValue() + ")");
+        arguments.addProperty("maxCharacters", 12_000);
+        arguments.addProperty("maxElements", 10);
+        prefill.prefill("browser_open_intent", arguments);
+        setRecorderStatus("Edit prepared for step " + selected.stepId()
+                + ". Inspect locator candidates, then keep the updated step.");
+    }
+
+    private void recaptureSelectedStep() {
+        if (!stepEditingSupported()) {
+            setRecorderStatus(unsupportedStepEditorMessage("capture_step_recapture"));
+            return;
+        }
+        StepRow selected = stepList.getSelectedValue();
+        if (selected == null) {
+            return;
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", targetUrl.getText().trim());
+        arguments.addProperty("userIntent",
+                "Recapture element for step " + selected.stepId() + " without restarting the flow ("
+                        + selected.locatorStrategy() + ": " + selected.locatorValue() + ")");
+        arguments.addProperty("maxCharacters", 12_000);
+        arguments.addProperty("maxElements", 10);
+        prefill.prefill("browser_open_intent", arguments);
+        setRecorderStatus("Recapture prepared for step " + selected.stepId()
+                + ". Re-pick the element, then continue recording.");
     }
 
     /**
@@ -1730,6 +1828,8 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         deleteStepButton.setEnabled(false);
         moveStepUpButton.setEnabled(false);
         moveStepDownButton.setEnabled(false);
+        editStepButton.setEnabled(false);
+        recaptureStepButton.setEnabled(false);
         invocationService.startTool(toolName, arguments)
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> {

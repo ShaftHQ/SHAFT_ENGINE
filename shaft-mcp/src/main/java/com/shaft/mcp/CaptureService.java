@@ -518,10 +518,18 @@ public class CaptureService {
         };
     }
 
-    private static UnsupportedOperationException noStepEditorFor(ActiveEngine engine, String toolName) {
-        return new UnsupportedOperationException(toolName + " is not supported for the active engine (" + engine
+    /**
+     * Actionable unsupported message for WEB CDP / idle engines that have no JSON step editor
+     * (issue #5964 SC-002). Kept public so IntelliJ Live-record copy can stay bit-identical.
+     */
+    public static String noStepEditorMessage(ActiveEngine engine, String toolName) {
+        return toolName + " is not supported for the active engine (" + engine
                 + "): a WEB CDP capture_start recording has no step editor for this JSON format. Start a "
-                + "capture_start recording with a Playwright or mobile engine active to edit steps.");
+                + "capture_start recording with a Playwright or mobile engine active to edit steps.";
+    }
+
+    private static UnsupportedOperationException noStepEditorFor(ActiveEngine engine, String toolName) {
+        return new UnsupportedOperationException(noStepEditorMessage(engine, toolName));
     }
 
     /**

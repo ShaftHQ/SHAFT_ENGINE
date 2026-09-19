@@ -30,6 +30,22 @@ class AutomationStagePanelTest {
     }
 
     @Test
+    void liveRecordExposesStepInspectorAffordances() {
+        // Issue #5964: Live record canvas hosts the unified step inspector (not Advanced-only).
+        AutomationStagePanel panel = newPanel();
+        GuidedWorkflowPanel guided = panel.guidedWorkflowPanel();
+        assertNotNull(findButton(guided, "Delete"));
+        assertNotNull(findButton(guided, "Move Up"));
+        assertNotNull(findButton(guided, "Move Down"));
+        assertNotNull(findButton(guided, "Edit"));
+        assertNotNull(findButton(guided, "Recapture"));
+        assertEquals("Delete", accessibleName(findButton(guided, "Delete")));
+        assertEquals("Recapture", accessibleName(findButton(guided, "Recapture")));
+        assertTrue(panel.getAccessibleContext().getAccessibleDescription().toLowerCase().contains("live record")
+                || panel.getAccessibleContext().getAccessibleDescription().toLowerCase().contains("record"));
+    }
+
+    @Test
     void readyPackPrefillsUrlAndIntent() {
         AutomationStagePanel panel = newPanel();
         panel.applyReadyPackPrefill("https://shop.example/checkout", "valid payment places the order");
