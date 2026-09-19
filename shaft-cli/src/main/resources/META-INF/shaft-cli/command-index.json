@@ -39,7 +39,7 @@
     },
     {
       "name": "report",
-      "description": "Reporting shortcuts: history, flake."
+      "description": "Reporting shortcuts: history, flake, clusters."
     },
     {
       "name": "session",

@@ -3414,6 +3414,41 @@
       }
     },
     {
+      "name": "report_clusters",
+      "service": "TraceService",
+      "description": "clusters failed Allure results by Doctor historical-signature keys into error \u2192 impacted tests; deterministic, no cloud ML; empty results are empty-state",
+      "params": [
+        {
+          "name": "allureResultsPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "doctorReportPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "unique errors",
+        "error clusters",
+        "signature clusters",
+        "impacted tests",
+        "report clusters",
+        "unique-error clustering",
+        "historical-signature"
+      ],
+      "slashAlias": null,
+      "cliCommand": "report clusters",
+      "example": null
+    },
+    {
       "name": "report_flake",
       "service": "TraceService",
       "description": "builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional",

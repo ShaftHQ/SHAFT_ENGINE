@@ -553,6 +553,12 @@
       ]
     },
     {
+      "name": "report_clusters",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "report_merge_shards",
       "mutation": true,
       "sensitive": false,

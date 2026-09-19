@@ -936,6 +936,20 @@
         "flaky tests",
         "transition count"
       ]
+    },
+    "report_clusters": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report clusters",
+      "intentKeywords": [
+        "unique errors",
+        "error clusters",
+        "signature clusters",
+        "impacted tests",
+        "report clusters",
+        "unique-error clustering",
+        "historical-signature"
+      ]
     }
   }
 }

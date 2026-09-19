@@ -7,7 +7,9 @@ import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.history.AllureHistoryIngestor;
 import com.shaft.doctor.history.AllureHistoryModels;
 import com.shaft.doctor.history.DualFlakeComputer;
+import com.shaft.doctor.history.ErrorClusterModels;
 import com.shaft.doctor.history.FlakeModels;
+import com.shaft.doctor.history.UniqueErrorClusterer;
 import com.shaft.doctor.shard.FlakyCluster;
 import com.shaft.doctor.shard.MergedReport;
 import com.shaft.doctor.shard.ShardIntelligence;
@@ -303,6 +305,27 @@ public class TraceService {
         AllureHistoryModels.HistoryView view =
                 AllureHistoryIngestor.ingest(history, doctor, results, limit);
         return DualFlakeComputer.compute(view, limit, threshold);
+    }
+
+    /**
+     * Unique-error clusters keyed by Doctor historical-signature / clusterFingerprint
+     * (issue #5969 / S3-03). Groups failed/broken Allure results into error → impacted tests.
+     * Deterministic — no cloud ML. Empty results yield empty-state.
+     *
+     * @param allureResultsPath optional allure-results directory; blank defaults to
+     *                          {@code target/allure-results} when present
+     * @param doctorReportPath optional Doctor JSON that may carry clusterFingerprint evidence
+     * @return unique-error cluster table for the IDE Reporting canvas / CLI
+     */
+    @Tool(name = "report_clusters",
+            description = "clusters failed Allure results by Doctor historical-signature keys into error → impacted tests; deterministic, no cloud ML; empty results are empty-state")
+    public ErrorClusterModels.ClusterTable reportClusters(
+            @ToolParam(required = false) String allureResultsPath,
+            @ToolParam(required = false) String doctorReportPath) {
+        Path results = resolveOptionalReadable(
+                allureResultsPath, "target/allure-results", "Allure results directory");
+        Path doctor = resolveOptionalReadable(doctorReportPath, null, "Doctor report JSON");
+        return UniqueErrorClusterer.cluster(results, doctor);
     }
 
     private Path resolveOptionalReadable(String value, String defaultRelative, String label) {
