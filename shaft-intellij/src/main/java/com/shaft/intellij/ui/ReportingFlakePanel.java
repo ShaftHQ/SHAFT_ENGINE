@@ -136,50 +136,17 @@ final class ReportingFlakePanel extends JPanel {
             return;
         }
         try {
-            JsonElement parsed = JsonParser.parseString(raw);
-            if (!parsed.isJsonObject()) {
+            JsonObject root = parseObject(raw);
+            if (root == null) {
                 status.setText(truncate(raw));
                 return;
             }
-            JsonObject root = parsed.getAsJsonObject();
-            if (root.has("empty") && root.get("empty").getAsBoolean()) {
+            if (isEmptyView(root)) {
                 String message = text(root, "emptyMessage");
                 status.setText(message.isBlank() ? "No flake rows yet." : message);
                 return;
             }
-            int rows = 0;
-            for (JsonElement element : array(root, "rows")) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                JsonObject row = element.getAsJsonObject();
-                String retryHidden = row.has("retryHidden") && row.get("retryHidden").getAsBoolean()
-                        ? firstNonBlank(text(row, "retryHiddenTag"), "retry-hidden")
-                        : "";
-                String transitions = text(row, "transitionAssessment");
-                String transitionCount = row.has("transitionCount") && !row.get("transitionCount").isJsonNull()
-                        ? String.valueOf(row.get("transitionCount").getAsInt())
-                        : "—";
-                String sameSha;
-                if (row.has("sameShaAvailable") && row.get("sameShaAvailable").getAsBoolean()) {
-                    sameSha = row.has("sameShaTransitionCount") && !row.get("sameShaTransitionCount").isJsonNull()
-                            ? String.valueOf(row.get("sameShaTransitionCount").getAsInt())
-                            : "available";
-                } else {
-                    sameSha = "n/a";
-                }
-                tableModel.addRow(new Object[]{
-                        text(row, "historyId"),
-                        text(row, "name"),
-                        retryHidden,
-                        transitions,
-                        transitionCount,
-                        String.valueOf(intValue(row, "launchCount")),
-                        joinTags(row),
-                        sameSha
-                });
-                rows++;
-            }
+            int rows = appendFlakeRows(root);
             status.setText(rows == 0
                     ? "No flake rows."
                     : ("Showing " + rows
@@ -187,6 +154,64 @@ final class ReportingFlakePanel extends JPanel {
         } catch (RuntimeException exception) {
             status.setText(truncate(raw));
         }
+    }
+
+    private static JsonObject parseObject(String raw) {
+        JsonElement parsed = JsonParser.parseString(raw);
+        return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+    }
+
+    private static boolean isEmptyView(JsonObject root) {
+        return root.has("empty") && root.get("empty").getAsBoolean();
+    }
+
+    private int appendFlakeRows(JsonObject root) {
+        int rows = 0;
+        for (JsonElement element : array(root, "rows")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            tableModel.addRow(toTableRow(element.getAsJsonObject()));
+            rows++;
+        }
+        return rows;
+    }
+
+    private static Object[] toTableRow(JsonObject row) {
+        return new Object[]{
+                text(row, "historyId"),
+                text(row, "name"),
+                retryHiddenCell(row),
+                text(row, "transitionAssessment"),
+                transitionCountCell(row),
+                String.valueOf(intValue(row, "launchCount")),
+                joinTags(row),
+                sameShaCell(row)
+        };
+    }
+
+    private static String retryHiddenCell(JsonObject row) {
+        if (row.has("retryHidden") && row.get("retryHidden").getAsBoolean()) {
+            return firstNonBlank(text(row, "retryHiddenTag"), "retry-hidden");
+        }
+        return "";
+    }
+
+    private static String transitionCountCell(JsonObject row) {
+        if (row.has("transitionCount") && !row.get("transitionCount").isJsonNull()) {
+            return String.valueOf(row.get("transitionCount").getAsInt());
+        }
+        return "—";
+    }
+
+    private static String sameShaCell(JsonObject row) {
+        if (!(row.has("sameShaAvailable") && row.get("sameShaAvailable").getAsBoolean())) {
+            return "n/a";
+        }
+        if (row.has("sameShaTransitionCount") && !row.get("sameShaTransitionCount").isJsonNull()) {
+            return String.valueOf(row.get("sameShaTransitionCount").getAsInt());
+        }
+        return "available";
     }
 
     private void loadFlake() {

@@ -10,6 +10,9 @@ import java.util.List;
  * is optional for same-SHA scoring.
  */
 public final class FlakeModels {
+    /** Shared schema version for flake table responses. */
+    public static final String SCHEMA_VERSION = "1.0";
+
     private FlakeModels() {
     }
 
@@ -33,7 +36,7 @@ public final class FlakeModels {
             List<FlakeRow> rows,
             List<String> warnings) {
         public FlakeTable {
-            schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? "1.0" : schemaVersion.trim();
+            schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? SCHEMA_VERSION : schemaVersion.trim();
             emptyMessage = emptyMessage == null ? "" : emptyMessage;
             windowSize = Math.max(1, windowSize);
             transitionThreshold = Math.max(1, transitionThreshold);
