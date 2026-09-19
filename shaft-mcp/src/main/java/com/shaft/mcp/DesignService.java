@@ -161,6 +161,31 @@ public class DesignService {
                 analysis, lint, coverage, feature, accept, acceptedGherkinSnapshot);
     }
 
+
+    @Tool(name = "design_handoff",
+            description = "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); never writes Java or invents locators/URLs")
+    public McpDesignHandoff handoff(String text, String filePath, String sourceUrl, String acceptedGapIds,
+                                    String gherkin, String coverageWaived, String lintWaived,
+                                    String accept, String acceptedGherkinSnapshot, String optionalUrl) {
+        McpDesignReadiness readiness = readiness(
+                text, filePath, sourceUrl, acceptedGapIds, gherkin, coverageWaived, lintWaived,
+                accept, acceptedGherkinSnapshot);
+        McpDesignAnalysis analysis = analyze(text, filePath, sourceUrl, acceptedGapIds);
+        String feature = gherkin == null ? "" : gherkin.strip();
+        if (feature.isEmpty() && analysis.gherkinGenerationAllowed()) {
+            feature = gherkinDraft(text, filePath, sourceUrl, acceptedGapIds).feature();
+        }
+        McpDesignCoverage coverage = DesignCoverageComputer.compute(
+                analysis.pack(), feature, coverageWaived);
+        McpDesignGapMap gapMap = feature.isEmpty()
+                ? new McpDesignGapMap(McpDesignGapMap.CURRENT_SCHEMA_VERSION, McpDesignGapMap.STATUS_ERROR,
+                        "No Gherkin.", List.of(), false)
+                : DesignGapMapComputer.map(feature);
+        McpDesignExamples examples = examples(text, filePath, sourceUrl, acceptedGapIds, "");
+        return DesignHandoffComputer.build(
+                readiness, analysis, coverage, gapMap, examples, feature, optionalUrl);
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");

@@ -75,6 +75,7 @@ Agents should use these exact tool names instead of guessing or listing tools at
 - `design_lint` — lints a Gherkin draft for missing Then, click/xpath smells, duplicates, and invented SHAFT APIs; fail closed on errors
 - `design_gap_map` — classifies accepted Gherkin steps as mapped to SHAFT fluent API, new-helper, needs-recording, or ambiguous; never writes production Java
 - `design_readiness` — evaluates Draft / Needs questions / Ready for a Design pack; handoffAllowed only when Ready after analysis, lint, coverage, and explicit accept
+- `design_handoff` — serializes a Ready Design pack for Automation prefill; never writes Java or invents locators/URLs
 
 ## Doctor (DoctorService)
 

@@ -189,6 +189,46 @@ final class DesignCanvasModel {
         return rows;
     }
 
+    
+    static List<String[]> handoffRows(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        if (root == null) {
+            return List.of();
+        }
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{
+                string(root, "status"),
+                string(root, "message"),
+                string(root, "optionalUrl"),
+                ""
+        });
+        JsonElement unmet = root.get("unmetConditions");
+        if (unmet != null && unmet.isJsonArray()) {
+            for (JsonElement item : unmet.getAsJsonArray()) {
+                if (item.isJsonPrimitive()) {
+                    rows.add(new String[]{"unmet", item.getAsString(), "", ""});
+                }
+            }
+        }
+        JsonElement scenarios = root.get("scenarios");
+        if (scenarios != null && scenarios.isJsonArray()) {
+            for (JsonElement item : scenarios.getAsJsonArray()) {
+                if (item.isJsonPrimitive()) {
+                    rows.add(new String[]{"scenario", item.getAsString(), "", ""});
+                }
+            }
+        }
+        JsonElement prefill = root.get("automationPrefill");
+        if (prefill != null && prefill.isJsonObject()) {
+            for (var entry : prefill.getAsJsonObject().entrySet()) {
+                if (entry.getValue().isJsonPrimitive()) {
+                    rows.add(new String[]{"prefill", entry.getKey(), entry.getValue().getAsString(), ""});
+                }
+            }
+        }
+        return rows;
+    }
+
     static List<String[]> readinessRows(String raw) {
         JsonObject root = parseAnalysisObject(raw);
         if (root == null) {

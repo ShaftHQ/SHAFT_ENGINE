@@ -51,6 +51,7 @@ class ToolCatalogIndexTest {
                 "Gherkin lint must reach the IDE through the canonical catalog (issue #5953)");
         assertTrue(names.contains("design_gap_map"),
                 "fluent gap map must reach the IDE through the canonical catalog (issue #5954)");
+        assertTrue(names.contains("design_handoff"), "design_handoff must be indexed");
         assertTrue(names.contains("design_readiness"),
                 "design readiness gate must reach the IDE through the canonical catalog (issue #5955)");
         assertFalse(names.contains("natural_act"), "natural_act was deleted outright (owner mandate)");
@@ -61,8 +62,8 @@ class ToolCatalogIndexTest {
 
     @Test
     void toolNamesMatchesTheCanonical108ToolCatalog() {
-        assertEquals(110, ToolCatalogIndex.toolNames().size(),
-                "the bundled index must track the canonical 110-tool catalog; a mismatch means "
+        assertEquals(111, ToolCatalogIndex.toolNames().size(),
+                "the bundled index must track the canonical 111-tool catalog; a mismatch means "
                         + "the build-time copy is stale or the resource wasn't regenerated");
     }
 

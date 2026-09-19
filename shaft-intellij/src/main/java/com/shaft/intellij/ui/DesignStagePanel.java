@@ -35,6 +35,7 @@ final class DesignStagePanel extends JPanel {
     private static final String[] COVERAGE_COLUMNS = {"ID", "State", "Reason"};
     private static final String[] LINT_COLUMNS = {"ID", "Level", "Rule", "Message"};
     private static final String[] FLUENT_MAP_COLUMNS = {"Step", "Class", "Type", "Method", "Note"};
+    private static final String[] HANDOFF_COLUMNS = {"Status", "Detail", "URL", "Note"};
     private static final String[] READINESS_COLUMNS = {"Status", "Detail", "Handoff", "Note"};
 
     private final Project project;
@@ -49,6 +50,7 @@ final class DesignStagePanel extends JPanel {
     private final JTable lintTable;
     private final JTable fluentMapTable;
     private final JTable readinessTable;
+    private final JTable handoffTable;
     private final JButton deleteExample;
     private final JButton ingest;
     private final JButton analyze;
@@ -59,6 +61,7 @@ final class DesignStagePanel extends JPanel {
     private final JButton lint;
     private final JButton fluentMap;
     private final JButton readiness;
+    private final JButton handoff;
     private boolean lintAcceptBlocked;
     private final javax.swing.JTextField lintWaived;
     private final JBTextArea gherkinDraft;
@@ -118,6 +121,7 @@ final class DesignStagePanel extends JPanel {
         lintTable = table("Gherkin lint", LINT_COLUMNS);
         fluentMapTable = table("Fluent API gap map", FLUENT_MAP_COLUMNS);
         readinessTable = table("Design readiness", READINESS_COLUMNS);
+        handoffTable = table("Design handoff", HANDOFF_COLUMNS);
         lintWaived = new javax.swing.JTextField();
         lintWaived.getAccessibleContext().setAccessibleName("Lint waivers");
 
@@ -140,6 +144,7 @@ final class DesignStagePanel extends JPanel {
         lint = action("Lint Gherkin", this::lintStory);
         fluentMap = action("Fluent gap map", this::fluentGapMapStory);
         readiness = action("Readiness", this::readinessStory);
+        handoff = action("Handoff", this::handoffStory);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -154,6 +159,7 @@ final class DesignStagePanel extends JPanel {
         actions.add(lint);
         actions.add(fluentMap);
         actions.add(readiness);
+        actions.add(handoff);
 
         JBSplitter tables = new JBSplitter(true, 0.45f);
         tables.setFirstComponent(new JBScrollPane(acTable));
@@ -164,7 +170,11 @@ final class DesignStagePanel extends JPanel {
         JPanel coverageAndReady = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         coverageAndReady.setOpaque(false);
         coverageAndReady.add(new JBScrollPane(coverageTable), BorderLayout.CENTER);
-        coverageAndReady.add(new JBScrollPane(readinessTable), BorderLayout.SOUTH);
+        JPanel readyAndHandoff = new JPanel(new BorderLayout(0, JBUI.scale(4)));
+        readyAndHandoff.setOpaque(false);
+        readyAndHandoff.add(new JBScrollPane(readinessTable), BorderLayout.CENTER);
+        readyAndHandoff.add(new JBScrollPane(handoffTable), BorderLayout.SOUTH);
+        coverageAndReady.add(readyAndHandoff, BorderLayout.SOUTH);
         extra.add(coverageAndReady, BorderLayout.NORTH);
         JPanel lintPanel = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         lintPanel.setOpaque(false);
@@ -290,6 +300,14 @@ final class DesignStagePanel extends JPanel {
         return readinessTable;
     }
 
+    JTable handoffTable() {
+        return handoffTable;
+    }
+
+    JButton handoffButton() {
+        return handoff;
+    }
+
     JButton readinessButton() {
         return readiness;
     }
@@ -337,6 +355,19 @@ final class DesignStagePanel extends JPanel {
 
     void applyGapMapJson(String json) {
         fill(fluentMapTable, FLUENT_MAP_COLUMNS, DesignCanvasModel.gapMapRows(json));
+        try {
+            JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
+            if (root.has("message") && !root.get("message").getAsString().isBlank()) {
+                statusBadge.setText(root.get("message").getAsString());
+            }
+        } catch (RuntimeException ignored) {
+            // keep prior badge
+        }
+        refreshButtons();
+    }
+
+    void applyHandoffJson(String json) {
+        fill(handoffTable, HANDOFF_COLUMNS, DesignCanvasModel.handoffRows(json));
         try {
             JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
             if (root.has("message") && !root.get("message").getAsString().isBlank()) {
@@ -407,6 +438,17 @@ final class DesignStagePanel extends JPanel {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("gherkin", gherkinDraft.getText());
         invoke("design_gap_map", arguments, false);
+    }
+
+    private void handoffStory() {
+        JsonObject arguments = arguments("");
+        arguments.addProperty("gherkin", gherkinDraft.getText());
+        arguments.addProperty("coverageWaived", "");
+        arguments.addProperty("lintWaived", lintWaived.getText());
+        arguments.addProperty("accept", "true");
+        arguments.addProperty("acceptedGherkinSnapshot", gherkinDraft.getText());
+        arguments.addProperty("optionalUrl", "");
+        invoke("design_handoff", arguments, false);
     }
 
     private void readinessStory() {
@@ -484,6 +526,8 @@ final class DesignStagePanel extends JPanel {
             applyExamplesJson(output);
         } else if (output.contains("\"suggestions\"")) {
             applyLexiconJson(output);
+        } else if (output.contains("\"automationPrefill\"")) {
+            applyHandoffJson(output);
         } else if (output.contains("\"handoffAllowed\"")) {
             applyReadinessJson(output);
         } else if (output.contains("\"readyBlocked\"")) {
@@ -511,6 +555,7 @@ final class DesignStagePanel extends JPanel {
         lint.setEnabled(ready);
         fluentMap.setEnabled(ready);
         readiness.setEnabled(ready);
+        handoff.setEnabled(ready);
         deleteExample.setEnabled(ready && examplesTable.getRowCount() > 0);
     }
 
