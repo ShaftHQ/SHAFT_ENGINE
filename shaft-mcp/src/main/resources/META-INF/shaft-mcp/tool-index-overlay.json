@@ -300,6 +300,17 @@
         "feature scenario"
       ]
     },
+    "design_examples": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design examples",
+      "intentKeywords": [
+        "scenario outline",
+        "examples table",
+        "design examples",
+        "boundary partitions"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {

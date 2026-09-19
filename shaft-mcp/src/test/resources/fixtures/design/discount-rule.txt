@@ -1,0 +1,7 @@
+As a shopper
+I want to apply a membership and coupon discount
+so that I pay the right total
+- Then membership, coupon, and basket minimum determine the discount percent
+- Then a declined card does not place the order and an error status is shown
+- Then a duplicate submit within 30 seconds creates one order
+- Then totals use banker's rounding to 2 decimals

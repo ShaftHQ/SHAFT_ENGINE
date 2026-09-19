@@ -30,6 +30,7 @@ final class DesignStagePanel extends JPanel {
     private static final String[] AC_COLUMNS = {"ID", "Criterion"};
     private static final String[] GAP_COLUMNS = {"ID", "Kind", "Severity", "Rank", "AC", "Question", "Accepted"};
     private static final String[] ORACLE_COLUMNS = {"AC", "Oracle", "Evidence"};
+    private static final String[] EXAMPLE_COLUMNS = {"ID", "Kind", "Cells"};
 
     private final Project project;
     private final JBTextArea story;
@@ -38,6 +39,8 @@ final class DesignStagePanel extends JPanel {
     private final JTable acTable;
     private final JTable gapTable;
     private final JTable oracleTable;
+    private final JTable examplesTable;
+    private final JButton deleteExample;
     private final JButton ingest;
     private final JButton analyze;
     private final JButton acceptRisk;
@@ -92,12 +95,15 @@ final class DesignStagePanel extends JPanel {
         acTable = table("Acceptance criteria", AC_COLUMNS);
         gapTable = table("Gap register", GAP_COLUMNS);
         oracleTable = table("Evidence oracles", ORACLE_COLUMNS);
+        examplesTable = table("Examples table", EXAMPLE_COLUMNS);
 
         ingest = action("Ingest story", this::ingestStory);
         analyze = action("Analyze", this::analyzeStory);
         acceptRisk = action("Accept residual risk", this::acceptResidualRisk);
         gherkin = action("Draft Gherkin", this::draftGherkin);
         gherkin.setEnabled(false);
+        JButton designExamples = action("Design examples", this::examplesStory);
+        deleteExample = action("Delete example row", this::deleteSelectedExample);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -105,12 +111,17 @@ final class DesignStagePanel extends JPanel {
         actions.add(analyze);
         actions.add(acceptRisk);
         actions.add(gherkin);
+        actions.add(designExamples);
+        actions.add(deleteExample);
 
         JBSplitter tables = new JBSplitter(true, 0.45f);
         tables.setFirstComponent(new JBScrollPane(acTable));
         JPanel lower = new JPanel(new BorderLayout(0, JBUI.scale(6)));
         lower.add(new JBScrollPane(gapTable), BorderLayout.CENTER);
-        lower.add(new JBScrollPane(oracleTable), BorderLayout.SOUTH);
+        JPanel southTables = new JPanel(new BorderLayout(0, JBUI.scale(4)));
+        southTables.add(new JBScrollPane(oracleTable), BorderLayout.CENTER);
+        southTables.add(new JBScrollPane(examplesTable), BorderLayout.SOUTH);
+        lower.add(southTables, BorderLayout.SOUTH);
         tables.setSecondComponent(lower);
 
         JBSplitter body = new JBSplitter(true, 0.38f);
@@ -151,6 +162,14 @@ final class DesignStagePanel extends JPanel {
         return gapTable;
     }
 
+    JTable examplesTable() {
+        return examplesTable;
+    }
+
+    JButton deleteExampleButton() {
+        return deleteExample;
+    }
+
     void applyAnalysisJson(String json) {
         model = DesignCanvasModel.fromJson(json);
         fill(acTable, AC_COLUMNS, model.acRows());
@@ -158,6 +177,11 @@ final class DesignStagePanel extends JPanel {
         fill(oracleTable, ORACLE_COLUMNS, model.oracleRows());
         statusBadge.setText(model.badgeText());
         packStrip.setText(model.packStrip());
+        refreshButtons();
+    }
+
+    void applyExamplesJson(String json) {
+        fill(examplesTable, EXAMPLE_COLUMNS, DesignCanvasModel.exampleRows(json));
         refreshButtons();
     }
 
@@ -173,6 +197,19 @@ final class DesignStagePanel extends JPanel {
         invoke("design_gherkin_draft", arguments(""), false);
     }
 
+    private void examplesStory() {
+        invoke("design_examples", arguments(""), false);
+    }
+
+    private void deleteSelectedExample() {
+        int row = examplesTable.getSelectedRow();
+        if (row < 0 || examplesTable.getRowCount() == 0) {
+            return;
+        }
+        Object id = examplesTable.getValueAt(row, 0);
+        invoke("design_examples", arguments(id == null ? "" : id.toString()), false);
+    }
+
     private void acceptResidualRisk() {
         invoke("design_analyze", arguments(model.acceptedGapIdsArgument()), false);
     }
@@ -183,6 +220,7 @@ final class DesignStagePanel extends JPanel {
         arguments.addProperty("filePath", "");
         arguments.addProperty("sourceUrl", "");
         arguments.addProperty("acceptedGapIds", acceptedGapIds);
+        arguments.addProperty("droppedExampleIds", acceptedGapIds);
         return arguments;
     }
 
@@ -223,6 +261,7 @@ final class DesignStagePanel extends JPanel {
         analyze.setEnabled(ready);
         acceptRisk.setEnabled(ready && model.acceptEnabled());
         gherkin.setEnabled(ready && model.gherkinGenerationAllowed());
+        deleteExample.setEnabled(ready && examplesTable.getRowCount() > 0);
     }
 
     private static JButton action(String name, Runnable runnable) {

@@ -19,7 +19,7 @@
     },
     {
       "name": "design",
-      "description": "Design shortcuts: ingest | analyze | gherkin."
+      "description": "Design shortcuts: ingest | analyze | gherkin | examples."
     },
     {
       "name": "doctor",
