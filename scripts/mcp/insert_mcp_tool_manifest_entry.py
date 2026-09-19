@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Idempotent MCP catalog tool inserts (issue #6000).
+"""
+Idempotent MCP catalog tool inserts (issue #6000).
 
-S1-07 apply.sh used replace_once keyed on a neighboring coverage trailer that
-still matched after the first insert, so a second run duplicated design_lint.
-This helper inserts by **tool name**: skip when the name is already present,
-fail closed on any duplicate names before writing.
+Skip when the tool name already exists; fail closed on duplicate names
+before writing. Prefer this over replace_once on a neighboring trailer.
 """
 
 from __future__ import annotations
@@ -43,26 +42,54 @@ def load_json(path: Path) -> Any:
         _fail(f"catalog file not found: {path}")
     except json.JSONDecodeError as exc:
         _fail(f"invalid JSON in {path}: {exc}")
+    return None
 
 
 def uniqueness_error(names: list[str]) -> str | None:
     seen: set[str] = set()
-    dupes: list[str] = []
+    dupes: set[str] = set()
     for name in names:
-        if not name or not str(name).strip():
+        if not str(name).strip():
             return "catalog contains a tool without a name"
-        if name in seen and name not in dupes:
-            dupes.append(name)
+        if name in seen:
+            dupes.add(name)
         seen.add(name)
     if dupes:
         return "duplicate tool name(s): " + ", ".join(sorted(dupes))
     return None
 
 
-def assert_unique(names: list[str], *, path: Path) -> None:
+def assert_unique(names: list[str], path: Path) -> None:
     err = uniqueness_error(names)
     if err:
         _fail(f"{path}: {err}")
+
+
+def _tool_entry(name: str, mutation: bool, sensitive: bool, deprecated: bool) -> dict[str, Any]:
+    return {
+        "name": name,
+        "mutation": mutation,
+        "sensitive": sensitive,
+        "deprecated": deprecated,
+    }
+
+
+def _flags(mutation: bool, sensitive: bool, deprecated: bool) -> dict[str, bool]:
+    return {"mutation": mutation, "sensitive": sensitive, "deprecated": deprecated}
+
+
+def _index_after(tools: list[Any], after: str | None) -> int:
+    if after is None:
+        return len(tools)
+    for index, tool in enumerate(tools):
+        if isinstance(tool, dict) and tool.get("name") == after:
+            return index + 1
+    _fail(f"--after tool not found in manifest: {after}")
+    return len(tools)
+
+
+def manifest_names(tools: list[Any]) -> list[str]:
+    return [str(t.get("name", "")) for t in tools if isinstance(t, dict)]
 
 
 def insert_manifest_list_entry(
@@ -74,33 +101,16 @@ def insert_manifest_list_entry(
     deprecated: bool,
     after: str | None,
 ) -> str:
-    """Insert into mcp-tool-manifest.json tools array. Returns inserted|skipped."""
+    """Insert into mcp-tool-manifest.json tools array."""
     tools = document.get("tools")
     if not isinstance(tools, list):
         _fail("manifest tools must be a JSON array")
-    names = [str(t.get("name", "")) for t in tools if isinstance(t, dict)]
-    assert_unique(names, path=Path("manifest"))
+    names = manifest_names(tools)
+    assert_unique(names, Path("manifest"))
     if name in names:
         return "skipped"
-    entry = {
-        "name": name,
-        "mutation": mutation,
-        "sensitive": sensitive,
-        "deprecated": deprecated,
-    }
-    insert_at = len(tools)
-    if after:
-        for index, tool in enumerate(tools):
-            if isinstance(tool, dict) and tool.get("name") == after:
-                insert_at = index + 1
-                break
-        else:
-            _fail(f"--after tool not found in manifest: {after}")
-    tools.insert(insert_at, entry)
-    assert_unique(
-        [str(t.get("name", "")) for t in tools if isinstance(t, dict)],
-        path=Path("manifest"),
-    )
+    tools.insert(_index_after(tools, after), _tool_entry(name, mutation, sensitive, deprecated))
+    assert_unique(manifest_names(tools), Path("manifest"))
     return "inserted"
 
 
@@ -112,24 +122,88 @@ def insert_overlay_entry(
     sensitive: bool,
     deprecated: bool,
 ) -> str:
-    """Insert into tool-index-overlay.json tools object. Returns inserted|skipped."""
+    """Insert into tool-index-overlay.json tools object."""
     tools = document.get("tools")
     if not isinstance(tools, dict):
         _fail("overlay tools must be a JSON object keyed by tool name")
-    assert_unique(list(tools.keys()), path=Path("overlay"))
+    assert_unique(list(tools.keys()), Path("overlay"))
     if name in tools:
         return "skipped"
-    tools[name] = {
-        "mutation": mutation,
-        "sensitive": sensitive,
-        "deprecated": deprecated,
-    }
-    assert_unique(list(tools.keys()), path=Path("overlay"))
+    tools[name] = _flags(mutation, sensitive, deprecated)
+    assert_unique(list(tools.keys()), Path("overlay"))
     return "inserted"
 
 
 def write_json(path: Path, document: Any) -> None:
     path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+
+def check_manifest(document: Any, path: Path) -> None:
+    tools = document.get("tools") if isinstance(document, dict) else None
+    if not isinstance(tools, list):
+        _fail(f"{path}: tools must be a JSON array")
+    assert_unique(manifest_names(tools), path)
+
+
+def check_overlay(document: Any, path: Path) -> None:
+    tools = document.get("tools") if isinstance(document, dict) else None
+    if not isinstance(tools, dict):
+        _fail(f"{path}: tools must be a JSON object")
+    assert_unique(list(tools.keys()), path)
+
+
+def apply_manifest(
+    path: Path,
+    *,
+    name: str,
+    mutation: bool,
+    sensitive: bool,
+    deprecated: bool,
+    after: str | None,
+    check_only: bool,
+) -> str:
+    document = load_json(path)
+    if check_only:
+        check_manifest(document, path)
+        return "ok"
+    if not isinstance(document, dict):
+        _fail(f"{path}: expected object root")
+    status = insert_manifest_list_entry(
+        document,
+        name=name,
+        mutation=mutation,
+        sensitive=sensitive,
+        deprecated=deprecated,
+        after=after,
+    )
+    write_json(path, document)
+    return status
+
+
+def apply_overlay(
+    path: Path,
+    *,
+    name: str,
+    mutation: bool,
+    sensitive: bool,
+    deprecated: bool,
+    check_only: bool,
+) -> str:
+    document = load_json(path)
+    if check_only:
+        check_overlay(document, path)
+        return "ok"
+    if not isinstance(document, dict):
+        _fail(f"{path}: expected object root")
+    status = insert_overlay_entry(
+        document,
+        name=name,
+        mutation=mutation,
+        sensitive=sensitive,
+        deprecated=deprecated,
+    )
+    write_json(path, document)
+    return status
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -140,33 +214,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mutation", choices=("true", "false"), required=True)
     parser.add_argument("--sensitive", choices=("true", "false"), required=True)
     parser.add_argument("--deprecated", choices=("true", "false"), default="false")
-    parser.add_argument(
-        "--after",
-        help="Optional neighbor name; insert immediately after it in the list fixture",
-    )
-    parser.add_argument(
-        "--manifest",
-        type=Path,
-        default=DEFAULT_MANIFEST,
-        help="Path to mcp-tool-manifest.json",
-    )
-    parser.add_argument(
-        "--overlay",
-        type=Path,
-        default=None,
-        help="Optional tool-index-overlay.json (dict keyed by name)",
-    )
-    parser.add_argument(
-        "--also-overlay",
-        action="store_true",
-        help=f"Also update default overlay at {DEFAULT_OVERLAY}",
-    )
-    parser.add_argument(
-        "--check-only",
-        action="store_true",
-        help="Only assert uniqueness of the target file(s); do not insert",
-    )
+    parser.add_argument("--after", help="Insert after this neighbor in the list fixture")
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument("--overlay", type=Path, default=None)
+    parser.add_argument("--also-overlay", action="store_true")
+    parser.add_argument("--check-only", action="store_true")
     return parser
+
+
+def resolve_overlay(args: argparse.Namespace) -> Path | None:
+    if args.overlay is not None:
+        return args.overlay
+    if args.also_overlay:
+        return DEFAULT_OVERLAY
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -177,60 +238,27 @@ def main(argv: list[str] | None = None) -> int:
     mutation = args.mutation == "true"
     sensitive = args.sensitive == "true"
     deprecated = args.deprecated == "true"
-
-    targets: list[tuple[str, Path]] = [("manifest", args.manifest)]
-    overlay_path = args.overlay
-    if args.also_overlay and overlay_path is None:
-        overlay_path = DEFAULT_OVERLAY
-    if overlay_path is not None:
-        targets.append(("overlay", overlay_path))
-
-    results: dict[str, str] = {}
-    for kind, path in targets:
-        document = load_json(path)
-        if args.check_only:
-            if kind == "manifest":
-                tools = document.get("tools")
-                if not isinstance(tools, list):
-                    _fail(f"{path}: tools must be a JSON array")
-                assert_unique(
-                    [str(t.get("name", "")) for t in tools if isinstance(t, dict)],
-                    path=path,
-                )
-            else:
-                tools = document.get("tools")
-                if not isinstance(tools, dict):
-                    _fail(f"{path}: tools must be a JSON object")
-                assert_unique(list(tools.keys()), path=path)
-            results[kind] = "ok"
-            continue
-
-        if kind == "manifest":
-            if not isinstance(document, dict):
-                _fail(f"{path}: expected object root")
-            status = insert_manifest_list_entry(
-                document,
-                name=name,
-                mutation=mutation,
-                sensitive=sensitive,
-                deprecated=deprecated,
-                after=args.after,
-            )
-            write_json(path, document)
-            results[kind] = status
-        else:
-            if not isinstance(document, dict):
-                _fail(f"{path}: expected object root")
-            status = insert_overlay_entry(
-                document,
-                name=name,
-                mutation=mutation,
-                sensitive=sensitive,
-                deprecated=deprecated,
-            )
-            write_json(path, document)
-            results[kind] = status
-
+    results = {
+        "manifest": apply_manifest(
+            args.manifest,
+            name=name,
+            mutation=mutation,
+            sensitive=sensitive,
+            deprecated=deprecated,
+            after=args.after,
+            check_only=args.check_only,
+        )
+    }
+    overlay = resolve_overlay(args)
+    if overlay is not None:
+        results["overlay"] = apply_overlay(
+            overlay,
+            name=name,
+            mutation=mutation,
+            sensitive=sensitive,
+            deprecated=deprecated,
+            check_only=args.check_only,
+        )
     print(json.dumps({"name": name, "results": results}, sort_keys=True))
     return 0
 

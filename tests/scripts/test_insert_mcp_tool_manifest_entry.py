@@ -1,4 +1,5 @@
-"""Regression for #6000: catalog apply inserts are idempotent on tool name."""
+"""
+Regression for #6000: catalog apply inserts are idempotent on tool name."""
 
 from __future__ import annotations
 
@@ -16,7 +17,8 @@ MODULE_PATH = REPO_ROOT / "scripts" / "mcp" / "insert_mcp_tool_manifest_entry.py
 def _load_module():
     spec = importlib.util.spec_from_file_location("insert_mcp_tool_manifest_entry", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
+    if spec.loader is None:
+        raise ImportError(f"Unable to load {MODULE_PATH}")
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
