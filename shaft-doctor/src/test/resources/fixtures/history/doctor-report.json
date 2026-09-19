@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "evidence": [
+    {
+      "id": "e1",
+      "attributes": {
+        "historyId": "hist-login"
+      },
+      "category": "ALLURE_RESULT"
+    },
+    {
+      "id": "e2",
+      "attributes": {
+        "historyId": "hist-checkout"
+      },
+      "category": "ALLURE_RESULT"
+    }
+  ],
+  "diagnosis": {
+    "primaryCause": "LOCATOR",
+    "summary": "Login locator drifted; checkout timed out waiting for cart."
+  },
+  "findings": [
+    {
+      "historyId": "hist-login",
+      "primaryCause": "LOCATOR",
+      "summary": "Login locator drifted"
+    },
+    {
+      "historyId": "hist-checkout",
+      "primaryCause": "TIMING",
+      "summary": "Checkout timed out"
+    }
+  ]
+}

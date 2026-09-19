@@ -38,6 +38,10 @@
       "description": "When no COMMAND is given, the usage help for the main command is displayed. If a COMMAND is specified, the help for that command is shown."
     },
     {
+      "name": "report",
+      "description": "Reporting shortcuts: history."
+    },
+    {
       "name": "session",
       "description": "Manage the shaft-mcp daemon session (start | status | stop)."
     },

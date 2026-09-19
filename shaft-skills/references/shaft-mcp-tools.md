@@ -162,5 +162,6 @@ Agents should use these exact tool names instead of guessing or listing tools at
 - `trace_read` — returns redacted SHAFT trace JSON from a trace path with explicit output bounds
 - `trace_summarize` — returns a deterministic summary of a persisted SHAFT trace without AI
 - `trace_open_viewer` — resolves (extracting from the trace ZIP if needed) the offline SHAFT Trace Report HTML viewer for a persisted trace
+- `report_history` — ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state
 - `report_merge_shards` — merges N per-shard Allure/trace/doctor-intelligence blobs into one Allure result set plus a flaky-clustering speedboard HTML
 - `doctor_analyze_trace` — analyzes a persisted SHAFT trace and returns deterministic Doctor remediation guidance

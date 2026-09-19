@@ -559,6 +559,12 @@
       "deprecated": false
     },
     {
+      "name": "report_history",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "shaft_coding_partner_diff",
       "mutation": false,
       "sensitive": false,
