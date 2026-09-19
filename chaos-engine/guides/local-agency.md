@@ -72,7 +72,7 @@ ROG FreeToken (`127.0.0.1:1919`). Until the platform exposes `machineId` to Task
 - Gate:
   `python3 chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py check`
   and `dispatch.py resolve --prefer freetoken` fail closed on fake box hostnames
-  unless `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Not READY on this host → clear error JSON.
+  unless `CE_ALLOW_BOX_LOCAL_AGENCY=1` (or `CE_ROG_CHECKOUT`). Not READY on this host → clear error JSON.
 
 ## Session agents vs local agency
 

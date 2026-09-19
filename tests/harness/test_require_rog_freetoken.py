@@ -168,10 +168,10 @@ class RequireRogFreetokenTest(unittest.TestCase):
         self.assertIn("require_rog_freetoken.py", lessons)
 
     def test_phrase_pack_mentions_6021(self) -> None:
-        pack = _read("tests/harness/test_harness_improvement_pack_phrases.py")
         # Keep the older pack focused; this file owns #6021 phrases.
         self.assertTrue(SCRIPT.is_file())
         self.assertIn("require_rog_freetoken", DISPATCH.read_text(encoding="utf-8"))
+        self.assertNotIn("mohab", SCRIPT.read_text(encoding="utf-8").casefold())
 
 
 if __name__ == "__main__":

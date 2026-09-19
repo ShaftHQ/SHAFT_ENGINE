@@ -40,8 +40,8 @@ first.
 - **ROG FreeToken bind (#6021):** Task/box writers must **not** claim FreeToken.
   `dispatch.py resolve --prefer freetoken` and
   [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py) fail closed unless
-  the hostname looks like ROG, cwd is
-  `/media/mohab/OS/Users/Mohab/IdeaProjects/SHAFT_ENGINE`, or
+  the hostname looks like ROG, cwd is the operator ROG checkout (see
+  [local-agency guide](../../guides/local-agency.md)), or
   `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Process-owner Shell with `machineId` on ROG is
   required until Grok Bot exposes `machineId` to Task. Clear error when FreeToken
   is not READY on this host.
