@@ -1056,6 +1056,56 @@
       "description" : null
     } ]
   }, {
+    "name" : "design_readiness",
+    "service" : "DesignService",
+    "description" : "evaluates Draft / Needs questions / Ready for a Design pack; handoffAllowed only when Ready after analysis, lint, coverage, and explicit accept",
+    "params" : [ {
+      "name" : "accept",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "acceptedGapIds",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "acceptedGherkinSnapshot",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "coverageWaived",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "filePath",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "gherkin",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "lintWaived",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "sourceUrl",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "text",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "doctor_analyze_failed_allure",
     "service" : "DoctorService",
     "description" : "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace; optional backend (web|playwright, defaults to web) selects the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure",

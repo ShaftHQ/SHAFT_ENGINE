@@ -19,7 +19,7 @@ import java.util.concurrent.Callable;
  * Curated Design-stage shortcuts. Pure alias over {@code call}.
  */
 @Command(mixinStandardHelpOptions = true,
-        name = "design", description = "Design shortcuts: ingest | analyze | gherkin | examples | lexicon | coverage | lint | gap-map.")
+        name = "design", description = "Design shortcuts: ingest | analyze | gherkin | examples | lexicon | coverage | lint | gap-map | readiness.")
 public final class DesignCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.of(
@@ -30,9 +30,10 @@ public final class DesignCommand implements Callable<Integer> {
             "lexicon", "design_lexicon",
             "coverage", "design_coverage",
             "lint", "design_lint",
-            "gap-map", "design_gap_map");
+            "gap-map", "design_gap_map",
+            "readiness", "design_readiness");
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "ingest | analyze | gherkin | examples | lexicon | coverage | lint | gap-map")
+    @Parameters(index = "0", paramLabel = "ACTION", description = "ingest | analyze | gherkin | examples | lexicon | coverage | lint | gap-map | readiness")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value", description = "Arguments as key=value pairs, e.g. text=\"As a shopper…\".")

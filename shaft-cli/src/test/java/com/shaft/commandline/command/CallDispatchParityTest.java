@@ -161,4 +161,15 @@ class CallDispatchParityTest {
         assertEquals(0, exit);
         assertTrue(out.toString().contains("called design_gap_map"));
     }
+    @Test
+    void designReadinessAliasDispatchesDesignReadiness() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("readiness", "text=As a shopper\nI want x\nso that y\n- Then done", "accept=false");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_readiness"));
+    }
+
 }
