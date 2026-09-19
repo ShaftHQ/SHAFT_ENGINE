@@ -14,7 +14,8 @@ VENDOR = ROOT / "chaos-engine/vendor/icm-architect"
 
 def load(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
-    assert spec is not None and spec.loader is not None
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"unable to load module {name} from {path}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
