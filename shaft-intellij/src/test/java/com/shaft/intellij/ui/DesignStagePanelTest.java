@@ -194,7 +194,10 @@ class DesignStagePanelTest {
         assertEquals(1, panel.lintTable().getRowCount());
         assertEquals("error", panel.lintTable().getValueAt(0, 1));
         assertTrue(panel.statusBadge().getText().contains("block accept"));
-        assertFalse(panel.lintButton().isEnabled(), "accept stays disabled while errors remain");
+        assertTrue(panel.lintAcceptBlocked());
+        assertFalse(panel.acceptRiskButton().isEnabled(), "accept stays disabled while errors remain");
+        panel.lintWaivedField().setText("LINT-01:accepted residual click");
+        assertEquals("LINT-01:accepted residual click", panel.lintWaivedField().getText());
     }
 
     private static <T extends JComponent> T findByAccessibleName(

@@ -54,6 +54,7 @@ final class DesignStagePanel extends JPanel {
     private final JButton coverage;
     private final JButton lint;
     private boolean lintAcceptBlocked;
+    private final javax.swing.JTextField lintWaived;
     private final JBTextArea gherkinDraft;
     private final javax.swing.JList<String> lexiconSuggestions;
     private DesignCanvasModel model = new DesignCanvasModel();
@@ -109,6 +110,8 @@ final class DesignStagePanel extends JPanel {
         examplesTable = table("Examples table", EXAMPLE_COLUMNS);
         coverageTable = table("AC coverage", COVERAGE_COLUMNS);
         lintTable = table("Gherkin lint", LINT_COLUMNS);
+        lintWaived = new javax.swing.JTextField();
+        lintWaived.getAccessibleContext().setAccessibleName("Lint waivers");
 
         ingest = action("Ingest story", this::ingestStory);
         analyze = action("Analyze", this::analyzeStory);
@@ -147,7 +150,11 @@ final class DesignStagePanel extends JPanel {
         JPanel extra = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         extra.add(new JBScrollPane(examplesTable), BorderLayout.CENTER);
         extra.add(new JBScrollPane(coverageTable), BorderLayout.NORTH);
-        extra.add(new JBScrollPane(lintTable), BorderLayout.EAST);
+        JPanel lintPanel = new JPanel(new BorderLayout(0, JBUI.scale(4)));
+        lintPanel.setOpaque(false);
+        lintPanel.add(new JBScrollPane(lintTable), BorderLayout.CENTER);
+        lintPanel.add(lintWaived, BorderLayout.SOUTH);
+        extra.add(lintPanel, BorderLayout.EAST);
         JPanel draftAndLexicon = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         draftAndLexicon.add(new JBScrollPane(gherkinDraft), BorderLayout.CENTER);
         draftAndLexicon.add(new JBScrollPane(lexiconSuggestions), BorderLayout.EAST);
@@ -254,6 +261,14 @@ final class DesignStagePanel extends JPanel {
         return lint;
     }
 
+    boolean lintAcceptBlocked() {
+        return lintAcceptBlocked;
+    }
+
+    javax.swing.JTextField lintWaivedField() {
+        return lintWaived;
+    }
+
     JButton deleteExampleButton() {
         return deleteExample;
     }
@@ -332,7 +347,7 @@ final class DesignStagePanel extends JPanel {
     private void lintStory() {
         JsonObject arguments = arguments("");
         arguments.addProperty("gherkin", gherkinDraft.getText());
-        arguments.addProperty("waived", "");
+        arguments.addProperty("waived", lintWaived.getText());
         invoke("design_lint", arguments, false);
     }
 
@@ -410,11 +425,11 @@ final class DesignStagePanel extends JPanel {
         boolean ready = project != null && !busy && !story.getText().isBlank();
         ingest.setEnabled(ready);
         analyze.setEnabled(ready);
-        acceptRisk.setEnabled(ready && model.acceptEnabled());
+        acceptRisk.setEnabled(ready && model.acceptEnabled() && !lintAcceptBlocked);
         gherkin.setEnabled(ready && model.gherkinGenerationAllowed());
         suggestPhrases.setEnabled(ready);
         coverage.setEnabled(ready);
-        lint.setEnabled(ready && !lintAcceptBlocked);
+        lint.setEnabled(ready);
         deleteExample.setEnabled(ready && examplesTable.getRowCount() > 0);
     }
 
