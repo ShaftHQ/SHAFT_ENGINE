@@ -43,7 +43,18 @@ CAVEMAN_UPSTREAM_COMMIT = "766dce6b1394ebb56a3090748d5a0240a5aefb36"
 PONYTAIL_PLUGIN_NAME = "ponytail"
 PONYTAIL_PLUGIN_VERSION = "0.1.0"
 PONYTAIL_UPSTREAM_COMMIT = "2ed6c52c9d7e5e56942508591085fd45dea277d3"
-COMPANION_PLUGIN_NAMES = (CAVEMAN_PLUGIN_NAME, PONYTAIL_PLUGIN_NAME)
+ICM_ARCHITECT_PLUGIN_NAME = "icm-architect"
+ICM_ARCHITECT_PLUGIN_VERSION = "0.1.0"
+ICM_ARCHITECT_UPSTREAM_COMMIT = "e16cafe6a664dcf6d787a726b452adba77d913f4"
+# Intensity companions (SessionStart required) stay caveman/ponytail.
+# ICM Architect is an installer-owned advisory skill companion (#6001).
+COMPANION_PLUGIN_NAMES = (
+    CAVEMAN_PLUGIN_NAME,
+    PONYTAIL_PLUGIN_NAME,
+    ICM_ARCHITECT_PLUGIN_NAME,
+)
+INTENSITY_COMPANION_PLUGIN_NAMES = (CAVEMAN_PLUGIN_NAME, PONYTAIL_PLUGIN_NAME)
+ADVISORY_COMPANION_PLUGIN_NAMES = (ICM_ARCHITECT_PLUGIN_NAME,)
 MEMORY_SCHEMA_FILES = (
     "config.schema.json",
     "object.schema.json",
@@ -1690,6 +1701,15 @@ def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
                     },
                     "category": "Productivity",
                 },
+                {
+                    "name": ICM_ARCHITECT_PLUGIN_NAME,
+                    "source": {"source": "local", "path": "./plugins/icm-architect"},
+                    "policy": {
+                        "installation": "INSTALLED_BY_DEFAULT",
+                        "authentication": "ON_INSTALL",
+                    },
+                    "category": "Productivity",
+                },
             ],
         }
         claude_marketplace = {
@@ -1714,6 +1734,12 @@ def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
                     "source": "./plugins/ponytail",
                     "description": "Laziest solution that actually works.",
                     "version": PONYTAIL_PLUGIN_VERSION,
+                },
+                {
+                    "name": ICM_ARCHITECT_PLUGIN_NAME,
+                    "source": "./plugins/icm-architect",
+                    "description": "ICM workspaces: folder structure as agent architecture.",
+                    "version": ICM_ARCHITECT_PLUGIN_VERSION,
                 },
             ],
         }
@@ -1866,6 +1892,7 @@ def companion_managed_paths() -> tuple[str, ...]:
     for name, vendor in (
         (CAVEMAN_PLUGIN_NAME, "caveman"),
         (PONYTAIL_PLUGIN_NAME, "ponytail"),
+        (ICM_ARCHITECT_PLUGIN_NAME, "icm-architect"),
     ):
         paths.extend(
             (
@@ -1985,6 +2012,48 @@ def companion_plugin_images() -> dict[str, bytes]:
         commit=PONYTAIL_UPSTREAM_COMMIT,
         version=PONYTAIL_PLUGIN_VERSION,
     )
+
+    icm_manifest = {
+        "name": ICM_ARCHITECT_PLUGIN_NAME,
+        "version": ICM_ARCHITECT_PLUGIN_VERSION,
+        "description": (
+            "Design or restructure processes, ideas, and folders into ICM "
+            "workspaces (folder structure as agent architecture)."
+        ),
+        "author": {
+            "name": "Jake Van Clief",
+            "url": "https://github.com/RinDig",
+        },
+        "homepage": "https://github.com/RinDig/icm-architect",
+        "repository": "https://github.com/RinDig/icm-architect",
+        "license": "MIT",
+        "skills": "./skills/",
+    }
+    after["plugins/icm-architect/.codex-plugin/plugin.json"] = (
+        json.dumps(icm_manifest, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    after["plugins/icm-architect/.claude-plugin/plugin.json"] = (
+        json.dumps(
+            {
+                "name": ICM_ARCHITECT_PLUGIN_NAME,
+                "version": ICM_ARCHITECT_PLUGIN_VERSION,
+                "description": icm_manifest["description"],
+                "author": icm_manifest["author"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    publish_vendor_plugin(
+        after,
+        name=ICM_ARCHITECT_PLUGIN_NAME,
+        vendor="icm-architect",
+        repository="RinDig/icm-architect",
+        commit=ICM_ARCHITECT_UPSTREAM_COMMIT,
+        version=ICM_ARCHITECT_PLUGIN_VERSION,
+    )
+    
     return after
 
 
@@ -2001,6 +2070,12 @@ def companion_required_files(name: str) -> tuple[str, ...]:
             "skills/ponytail/SKILL.md",
             "LICENSE",
             "hooks/ponytail-activate.js",
+            "UPSTREAM.md",
+        )
+    if name == ICM_ARCHITECT_PLUGIN_NAME:
+        return (
+            "skills/icm-architect/SKILL.md",
+            "LICENSE",
             "UPSTREAM.md",
         )
     raise ValueError(f"unknown companion plugin: {name}")
@@ -2115,6 +2190,48 @@ def companion_plugin_payload(name: str) -> dict[str, bytes]:
             version=PONYTAIL_PLUGIN_VERSION,
         )
         return after
+    if name == ICM_ARCHITECT_PLUGIN_NAME:
+        icm_manifest = {
+            "name": ICM_ARCHITECT_PLUGIN_NAME,
+            "version": ICM_ARCHITECT_PLUGIN_VERSION,
+            "description": (
+                "Design or restructure processes, ideas, and folders into ICM "
+                "workspaces (folder structure as agent architecture)."
+            ),
+            "author": {
+                "name": "Jake Van Clief",
+                "url": "https://github.com/RinDig",
+            },
+            "homepage": "https://github.com/RinDig/icm-architect",
+            "repository": "https://github.com/RinDig/icm-architect",
+            "license": "MIT",
+            "skills": "./skills/",
+        }
+        after["plugins/icm-architect/.codex-plugin/plugin.json"] = (
+            json.dumps(icm_manifest, indent=2, sort_keys=True) + "\n"
+        ).encode()
+        after["plugins/icm-architect/.claude-plugin/plugin.json"] = (
+            json.dumps(
+                {
+                    "name": ICM_ARCHITECT_PLUGIN_NAME,
+                    "version": ICM_ARCHITECT_PLUGIN_VERSION,
+                    "description": icm_manifest["description"],
+                    "author": icm_manifest["author"],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode()
+        publish_vendor_plugin(
+            after,
+            name=ICM_ARCHITECT_PLUGIN_NAME,
+            vendor="icm-architect",
+            repository="RinDig/icm-architect",
+            commit=ICM_ARCHITECT_UPSTREAM_COMMIT,
+            version=ICM_ARCHITECT_PLUGIN_VERSION,
+        )
+        return after
     raise ValueError(f"unknown companion plugin: {name}")
 
 
@@ -2151,7 +2268,7 @@ def rematerialize_companions(
         "names": list(selected),
         "officialCommand": (
             "CE vendor rematerialize via hosts.rematerialize_companions "
-            "(chaos-engine/vendor/{caveman,ponytail} → plugins/)"
+            "(chaos-engine/vendor/{caveman,ponytail,icm-architect} → plugins/)"
         ),
     }
 
@@ -2583,6 +2700,7 @@ ORIGIN_OVERLAY_PATTERNS = (
     "plugins/chaos-engine/",
     "plugins/caveman/",
     "plugins/ponytail/",
+    "plugins/icm-architect/",
     "agent-plugins/chaos-engine/**",
     "!agent-plugins/chaos-engine/CHANGELOG.md",
     "!agent-plugins/chaos-engine/COMPATIBILITY.md",
@@ -5198,6 +5316,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
         "!plugins/caveman/\n!plugins/caveman/**\n"
         "!plugins/ponytail/\n!plugins/ponytail/**\n"
+        "!plugins/icm-architect/\n!plugins/icm-architect/**\n"
         "!.mcp.json\n\n"
         "# Machine-local installer and Graphify artifacts remain untracked after the\n"
         "# installed-harness allowlist above.\n"
@@ -5261,6 +5380,7 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}plugins/chaos-engine/** text eol=lf\n"
         f"{repository_root_anchor}plugins/caveman/** text eol=lf\n"
         f"{repository_root_anchor}plugins/ponytail/** text eol=lf\n"
+        f"{repository_root_anchor}plugins/icm-architect/** text eol=lf\n"
         f"{repository_root_anchor}AGENTS.md text eol=lf\n"
         f"{repository_root_anchor}CLAUDE.md text eol=lf\n"
         f"{repository_root_anchor}GEMINI.md text eol=lf\n"
@@ -5326,7 +5446,7 @@ def desired_content(
         "- `chaos-engine/`: canonical skill adapter.\n"
         "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
         "- `../../plugins/caveman/`: pinned Caveman skill and hooks.\n"
-        "- `../../plugins/ponytail/`: pinned Ponytail skill and hooks.\n"
+        "- `../../plugins/ponytail/`: pinned Ponytail skill and hooks.\n- `../../plugins/icm-architect/`: pinned ICM Architect skill (advisory).\n"
         "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
     ).encode()
     after[".agents/skills/README.md"] = (
@@ -5373,6 +5493,15 @@ def desired_content(
         },
         "category": "Productivity",
     }
+    icm_entry = {
+        "name": ICM_ARCHITECT_PLUGIN_NAME,
+        "source": {"source": "local", "path": "./plugins/icm-architect"},
+        "policy": {
+            "installation": "INSTALLED_BY_DEFAULT",
+            "authentication": "ON_INSTALL",
+        },
+        "category": "Productivity",
+    }
     existing_plugin = next(
         (item for item in marketplace["plugins"] if isinstance(item, dict) and item.get("name") == "chaos-engine"),
         None,
@@ -5393,14 +5522,23 @@ def desired_content(
         ),
         None,
     )
+    existing_icm = next(
+        (
+            item
+            for item in marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == ICM_ARCHITECT_PLUGIN_NAME
+        ),
+        None,
+    )
     agents_collision = (
         (existing_plugin is not None and existing_plugin != plugin_entry)
         or (existing_caveman is not None and existing_caveman != caveman_entry)
         or (existing_ponytail is not None and existing_ponytail != ponytail_entry)
+        or (existing_icm is not None and existing_icm != icm_entry)
     )
     desired_agents_marketplace = {
         "name": marketplace.get("name", "chaos-engine-project"),
-        "plugins": [plugin_entry, caveman_entry, ponytail_entry],
+        "plugins": [plugin_entry, caveman_entry, ponytail_entry, icm_entry],
     }
     if "interface" in marketplace:
         desired_agents_marketplace["interface"] = marketplace["interface"]
@@ -5420,6 +5558,8 @@ def desired_content(
             marketplace["plugins"].append(caveman_entry)
         if existing_ponytail is None:
             marketplace["plugins"].append(ponytail_entry)
+        if existing_icm is None:
+            marketplace["plugins"].append(icm_entry)
         after[".agents/plugins/marketplace.json"] = (
             json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
         ).encode()
@@ -5523,12 +5663,31 @@ def desired_content(
         if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
             if existing_ponytail.get("skills") in (None, []):
                 existing_ponytail["skills"] = ponytail_claude_entry["skills"]
+        icm_claude_entry = {
+            "name": ICM_ARCHITECT_PLUGIN_NAME,
+            "source": "./plugins/icm-architect",
+            "description": "ICM workspaces: folder structure as agent architecture.",
+            "version": ICM_ARCHITECT_PLUGIN_VERSION,
+            "skills": ["./icm-architect"],
+        }
+        existing_icm = next(
+            (
+                item
+                for item in claude_marketplace["plugins"]
+                if isinstance(item, dict) and item.get("name") == ICM_ARCHITECT_PLUGIN_NAME
+            ),
+            None,
+        )
+        if existing_icm is not None and existing_icm != icm_claude_entry:
+            if existing_icm.get("skills") in (None, []):
+                existing_icm["skills"] = icm_claude_entry["skills"]
         companion_collision = (
             (existing_caveman is not None and existing_caveman != caveman_claude_entry)
             or (
                 existing_ponytail is not None
                 and existing_ponytail != ponytail_claude_entry
             )
+            or (existing_icm is not None and existing_icm != icm_claude_entry)
         )
         if companion_collision:
             _note_merge_handoff(
@@ -5540,6 +5699,7 @@ def desired_content(
                             claude_plugin_entry,
                             caveman_claude_entry,
                             ponytail_claude_entry,
+                            icm_claude_entry,
                         ]
                     },
                     indent=2,
@@ -5556,6 +5716,8 @@ def desired_content(
                 claude_marketplace["plugins"].append(caveman_claude_entry)
             if existing_ponytail is None:
                 claude_marketplace["plugins"].append(ponytail_claude_entry)
+            if existing_icm is None:
+                claude_marketplace["plugins"].append(icm_claude_entry)
             after[".claude-plugin/marketplace.json"] = (
                 json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
             ).encode()
@@ -5642,7 +5804,7 @@ def desired_content(
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
         "That router requires Caveman + Ponytail at ultra on implementation entrypoints\n"
-        "(unless installed with --without-caveman/--without-ponytail).\n"
+        "(unless installed with --without-caveman/--without-ponytail/--without-icm-architect).\n"
         "Also load `.chaos-engine/identity.md` for project personality.\n"
     ).encode()
     claude_settings = _merge_or_preserve(
@@ -5681,7 +5843,12 @@ def desired_content(
             key: value
             for key, value in enabled.items()
             if str(key).split("@", 1)[0].casefold()
-            in {PLUGIN_NAME, CAVEMAN_PLUGIN_NAME, PONYTAIL_PLUGIN_NAME}
+            in {
+                PLUGIN_NAME,
+                CAVEMAN_PLUGIN_NAME,
+                PONYTAIL_PLUGIN_NAME,
+                ICM_ARCHITECT_PLUGIN_NAME,
+            }
         }
         pinned_enabled[plugin_id] = True
         pinned_enabled[f"caveman@{claude_marketplace_name}"] = True
@@ -5824,6 +5991,46 @@ def desired_content(
         repository="DietrichGebert/ponytail",
         commit=PONYTAIL_UPSTREAM_COMMIT,
         version=PONYTAIL_PLUGIN_VERSION,
+    )
+    icm_manifest = {
+        "name": ICM_ARCHITECT_PLUGIN_NAME,
+        "version": ICM_ARCHITECT_PLUGIN_VERSION,
+        "description": (
+            "Design or restructure processes, ideas, and folders into ICM "
+            "workspaces (folder structure as agent architecture)."
+        ),
+        "author": {
+            "name": "Jake Van Clief",
+            "url": "https://github.com/RinDig",
+        },
+        "homepage": "https://github.com/RinDig/icm-architect",
+        "repository": "https://github.com/RinDig/icm-architect",
+        "license": "MIT",
+        "skills": "./skills/",
+    }
+    after["plugins/icm-architect/.codex-plugin/plugin.json"] = (
+        json.dumps(icm_manifest, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    after["plugins/icm-architect/.claude-plugin/plugin.json"] = (
+        json.dumps(
+            {
+                "name": ICM_ARCHITECT_PLUGIN_NAME,
+                "version": ICM_ARCHITECT_PLUGIN_VERSION,
+                "description": icm_manifest["description"],
+                "author": icm_manifest["author"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    publish_vendor_plugin(
+        after,
+        name=ICM_ARCHITECT_PLUGIN_NAME,
+        vendor="icm-architect",
+        repository="RinDig/icm-architect",
+        commit=ICM_ARCHITECT_UPSTREAM_COMMIT,
+        version=ICM_ARCHITECT_PLUGIN_VERSION,
     )
     for role in (
         "orchestrator",
@@ -6561,7 +6768,7 @@ def role_adapter_desired(relative: str) -> bytes | None:
             "Implementer",
             "Implement one bounded specification before consolidated validation. "
             "On this implementation path load Caveman + Ponytail at ultra "
-            "(unless installed with --without-caveman/--without-ponytail).",
+            "(unless installed with --without-caveman/--without-ponytail/--without-icm-architect).",
         ),
         "reviewer": (
             "Reviewer",

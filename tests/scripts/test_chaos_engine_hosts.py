@@ -230,9 +230,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     "codex:chaos-engine",
                     "codex:caveman",
                     "codex:ponytail",
+                    "codex:icm-architect",
                     "claude:chaos-engine",
                     "claude:caveman",
                     "claude:ponytail",
+                    "claude:icm-architect",
                 },
                 set(receipt["createdPlugins"]),
             )
@@ -258,6 +260,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             root, marketplace_name, _, _ = module.prepare_activation_bundle(project)
             shutil.rmtree(root / "plugins/caveman")
             shutil.rmtree(root / "plugins/ponytail")
+            shutil.rmtree(root / "plugins/icm-architect")
 
             activation = {
                 "marketplaceName": marketplace_name,
@@ -290,6 +293,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             joined = " ".join(" ".join(command) for command in calls if command[0] == "codex")
             self.assertNotIn("caveman", joined)
             self.assertNotIn("ponytail", joined)
+            self.assertNotIn("icm-architect", joined)
 
     def test_activation_marketplace_identity_is_collision_safe_across_projects(self):
         module = load(HOSTS, "chaos_engine_plugin_identity")
@@ -766,6 +770,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/ponytail/LICENSE",
                 "plugins/ponytail/UPSTREAM.md",
                 "plugins/ponytail/hooks/ponytail-activate.js",
+                "plugins/icm-architect/.codex-plugin/plugin.json",
+                "plugins/icm-architect/.claude-plugin/plugin.json",
+                "plugins/icm-architect/skills/icm-architect/SKILL.md",
+                "plugins/icm-architect/LICENSE",
+                "plugins/icm-architect/UPSTREAM.md",
                 ".codex/hooks.json",
                 ".claude/settings.json",
                 ".memory/config.json",
@@ -842,7 +851,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn("!.claude/**", ignores)
             self.assertIn("!.codex/**", ignores)
             self.assertIn(".claude/settings.local.json", ignores)
-            for name, vendor in (("caveman", "caveman"), ("ponytail", "ponytail")):
+            for name, vendor in (
+                ("caveman", "caveman"),
+                ("ponytail", "ponytail"),
+                ("icm-architect", "icm-architect"),
+            ):
                 pin = json.loads(
                     (ROOT / "chaos-engine/vendor" / vendor / "PIN.json").read_text(
                         encoding="utf-8"
@@ -858,8 +871,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 manifest = json.loads(
                     project.joinpath(f"plugins/{name}/.claude-plugin/plugin.json").read_text()
                 )
-                self.assertIn("hooks", manifest)
-                self.assertNotIn("SessionStart", manifest.get("hooks", {}))
+                if name == "icm-architect":
+                    self.assertNotIn("hooks", manifest)
+                else:
+                    self.assertIn("hooks", manifest)
+                    self.assertNotIn("SessionStart", manifest.get("hooks", {}))
 
             required_events = {
                 "SessionStart",
@@ -1136,7 +1152,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.install(project)
             merged = json.loads(marketplace_path.read_text())
             self.assertEqual(
-                ["unrelated", "chaos-engine", "caveman", "ponytail"],
+                ["unrelated", "chaos-engine", "caveman", "ponytail", "icm-architect"],
                 [item["name"] for item in merged["plugins"]],
             )
             self.assertEqual("./plugins/chaos-engine", merged["plugins"][1]["source"]["path"])
@@ -1314,7 +1330,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertTrue(installed["custom"])
             self.assertEqual("user-plugin", installed["plugins"][0]["name"])
             self.assertEqual(
-                ["chaos-engine", module.CAVEMAN_PLUGIN_NAME, module.PONYTAIL_PLUGIN_NAME],
+                [
+                    "chaos-engine",
+                    module.CAVEMAN_PLUGIN_NAME,
+                    module.PONYTAIL_PLUGIN_NAME,
+                    module.ICM_ARCHITECT_PLUGIN_NAME,
+                ],
                 [item["name"] for item in installed["plugins"][1:]],
             )
             module.uninstall(project)
@@ -4430,6 +4451,7 @@ class CompanionPinTest(unittest.TestCase):
         pins = (
             ROOT / "chaos-engine/vendor/caveman/PIN.json",
             ROOT / "chaos-engine/vendor/ponytail/PIN.json",
+            ROOT / "chaos-engine/vendor/icm-architect/PIN.json",
         )
         for pin_path in pins:
             with self.subTest(pin=pin_path.as_posix()):

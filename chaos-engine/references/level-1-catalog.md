@@ -18,6 +18,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Draft skill PR gate | Opt-in eval-gated draft skill PRs; default OFF | [`draft-skill-pr.md`](draft-skill-pr.md) |
 | Context firewall | Research / multi-file explore → isolated subagent; filepath:line distillate only | [`context-firewall.md`](context-firewall.md) |
 | Harness learn | Tune git-tracked harness from traces; never user-home skill copies | [`harness-learn.md`](harness-learn.md) |
+| ICM Architect | Design/restructure ICM workspaces (advisory companion) | [`icm-architect.md`](icm-architect.md) |
 | Design loop | Write-review-revise a design doc until reviewer reports 0 open issues | [`design-loop.md`](design-loop.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
 | Learn traces | Portable /learn map-reduce-verify; host TUI optional | [`learn-traces.md`](learn-traces.md) |

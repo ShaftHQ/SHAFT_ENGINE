@@ -77,6 +77,7 @@ DEFAULT_BUNDLE_COMPONENTS = (
     "graphify",
     "ponytail",
     "caveman",
+    "icm-architect",
 )
 REPAIRABLE_COMPONENTS = frozenset({
     "plugins",
@@ -3781,11 +3782,13 @@ def attach_component_status(
             target / "skills/chaos-engine/SKILL.md",
             target / "vendor/caveman/PIN.json",
             target / "vendor/ponytail/PIN.json",
+            target / "vendor/icm-architect/PIN.json",
         ],
         "skills": [
             project / ".agents/skills/chaos-engine/SKILL.md",
             project / "plugins/caveman/skills/caveman/SKILL.md",
             project / "plugins/ponytail/skills/ponytail/SKILL.md",
+            project / "plugins/icm-architect/skills/icm-architect/SKILL.md",
             target / "skills/self-improve/SKILL.md",
         ],
         "playbooks": [target / "references/work-github-playbook.md"],
@@ -3815,6 +3818,8 @@ def attach_component_status(
             project / "plugins/caveman/.claude-plugin/plugin.json",
             project / "plugins/ponytail/.codex-plugin/plugin.json",
             project / "plugins/ponytail/.claude-plugin/plugin.json",
+            project / "plugins/icm-architect/.codex-plugin/plugin.json",
+            project / "plugins/icm-architect/.claude-plugin/plugin.json",
         ],
         "roles": [
             *(project / ".claude/agents").glob("chaos-engine-*"),
@@ -4431,6 +4436,7 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
     for name, rel in (
         ("caveman", "plugins/caveman/skills/caveman/SKILL.md"),
         ("ponytail", "plugins/ponytail/skills/ponytail/SKILL.md"),
+        ("icm-architect", "plugins/icm-architect/skills/icm-architect/SKILL.md"),
     ):
         enabled = bool(bundle.get(name, True))
         present = (project / rel).is_file()
@@ -4463,6 +4469,7 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
     for name, rel in (
         ("caveman", "plugins/caveman/skills/caveman/SKILL.md"),
         ("ponytail", "plugins/ponytail/skills/ponytail/SKILL.md"),
+        ("icm-architect", "plugins/icm-architect/skills/icm-architect/SKILL.md"),
     ):
         enabled = bool(bundle.get(name, True))
         present = (project / rel).is_file()

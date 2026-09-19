@@ -12,6 +12,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 COMPANION_NAMES = ("caveman", "ponytail")
+ADVISORY_COMPANION_NAMES = ("icm-architect",)
 # Hard budget for SessionStart additionalContext (#5580). Locators only.
 SESSION_START_MAX_BYTES = 4096
 TOKEN_BUDGET_DEFAULT = "balanced"
@@ -233,6 +234,20 @@ def session_start_context(token: str | None, activation: str) -> str:
             if path is not None:
                 locator = _workspace_locator(path)
                 parts.append(f"Required companion: read and follow `{locator}` before responding.")
+                break
+    for name in ADVISORY_COMPANION_NAMES:
+        for root in _search_roots():
+            path = next(
+                (root / candidate for candidate in _skill_relatives(name) if (root / candidate).is_file()),
+                None,
+            )
+            if path is not None:
+                locator = _workspace_locator(path)
+                parts.append(
+                    "Advisory companion (design/structure): load "
+                    f"`{locator}` when the task is ICM / workspace structure / "
+                    '"ICM this" / folder-as-architecture work.'
+                )
                 break
     # Identity pointer (#5807) — locator only, never inline the body.
     identity_hit = False

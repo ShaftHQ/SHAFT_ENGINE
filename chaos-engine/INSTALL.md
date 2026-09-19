@@ -137,7 +137,7 @@ wrapped in `CHAOSENGINE-IDENTITY-TRUTH` markers; Learning must not silently rewr
 
 Doctor: create-on-heal when missing.
 
-### Caveman + Ponytail on implementation
+### Caveman + Ponytail on implementation (ICM Architect is advisory)
 
 Portable `skills/chaos-engine/SKILL.md` requires Caveman and Ponytail at **ultra** on
 implementation entrypoints (router implement path / implementer role) — not every
@@ -282,8 +282,8 @@ project health fail.
 
 ### Default-on all-in-one bundle
 
-The unattended one-liner provisions **Memory + MemPalace + Graphify + Ponytail**
-and keeps Caveman on. Disable only with flags (combinable):
+The unattended one-liner provisions **Memory + MemPalace + Graphify + Ponytail + ICM Architect**
+and keeps Caveman on. Disable only with flags (combinable), including `--without-icm-architect`:
 
 ```bash
 --without-memory --without-mempalace --without-graphify \
@@ -301,7 +301,7 @@ bare "rerun doctor".
 
 | Item | Official install / publish | Heal path |
 | --- | --- | --- |
-| Caveman / Ponytail | CE vendor rematerialize (`chaos-engine/vendor/{caveman,ponytail}` → `plugins/`) | `hosts.rematerialize_companions` on doctor when enabled-but-missing |
+| Caveman / Ponytail / ICM Architect | CE vendor rematerialize (`chaos-engine/vendor/{caveman,ponytail,icm-architect}` → `plugins/`) | `hosts.rematerialize_companions` on doctor when enabled-but-missing |
 | MemPalace | `uv tool install --with chromadb==1.5.9 mempalace==3.8.0` | `repair --component mempalace` / account provisioner |
 | Graphify | `uv tool install --with tree-sitter-sql==0.3.11 graphifyy==0.9.43` | `repair --component graphify` |
 | Memory | `npm install -g @aictx/memory@0.2.1` | `repair --component memory` |
