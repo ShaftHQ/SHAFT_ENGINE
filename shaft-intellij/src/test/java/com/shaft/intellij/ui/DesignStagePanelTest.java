@@ -36,6 +36,9 @@ class DesignStagePanelTest {
         assertNotNull(panel.coverageTable());
         assertNotNull(panel.coverageButton());
         assertNotNull(findByAccessibleName(panel, "AC coverage", JTable.class));
+        assertNotNull(panel.lintTable());
+        assertNotNull(panel.lintButton());
+        assertNotNull(findByAccessibleName(panel, "Gherkin lint", JTable.class));
     }
 
     @Test
@@ -173,6 +176,28 @@ class DesignStagePanelTest {
         assertEquals("waived", panel.coverageTable().getValueAt(3, 1));
         assertTrue(panel.statusBadge().getText().contains("Ready"));
         assertFalse(panel.coverageButton().isEnabled(), "headless panel has no project");
+    }
+
+    @Test
+    void xpathLintDisablesAcceptControl() {
+        DesignStagePanel panel = new DesignStagePanel();
+        panel.applyLintJson("""
+                {
+                  "status": "blocked",
+                  "message": "Error-level lint findings block accept until resolved or waived with a reason.",
+                  "findings": [
+                    {"id": "LINT-01", "level": "error", "rule": "click_xpath", "message": "When step uses click and xpath"}
+                  ],
+                  "acceptBlocked": true
+                }
+                """);
+        assertEquals(1, panel.lintTable().getRowCount());
+        assertEquals("error", panel.lintTable().getValueAt(0, 1));
+        assertTrue(panel.statusBadge().getText().contains("block accept"));
+        assertTrue(panel.lintAcceptBlocked());
+        assertFalse(panel.acceptRiskButton().isEnabled(), "accept stays disabled while errors remain");
+        panel.lintWaivedField().setText("LINT-01:accepted residual click");
+        assertEquals("LINT-01:accepted residual click", panel.lintWaivedField().getText());
     }
 
     private static <T extends JComponent> T findByAccessibleName(

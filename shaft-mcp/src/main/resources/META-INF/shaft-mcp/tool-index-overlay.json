@@ -333,6 +333,17 @@
         "requirement traceability"
       ]
     },
+    "design_lint": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design lint",
+      "intentKeywords": [
+        "lint gherkin",
+        "xpath smell",
+        "design lint",
+        "declarative gherkin"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {
