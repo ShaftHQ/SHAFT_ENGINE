@@ -5,6 +5,14 @@ skill preemptively. For a multi-stage request, finish and verify one output,
 then return here and choose the next row. If no row fits, ask for the missing
 intent instead of approximating a specialist.
 
+## Product stages (Design, Automation, Reporting)
+
+SHAFT's IntelliJ, CLI, MCP, and agentic installer share three product stages.
+Automation live record is a client of MCP `capture_*` plus CLI `shaft capture` /
+offline `shaft codegen` — never invent a plugin-only recording protocol. Healer
+and Doctor flake analytics stay in Reporting (Stage 3); do not fold heal into
+record or codegen.
+
 ## Lifecycle specialists
 
 | Immediate output | Load exactly this skill |

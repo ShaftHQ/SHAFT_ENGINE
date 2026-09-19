@@ -16,7 +16,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
- * Curated capture shortcuts. Pure alias over {@code call}; requires a live session.
+ * Curated capture shortcuts for the Automation stage. Pure alias over {@code call} to MCP
+ * {@code capture_*} tools; requires a live session. Pair with offline {@link CodegenCommand}
+ * ({@code shaft codegen}) — no plugin-only recording protocol (issue #5966 / S2-10).
  */
 @Command(mixinStandardHelpOptions = true,
         name = "capture",

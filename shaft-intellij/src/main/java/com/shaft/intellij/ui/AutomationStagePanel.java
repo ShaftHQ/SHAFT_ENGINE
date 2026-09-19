@@ -15,11 +15,15 @@ import java.awt.BorderLayout;
 import java.awt.Font;
 
 /**
- * Automation stage canvas (issues #5957 / #5964): live record is the default product surface, not an
- * expert tab. The primary tab hosts {@link GuidedWorkflowPanel} (start/pause/stop/clear plus the
- * unified step inspector) so recording and step edit/delete/reorder work with
- * {@code advancedUiEnabled} false. Expert raw MCP and secondary surfaces stay available as extra
- * tabs or under More.
+ * Automation stage canvas (issues #5957 / #5964 / #5966): live record is the default product
+ * surface, not an expert tab. The primary tab hosts {@link GuidedWorkflowPanel}
+ * (start/pause/stop/clear plus the unified step inspector) so recording and step
+ * edit/delete/reorder work with {@code advancedUiEnabled} false.
+ * <p>
+ * S2-10 contract: this stage is a <em>client</em> of MCP {@code capture_*} (live record) and
+ * CLI {@code shaft capture} / offline {@code shaft codegen} — there is no plugin-only recording
+ * protocol. Healing stays Reporting (Stage 3). Expert raw MCP and secondary surfaces stay under
+ * More or extra tabs.
  */
 final class AutomationStagePanel extends JPanel {
     static final String ACCESSIBLE_NAME = "SHAFT automation";

@@ -256,9 +256,24 @@ def choose_component(prompt: str, default: bool) -> bool:
     return default if not answer else answer not in {"n", "no"}
 
 
+# Product-facing three-stage UX (issue #5966 / S2-10; platform parity #5943).
+# Help text must keep these stage names so SC-002 stays greppable from --help.
+THREE_STAGE_UX_EPILOG = (
+    "Product stages (Design, Automation, Reporting):\n"
+    "  Design     — analysis and handoff into Automation\n"
+    "  Automation — live record via MCP capture_* plus shaft capture / shaft codegen\n"
+    "               (codegen stays offline; no plugin-only recording protocol)\n"
+    "  Reporting  — Allure, Doctor, and healer (Stage 3; healing is never folded into record)"
+)
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Install and configure shaft-mcp for a supported MCP client.",
+        description=(
+            "Install and configure shaft-mcp for a supported MCP client.\n"
+            "Covers SHAFT's three product stages: Design, Automation, Reporting."
+        ),
+        epilog=THREE_STAGE_UX_EPILOG,
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--client", choices=TARGETS)

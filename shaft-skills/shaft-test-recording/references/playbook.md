@@ -23,5 +23,6 @@
 ## Boundary
 
 - Recording produces evidence, not production-ready source; route persisted artifacts to `shaft-recording-codegen` and all proposed edits to `shaft-change-verification`.
+- IntelliJ Automation Live record is a client of the same MCP `capture_*` tools (and CLI `shaft capture`); there is no plugin-only recording protocol. Healer stays Reporting Stage 3.
 
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).
