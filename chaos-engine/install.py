@@ -20,6 +20,7 @@ import stat
 import subprocess  # nosec B404 - fixed list-form Maven build commands.
 import sys
 import tempfile
+import time
 import types
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -45,6 +46,11 @@ UNINSTALL_ARCHIVE_NAME = ".chaos-engine-uninstall-recovery.zip"
 UNINSTALL_CURRENT_NAME = ".chaos-engine-uninstall-current"
 UNINSTALL_OLD_BACKUP_NAME = ".chaos-engine-uninstall-old-backup"
 DEPENDENCY_LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
+# Bounded wait when another install/doctor/repair holds `.chaos-engine.lock` (#6019).
+PROJECT_LOCK_WAIT_SECONDS = 30.0
+PROJECT_LOCK_POLL_SECONDS = 0.1
+MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS = 30.0
+MAVEN_TOOLS_CACHE_BUSY_POLL_SECONDS = 0.2
 CROSS_ROLLBACK_JOURNAL_NAME = ".chaos-engine-cross-rollback"
 ACCOUNT_ROLLBACK_JOURNAL_NAME = ".chaos-engine-account-rollback"
 CAPABILITY_FIELDS = {"owner", "scope", "lifecycle", "taskImpact"}
@@ -1349,9 +1355,17 @@ def lock_busy_message(operation: str, lock_path: Path, *, holders=None) -> str:
 
 
 @contextmanager
-def project_lock(project: Path):
+def project_lock(project: Path, *, wait_seconds: float | None = None):
+    """Exclusive project lock with bounded wait for transient dual-op collisions (#6019).
+
+    ``wait_seconds=0`` keeps the historical non-blocking fail-fast used by tests.
+    Default waits up to ``PROJECT_LOCK_WAIT_SECONDS`` with a clear stderr message.
+    """
     project = project.resolve()
     lock_path = project / LOCK_NAME
+    wait_budget = (
+        PROJECT_LOCK_WAIT_SECONDS if wait_seconds is None else max(0.0, float(wait_seconds))
+    )
     flags = os.O_RDWR | getattr(os, "O_BINARY", 0)
     created = False
     try:
@@ -1385,19 +1399,38 @@ def project_lock(project: Path):
             if lock_contents != LOCK_MAGIC:
                 raise ValueError(f"ChaosEngine lock collision: {lock_path}")
         lock_file.seek(0)
-        if os.name == "nt":
-            import msvcrt  # pylint: disable=import-outside-toplevel
+        deadline = time.monotonic() + wait_budget
+        waiting_announced = False
+        while True:
+            try:
+                if os.name == "nt":
+                    import msvcrt  # pylint: disable=import-outside-toplevel
 
-            msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl  # pylint: disable=import-outside-toplevel,import-error
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl  # pylint: disable=import-outside-toplevel,import-error
 
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError as error:
-        lock_file.close()
-        raise RuntimeError(lock_busy_message("ChaosEngine operation", lock_path)) from error
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError as error:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    lock_file.close()
+                    raise RuntimeError(
+                        lock_busy_message("ChaosEngine operation", lock_path)
+                    ) from error
+                if not waiting_announced:
+                    print(
+                        "ChaosEngine: waiting for another ChaosEngine operation "
+                        f"to finish (up to {wait_budget:g}s)…",
+                        file=sys.stderr,
+                    )
+                    waiting_announced = True
+                time.sleep(min(PROJECT_LOCK_POLL_SECONDS, remaining))
     except BaseException:
-        lock_file.close()
+        # OSError from flock is handled in the wait loop; other errors close here.
+        if not lock_file.closed:
+            lock_file.close()
         raise
     try:
         yield
@@ -2823,18 +2856,45 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
     if mode != "native":
         raise ValueError("unsupported Maven Tools mode")
     tag = f"v{version}"
-    cache_status = hosts.maven_tools_cache_status(version)
-    if cache_status["status"] == "healthy":
-        existing = hosts.discover_maven_tools_runtime()
-        if existing is not None and hosts.probe_maven_tools_runtime(*existing):
-            return existing
-    elif cache_status["status"] == "busy":
-        raise RuntimeError("Maven Tools MCP cache is busy")
-    elif cache_status["status"] != "absent":
-        discard = getattr(hosts, "discard_invalid_maven_tools_cache", None)
-        if not callable(discard):
-            raise ValueError("Maven Tools MCP cache is invalid")
-        discard(version)
+    cache_deadline = time.monotonic() + MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS
+    busy_announced = False
+    while True:
+        cache_status = hosts.maven_tools_cache_status(version)
+        status = cache_status.get("status")
+        if status == "healthy":
+            existing = hosts.discover_maven_tools_runtime()
+            if existing is not None:
+                # Healthy shared cache is reuse (action:reused); probe flakes must
+                # not force a rebuild that then hits "cache version already exists".
+                return existing
+            break
+        if status == "busy":
+            remaining = cache_deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError("Maven Tools MCP cache is busy")
+            if not busy_announced:
+                if reporter is not None and hasattr(reporter, "detail"):
+                    try:
+                        reporter.detail(
+                            "Waiting for Maven Tools MCP cache lock "
+                            f"(up to {MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS:g}s)…"
+                        )
+                    except Exception:  # noqa: BLE001 - reporter is best-effort
+                        pass
+                print(
+                    "ChaosEngine: waiting for Maven Tools MCP cache "
+                    f"(up to {MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS:g}s)…",
+                    file=sys.stderr,
+                )
+                busy_announced = True
+            time.sleep(min(MAVEN_TOOLS_CACHE_BUSY_POLL_SECONDS, remaining))
+            continue
+        if status != "absent":
+            discard = getattr(hosts, "discard_invalid_maven_tools_cache", None)
+            if not callable(discard):
+                raise ValueError("Maven Tools MCP cache is invalid")
+            discard(version)
+        break
     java_minimum = "25.0.0"
     java_contract = specification.get("dependencies", {}).get("java") if isinstance(
         specification.get("dependencies"), dict

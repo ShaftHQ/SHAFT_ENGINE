@@ -3372,7 +3372,28 @@ def discard_invalid_maven_tools_cache(
         return {**observed, "status": "discarded"}
 
 
+def _reuse_healthy_maven_tools_cache(
+    cache_root: Path, version: str, *, anchor: Path, target: Path
+) -> Path | None:
+    """Return target when an existing version tree is healthy; else None."""
+    try:
+        observed = _maven_tools_cache_status_unlocked(
+            cache_root, version, anchor=anchor
+        )
+    except ValueError:
+        return None
+    if observed.get("status") == "healthy":
+        return target
+    return None
+
+
 def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Path:
+    """Publish a staged Maven Tools MCP version into the shared user cache.
+
+    An already-present *healthy* version is reused (idempotent install / dual
+    reinstall) instead of raising CE-INSTALL-FAILED. Invalid or colliding trees
+    still fail closed.
+    """
     staging = staging.absolute()
     cache_root = (root or maven_tools_cache_root()).absolute()
     anchor = _cache_anchor(cache_root)
@@ -3400,15 +3421,30 @@ def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Pat
     with maven_tools_cache_lock(cache_root, anchor=anchor):
         target = _maven_tools_version_directory(cache_root, version)
         if target.exists() or is_link_or_reparse(target):
+            reused = _reuse_healthy_maven_tools_cache(
+                cache_root, version, anchor=anchor, target=target
+            )
+            if reused is not None:
+                return reused
             raise ValueError(f"Maven Tools MCP cache version already exists: {target}")
         if os.stat(staging).st_dev != os.stat(cache_root).st_dev:
             raise ValueError("Maven Tools MCP staging directory must use the cache filesystem")
         try:
             _rename_no_replace(staging, target)
         except FileExistsError as error:
+            reused = _reuse_healthy_maven_tools_cache(
+                cache_root, version, anchor=anchor, target=target
+            )
+            if reused is not None:
+                return reused
             raise ValueError(f"Maven Tools MCP cache version already exists: {target}") from error
         except OSError as error:
             if error.errno == errno.EEXIST:
+                reused = _reuse_healthy_maven_tools_cache(
+                    cache_root, version, anchor=anchor, target=target
+                )
+                if reused is not None:
+                    return reused
                 raise ValueError(f"Maven Tools MCP cache version already exists: {target}") from error
             raise
         return target

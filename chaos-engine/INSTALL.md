@@ -410,9 +410,10 @@ Install, doctor, and repair take an exclusive project lock (`.chaos-engine.lock`
 The lock file existing with magic `chaos-engine-lock-v1` is normal; the flock is
 released when the holding process exits. Do **not** delete the lock file.
 
-If a concurrent one-liner hits the lock, the error lists Linux holder PID(s) and
-cmdline when `/proc` can see them, plus a `fix-next` line. Wait for those
-PID(s) to finish. Do not run the install one-liner in parallel with
+A concurrent one-liner **waits up to ~30s** for the holder (with a stderr
+progress line) before failing. After that timeout the error lists Linux holder
+PID(s) and cmdline when `/proc` can see them, plus a `fix-next` line. Wait for
+those PID(s) to finish. Prefer not to run the install one-liner in parallel with
 doctor/install/repair.
 
 ### `status` healthy but `doctor` unhealthy (false-healthy)
