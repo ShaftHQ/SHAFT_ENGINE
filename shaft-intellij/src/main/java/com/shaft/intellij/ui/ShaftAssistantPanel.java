@@ -4889,15 +4889,20 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             return;
         }
         JsonObject reviewJson = pendingReviewJson();
+        String reportStatus = CaptureReplayProof.reportStatus(reviewJson);
         boolean productionReady = CaptureReplayProof.isProductionReady(reviewJson);
-        String proofLabel = CaptureReplayProof.canvasLabel(reviewJson);
-        String captureReviewStatusText = proofLabel + " — " + captureReviewSummary(pendingCaptureReview.markdown());
+        String summary = captureReviewSummary(pendingCaptureReview.markdown());
+        // Prefix SUCCESS/UNCONFIRMED only when the MCP report carries a status (issue #5962).
+        // Empty raw fixtures keep the legacy summary so accessible-description tracking stays stable.
+        String captureReviewStatusText = reportStatus.isBlank()
+                ? summary
+                : CaptureReplayProof.canvasLabel(reviewJson) + " — " + summary;
         captureReviewStatus.setText(captureReviewStatusText);
         captureReviewStatus.getAccessibleContext().setAccessibleDescription(captureReviewStatusText);
         // Issue #5962: Approve / Create / Insert are production Keep — require SUCCESS.
         approveCaptureReview.setEnabled(!running && productionReady);
         copyCaptureReview.setEnabled(!running);
-        copyCaptureReview.setToolTipText(productionReady
+        copyCaptureReview.setToolTipText(productionReady || reportStatus.isBlank()
                 ? "Copy Capture review"
                 : "Copy UNCONFIRMED draft (explicit escape hatch; not a production Keep)");
         dismissCaptureReview.setEnabled(!running);
