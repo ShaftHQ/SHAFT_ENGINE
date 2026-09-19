@@ -246,4 +246,23 @@ class DesignStagePanelTest {
         assertEquals("Validations", panel.fluentMapTable().getValueAt(0, 2));
     }
 
+    @Test
+    void readinessPopulatesTable() {
+        DesignStagePanel panel = new DesignStagePanel();
+        assertNotNull(panel.readinessButton());
+        assertNotNull(panel.readinessTable());
+        panel.applyReadinessJson("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "draft",
+                  "message": "Ready conditions are unmet.",
+                  "unmetConditions": ["accept: user has not accepted the pack"],
+                  "handoffAllowed": false,
+                  "wroteFiles": false
+                }
+                """);
+        assertTrue(panel.readinessTable().getRowCount() >= 1);
+        assertEquals("draft", panel.readinessTable().getValueAt(0, 0));
+    }
+
 }

@@ -189,6 +189,34 @@ final class DesignCanvasModel {
         return rows;
     }
 
+    static List<String[]> readinessRows(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        if (root == null) {
+            return List.of();
+        }
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{
+                string(root, "status"),
+                string(root, "message"),
+                Boolean.toString(root.has("handoffAllowed") && root.get("handoffAllowed").getAsBoolean()),
+                ""
+        });
+        JsonElement unmet = root.get("unmetConditions");
+        if (unmet != null && unmet.isJsonArray()) {
+            for (JsonElement item : unmet.getAsJsonArray()) {
+                if (item.isJsonPrimitive()) {
+                    rows.add(new String[]{"unmet", item.getAsString(), "", ""});
+                }
+            }
+        }
+        return rows;
+    }
+
+    static boolean handoffAllowed(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        return root != null && root.has("handoffAllowed") && root.get("handoffAllowed").getAsBoolean();
+    }
+
     static List<String[]> coverageRows(String raw) {
         JsonObject root = parseAnalysisObject(raw);
         if (root == null) {

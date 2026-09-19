@@ -141,6 +141,26 @@ public class DesignService {
         return DesignGapMapComputer.map(feature);
     }
 
+    @Tool(name = "design_readiness",
+            description = "evaluates Draft / Needs questions / Ready for a Design pack; handoffAllowed only when Ready after analysis, lint, coverage, and explicit accept")
+    public McpDesignReadiness readiness(String text, String filePath, String sourceUrl, String acceptedGapIds,
+                                        String gherkin, String coverageWaived, String lintWaived,
+                                        String accept, String acceptedGherkinSnapshot) {
+        McpDesignAnalysis analysis = analyze(text, filePath, sourceUrl, acceptedGapIds);
+        String feature = gherkin == null ? "" : gherkin.strip();
+        if (feature.isEmpty() && analysis.gherkinGenerationAllowed()) {
+            feature = gherkinDraft(text, filePath, sourceUrl, acceptedGapIds).feature();
+        }
+        McpDesignLint lint = feature.isEmpty()
+                ? new McpDesignLint(McpDesignLint.CURRENT_SCHEMA_VERSION, McpDesignLint.STATUS_ERROR,
+                        "No Gherkin to lint.", List.of(), true, false)
+                : DesignLintComputer.lint(feature, lintWaived);
+        McpDesignCoverage coverage = DesignCoverageComputer.compute(
+                analysis.pack(), feature, coverageWaived);
+        return DesignReadinessComputer.evaluate(
+                analysis, lint, coverage, feature, accept, acceptedGherkinSnapshot);
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");
