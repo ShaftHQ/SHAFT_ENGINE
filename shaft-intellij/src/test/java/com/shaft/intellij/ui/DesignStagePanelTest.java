@@ -88,6 +88,35 @@ class DesignStagePanelTest {
         assertEquals(0, panel.gapTable().getRowCount());
     }
 
+    @Test
+    void examplesTableShowsRowsAndDeleteControl() {
+        DesignStagePanel panel = new DesignStagePanel();
+        assertNotNull(panel.examplesTable());
+        assertNotNull(panel.deleteExampleButton());
+        panel.applyExamplesJson("""
+                {
+                  "status": "drafted",
+                  "rows": [
+                    {"id": "EX-01", "kind": "valid", "cells": ["gold", "SAVE10", "100", "15"]},
+                    {"id": "EX-02", "kind": "invalid", "cells": ["none", "SAVE10", "100", "0"]},
+                    {"id": "EX-03", "kind": "boundary", "cells": ["gold", "none", "50", "10"]}
+                  ]
+                }
+                """);
+        assertEquals(3, panel.examplesTable().getRowCount());
+        panel.applyExamplesJson("""
+                {
+                  "status": "drafted",
+                  "rows": [
+                    {"id": "EX-01", "kind": "valid", "cells": ["gold", "SAVE10", "100", "15"]},
+                    {"id": "EX-03", "kind": "boundary", "cells": ["gold", "none", "50", "10"]}
+                  ]
+                }
+                """);
+        assertEquals(2, panel.examplesTable().getRowCount());
+        assertFalse(panel.deleteExampleButton().isEnabled(), "headless panel has no project");
+    }
+
     private static <T extends JComponent> T findByAccessibleName(
             Component component, String accessibleName, Class<T> type) {
         if (type.isInstance(component) && accessibleName.equals(accessibleName((JComponent) component))) {

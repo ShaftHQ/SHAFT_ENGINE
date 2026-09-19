@@ -861,6 +861,36 @@
       "description" : null
     } ]
   }, {
+    "name" : "design_examples",
+    "service" : "DesignService",
+    "description" : "proposes a Scenario Outline and editable Examples rows from an analyzed pack; never writes files",
+    "params" : [ {
+      "name" : "acceptedGapIds",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "droppedExampleIds",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "filePath",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "sourceUrl",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "text",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "design_gherkin_draft",
     "service" : "DesignService",
     "description" : "drafts declarative Gherkin from an analyzed story pack for human review; never writes files or Java",

@@ -295,6 +295,12 @@
       "deprecated": false
     },
     {
+      "name": "design_examples",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
       "name": "doctor_analyze_failed_allure",
       "mutation": true,
       "sensitive": false,

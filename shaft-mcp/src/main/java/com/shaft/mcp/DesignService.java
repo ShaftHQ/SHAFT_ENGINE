@@ -85,6 +85,14 @@ public class DesignService {
         return DesignGherkinDrafter.draft(analyze(text, filePath, sourceUrl, acceptedGapIds));
     }
 
+    @Tool(name = "design_examples",
+            description = "proposes a Scenario Outline and editable Examples rows from an analyzed pack; never writes files")
+    public McpDesignExamples examples(String text, String filePath, String sourceUrl, String acceptedGapIds,
+                                      String droppedExampleIds) {
+        return DesignExamplesPlanner.plan(analyze(text, filePath, sourceUrl, acceptedGapIds),
+                DesignAnalyzer.parseAcceptedIds(droppedExampleIds));
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");
