@@ -1,5 +1,10 @@
 package com.shaft.mcp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -55,7 +60,7 @@ final class DesignLexiconStore {
         catalog.add(clean);
         Path file = workspace.resolve(RELATIVE);
         Files.createDirectories(file.getParent());
-        Files.writeString(file, String.join("\n", catalog) + "\n", StandardCharsets.UTF_8);
+        writeJson(file, catalog);
         return new McpDesignLexicon(
                 McpDesignLexicon.CURRENT_SCHEMA_VERSION,
                 "ok",
@@ -70,13 +75,43 @@ final class DesignLexiconStore {
             return List.of();
         }
         try {
-            return Files.readAllLines(file, StandardCharsets.UTF_8).stream()
-                    .map(String::strip)
-                    .filter(line -> !line.isBlank())
-                    .toList();
+            return readJson(file);
         } catch (IOException ignored) {
             return List.of();
         }
+    }
+
+    private static List<String> readJson(Path file) throws IOException {
+        String raw = Files.readString(file, StandardCharsets.UTF_8).strip();
+        if (raw.isEmpty()) {
+            return List.of();
+        }
+        if (!raw.startsWith("{")) {
+            return raw.lines().map(String::strip).filter(line -> !line.isBlank()).toList();
+        }
+        JsonNode root = new ObjectMapper().readTree(raw);
+        JsonNode phrases = root.get("phrases");
+        if (phrases == null || !phrases.isArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode node : phrases) {
+            String phrase = node.asText("").strip();
+            if (!phrase.isBlank()) {
+                values.add(phrase);
+            }
+        }
+        return values;
+    }
+
+    private static void writeJson(Path file, Set<String> catalog) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode root = mapper.createObjectNode();
+        ArrayNode phrases = root.putArray("phrases");
+        for (String phrase : catalog) {
+            phrases.add(phrase);
+        }
+        mapper.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), root);
     }
 
     static boolean matches(String query, String phrase) {

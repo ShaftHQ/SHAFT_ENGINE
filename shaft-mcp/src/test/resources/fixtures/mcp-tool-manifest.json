@@ -302,7 +302,7 @@
     },
     {
       "name": "design_lexicon",
-      "mutation": false,
+      "mutation": true,
       "sensitive": true,
       "deprecated": false
     },

@@ -20,11 +20,15 @@ class DesignLexiconTest {
     }
 
     @Test
-    void acceptedLoginPhraseIsSuggestedForLogInQuery(@TempDir Path temp) {
+    void acceptedLoginPhraseIsSuggestedForLogInQuery(@TempDir Path temp) throws Exception {
         DesignService service = new DesignService(McpWorkspacePolicy.of(temp));
         McpDesignLexicon accepted = service.lexicon("accept", "", "the shopper is authenticated");
         assertTrue(accepted.wroteFiles());
-        assertTrue(java.nio.file.Files.isRegularFile(temp.resolve(DesignLexiconStore.RELATIVE)));
+        Path catalog = temp.resolve(DesignLexiconStore.RELATIVE);
+        assertTrue(java.nio.file.Files.isRegularFile(catalog));
+        String raw = java.nio.file.Files.readString(catalog);
+        assertTrue(raw.strip().startsWith("{"), raw);
+        assertTrue(raw.contains("\"phrases\""), raw);
 
         McpDesignLexicon suggested = service.lexicon("suggest", "log in", "");
         assertTrue(suggested.suggestions().contains("the shopper is authenticated"), suggested.suggestions().toString());

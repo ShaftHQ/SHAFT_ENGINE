@@ -312,7 +312,7 @@
       ]
     },
     "design_lexicon": {
-      "mutation": false,
+      "mutation": true,
       "sensitive": true,
       "cliCommand": "design lexicon",
       "intentKeywords": [

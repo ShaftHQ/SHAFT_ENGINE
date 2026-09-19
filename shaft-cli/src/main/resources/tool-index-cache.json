@@ -1707,7 +1707,7 @@
           "description": null
         }
       ],
-      "mutation": false,
+      "mutation": true,
       "sensitive": true,
       "intentKeywords": [
         "ubiquitous language",
