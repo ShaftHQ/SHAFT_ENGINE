@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.DocumentAdapter;
@@ -45,6 +46,7 @@ final class DesignStagePanel extends JPanel {
     private final JButton analyze;
     private final JButton acceptRisk;
     private final JButton gherkin;
+    private final JBTextArea gherkinDraft;
     private DesignCanvasModel model = new DesignCanvasModel();
     private boolean busy;
 
@@ -104,6 +106,11 @@ final class DesignStagePanel extends JPanel {
         gherkin.setEnabled(false);
         JButton designExamples = action("Design examples", this::examplesStory);
         deleteExample = action("Delete example row", this::deleteSelectedExample);
+        gherkinDraft = new JBTextArea(8, 40);
+        gherkinDraft.setLineWrap(true);
+        gherkinDraft.setWrapStyleWord(true);
+        gherkinDraft.setEditable(true);
+        gherkinDraft.getAccessibleContext().setAccessibleName("Gherkin draft");
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -118,9 +125,12 @@ final class DesignStagePanel extends JPanel {
         tables.setFirstComponent(new JBScrollPane(acTable));
         JPanel lower = new JPanel(new BorderLayout(0, JBUI.scale(6)));
         lower.add(new JBScrollPane(gapTable), BorderLayout.CENTER);
+        JPanel extra = new JPanel(new BorderLayout(0, JBUI.scale(4)));
+        extra.add(new JBScrollPane(examplesTable), BorderLayout.CENTER);
+        extra.add(new JBScrollPane(gherkinDraft), BorderLayout.SOUTH);
         JPanel southTables = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         southTables.add(new JBScrollPane(oracleTable), BorderLayout.CENTER);
-        southTables.add(new JBScrollPane(examplesTable), BorderLayout.SOUTH);
+        southTables.add(extra, BorderLayout.SOUTH);
         lower.add(southTables, BorderLayout.SOUTH);
         tables.setSecondComponent(lower);
 
@@ -152,6 +162,28 @@ final class DesignStagePanel extends JPanel {
 
     JButton gherkinButton() {
         return gherkin;
+    }
+
+    JBTextArea gherkinDraftArea() {
+        return gherkinDraft;
+    }
+
+    void applyDraftJson(String json) {
+        String feature = "";
+        try {
+            JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
+            if (root.has("feature")) {
+                feature = root.get("feature").getAsString();
+            } else if (root.has("gherkin")) {
+                feature = root.get("gherkin").getAsString();
+            }
+            if (root.has("message") && !root.get("message").getAsString().isBlank()) {
+                statusBadge.setText(root.get("message").getAsString());
+            }
+        } catch (RuntimeException ignored) {
+            feature = json == null ? "" : json;
+        }
+        gherkinDraft.setText(feature);
     }
 
     JBLabel statusBadge() {
@@ -249,7 +281,14 @@ final class DesignStagePanel extends JPanel {
             applyAnalysisJson(output.isBlank() ? "design tool failed." : output);
             return;
         }
-        applyAnalysisJson(result.output());
+        String output = result.output() == null ? "" : result.output();
+        if (output.contains("\"feature\"") || output.contains("\"gherkin\"")) {
+            applyDraftJson(output);
+        } else if (output.contains("\"rows\"")) {
+            applyExamplesJson(output);
+        } else {
+            applyAnalysisJson(output);
+        }
         if (thenAnalyze && !"error".equals(model.status())) {
             analyzeStory();
         }
