@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +25,7 @@ final class DesignCanvasModel {
 
     static DesignCanvasModel fromJson(String raw) {
         DesignCanvasModel model = new DesignCanvasModel();
-        JsonObject root = AssistantMarkdown.jsonObjectFromMcpOutput(raw);
+        JsonObject root = parseAnalysisObject(raw);
         if (root == null) {
             model.message = raw == null || raw.isBlank() ? "No analysis result." : raw;
             return model;
@@ -104,6 +105,19 @@ final class DesignCanvasModel {
 
     String acceptedGapIdsArgument() {
         return String.join(",", waivableBlockingIds);
+    }
+
+
+    private static JsonObject parseAnalysisObject(String raw) {
+        try {
+            JsonElement parsed = JsonParser.parseString(raw == null ? "" : raw);
+            if (parsed.isJsonObject() && parsed.getAsJsonObject().has("status")) {
+                return parsed.getAsJsonObject();
+            }
+        } catch (RuntimeException ignored) {
+            // Live MCP envelopes still go through unwrap.
+        }
+        return AssistantMarkdown.jsonObjectFromMcpOutput(raw);
     }
 
     private static void fillCriteria(DesignCanvasModel model, JsonElement element) {
