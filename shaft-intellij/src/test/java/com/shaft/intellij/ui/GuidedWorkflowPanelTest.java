@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.accessibility.AccessibleContext;
 import javax.swing.JButton;
+import javax.swing.JPanel;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import java.awt.Component;
@@ -370,11 +371,19 @@ class GuidedWorkflowPanelTest {
         JButton delete = findButton(panel, "Delete");
         JButton moveUp = findButton(panel, "Move Up");
         JButton moveDown = findButton(panel, "Move Down");
+        JButton edit = findButton(panel, "Edit");
+        JButton recapture = findButton(panel, "Recapture");
         assertNotNull(backend);
         assertNotNull(stepList);
         assertNotNull(delete);
         assertNotNull(moveUp);
         assertNotNull(moveDown);
+        assertAll(
+                () -> assertEquals("Delete", accessibleName(delete)),
+                () -> assertEquals("Move Up", accessibleName(moveUp)),
+                () -> assertEquals("Move Down", accessibleName(moveDown)),
+                () -> assertEquals("Edit", accessibleName(edit)),
+                () -> assertEquals("Recapture", accessibleName(recapture)));
 
         select(backend, "Playwright");
         panel.renderStepsFromStatus(recordedStepsStatus("pw-step-1"));
@@ -430,36 +439,86 @@ class GuidedWorkflowPanelTest {
     }
 
     @Test
-    void stepEditingIsDisabledForWebDriverBackendWithNoStepDeleteTool() {
-        // Critical scope boundary (issue #3639): capture_step_delete/capture_step_reorder throw an
-        // actionable error for the WEB CDP engine (CaptureService#noStepEditorFor) since a capture_start
-        // WebDriver recording has no step editor, so the WebDriver backend must never let these buttons
-        // fire, even if a row is present and selected in the list.
+    void stepEditingShowsActionableUnsupportedMessageForWebDriverBackend() {
+        // Issue #5964 SC-002 / #3639: WEB CDP has no step editor (CaptureService#noStepEditorFor).
+        // The unified inspector stays visible and enabled; clicks must surface that wording in the
+        // status strip and must never silently no-op or fire capture_step_* against WEB.
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        // Backend lives under Advanced options; expand once to select WebDriver.
+        expandAdvanced(panel);
+        JBList<?> stepList = findByAccessibleName(panel, "Recorded steps", JBList.class);
+        JButton delete = findButton(panel, "Delete");
+        JButton moveUp = findButton(panel, "Move Up");
+        JButton moveDown = findButton(panel, "Move Down");
+        JButton edit = findButton(panel, "Edit");
+        JButton recapture = findButton(panel, "Recapture");
+
+        select(backend, "WebDriver");
+        assertTrue(stepList.isEnabled(), "unified inspector stays readable on WebDriver");
+        assertAll(
+                () -> assertTrue(delete.isEnabled()),
+                () -> assertTrue(moveUp.isEnabled()),
+                () -> assertTrue(moveDown.isEnabled()),
+                () -> assertTrue(edit.isEnabled()),
+                () -> assertTrue(recapture.isEnabled()));
+
+        delete.doClick();
+        assertEquals(GuidedWorkflowPanel.unsupportedStepEditorMessage("capture_step_delete"),
+                panel.recorderStatusLabel().getText());
+        moveUp.doClick();
+        assertEquals(GuidedWorkflowPanel.unsupportedStepEditorMessage("capture_step_reorder"),
+                panel.recorderStatusLabel().getText());
+        edit.doClick();
+        assertTrue(panel.recorderStatusLabel().getText().contains("capture_step_edit"));
+        recapture.doClick();
+        assertTrue(panel.recorderStatusLabel().getText().contains("capture_step_recapture"));
+        assertTrue(invocations.isEmpty(),
+                "unsupported WebDriver inspector actions must not fire capture_step_* tools");
+        assertTrue(GuidedWorkflowPanel.unsupportedStepEditorMessage("capture_step_delete")
+                .contains("no step editor for this JSON format"));
+    }
+
+    @Test
+    void stepInspectorIsOnPrimaryLiveRecordSurfaceWithoutAdvanced() {
+        // Issue #5964: Automation Live record canvas must expose the inspector without Advanced.
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, args) -> {
+        });
+        assertNotNull(findByAccessibleName(panel, "Recorded steps", JBList.class));
+        assertNotNull(findByAccessibleName(panel, "Step inspector", JPanel.class));
+        assertNotNull(findButton(panel, "Delete"));
+        assertNotNull(findButton(panel, "Move Up"));
+        assertNotNull(findButton(panel, "Move Down"));
+        assertNotNull(findButton(panel, "Edit"));
+        assertNotNull(findButton(panel, "Recapture"));
+        assertEquals("Delete", accessibleName(findButton(panel, "Delete")));
+        assertEquals("Edit", accessibleName(findButton(panel, "Edit")));
+        assertEquals("Recapture", accessibleName(findButton(panel, "Recapture")));
+    }
+
+    @Test
+    void editAndRecapturePrefillInspectForPlaywrightStep() {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
         expandAdvanced(panel);
         JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
         JBList<?> stepList = findByAccessibleName(panel, "Recorded steps", JBList.class);
-        JButton delete = findButton(panel, "Delete");
-        JButton moveUp = findButton(panel, "Move Up");
-        JButton moveDown = findButton(panel, "Move Down");
-
-        select(backend, "WebDriver");
-        assertFalse(stepList.isEnabled(), "WebDriver has no per-step summaries or step_delete/reorder tools");
-
-        panel.renderStepsFromStatus(recordedStepsStatus("orphan-step"));
+        select(backend, "Playwright");
+        panel.renderStepsFromStatus(recordedStepsStatus("pw-step-9"));
         stepList.setSelectedIndex(0);
-        assertAll(
-                () -> assertFalse(delete.isEnabled()),
-                () -> assertFalse(moveUp.isEnabled()),
-                () -> assertFalse(moveDown.isEnabled()));
 
-        delete.doClick();
-        moveUp.doClick();
-        moveDown.doClick();
-        assertTrue(invocations.isEmpty(),
-                "disabled step buttons must never fire a step_delete/step_reorder request");
+        findButton(panel, "Edit").doClick();
+        CapturedInvocation edit = last(invocations);
+        assertEquals("browser_open_intent", edit.toolName());
+        assertTrue(edit.arguments().get("userIntent").getAsString().contains("pw-step-9"));
+
+        findButton(panel, "Recapture").doClick();
+        CapturedInvocation recapture = last(invocations);
+        assertEquals("browser_open_intent", recapture.toolName());
+        assertTrue(recapture.arguments().get("userIntent").getAsString().contains("Recapture"));
     }
 
     @Test
