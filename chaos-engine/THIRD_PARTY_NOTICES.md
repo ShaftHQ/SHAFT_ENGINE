@@ -27,6 +27,17 @@ included here.
 Skill and hook bodies in that pin are verbatim upstream.
 
 
+## ICM Architect
+
+- License: MIT
+- Copyright (c) 2026 Jake Van Clief
+- Upstream: https://github.com/RinDig/icm-architect
+- Local pin: [vendor/icm-architect/PIN.json](vendor/icm-architect/PIN.json)
+- Local license: [vendor/icm-architect/LICENSE](vendor/icm-architect/LICENSE)
+
+Skill, references, and templates in that pin are verbatim upstream, nested under
+`skills/icm-architect/` for ChaosEngine plugin discovery.
+
 ## Task Observer methodology (self-improve skill)
 
 - License: CC BY 4.0

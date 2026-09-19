@@ -24,3 +24,9 @@ spec.
 
 This contract does not execute the PR plan; delivery stays on
 [work-github-playbook](work-github-playbook.md).
+
+## ICM Architect (advisory)
+
+For workspace / process structure ("ICM this", folder-as-architecture), load
+[icm-architect.md](icm-architect.md) (vendor skill; `--without-icm-architect` to disable).
+

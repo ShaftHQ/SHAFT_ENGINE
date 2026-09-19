@@ -1,0 +1,21 @@
+{
+  "repository": "RinDig/icm-architect",
+  "commit": "e16cafe6a664dcf6d787a726b452adba77d913f4",
+  "license": "MIT",
+  "files": {
+    "LICENSE": "e13cd56a64956720629206c84499871594585bb3e17b6ef01ccca570cf38ce1d",
+    "skills/icm-architect/SKILL.md": "8a0d62444f047e84aa02ca1728a5dc3848dd06afa32f9e66bf3225352fe67a38",
+    "skills/icm-architect/assets/templates/CLAUDE.md": "4a3b8a05a4469b78b703f2e5593fd977097038fe24c39c7cb7ca5bcf5aea6154",
+    "skills/icm-architect/assets/templates/CONTEXT.md": "edc2c382d7559fa9232e8f93aef1c220d099f940f3668d937c47f9151196f1b2",
+    "skills/icm-architect/assets/templates/node.md": "28f94085722ae44f7c0c1483e051e87c4cae8c715afd86976db9b9ae656e8ca5",
+    "skills/icm-architect/assets/templates/object.md": "614bf1620533c2b0f48fde415caf3d0158b6b4847b80aa7e992b46a1bb1b1a3a",
+    "skills/icm-architect/assets/templates/process.md": "5e2481d15912d813f608e89d2e69e5f8e6c3bd21ebdcf4f7cbee5c4fc1a69433",
+    "skills/icm-architect/assets/templates/questionnaire.md": "47eeaa58318f87f443bc3937fcfa8166c6f225c36367698426edc85824980ee6",
+    "skills/icm-architect/assets/templates/schema.md": "be96c82389d9d1d697a9767c601769bac8f71d7734ae8dd6ea4214d3958c40a0",
+    "skills/icm-architect/assets/templates/stage-CONTEXT.md": "c689a6b4207c81f7c83219ef79ca268156841063ec25b686e5c07972822e31e3",
+    "skills/icm-architect/references/core.md": "4d1a8a415dc36250f3c0cad002be558d12ef63843396749b81106fbf52e5ba64",
+    "skills/icm-architect/references/forms.md": "4a3e68efcb5aac5803f46bebae499975337bc3ab9caf006e73bc32517284c73d",
+    "skills/icm-architect/references/reference-integrity.md": "1317824d70edb0db5561914940f3dff83ec706179e6d5d42c8794e9c52e89403",
+    "skills/icm-architect/references/system-map.md": "d8f8f9d3e5be29ebc3d0ba072b6d5b95132723082ce3c0dc6bc3dc1153e27739"
+  }
+}
