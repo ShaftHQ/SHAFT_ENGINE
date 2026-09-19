@@ -61,6 +61,24 @@ public class DesignService {
         }
     }
 
+    /**
+     * Runs the requirements-analysis playbook against an ingested pack.
+     *
+     * @param text            pasted story text
+     * @param filePath        workspace-relative file to read
+     * @param sourceUrl       recorded source URL (not fetched)
+     * @param acceptedGapIds  comma-separated waivable GAP IDs to accept, or empty
+     * @return analysis; {@code wroteFiles} is always false and Gherkin is never emitted
+     */
+    @Tool(name = "design_analyze",
+            description = "runs the requirements-analysis playbook on a story or workspace file and "
+                    + "returns a gap register with stable GAP IDs; never writes files and does not "
+                    + "generate Gherkin")
+    public McpDesignAnalysis analyze(String text, String filePath, String sourceUrl, String acceptedGapIds) {
+        McpDesignPack pack = ingest(text, filePath, sourceUrl);
+        return DesignAnalyzer.analyze(pack, DesignAnalyzer.parseAcceptedIds(acceptedGapIds));
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");

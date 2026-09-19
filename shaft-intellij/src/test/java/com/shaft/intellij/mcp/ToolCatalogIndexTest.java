@@ -37,6 +37,8 @@ class ToolCatalogIndexTest {
                 "managed local AI diagnostics must reach the IDE through the canonical catalog");
         assertTrue(names.contains("design_ingest"),
                 "story ingest must reach the IDE through the canonical catalog (issue #5947)");
+        assertTrue(names.contains("design_analyze"),
+                "testability analysis must reach the IDE through the canonical catalog (issue #5948)");
         assertFalse(names.contains("natural_act"), "natural_act was deleted outright (owner mandate)");
         assertFalse(names.contains("mobile_natural_act"), "mobile_natural_act was deleted outright");
         assertFalse(names.contains("playwright_browser_navigate"),
@@ -44,9 +46,9 @@ class ToolCatalogIndexTest {
     }
 
     @Test
-    void toolNamesMatchesTheCanonical102ToolCatalog() {
-        assertEquals(102, ToolCatalogIndex.toolNames().size(),
-                "the bundled index must track the canonical 102-tool catalog; a mismatch means "
+    void toolNamesMatchesTheCanonical103ToolCatalog() {
+        assertEquals(103, ToolCatalogIndex.toolNames().size(),
+                "the bundled index must track the canonical 103-tool catalog; a mismatch means "
                         + "the build-time copy is stale or the resource wasn't regenerated");
     }
 
@@ -68,7 +70,7 @@ class ToolCatalogIndexTest {
 
     @Test
     void intentKeywordsReturnsEmptyForAToolWithNoCuratedKeywordsYet() {
-        // Most of the 102-tool catalog has no curated intentKeywords overlay entries yet
+        // Most of the 103-tool catalog has no curated intentKeywords overlay entries yet
         // are curated as of #3868/#3869) -- must degrade to an empty list, never null or an exception.
         assertEquals(List.of(), ToolCatalogIndex.intentKeywords("element_click"));
     }

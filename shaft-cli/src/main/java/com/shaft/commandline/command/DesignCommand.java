@@ -19,12 +19,14 @@ import java.util.concurrent.Callable;
  * Curated Design-stage shortcuts. Pure alias over {@code call}.
  */
 @Command(mixinStandardHelpOptions = true,
-        name = "design", description = "Design shortcuts: ingest.")
+        name = "design", description = "Design shortcuts: ingest | analyze.")
 public final class DesignCommand implements Callable<Integer> {
 
-    private static final Map<String, String> ACTIONS = Map.of("ingest", "design_ingest");
+    private static final Map<String, String> ACTIONS = Map.of(
+            "ingest", "design_ingest",
+            "analyze", "design_analyze");
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "ingest")
+    @Parameters(index = "0", paramLabel = "ACTION", description = "ingest | analyze")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value", description = "Arguments as key=value pairs, e.g. text=\"As a shopper…\".")

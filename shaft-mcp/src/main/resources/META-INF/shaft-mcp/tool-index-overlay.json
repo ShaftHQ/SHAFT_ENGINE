@@ -278,6 +278,17 @@
         "turn this story into a pack"
       ]
     },
+    "design_analyze": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design analyze",
+      "intentKeywords": [
+        "analyze testability",
+        "gap register",
+        "design analyze",
+        "requirements analysis"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {
