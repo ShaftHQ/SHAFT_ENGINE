@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.intellij.ui.components.JBList;
@@ -951,4 +952,51 @@ class GuidedWorkflowPanelTest {
 
     private record CapturedInvocation(String toolName, JsonObject arguments) {
     }
+    @Test
+    void parseStepsMergesCheckpointRowsAsShaftAssertions() {
+        JsonObject status = JsonParser.parseString("""
+                {
+                  "steps": [
+                    {"stepId": "s-1", "sequence": 1, "action": "click", "locatorStrategy": "ROLE",
+                     "locatorValue": "button:Pay", "risky": false}
+                  ],
+                  "checkpoints": [
+                    {"id": "checkpoint-1", "sequence": 2, "kind": "ASSERTION",
+                     "description": "the cart total is visible"}
+                  ]
+                }
+                """).getAsJsonObject();
+        List<GuidedWorkflowPanel.StepRow> rows = GuidedWorkflowPanel.parseSteps(status);
+        assertEquals(2, rows.size());
+        assertEquals("s-1", rows.get(0).stepId());
+        assertFalse(rows.get(0).checkpoint());
+        GuidedWorkflowPanel.StepRow checkpoint = rows.get(1);
+        assertTrue(checkpoint.checkpoint());
+        assertEquals("ASSERTION", checkpoint.checkpointKind());
+        assertTrue(checkpoint.toString().contains("[checkpoint/ASSERTION]"));
+        assertTrue(checkpoint.action().contains("SHAFT assertion"));
+        assertFalse(checkpoint.action().contains("org.testng"));
+    }
+
+    @Test
+    void parseOracleSuggestionsFromReadyPackThenText() {
+        List<String> suggestions = GuidedWorkflowPanel.parseOracleSuggestions(
+                "AC-1:the cart total is visible | AC-2:confirmation message is shown");
+        assertEquals(List.of("the cart total is visible", "confirmation message is shown"), suggestions);
+    }
+
+    @Test
+    void readyPackOraclesPopulateSuggestedCheckpoints() {
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, args) -> {
+        }, new com.shaft.intellij.settings.ShaftSettingsState.Settings());
+        panel.applyReadyPackPrefill("https://shop.example/cart", "checkout",
+                "AC-1:the cart total is visible");
+        assertEquals(1, panel.oracleSuggestionModel().size());
+        assertEquals("the cart total is visible", panel.oracleSuggestionModel().get(0));
+        assertEquals("Accept suggested checkpoint",
+                panel.acceptOracleButton().getAccessibleContext().getAccessibleName());
+        assertEquals("Add checkpoint",
+                panel.addCheckpointButton().getAccessibleContext().getAccessibleName());
+    }
+
 }

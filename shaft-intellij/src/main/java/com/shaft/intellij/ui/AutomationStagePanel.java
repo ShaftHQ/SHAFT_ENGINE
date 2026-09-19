@@ -107,12 +107,18 @@ final class AutomationStagePanel extends JPanel {
     }
 
     void applyReadyPackPrefill(@Nullable String url, @Nullable String intent) {
-        guided.applyReadyPackPrefill(url, intent);
-        readyPackApplied = (url != null && !url.isBlank()) || (intent != null && !intent.isBlank());
+        applyReadyPackPrefill(url, intent, null);
+    }
+
+    void applyReadyPackPrefill(@Nullable String url, @Nullable String intent, @Nullable String oracles) {
+        guided.applyReadyPackPrefill(url, intent, oracles);
+        readyPackApplied = (url != null && !url.isBlank()) || (intent != null && !intent.isBlank())
+                || (oracles != null && !oracles.isBlank());
         showLiveRecord();
         String urlText = url == null || url.isBlank() ? "—" : url.trim();
         String intentText = intent == null || intent.isBlank() ? "—" : intent.trim();
-        packStrip.setText("Ready pack: " + urlText + "  ·  " + intentText);
+        String oracleNote = oracles == null || oracles.isBlank() ? "" : "  ·  checkpoints suggested";
+        packStrip.setText("Ready pack: " + urlText + "  ·  " + intentText + oracleNote);
     }
 
     /**
@@ -134,8 +140,9 @@ final class AutomationStagePanel extends JPanel {
                 url = text(root, "optionalUrl");
             }
             String intent = text(prefill, "intent");
-            if (!url.isBlank() || !intent.isBlank()) {
-                applyReadyPackPrefill(url, intent);
+            String oracles = text(prefill, "oracles");
+            if (!url.isBlank() || !intent.isBlank() || !oracles.isBlank()) {
+                applyReadyPackPrefill(url, intent, oracles);
             }
         } catch (RuntimeException ignored) {
             // keep prior strip

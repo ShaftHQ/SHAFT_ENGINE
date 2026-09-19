@@ -383,7 +383,8 @@ public class CaptureService {
                 status.startedAt(),
                 status.networkTransactionCount(),
                 status.lastEndpoints(),
-                status.pendingSignalCount());
+                status.pendingSignalCount(),
+                status.checkpoints());
     }
 
     /**

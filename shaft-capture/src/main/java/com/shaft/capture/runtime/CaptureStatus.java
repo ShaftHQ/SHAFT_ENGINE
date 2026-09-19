@@ -22,6 +22,7 @@ import java.util.List;
  * @param networkTransactionCount recorded network transaction count, {@code 0} when API capture is disabled
  * @param lastEndpoints most-recent-first, bounded list of recently observed endpoints ({@code METHOD url})
  * @param pendingSignalCount debounced browser signals (uncommitted typed input, pending clicks) not yet persisted as events
+ * @param checkpoints first-class assertion/checkpoint steps for the inspector (issue #5960); empty when none
  */
 public record CaptureStatus(
         State state,
@@ -37,7 +38,8 @@ public record CaptureStatus(
         Instant startedAt,
         int networkTransactionCount,
         List<String> lastEndpoints,
-        int pendingSignalCount) {
+        int pendingSignalCount,
+        List<CheckpointStep> checkpoints) {
     /**
      * Recorder lifecycle states.
      */
@@ -73,6 +75,49 @@ public record CaptureStatus(
         if (pendingSignalCount < 0) {
             throw new IllegalArgumentException("Capture pending signal count cannot be negative.");
         }
+        checkpoints = checkpoints == null ? List.of() : List.copyOf(checkpoints);
+    }
+
+    /**
+     * One checkpoint/assertion step surfaced in status JSON for the Automation inspector.
+     *
+     * @param id stable checkpoint id
+     * @param sequence related event sequence
+     * @param kind checkpoint kind name ({@code ASSERTION}, {@code USER_MARKER}, …)
+     * @param description reviewer-facing description (Ready-pack Then oracle text when suggested)
+     */
+    public record CheckpointStep(String id, long sequence, String kind, String description) {
+        /**
+         * Creates an immutable checkpoint step summary.
+         */
+        public CheckpointStep {
+            id = text(id);
+            kind = text(kind);
+            description = text(description);
+        }
+    }
+
+    /**
+     * Compatibility constructor for callers compiled before checkpoint steps were added to status
+     * (issue #5960).
+     */
+    public CaptureStatus(
+            State state,
+            String sessionId,
+            String browser,
+            String currentUrl,
+            int eventCount,
+            CaptureReadiness.State readiness,
+            List<String> warnings,
+            String outputPath,
+            boolean aiEnabled,
+            long processId,
+            Instant startedAt,
+            int networkTransactionCount,
+            List<String> lastEndpoints,
+            int pendingSignalCount) {
+        this(state, sessionId, browser, currentUrl, eventCount, readiness, warnings, outputPath, aiEnabled,
+                processId, startedAt, networkTransactionCount, lastEndpoints, pendingSignalCount, List.of());
     }
 
     /**
