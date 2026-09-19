@@ -166,6 +166,29 @@ final class DesignCanvasModel {
         return root != null && root.has("acceptBlocked") && root.get("acceptBlocked").getAsBoolean();
     }
 
+    static List<String[]> gapMapRows(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        JsonElement steps = root == null ? null : root.get("steps");
+        if (steps == null || !steps.isJsonArray()) {
+            return List.of();
+        }
+        List<String[]> rows = new ArrayList<>();
+        for (JsonElement item : steps.getAsJsonArray()) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject row = item.getAsJsonObject();
+            rows.add(new String[]{
+                    string(row, "stepText"),
+                    string(row, "classification"),
+                    string(row, "shaftType"),
+                    string(row, "shaftMethod"),
+                    string(row, "note")
+            });
+        }
+        return rows;
+    }
+
     static List<String[]> coverageRows(String raw) {
         JsonObject root = parseAnalysisObject(raw);
         if (root == null) {

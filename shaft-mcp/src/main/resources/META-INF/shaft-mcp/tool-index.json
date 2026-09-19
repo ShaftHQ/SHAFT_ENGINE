@@ -1656,6 +1656,59 @@
       "example": null
     },
     {
+      "name": "design_gap_map",
+      "service": "DesignService",
+      "description": "classifies accepted Gherkin steps as mapped to SHAFT fluent API, new-helper, needs-recording, or ambiguous; never writes production Java",
+      "params": [
+        {
+          "name": "acceptedGapIds",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "filePath",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "gherkin",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "sourceUrl",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": true,
+      "intentKeywords": [
+        "fluent gap map",
+        "gherkin shaft mapping",
+        "needs recording",
+        "design gap map"
+      ],
+      "slashAlias": null,
+      "cliCommand": "design gap-map",
+      "example": null
+    },
+    {
       "name": "design_gherkin_draft",
       "service": "DesignService",
       "description": "drafts declarative Gherkin from an analyzed story pack for human review; never writes files or Java",

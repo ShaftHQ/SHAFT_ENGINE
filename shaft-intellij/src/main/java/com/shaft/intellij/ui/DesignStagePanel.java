@@ -34,6 +34,7 @@ final class DesignStagePanel extends JPanel {
     private static final String[] EXAMPLE_COLUMNS = {"ID", "Kind", "Cells"};
     private static final String[] COVERAGE_COLUMNS = {"ID", "State", "Reason"};
     private static final String[] LINT_COLUMNS = {"ID", "Level", "Rule", "Message"};
+    private static final String[] FLUENT_MAP_COLUMNS = {"Step", "Class", "Type", "Method", "Note"};
 
     private final Project project;
     private final JBTextArea story;
@@ -45,6 +46,7 @@ final class DesignStagePanel extends JPanel {
     private final JTable examplesTable;
     private final JTable coverageTable;
     private final JTable lintTable;
+    private final JTable fluentMapTable;
     private final JButton deleteExample;
     private final JButton ingest;
     private final JButton analyze;
@@ -53,6 +55,7 @@ final class DesignStagePanel extends JPanel {
     private final JButton suggestPhrases;
     private final JButton coverage;
     private final JButton lint;
+    private final JButton fluentMap;
     private boolean lintAcceptBlocked;
     private final javax.swing.JTextField lintWaived;
     private final JBTextArea gherkinDraft;
@@ -110,6 +113,7 @@ final class DesignStagePanel extends JPanel {
         examplesTable = table("Examples table", EXAMPLE_COLUMNS);
         coverageTable = table("AC coverage", COVERAGE_COLUMNS);
         lintTable = table("Gherkin lint", LINT_COLUMNS);
+        fluentMapTable = table("Fluent API gap map", FLUENT_MAP_COLUMNS);
         lintWaived = new javax.swing.JTextField();
         lintWaived.getAccessibleContext().setAccessibleName("Lint waivers");
 
@@ -130,6 +134,7 @@ final class DesignStagePanel extends JPanel {
         suggestPhrases = action("Suggest phrases", this::suggestPhrases);
         coverage = action("Coverage", this::coverageStory);
         lint = action("Lint Gherkin", this::lintStory);
+        fluentMap = action("Fluent gap map", this::fluentGapMapStory);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -142,6 +147,7 @@ final class DesignStagePanel extends JPanel {
         actions.add(deleteExample);
         actions.add(coverage);
         actions.add(lint);
+        actions.add(fluentMap);
 
         JBSplitter tables = new JBSplitter(true, 0.45f);
         tables.setFirstComponent(new JBScrollPane(acTable));
@@ -155,6 +161,7 @@ final class DesignStagePanel extends JPanel {
         lintPanel.add(new JBScrollPane(lintTable), BorderLayout.CENTER);
         lintPanel.add(lintWaived, BorderLayout.SOUTH);
         extra.add(lintPanel, BorderLayout.EAST);
+        extra.add(new JBScrollPane(fluentMapTable), BorderLayout.WEST);
         JPanel draftAndLexicon = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         draftAndLexicon.add(new JBScrollPane(gherkinDraft), BorderLayout.CENTER);
         draftAndLexicon.add(new JBScrollPane(lexiconSuggestions), BorderLayout.EAST);
@@ -261,6 +268,14 @@ final class DesignStagePanel extends JPanel {
         return lint;
     }
 
+    JTable fluentMapTable() {
+        return fluentMapTable;
+    }
+
+    JButton fluentMapButton() {
+        return fluentMap;
+    }
+
     boolean lintAcceptBlocked() {
         return lintAcceptBlocked;
     }
@@ -291,6 +306,19 @@ final class DesignStagePanel extends JPanel {
     void applyLintJson(String json) {
         fill(lintTable, LINT_COLUMNS, DesignCanvasModel.lintRows(json));
         lintAcceptBlocked = DesignCanvasModel.lintAcceptBlocked(json);
+        try {
+            JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
+            if (root.has("message") && !root.get("message").getAsString().isBlank()) {
+                statusBadge.setText(root.get("message").getAsString());
+            }
+        } catch (RuntimeException ignored) {
+            // keep prior badge
+        }
+        refreshButtons();
+    }
+
+    void applyGapMapJson(String json) {
+        fill(fluentMapTable, FLUENT_MAP_COLUMNS, DesignCanvasModel.gapMapRows(json));
         try {
             JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
             if (root.has("message") && !root.get("message").getAsString().isBlank()) {
@@ -342,6 +370,12 @@ final class DesignStagePanel extends JPanel {
 
     private void acceptResidualRisk() {
         invoke("design_analyze", arguments(model.acceptedGapIdsArgument()), false);
+    }
+
+    private void fluentGapMapStory() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("gherkin", gherkinDraft.getText());
+        invoke("design_gap_map", arguments, false);
     }
 
     private void lintStory() {
@@ -413,6 +447,8 @@ final class DesignStagePanel extends JPanel {
             applyCoverageJson(output);
         } else if (output.contains("\"acceptBlocked\"") || output.contains("\"findings\"")) {
             applyLintJson(output);
+        } else if (output.contains("\"shaftType\"") || output.contains("\"shaftMethod\"")) {
+            applyGapMapJson(output);
         } else {
             applyAnalysisJson(output);
         }
@@ -430,6 +466,7 @@ final class DesignStagePanel extends JPanel {
         suggestPhrases.setEnabled(ready);
         coverage.setEnabled(ready);
         lint.setEnabled(ready);
+        fluentMap.setEnabled(ready);
         deleteExample.setEnabled(ready && examplesTable.getRowCount() > 0);
     }
 

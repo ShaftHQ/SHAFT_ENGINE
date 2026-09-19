@@ -130,6 +130,17 @@ public class DesignService {
         return DesignLintComputer.lint(feature, waived);
     }
 
+    @Tool(name = "design_gap_map",
+            description = "classifies accepted Gherkin steps as mapped to SHAFT fluent API, new-helper, needs-recording, or ambiguous; never writes production Java")
+    public McpDesignGapMap gapMap(String text, String filePath, String sourceUrl, String acceptedGapIds,
+                                  String gherkin) {
+        String feature = gherkin == null ? "" : gherkin.strip();
+        if (feature.isEmpty()) {
+            feature = gherkinDraft(text, filePath, sourceUrl, acceptedGapIds).feature();
+        }
+        return DesignGapMapComputer.map(feature);
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");

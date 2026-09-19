@@ -344,6 +344,17 @@
         "declarative gherkin"
       ]
     },
+    "design_gap_map": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design gap-map",
+      "intentKeywords": [
+        "fluent gap map",
+        "gherkin shaft mapping",
+        "needs recording",
+        "design gap map"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {
