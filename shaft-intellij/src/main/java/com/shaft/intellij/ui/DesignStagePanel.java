@@ -96,10 +96,8 @@ final class DesignStagePanel extends JPanel {
         ingest = action("Ingest story", this::ingestStory);
         analyze = action("Analyze", this::analyzeStory);
         acceptRisk = action("Accept residual risk", this::acceptResidualRisk);
-        gherkin = action("Draft Gherkin", () -> {
-        });
+        gherkin = action("Draft Gherkin", this::draftGherkin);
         gherkin.setEnabled(false);
-        gherkin.setToolTipText("Gherkin draft is S1-03");
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -171,6 +169,10 @@ final class DesignStagePanel extends JPanel {
         invoke("design_analyze", arguments(""), false);
     }
 
+    private void draftGherkin() {
+        invoke("design_gherkin_draft", arguments(""), false);
+    }
+
     private void acceptResidualRisk() {
         invoke("design_analyze", arguments(model.acceptedGapIdsArgument()), false);
     }
@@ -220,7 +222,7 @@ final class DesignStagePanel extends JPanel {
         ingest.setEnabled(ready);
         analyze.setEnabled(ready);
         acceptRisk.setEnabled(ready && model.acceptEnabled());
-        gherkin.setEnabled(false);
+        gherkin.setEnabled(ready && model.gherkinGenerationAllowed());
     }
 
     private static JButton action(String name, Runnable runnable) {

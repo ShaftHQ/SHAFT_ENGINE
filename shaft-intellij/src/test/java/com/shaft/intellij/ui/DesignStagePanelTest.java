@@ -65,7 +65,7 @@ class DesignStagePanelTest {
     }
 
     @Test
-    void analysisCompleteStillLeavesGherkinDisabledUntilS103() {
+    void analysisCompleteLeavesGherkinDisabledWithoutAProject() {
         DesignStagePanel panel = new DesignStagePanel();
         panel.applyAnalysisJson("""
                 {

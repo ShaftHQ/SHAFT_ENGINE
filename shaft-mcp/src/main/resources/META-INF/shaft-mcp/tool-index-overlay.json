@@ -289,6 +289,17 @@
         "requirements analysis"
       ]
     },
+    "design_gherkin_draft": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design gherkin",
+      "intentKeywords": [
+        "draft gherkin",
+        "generate gherkin",
+        "design gherkin",
+        "feature scenario"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {
