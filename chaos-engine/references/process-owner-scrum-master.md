@@ -66,6 +66,15 @@ FreeToken loopback preference as the parent when the owner named them. A child
 that cannot reach ROG Shell or `:1919` MUST report **box fallback** explicitly
 and must not silently claim ROG delivery.
 
+### Task Shell has no machineId — harness workaround (#6021)
+
+Until Grok Bot exposes `machineId` on Task/executor Shell, **process-owner**
+MUST run FreeToken / local-agency probes on ROG via parent Shell with
+`machineId`. Task/box writers must **not** claim FreeToken. Use
+`chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py` and
+`dispatch.py resolve --prefer freetoken` (fail closed unless ROG hostname,
+ROG checkout path, or `CE_ALLOW_BOX_LOCAL_AGENCY=1`).
+
 ### Compaction dual-loop (#5994)
 
 After session compaction, the resumed main thread is the sole process-owner.

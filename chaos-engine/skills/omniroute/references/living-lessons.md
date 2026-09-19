@@ -56,3 +56,7 @@ Parent orchestrator with ROG Local Execution + FreeToken READY is not enough:
 Task/executor children must bind the same `machineId` and probe `:1919` on that
 host. A box-only Shell that reports FreeToken down is **box fallback**, not
 "ROG offline" when the parent still has ROG.
+
+## 2026-09-19 — Task Shell lacks machineId; ROG FreeToken is process-owner-only (#6021)
+
+Fail closed on box FreeToken claims (`require_rog_freetoken.py` / `resolve --prefer freetoken`); process-owner Shell with machineId on ROG until Grok Bot exposes machineId to Task.
