@@ -65,6 +65,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private GuidedWorkflowPanel guidedWorkflowPanel;
     private JLabel workflowSelectorLabel;
     private DesignStagePanel designStagePanel;
+    private AutomationStagePanel automationStagePanel;
     private JBTabbedPane automationTabs;
     private JBTabbedPane reportingTabs;
     private JPanel moreToolsPanel;
@@ -124,6 +125,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         assistantPanel = null;
         recorderPanel = null;
         designStagePanel = null;
+        automationStagePanel = null;
         automationTabs = null;
         reportingTabs = null;
         moreToolsPanel = null;
@@ -151,10 +153,16 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         workflowCards.getAccessibleContext().setAccessibleName("SHAFT stage content");
         featurePanels = new ArrayList<>();
 
-        DesignStagePanel design = new DesignStagePanel(project);
+        DesignStagePanel design = new DesignStagePanel(project, json -> {
+            if (automationStagePanel != null) {
+                automationStagePanel.applyHandoffPrefillJson(json);
+            }
+        });
         designStagePanel = design;
 
-        GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
+        AutomationStagePanel automation = new AutomationStagePanel(project, this::prefillTool, settings);
+        automationStagePanel = automation;
+        GuidedWorkflowPanel guided = automation.guidedWorkflowPanel();
         guidedWorkflowPanel = guided;
         RecorderToolPanel recorder = new RecorderToolPanel(project, settings);
         recorderPanel = recorder;
@@ -164,13 +172,15 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         featurePanels.add(recorder.featurePanel());
         featurePanels.add(inspectorTools);
 
-        automationTabs = new JBTabbedPane();
-        automationTabs.getAccessibleContext().setAccessibleName("SHAFT automation surfaces");
-        automationTabs.addTab("Guided", ShaftIcons.CODE, guided);
-        automationTabs.addTab("Recorder", ShaftIcons.VIEW, recorder);
-        automationTabs.addTab("Inspector", ShaftIcons.SEARCH, inspectorTools);
-        automationTabs.addTab("SHAFT Tests", ShaftIcons.RERUN, shaftTests);
+        // Issue #5957: Live record is the Automation canvas default. Secondary surfaces stay on
+        // the same stage tab strip for API recording / Inspector, but Guided+Recorder are folded
+        // into Live record; expert raw MCP goes under More when advancedUiEnabled.
+        automationTabs = automation.surfaces();
         automationTabs.addChangeListener(event -> persistSelectedWorkflowView());
+        if (settings.advancedUiEnabled) {
+            automationTabs.addTab("Inspector", ShaftIcons.SEARCH, inspectorTools);
+            automationTabs.addTab("SHAFT Tests", ShaftIcons.RERUN, shaftTests);
+        }
 
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
@@ -194,6 +204,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             featurePanels.add(projectsTools);
             featurePanels.add(advancedTools);
             JBTabbedPane moreTabs = new JBTabbedPane();
+            moreTabs.addTab("Recorder", ShaftIcons.VIEW, recorder);
             moreTabs.addTab("Projects", ShaftIcons.SETTINGS, projectsTools);
             moreTabs.addTab("Advanced", ShaftIcons.HELP, advancedTools);
             moreToolsPanel.add(moreTabs, BorderLayout.CENTER);
@@ -203,7 +214,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
 
         List<WorkflowView> views = new ArrayList<>();
         views.add(new WorkflowView(STAGE_DESIGN, design, ShaftIcons.EDIT));
-        views.add(new WorkflowView(STAGE_AUTOMATION, automationTabs, ShaftIcons.CODE));
+        views.add(new WorkflowView(STAGE_AUTOMATION, automation, ShaftIcons.CODE));
         views.add(new WorkflowView(STAGE_REPORTING, reportingTabs, ShaftIcons.CHECK));
         if (settings.advancedUiEnabled) {
             views.add(new WorkflowView("More", moreToolsPanel, ShaftIcons.SETTINGS));
@@ -305,8 +316,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     }
 
     /**
-     * Package-private test accessor: the retained Guided workflow panel, or {@code null} when
-     * advanced UI is disabled or before setup.
+     * Package-private test accessor: the retained Guided live-record panel on the Automation
+     * canvas, or {@code null} before setup.
      */
     GuidedWorkflowPanel guidedWorkflowPanel() {
         return guidedWorkflowPanel;
@@ -323,6 +334,10 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         return designStagePanel;
     }
 
+    AutomationStagePanel automationStagePanel() {
+        return automationStagePanel;
+    }
+
     /**
      * Selects Automation/Recorder and starts a live {@code capture_start} recording anchored at a
      * resolved Java caret target (issue #3661 / #5942). A no-op only when the main view has not
@@ -331,11 +346,16 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
      * @param context resolved Java caret target the generated code will be anchored at
      */
     public void startRecordingAtTarget(@NotNull JavaTargetContext context) {
-        if (recorderPanel == null) {
+        if (recorderPanel == null && automationStagePanel == null) {
             return;
         }
-        recorderPanel.startRecordingAtTarget(context);
-        showSurface(STAGE_AUTOMATION, "Recorder", recorderPanel);
+        if (recorderPanel != null) {
+            recorderPanel.startRecordingAtTarget(context);
+        }
+        if (automationStagePanel != null) {
+            automationStagePanel.showLiveRecord();
+        }
+        showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
     }
 
     /**
@@ -657,11 +677,17 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
 
     private boolean showKnownAutomationSurface(JComponent component) {
         if (isRecorderComponent(component)) {
-            showSurface(STAGE_AUTOMATION, "Recorder", recorderPanel);
+            if (settings.advancedUiEnabled && moreToolsPanel != null) {
+                ensureMoreTools();
+                showSurface("More", "Recorder", recorderPanel);
+            } else {
+                showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
+            }
             return true;
         }
-        if (Objects.equals(component, guidedWorkflowPanel)) {
-            showSurface(STAGE_AUTOMATION, "Guided", guidedWorkflowPanel);
+        if (Objects.equals(component, guidedWorkflowPanel)
+                || (automationStagePanel != null && Objects.equals(component, automationStagePanel))) {
+            showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
             return true;
         }
         if (Objects.equals(component, apiRecordingPanel)) {
@@ -813,8 +839,11 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private SurfaceTarget surfaceTarget(String savedKey) {
         return switch (savedKey) {
             case "Assistant", STAGE_DESIGN -> new SurfaceTarget(STAGE_DESIGN, STAGE_DESIGN, designStagePanel);
-            case "Guided" -> new SurfaceTarget(STAGE_AUTOMATION, "Guided", guidedWorkflowPanel);
-            case "Recorder" -> new SurfaceTarget(STAGE_AUTOMATION, "Recorder", recorderPanel);
+            case "Guided", AutomationStagePanel.LIVE_RECORD_TAB ->
+                    new SurfaceTarget(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
+            case "Recorder" -> settings.advancedUiEnabled
+                    ? new SurfaceTarget("More", "Recorder", recorderPanel)
+                    : new SurfaceTarget(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
             case "Inspector" -> new SurfaceTarget(STAGE_AUTOMATION, "Inspector", null);
             case "SHAFT Tests" -> new SurfaceTarget(STAGE_AUTOMATION, "SHAFT Tests", null);
             case "API Recording" -> new SurfaceTarget(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
@@ -822,7 +851,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case "Visual Baselines" -> new SurfaceTarget(STAGE_REPORTING, "Visual Baselines", null);
             case "Evidence" -> new SurfaceTarget(STAGE_REPORTING, "Evidence", null);
             case "Projects", "Advanced", "More" -> new SurfaceTarget("More", savedKey, null);
-            case STAGE_AUTOMATION -> new SurfaceTarget(STAGE_AUTOMATION, "Recorder", recorderPanel);
+            case STAGE_AUTOMATION -> new SurfaceTarget(
+                    STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
             case STAGE_REPORTING -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
             default -> new SurfaceTarget(STAGE_DESIGN, STAGE_DESIGN, designStagePanel);
         };
@@ -853,7 +883,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private static String workflowDescription(String label) {
         return switch (label) {
             case STAGE_DESIGN -> "Turn a user story or requirements into reviewable Gherkin, then hand off to Automation";
-            case STAGE_AUTOMATION -> "Record, inspect, run, and generate SHAFT fluent Java";
+            case STAGE_AUTOMATION -> "Live record, inspect, run, and generate SHAFT fluent Java";
             case STAGE_REPORTING -> "Analyze Allure, Doctor, flake, and heal evidence";
             case "More" -> "Project setup and raw MCP tools";
             default -> "";

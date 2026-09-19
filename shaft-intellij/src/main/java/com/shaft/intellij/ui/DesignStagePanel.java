@@ -22,6 +22,7 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Analysis &amp; Design canvas: ingest a story, show the gap register, keep Gherkin gated (issue #5948).
@@ -68,14 +69,20 @@ final class DesignStagePanel extends JPanel {
     private final javax.swing.JList<String> lexiconSuggestions;
     private DesignCanvasModel model = new DesignCanvasModel();
     private boolean busy;
+    private final Consumer<String> handoffListener;
 
     DesignStagePanel() {
-        this(null);
+        this(null, null);
     }
 
     DesignStagePanel(Project project) {
+        this(project, null);
+    }
+
+    DesignStagePanel(Project project, Consumer<String> handoffListener) {
         super(new BorderLayout(0, JBUI.scale(8)));
         this.project = project;
+        this.handoffListener = handoffListener;
         setBorder(JBUI.Borders.empty(8));
         getAccessibleContext().setAccessibleName(ACCESSIBLE_NAME);
         getAccessibleContext().setAccessibleDescription(
@@ -375,6 +382,9 @@ final class DesignStagePanel extends JPanel {
             }
         } catch (RuntimeException ignored) {
             // keep prior badge
+        }
+        if (handoffListener != null) {
+            handoffListener.accept(json);
         }
         refreshButtons();
     }

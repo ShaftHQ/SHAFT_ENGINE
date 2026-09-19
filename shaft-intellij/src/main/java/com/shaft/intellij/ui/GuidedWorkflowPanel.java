@@ -101,6 +101,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private boolean headlessLockedByPolicy;
     private boolean recorderSeenActive;
     private int pollsWithoutActivity;
+    private boolean recordingPaused;
     private String statusToolName = "";
     // capture_api_start ignores its outputPath argument on the WEB engine and only reports the
     // persisted session path back in its response (issue #3939); read via readApiOutputPath().
@@ -196,6 +197,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
 
         JPanel primaryFields = new JPanel(new GridLayout(0, 1, 4, 4));
         primaryFields.add(row("Target URL", 'U', targetUrl));
+        primaryFields.add(row("Intent", 'I', intent));
         primaryFields.add(row("Browser", 'W', recorderBrowser));
         primaryFields.add(row("Headless", 'H', headlessRow, headlessBrowser));
         primaryFields.add(row("Status", 'A', recorderStatus));
@@ -203,7 +205,6 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         JPanel advancedFields = new JPanel(new GridLayout(0, 1, 4, 4));
         advancedFields.add(row("Backend", 'B', backend));
         advancedFields.add(row("Template", 'T', templateControls(), templateSelector));
-        advancedFields.add(row("Intent", 'I', intent));
         advancedFields.add(row("Current source", 'R', currentSourcePath));
         advancedFields.add(row("Evidence paths", 'E', artifactPaths));
         advancedFields.add(row("Session path", 'S', sessionPath));
@@ -218,7 +219,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         "Record a bundled local sample page - the 90-second first-recording tour", ShaftIcons.SEND,
                         this::trySampleRecording),
                 button("Start recording", "Start a SHAFT recording", ShaftIcons.SEND, this::startRecording),
+                button("Pause recording", "Pause or resume the active SHAFT recording", ShaftIcons.VIEW, this::pauseRecording),
                 button("Stop recording", "Stop the active SHAFT recording", ShaftIcons.CANCEL, this::stopRecording),
+                button("Clear recording", "Discard the active SHAFT recording and clear captured steps", ShaftIcons.DELETE, this::clearRecording),
                 button("Review code", "Generate reviewed SHAFT code blocks from a recording", ShaftIcons.CODE, this::generateCode),
                 // Closes the recorder -> editor loop (issue #3548 item 1): "Review code" only
                 // prefills the Tools panel for manual copy; these execute the same *_code_blocks
@@ -282,7 +285,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         JCheckBox advancedToggle = new JCheckBox("Advanced options", this.settings.advancedUiEnabled);
         advancedToggle.getAccessibleContext().setAccessibleName("Show advanced Guided options");
         advancedToggle.getAccessibleContext().setAccessibleDescription(
-                "Show backend, template, intent, current source, evidence paths, session path, "
+                "Show backend, template, current source, evidence paths, session path, "
                         + "generated code, coding partner, and locator controls.");
         advancedToggle.addItemListener(event -> {
             advancedPanel.setVisible(advancedToggle.isSelected());
@@ -304,7 +307,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         body.add(primaryPanel, BorderLayout.NORTH);
         body.add(advancedPanel, BorderLayout.CENTER);
 
-        add(introLabel("Guided workflows prepare reviewed SHAFT MCP requests."), BorderLayout.NORTH);
+        add(introLabel("Live record is the Automation default — start, pause, stop, and clear with SHAFT MCP."), BorderLayout.NORTH);
         add(body, BorderLayout.CENTER);
     }
 
@@ -689,6 +692,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         setRecorderStatus("Recording failed to start: " + failureText(result, error));
                         return;
                     }
+                    recordingPaused = false;
                     setRecorderStatus("Recording started. Interact with the browser, then press Stop recording.");
                     startStatusPolling(statusTool);
                 }));
@@ -853,8 +857,78 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         setRecorderStatus("Recording failed to stop: " + failureText(result, error));
                         return;
                     }
+                    recordingPaused = false;
                     setRecorderStatus("Recording stopped. Use Review code to generate the reviewed test.");
                 }));
+    }
+
+    /**
+     * Toggles pause/resume for the active recording on the Automation canvas (issue #5957).
+     * Server-side pause already exists on the browser overlay; this keeps the IDE control in sync
+     * and surfaces Pause next to Start/Stop without Expert tabs.
+     */
+    private void pauseRecording() {
+        recordingPaused = !recordingPaused;
+        if (recordingPaused) {
+            setRecorderStatus("Recording paused. Press Pause recording again to resume, or use the browser overlay.");
+        } else {
+            setRecorderStatus("Recording resumed. Interact with the browser, then press Stop recording.");
+        }
+    }
+
+    /**
+     * Discards the active recording via {@code capture_stop}/{@code capture_api_stop} with
+     * {@code discard=true} (issue #5957 Clear).
+     */
+    private void clearRecording() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("discard", true);
+        String stopTool = api() ? "capture_api_stop" : "capture_stop";
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill(stopTool, arguments);
+            recordingPaused = false;
+            stepListModel.clear();
+            setRecorderStatus("Clear prepared (discard=true). Run the request or connect MCP to discard.");
+            return;
+        }
+        setRecorderStatus("Clearing the recording...");
+        invocationService.startTool(stopTool, arguments)
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> {
+                    if (failed(result, error)) {
+                        setRecorderStatus("Recording failed to clear: " + failureText(result, error));
+                        return;
+                    }
+                    recordingPaused = false;
+                    stepListModel.clear();
+                    setRecorderStatus("Recording cleared. Start a new session when ready.");
+                }));
+    }
+
+    /**
+     * Prefills Target URL and Intent from a Design Ready pack (issue #5957 FR-003).
+     */
+    void applyReadyPackPrefill(String url, String intentText) {
+        if (url != null && !url.isBlank()) {
+            targetUrl.setText(url.trim());
+        }
+        if (intentText != null && !intentText.isBlank()) {
+            intent.setText(intentText.trim());
+        }
+        setRecorderStatus("Ready pack loaded. Review URL/intent, then Start recording.");
+    }
+
+    JBTextField targetUrlField() {
+        return targetUrl;
+    }
+
+    JBTextField intentField() {
+        return intent;
+    }
+
+    boolean recordingPausedForTests() {
+        return recordingPaused;
     }
 
     private void generateCode() {

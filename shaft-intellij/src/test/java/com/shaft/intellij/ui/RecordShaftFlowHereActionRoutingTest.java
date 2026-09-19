@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * {@code capture_record_at_target_code_blocks} request to the clipboard and open the tool window,
  * leaving a live browser recording several manual steps away. {@link
  * ShaftToolWindowPanel#startRecordingAtTarget} is the new direct entry point: it selects the
- * Recorder tab and forwards the resolved Java caret target straight into {@link
+ * Automation live-record canvas and forwards the resolved Java caret target straight into {@link
  * RecorderToolPanel#startRecordingAtTarget}'s live {@code capture_start} call.
  */
 class RecordShaftFlowHereActionRoutingTest {
@@ -33,7 +33,7 @@ class RecordShaftFlowHereActionRoutingTest {
         assertNotNull(recorder, "Recorder tab must be created when advancedUiEnabled is true");
         assertEquals("Record a SHAFT flow at logsIn in LoginTest",
                 recorder.captureStartArguments().get("sessionGoal").getAsString());
-        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
+        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, toolWindow.selectedSurfaceLabel());
     }
 
     @Test
@@ -50,6 +50,6 @@ class RecordShaftFlowHereActionRoutingTest {
         toolWindow.startRecordingAtTarget(context);
 
         assertNotNull(toolWindow.recorderPanel(), "Recorder is part of the Automation stage, not expert-only");
-        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
+        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, toolWindow.selectedSurfaceLabel());
     }
 }
