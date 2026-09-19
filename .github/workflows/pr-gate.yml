@@ -412,7 +412,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: read

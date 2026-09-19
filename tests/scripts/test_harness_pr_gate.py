@@ -678,7 +678,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         )
 
         self.assertIn("scripts/ci/harness_pr_gate.py", agent_job)
-        self.assertIn("--budget-seconds 720", agent_job)
+        self.assertIn("--budget-seconds 900", agent_job)
         self.assertNotIn("npm install --global", agent_job)
         self.assertNotIn("tests.scripts.test_agent_plugin_client_smoke", agent_job)
         self.assertNotIn("matrix:", agent_job)
