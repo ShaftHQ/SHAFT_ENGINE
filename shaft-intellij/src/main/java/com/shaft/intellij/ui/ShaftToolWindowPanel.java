@@ -842,9 +842,14 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     /** Persists the currently selected surface so {@link #restoreSelectedWorkflowView()} can find it next time. */
     private void persistSelectedWorkflowView() {
         String surface = selectedSurfaceLabel();
-        if (!surface.isBlank()) {
-            ShaftUiState.getInstance(project).setWorkflowView(surface);
+        if (surface.isBlank()) {
+            return;
         }
+        // Issue #6014: never re-write the retired Guided key; canonicalize to Live record.
+        if ("Guided".equals(surface)) {
+            surface = AutomationStagePanel.LIVE_RECORD_TAB;
+        }
+        ShaftUiState.getInstance(project).setWorkflowView(surface);
     }
 
     private SurfaceTarget surfaceTarget(String savedKey) {

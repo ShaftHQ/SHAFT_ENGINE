@@ -216,6 +216,15 @@ and focused proofs observed; it must not represent remote checks as green.
    auto-merge. If the head or remote feedback changes afterward, the receipt is
    stale: clear only that new observable state, then run one replacement
    acceptance against the new exact head. Unchanged state never triggers a retry.
+#### Auto-merge safety (#5986/#5987/#5990/#5992)
+
+Before arming: one `Fixes #N` → one open PR (close twins); all in-scope commits
+on the **remote** head; at most one armed PR per overlapping product path. On
+overlap, leave the later PR unarmed until the earlier merges, then merge
+`origin/main` (merge commit, no force-push) and re-arm. If the later merged
+first and the earlier is `DIRTY`, merge `origin/main` into the earlier and
+re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
+
 4. **Arm** immediately after that acceptance remains current:
    `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
 5. **Watch** from the target repository with

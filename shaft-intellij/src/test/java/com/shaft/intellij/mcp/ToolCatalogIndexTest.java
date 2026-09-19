@@ -61,10 +61,18 @@ class ToolCatalogIndexTest {
     }
 
     @Test
-    void toolNamesMatchesTheCanonical108ToolCatalog() {
-        assertEquals(111, ToolCatalogIndex.toolNames().size(),
-                "the bundled index must track the canonical 111-tool catalog; a mismatch means "
-                        + "the build-time copy is stale or the resource wasn't regenerated");
+    void toolNamesMatchesBundledCatalogWithoutHardcodedMagnitude() {
+        // Issue #5982: magnitude lives in ShaftMcpApplicationTests against the live MCP
+        // manifest. The plugin index must stay in sync with its bundled resource without a
+        // third copied integer — assert non-empty + tools()/toolNames() agreement instead.
+        Set<String> names = ToolCatalogIndex.toolNames();
+        assertFalse(names.isEmpty(), "bundled tool-index.json must expose at least one tool");
+        assertEquals(ToolCatalogIndex.tools().size(), names.size(),
+                "tools() and toolNames() must describe the same bundled catalog");
+        assertTrue(names.containsAll(ToolCatalogIndex.tools().stream()
+                        .map(ToolCatalogIndex.ToolMetadata::name)
+                        .collect(java.util.stream.Collectors.toSet())),
+                "every ToolMetadata name must appear in toolNames()");
     }
 
     @Test

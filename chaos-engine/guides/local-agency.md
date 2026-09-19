@@ -34,10 +34,15 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt 'smok
 Small-context local models often exit 0 without tools, overflow on the next
 turn after verbose logs, or miss gitignored trees via glob.
 
-- Orchestrator writes one bounded runner; OpenCode runs exactly one command.
-- EXIT 0 with zero tool calls after a multi-step spec is a writer failure.
-  Run the same one command in the worktree yourself; do not retry the
-  oversized prompt.
+- Orchestrator writes one bounded runner; OpenCode prompt is **one command
+  only** (no English like `git add product files` — #5996/#5997). Put exact
+  `git add` paths inside the script.
+- EXIT 0 with zero tool calls, Glob/Grep-before-bash, or overflow without
+  mutation is a writer failure. Run the same command in the worktree; do
+  not retry the oversized prompt.
+- OpenCode bash timeout is **120s** (#5998). After a timeout kill of a
+  Maven/Gradle apply.sh, re-run the same idempotent script from the
+  orchestrator so the tree is not left half-applied.
 - Use exact paths; OpenCode glob may skip gitignored trees (including Memory).
 - Do not feed verbose unit-test logs into the next model turn.
 - Advertised `context_length` is not usable KV. On `context_length_exceeded`,

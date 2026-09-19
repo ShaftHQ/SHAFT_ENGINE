@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Covers issue #3636's workflow-selector persistence: the last-selected workflow view survives an
@@ -57,6 +58,30 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
         assertEquals(ShaftToolWindowPanel.STAGE_AUTOMATION, selectedLabel(panel));
         assertEquals("Inspector", panel.selectedSurfaceLabel(),
                 "a fresh panel must restore the last-selected surface, not default back to Design");
+    }
+
+
+    @Test
+    void legacyGuidedKeyRestoresLiveRecordSurface() {
+        // Issue #6014: retired Guided key maps once to Live record.
+        FakePropertiesComponent properties = new FakePropertiesComponent();
+        properties.setValue(ShaftUiState.WORKFLOW_VIEW_KEY, "Guided");
+
+        ShaftToolWindowPanel panel = newPanel(properties);
+
+        assertEquals(ShaftToolWindowPanel.STAGE_AUTOMATION, selectedLabel(panel));
+        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, panel.selectedSurfaceLabel(),
+                "Guided must restore as Live record, not a missing Guided tab");
+    }
+
+    @Test
+    void selectingAutomationPersistsLiveRecordNotGuided() {
+        FakePropertiesComponent properties = new FakePropertiesComponent();
+        ShaftToolWindowPanel panel = newPanel(properties);
+        selectItemLabeled(panel.workflowSelector(), ShaftToolWindowPanel.STAGE_AUTOMATION);
+
+        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY));
+        assertFalse("Guided".equals(properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY)));
     }
 
     @Test
