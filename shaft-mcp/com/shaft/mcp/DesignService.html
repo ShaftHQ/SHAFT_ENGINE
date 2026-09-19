@@ -55,6 +55,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#ingest(java.lang.String,java.lang.String,java.lang.String)" tabindex="0">ingest(String, String, String)</a></li>
+<li><a href="#analyze(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">analyze(String, String, String, String)</a></li>
 </ol>
 </li>
 </ol>
@@ -105,11 +106,19 @@ write files and does not fetch URLs (issue #5947).</div>
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpDesignPack.html" title="class in com.shaft.mcp">McpDesignPack</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ingest(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">ingest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpDesignAnalysis.html" title="class in com.shaft.mcp">McpDesignAnalysis</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#analyze(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">analyze</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;acceptedGapIds)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Runs the requirements-analysis playbook against an ingested pack.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpDesignPack.html" title="class in com.shaft.mcp">McpDesignPack</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ingest(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">ingest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Ingests a user story or acceptance criteria into a structured pack.</div>
 </div>
 </div>
@@ -163,6 +172,29 @@ write files and does not fetch URLs (issue #5947).</div>
 <dd><code>sourceUrl</code> - recorded source URL (not fetched)</dd>
 <dt>Returns:</dt>
 <dd>pack; <code>wroteFiles</code> is always false</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="analyze(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+<h3>analyze</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="design_analyze",
+      description="runs the requirements-analysis playbook on a story or workspace file and returns a gap register with stable GAP IDs; never writes files and does not generate Gherkin")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpDesignAnalysis.html" title="class in com.shaft.mcp">McpDesignAnalysis</a></span>&nbsp;<span class="element-name">analyze</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;acceptedGapIds)</span></div>
+<div class="block">Runs the requirements-analysis playbook against an ingested pack.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>text</code> - pasted story text</dd>
+<dd><code>filePath</code> - workspace-relative file to read</dd>
+<dd><code>sourceUrl</code> - recorded source URL (not fetched)</dd>
+<dd><code>acceptedGapIds</code> - comma-separated waivable GAP IDs to accept, or empty</dd>
+<dt>Returns:</dt>
+<dd>analysis; <code>wroteFiles</code> is always false and Gherkin is never emitted</dd>
 </dl>
 </div>
 </section>
