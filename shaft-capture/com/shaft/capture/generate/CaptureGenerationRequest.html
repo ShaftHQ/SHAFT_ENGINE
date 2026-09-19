@@ -105,7 +105,7 @@
 <dd><code><span id="param-enrichmentPreviewPath">enrichmentPreviewPath</span></code> - preview path to write or apply</dd>
 <dd><code><span id="param-enrichmentApproved">enrichmentApproved</span></code> - whether a reviewed preview may be applied</dd>
 <dd><code><span id="param-aiApprovalPolicy">aiApprovalPolicy</span></code> - explicit evidence and processing-location approval for preview generation</dd>
-<dd><code><span id="param-fallbackLocators">fallbackLocators</span></code> - whether generated WebDriver replay should try captured fallback locators</dd>
+<dd><code><span id="param-fallbackLocators">fallbackLocators</span></code> - whether generated WebDriver replay should try captured fallback locators (default <code>true</code>; issue #5961)</dd>
 <dd><code><span id="param-controlFlowMode">controlFlowMode</span></code> - deterministic control-flow suggestion lifecycle</dd>
 <dd><code><span id="param-controlFlowPreviewPath">controlFlowPreviewPath</span></code> - control-flow preview path to write or apply</dd>
 </dl>
@@ -161,7 +161,7 @@
  boolean&nbsp;enrichmentApproved,
  <a href="https://shafthq.github.io/shaft-pilot-core/apidocs/com/shaft/pilot/ai/ApprovalPolicy.html" title="class or interface in com.shaft.pilot.ai" class="external-link">ApprovalPolicy</a>&nbsp;aiApprovalPolicy)</code></div>
 <div class="col-last even-row-color">
-<div class="block">Compatibility constructor with fallback locator replay disabled.</div>
+<div class="block">Compatibility constructor with fallback locator replay default-on (issue #5961).</div>
 </div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,boolean,boolean,boolean,java.time.Duration,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy,boolean)" class="member-name-link">CaptureGenerationRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputDirectory,
@@ -239,7 +239,7 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="CaptureGenerationRequest.html" title="class in com.shaft.capture.generate">CaptureGenerationRequest</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#defaults(java.nio.file.Path)" class="member-name-link">defaults</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Creates deterministic defaults for one session.</div>
+<div class="block">Creates deterministic defaults for one session (fallback locators default-on; issue #5961).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#enrichmentApproved()" class="member-name-link">enrichmentApproved</a>()</code></div>
@@ -399,7 +399,8 @@
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;enrichmentPreviewPath,
  boolean&nbsp;enrichmentApproved,
  <a href="https://shafthq.github.io/shaft-pilot-core/apidocs/com/shaft/pilot/ai/ApprovalPolicy.html" title="class or interface in com.shaft.pilot.ai" class="external-link">ApprovalPolicy</a>&nbsp;aiApprovalPolicy)</span></div>
-<div class="block">Compatibility constructor with fallback locator replay disabled.</div>
+<div class="block">Compatibility constructor with fallback locator replay default-on (issue #5961).
+Pass <code>false</code> via the full constructor or <code>--disable-fallback-locators</code> to override off.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>sessionPath</code> - persisted Capture session</dd>
@@ -431,7 +432,7 @@
 <h3>defaults</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="CaptureGenerationRequest.html" title="class in com.shaft.capture.generate">CaptureGenerationRequest</a></span>&nbsp;<span class="element-name">defaults</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath)</span></div>
-<div class="block">Creates deterministic defaults for one session.</div>
+<div class="block">Creates deterministic defaults for one session (fallback locators default-on; issue #5961).</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>sessionPath</code> - persisted session</dd>
