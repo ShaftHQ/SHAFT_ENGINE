@@ -46,7 +46,9 @@ final class DesignStagePanel extends JPanel {
     private final JButton analyze;
     private final JButton acceptRisk;
     private final JButton gherkin;
+    private final JButton suggestPhrases;
     private final JBTextArea gherkinDraft;
+    private final javax.swing.JList<String> lexiconSuggestions;
     private DesignCanvasModel model = new DesignCanvasModel();
     private boolean busy;
 
@@ -111,6 +113,9 @@ final class DesignStagePanel extends JPanel {
         gherkinDraft.setWrapStyleWord(true);
         gherkinDraft.setEditable(true);
         gherkinDraft.getAccessibleContext().setAccessibleName("Gherkin draft");
+        lexiconSuggestions = new javax.swing.JList<>(new javax.swing.DefaultListModel<>());
+        lexiconSuggestions.getAccessibleContext().setAccessibleName("Lexicon suggestions");
+        suggestPhrases = action("Suggest phrases", this::suggestPhrases);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -118,6 +123,7 @@ final class DesignStagePanel extends JPanel {
         actions.add(analyze);
         actions.add(acceptRisk);
         actions.add(gherkin);
+        actions.add(suggestPhrases);
         actions.add(designExamples);
         actions.add(deleteExample);
 
@@ -127,7 +133,10 @@ final class DesignStagePanel extends JPanel {
         lower.add(new JBScrollPane(gapTable), BorderLayout.CENTER);
         JPanel extra = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         extra.add(new JBScrollPane(examplesTable), BorderLayout.CENTER);
-        extra.add(new JBScrollPane(gherkinDraft), BorderLayout.SOUTH);
+        JPanel draftAndLexicon = new JPanel(new BorderLayout(0, JBUI.scale(4)));
+        draftAndLexicon.add(new JBScrollPane(gherkinDraft), BorderLayout.CENTER);
+        draftAndLexicon.add(new JBScrollPane(lexiconSuggestions), BorderLayout.EAST);
+        extra.add(draftAndLexicon, BorderLayout.SOUTH);
         JPanel southTables = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         southTables.add(new JBScrollPane(oracleTable), BorderLayout.CENTER);
         southTables.add(extra, BorderLayout.SOUTH);
@@ -166,6 +175,22 @@ final class DesignStagePanel extends JPanel {
 
     JBTextArea gherkinDraftArea() {
         return gherkinDraft;
+    }
+
+    javax.swing.JList<String> lexiconSuggestions() {
+        return lexiconSuggestions;
+    }
+
+    JButton suggestPhrasesButton() {
+        return suggestPhrases;
+    }
+
+    void applyLexiconJson(String json) {
+        javax.swing.DefaultListModel<String> listModel = new javax.swing.DefaultListModel<>();
+        for (String suggestion : DesignCanvasModel.lexiconSuggestions(json)) {
+            listModel.addElement(suggestion);
+        }
+        lexiconSuggestions.setModel(listModel);
     }
 
     void applyDraftJson(String json) {
@@ -246,6 +271,15 @@ final class DesignStagePanel extends JPanel {
         invoke("design_analyze", arguments(model.acceptedGapIdsArgument()), false);
     }
 
+    private void suggestPhrases() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("action", "suggest");
+        String query = gherkinDraft.getText().isBlank() ? story.getText() : gherkinDraft.getText();
+        arguments.addProperty("query", query);
+        arguments.addProperty("phrase", "");
+        invoke("design_lexicon", arguments, false);
+    }
+
     private JsonObject arguments(String acceptedGapIds) {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("text", story.getText());
@@ -286,6 +320,8 @@ final class DesignStagePanel extends JPanel {
             applyDraftJson(output);
         } else if (output.contains("\"rows\"")) {
             applyExamplesJson(output);
+        } else if (output.contains("\"suggestions\"")) {
+            applyLexiconJson(output);
         } else {
             applyAnalysisJson(output);
         }
@@ -300,6 +336,7 @@ final class DesignStagePanel extends JPanel {
         analyze.setEnabled(ready);
         acceptRisk.setEnabled(ready && model.acceptEnabled());
         gherkin.setEnabled(ready && model.gherkinGenerationAllowed());
+        suggestPhrases.setEnabled(ready);
         deleteExample.setEnabled(ready && examplesTable.getRowCount() > 0);
     }
 

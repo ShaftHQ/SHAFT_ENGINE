@@ -30,6 +30,9 @@ class DesignStagePanelTest {
         assertFalse(panel.ingestButton().isEnabled());
         assertNotNull(panel.gherkinDraftArea());
         assertNotNull(findByAccessibleName(panel, "Gherkin draft", JComponent.class));
+        assertNotNull(panel.lexiconSuggestions());
+        assertNotNull(panel.suggestPhrasesButton());
+        assertNotNull(findByAccessibleName(panel, "Lexicon suggestions", JComponent.class));
     }
 
     @Test
@@ -46,6 +49,20 @@ class DesignStagePanelTest {
         assertTrue(panel.gherkinDraftArea().getText().contains("Feature:"));
         assertTrue(panel.gherkinDraftArea().isEditable());
         assertFalse(panel.gherkinDraftArea().getText().toLowerCase().contains("xpath"));
+    }
+
+    @Test
+    void lexiconJsonFillsSuggestionList() {
+        DesignStagePanel panel = new DesignStagePanel();
+        panel.applyLexiconJson("""
+                {
+                  "status": "ok",
+                  "suggestions": ["the shopper is authenticated"]
+                }
+                """);
+        assertEquals(1, panel.lexiconSuggestions().getModel().getSize());
+        assertEquals("the shopper is authenticated", panel.lexiconSuggestions().getModel().getElementAt(0));
+        assertFalse(panel.suggestPhrasesButton().isEnabled(), "headless panel has no project");
     }
 
     @Test

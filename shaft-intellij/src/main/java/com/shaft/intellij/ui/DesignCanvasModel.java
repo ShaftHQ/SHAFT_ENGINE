@@ -120,6 +120,21 @@ final class DesignCanvasModel {
         return AssistantMarkdown.jsonObjectFromMcpOutput(raw);
     }
 
+    static List<String> lexiconSuggestions(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        JsonElement suggestions = root == null ? null : root.get("suggestions");
+        if (suggestions == null || !suggestions.isJsonArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonElement item : suggestions.getAsJsonArray()) {
+            if (item.isJsonPrimitive()) {
+                values.add(item.getAsString());
+            }
+        }
+        return values;
+    }
+
     static List<String[]> exampleRows(String raw) {
         JsonObject root = parseAnalysisObject(raw);
         JsonElement rows = root == null ? null : root.get("rows");

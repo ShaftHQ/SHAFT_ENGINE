@@ -301,6 +301,12 @@
       "deprecated": false
     },
     {
+      "name": "design_lexicon",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
       "name": "doctor_analyze_failed_allure",
       "mutation": true,
       "sensitive": false,
