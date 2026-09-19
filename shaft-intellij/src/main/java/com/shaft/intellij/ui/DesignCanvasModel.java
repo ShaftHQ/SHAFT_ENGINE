@@ -120,6 +120,32 @@ final class DesignCanvasModel {
         return AssistantMarkdown.jsonObjectFromMcpOutput(raw);
     }
 
+    static List<String[]> exampleRows(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        JsonElement rows = root == null ? null : root.get("rows");
+        if (rows == null || !rows.isJsonArray()) {
+            return List.of();
+        }
+        return copyExampleRows(rows.getAsJsonArray());
+    }
+
+    private static List<String[]> copyExampleRows(JsonArray array) {
+        List<String[]> rows = new ArrayList<>();
+        for (JsonElement item : array) {
+            addExampleRow(rows, item);
+        }
+        return rows;
+    }
+
+    private static void addExampleRow(List<String[]> rows, JsonElement item) {
+        if (!item.isJsonObject()) {
+            return;
+        }
+        JsonObject row = item.getAsJsonObject();
+        rows.add(new String[]{string(row, "id"), string(row, "kind"),
+                row.has("cells") ? row.get("cells").toString() : ""});
+    }
+
     private static void fillCriteria(DesignCanvasModel model, JsonElement element) {
         if (element == null || !element.isJsonArray()) {
             return;

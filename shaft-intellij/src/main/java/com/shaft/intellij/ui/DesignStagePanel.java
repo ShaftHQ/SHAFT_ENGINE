@@ -102,6 +102,7 @@ final class DesignStagePanel extends JPanel {
         acceptRisk = action("Accept residual risk", this::acceptResidualRisk);
         gherkin = action("Draft Gherkin", this::draftGherkin);
         gherkin.setEnabled(false);
+        JButton designExamples = action("Design examples", this::examplesStory);
         deleteExample = action("Delete example row", this::deleteSelectedExample);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
@@ -110,6 +111,7 @@ final class DesignStagePanel extends JPanel {
         actions.add(analyze);
         actions.add(acceptRisk);
         actions.add(gherkin);
+        actions.add(designExamples);
         actions.add(deleteExample);
 
         JBSplitter tables = new JBSplitter(true, 0.45f);
@@ -179,38 +181,8 @@ final class DesignStagePanel extends JPanel {
     }
 
     void applyExamplesJson(String json) {
-        fill(examplesTable, EXAMPLE_COLUMNS, exampleRowsFrom(json));
+        fill(examplesTable, EXAMPLE_COLUMNS, DesignCanvasModel.exampleRows(json));
         refreshButtons();
-    }
-
-    private static java.util.List<String[]> exampleRowsFrom(String json) {
-        com.google.gson.JsonObject root = AssistantMarkdown.jsonObjectFromMcpOutput(json);
-        java.util.List<String[]> rows = new java.util.ArrayList<>();
-        if (root == null || !root.has("rows") || !root.get("rows").isJsonArray()) {
-            try {
-                com.google.gson.JsonElement parsed = com.google.gson.JsonParser.parseString(json);
-                if (parsed.isJsonObject()) {
-                    root = parsed.getAsJsonObject();
-                }
-            } catch (RuntimeException ignored) {
-                return rows;
-            }
-        }
-        if (root == null || !root.has("rows") || !root.get("rows").isJsonArray()) {
-            return rows;
-        }
-        for (com.google.gson.JsonElement item : root.getAsJsonArray("rows")) {
-            if (!item.isJsonObject()) {
-                continue;
-            }
-            com.google.gson.JsonObject row = item.getAsJsonObject();
-            String cells = row.has("cells") ? row.get("cells").toString() : "";
-            rows.add(new String[] {
-                    row.has("id") ? row.get("id").getAsString() : "",
-                    row.has("kind") ? row.get("kind").getAsString() : "",
-                    cells });
-        }
-        return rows;
     }
 
     private void ingestStory() {
