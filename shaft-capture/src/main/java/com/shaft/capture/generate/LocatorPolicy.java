@@ -173,7 +173,7 @@ public final class LocatorPolicy {
      * @param rawRole the captured role string
      * @return the mapped role, or {@code null} when unmappable
      */
-    static Role ariaRole(String rawRole) {
+    public static Role ariaRole(String rawRole) {
         return switch (rawRole == null ? "" : rawRole.trim().toLowerCase(Locale.ROOT)) {
             case "button" -> Role.BUTTON;
             case "link" -> Role.LINK;

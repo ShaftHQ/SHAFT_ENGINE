@@ -172,7 +172,8 @@ public final class CaptureControlServer implements AutoCloseable {
         LocatorCandidate winner = ranked.getFirst();
         List<RankedCandidate> rankedResponse = ranked.stream()
                 .map(candidate -> new RankedCandidate(
-                        candidate.strategy().name(), candidate.expression(), candidate.score(),
+                        candidate.strategy().name(), candidate.expression(),
+                        candidate.uniquenessCount(), candidate.score(),
                         PickedLocatorSnippetBuilder.snippet(candidate)))
                 .toList();
         String winnerSnippet = PickedLocatorSnippetBuilder.snippet(winner);
@@ -289,10 +290,20 @@ public final class CaptureControlServer implements AutoCloseable {
      *
      * @param strategy locator strategy name
      * @param expression raw locator expression
+     * @param uniquenessCount matching elements observed on the live page ({@code 1} = unique)
      * @param score deterministic {@link LocatorCandidate#score()}
      * @param snippet copy-paste Java locator expression
      */
-    public record RankedCandidate(String strategy, String expression, int score, String snippet) {
+    public record RankedCandidate(
+            String strategy, String expression, int uniquenessCount, int score, String snippet) {
+        /**
+         * Whether this candidate matched exactly one element when captured.
+         *
+         * @return {@code true} when uniquenessCount is 1
+         */
+        public boolean unique() {
+            return uniquenessCount == 1;
+        }
     }
 
     /**

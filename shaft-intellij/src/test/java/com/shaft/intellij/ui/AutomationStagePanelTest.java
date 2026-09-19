@@ -65,6 +65,17 @@ class AutomationStagePanelTest {
         assertFalse(guided.recordingPausedForTests());
     }
 
+
+    @Test
+    void locatorPickerTabIsAvailableOnAutomationCanvas() {
+        AutomationStagePanel panel = newPanel();
+        assertEquals(AutomationStagePanel.LOCATOR_PICKER_TAB, panel.surfaces().getTitleAt(1));
+        assertEquals(LocatorPlaygroundPanel.ACCESSIBLE_NAME,
+                panel.locatorPlaygroundPanel().getAccessibleContext().getAccessibleName());
+        panel.showLocatorPicker();
+        assertEquals(1, panel.surfaces().getSelectedIndex());
+    }
+
     private static AutomationStagePanel newPanel() {
         return new AutomationStagePanel(null, (tool, args) -> {
         }, new ShaftSettingsState.Settings());
