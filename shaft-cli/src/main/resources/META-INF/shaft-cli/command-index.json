@@ -18,6 +18,10 @@
       "description": "Generate SHAFT test code from a capture recording (deterministic, no MCP session)."
     },
     {
+      "name": "design",
+      "description": "Design shortcuts: ingest."
+    },
+    {
       "name": "doctor",
       "description": "Doctor shortcuts: analyze | suggest | local-ai-status."
     },

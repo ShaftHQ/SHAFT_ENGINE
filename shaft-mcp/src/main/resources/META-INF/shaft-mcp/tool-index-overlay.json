@@ -267,6 +267,17 @@
       "mutation": false,
       "sensitive": false
     },
+    "design_ingest": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design ingest",
+      "intentKeywords": [
+        "ingest user story",
+        "paste acceptance criteria",
+        "design ingest",
+        "turn this story into a pack"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {

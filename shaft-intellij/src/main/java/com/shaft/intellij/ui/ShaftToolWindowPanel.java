@@ -151,7 +151,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         workflowCards.getAccessibleContext().setAccessibleName("SHAFT stage content");
         featurePanels = new ArrayList<>();
 
-        DesignStagePanel design = new DesignStagePanel();
+        DesignStagePanel design = new DesignStagePanel(project);
         designStagePanel = design;
 
         GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);

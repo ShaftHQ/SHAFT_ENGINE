@@ -836,6 +836,26 @@
       "description" : null
     } ]
   }, {
+    "name" : "design_ingest",
+    "service" : "DesignService",
+    "description" : "turns pasted user-story or acceptance-criteria text, or a workspace file, into a structured Design pack with actor, outcome, and numbered AC IDs; never writes files and does not fetch URLs",
+    "params" : [ {
+      "name" : "filePath",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "sourceUrl",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "text",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "doctor_analyze_failed_allure",
     "service" : "DoctorService",
     "description" : "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace; optional backend (web|playwright, defaults to web) selects the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure",
