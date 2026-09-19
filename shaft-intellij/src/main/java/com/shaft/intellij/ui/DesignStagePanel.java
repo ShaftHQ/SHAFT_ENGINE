@@ -447,7 +447,6 @@ final class DesignStagePanel extends JPanel {
         arguments.addProperty("lintWaived", lintWaived.getText());
         arguments.addProperty("accept", "true");
         arguments.addProperty("acceptedGherkinSnapshot", gherkinDraft.getText());
-        arguments.addProperty("optionalUrl", "");
         invoke("design_handoff", arguments, false);
     }
 

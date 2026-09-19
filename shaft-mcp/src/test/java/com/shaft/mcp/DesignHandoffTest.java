@@ -24,7 +24,7 @@ class DesignHandoffTest {
                     Then a valid payment places the order
                 """;
         McpDesignHandoff handoff = service.handoff(
-                story, "", "", "", partial, "", "", "false", "", "");
+                story, "", "", "", partial, "", "", "false", "");
         assertEquals(McpDesignHandoff.STATUS_BLOCKED, handoff.status(), handoff.message());
         assertFalse(handoff.wroteFiles());
         assertTrue(handoff.automationPrefill().isEmpty());
@@ -36,7 +36,7 @@ class DesignHandoffTest {
         String story = Files.readString(Path.of("src/test/resources/fixtures/design/three-ac.txt"));
         String gherkin = Files.readString(Path.of("src/test/resources/fixtures/design/readiness-ready.feature"));
         McpDesignHandoff handoff = service.handoff(
-                story, "", "", "", gherkin, "", "", "true", gherkin, "https://shop.example/checkout");
+                story, "", "https://shop.example/checkout", "", gherkin, "", "", "true", gherkin);
         assertEquals(McpDesignHandoff.STATUS_READY, handoff.status(), handoff.message());
         assertFalse(handoff.wroteFiles());
         assertFalse(handoff.scenarios().isEmpty(), handoff.scenarios().toString());

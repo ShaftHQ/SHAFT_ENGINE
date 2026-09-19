@@ -163,10 +163,10 @@ public class DesignService {
 
 
     @Tool(name = "design_handoff",
-            description = "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); never writes Java or invents locators/URLs")
+            description = "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); sourceUrl is optional start URL only when supplied by the user — never invents locators/URLs or writes Java")
     public McpDesignHandoff handoff(String text, String filePath, String sourceUrl, String acceptedGapIds,
                                     String gherkin, String coverageWaived, String lintWaived,
-                                    String accept, String acceptedGherkinSnapshot, String optionalUrl) {
+                                    String accept, String acceptedGherkinSnapshot) {
         McpDesignReadiness readiness = readiness(
                 text, filePath, sourceUrl, acceptedGapIds, gherkin, coverageWaived, lintWaived,
                 accept, acceptedGherkinSnapshot);
@@ -182,6 +182,7 @@ public class DesignService {
                         "No Gherkin.", List.of(), false)
                 : DesignGapMapComputer.map(feature);
         McpDesignExamples examples = examples(text, filePath, sourceUrl, acceptedGapIds, "");
+        String optionalUrl = sourceUrl == null ? "" : sourceUrl.strip();
         return DesignHandoffComputer.build(
                 readiness, analysis, coverage, gapMap, examples, feature, optionalUrl);
     }

@@ -1757,7 +1757,7 @@
     {
       "name": "design_handoff",
       "service": "DesignService",
-      "description": "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); never writes Java or invents locators/URLs",
+      "description": "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); sourceUrl is optional start URL only when supplied by the user \u2014 never invents locators/URLs or writes Java",
       "params": [
         {
           "name": "accept",
@@ -1803,13 +1803,6 @@
         },
         {
           "name": "lintWaived",
-          "type": "string",
-          "required": true,
-          "default": null,
-          "description": null
-        },
-        {
-          "name": "optionalUrl",
           "type": "string",
           "required": true,
           "default": null,
