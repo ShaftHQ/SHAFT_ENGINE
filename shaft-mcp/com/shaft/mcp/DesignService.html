@@ -56,6 +56,7 @@
 <ol class="toc-list">
 <li><a href="#ingest(java.lang.String,java.lang.String,java.lang.String)" tabindex="0">ingest(String, String, String)</a></li>
 <li><a href="#analyze(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">analyze(String, String, String, String)</a></li>
+<li><a href="#gherkinDraft(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">gherkinDraft(String, String, String, String)</a></li>
 </ol>
 </li>
 </ol>
@@ -114,11 +115,17 @@ write files and does not fetch URLs (issue #5947).</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Runs the requirements-analysis playbook against an ingested pack.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpDesignPack.html" title="class in com.shaft.mcp">McpDesignPack</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ingest(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">ingest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpDesignGherkinDraft.html" title="class in com.shaft.mcp">McpDesignGherkinDraft</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#gherkinDraft(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">gherkinDraft</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;acceptedGapIds)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpDesignPack.html" title="class in com.shaft.mcp">McpDesignPack</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ingest(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">ingest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Ingests a user story or acceptance criteria into a structured pack.</div>
 </div>
 </div>
@@ -196,6 +203,19 @@ write files and does not fetch URLs (issue #5947).</div>
 <dt>Returns:</dt>
 <dd>analysis; <code>wroteFiles</code> is always false and Gherkin is never emitted</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="gherkinDraft(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+<h3>gherkinDraft</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="design_gherkin_draft",
+      description="drafts declarative Gherkin from an analyzed story pack for human review; never writes files or Java")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpDesignGherkinDraft.html" title="class in com.shaft.mcp">McpDesignGherkinDraft</a></span>&nbsp;<span class="element-name">gherkinDraft</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;acceptedGapIds)</span></div>
 </div>
 </section>
 </li>
