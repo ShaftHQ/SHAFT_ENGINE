@@ -4,6 +4,7 @@ com.shaft.doctor.analysis
 com.shaft.doctor.cli
 com.shaft.doctor.collect
 com.shaft.doctor.format
+com.shaft.doctor.history
 com.shaft.doctor.internal
 com.shaft.doctor.model
 com.shaft.doctor.repair
