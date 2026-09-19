@@ -212,6 +212,7 @@ return here for the next.
 | Context firewall | Research / multi-file explore needs isolation | [context-firewall](../../references/context-firewall.md) |
 | Harness learn | Tune git-tracked harness from repeated traces | [harness-learn](../../references/harness-learn.md) |
 | Design loop | Write-review-revise a design doc until 0 open issues | [design-loop](../../references/design-loop.md) |
+| ICM Architect | Structure a process or folder as an ICM workspace when the task is architectural layout | vendor skill `icm-architect` (SessionStart advisory locator) |
 | Deep research | Bounded parallel research with independent verify and cited report | [deep-research](../../references/deep-research.md) |
 | Learn traces | Map-reduce-verify session traces; portable, no host TUI | [learn-traces](../../references/learn-traces.md) |
 | Meta-optimize | Periodic offline shared-log review (not continuous) | [meta-optimize](../../references/meta-optimize.md) |
@@ -336,6 +337,7 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | mechanical-helper | Deterministic reversible spec-exact work; stop on ambiguity. | `references/roles.md#mechanical-helper` |
 | harness-learn | Tune git-tracked harness from repeated traces; never `~/.grok/skills`. | `references/harness-learn.md` |
 | design-loop | Write-review-revise design docs until 0 open issues. | `references/design-loop.md` |
+| icm-architect | Design or restructure processes/folders into ICM workspaces (folder-as-architecture). Advisory companion. | `plugins/icm-architect/skills/icm-architect/SKILL.md` (vendor pin) |
 | deep-research | Bounded parallel research; independent verify; cited report. | `references/deep-research.md` |
 | learn-traces | Map-reduce-verify session traces without a host TUI. | `references/learn-traces.md` |
 

@@ -98,6 +98,9 @@ class CompanionHealTests(unittest.TestCase):
             self.assertTrue(
                 (project / "plugins/ponytail/skills/ponytail/SKILL.md").is_file()
             )
+            self.assertTrue(
+                (project / "plugins/icm-architect/skills/icm-architect/SKILL.md").is_file()
+            )
 
     def test_doctor_self_heals_missing_companion(self):
         install = load(ROOT / "chaos-engine/install.py", "install_heal_5806")

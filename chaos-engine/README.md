@@ -225,6 +225,9 @@ distributions / pins (not optional “bring your own” peers). Do not treat the
 like OmniRoute or FreeToken:
 
 - **Caveman** and **Ponytail** — pinned skills installed with the harness
+- **ICM Architect** — pinned advisory skill installed with the harness
+  (design / restructure workspaces as folder-as-architecture; disable with
+  `--without-icm-architect`)
 - **Memory** and **MemPalace** — installed/configured with the harness
   (alongside Graphify and other managed tools listed under
   [What gets installed](#what-gets-installed))
@@ -358,6 +361,7 @@ flowchart LR
     accTitle: Canonical host adapter topology
     accDescr: One canonical skill and kernel project thin guidance and lifecycle adapters into five supported hosts.
     K["Canonical chaos-engine skill"] --> C["Caveman skill<br/>pinned 0.1.0"]
+    K --> I["ICM Architect skill<br/>pinned advisory"]
     K --> P["Ponytail skill<br/>pinned 0.1.0"]
     K --> SI["self-improve skill"]
     K --> Profile["portable or selected project profile"]
