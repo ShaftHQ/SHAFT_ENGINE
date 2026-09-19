@@ -84,6 +84,8 @@ final class RecorderToolPanel extends JPanel {
     // issue asks for. Cleared once consumed so a later plain Stop click (no live target) falls
     // back to the generic message.
     private JavaTargetContext targetContext;
+    // Issue #5958: Design Ready-pack intent forwarded into capture_start sessionGoal.
+    private String readyPackIntent = "";
 
     RecorderToolPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
         super(new BorderLayout(6, 6));
@@ -220,8 +222,31 @@ final class RecorderToolPanel extends JPanel {
      * @param context resolved Java caret target the generated code will be anchored at
      */
     void startRecordingAtTarget(JavaTargetContext context) {
+        startRecordingAtTarget(context, "");
+    }
+
+    /**
+     * Starts a caret-anchored recording and forwards an optional Design Ready-pack intent into
+     * {@code capture_start}'s {@code sessionGoal} (issue #5958).
+     *
+     * @param context resolved Java caret target
+     * @param readyPackIntent Ready-pack intent / session goal, or blank
+     */
+    void startRecordingAtTarget(JavaTargetContext context, String readyPackIntent) {
         this.targetContext = context;
+        this.readyPackIntent = readyPackIntent == null ? "" : readyPackIntent.trim();
         startRecording();
+    }
+
+    /**
+     * Prefills the Quick Start URL from a Design Ready pack (issue #5958).
+     *
+     * @param url Ready-pack URL, or blank to leave unchanged
+     */
+    void applyReadyPackUrl(String url) {
+        if (url != null && !url.isBlank()) {
+            targetUrl.setText(url.trim());
+        }
     }
 
     private void startRecording() {
@@ -262,6 +287,7 @@ final class RecorderToolPanel extends JPanel {
                     }
                     JavaTargetContext target = targetContext;
                     targetContext = null;
+                    readyPackIntent = "";
                     if (target != null) {
                         reviewAndInsertAtTarget(target);
                         return;
@@ -310,11 +336,19 @@ final class RecorderToolPanel extends JPanel {
             setStatus("The current file could not be made writable.");
             return;
         }
+        String filtered = skipDuplicateLines(document.getText(), snippet);
+        if (filtered.isBlank()) {
+            setStatus("Recording stopped. Generated steps already exist in "
+                    + context.className() + "; duplicate locators/actions were skipped.");
+            return;
+        }
         int offset = Math.max(0, Math.min(editor.getCaretModel().getOffset(), document.getTextLength()));
+        String toInsert = filtered;
         WriteCommandAction.writeCommandAction(project)
                 .withName("Insert SHAFT Recorded Code")
-                .run(() -> document.insertString(offset, snippet));
-        setStatus("Inserted generated code anchored at " + context.methodName() + " in " + context.className() + ".");
+                .run(() -> document.insertString(offset, toInsert));
+        setStatus("Inserted generated code anchored at " + context.methodName() + " in " + context.className()
+                + (filtered.length() < snippet.length() ? " (duplicates skipped)." : "."));
     }
 
     /**
@@ -338,6 +372,29 @@ final class RecorderToolPanel extends JPanel {
      * Returns the {@code code} of the first {@code codeBlocks[]} entry whose {@code kind} matches,
      * or {@code ""} when none match (mirrors {@code GuidedWorkflowPanel#firstBlockByKind}).
      */
+    /**
+     * Drops generated lines that already appear (trimmed) in the owner class source so record-at-
+     * caret does not re-insert duplicate locators/actions (issue #5958 FR-003).
+     */
+    static String skipDuplicateLines(String existingSource, String snippet) {
+        if (snippet == null || snippet.isBlank()) {
+            return "";
+        }
+        String haystack = existingSource == null ? "" : existingSource;
+        StringBuilder kept = new StringBuilder();
+        for (String line : snippet.split("\n", -1)) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || haystack.contains(trimmed)) {
+                continue;
+            }
+            if (!kept.isEmpty()) {
+                kept.append('\n');
+            }
+            kept.append(line);
+        }
+        return kept.toString();
+    }
+
     private static String firstBlockByKind(JsonObject raw, String kind) {
         if (raw == null || !raw.has("codeBlocks") || !raw.get("codeBlocks").isJsonArray()) {
             return "";
@@ -502,10 +559,21 @@ final class RecorderToolPanel extends JPanel {
         // default Quick Start template has no "intent" concept, matching the class javadoc's note
         // that GuidedWorkflowPanel owns that curated behavior, not this standalone tab.
         if (targetContext != null) {
-            arguments.addProperty("sessionGoal",
-                    "Record a SHAFT flow at " + targetContext.methodName() + " in " + targetContext.className());
+            arguments.addProperty("sessionGoal", sessionGoalForTarget(targetContext, readyPackIntent));
         }
         return arguments;
+    }
+
+    /**
+     * Prefer Ready-pack intent when present so Design handoff is visible on the recording session
+     * (issue #5958 SC-002); otherwise keep the caret method/class goal from #3661.
+     */
+    static String sessionGoalForTarget(JavaTargetContext context, String readyPackIntent) {
+        String caretGoal = "Record a SHAFT flow at " + context.methodName() + " in " + context.className();
+        if (readyPackIntent == null || readyPackIntent.isBlank()) {
+            return caretGoal;
+        }
+        return readyPackIntent.trim() + " (at " + context.methodName() + " in " + context.className() + ")";
     }
 
     static JsonObject captureStopArguments() {

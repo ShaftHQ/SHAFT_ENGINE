@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers issue #3661 / #5942: {@code RecordShaftFlowHereAction} used to copy a prefilled
@@ -52,4 +53,26 @@ class RecordShaftFlowHereActionRoutingTest {
         assertNotNull(toolWindow.recorderPanel(), "Recorder is part of the Automation stage, not expert-only");
         assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, toolWindow.selectedSurfaceLabel());
     }
+    @Test
+    void readyPackIntentIsForwardedIntoCaptureStartSessionGoal() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpSetupComplete = true;
+        settings.mcpCommand = "shaft-mcp";
+        settings.advancedUiEnabled = false;
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(null, settings,
+                (client, runtime) -> null, ShaftAssistantChatState.getInstance(null));
+        toolWindow.automationStagePanel().applyReadyPackPrefill(
+                "https://shop.example/checkout", "valid payment places the order");
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/CheckoutTest.java", "tests", "CheckoutTest", "pays");
+
+        toolWindow.startRecordingAtTarget(context);
+
+        String goal = toolWindow.recorderPanel().captureStartArguments().get("sessionGoal").getAsString();
+        assertTrue(goal.contains("valid payment places the order"), goal);
+        assertTrue(goal.contains("pays"), goal);
+        assertEquals("https://shop.example/checkout",
+                toolWindow.recorderPanel().captureStartArguments().get("targetUrl").getAsString());
+    }
+
 }
