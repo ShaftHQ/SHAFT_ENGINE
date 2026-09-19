@@ -3414,6 +3414,62 @@
       }
     },
     {
+      "name": "report_flake",
+      "service": "TraceService",
+      "description": "builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional",
+      "params": [
+        {
+          "name": "allureResultsPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "doctorReportPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "historyPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "limitPerHistoryId",
+          "type": "integer",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "transitionThreshold",
+          "type": "integer",
+          "required": false,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "flake table",
+        "retry-hidden",
+        "flaky transitions",
+        "dual flake",
+        "report flake",
+        "flaky tests",
+        "transition count"
+      ],
+      "slashAlias": null,
+      "cliCommand": "report flake",
+      "example": null
+    },
+    {
       "name": "report_history",
       "service": "TraceService",
       "description": "ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state",
