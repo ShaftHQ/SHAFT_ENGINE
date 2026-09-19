@@ -128,4 +128,15 @@ class CallDispatchParityTest {
         assertEquals(0, exit);
         assertTrue(out.toString().contains("called design_lexicon"));
     }
+
+    @Test
+    void designCoverageAliasDispatchesDesignCoverage() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("coverage", "text=As a shopper I want to check out");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_coverage"));
+    }
 }
