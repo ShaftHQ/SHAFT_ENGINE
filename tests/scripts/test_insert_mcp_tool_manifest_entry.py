@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO_ROOT / "scripts" / "mcp" / "insert_mcp_tool_manifest_entry.py"
+MODULE_PATH = REPO_ROOT / "scripts" / "ci" / "insert_mcp_tool_manifest_entry.py"
 
 
 def _load_module():
