@@ -252,7 +252,25 @@ class ManagedCaptureRecorder {
                 startedAt,
                 transactions.size(),
                 lastEndpoints,
-                pendingSignalCount);
+                pendingSignalCount,
+                checkpointSteps());
+    }
+
+    private List<CaptureStatus.CheckpointStep> checkpointSteps() {
+        if (store == null) {
+            return List.of();
+        }
+        try {
+            return store.read().checkpoints().stream()
+                    .map(checkpoint -> new CaptureStatus.CheckpointStep(
+                            checkpoint.id(),
+                            checkpoint.sequence(),
+                            checkpoint.kind().name(),
+                            checkpoint.description()))
+                    .toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
     }
 
     /**

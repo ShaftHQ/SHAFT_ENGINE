@@ -76,6 +76,24 @@ class AutomationStagePanelTest {
         assertEquals(1, panel.surfaces().getSelectedIndex());
     }
 
+
+    @Test
+    void handoffOraclesBecomeSuggestedCheckpoints() {
+        AutomationStagePanel panel = newPanel();
+        panel.applyHandoffPrefillJson("""
+                {
+                  "automationPrefill": {
+                    "url": "https://shop.example/cart",
+                    "intent": "checkout",
+                    "oracles": "AC-1:the cart total is visible"
+                  }
+                }
+                """);
+        assertEquals(1, panel.guidedWorkflowPanel().oracleSuggestionModel().size());
+        assertEquals("the cart total is visible",
+                panel.guidedWorkflowPanel().oracleSuggestionModel().get(0));
+    }
+
     private static AutomationStagePanel newPanel() {
         return new AutomationStagePanel(null, (tool, args) -> {
         }, new ShaftSettingsState.Settings());

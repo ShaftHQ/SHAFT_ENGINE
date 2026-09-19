@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.WriteCommandAction;
@@ -87,6 +88,14 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final JButton moveStepDownButton = button("Move Down",
             "Move the selected recorded step later (Playwright and Mobile recordings only)", ShaftIcons.MOVE_DOWN,
             () -> moveSelectedStep("down"));
+    private final JButton addCheckpointButton = button("Add checkpoint",
+            "Record a SHAFT ASSERTION checkpoint on the active capture session", ShaftIcons.CHECK,
+            this::addAssertionCheckpoint);
+    private final DefaultListModel<String> oracleSuggestionModel = new DefaultListModel<>();
+    private final JBList<String> oracleSuggestions = new JBList<>(oracleSuggestionModel);
+    private final JButton acceptOracleButton = button("Accept suggested checkpoint",
+            "Accept the selected Ready-pack Then oracle as a SHAFT ASSERTION checkpoint", ShaftIcons.CHECK,
+            this::acceptSuggestedOracleCheckpoint);
     private final ToolPrefill prefill;
     private final ShaftSettingsState.Settings settings;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
@@ -243,12 +252,32 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         stepButtons.add(deleteStepButton);
         stepButtons.add(moveStepUpButton);
         stepButtons.add(moveStepDownButton);
+        stepButtons.add(addCheckpointButton);
+
+        oracleSuggestions.getAccessibleContext().setAccessibleName("Suggested checkpoints from Ready-pack Then oracles");
+        oracleSuggestions.setVisibleRowCount(3);
+        acceptOracleButton.setEnabled(false);
+        oracleSuggestions.addListSelectionListener(event -> {
+            if (!event.getValueIsAdjusting()) {
+                acceptOracleButton.setEnabled(oracleSuggestions.getSelectedIndex() >= 0);
+            }
+        });
+        JPanel oracleButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        oracleButtons.add(acceptOracleButton);
+        JPanel oraclePanel = new JPanel(new BorderLayout(4, 4));
+        oraclePanel.add(new JLabel("Suggested checkpoints (Ready-pack Then)"), BorderLayout.NORTH);
+        oraclePanel.add(new JBScrollPane(oracleSuggestions), BorderLayout.CENTER);
+        oraclePanel.add(oracleButtons, BorderLayout.SOUTH);
+
+        JPanel stepsSouth = new JPanel(new BorderLayout(4, 4));
+        stepsSouth.add(stepButtons, BorderLayout.NORTH);
+        stepsSouth.add(oraclePanel, BorderLayout.CENTER);
 
         JPanel stepsPanel = new JPanel(new BorderLayout(4, 4));
         stepsPanel.setBorder(JBUI.Borders.emptyTop(8));
         stepsPanel.add(new JLabel("Recorded steps"), BorderLayout.NORTH);
         stepsPanel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
-        stepsPanel.add(stepButtons, BorderLayout.SOUTH);
+        stepsPanel.add(stepsSouth, BorderLayout.SOUTH);
 
         JPanel reviewArea = new JPanel(new BorderLayout(6, 6));
         reviewArea.add(row("Code", 'C', codeSnippet), BorderLayout.NORTH);
@@ -910,13 +939,67 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
      * Prefills Target URL and Intent from a Design Ready pack (issue #5957 FR-003).
      */
     void applyReadyPackPrefill(String url, String intentText) {
+        applyReadyPackPrefill(url, intentText, null);
+    }
+
+    /**
+     * Applies Design Ready-pack URL/intent and optional Then-oracle suggestions (issue #5960).
+     *
+     * @param url optional target URL
+     * @param intentText optional session goal
+     * @param oracles pipe- or newline-delimited {@code acId:oracle} suggestions from handoff
+     */
+    void applyReadyPackPrefill(String url, String intentText, String oracles) {
         if (url != null && !url.isBlank()) {
             targetUrl.setText(url.trim());
         }
         if (intentText != null && !intentText.isBlank()) {
             intent.setText(intentText.trim());
         }
-        setRecorderStatus("Ready pack loaded. Review URL/intent, then Start recording.");
+        applyOracleSuggestions(oracles);
+        setRecorderStatus(oracleSuggestionModel.isEmpty()
+                ? "Ready pack loaded. Review URL/intent, then Start recording."
+                : "Ready pack loaded with " + oracleSuggestionModel.size()
+                        + " suggested Then checkpoint(s). Start recording, then Accept.");
+    }
+
+    void applyOracleSuggestions(String oracles) {
+        oracleSuggestionModel.clear();
+        for (String suggestion : parseOracleSuggestions(oracles)) {
+            oracleSuggestionModel.addElement(suggestion);
+        }
+        acceptOracleButton.setEnabled(false);
+    }
+
+    static List<String> parseOracleSuggestions(String oracles) {
+        List<String> suggestions = new ArrayList<>();
+        if (oracles == null || oracles.isBlank()) {
+            return suggestions;
+        }
+        for (String piece : oracles.split("[|\n]+")) {
+            String trimmed = piece.trim();
+            if (trimmed.isBlank()) {
+                continue;
+            }
+            int colon = trimmed.indexOf(':');
+            String oracle = colon >= 0 ? trimmed.substring(colon + 1).trim() : trimmed;
+            if (!oracle.isBlank()) {
+                suggestions.add(oracle);
+            }
+        }
+        return suggestions;
+    }
+
+    DefaultListModel<String> oracleSuggestionModel() {
+        return oracleSuggestionModel;
+    }
+
+    JButton acceptOracleButton() {
+        return acceptOracleButton;
+    }
+
+    JButton addCheckpointButton() {
+        return addCheckpointButton;
     }
 
     JBTextField targetUrlField() {
@@ -929,6 +1012,70 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
 
     boolean recordingPausedForTests() {
         return recordingPaused;
+    }
+
+
+    private void acceptSuggestedOracleCheckpoint() {
+        String selected = oracleSuggestions.getSelectedValue();
+        if (selected == null || selected.isBlank()) {
+            setRecorderStatus("Select a suggested Then oracle first.");
+            return;
+        }
+        recordAssertionCheckpoint(selected);
+    }
+
+    private void addAssertionCheckpoint() {
+        String description = intent.getText().trim();
+        if (description.isBlank()) {
+            description = "Assert the current page state";
+        }
+        recordAssertionCheckpoint(description);
+    }
+
+    /**
+     * Records a SHAFT ASSERTION-shaped checkpoint via {@code capture_checkpoint} (issue #5960).
+     * Soft vs hard assertion follows the shaft-assertions playbook at codegen time.
+     */
+    void recordAssertionCheckpoint(String description) {
+        if (description == null || description.isBlank()) {
+            setRecorderStatus("Checkpoint description is required.");
+            return;
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("description", description.trim());
+        arguments.addProperty("kind", "ASSERTION");
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill("capture_checkpoint", arguments);
+            setRecorderStatus("Prepared capture_checkpoint ASSERTION: " + description.trim());
+            return;
+        }
+        invocationService.startTool("capture_checkpoint", arguments)
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> {
+                    if (failed(result, error)) {
+                        setRecorderStatus("Checkpoint failed: " + failureText(result, error));
+                        return;
+                    }
+                    JsonObject status = AssistantMarkdown.unwrapCaptureStatus(
+                            jsonObjectOrNull(result.output()));
+                    if (status != null) {
+                        renderStepsFromStatus(status);
+                    }
+                    setRecorderStatus("Recorded SHAFT ASSERTION checkpoint: " + description.trim());
+                }));
+    }
+
+    private static JsonObject jsonObjectOrNull(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            JsonElement parsed = JsonParser.parseString(text);
+            return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private void generateCode() {
@@ -1375,23 +1522,83 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
      */
     static List<StepRow> parseSteps(JsonObject status) {
         List<StepRow> rows = new ArrayList<>();
-        if (status == null || !status.has("steps") || !status.get("steps").isJsonArray()) {
+        if (status == null) {
             return rows;
         }
-        for (JsonElement element : status.getAsJsonArray("steps")) {
-            if (!element.isJsonObject()) {
-                continue;
+        if (status.has("steps") && status.get("steps").isJsonArray()) {
+            for (JsonElement element : status.getAsJsonArray("steps")) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject step = element.getAsJsonObject();
+                long sequence = step.has("sequence") && step.get("sequence").isJsonPrimitive()
+                        ? step.get("sequence").getAsLong()
+                        : 0L;
+                boolean risky = step.has("risky") && step.get("risky").isJsonPrimitive()
+                        && step.get("risky").getAsBoolean();
+                rows.add(new StepRow(jsonString(step, "stepId"), sequence, jsonString(step, "action"),
+                        jsonString(step, "locatorStrategy"), jsonString(step, "locatorValue"), risky));
             }
-            JsonObject step = element.getAsJsonObject();
-            long sequence = step.has("sequence") && step.get("sequence").isJsonPrimitive()
-                    ? step.get("sequence").getAsLong()
-                    : 0L;
-            boolean risky = step.has("risky") && step.get("risky").isJsonPrimitive()
-                    && step.get("risky").getAsBoolean();
-            rows.add(new StepRow(jsonString(step, "stepId"), sequence, jsonString(step, "action"),
-                    jsonString(step, "locatorStrategy"), jsonString(step, "locatorValue"), risky));
+        }
+        rows.addAll(parseCheckpointSteps(status));
+        rows.sort(java.util.Comparator.comparingLong(StepRow::sequence));
+        return rows;
+    }
+
+    /**
+     * Parses {@code checkpoints} from capture status (issue #5960) into first-class inspector rows
+     * shaped as SHAFT assertion/checkpoint steps — not raw TestNG asserts.
+     */
+    static List<StepRow> parseCheckpointSteps(JsonObject status) {
+        List<StepRow> rows = new ArrayList<>();
+        if (!hasJsonArray(status, "checkpoints")) {
+            return rows;
+        }
+        for (JsonElement element : status.getAsJsonArray("checkpoints")) {
+            StepRow row = checkpointRow(element);
+            if (row != null) {
+                rows.add(row);
+            }
         }
         return rows;
+    }
+
+    private static boolean hasJsonArray(JsonObject object, String key) {
+        return object != null && object.has(key) && object.get(key).isJsonArray();
+    }
+
+    private static StepRow checkpointRow(JsonElement element) {
+        if (!element.isJsonObject()) {
+            return null;
+        }
+        JsonObject checkpoint = element.getAsJsonObject();
+        String kind = jsonString(checkpoint, "kind");
+        if (kind.isBlank()) {
+            kind = "ASSERTION";
+        }
+        return new StepRow(
+                jsonString(checkpoint, "id"),
+                longField(checkpoint, "sequence"),
+                shaftAssertionAction(checkpoint),
+                "SHAFT",
+                kind,
+                false,
+                "checkpoint",
+                kind);
+    }
+
+    private static long longField(JsonObject object, String key) {
+        return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsLong() : 0L;
+    }
+
+    private static String shaftAssertionAction(JsonObject checkpoint) {
+        String description = jsonString(checkpoint, "description");
+        if (description.isBlank()) {
+            description = jsonString(checkpoint, "oracle");
+        }
+        return description.isBlank()
+                ? "SHAFT assertion checkpoint"
+                : ("SHAFT assertion: " + description);
     }
 
     /**
@@ -1465,12 +1672,30 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
      * {@link #stepList}.
      */
     record StepRow(String stepId, long sequence, String action, String locatorStrategy, String locatorValue,
-                    boolean risky) {
+                    boolean risky, String kind, String checkpointKind) {
+        StepRow(String stepId, long sequence, String action, String locatorStrategy, String locatorValue,
+                boolean risky) {
+            this(stepId, sequence, action, locatorStrategy, locatorValue, risky, "action", "");
+        }
+
+        boolean checkpoint() {
+            return "checkpoint".equalsIgnoreCase(kind);
+        }
+
         @Override
         public String toString() {
-            StringBuilder text = new StringBuilder().append(sequence).append(". ").append(action);
-            if (!locatorValue.isBlank()) {
-                text.append(" (").append(locatorStrategy).append(": ").append(locatorValue).append(')');
+            StringBuilder text = new StringBuilder().append(sequence).append(". ");
+            if (checkpoint()) {
+                text.append("[checkpoint");
+                if (checkpointKind != null && !checkpointKind.isBlank()) {
+                    text.append('/').append(checkpointKind);
+                }
+                text.append("] ").append(action);
+            } else {
+                text.append(action);
+                if (!locatorValue.isBlank()) {
+                    text.append(" (").append(locatorStrategy).append(": ").append(locatorValue).append(')');
+                }
             }
             if (risky) {
                 text.append(" - risky");
