@@ -1543,6 +1543,66 @@
       "example": null
     },
     {
+      "name": "design_coverage",
+      "service": "DesignService",
+      "description": "maps AC IDs to Gherkin @AC-* scenario tags; uncovered AC blocks Ready unless waived with a reason",
+      "params": [
+        {
+          "name": "acceptedGapIds",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "filePath",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "gherkin",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "sourceUrl",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "waived",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": true,
+      "intentKeywords": [
+        "ac coverage",
+        "uncovered acceptance criteria",
+        "design coverage",
+        "requirement traceability"
+      ],
+      "slashAlias": null,
+      "cliCommand": "design coverage",
+      "example": null
+    },
+    {
       "name": "design_examples",
       "service": "DesignService",
       "description": "proposes a Scenario Outline and editable Examples rows from an analyzed pack; never writes files",

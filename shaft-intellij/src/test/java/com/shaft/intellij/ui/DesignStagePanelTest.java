@@ -33,6 +33,9 @@ class DesignStagePanelTest {
         assertNotNull(panel.lexiconSuggestions());
         assertNotNull(panel.suggestPhrasesButton());
         assertNotNull(findByAccessibleName(panel, "Lexicon suggestions", JComponent.class));
+        assertNotNull(panel.coverageTable());
+        assertNotNull(panel.coverageButton());
+        assertNotNull(findByAccessibleName(panel, "AC coverage", JTable.class));
     }
 
     @Test
@@ -150,6 +153,26 @@ class DesignStagePanelTest {
                 """);
         assertEquals(2, panel.examplesTable().getRowCount());
         assertFalse(panel.deleteExampleButton().isEnabled(), "headless panel has no project");
+    }
+
+    @Test
+    void coverageTableShowsCoveredUncoveredAndWaived() {
+        DesignStagePanel panel = new DesignStagePanel();
+        panel.applyCoverageJson("""
+                {
+                  "status": "blocked",
+                  "message": "Uncovered AC or untagged scenarios block Ready until resolved or waived with a reason.",
+                  "covered": ["AC-01", "AC-02"],
+                  "uncovered": ["AC-03"],
+                  "waived": [{"id": "AC-04", "reason": "out of v1"}],
+                  "readyBlocked": true
+                }
+                """);
+        assertEquals(4, panel.coverageTable().getRowCount());
+        assertEquals("uncovered", panel.coverageTable().getValueAt(2, 1));
+        assertEquals("waived", panel.coverageTable().getValueAt(3, 1));
+        assertTrue(panel.statusBadge().getText().contains("Ready"));
+        assertFalse(panel.coverageButton().isEnabled(), "headless panel has no project");
     }
 
     private static <T extends JComponent> T findByAccessibleName(

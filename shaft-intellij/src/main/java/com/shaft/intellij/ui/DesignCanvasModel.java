@@ -144,6 +144,42 @@ final class DesignCanvasModel {
         return copyExampleRows(rows.getAsJsonArray());
     }
 
+    static List<String[]> coverageRows(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        if (root == null) {
+            return List.of();
+        }
+        List<String[]> rows = new ArrayList<>();
+        addCoverageState(rows, root.get("covered"), "covered", "");
+        addCoverageState(rows, root.get("uncovered"), "uncovered", "");
+        addWaivedRows(rows, root.get("waived"));
+        return rows;
+    }
+
+    private static void addCoverageState(List<String[]> rows, JsonElement element, String state, String reason) {
+        if (element == null || !element.isJsonArray()) {
+            return;
+        }
+        for (JsonElement item : element.getAsJsonArray()) {
+            if (item.isJsonPrimitive()) {
+                rows.add(new String[]{item.getAsString(), state, reason});
+            }
+        }
+    }
+
+    private static void addWaivedRows(List<String[]> rows, JsonElement element) {
+        if (element == null || !element.isJsonArray()) {
+            return;
+        }
+        for (JsonElement item : element.getAsJsonArray()) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject row = item.getAsJsonObject();
+            rows.add(new String[]{string(row, "id"), "waived", string(row, "reason")});
+        }
+    }
+
     private static List<String[]> copyExampleRows(JsonArray array) {
         List<String[]> rows = new ArrayList<>();
         for (JsonElement item : array) {

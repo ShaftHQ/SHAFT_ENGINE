@@ -107,6 +107,18 @@ public class DesignService {
         }
     }
 
+    @Tool(name = "design_coverage",
+            description = "maps AC IDs to Gherkin @AC-* scenario tags; uncovered AC blocks Ready unless waived with a reason")
+    public McpDesignCoverage coverage(String text, String filePath, String sourceUrl, String acceptedGapIds,
+                                      String gherkin, String waived) {
+        McpDesignPack pack = ingest(text, filePath, sourceUrl);
+        String feature = gherkin == null ? "" : gherkin.strip();
+        if (feature.isEmpty()) {
+            feature = gherkinDraft(text, filePath, sourceUrl, acceptedGapIds).feature();
+        }
+        return DesignCoverageComputer.compute(pack, feature, waived);
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");

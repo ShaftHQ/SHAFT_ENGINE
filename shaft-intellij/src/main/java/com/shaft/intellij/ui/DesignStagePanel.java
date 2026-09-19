@@ -32,6 +32,7 @@ final class DesignStagePanel extends JPanel {
     private static final String[] GAP_COLUMNS = {"ID", "Kind", "Severity", "Rank", "AC", "Question", "Accepted"};
     private static final String[] ORACLE_COLUMNS = {"AC", "Oracle", "Evidence"};
     private static final String[] EXAMPLE_COLUMNS = {"ID", "Kind", "Cells"};
+    private static final String[] COVERAGE_COLUMNS = {"ID", "State", "Reason"};
 
     private final Project project;
     private final JBTextArea story;
@@ -41,12 +42,14 @@ final class DesignStagePanel extends JPanel {
     private final JTable gapTable;
     private final JTable oracleTable;
     private final JTable examplesTable;
+    private final JTable coverageTable;
     private final JButton deleteExample;
     private final JButton ingest;
     private final JButton analyze;
     private final JButton acceptRisk;
     private final JButton gherkin;
     private final JButton suggestPhrases;
+    private final JButton coverage;
     private final JBTextArea gherkinDraft;
     private final javax.swing.JList<String> lexiconSuggestions;
     private DesignCanvasModel model = new DesignCanvasModel();
@@ -100,6 +103,7 @@ final class DesignStagePanel extends JPanel {
         gapTable = table("Gap register", GAP_COLUMNS);
         oracleTable = table("Evidence oracles", ORACLE_COLUMNS);
         examplesTable = table("Examples table", EXAMPLE_COLUMNS);
+        coverageTable = table("AC coverage", COVERAGE_COLUMNS);
 
         ingest = action("Ingest story", this::ingestStory);
         analyze = action("Analyze", this::analyzeStory);
@@ -116,6 +120,7 @@ final class DesignStagePanel extends JPanel {
         lexiconSuggestions = new javax.swing.JList<>(new javax.swing.DefaultListModel<>());
         lexiconSuggestions.getAccessibleContext().setAccessibleName("Lexicon suggestions");
         suggestPhrases = action("Suggest phrases", this::suggestPhrases);
+        coverage = action("Coverage", this::coverageStory);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -126,6 +131,7 @@ final class DesignStagePanel extends JPanel {
         actions.add(suggestPhrases);
         actions.add(designExamples);
         actions.add(deleteExample);
+        actions.add(coverage);
 
         JBSplitter tables = new JBSplitter(true, 0.45f);
         tables.setFirstComponent(new JBScrollPane(acTable));
@@ -133,6 +139,7 @@ final class DesignStagePanel extends JPanel {
         lower.add(new JBScrollPane(gapTable), BorderLayout.CENTER);
         JPanel extra = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         extra.add(new JBScrollPane(examplesTable), BorderLayout.CENTER);
+        extra.add(new JBScrollPane(coverageTable), BorderLayout.NORTH);
         JPanel draftAndLexicon = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         draftAndLexicon.add(new JBScrollPane(gherkinDraft), BorderLayout.CENTER);
         draftAndLexicon.add(new JBScrollPane(lexiconSuggestions), BorderLayout.EAST);
@@ -223,6 +230,14 @@ final class DesignStagePanel extends JPanel {
         return examplesTable;
     }
 
+    JTable coverageTable() {
+        return coverageTable;
+    }
+
+    JButton coverageButton() {
+        return coverage;
+    }
+
     JButton deleteExampleButton() {
         return deleteExample;
     }
@@ -239,6 +254,19 @@ final class DesignStagePanel extends JPanel {
 
     void applyExamplesJson(String json) {
         fill(examplesTable, EXAMPLE_COLUMNS, DesignCanvasModel.exampleRows(json));
+        refreshButtons();
+    }
+
+    void applyCoverageJson(String json) {
+        fill(coverageTable, COVERAGE_COLUMNS, DesignCanvasModel.coverageRows(json));
+        try {
+            JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
+            if (root.has("message") && !root.get("message").getAsString().isBlank()) {
+                statusBadge.setText(root.get("message").getAsString());
+            }
+        } catch (RuntimeException ignored) {
+            // keep prior badge
+        }
         refreshButtons();
     }
 
@@ -269,6 +297,13 @@ final class DesignStagePanel extends JPanel {
 
     private void acceptResidualRisk() {
         invoke("design_analyze", arguments(model.acceptedGapIdsArgument()), false);
+    }
+
+    private void coverageStory() {
+        JsonObject arguments = arguments("");
+        arguments.addProperty("gherkin", gherkinDraft.getText());
+        arguments.addProperty("waived", "");
+        invoke("design_coverage", arguments, false);
     }
 
     private void suggestPhrases() {
@@ -322,6 +357,8 @@ final class DesignStagePanel extends JPanel {
             applyExamplesJson(output);
         } else if (output.contains("\"suggestions\"")) {
             applyLexiconJson(output);
+        } else if (output.contains("\"readyBlocked\"")) {
+            applyCoverageJson(output);
         } else {
             applyAnalysisJson(output);
         }
@@ -337,6 +374,7 @@ final class DesignStagePanel extends JPanel {
         acceptRisk.setEnabled(ready && model.acceptEnabled());
         gherkin.setEnabled(ready && model.gherkinGenerationAllowed());
         suggestPhrases.setEnabled(ready);
+        coverage.setEnabled(ready);
         deleteExample.setEnabled(ready && examplesTable.getRowCount() > 0);
     }
 

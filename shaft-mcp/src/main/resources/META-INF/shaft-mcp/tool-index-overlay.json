@@ -322,6 +322,17 @@
         "step catalog"
       ]
     },
+    "design_coverage": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design coverage",
+      "intentKeywords": [
+        "ac coverage",
+        "uncovered acceptance criteria",
+        "design coverage",
+        "requirement traceability"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {
