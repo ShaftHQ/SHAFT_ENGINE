@@ -51,41 +51,41 @@ public class DesignService {
                     + "writes files and does not fetch URLs")
     public McpDesignPack ingest(String text, String filePath, String sourceUrl) {
         try {
-            return ingestInternal(text, filePath, sourceUrl);
+            Source source = resolveSource(blank(text), blank(filePath), blank(sourceUrl));
+            if (source.pack() != null) {
+                return source.pack();
+            }
+            return parsePack(source);
         } catch (IllegalArgumentException | IOException exception) {
             return error("paste", exception.getMessage());
         }
     }
 
-    private McpDesignPack ingestInternal(String text, String filePath, String sourceUrl) throws IOException {
-        String trimmedText = text == null ? "" : text.strip();
-        String trimmedFile = filePath == null ? "" : filePath.strip();
-        String trimmedUrl = sourceUrl == null ? "" : sourceUrl.strip();
-        if (trimmedText.isEmpty() && trimmedFile.isEmpty() && trimmedUrl.isEmpty()) {
-            return error("paste", "Paste a user story or provide a workspace file path.");
+    private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
+        if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
+            return Source.error("paste", "Paste a user story or provide a workspace file path.");
         }
-        if (!trimmedUrl.isEmpty() && trimmedText.isEmpty() && trimmedFile.isEmpty()) {
-            return error("url", "URL ingest does not fetch in v1; paste the story text and pass sourceUrl as a reference.");
+        if (text.isEmpty() && filePath.isEmpty()) {
+            return Source.error("url",
+                    "URL ingest does not fetch in v1; paste the story text and pass sourceUrl as a reference.");
         }
-        String sourceKind = "paste";
-        String raw = trimmedText;
-        if (!trimmedFile.isEmpty()) {
-            sourceKind = "file";
-            raw = Files.readString(workspacePolicy.existing(trimmedFile, "filePath"), StandardCharsets.UTF_8);
-        } else if (!trimmedUrl.isEmpty()) {
-            sourceKind = "url";
+        if (!filePath.isEmpty()) {
+            String raw = Files.readString(workspacePolicy.existing(filePath, "filePath"), StandardCharsets.UTF_8);
+            return Source.body("file", raw);
         }
-        if (raw == null || raw.strip().isEmpty()) {
-            return error(sourceKind, "Story text is empty after reading the source.");
+        return Source.body(sourceUrl.isEmpty() ? "paste" : "url", text);
+    }
+
+    private static McpDesignPack parsePack(Source source) {
+        String raw = source.raw() == null ? "" : source.raw().strip();
+        if (raw.isEmpty()) {
+            return error(source.kind(), "Story text is empty after reading the source.");
         }
         String redacted = redact(raw);
         String actor = firstGroup(ACTOR, redacted);
-        String want = firstGroup(WANT, redacted);
-        String soThat = firstGroup(SO_THAT, redacted);
-        String outcome = joinOutcome(want, soThat);
-        List<McpDesignAcceptanceCriterion> criteria = criteriaFrom(redacted);
         List<String> warnings = new ArrayList<>();
-        if (actor == null || actor.isBlank()) {
+        List<McpDesignAcceptanceCriterion> criteria = criteriaFrom(redacted);
+        if (actor.isBlank()) {
             warnings.add("No 'As a …' actor line was found.");
         }
         if (criteria.isEmpty()) {
@@ -96,12 +96,26 @@ public class DesignService {
                 McpDesignPack.CURRENT_SCHEMA_VERSION,
                 "ok",
                 "Ingested " + criteria.size() + " acceptance criteria. No files were written.",
-                actor == null ? "" : actor,
-                outcome,
-                sourceKind,
+                actor,
+                joinOutcome(firstGroup(WANT, redacted), firstGroup(SO_THAT, redacted)),
+                source.kind(),
                 List.copyOf(criteria),
                 List.copyOf(warnings),
                 false);
+    }
+
+    private static String blank(String value) {
+        return value == null ? "" : value.strip();
+    }
+
+    private record Source(String kind, String raw, McpDesignPack pack) {
+        static Source error(String kind, String message) {
+            return new Source(kind, "", DesignService.error(kind, message));
+        }
+
+        static Source body(String kind, String raw) {
+            return new Source(kind, raw, null);
+        }
     }
 
     private static McpDesignPack error(String sourceKind, String message) {
