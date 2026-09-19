@@ -60,6 +60,20 @@ With a READY local runtime on loopback:
 2. `OPENCODE_CONFIG=<ephemeral>` `opencode run --pure --variant medium …`
 3. Durable `~/.config/opencode/opencode.json` hash unchanged
 
+
+## ROG FreeToken bind (#6021)
+
+Grok Bot Task / executor Shell has **no** `machineId`. Box children cannot reach
+ROG FreeToken (`127.0.0.1:1919`). Until the platform exposes `machineId` to Task:
+
+- Task/box writers must **not** claim FreeToken READY.
+- Process-owner must run FreeToken / OpenCode via parent Shell with `machineId`
+  on ROG (`/media/mohab/OS/Users/Mohab/IdeaProjects/SHAFT_ENGINE`).
+- Gate:
+  `python3 chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py check`
+  and `dispatch.py resolve --prefer freetoken` fail closed on fake box hostnames
+  unless `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Not READY on this host → clear error JSON.
+
 ## Session agents vs local agency
 
 Default orchestrator labor stays on host session subagents / Task. Use this

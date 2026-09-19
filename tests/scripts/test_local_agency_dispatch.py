@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import json
 import tempfile
 import unittest
@@ -33,12 +34,15 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
     def test_skill_says_orchestrator_runs_command_when_opencode_mutates_nothing(self):
         skill = (ROOT / "chaos-engine/skills/local-agency/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("mutates nothing", skill)
-        self.assertIn("runs that same command", skill)
+        self.assertIn("no worktree mutation", skill)
+        self.assertIn("run the same", skill)
+        self.assertIn("command in the worktree", skill)
         self.assertIn("zero tool calls is writer failure", skill)
         self.assertIn("Never use it for independent adversarial review", skill)
         self.assertIn("Do not OpenCode-`Read` a 200-line Java file", skill)
         self.assertIn("`ft launch` / `ft serve`", skill)
+        self.assertIn("#6021", skill)
+        self.assertIn("CE_ALLOW_BOX_LOCAL_AGENCY", skill)
 
     def test_delegation_treats_local_coder_as_mechanical_runner(self):
         text = (ROOT / "chaos-engine/references/delegation.md").read_text(encoding="utf-8")
@@ -261,7 +265,8 @@ class LocalAgencyDispatchTest(unittest.TestCase):
                 "provider_id": runtime,
             }
 
-        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+        with mock.patch.dict(os.environ, {"CE_ALLOW_BOX_LOCAL_AGENCY": "1"}):
+          with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
             with tempfile.TemporaryDirectory() as temporary:  # nosec B108
                 args = dispatch.parse_args(["--prefer", "freetoken", "config", "--dir", temporary])
                 buf = StringIO()

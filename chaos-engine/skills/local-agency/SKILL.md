@@ -37,11 +37,19 @@ first.
 - Installer / doctor / status must **not** fail because OpenCode or a local
   runtime is missing.
 - Never bind or probe a non-loopback URL from ChaosEngine.
+- **ROG FreeToken bind (#6021):** Task/box writers must **not** claim FreeToken.
+  `dispatch.py resolve --prefer freetoken` and
+  [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py) fail closed unless
+  the hostname looks like ROG, cwd is
+  `/media/mohab/OS/Users/Mohab/IdeaProjects/SHAFT_ENGINE`, or
+  `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Process-owner Shell with `machineId` on ROG is
+  required until Grok Bot exposes `machineId` to Task. Clear error when FreeToken
+  is not READY on this host.
 
 ## Probe → resolve → ephemeral OpenCode
 
 Helper:
-[`chaos-engine/skills/local-agency/scripts/dispatch.py`](scripts/dispatch.py).
+[`chaos-engine/skills/local-agency/scripts/dispatch.py`](scripts/dispatch.py). ROG gate: [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py).
 
 ```text
 python3 chaos-engine/skills/local-agency/scripts/dispatch.py resolve

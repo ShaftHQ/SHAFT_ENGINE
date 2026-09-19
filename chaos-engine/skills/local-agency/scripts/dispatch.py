@@ -62,6 +62,11 @@ def freetoken_probe() -> ModuleType:
     return _load_module("freetoken_probe", SKILLS_ROOT / "freetoken/scripts/probe.py")
 
 
+def rog_freetoken_gate() -> ModuleType:
+    """Import the ROG FreeToken host gate (#6021)."""
+    return _load_module("require_rog_freetoken", SCRIPT_DIR / "require_rog_freetoken.py")
+
+
 def local_openai_probe() -> ModuleType:
     """Import the local OpenAI-compat probe helper."""
     return _load_module(
@@ -174,9 +179,36 @@ def resolve_local(
     allow_cloud: bool = False,
 ) -> dict[str, object]:
     """Pick the first READY local runtime. Never silent OmniRoute fallback."""
+    if prefer == "freetoken":
+        gate = rog_freetoken_gate().require_rog_bound()
+        if not gate.get("bound"):
+            order = _prefer_order(prefer)
+            payload = _empty_payload(order, [], allow_cloud)
+            payload["state"] = "UNHEALTHY"
+            payload["chosen"] = None
+            payload["rog_gate"] = gate
+            payload["advice"] = gate.get(
+                "advice",
+                "ROG FreeToken gate failed; process-owner Shell with machineId required (#6021).",
+            )
+            return payload
     order = _prefer_order(prefer)
     probed = [probe_runtime(runtime) for runtime in order]
     payload = _empty_payload(order, probed, allow_cloud)
+    if prefer == "freetoken":
+        ft_rows = [row for row in probed if row["runtime"] == "freetoken"]
+        ft_state = str(ft_rows[0]["state"]) if ft_rows else "ABSENT"
+        if ft_state != "READY":
+            payload["state"] = "UNHEALTHY"
+            payload["chosen"] = None
+            payload["rog_gate"] = {"prefer": "freetoken", "freetoken_state": ft_state}
+            payload["advice"] = (
+                f"FreeToken not READY on this host (state={ft_state}). "
+                "Probe http://127.0.0.1:1919/v1/models on ROG via process-owner "
+                "Shell with machineId; Task/box writers must not claim FreeToken "
+                "(#6021). Start FreeToken yourself on ROG, or omit --prefer freetoken."
+            )
+            return payload
     last_error = None
     for chosen in (row for row in probed if row["state"] == "READY"):
         selected_model, error = _select_model(chosen, model)
