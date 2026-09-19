@@ -883,6 +883,62 @@ class CaptureGeneratorTest {
     }
 
     /**
+     * Issue #5961: when a unique id wins as primary and a verified ROLE remains as a fallback
+     * alternative, the generated {@code captureReplayLocator} call still references {@code Role.*},
+     * so the Role import must be emitted or compilation fails (CaptureGeneratedReplayBrowserTest).
+     */
+    @Test
+    void fallbackRoleAlternativeStillImportsRoleEnum() throws Exception {
+        ElementSnapshot namedButton = new ElementSnapshot(
+                "submit",
+                "button",
+                "button",
+                "Submit",
+                "Submit",
+                Map.of("id", "submit", "type", "submit"),
+                List.of(
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                                "button:Submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "//button[normalize-space(.)=\"Submit\"]", true),
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                                "submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true,
+                true,
+                false);
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "fallback-role-import-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), namedButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path sessionPath = session(session);
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(sessionPath, temp.resolve("fallback-role-import")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("import com.shaft.gui.internal.locator.Role;"), source);
+        assertTrue(source.contains("captureReplayLocator("), source);
+        assertTrue(source.contains("Role.BUTTON"), source);
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                result.report().compilation().status(),
+                result.report().compilation().diagnostics().toString());
+    }
+
+    /**
      * Issue #3905: a ROLE-strategy locator (the highest-scoring {@link LocatorCandidate.LocatorStrategy},
      * always preferred when present -- see the nightly "Guided Workflows Live E2E" login fixture, where
      * every field resolves to ROLE) renders {@code Role.BUTTON}/{@code Role.TEXTBOX} literals into the
