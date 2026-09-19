@@ -11,5 +11,5 @@ Every Design/Automation tool that paints IDE state needs:
 Current discriminators include `shaftType`/`shaftMethod` → gap map,
 `handoffAllowed` → readiness, `automationPrefill` → handoff.
 
-See also [ui-test-conventions.md](ui-test-conventions.md) for accessibleName
+See also [intellij-ui-test-conventions.md](intellij-ui-test-conventions.md) for accessibleName
 (#6013) and Live record persistence (#6014).
