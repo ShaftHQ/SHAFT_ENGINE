@@ -6,6 +6,7 @@ import com.shaft.commandline.command.CaptureCommand;
 import com.shaft.commandline.command.CodegenCommand;
 import com.shaft.commandline.command.DesignCommand;
 import com.shaft.commandline.command.DoctorCommand;
+import com.shaft.commandline.command.ReportCommand;
 import com.shaft.commandline.command.ElementCommand;
 import com.shaft.commandline.command.GuideCommand;
 import com.shaft.commandline.command.SessionCommand;
@@ -40,6 +41,7 @@ import java.nio.charset.StandardCharsets;
                 GuideCommand.class,
                 DesignCommand.class,
                 DoctorCommand.class,
+                ReportCommand.class,
                 CommandLine.HelpCommand.class})
 public final class ShaftCli {
 

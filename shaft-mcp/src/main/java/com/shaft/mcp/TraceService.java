@@ -4,6 +4,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
+import com.shaft.doctor.history.AllureHistoryIngestor;
+import com.shaft.doctor.history.AllureHistoryModels;
 import com.shaft.doctor.shard.FlakyCluster;
 import com.shaft.doctor.shard.MergedReport;
 import com.shaft.doctor.shard.ShardIntelligence;
@@ -21,6 +23,7 @@ import com.shaft.doctor.model.RedactionSummary;
 import com.shaft.doctor.model.Remediation;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -237,6 +240,47 @@ public class TraceService {
                 report.flakyClusters(),
                 report.shardIntelligence(),
                 report.warnings());
+    }
+
+    /**
+     * Ingests Allure {@code history.jsonl} plus optional Doctor JSON for the Reporting canvas
+     * (issue #5967 / S3-01). Never replaces the {@code allure-results} root; missing history is an
+     * empty state. Distinguishes cross-run {@code HISTORY} launches from intra-launch {@code RETRY}
+     * attempts discovered in the current allure-results tree.
+     *
+     * @param historyPath optional path to history.jsonl; blank defaults to {@code target/history.jsonl}
+     * @param doctorReportPath optional Doctor JSON path inside the workspace
+     * @param allureResultsPath optional allure-results directory for retry detection; blank defaults to
+     *                          {@code target/allure-results} when present
+     * @param limitPerHistoryId max launches retained per historyId (default 10, max 50)
+     * @return append-only history view for the IDE Reporting canvas / CLI
+     */
+    @Tool(name = "report_history",
+            description = "ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state")
+    public AllureHistoryModels.HistoryView reportHistory(
+            @ToolParam(required = false) String historyPath,
+            @ToolParam(required = false) String doctorReportPath,
+            @ToolParam(required = false) String allureResultsPath,
+            @ToolParam(required = false) Integer limitPerHistoryId) {
+        Path history = resolveOptionalReadable(
+                historyPath, "target/history.jsonl", "Allure history.jsonl");
+        Path doctor = resolveOptionalReadable(doctorReportPath, null, "Doctor report JSON");
+        Path results = resolveOptionalReadable(
+                allureResultsPath, "target/allure-results", "Allure results directory");
+        int limit = limitPerHistoryId == null ? 10 : limitPerHistoryId;
+        return AllureHistoryIngestor.ingest(history, doctor, results, limit);
+    }
+
+    private Path resolveOptionalReadable(String value, String defaultRelative, String label) {
+        String raw = value == null || value.isBlank() ? defaultRelative : value.trim();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        Path candidate = workspacePolicy.output(raw, label);
+        if (Files.exists(candidate)) {
+            return candidate;
+        }
+        return candidate;
     }
 
     private Path resolveArchiveForViewer(Path path, Path directory) {

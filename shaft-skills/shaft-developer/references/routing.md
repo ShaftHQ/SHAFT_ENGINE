@@ -68,3 +68,7 @@ return here and load `shaft-recording-codegen`. Do not send that request to
 
 Do not infer exact MCP names, parameters, or CLI flags from this map. The two
 tool specialists resolve them from the generated canonical catalogs.
+
+## Reporting history (S3-01)
+
+Use MCP `report_history` / CLI `shaft report history` for cross-run Allure history in the IDE Reporting canvas. Never confuse with HealingHistoryStore (#3315). Honor `allure.accumulateHistory`; never replace the allure-results root.

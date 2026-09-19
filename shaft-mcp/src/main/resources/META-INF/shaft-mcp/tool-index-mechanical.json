@@ -1916,6 +1916,31 @@
       "description" : null
     } ]
   }, {
+    "name" : "report_history",
+    "service" : "TraceService",
+    "description" : "ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state",
+    "params" : [ {
+      "name" : "allureResultsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "doctorReportPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "historyPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "limitPerHistoryId",
+      "type" : "integer",
+      "required" : false,
+      "description" : null
+    } ]
+  }, {
     "name" : "report_merge_shards",
     "service" : "TraceService",
     "description" : "merges N per-shard Allure/trace/doctor-intelligence blobs into one Allure result set plus a flaky-clustering speedboard HTML",

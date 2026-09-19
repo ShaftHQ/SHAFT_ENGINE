@@ -182,6 +182,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             automationTabs.addTab("SHAFT Tests", ShaftIcons.RERUN, shaftTests);
         }
 
+        ReportingHistoryPanel history = new ReportingHistoryPanel(project);
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
         ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
@@ -190,7 +191,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         featurePanels.add(evidenceTools);
         reportingTabs = new JBTabbedPane();
         reportingTabs.getAccessibleContext().setAccessibleName("SHAFT reporting surfaces");
-        reportingTabs.addTab("Triage", ShaftIcons.CHECK, triage);
+        reportingTabs.addTab(ReportingHistoryPanel.TAB_TITLE, ShaftIcons.CHECK, history);
+        reportingTabs.addTab("Triage", ShaftIcons.VIEW, triage);
         reportingTabs.addTab("Visual Baselines", ShaftIcons.VIEW, visualBaselines);
         reportingTabs.addTab("Evidence", ShaftIcons.EDIT, evidenceTools);
         reportingTabs.addChangeListener(event -> persistSelectedWorkflowView());
@@ -868,6 +870,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case "Inspector" -> new SurfaceTarget(STAGE_AUTOMATION, "Inspector", null);
             case "SHAFT Tests" -> new SurfaceTarget(STAGE_AUTOMATION, "SHAFT Tests", null);
             case "API Recording" -> new SurfaceTarget(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
+            case ReportingHistoryPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingHistoryPanel.TAB_TITLE, null);
             case "Triage" -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
             case "Visual Baselines" -> new SurfaceTarget(STAGE_REPORTING, "Visual Baselines", null);
             case "Evidence" -> new SurfaceTarget(STAGE_REPORTING, "Evidence", null);
