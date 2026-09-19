@@ -195,7 +195,7 @@ final class McpPlaywrightCaptureAdapter {
                 null,
                 false,
                 ApprovalPolicy.denyAll(),
-                false,
+                true,
                 CaptureGenerationRequest.ControlFlowMode.NONE,
                 null);
     }

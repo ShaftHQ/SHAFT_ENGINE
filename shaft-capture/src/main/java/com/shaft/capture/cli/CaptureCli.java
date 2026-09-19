@@ -224,7 +224,7 @@ public final class CaptureCli {
                         preview,
                         options.flag("approve-enrichment"),
                         approval,
-                        options.flag("enable-fallback-locators"),
+                        !options.flag("disable-fallback-locators"),
                         controlFlowMode,
                         controlFlowPreview),
                 generationBackend(options));
@@ -489,7 +489,7 @@ public final class CaptureCli {
                 + "generate --session <capture.json> [--backend webdriver|playwright] "
                 + "[--output-dir <path>] [--package <name>] "
                 + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
-                + "[--enable-fallback-locators] "
+                + "[--disable-fallback-locators] [--enable-fallback-locators] "
                 + "[--control-flow-preview] [--apply-control-flow-preview <path>] "
                 + "[--target-source <path> --insert-after <anchor> [--driver-variable <name>]] "
                 + "[--replay-timeout-seconds <seconds>] [--ai-preview --allow-local-ai|--allow-remote-ai] "
@@ -566,6 +566,7 @@ public final class CaptureCli {
                         "skip-compile",
                         "replay",
                         "enable-fallback-locators",
+                        "disable-fallback-locators",
                         "control-flow-preview",
                         "ai-preview",
                         "approve-enrichment",

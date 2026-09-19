@@ -33,8 +33,10 @@ public final class CodegenFeatureCatalog {
                     "SUPPORTED", "Captured as navigation, window, frame, alert, and wait-capable session events."),
             feature("Recording", "Best locator selection: role, text, test id, uniqueness", "locator generator",
                     "SUPPORTED", "LocatorRanker prefers semantic/test-id evidence and reports alternatives."),
-            feature("Recording", "Fallback locator replay", "--enable-fallback-locators",
-                    "SUPPORTED", "Generated WebDriver replay can try captured ranked alternatives before failing."),
+            feature("Recording", "Fallback locator replay", "default-on; --disable-fallback-locators",
+                    "SUPPORTED", "Generated WebDriver replay tries captured ranked alternatives by default;"
+                            + " override off with --disable-fallback-locators. Never emits absolute XPath"
+                            + " or SHAFT.GUI.Locator.xpath."),
             feature("Recording", "Control-flow suggestions", "--control-flow-preview",
                     "SUPPORTED", "Generation reports deterministic optional-flow suggestions and applies reviewed previews only."),
             feature("Recording", "Custom setup with pause/inspector", "page.pause()",

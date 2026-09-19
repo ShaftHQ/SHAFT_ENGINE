@@ -44,6 +44,9 @@ class TestAutomationServiceTest {
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("do not infer canonical URLs")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("only publish locators that worked")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("hard-coded secrets")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule ->
+                rule.contains("ranked SHAFT locators with fallback")
+                        && rule.contains("--disable-fallback-locators")));
     }
 
     @Test
