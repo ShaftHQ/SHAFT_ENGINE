@@ -72,7 +72,10 @@ one picked locator candidate, for the live "Pick Locator" flow (see
 <code>com.shaft.capture.generate.CaptureGenerator</code>'s codegen-time locator rendering (which also
 has access to the target's semantic role/label/input-vs-clickable classification to prefer
 <code>inputField(...)</code>/<code>clickableField(...)</code>): this builder only sees the picked
-candidate itself, since a live pick has no surrounding recorded scenario to classify against.</div>
+candidate itself, since a live pick has no surrounding recorded scenario to classify against.
+
+<p>Policy (issue #5959): prefer SHAFT builder / role expressions; never emit
+<code>SHAFT.GUI.Locator.xpath</code>; raw <code>By.xpath</code> is last-resort only.</div>
 </div>
 </section>
 <section class="summary">

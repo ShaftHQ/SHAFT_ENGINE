@@ -50,16 +50,18 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
-<li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,int,java.lang.String)" tabindex="0">RankedCandidate(String, String, int, String)</a></li>
+<li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,int,int,java.lang.String)" tabindex="0">RankedCandidate(String, String, int, int, String)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#unique()" tabindex="0">unique()</a></li>
 <li><a href="#toString()" tabindex="0">toString()</a></li>
 <li><a href="#hashCode()" tabindex="0">hashCode()</a></li>
 <li><a href="#equals(java.lang.Object)" tabindex="0">equals(Object)</a></li>
 <li><a href="#strategy()" tabindex="0">strategy()</a></li>
 <li><a href="#expression()" tabindex="0">expression()</a></li>
+<li><a href="#uniquenessCount()" tabindex="0">uniquenessCount()</a></li>
 <li><a href="#score()" tabindex="0">score()</a></li>
 <li><a href="#snippet()" tabindex="0">snippet()</a></li>
 </ol>
@@ -81,6 +83,7 @@
 <dt>Record Components:</dt>
 <dd><code><span id="param-strategy">strategy</span></code> - locator strategy name</dd>
 <dd><code><span id="param-expression">expression</span></code> - raw locator expression</dd>
+<dd><code><span id="param-uniquenessCount">uniquenessCount</span></code> - matching elements observed on the live page (<code>1</code> = unique)</dd>
 <dd><code><span id="param-score">score</span></code> - deterministic <a href="../model/LocatorCandidate.html#score()"><code>LocatorCandidate.score()</code></a></dd>
 <dd><code><span id="param-snippet">snippet</span></code> - copy-paste Java locator expression</dd>
 </dl>
@@ -90,7 +93,7 @@
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public static record </span><span class="element-name type-name-label">CaptureControlServer.RankedCandidate</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;strategy, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression, int&nbsp;score, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;snippet)
+<div class="type-signature"><span class="modifiers">public static record </span><span class="element-name type-name-label">CaptureControlServer.RankedCandidate</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;strategy, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression, int&nbsp;uniquenessCount, int&nbsp;score, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;snippet)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">One ranked locator candidate.</div>
 </div>
@@ -105,8 +108,9 @@
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,int,java.lang.String)" class="member-name-link">RankedCandidate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;strategy,
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,int,int,java.lang.String)" class="member-name-link">RankedCandidate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;strategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression,
+ int&nbsp;uniquenessCount,
  int&nbsp;score,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;snippet)</code></div>
 <div class="col-last even-row-color">
@@ -161,6 +165,16 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#unique()" class="member-name-link">unique</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Whether this candidate matched exactly one element when captured.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#uniquenessCount()" class="member-name-link">uniquenessCount</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-uniquenessCount"><code>uniquenessCount</code></a> record component.</div>
+</div>
 </div>
 </div>
 </div>
@@ -179,11 +193,12 @@
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.String,int,java.lang.String)">
+<section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.String,int,int,java.lang.String)">
 <h3>RankedCandidate</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">RankedCandidate</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;strategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression,
+ int&nbsp;uniquenessCount,
  int&nbsp;score,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;snippet)</span></div>
 <div class="block">Creates an instance of a <code>RankedCandidate</code> record class.</div>
@@ -191,6 +206,7 @@
 <dt>Parameters:</dt>
 <dd><code>strategy</code> - the value for the <a href="#param-strategy"><code>strategy</code></a> record component</dd>
 <dd><code>expression</code> - the value for the <a href="#param-expression"><code>expression</code></a> record component</dd>
+<dd><code>uniquenessCount</code> - the value for the <a href="#param-uniquenessCount"><code>uniquenessCount</code></a> record component</dd>
 <dd><code>score</code> - the value for the <a href="#param-score"><code>score</code></a> record component</dd>
 <dd><code>snippet</code> - the value for the <a href="#param-snippet"><code>snippet</code></a> record component</dd>
 </dl>
@@ -205,6 +221,19 @@
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="unique()">
+<h3>unique</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">unique</span>()</div>
+<div class="block">Whether this candidate matched exactly one element when captured.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd><code>true</code> when uniquenessCount is 1</dd>
+</dl>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="toString()">
 <h3>toString</h3>
@@ -274,6 +303,19 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-expression"><code>expression</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="uniquenessCount()">
+<h3>uniquenessCount</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">uniquenessCount</span>()</div>
+<div class="block">Returns the value of the <a href="#param-uniquenessCount"><code>uniquenessCount</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-uniquenessCount"><code>uniquenessCount</code></a> record component</dd>
 </dl>
 </div>
 </section>
