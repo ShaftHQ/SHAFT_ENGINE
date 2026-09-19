@@ -1330,6 +1330,85 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertTrue(any(command[-3:] == ["clean", "package", "-Pci"] for command in calls))
             self.assertEqual(1, len(published))
 
+    def test_ensure_maven_tools_reuses_healthy_cache_without_rebuild(self):
+        """#6019: healthy Maven Tools cache is action:reused — no rebuild/publish."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "installed"
+            target.mkdir()
+            java = root / "bin" / ("java.exe" if os.name == "nt" else "java")
+            java.parent.mkdir()
+            java.write_text("java\n", encoding="utf-8")
+            runtime = (java.resolve(), root / "maven-tools-mcp-3.2.1.jar")
+            runner = mock.Mock(side_effect=AssertionError("rebuild must not run"))
+            hosts = SimpleNamespace(
+                maven_tools_cache_status=lambda version: {
+                    "status": "healthy",
+                    "version": version,
+                },
+                discover_maven_tools_runtime=lambda: runtime,
+                probe_maven_tools_runtime=lambda *_args: False,
+                publish_maven_tools_cache=mock.Mock(
+                    side_effect=AssertionError("publish must not run")
+                ),
+            )
+            dependencies = SimpleNamespace(
+                resolve_stable_version=lambda *_args, **_kwargs: "3.2.1"
+            )
+            specification = {
+                "dependencies": {
+                    "maven-tools-mcp": {"stableChannel": "https://example.invalid"}
+                }
+            }
+            with mock.patch.object(
+                MODULE, "load_installed_controller", return_value=hosts
+            ), mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=dependencies
+            ):
+                result = MODULE.ensure_maven_tools(
+                    target, specification, runner=runner
+                )
+            self.assertEqual(runtime, result)
+            runner.assert_not_called()
+
+    def test_ensure_maven_tools_waits_on_busy_cache_then_reuses(self):
+        """#6019: busy cache waits briefly, then reuses when healthy."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "installed"
+            target.mkdir()
+            runtime = (root / "java", root / "maven-tools-mcp-3.2.1.jar")
+            statuses = iter(
+                [
+                    {"status": "busy", "version": "3.2.1"},
+                    {"status": "healthy", "version": "3.2.1"},
+                ]
+            )
+            hosts = SimpleNamespace(
+                maven_tools_cache_status=lambda version: next(statuses),
+                discover_maven_tools_runtime=lambda: runtime,
+                probe_maven_tools_runtime=lambda *_args: True,
+            )
+            dependencies = SimpleNamespace(
+                resolve_stable_version=lambda *_args, **_kwargs: "3.2.1"
+            )
+            specification = {
+                "dependencies": {
+                    "maven-tools-mcp": {"stableChannel": "https://example.invalid"}
+                }
+            }
+            with mock.patch.object(
+                MODULE, "load_installed_controller", return_value=hosts
+            ), mock.patch.object(
+                MODULE, "load_dependency_controller", return_value=dependencies
+            ), mock.patch.object(
+                MODULE, "MAVEN_TOOLS_CACHE_BUSY_POLL_SECONDS", 0.01
+            ), mock.patch.object(
+                MODULE, "MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS", 2.0
+            ):
+                result = MODULE.ensure_maven_tools(target, specification)
+            self.assertEqual(runtime, result)
+
     def test_explicit_maven_tools_docker_mode_requires_healthy_existing_docker(self):
         specification = {
             "dependencies": {"maven-tools-mcp": {"stableChannel": "https://example.invalid"}}
@@ -3577,8 +3656,11 @@ module.install_with_dependencies(project, source, "3" * 40)
                 MODULE.install(project, changed_source, "2" * 40)
                 raise RuntimeError("offline")
 
-            with self.assertRaisesRegex(RuntimeError, "already running"):
-                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=interleave)
+            with mock.patch.object(MODULE, "PROJECT_LOCK_WAIT_SECONDS", 0):
+                with self.assertRaisesRegex(RuntimeError, "already running"):
+                    MODULE.install_with_dependencies(
+                        project, SOURCE, TEST_COMMIT, provisioner=interleave
+                    )
 
             self.assertFalse(project.joinpath(".chaos-engine").exists())
 
@@ -4072,13 +4154,50 @@ module.install_with_dependencies(project, source, "3" * 40)
             project.mkdir()
             with MODULE.project_lock(project):
                 with self.assertRaisesRegex(RuntimeError, "already running") as raised:
-                    with MODULE.project_lock(project):
+                    with MODULE.project_lock(project, wait_seconds=0):
                         self.fail("contended lock was acquired")
             message = str(raised.exception)
             self.assertIn("fix-next:", message)
             self.assertIn("do not delete `.chaos-engine.lock`", message)
             if Path("/proc/locks").is_file():
                 self.assertIn(f"pid={os.getpid()}", message)
+
+    def test_project_lock_waits_then_acquires_after_release(self):
+        """#6019: transient dual-op lock should wait instead of failing Install core."""
+        import threading
+        import time as time_module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            released = threading.Event()
+            acquired = threading.Event()
+            errors = []
+
+            def holder():
+                with MODULE.project_lock(project, wait_seconds=0):
+                    released.wait(timeout=5)
+                    time_module.sleep(0.05)
+
+            def waiter():
+                try:
+                    with MODULE.project_lock(project, wait_seconds=2.0):
+                        acquired.set()
+                except Exception as error:  # noqa: BLE001 - collect for assertion
+                    errors.append(error)
+
+            thread_holder = threading.Thread(target=holder)
+            thread_waiter = threading.Thread(target=waiter)
+            thread_holder.start()
+            time_module.sleep(0.05)
+            thread_waiter.start()
+            time_module.sleep(0.1)
+            self.assertFalse(acquired.is_set())
+            released.set()
+            thread_holder.join(timeout=5)
+            thread_waiter.join(timeout=5)
+            self.assertEqual([], errors)
+            self.assertTrue(acquired.is_set())
 
     def test_format_lock_holder_detail_includes_pid_and_truncates_cmdline(self):
         detail = MODULE.format_lock_holder_detail(

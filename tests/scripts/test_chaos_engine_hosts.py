@@ -3226,7 +3226,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION)
             self.assertTrue(jar.exists())
 
-    def test_manual_maven_cache_publication_is_atomic_and_no_overwrite(self):
+    def test_manual_maven_cache_publication_is_atomic_and_reuses_healthy(self):
         module = load(HOSTS, "chaos_engine_hosts_maven_cache_publish")
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "cache"
@@ -3249,10 +3249,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertFalse(staging.exists())
             replacement = Path(temporary) / "staging-replacement"
             shutil.copytree(target, replacement)
-            with self.assertRaisesRegex(ValueError, "already exists"):
-                module.publish_maven_tools_cache(replacement, root=root)
+            # #6019: healthy cache version is reused (not CE-INSTALL-FAILED).
+            reused = module.publish_maven_tools_cache(replacement, root=root)
+            self.assertEqual(target, reused)
+            self.assertEqual("healthy", module.maven_tools_cache_status(root=root)["status"])
+            self.assertTrue(replacement.exists())
 
-    def test_manual_maven_cache_publication_refuses_last_moment_target(self):
+    def test_manual_maven_cache_publication_refuses_last_moment_invalid_target(self):
         module = load(HOSTS, "chaos_engine_hosts_maven_cache_publish_race")
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "cache"
@@ -3268,6 +3271,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             }), encoding="utf-8")
 
             def collide(_source, target):
+                # Empty dir is invalid — must still fail closed.
                 target.mkdir()
                 raise FileExistsError(target)
 
@@ -3276,6 +3280,35 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     module.publish_maven_tools_cache(staging, root=root)
             self.assertTrue(staging.exists())
             self.assertTrue((root / module.MAVEN_TOOLS_MCP_VERSION).exists())
+
+    def test_manual_maven_cache_publication_reuses_last_moment_healthy_target(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_publish_race_reuse")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            staging = Path(temporary) / "staging-unique"
+            staging.mkdir()
+            jar = staging / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            receipt = {
+                "version": module.MAVEN_TOOLS_MCP_VERSION,
+                "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                "jar": jar.name,
+                "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+            }
+            (staging / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(
+                json.dumps(receipt), encoding="utf-8"
+            )
+
+            def collide(source, target):
+                # Peer published a healthy tree first — reuse (#6019).
+                shutil.copytree(source, target)
+                raise FileExistsError(target)
+
+            with mock.patch.object(module, "_rename_no_replace", side_effect=collide):
+                reused = module.publish_maven_tools_cache(staging, root=root)
+            self.assertEqual(root / module.MAVEN_TOOLS_MCP_VERSION, reused)
+            self.assertEqual("healthy", module.maven_tools_cache_status(root=root)["status"])
+            self.assertTrue(staging.exists())
 
     def test_native_no_replace_rename_preserves_both_directories(self):
         module = load(HOSTS, "chaos_engine_hosts_native_no_replace")
