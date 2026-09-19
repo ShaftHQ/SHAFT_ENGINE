@@ -28,6 +28,7 @@ class ShaftToolWindowPanelStagesTest {
         assertNotNull(panel.assistantPanel());
         assertNotNull(panel.designStagePanel());
         assertNotNull(panel.designStagePanel().storyArea());
+        assertNotNull(panel.designStagePanel().ingestButton());
         assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, panel.selectedStageLabel());
     }
 

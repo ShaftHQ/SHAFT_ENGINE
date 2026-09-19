@@ -11,7 +11,7 @@ import java.util.List;
  * In-process entrypoint for the governed agentic test workflow fixture (issue #5452).
  *
  * <p>Not a lean MCP {@code @Tool}: the fixture stays unit/test-facing so the public lean catalog
- * remains 101 tools. Deterministic, review-first, fail-closed. Model output is never test or
+ * remains the checked-in MCP tool count. Deterministic, review-first, fail-closed. Model output is never test or
  * cleanup authority.</p>
  */
 public class GovernedAgenticWorkflowService {
