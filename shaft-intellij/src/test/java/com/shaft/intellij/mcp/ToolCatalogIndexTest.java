@@ -47,6 +47,8 @@ class ToolCatalogIndexTest {
                 "business-step lexicon must reach the IDE through the canonical catalog (issue #5951)");
         assertTrue(names.contains("design_coverage"),
                 "AC coverage must reach the IDE through the canonical catalog (issue #5952)");
+        assertTrue(names.contains("design_lint"),
+                "Gherkin lint must reach the IDE through the canonical catalog (issue #5953)");
         assertFalse(names.contains("natural_act"), "natural_act was deleted outright (owner mandate)");
         assertFalse(names.contains("mobile_natural_act"), "mobile_natural_act was deleted outright");
         assertFalse(names.contains("playwright_browser_navigate"),
@@ -54,9 +56,9 @@ class ToolCatalogIndexTest {
     }
 
     @Test
-    void toolNamesMatchesTheCanonical107ToolCatalog() {
-        assertEquals(107, ToolCatalogIndex.toolNames().size(),
-                "the bundled index must track the canonical 107-tool catalog; a mismatch means "
+    void toolNamesMatchesTheCanonical108ToolCatalog() {
+        assertEquals(108, ToolCatalogIndex.toolNames().size(),
+                "the bundled index must track the canonical 108-tool catalog; a mismatch means "
                         + "the build-time copy is stale or the resource wasn't regenerated");
     }
 
@@ -78,7 +80,7 @@ class ToolCatalogIndexTest {
 
     @Test
     void intentKeywordsReturnsEmptyForAToolWithNoCuratedKeywordsYet() {
-        // Most of the 107-tool catalog has no curated intentKeywords overlay entries yet
+        // Most of the 108-tool catalog has no curated intentKeywords overlay entries yet
         // are curated as of #3868/#3869) -- must degrade to an empty list, never null or an exception.
         assertEquals(List.of(), ToolCatalogIndex.intentKeywords("element_click"));
     }

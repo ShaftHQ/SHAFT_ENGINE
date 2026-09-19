@@ -144,6 +144,28 @@ final class DesignCanvasModel {
         return copyExampleRows(rows.getAsJsonArray());
     }
 
+    static List<String[]> lintRows(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        JsonElement findings = root == null ? null : root.get("findings");
+        if (findings == null || !findings.isJsonArray()) {
+            return List.of();
+        }
+        List<String[]> rows = new ArrayList<>();
+        for (JsonElement item : findings.getAsJsonArray()) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject row = item.getAsJsonObject();
+            rows.add(new String[]{string(row, "id"), string(row, "level"), string(row, "rule"), string(row, "message")});
+        }
+        return rows;
+    }
+
+    static boolean lintAcceptBlocked(String raw) {
+        JsonObject root = parseAnalysisObject(raw);
+        return root != null && root.has("acceptBlocked") && root.get("acceptBlocked").getAsBoolean();
+    }
+
     static List<String[]> coverageRows(String raw) {
         JsonObject root = parseAnalysisObject(raw);
         if (root == null) {

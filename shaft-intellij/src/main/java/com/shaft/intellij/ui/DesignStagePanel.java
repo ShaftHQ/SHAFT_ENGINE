@@ -33,6 +33,7 @@ final class DesignStagePanel extends JPanel {
     private static final String[] ORACLE_COLUMNS = {"AC", "Oracle", "Evidence"};
     private static final String[] EXAMPLE_COLUMNS = {"ID", "Kind", "Cells"};
     private static final String[] COVERAGE_COLUMNS = {"ID", "State", "Reason"};
+    private static final String[] LINT_COLUMNS = {"ID", "Level", "Rule", "Message"};
 
     private final Project project;
     private final JBTextArea story;
@@ -43,6 +44,7 @@ final class DesignStagePanel extends JPanel {
     private final JTable oracleTable;
     private final JTable examplesTable;
     private final JTable coverageTable;
+    private final JTable lintTable;
     private final JButton deleteExample;
     private final JButton ingest;
     private final JButton analyze;
@@ -50,6 +52,8 @@ final class DesignStagePanel extends JPanel {
     private final JButton gherkin;
     private final JButton suggestPhrases;
     private final JButton coverage;
+    private final JButton lint;
+    private boolean lintAcceptBlocked;
     private final JBTextArea gherkinDraft;
     private final javax.swing.JList<String> lexiconSuggestions;
     private DesignCanvasModel model = new DesignCanvasModel();
@@ -104,6 +108,7 @@ final class DesignStagePanel extends JPanel {
         oracleTable = table("Evidence oracles", ORACLE_COLUMNS);
         examplesTable = table("Examples table", EXAMPLE_COLUMNS);
         coverageTable = table("AC coverage", COVERAGE_COLUMNS);
+        lintTable = table("Gherkin lint", LINT_COLUMNS);
 
         ingest = action("Ingest story", this::ingestStory);
         analyze = action("Analyze", this::analyzeStory);
@@ -121,6 +126,7 @@ final class DesignStagePanel extends JPanel {
         lexiconSuggestions.getAccessibleContext().setAccessibleName("Lexicon suggestions");
         suggestPhrases = action("Suggest phrases", this::suggestPhrases);
         coverage = action("Coverage", this::coverageStory);
+        lint = action("Lint Gherkin", this::lintStory);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         actions.setOpaque(false);
@@ -132,6 +138,7 @@ final class DesignStagePanel extends JPanel {
         actions.add(designExamples);
         actions.add(deleteExample);
         actions.add(coverage);
+        actions.add(lint);
 
         JBSplitter tables = new JBSplitter(true, 0.45f);
         tables.setFirstComponent(new JBScrollPane(acTable));
@@ -140,6 +147,7 @@ final class DesignStagePanel extends JPanel {
         JPanel extra = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         extra.add(new JBScrollPane(examplesTable), BorderLayout.CENTER);
         extra.add(new JBScrollPane(coverageTable), BorderLayout.NORTH);
+        extra.add(new JBScrollPane(lintTable), BorderLayout.EAST);
         JPanel draftAndLexicon = new JPanel(new BorderLayout(0, JBUI.scale(4)));
         draftAndLexicon.add(new JBScrollPane(gherkinDraft), BorderLayout.CENTER);
         draftAndLexicon.add(new JBScrollPane(lexiconSuggestions), BorderLayout.EAST);
@@ -238,6 +246,14 @@ final class DesignStagePanel extends JPanel {
         return coverage;
     }
 
+    JTable lintTable() {
+        return lintTable;
+    }
+
+    JButton lintButton() {
+        return lint;
+    }
+
     JButton deleteExampleButton() {
         return deleteExample;
     }
@@ -254,6 +270,20 @@ final class DesignStagePanel extends JPanel {
 
     void applyExamplesJson(String json) {
         fill(examplesTable, EXAMPLE_COLUMNS, DesignCanvasModel.exampleRows(json));
+        refreshButtons();
+    }
+
+    void applyLintJson(String json) {
+        fill(lintTable, LINT_COLUMNS, DesignCanvasModel.lintRows(json));
+        lintAcceptBlocked = DesignCanvasModel.lintAcceptBlocked(json);
+        try {
+            JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
+            if (root.has("message") && !root.get("message").getAsString().isBlank()) {
+                statusBadge.setText(root.get("message").getAsString());
+            }
+        } catch (RuntimeException ignored) {
+            // keep prior badge
+        }
         refreshButtons();
     }
 
@@ -297,6 +327,13 @@ final class DesignStagePanel extends JPanel {
 
     private void acceptResidualRisk() {
         invoke("design_analyze", arguments(model.acceptedGapIdsArgument()), false);
+    }
+
+    private void lintStory() {
+        JsonObject arguments = arguments("");
+        arguments.addProperty("gherkin", gherkinDraft.getText());
+        arguments.addProperty("waived", "");
+        invoke("design_lint", arguments, false);
     }
 
     private void coverageStory() {
@@ -359,6 +396,8 @@ final class DesignStagePanel extends JPanel {
             applyLexiconJson(output);
         } else if (output.contains("\"readyBlocked\"")) {
             applyCoverageJson(output);
+        } else if (output.contains("\"acceptBlocked\"") || output.contains("\"findings\"")) {
+            applyLintJson(output);
         } else {
             applyAnalysisJson(output);
         }
@@ -375,6 +414,7 @@ final class DesignStagePanel extends JPanel {
         gherkin.setEnabled(ready && model.gherkinGenerationAllowed());
         suggestPhrases.setEnabled(ready);
         coverage.setEnabled(ready);
+        lint.setEnabled(ready && !lintAcceptBlocked);
         deleteExample.setEnabled(ready && examplesTable.getRowCount() > 0);
     }
 

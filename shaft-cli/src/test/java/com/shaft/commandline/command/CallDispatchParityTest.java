@@ -139,4 +139,15 @@ class CallDispatchParityTest {
         assertEquals(0, exit);
         assertTrue(out.toString().contains("called design_coverage"));
     }
+
+    @Test
+    void designLintAliasDispatchesDesignLint() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("lint", "gherkin=Feature: x");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_lint"));
+    }
 }
