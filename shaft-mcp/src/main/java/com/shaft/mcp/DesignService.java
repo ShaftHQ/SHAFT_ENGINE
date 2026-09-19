@@ -93,6 +93,20 @@ public class DesignService {
                 DesignAnalyzer.parseAcceptedIds(droppedExampleIds));
     }
 
+    @Tool(name = "design_lexicon",
+            description = "suggests or accepts project-local business phrases; never indexes SHAFT locator steps")
+    public McpDesignLexicon lexicon(String action, String query, String phrase) {
+        try {
+            if ("accept".equalsIgnoreCase(action == null ? "" : action.strip())) {
+                return DesignLexiconStore.accept(workspacePolicy.root(), phrase);
+            }
+            return DesignLexiconStore.suggest(workspacePolicy.root(), query);
+        } catch (java.io.IOException exception) {
+            return new McpDesignLexicon(McpDesignLexicon.CURRENT_SCHEMA_VERSION, "error",
+                    exception.getMessage(), java.util.List.of(), false);
+        }
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");

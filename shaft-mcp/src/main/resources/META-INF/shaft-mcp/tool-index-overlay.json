@@ -311,6 +311,17 @@
         "boundary partitions"
       ]
     },
+    "design_lexicon": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design lexicon",
+      "intentKeywords": [
+        "ubiquitous language",
+        "reuse login phrase",
+        "design lexicon",
+        "step catalog"
+      ]
+    },
     "doctor_analyze_failed_allure": {
       "example": {
         "request": {
