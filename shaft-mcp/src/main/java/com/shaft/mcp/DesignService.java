@@ -79,6 +79,12 @@ public class DesignService {
         return DesignAnalyzer.analyze(pack, DesignAnalyzer.parseAcceptedIds(acceptedGapIds));
     }
 
+    @Tool(name = "design_gherkin_draft",
+            description = "drafts declarative Gherkin from an analyzed story pack for human review; never writes files or Java")
+    public McpDesignGherkinDraft gherkinDraft(String text, String filePath, String sourceUrl, String acceptedGapIds) {
+        return DesignGherkinDrafter.draft(analyze(text, filePath, sourceUrl, acceptedGapIds));
+    }
+
     private Source resolveSource(String text, String filePath, String sourceUrl) throws IOException {
         if (text.isEmpty() && filePath.isEmpty() && sourceUrl.isEmpty()) {
             return Source.error("paste", "Paste a user story or provide a workspace file path.");

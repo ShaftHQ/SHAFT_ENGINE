@@ -861,6 +861,31 @@
       "description" : null
     } ]
   }, {
+    "name" : "design_gherkin_draft",
+    "service" : "DesignService",
+    "description" : "drafts declarative Gherkin from an analyzed story pack for human review; never writes files or Java",
+    "params" : [ {
+      "name" : "acceptedGapIds",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "filePath",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "sourceUrl",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "text",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "design_ingest",
     "service" : "DesignService",
     "description" : "turns pasted user-story or acceptance-criteria text, or a workspace file, into a structured Design pack with actor, outcome, and numbered AC IDs; never writes files and does not fetch URLs",

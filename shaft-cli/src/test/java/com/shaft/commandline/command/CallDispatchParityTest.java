@@ -95,4 +95,15 @@ class CallDispatchParityTest {
         assertEquals(0, exit);
         assertTrue(out.toString().contains("called design_analyze"));
     }
+
+    @Test
+    void designGherkinAliasDispatchesDesignGherkinDraft() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("gherkin", "text=As a shopper I want to check out");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_gherkin_draft"));
+    }
 }
