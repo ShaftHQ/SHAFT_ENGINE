@@ -1058,7 +1058,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         return;
                     }
                     JsonObject status = AssistantMarkdown.unwrapCaptureStatus(
-                            result == null ? null : jsonObjectOrNull(result.output()));
+                            jsonObjectOrNull(result.output()));
                     if (status != null) {
                         renderStepsFromStatus(status);
                     }
