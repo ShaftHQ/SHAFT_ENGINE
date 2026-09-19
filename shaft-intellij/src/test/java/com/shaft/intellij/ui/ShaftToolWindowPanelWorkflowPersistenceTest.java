@@ -43,8 +43,8 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
 
         selectItemLabeled(selector, ShaftToolWindowPanel.STAGE_AUTOMATION);
 
-        assertEquals("Guided", properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY),
-                "selecting Automation persists the selected inner surface, defaulting to Guided");
+        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY),
+                "selecting Automation persists the selected inner surface, defaulting to Live record");
     }
 
     @Test
