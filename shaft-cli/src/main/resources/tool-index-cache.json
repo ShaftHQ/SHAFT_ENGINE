@@ -1878,13 +1878,6 @@
           "required": true,
           "default": null,
           "description": null
-        },
-        {
-          "name": "waived",
-          "type": "string",
-          "required": true,
-          "default": null,
-          "description": null
         }
       ],
       "mutation": false,
@@ -1895,7 +1888,7 @@
         "needs recording",
         "design gap map"
       ],
-      "slashAlias": "/design-gap-map",
+      "slashAlias": null,
       "cliCommand": "design gap-map",
       "example": null
     },
