@@ -4,7 +4,10 @@ Use for `shaft-intellij` plugin, tool-window, Gradle or JDK, or Marketplace work
 
 Load the [IntelliJ plugin mastery chapter](../shaft-mastery/intellij-plugin.md)
 instead of copying it. Visible UI also follows
-[SHAFT UI design](shaft-ui-design.md).
+[SHAFT UI design](shaft-ui-design.md). Contributor notes:
+[UI test conventions](intellij-ui-test-conventions.md) (accessibleName,
+Live record persistence) and
+[Design/Automation apply paths](intellij-design-automation-apply-paths.md).
 
 Cite current JetBrains sources, not memory:
 

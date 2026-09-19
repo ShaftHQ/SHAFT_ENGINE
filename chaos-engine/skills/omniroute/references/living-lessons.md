@@ -49,3 +49,10 @@ more. Seed list absorbed from #5864 (2026-09-16 process-owner wave with
 2. State the failure mode and the durable rule in one or two lines.
 3. Link the issue/PR when useful.
 4. Keep secrets, account emails, and raw tokens out of this file.
+
+## 2026-09-19 — Task executors must inherit ROG + FreeToken (#6011)
+
+Parent orchestrator with ROG Local Execution + FreeToken READY is not enough:
+Task/executor children must bind the same `machineId` and probe `:1919` on that
+host. A box-only Shell that reports FreeToken down is **box fallback**, not
+"ROG offline" when the parent still has ROG.

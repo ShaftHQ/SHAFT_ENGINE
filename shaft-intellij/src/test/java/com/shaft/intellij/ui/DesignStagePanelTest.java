@@ -220,6 +220,28 @@ class DesignStagePanelTest {
         AccessibleContext context = component.getAccessibleContext();
         return context == null ? "" : context.getAccessibleName();
     }
+
+    @Test
+    void applyAnalysisJsonDoesNotFillFluentGapMap() {
+        // Issue #6012: gap-map payloads must use applyGapMapJson; analysis apply is a different shape.
+        DesignStagePanel panel = new DesignStagePanel();
+        panel.applyAnalysisJson("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "ok",
+                  "message": "analysis only",
+                  "steps": [{
+                    "stepText": "Then total should equal 1",
+                    "classification": "mapped",
+                    "shaftType": "Validations",
+                    "shaftMethod": "assertThat"
+                  }]
+                }
+                """);
+        assertEquals(0, panel.fluentMapTable().getRowCount(),
+                "analysis apply must not paint the fluent gap-map table");
+    }
+
     @Test
     void fluentGapMapFillsTable() {
         DesignStagePanel panel = new DesignStagePanel();

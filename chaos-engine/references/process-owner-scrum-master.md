@@ -49,6 +49,30 @@ MUST publish Evidence-backed status using artifacts, exit codes, logs, or
 diff observations. Status tables and handoffs reject narrative-only progress.
 Assignment alone is not progress.
 
+Every RAG / status table that mentions FreeToken or OpenCode MUST distinguish
+(#6016):
+
+- **Work machine:** `ROG` | `box` | `mixed`
+- **FreeToken probe host:** `ROG` | `box` | `none` (where `:1919` was probed)
+- **OpenCode used:** `yes`/`no`, and **timeout hit:** `yes`/`no` (120s bash)
+
+Do not claim "FreeToken READY" when only the parent saw ROG FreeToken while
+the writer ran on the box.
+
+### Task / executor machine binding (#6011)
+
+Grok Bot Task / executor subagents MUST receive the same ROG `machineId` and
+FreeToken loopback preference as the parent when the owner named them. A child
+that cannot reach ROG Shell or `:1919` MUST report **box fallback** explicitly
+and must not silently claim ROG delivery.
+
+### Compaction dual-loop (#5994)
+
+After session compaction, the resumed main thread is the sole process-owner.
+Cancel or close any pre-compaction general-purpose / Task loop that would act
+as a second process-owner (extra worktrees, competing PRs). Do not leave two
+orchestrators live.
+
 ### Status report format
 
 This format is the **default** whenever orchestrator mode is selected, or when

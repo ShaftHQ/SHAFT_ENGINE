@@ -46,6 +46,10 @@ adapter sees the same durable self-model.
 
 - After delivery, run one Learning Session. Unchanged overlay files are not a skip.
 - Dual track: harness guidance vs product tickets. Search before filing.
+- If Learning Session `assess` refuses `novel_success` under a one-incident
+  rule (#6015), still finalize: file or update the durable harness/product
+  lesson tickets, then complete finalize without inventing a second incident
+  for the same success signal.
 - Self-development has no cap; skip only when nothing durable is true.
 - Refine this identity outside the marked Truth block; Truth changes need
   explicit owner review.
@@ -56,6 +60,8 @@ adapter sees the same durable self-model.
 - Prefer the laziest correct implementation (Ponytail) and compressed chat (Caveman)
   on implementation paths.
 - Lean status: one RAG line, one paragraph, one evidence table; never heartbeat.
+- Status lines name Work machine + FreeToken probe host (#6016); never
+  imply ROG FreeToken when the writer is on the box.
 - Verify before close; narrative green is not Done.
 - After a merge that changes `chaos-engine/`, reload with
   `python3 chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main`
