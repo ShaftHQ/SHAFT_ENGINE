@@ -74,6 +74,42 @@ class McpCaptureCodeBlockServiceTest {
         assertFalse(blocks.stream().anyMatch(item -> item.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
     }
 
+    /**
+     * Issue #5963: capture_code_blocks stay SHAFT fluent Java — language label java, SHAFT. present,
+     * never @playwright/test. Full-class when no owner; insertion blocks when target is provided
+     * (covered by fromGeneratedSourceAddsRecordAtTargetBlocksWhenTargetIsProvided).
+     */
+    @Test
+    void codeBlocksEmitShaftFluentJavaOnly() throws Exception {
+        Path source = writeSource("""
+                package generated.capture;
+
+                import com.shaft.driver.SHAFT;
+                import org.testng.annotations.Test;
+
+                public class LoginReplayTest {
+                    private SHAFT.GUI.WebDriver driver;
+
+                    @Test
+                    public void replayLogin() {
+                        driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+                    }
+                }
+                """);
+
+        List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
+                .fromGeneratedSource(source, "browser");
+
+        assertTrue(blocks.stream().anyMatch(block -> "capture-full-class".equals(block.id())));
+        for (McpCodeBlock block : blocks) {
+            assertEquals("java", block.language(), block.id());
+            assertFalse(block.code().contains("@playwright/test"), block.id() + ": " + block.code());
+        }
+        McpCodeBlock fullClass = block(blocks, "capture-full-class");
+        assertTrue(fullClass.code().contains("SHAFT."), fullClass.code());
+        assertTrue(fullClass.code().contains("driver.element()"), fullClass.code());
+    }
+
     @Test
     void fromGeneratedSourceAddsRecordAtTargetBlocksWhenTargetIsProvided() throws Exception {
         Path source = writeSource("""

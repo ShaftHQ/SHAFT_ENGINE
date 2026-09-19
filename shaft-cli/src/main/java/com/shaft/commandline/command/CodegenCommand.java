@@ -28,7 +28,8 @@ import java.util.stream.Stream;
  * through unchanged.
  */
 @Command(mixinStandardHelpOptions = true, name = "codegen",
-        description = "Generate SHAFT test code from a capture recording (deterministic, no MCP session).")
+        description = "Generate SHAFT fluent Java only from a capture recording"
+                + " (deterministic, no MCP session; --target is metadata only).")
 public final class CodegenCommand implements Callable<Integer> {
 
     @Unmatched

@@ -288,7 +288,9 @@ public record CaptureStartOptions(
     public List<String> warnings() {
         List<String> warnings = new ArrayList<>();
         if (!targetLanguage.isBlank() && !Set.of("java", "java-testng", "shaft-java").contains(normalize(targetLanguage))) {
-            warnings.add("Codegen target " + targetLanguage + " is accepted for compatibility; SHAFT generates Java TestNG.");
+            warnings.add("Codegen target " + targetLanguage
+                    + " is accepted for compatibility; SHAFT emits fluent Java only"
+                    + " (no Python/TypeScript/C# exporters).");
         }
         addIfSet(warnings, channel, "Chromium channel selection is mapped through SHAFT browser selection.");
         return List.copyOf(warnings);

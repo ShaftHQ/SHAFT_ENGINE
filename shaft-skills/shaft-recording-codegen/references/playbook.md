@@ -9,7 +9,7 @@
 5. Run `shaft_coding_partner_plan` and `capture_target_candidates` before creating files, reusing existing tests, page objects, components, and locators. [`SHAFT-MCP`, `SELENIUM-PRACTICES`]
 6. Use `capture_record_at_target_code_blocks` for focused insertion at an existing source anchor; generate a full class only when no valid owner exists. [`SHAFT-MCP`]
 7. Review every generated locator, assertion, required-data placeholder, secret redaction, action order, and cleanup step against the recording and current UI/API. [`SHAFT-REPORTING`, `ISTQB-CTFL`]
-8. Keep Playwright evidence as evidence and generate the project's requested SHAFT Java backend; never paste sidecar TypeScript into a Java test suite. [`SHAFT-GUIDE`, `SELENIUM-PRACTICES`]
+8. Keep Playwright evidence as evidence and generate SHAFT fluent Java only (TestNG/JUnit + POM insertion); `--target` is metadata. Never add Python/TypeScript/C# exporters or paste `@playwright/test` / sidecar TypeScript into a Java test suite. [`SHAFT-GUIDE`, `SELENIUM-PRACTICES`]
 9. Run `test_code_guardrails_check`, preview with `shaft_coding_partner_diff`, and apply only the missing reviewed code under granted authority. [`SHAFT-MCP`]
 10. Compile and run the smallest replay or focused test, preserving the recording, generated blocks, diff, and verdict as traceable evidence. [`SHAFT-MCP`, `ALLURE-RESULTS`]
 

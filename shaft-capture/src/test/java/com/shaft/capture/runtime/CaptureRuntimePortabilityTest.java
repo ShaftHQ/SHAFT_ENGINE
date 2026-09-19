@@ -102,7 +102,7 @@ class CaptureRuntimePortabilityTest {
         assertEquals(Duration.ofSeconds(5), options.timeout());
         assertEquals(temp.resolve("profile").toAbsolutePath().normalize(), options.userDataDirectory());
         assertEquals(List.of("data-pw", "data-testid", "data-test", "data-qa"), options.testIdAttributes());
-        assertTrue(options.warnings().stream().anyMatch(warning -> warning.contains("SHAFT generates Java TestNG")));
+        assertTrue(options.warnings().stream().anyMatch(warning -> warning.contains("SHAFT emits fluent Java only")));
         assertTrue(options.warnings().stream().noneMatch(warning -> warning.contains("recorded as metadata")));
 
         assertNull(CaptureStartOptions.defaults().viewport());
