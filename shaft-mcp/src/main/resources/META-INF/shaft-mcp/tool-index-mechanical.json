@@ -836,6 +836,31 @@
       "description" : null
     } ]
   }, {
+    "name" : "design_analyze",
+    "service" : "DesignService",
+    "description" : "runs the requirements-analysis playbook on a story or workspace file and returns a gap register with stable GAP IDs; never writes files and does not generate Gherkin",
+    "params" : [ {
+      "name" : "acceptedGapIds",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "filePath",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "sourceUrl",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "text",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "design_ingest",
     "service" : "DesignService",
     "description" : "turns pasted user-story or acceptance-criteria text, or a workspace file, into a structured Design pack with actor, outcome, and numbered AC IDs; never writes files and does not fetch URLs",
