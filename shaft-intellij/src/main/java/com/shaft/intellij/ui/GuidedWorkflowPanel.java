@@ -1551,36 +1551,54 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
      */
     static List<StepRow> parseCheckpointSteps(JsonObject status) {
         List<StepRow> rows = new ArrayList<>();
-        if (status == null || !status.has("checkpoints") || !status.get("checkpoints").isJsonArray()) {
+        if (!hasJsonArray(status, "checkpoints")) {
             return rows;
         }
         for (JsonElement element : status.getAsJsonArray("checkpoints")) {
-            if (!element.isJsonObject()) {
-                continue;
+            StepRow row = checkpointRow(element);
+            if (row != null) {
+                rows.add(row);
             }
-            JsonObject checkpoint = element.getAsJsonObject();
-            long sequence = checkpoint.has("sequence") && checkpoint.get("sequence").isJsonPrimitive()
-                    ? checkpoint.get("sequence").getAsLong()
-                    : 0L;
-            String kind = jsonString(checkpoint, "kind");
-            String description = jsonString(checkpoint, "description");
-            if (description.isBlank()) {
-                description = jsonString(checkpoint, "oracle");
-            }
-            String action = description.isBlank()
-                    ? "SHAFT assertion checkpoint"
-                    : ("SHAFT assertion: " + description);
-            rows.add(new StepRow(
-                    jsonString(checkpoint, "id"),
-                    sequence,
-                    action,
-                    "SHAFT",
-                    kind.isBlank() ? "ASSERTION" : kind,
-                    false,
-                    "checkpoint",
-                    kind.isBlank() ? "ASSERTION" : kind));
         }
         return rows;
+    }
+
+    private static boolean hasJsonArray(JsonObject object, String key) {
+        return object != null && object.has(key) && object.get(key).isJsonArray();
+    }
+
+    private static StepRow checkpointRow(JsonElement element) {
+        if (!element.isJsonObject()) {
+            return null;
+        }
+        JsonObject checkpoint = element.getAsJsonObject();
+        String kind = jsonString(checkpoint, "kind");
+        if (kind.isBlank()) {
+            kind = "ASSERTION";
+        }
+        return new StepRow(
+                jsonString(checkpoint, "id"),
+                longField(checkpoint, "sequence"),
+                shaftAssertionAction(checkpoint),
+                "SHAFT",
+                kind,
+                false,
+                "checkpoint",
+                kind);
+    }
+
+    private static long longField(JsonObject object, String key) {
+        return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsLong() : 0L;
+    }
+
+    private static String shaftAssertionAction(JsonObject checkpoint) {
+        String description = jsonString(checkpoint, "description");
+        if (description.isBlank()) {
+            description = jsonString(checkpoint, "oracle");
+        }
+        return description.isBlank()
+                ? "SHAFT assertion checkpoint"
+                : ("SHAFT assertion: " + description);
     }
 
     /**
