@@ -774,6 +774,171 @@ class CaptureGeneratorTest {
     }
 
     /**
+     * Issue #5961: fallback locator replay is default-on. The no-arg compatibility constructor
+     * emits ranked primary + alternatives without requiring {@code --enable-fallback-locators},
+     * and never emits {@code SHAFT.GUI.Locator.xpath}.
+     */
+    @Test
+    void defaultFallbackLocatorsEmitRankedShaftLocatorWithFallbacks() throws Exception {
+        ElementSnapshot namedButton = new ElementSnapshot(
+                "submit-button",
+                "button",
+                "button",
+                "Submit",
+                "Submit",
+                Map.of("type", "submit"),
+                List.of(
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                                "button:Submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true),
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME,
+                                "Submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "//button[normalize-space(@aria-label)=\"Submit\"]")),
+                true,
+                true,
+                false);
+        CaptureSession fallbackSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "default-fallback-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), namedButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(fallbackSession);
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("default-fallback")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("captureReplayLocator(SHAFT.GUI.Locator.hasRole(Role.BUTTON)"),
+                source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.xpath"), source);
+        assertTrue(result.report().fallbackLocators().stream()
+                .anyMatch(fallback -> fallback.contains("submit-button")));
+    }
+
+    /**
+     * Issue #5961: {@code --disable-fallback-locators} / explicit {@code false} remains the override off.
+     */
+    @Test
+    void disableFallbackLocatorsOverrideOmitsCaptureReplayHelper() throws Exception {
+        ElementSnapshot namedButton = new ElementSnapshot(
+                "submit-button",
+                "button",
+                "button",
+                "Submit",
+                "Submit",
+                Map.of("type", "submit"),
+                List.of(
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                                "button:Submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true),
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME,
+                                "Submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "//button[normalize-space(@aria-label)=\"Submit\"]")),
+                true,
+                true,
+                false);
+        CaptureSession fallbackSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "disable-fallback-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), namedButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(fallbackSession);
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                session, temp.resolve("disable-fallback"), "generated.capture", "", false,
+                true, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll(), false));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertFalse(source.contains("captureReplayLocator("), source);
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON)"), source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.xpath"), source);
+    }
+
+    /**
+     * Issue #5961: when a unique id wins as primary and a verified ROLE remains as a fallback
+     * alternative, the generated {@code captureReplayLocator} call still references {@code Role.*},
+     * so the Role import must be emitted or compilation fails (CaptureGeneratedReplayBrowserTest).
+     */
+    @Test
+    void fallbackRoleAlternativeStillImportsRoleEnum() throws Exception {
+        ElementSnapshot namedButton = new ElementSnapshot(
+                "submit",
+                "button",
+                "button",
+                "Submit",
+                "Submit",
+                Map.of("id", "submit", "type", "submit"),
+                List.of(
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                                "button:Submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "//button[normalize-space(.)=\"Submit\"]", true),
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                                "submit", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true,
+                true,
+                false);
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "fallback-role-import-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), namedButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path sessionPath = session(session);
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(sessionPath, temp.resolve("fallback-role-import")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("import com.shaft.gui.internal.locator.Role;"), source);
+        assertTrue(source.contains("captureReplayLocator("), source);
+        assertTrue(source.contains("Role.BUTTON"), source);
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                result.report().compilation().status(),
+                result.report().compilation().diagnostics().toString());
+    }
+
+    /**
      * Issue #3905: a ROLE-strategy locator (the highest-scoring {@link LocatorCandidate.LocatorStrategy},
      * always preferred when present -- see the nightly "Guided Workflows Live E2E" login fixture, where
      * every field resolves to ROLE) renders {@code Role.BUTTON}/{@code Role.TEXTBOX} literals into the

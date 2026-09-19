@@ -339,7 +339,7 @@ final class CaptureWorkbenchHtml {
         return """
                 capture start --url "https://example.com" --browser chrome --session-goal "record the critical user flow"
                 capture checkpoint --description "assert the current page state" --kind ASSERTION
-                capture generate --session <capture.json> --enable-fallback-locators --control-flow-preview
+                capture generate --session <capture.json> --control-flow-preview
                 capture generate --session <capture.json> --target-source "%s" --insert-after <method>
                 MCP capture_start_codegen: {"targetUrl":"https://example.com","browser":"chrome","sessionGoal":"record the critical user flow"}
                 MCP code blocks: use sourcePath %s from session %s

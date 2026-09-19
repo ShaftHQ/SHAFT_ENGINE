@@ -38,6 +38,7 @@ class CaptureCliTest {
                         "--headless",
                         "--replay",
                         "--enable-fallback-locators",
+                        "--disable-fallback-locators",
                         "--control-flow-preview",
                         "--apply-control-flow-preview", "approved-preview.json"
                 });
@@ -74,6 +75,11 @@ class CaptureCliTest {
                 "flag",
                 new Class<?>[] {String.class},
                 "enable-fallback-locators"));
+        assertEquals(true, invoke(
+                options,
+                "flag",
+                new Class<?>[] {String.class},
+                "disable-fallback-locators"));
         assertEquals(true, invoke(
                 options,
                 "flag",
@@ -150,6 +156,7 @@ class CaptureCliTest {
         assertFalse(token.contains("="));
         assertTrue(usage.contains("capture start"));
         assertTrue(usage.contains("features"));
+        assertTrue(usage.contains("--disable-fallback-locators"));
         assertTrue(usage.contains("--enable-fallback-locators"));
         assertTrue(usage.contains("--backend webdriver|playwright"));
         assertTrue(usage.contains("--target-source"));

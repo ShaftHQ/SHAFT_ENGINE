@@ -1077,7 +1077,7 @@ public final class CaptureGenerator {
         if (needsByImport(targets, fallbackReplay)) {
             line(source, "import org.openqa.selenium.By;");
         }
-        if (needsRoleImport(targets)) {
+        if (needsRoleImport(targets, fallbackReplay)) {
             line(source, "import com.shaft.gui.internal.locator.Role;");
         }
         line(source, "import org.testng.annotations.AfterMethod;");
@@ -1653,9 +1653,17 @@ public final class CaptureGenerator {
      * hand-mirrored copy of the renderer's branch condition -- the emitted
      * {@code import com.shaft.gui.internal.locator.Role;} therefore appears if and only if the
      * generated source actually references it.
+     *
+     * <p>Issue #5961: when fallback locator replay is on, ROLE alternatives also emit
+     * {@code Role.*} inside {@code captureReplayLocator(...)} even if the primary selection is a
+     * unique id -- so alternatives must be scanned too.
      */
-    private static boolean needsRoleImport(List<TargetPlan> targets) {
-        return targets.stream().anyMatch(plan -> tier(plan) == LocatorPolicy.Tier.VERIFIED_ROLE);
+    private static boolean needsRoleImport(List<TargetPlan> targets, boolean fallbackReplay) {
+        return targets.stream().anyMatch(plan ->
+                tier(plan) == LocatorPolicy.Tier.VERIFIED_ROLE
+                        || (fallbackReplay && plan.selection().alternatives().stream()
+                        .anyMatch(alternative -> alternative.tier().orElse(null)
+                                == LocatorPolicy.Tier.VERIFIED_ROLE)));
     }
 
     /**

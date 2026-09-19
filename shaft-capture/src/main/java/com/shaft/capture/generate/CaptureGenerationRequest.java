@@ -20,7 +20,7 @@ import java.time.Duration;
  * @param enrichmentPreviewPath preview path to write or apply
  * @param enrichmentApproved whether a reviewed preview may be applied
  * @param aiApprovalPolicy explicit evidence and processing-location approval for preview generation
- * @param fallbackLocators whether generated WebDriver replay should try captured fallback locators
+ * @param fallbackLocators whether generated WebDriver replay should try captured fallback locators (default {@code true}; issue #5961)
  * @param controlFlowMode deterministic control-flow suggestion lifecycle
  * @param controlFlowPreviewPath control-flow preview path to write or apply
  */
@@ -126,7 +126,8 @@ public record CaptureGenerationRequest(
     }
 
     /**
-     * Compatibility constructor with fallback locator replay disabled.
+     * Compatibility constructor with fallback locator replay default-on (issue #5961).
+     * Pass {@code false} via the full constructor or {@code --disable-fallback-locators} to override off.
      *
      * @param sessionPath persisted Capture session
      * @param outputDirectory generated project root
@@ -155,12 +156,12 @@ public record CaptureGenerationRequest(
             boolean enrichmentApproved,
             ApprovalPolicy aiApprovalPolicy) {
         this(sessionPath, outputDirectory, packageName, className, overwrite, compile, replay, replayTimeout,
-                enrichmentMode, enrichmentPreviewPath, enrichmentApproved, aiApprovalPolicy, false,
+                enrichmentMode, enrichmentPreviewPath, enrichmentApproved, aiApprovalPolicy, true,
                 ControlFlowMode.NONE, null);
     }
 
     /**
-     * Creates deterministic defaults for one session.
+     * Creates deterministic defaults for one session (fallback locators default-on; issue #5961).
      *
      * @param sessionPath persisted session
      * @return default request
@@ -179,7 +180,7 @@ public record CaptureGenerationRequest(
                 null,
                 false,
                 ApprovalPolicy.denyAll(),
-                false,
+                true,
                 ControlFlowMode.NONE,
                 null);
     }
