@@ -690,6 +690,12 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             }
             return true;
         }
+        if (automationStagePanel != null
+                && Objects.equals(component, automationStagePanel.locatorPlaygroundPanel())) {
+            showSurface(STAGE_AUTOMATION, AutomationStagePanel.LOCATOR_PICKER_TAB,
+                    automationStagePanel.locatorPlaygroundPanel());
+            return true;
+        }
         if (Objects.equals(component, guidedWorkflowPanel)
                 || (automationStagePanel != null && Objects.equals(component, automationStagePanel))) {
             showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
@@ -846,6 +852,11 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case "Assistant", STAGE_DESIGN -> new SurfaceTarget(STAGE_DESIGN, STAGE_DESIGN, designStagePanel);
             case "Guided", AutomationStagePanel.LIVE_RECORD_TAB ->
                     new SurfaceTarget(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
+            case AutomationStagePanel.LOCATOR_PICKER_TAB ->
+                    new SurfaceTarget(
+                            STAGE_AUTOMATION,
+                            AutomationStagePanel.LOCATOR_PICKER_TAB,
+                            automationStagePanel == null ? null : automationStagePanel.locatorPlaygroundPanel());
             case "Recorder" -> settings.advancedUiEnabled
                     ? new SurfaceTarget("More", "Recorder", recorderPanel)
                     : new SurfaceTarget(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);

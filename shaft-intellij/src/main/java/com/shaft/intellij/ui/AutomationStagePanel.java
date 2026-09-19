@@ -23,8 +23,10 @@ import java.awt.Font;
 final class AutomationStagePanel extends JPanel {
     static final String ACCESSIBLE_NAME = "SHAFT automation";
     static final String LIVE_RECORD_TAB = "Live record";
+    static final String LOCATOR_PICKER_TAB = "Locator picker";
 
     private final GuidedWorkflowPanel guided;
+    private final LocatorPlaygroundPanel locatorPlayground;
     private final JBTabbedPane surfaces;
     private final JBLabel packStrip;
     private boolean readyPackApplied;
@@ -55,9 +57,11 @@ final class AutomationStagePanel extends JPanel {
         header.add(packStrip, BorderLayout.SOUTH);
 
         guided = new GuidedWorkflowPanel(project, prefill, settings);
+        locatorPlayground = new LocatorPlaygroundPanel(project);
         surfaces = new JBTabbedPane();
         surfaces.getAccessibleContext().setAccessibleName("SHAFT automation surfaces");
         surfaces.addTab(LIVE_RECORD_TAB, ShaftIcons.SEND, guided);
+        surfaces.addTab(LOCATOR_PICKER_TAB, ShaftIcons.SEARCH, locatorPlayground);
 
         add(header, BorderLayout.NORTH);
         add(surfaces, BorderLayout.CENTER);
@@ -65,6 +69,19 @@ final class AutomationStagePanel extends JPanel {
 
     GuidedWorkflowPanel guidedWorkflowPanel() {
         return guided;
+    }
+
+    LocatorPlaygroundPanel locatorPlaygroundPanel() {
+        return locatorPlayground;
+    }
+
+    void showLocatorPicker() {
+        for (int index = 0; index < surfaces.getTabCount(); index++) {
+            if (LOCATOR_PICKER_TAB.equals(surfaces.getTitleAt(index))) {
+                surfaces.setSelectedIndex(index);
+                return;
+            }
+        }
     }
 
     JBTabbedPane surfaces() {

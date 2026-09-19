@@ -535,6 +535,57 @@ class CaptureServiceApiToolsTest {
     }
 
     @Test
+    void pickLocatorRanksRoleAboveXpathForNamedButtonFixture() {
+        // Issue #5959 SC-001: role-based candidates outrank xpath; copy snippet is SHAFT hasRole.
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            List<CaptureService.McpLocatorCandidate> candidates = List.of(
+                    new CaptureService.McpLocatorCandidate(
+                            "XPATH", "//button[normalize-space(.)=\"Pay now\"]", 1, true, true),
+                    new CaptureService.McpLocatorCandidate("ROLE", "button:Pay now", 1, true, true));
+
+            CaptureService.McpPickLocatorResult result = service.pickLocator(candidates);
+
+            assertEquals("ROLE", result.ranked().getFirst().strategy());
+            assertEquals("XPATH", result.ranked().get(1).strategy());
+            assertTrue(result.snippet().startsWith("SHAFT.GUI.Locator.hasRole(Role.BUTTON)"),
+                    result.snippet());
+            assertFalse(result.snippet().contains("SHAFT.GUI.Locator.xpath"));
+            assertTrue(result.ranked().getFirst().unique());
+            assertEquals(1, result.ranked().getFirst().uniquenessCount());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void pickLocatorMarksNonUniqueCandidatesInRankedResult() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            CaptureService.McpPickLocatorResult result = service.pickLocator(List.of(
+                    new CaptureService.McpLocatorCandidate("CSS", "button", 4, true, true),
+                    new CaptureService.McpLocatorCandidate("ROLE", "button:Submit", 1, true, true)));
+
+            assertEquals("ROLE", result.ranked().getFirst().strategy());
+            assertTrue(result.ranked().getFirst().unique());
+            CaptureService.McpRankedLocatorCandidate css = result.ranked().stream()
+                    .filter(c -> "CSS".equals(c.strategy()))
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals(4, css.uniquenessCount());
+            assertFalse(css.unique());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
     void pickLocatorIgnoresUnsupportedStrategiesAndReturnsBlankWhenNoneAreValid() {
         CaptureService service = new CaptureService(
                 new CaptureManager(),
@@ -560,7 +611,7 @@ class CaptureServiceApiToolsTest {
         files.writeLastPick(new CaptureControlFiles.LastPick(
                 "SHAFT.GUI.Locator.id(\"username\")",
                 List.of(new CaptureControlServer.RankedCandidate(
-                        "ID", "username", 100, "SHAFT.GUI.Locator.id(\"username\")")),
+                        "ID", "username", 1, 100, "SHAFT.GUI.Locator.id(\"username\")")),
                 System.currentTimeMillis()));
         CaptureService service = new CaptureService(
                 new CaptureManager(),

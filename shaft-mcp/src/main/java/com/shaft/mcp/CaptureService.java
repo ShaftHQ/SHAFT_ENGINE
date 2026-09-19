@@ -830,7 +830,8 @@ public class CaptureService {
                 parsed.stream().sorted(com.shaft.capture.model.LocatorCandidate.BEST_FIRST).toList();
         List<McpRankedLocatorCandidate> rankedResult = ranked.stream()
                 .map(candidate -> new McpRankedLocatorCandidate(
-                        candidate.strategy().name(), candidate.expression(), candidate.score(),
+                        candidate.strategy().name(), candidate.expression(),
+                        candidate.uniquenessCount(), candidate.score(),
                         com.shaft.capture.control.PickedLocatorSnippetBuilder.snippet(candidate)))
                 .toList();
         return new McpPickLocatorResult(rankedResult.getFirst().snippet(), rankedResult);
@@ -851,7 +852,8 @@ public class CaptureService {
         }
         List<McpRankedLocatorCandidate> ranked = lastPick.candidates().stream()
                 .map(candidate -> new McpRankedLocatorCandidate(
-                        candidate.strategy(), candidate.expression(), candidate.score(), candidate.snippet()))
+                        candidate.strategy(), candidate.expression(),
+                        candidate.uniquenessCount(), candidate.score(), candidate.snippet()))
                 .toList();
         return new McpPickLocatorResult(lastPick.snippet(), ranked);
     }
@@ -894,10 +896,20 @@ public class CaptureService {
      *
      * @param strategy locator strategy name
      * @param expression raw locator expression
+     * @param uniquenessCount matching elements observed on the live page ({@code 1} = unique)
      * @param score deterministic score
      * @param snippet copy-paste Java locator expression
      */
-    public record McpRankedLocatorCandidate(String strategy, String expression, int score, String snippet) {
+    public record McpRankedLocatorCandidate(
+            String strategy, String expression, int uniquenessCount, int score, String snippet) {
+        /**
+         * Whether this candidate matched exactly one element when captured.
+         *
+         * @return {@code true} when uniquenessCount is 1
+         */
+        public boolean unique() {
+            return uniquenessCount == 1;
+        }
     }
 
     /**

@@ -72,9 +72,9 @@ class CaptureControlFilesTest {
                 "SHAFT.GUI.Locator.id(\"username\")",
                 List.of(
                         new CaptureControlServer.RankedCandidate(
-                                "ID", "username", 100, "SHAFT.GUI.Locator.id(\"username\")"),
+                                "ID", "username", 1, 100, "SHAFT.GUI.Locator.id(\"username\")"),
                         new CaptureControlServer.RankedCandidate(
-                                "CSS", "div.form > input", 10, "SHAFT.GUI.Locator.cssSelector(\"div.form > input\")")),
+                                "CSS", "div.form > input", 1, 10, "SHAFT.GUI.Locator.cssSelector(\"div.form > input\")")),
                 1_700_000_000_000L);
 
         files.writeLastPick(pick);
