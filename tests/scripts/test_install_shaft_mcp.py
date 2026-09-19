@@ -92,6 +92,22 @@ class InstallShaftMcpTest(unittest.TestCase):
 
         self.assertEqual("", stderr.getvalue())
 
+    def test_help_mentions_design_automation_reporting_stages(self):
+        # Issue #5966 / S2-10 SC-002: agentic installer help lists three stages.
+        buffer = io.StringIO()
+        with self.assertRaises(SystemExit) as raised:
+            with contextlib.redirect_stdout(buffer):
+                MODULE.parse_args(["--help"])
+        self.assertEqual(0, raised.exception.code)
+        help_text = buffer.getvalue()
+        for stage in ("Design", "Automation", "Reporting"):
+            self.assertIn(stage, help_text, f"--help must mention {stage}")
+        self.assertIn("Stage 3", help_text)
+        self.assertIn("capture_", help_text)
+        self.assertIn("shaft capture", help_text)
+        self.assertIn("shaft codegen", help_text)
+        self.assertIn(MODULE.THREE_STAGE_UX_EPILOG.splitlines()[0], help_text)
+
     def test_parse_runtime_dependency_manifest(self):
         manifest = (
             "The following files have been resolved:\n"

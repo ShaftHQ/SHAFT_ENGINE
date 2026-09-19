@@ -7,6 +7,8 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import java.awt.Component;
 import java.awt.Container;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -108,6 +110,24 @@ class AutomationStagePanelTest {
         assertEquals(1, panel.guidedWorkflowPanel().oracleSuggestionModel().size());
         assertEquals("the cart total is visible",
                 panel.guidedWorkflowPanel().oracleSuggestionModel().get(0));
+    }
+
+    @Test
+    void liveRecordRoutesThroughMcpCaptureNotPluginOnlyProtocol() {
+        // Issue #5966 / S2-10 FR-002: Automation Live record is an MCP capture_* client.
+        List<String> tools = new ArrayList<>();
+        AutomationStagePanel panel = new AutomationStagePanel(null, (tool, args) -> tools.add(tool),
+                new ShaftSettingsState.Settings());
+        GuidedWorkflowPanel guided = panel.guidedWorkflowPanel();
+        findButton(guided, "Start recording").doClick();
+        assertFalse(tools.isEmpty(), "Start recording must invoke an MCP tool");
+        assertEquals("capture_start", tools.get(0));
+        findButton(guided, "Stop recording").doClick();
+        assertEquals("capture_stop", tools.get(tools.size() - 1));
+        String description = panel.getAccessibleContext().getAccessibleDescription();
+        assertNotNull(description);
+        assertTrue(description.toLowerCase().contains("record"),
+                "accessible description should describe live record");
     }
 
     private static AutomationStagePanel newPanel() {

@@ -23,5 +23,6 @@
 ## Boundary
 
 - Do not generate from an active but unsaved flow or publish raw output; route live capture to `shaft-test-recording` and the diff/apply/test gate to `shaft-change-verification`.
+- Automation stage codegen stays offline via `shaft codegen` / CaptureCli when a recording JSON already exists; IntelliJ Keep uses MCP `capture_generate_replay`. Healing stays Reporting Stage 3.
 
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -85,6 +86,22 @@ class CodegenCommandTest {
                 .execute("--session", "capture.json");
 
         assertEquals(1, exit);
+    }
+
+    @Test
+    void defaultCommandWiresCaptureCliWithoutMcp() throws Exception {
+        // Issue #5966 / S2-10 FR-001 / SC-001: shaft codegen stays offline (CaptureCli, no MCP).
+        CodegenCommand command = new CodegenCommand();
+        var field = CodegenCommand.class.getDeclaredField("delegate");
+        field.setAccessible(true);
+        CaptureDelegate delegate = (CaptureDelegate) field.get(command);
+        assertNotNull(delegate);
+        assertFalse(delegate.getClass().getName().toLowerCase().contains("mcp"),
+                "default codegen delegate must not be an MCP connector");
+        String description = String.join(" ",
+                new CommandLine(command).getCommandSpec().usageMessage().description());
+        assertTrue(description.toLowerCase().contains("no mcp"),
+                "codegen --help must advertise offline / no MCP session");
     }
 
     private static final class RecordingDelegate implements CaptureDelegate {

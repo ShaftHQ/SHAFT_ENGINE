@@ -22,6 +22,7 @@
 ## Boundary case
 
 - If decisive artifacts are missing, return “root cause undetermined,” list the minimum evidence or reproduction needed, and do not fabricate a likely fix.
+- Healer and `doctor_propose_healed_locator` belong to Reporting (Stage 3). Never fold heal into Automation record or codegen.
 
 ## Output
 
