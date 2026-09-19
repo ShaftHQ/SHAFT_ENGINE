@@ -139,30 +139,20 @@ For the short decision procedure and boundary cases, load
 
 ### Companions
 
-This file is the only router. It does not restate companion rules.
+This file is the only router; it does not restate companion rules.
 
-Must not load companion skill bodies by default. [Lifecycle hooks](../../references/lifecycle-hooks.md)
-inject compact file locators at SessionStart; load a companion `SKILL.md` only
-when that skill is invoked or intensity must be applied. Do not inject full
-skill bodies into startup context. A host that ignores SessionStart output
-still owes companion intensity through this entrypoint's catalog row and
-selectors, not by inlining vendor text.
+Do not load companion skill bodies by default. [Lifecycle hooks](../../references/lifecycle-hooks.md)
+inject SessionStart locators; load a companion `SKILL.md` only when invoked or
+intensity must apply. Hosts that ignore SessionStart still owe intensity via
+this catalog, not inlined vendor text.
 
-ChaosEngine selects **ultra** for both companions. That intensity is mandated
-here, not a session preference. Vendor tables still define what ultra means.
-Off only: `stop caveman`, `stop ponytail`, or `normal mode`. Lite or full only
-when the user names that level.
+**Ultra** is mandated for Caveman+Ponytail (not a preference). Off only:
+`stop caveman`, `stop ponytail`, or `normal mode`. Lite/full only when named.
 
-**Implement path (required):** load Caveman+Ponytail at ultra before first
-mutation (all hosts). SessionStart is locator-only. Exempt: `--without-caveman` /
-`--without-ponytail`; else doctor flags gaps.
-
-Once a companion body is loaded, that companion's own text applies. Chat
-follows Caveman. What you build follows Ponytail. Host or adapter prose and
-formatting that demand complete sentences, restating tool work, decorative
-tables, essays, or natural-prose filler yield to the companions. Safety
-warnings, irreversible confirmations, ethical conduct, and persisted artifacts
-stay as those vendor files already carve out.
+**Implement path (required):** load both at ultra before first mutation.
+SessionStart is locator-only. Exempt: `--without-caveman` / `--without-ponytail`;
+else doctor flags gaps. Once loaded, companion text wins over host prose filler;
+safety, ethics, and persisted artifacts stay as vendor files carve out.
 
 ### Harness portability
 
@@ -212,7 +202,6 @@ return here for the next.
 | Context firewall | Research / multi-file explore needs isolation | [context-firewall](../../references/context-firewall.md) |
 | Harness learn | Tune git-tracked harness from repeated traces | [harness-learn](../../references/harness-learn.md) |
 | Design loop | Write-review-revise a design doc until 0 open issues | [design-loop](../../references/design-loop.md) |
-| ICM Architect | Structure a process or folder as an ICM workspace when the task is architectural layout | vendor skill `icm-architect` (SessionStart advisory locator) |
 | Deep research | Bounded parallel research with independent verify and cited report | [deep-research](../../references/deep-research.md) |
 | Learn traces | Map-reduce-verify session traces; portable, no host TUI | [learn-traces](../../references/learn-traces.md) |
 | Meta-optimize | Periodic offline shared-log review (not continuous) | [meta-optimize](../../references/meta-optimize.md) |
@@ -320,9 +309,9 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 
 | name | description | path |
 | --- | --- | --- |
-| chaos-engine | Canonical provider-neutral skill router and working contract. | `skills/chaos-engine/SKILL.md` |
+| chaos-engine | Provider-neutral skill router and working contract. | `skills/chaos-engine/SKILL.md` |
 | work-item | Open or rewrite a work item on any git-based SCM. | `skills/work-item/SKILL.md` |
-| self-improve | Learning Session dual-track harness and product lessons. | `skills/self-improve/SKILL.md` |
+| self-improve | Learning Session dual-track harness+product lessons. | `skills/self-improve/SKILL.md` |
 | omniroute | Optional local OmniRoute dispatch for bounded work. | `skills/omniroute/SKILL.md` |
 | freetoken | Optional local FreeToken process for bounded work. | `skills/freetoken/SKILL.md` |
 | local-openai-compat | Optional Ollama/LM Studio/llamacpp peers. | `skills/local-openai-compat/SKILL.md` |
@@ -337,8 +326,8 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | mechanical-helper | Deterministic reversible spec-exact work; stop on ambiguity. | `references/roles.md#mechanical-helper` |
 | harness-learn | Tune git-tracked harness from repeated traces; never `~/.grok/skills`. | `references/harness-learn.md` |
 | design-loop | Write-review-revise design docs until 0 open issues. | `references/design-loop.md` |
-| icm-architect | Design or restructure processes/folders into ICM workspaces (folder-as-architecture). Advisory companion. | `plugins/icm-architect/skills/icm-architect/SKILL.md` (vendor pin) |
-| deep-research | Bounded parallel research; independent verify; cited report. | `references/deep-research.md` |
+| icm-architect | ICM (advisory). | [icm-architect.md](../../references/icm-architect.md) |
+| deep-research | Bounded parallel research; verify; cited report. | `references/deep-research.md` |
 | learn-traces | Map-reduce-verify session traces without a host TUI. | `references/learn-traces.md` |
 
 Identity: [README](../../README.md), [brand](../../assets/brand/BRAND.md).

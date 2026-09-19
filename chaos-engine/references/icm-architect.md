@@ -11,7 +11,8 @@ as agent architecture), or restructure an existing folder into one. Two modes:
 
 ## ChaosEngine integration
 
-- Vendored pin: `chaos-engine/vendor/icm-architect/` (PIN.json + nested skill)
+- Vendored pin: [vendor/icm-architect/INVENTORY.md](../vendor/icm-architect/INVENTORY.md)
+- Skill: [vendor/icm-architect/skills/icm-architect/SKILL.md](../vendor/icm-architect/skills/icm-architect/SKILL.md)
 - Published plugin: `plugins/icm-architect/` via `hosts.rematerialize_companions`
 - Bundle default-on; disable with `--without-icm-architect`
 - Doctor component: `companion-icm-architect`

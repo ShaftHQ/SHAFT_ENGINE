@@ -177,8 +177,9 @@ sends you there; the rest by
 - [third-party notices](../../chaos-engine/THIRD_PARTY_NOTICES.md)
 
 Caveman and Ponytail are pinned vendor companions, not restated in the
-entrypoint: [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md) and
-[Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md). MIT notices stay at
+entrypoint: [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md),
+[Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md), and
+[ICM Architect](../../chaos-engine/vendor/icm-architect/INVENTORY.md). MIT notices stay at
 [Caveman](../../chaos-engine/references/caveman.LICENSE),
 [Ponytail](../../chaos-engine/references/ponytail.LICENSE),
 [TDD](../../chaos-engine/references/test-driven-development.LICENSE).

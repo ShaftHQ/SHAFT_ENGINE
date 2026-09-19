@@ -1330,7 +1330,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertTrue(installed["custom"])
             self.assertEqual("user-plugin", installed["plugins"][0]["name"])
             self.assertEqual(
-                ["chaos-engine", module.CAVEMAN_PLUGIN_NAME, module.PONYTAIL_PLUGIN_NAME],
+                [
+                    "chaos-engine",
+                    module.CAVEMAN_PLUGIN_NAME,
+                    module.PONYTAIL_PLUGIN_NAME,
+                    module.ICM_ARCHITECT_PLUGIN_NAME,
+                ],
                 [item["name"] for item in installed["plugins"][1:]],
             )
             module.uninstall(project)
