@@ -477,7 +477,7 @@ class ShaftMcpApplicationTests {
                 Map.entry("browser", "Chrome or Edge; blank selects Chrome"),
                 Map.entry("outputPath", "recording/capture JSON output path; blank selects a timestamped recording"),
                 Map.entry("headless", "whether to launch without a visible browser window; unspecified defaults to headless per repo policy"),
-                Map.entry("targetLanguage", "requested codegen target language; SHAFT always generates Java TestNG regardless, other values are accepted for compatibility with a warning"),
+                Map.entry("targetLanguage", "requested codegen target language metadata; SHAFT emits fluent Java only (no Python/TypeScript/C# exporters); other values warn and still generate Java"),
                 Map.entry("testIdAttribute", "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements"),
                 Map.entry("channel", "Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection"),
                 Map.entry("deviceName", "device emulation hint"),

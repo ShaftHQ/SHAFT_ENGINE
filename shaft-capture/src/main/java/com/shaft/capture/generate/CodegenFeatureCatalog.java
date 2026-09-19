@@ -46,7 +46,12 @@ public final class CodegenFeatureCatalog {
             feature("CLI", "Output file", "-o, --output",
                     "SUPPORTED", "capture_start outputPath and capture generate outputDirectory."),
             feature("CLI", "Target language", "--target",
-                    "MAPPED", "Accepted as metadata; SHAFT generates Java TestNG and MCP insertion blocks."),
+                    "MAPPED", "Metadata only; SHAFT emits fluent Java (TestNG/JUnit + POM insertion) only."
+                            + " No Python/TypeScript/C# exporters. Non-java values warn and still generate Java."),
+            feature("CLI", "Java-only fluent codegen", "SHAFT fluent Java",
+                    "SUPPORTED", "Codegen and capture_code_blocks always emit SHAFT. fluent Java;"
+                            + " never @playwright/test or other language exporters."
+                            + " Missing owner class → full-class template; existing owner → insertion blocks."),
             feature("CLI", "Custom test id attribute", "--test-id-attribute",
                     "SUPPORTED", "Passed to the browser recorder locator candidate list."),
             feature("CLI", "Session goal metadata", "--session-goal",

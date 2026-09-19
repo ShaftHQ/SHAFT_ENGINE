@@ -2935,4 +2935,29 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertFalse(source.contains("// SHAFT: no verified ARIA role"), source);
     }
+
+    /**
+     * Issue #5963: SHAFT codegen stays fluent Java only. Persisted recording → generated source
+     * must contain {@code SHAFT.} and must never emit {@code @playwright/test} or other-language
+     * exporter fingerprints. {@code --target} remains metadata (see CaptureStartOptions.warnings).
+     */
+    @Test
+    void emitsShaftFluentJavaOnlyNeverPlaywrightTestImport() throws Exception {
+        Path session = session(CaptureFixtures.representativeSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("java-only")));
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(result.sourcePath().toString().endsWith(".java"), result.sourcePath().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("SHAFT."), source);
+        assertTrue(source.contains("driver.element()"), source);
+        assertTrue(source.contains("import com.shaft.driver.SHAFT;"), source);
+        assertFalse(source.contains("@playwright/test"), source);
+        assertFalse(source.contains("from playwright"), source);
+        assertFalse(source.contains("import pytest"), source);
+        assertFalse(source.contains("using Microsoft.Playwright"), source);
+    }
 }

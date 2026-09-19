@@ -156,6 +156,7 @@ class CaptureCliTest {
         assertFalse(token.contains("="));
         assertTrue(usage.contains("capture start"));
         assertTrue(usage.contains("features"));
+        assertTrue(usage.contains("--target"));
         assertTrue(usage.contains("--disable-fallback-locators"));
         assertTrue(usage.contains("--enable-fallback-locators"));
         assertTrue(usage.contains("--backend webdriver|playwright"));

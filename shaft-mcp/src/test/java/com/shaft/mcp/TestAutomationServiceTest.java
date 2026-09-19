@@ -47,6 +47,9 @@ class TestAutomationServiceTest {
         assertTrue(result.guidanceRules().stream().anyMatch(rule ->
                 rule.contains("ranked SHAFT locators with fallback")
                         && rule.contains("--disable-fallback-locators")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule ->
+                rule.contains("SHAFT fluent Java only")
+                        && rule.contains("@playwright/test")));
     }
 
     @Test

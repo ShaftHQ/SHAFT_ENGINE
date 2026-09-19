@@ -276,7 +276,7 @@ public class CaptureService {
         public String outputPath;
         @ToolParam(description = "whether to launch without a visible browser window; unspecified defaults to headless per repo policy")
         public boolean headless;
-        @ToolParam(description = "requested codegen target language; SHAFT always generates Java TestNG regardless, other values are accepted for compatibility with a warning")
+        @ToolParam(description = "requested codegen target language metadata; SHAFT emits fluent Java only (no Python/TypeScript/C# exporters); other values warn and still generate Java")
         public String targetLanguage;
         @ToolParam(description = "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements")
         public String testIdAttribute;

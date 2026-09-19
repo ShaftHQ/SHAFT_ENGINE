@@ -59,6 +59,9 @@ public class TestAutomationService {
             "Capture codegen emits ranked SHAFT locators with fallback alternatives by default; never emit"
                     + " absolute XPath or SHAFT.GUI.Locator.xpath. Override off only with"
                     + " --disable-fallback-locators when needed.",
+            "Capture/codegen emits SHAFT fluent Java only (TestNG/JUnit + POM insertion)."
+                    + " --target is metadata; do not add Python/TypeScript/C# exporters or paste"
+                    + " @playwright/test into a Java suite.",
             NO_SHAFT_LOCATOR_XPATH,
             NO_SLEEP,
             NO_ABSOLUTE_XPATH,
