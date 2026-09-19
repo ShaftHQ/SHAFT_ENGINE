@@ -305,8 +305,20 @@ final class DesignStagePanel extends JPanel {
 
     void applyLintJson(String json) {
         fill(lintTable, LINT_COLUMNS, DesignCanvasModel.lintRows(json));
-        fill(fluentMapTable, FLUENT_MAP_COLUMNS, DesignCanvasModel.gapMapRows(json));
         lintAcceptBlocked = DesignCanvasModel.lintAcceptBlocked(json);
+        try {
+            JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
+            if (root.has("message") && !root.get("message").getAsString().isBlank()) {
+                statusBadge.setText(root.get("message").getAsString());
+            }
+        } catch (RuntimeException ignored) {
+            // keep prior badge
+        }
+        refreshButtons();
+    }
+
+    void applyGapMapJson(String json) {
+        fill(fluentMapTable, FLUENT_MAP_COLUMNS, DesignCanvasModel.gapMapRows(json));
         try {
             JsonObject root = JsonParser.parseString(json == null ? "" : json).getAsJsonObject();
             if (root.has("message") && !root.get("message").getAsString().isBlank()) {
@@ -435,6 +447,8 @@ final class DesignStagePanel extends JPanel {
             applyCoverageJson(output);
         } else if (output.contains("\"acceptBlocked\"") || output.contains("\"findings\"")) {
             applyLintJson(output);
+        } else if (output.contains("\"shaftType\"") || output.contains("\"shaftMethod\"")) {
+            applyGapMapJson(output);
         } else {
             applyAnalysisJson(output);
         }

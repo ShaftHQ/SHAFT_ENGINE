@@ -225,7 +225,7 @@ class DesignStagePanelTest {
         DesignStagePanel panel = new DesignStagePanel();
         assertNotNull(panel.fluentMapButton());
         assertNotNull(panel.fluentMapTable());
-        panel.applyAnalysisJson("""
+        panel.applyGapMapJson("""
                 {
                   "schemaVersion": "1.0",
                   "status": "ok",

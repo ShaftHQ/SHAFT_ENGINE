@@ -926,6 +926,36 @@
       "description" : null
     } ]
   }, {
+    "name" : "design_gap_map",
+    "service" : "DesignService",
+    "description" : "classifies accepted Gherkin steps as mapped to SHAFT fluent API, new-helper, needs-recording, or ambiguous; never writes production Java",
+    "params" : [ {
+      "name" : "acceptedGapIds",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "filePath",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "gherkin",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "sourceUrl",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "text",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "design_gherkin_draft",
     "service" : "DesignService",
     "description" : "drafts declarative Gherkin from an analyzed story pack for human review; never writes files or Java",
@@ -1025,44 +1055,7 @@
       "required" : true,
       "description" : null
     } ]
-  },
-    {
-      "name": "design_gap_map",
-      "service": "DesignService",
-      "description": "classifies accepted Gherkin steps as mapped to SHAFT fluent API, new-helper, needs-recording, or ambiguous; never writes production Java",
-      "params": [
-        {
-          "name": "acceptedGapIds",
-          "type": "string",
-          "required": true,
-          "description": null
-        },
-        {
-          "name": "filePath",
-          "type": "string",
-          "required": true,
-          "description": null
-        },
-        {
-          "name": "gherkin",
-          "type": "string",
-          "required": true,
-          "description": null
-        },
-        {
-          "name": "sourceUrl",
-          "type": "string",
-          "required": true,
-          "description": null
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "required": true,
-          "description": null
-        }
-      ]
-    }, {
+  }, {
     "name" : "doctor_analyze_failed_allure",
     "service" : "DoctorService",
     "description" : "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace; optional backend (web|playwright, defaults to web) selects the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure",
