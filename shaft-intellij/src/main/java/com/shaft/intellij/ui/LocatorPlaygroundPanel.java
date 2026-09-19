@@ -20,7 +20,6 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
-import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
 import java.awt.BorderLayout;
@@ -309,27 +308,40 @@ final class LocatorPlaygroundPanel extends JPanel {
         if (payload == null) {
             return null;
         }
-        if (payload.has("snippet") || payload.has("ranked")) {
+        if (isPickPayload(payload)) {
             return payload;
         }
+        return pickPayloadFromContentEnvelope(payload);
+    }
+
+    private static boolean isPickPayload(JsonObject payload) {
+        return payload.has("snippet") || payload.has("ranked");
+    }
+
+    private static JsonObject pickPayloadFromContentEnvelope(JsonObject payload) {
         JsonElement content = payload.get("content");
         if (content == null || !content.isJsonArray()) {
             return null;
         }
         for (JsonElement entry : content.getAsJsonArray()) {
-            if (!entry.isJsonObject()) {
-                continue;
-            }
-            JsonElement text = entry.getAsJsonObject().get("text");
-            if (text == null || !text.isJsonPrimitive()) {
-                continue;
-            }
-            JsonObject nested = jsonObject(text.getAsString());
-            if (nested != null && (nested.has("snippet") || nested.has("ranked"))) {
+            JsonObject nested = nestedPickPayload(entry);
+            if (nested != null) {
                 return nested;
             }
         }
         return null;
+    }
+
+    private static JsonObject nestedPickPayload(JsonElement entry) {
+        if (!entry.isJsonObject()) {
+            return null;
+        }
+        JsonElement text = entry.getAsJsonObject().get("text");
+        if (text == null || !text.isJsonPrimitive()) {
+            return null;
+        }
+        JsonObject nested = jsonObject(text.getAsString());
+        return nested != null && isPickPayload(nested) ? nested : null;
     }
 
     private static JsonObject jsonObject(String text) {
