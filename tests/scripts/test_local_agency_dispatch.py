@@ -500,5 +500,40 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertTrue(captured["body"]["messages"][0]["content"])
         self.assertEqual(captured["body"]["messages"][1]["role"], "user")
 
+
+    def test_brief_does_not_weaken_durable_refuse(self):
+        """#6072: --with-ce-brief never bypasses durable OpenCode refusal."""
+        chosen = {
+            "runtime": "llamacpp",
+            "provider_id": "llamacpp",
+            "openai_base_url": dispatch.OPENAI_COMPAT_BASES["llamacpp"],
+            "model": "m",
+            "opencode_model": "llamacpp/m",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            durable = Path(temporary) / ".config" / "opencode"
+            durable.mkdir(parents=True)
+            with self.assertRaises(ValueError):
+                dispatch.write_ephemeral_config(chosen, durable)
+
+    def test_prefer_freetoken_still_requires_rog_gate(self):
+        """#6072: ROG gate unchanged (#6051/#6021) after brief helpers."""
+        with mock.patch.object(
+            dispatch,
+            "rog_freetoken_gate",
+            return_value=type(
+                "G",
+                (),
+                {
+                    "require_rog_bound": staticmethod(
+                        lambda: {"bound": False, "advice": "not ROG"}
+                    )
+                },
+            )(),
+        ):
+            payload = dispatch.resolve_local(prefer="freetoken")
+        self.assertEqual(payload["state"], "UNHEALTHY")
+        self.assertIsNone(payload["chosen"])
+
 if __name__ == "__main__":
     unittest.main()

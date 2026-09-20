@@ -78,6 +78,7 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp c
 ```
 
 Do not dump full SKILL bodies into the model context (#6067/#6068).
+Unit/eval contracts: [`ce-brief-unit-fixtures.json`](../../evals/ce-brief-unit-fixtures.json) (#6072).
 
 ## Mechanical dispatch (small-context local models)
 
