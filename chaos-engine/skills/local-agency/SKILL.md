@@ -67,6 +67,10 @@ yourself with that env; do not persist the config into the durable user file.
 `medium` for tool loops). `--no-pure` exists for callers that already isolate
 plugins. `--pure` still only disables plugins.
 
+## CE brief (design turns)
+
+For design/spec-shaped local turns, build a locator-only system brief with [`ce_brief.py`](../../ce_brief.py) (`python3 chaos-engine/ce_brief.py --json`). Do not dump full SKILL bodies into the model context (#6067).
+
 ## Mechanical dispatch (small-context local models)
 
 Treat a READY local coder as a **mechanical runner**, not a designer.
