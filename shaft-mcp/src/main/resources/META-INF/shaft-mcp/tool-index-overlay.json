@@ -950,6 +950,21 @@
         "unique-error clustering",
         "historical-signature"
       ]
+    },
+    "doctor_cause_label": {
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false,
+      "cliCommand": "doctor cause-label",
+      "intentKeywords": [
+        "confirm defect label",
+        "confirmed cause",
+        "defect label",
+        "cause label",
+        "PRODUCT TEST ENVIRONMENT LOCATOR TIMING",
+        "doctor cause-label",
+        "label memory"
+      ]
     }
   }
 }

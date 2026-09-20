@@ -5,6 +5,8 @@ import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import com.shaft.doctor.ai.DoctorAiAnalysisService;
 import com.shaft.doctor.analysis.DeterministicRuleEngine;
+import com.shaft.doctor.label.ConfirmedCauseLabelModels;
+import com.shaft.doctor.label.ConfirmedCauseLabelStore;
 import com.shaft.doctor.collect.EvidenceCollector;
 import com.shaft.doctor.format.DoctorJsonCodec;
 import com.shaft.doctor.model.ExecutionIntelligence;
@@ -87,6 +89,7 @@ public final class DoctorAnalyzer {
         List<EvidenceBundle> history = collector.loadHistoricalBundles(resolvedRequest);
         DeterministicRuleEngine effectiveRules = rules.withDiscoveredProjectRules(resolvedRequest.inputPaths());
         Diagnosis diagnosis = effectiveRules.diagnose(bundle, history);
+        diagnosis = applyConfirmedLabelSuggestion(resolvedRequest, bundle, diagnosis);
         Path output = resolvedRequest.outputDirectory();
         Path bundlePath = output.resolve("doctor-evidence.json");
         Path jsonReportPath = output.resolve("doctor-report.json");
@@ -191,6 +194,45 @@ public final class DoctorAnalyzer {
                 request.redactScreenshots());
     }
 
+
+    /**
+     * Suggests a previously confirmed cause category when the failure signature matches the
+     * local workspace store (issue #5971 / S3-05). Never replaces the deterministic primary cause.
+     */
+    private static Diagnosis applyConfirmedLabelSuggestion(
+            DoctorAnalysisRequest request,
+            EvidenceBundle bundle,
+            Diagnosis diagnosis) {
+        Path workspace = workspaceRoot(request);
+        if (workspace == null) {
+            return diagnosis;
+        }
+        String signature = primaryClusteringSignature(bundle);
+        if (signature.isBlank()) {
+            return diagnosis;
+        }
+        ConfirmedCauseLabelModels.Suggestion suggestion =
+                ConfirmedCauseLabelStore.suggest(workspace, signature);
+        return ConfirmedCauseLabelStore.applySuggestion(diagnosis, suggestion);
+    }
+
+    private static Path workspaceRoot(DoctorAnalysisRequest request) {
+        if (request == null || request.allowedRoots().isEmpty()) {
+            return null;
+        }
+        return request.allowedRoots().getFirst();
+    }
+
+    private static String primaryClusteringSignature(EvidenceBundle bundle) {
+        List<EvidenceItem> allure = validAllure(bundle);
+        return allure.stream()
+                .filter(item -> FAILURE_STATUSES.contains(item.attributes().get("status")))
+                .map(item -> DeterministicRuleEngine.clusteringKey(item, allure))
+                .filter(signature -> !signature.isBlank())
+                .findFirst()
+                .orElse("");
+    }
+
     private static Path realPath(Path path) {
         try {
             return path.toRealPath();
@@ -220,10 +262,14 @@ public final class DoctorAnalyzer {
                 .filter(historicalSignatures::contains)
                 .count());
         String primarySignature = failures.stream()
-                .map(item -> item.attributes().getOrDefault("signature", ""))
+                .map(item -> DeterministicRuleEngine.clusteringKey(item, allure))
                 .filter(signature -> !signature.isBlank())
                 .findFirst()
-                .orElse("");
+                .orElseGet(() -> failures.stream()
+                        .map(item -> item.attributes().getOrDefault("signature", ""))
+                        .filter(signature -> !signature.isBlank())
+                        .findFirst()
+                        .orElse(""));
         return new DoctorTriage(
                 DoctorTriage.CURRENT_SCHEMA_VERSION,
                 bundle.bundleId(),

@@ -1,4 +1,5 @@
 .shaft/design-lexicon.json
+.shaft/doctor-confirmed-labels.json
 **/target/
 /allure-results/
 /shaft-engine/allure-results/
