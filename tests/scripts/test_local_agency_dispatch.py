@@ -23,6 +23,14 @@ dispatch = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(dispatch)
 
 
+def _base_for(runtime: str) -> str:
+    if runtime == "freetoken":
+        return dispatch.FREETOKEN_OPENAI_BASE
+    if runtime == "colibri":
+        return dispatch.COLIBRI_OPENAI_BASE
+    return dispatch.OPENAI_COMPAT_BASES[runtime]
+
+
 class LocalAgencyDispatchTest(unittest.TestCase):
     def test_source_never_mentions_ft_launch_or_omniroute_exec(self):
         text = DISPATCH.read_text(encoding="utf-8")
@@ -60,11 +68,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
     def test_resolve_absent_when_all_runtimes_missing(self):
         def absent(runtime: str):
-            base = (
-                dispatch.FREETOKEN_OPENAI_BASE
-                if runtime == "freetoken"
-                else dispatch.OPENAI_COMPAT_BASES[runtime]
-            )
+            base = _base_for(runtime)
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
@@ -83,11 +87,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
     def test_resolve_does_not_silent_cloud_fallback_even_with_allow_cloud(self):
         def absent(runtime: str):
-            base = (
-                dispatch.FREETOKEN_OPENAI_BASE
-                if runtime == "freetoken"
-                else dispatch.OPENAI_COMPAT_BASES[runtime]
-            )
+            base = _base_for(runtime)
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
@@ -116,7 +116,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "READY",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": ["other"],
                 "provider_id": runtime,
             }
@@ -162,7 +162,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }
@@ -212,7 +212,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }
@@ -260,7 +260,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }
@@ -330,7 +330,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }
@@ -342,6 +342,45 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertIsInstance(chosen, dict)
         self.assertEqual(chosen["runtime"], "ollama")
         self.assertEqual(chosen["opencode_model"], "ollama/coder")
+
+
+
+    def test_resolve_ranks_colibri_after_openai_compat_peers(self):
+        def probe(runtime: str):
+            if runtime == "colibri":
+                return {
+                    "runtime": "colibri",
+                    "state": "READY",
+                    "openai_base_url": dispatch.COLIBRI_OPENAI_BASE,
+                    "models": ["glm-frontier"],
+                    "provider_id": "colibri",
+                }
+            if runtime == "ollama":
+                return {
+                    "runtime": "ollama",
+                    "state": "READY",
+                    "openai_base_url": dispatch.OPENAI_COMPAT_BASES["ollama"],
+                    "models": ["coder"],
+                    "provider_id": "ollama",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE
+                if runtime == "freetoken"
+                else dispatch.OPENAI_COMPAT_BASES.get(runtime, dispatch.COLIBRI_OPENAI_BASE),
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            payload = dispatch.resolve_local()
+        self.assertEqual(payload["chosen"]["runtime"], "ollama")
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            preferred = dispatch.resolve_local(prefer="colibri")
+        self.assertEqual(preferred["chosen"]["runtime"], "colibri")
+        self.assertEqual(preferred["chosen"]["opencode_model"], "colibri/glm-frontier")
 
 
 if __name__ == "__main__":

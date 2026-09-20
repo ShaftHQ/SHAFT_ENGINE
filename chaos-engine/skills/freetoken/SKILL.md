@@ -19,6 +19,8 @@ requires the other. Missing FreeToken is normal: use OmniRoute (if READY), a
 qualified native implementer, `SOLO`, or another local OpenAI-compat runtime
 when those skills exist.
 
+**Peer to Colibri.** FreeToken is the default local coding MoE path. Colibri (`:8000`) hosts frontier multitier MoE — see [colibri skill](../colibri/SKILL.md) and [guide](../../guides/colibri.md). Keep both; choose FreeToken for agency loops, Colibri for frontier MoE when the operator already serves it.
+
 ## Hard rails (never regress)
 
 - Do **not** install FreeToken, download weights, start `ft serve`, or run

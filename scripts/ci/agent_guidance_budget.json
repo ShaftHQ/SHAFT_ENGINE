@@ -106,6 +106,7 @@
     "chaos-engine/skills/local-openai-compat/SKILL.md",
     "chaos-engine/skills/omniroute/SKILL.md",
     "chaos-engine/skills/freetoken/SKILL.md",
+    "chaos-engine/skills/colibri/SKILL.md",
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",
@@ -117,6 +118,7 @@
     "chaos-engine/skills": [
       "chaos-engine",
       "freetoken",
+      "colibri",
       "local-agency",
       "local-coding-delegate",
       "local-openai-compat",
@@ -217,6 +219,7 @@
     "chaos-engine/skills/local-openai-compat/SKILL.md",
     "chaos-engine/skills/omniroute/SKILL.md",
     "chaos-engine/skills/freetoken/SKILL.md",
+    "chaos-engine/skills/colibri/SKILL.md",
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",

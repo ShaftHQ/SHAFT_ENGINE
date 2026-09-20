@@ -60,7 +60,7 @@ same subcommands through `.chaos-engine/hooks/reflection.py`.
 For a terminal receipt, the final user-facing summary must label the elapsed
 estimate, main time consumer, repeated failures or corrections, changed
 assumption or approach, successful proof, remaining risk or follow-up, and
-Learning Session disposition.
+Learning Session disposition. Include the local vs cloud token retrospective from [`session_token_usage.py`](../session_token_usage.py) / finalize `tokenUsage` when events were recorded (#5981).
 
 Leftover risks and out-of-scope items must not remain only in chat. Search for
 duplicates, then open GitHub issues with `gh` (never GitHub MCP). Put those

@@ -80,3 +80,8 @@ Default orchestrator labor stays on host session subagents / Task. Use this
 guide only when the adopter asked for OpenCode (or peer) against local
 runtimes. If no local runtime is READY, say so; do not auto-route to OmniRoute
 unless asked.
+
+
+## Colibri
+
+Optional frontier MoE peer on `127.0.0.1:8000`. Ranked after FreeToken and OpenAI-compat peers. `--prefer colibri` when requested. See [colibri.md](colibri.md).
