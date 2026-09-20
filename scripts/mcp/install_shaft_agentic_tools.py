@@ -256,7 +256,7 @@ def choose_component(prompt: str, default: bool) -> bool:
     return default if not answer else answer not in {"n", "no"}
 
 
-# Product-facing three-stage UX (issue #5966 / S2-10; platform parity #5943).
+# Product-facing three-stage UX (platform parity #5943; Automation contract #5966 / S2-10).
 # Help text must keep these stage names so SC-002 stays greppable from --help.
 THREE_STAGE_UX_EPILOG = (
     "Product stages (Design, Automation, Reporting):\n"

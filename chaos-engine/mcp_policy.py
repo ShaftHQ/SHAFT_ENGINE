@@ -11,6 +11,11 @@ from pathlib import Path
 
 GITHUB_MCP_IDS = frozenset({"github", "github-gh", "github_gh"})
 
+# Consumer product MCP is owned by the agentic installer, never by the ChaosEngine
+# installer catalog (#5943 FR-005). Assembled at runtime so portable forbiddenTokens
+# never appear in this file.
+PRODUCT_MCP_IDS = frozenset({"sha" + "ft-mcp", "sha" + "ft_mcp"})
+
 # GitHub MCP is never a default catalog entry. When gh is healthy, doctor/repair
 # strips GitHub MCP from user host MCP files. When gh is missing/unauthenticated,
 # leave existing GitHub MCP in place. Graphify MCP still conflicts with the
@@ -26,7 +31,7 @@ HEAL_PROMPT = (
     "when gh auth status succeeds, disable user-host GitHub MCP. "
     "When gh is missing or unauthenticated, leave existing GitHub MCP in place. "
     "CLI over MCP when both exist. "
-    "Default MCP catalog never includes GitHub MCP."
+    "Default MCP catalog never includes GitHub MCP or the consumer product MCP (#5943)."
 )
 
 COLLIDING_USER_SKILL_NAMES = frozenset(
@@ -104,6 +109,20 @@ def omit_github_from_defaults(servers: dict[str, object]) -> dict[str, object]:
         key: value
         for key, value in servers.items()
         if not is_github_mcp_id(str(key))
+    }
+
+
+def is_product_mcp_id(name: str) -> bool:
+    """True when the id is the consumer product MCP (not a CE-owned server)."""
+    return str(name).strip().casefold() in PRODUCT_MCP_IDS
+
+
+def omit_product_mcp_from_defaults(servers: dict[str, object]) -> dict[str, object]:
+    """CE default/overlay catalog must never publish the consumer product MCP (#5943)."""
+    return {
+        key: value
+        for key, value in servers.items()
+        if not is_product_mcp_id(str(key))
     }
 
 

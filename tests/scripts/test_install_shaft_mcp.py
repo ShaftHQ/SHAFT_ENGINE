@@ -108,6 +108,22 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertIn("shaft codegen", help_text)
         self.assertIn(MODULE.THREE_STAGE_UX_EPILOG.splitlines()[0], help_text)
 
+    def test_shaft_developer_routing_lists_three_stage_cli_mcp_parity(self):
+        # #5943 FR-003: shaft-developer routing names Design/Reporting MCP+CLI pairs.
+        from pathlib import Path
+        routing = Path(__file__).resolve().parents[2] / (
+            "shaft-skills/shaft-developer/references/routing.md"
+        )
+        text = routing.read_text(encoding="utf-8")
+        self.assertIn("Product stages (Design, Automation, Reporting)", text)
+        self.assertIn("design_ingest", text)
+        self.assertIn("shaft design ingest", text)
+        self.assertIn("report_history", text)
+        self.assertIn("shaft report history", text)
+        self.assertIn("shaft-mcp", text)
+        self.assertIn("ChaosEngine", text)
+
+
     def test_parse_runtime_dependency_manifest(self):
         manifest = (
             "The following files have been resolved:\n"
