@@ -50,10 +50,13 @@
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
 <li><a href="#%3Cinit%3E()" tabindex="0">DeterministicRuleEngine()</a></li>
+<li><a href="#%3Cinit%3E(java.util.List,java.util.List)" tabindex="0">DeterministicRuleEngine(List, List)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#withProjectRuleFiles(java.util.List)" tabindex="0">withProjectRuleFiles(List)</a></li>
+<li><a href="#withDiscoveredProjectRules(java.util.List)" tabindex="0">withDiscoveredProjectRules(List)</a></li>
 <li><a href="#diagnose(com.shaft.doctor.model.EvidenceBundle,java.util.List)" tabindex="0">diagnose(EvidenceBundle, List)</a></li>
 <li><a href="#clusterableFailure(com.shaft.doctor.model.EvidenceItem)" tabindex="0">clusterableFailure(EvidenceItem)</a></li>
 <li><a href="#clusteringKey(com.shaft.doctor.model.EvidenceItem)" tabindex="0">clusteringKey(EvidenceItem)</a></li>
@@ -75,7 +78,11 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">DeterministicRuleEngine</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Ordered explainable rules for common SHAFT failure categories.</div>
+<div class="block">Ordered explainable rules for common SHAFT failure categories.
+
+<p>Optional project Allure <code>categories.json</code> / <code>shaft-patterns.json</code> rules load
+<em>on top of</em> the immutable built-in list (issue #5970 / S3-04). Project files cannot
+remove built-ins; invalid regex fails closed.</p></div>
 </div>
 </section>
 <section class="summary">
@@ -89,7 +96,14 @@
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E()" class="member-name-link">DeterministicRuleEngine</a>()</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates an engine that uses only the immutable built-in rules.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.util.List,java.util.List)" class="member-name-link">DeterministicRuleEngine</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ProjectPatternRuleLoader.CompiledProjectRule.html" title="class in com.shaft.doctor.analysis">ProjectPatternRuleLoader.CompiledProjectRule</a>&gt;&nbsp;projectRules,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;projectLoadErrors)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Creates an engine with optional compiled project rules prepended to built-ins.</div>
+</div>
 </div>
 </section>
 </li>
@@ -128,6 +142,16 @@ or a diagnostics sibling in the same bundle (same rule as historical-signature-c
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Diagnoses one current bundle with optional historical bundles.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="DeterministicRuleEngine.html" title="class in com.shaft.doctor.analysis">DeterministicRuleEngine</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withDiscoveredProjectRules(java.util.List)" class="member-name-link">withDiscoveredProjectRules</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;inputPaths)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns this engine when no project files exist; otherwise a new engine with those files.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="DeterministicRuleEngine.html" title="class in com.shaft.doctor.analysis">DeterministicRuleEngine</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#withProjectRuleFiles(java.util.List)" class="member-name-link">withProjectRuleFiles</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;files)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Loads optional project rule files on top of built-ins.</div>
+</div>
 </div>
 </div>
 </div>
@@ -150,6 +174,22 @@ or a diagnostics sibling in the same bundle (same rule as historical-signature-c
 <h3>DeterministicRuleEngine</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">DeterministicRuleEngine</span>()</div>
+<div class="block">Creates an engine that uses only the immutable built-in rules.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(java.util.List,java.util.List)">
+<h3>DeterministicRuleEngine</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">DeterministicRuleEngine</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ProjectPatternRuleLoader.CompiledProjectRule.html" title="class in com.shaft.doctor.analysis">ProjectPatternRuleLoader.CompiledProjectRule</a>&gt;&nbsp;projectRules,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;projectLoadErrors)</span></div>
+<div class="block">Creates an engine with optional compiled project rules prepended to built-ins.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>projectRules</code> - additive project rules (never remove built-ins)</dd>
+<dd><code>projectLoadErrors</code> - fail-closed load errors to surface as observations</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -161,6 +201,36 @@ or a diagnostics sibling in the same bundle (same rule as historical-signature-c
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="withProjectRuleFiles(java.util.List)">
+<h3>withProjectRuleFiles</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="DeterministicRuleEngine.html" title="class in com.shaft.doctor.analysis">DeterministicRuleEngine</a></span>&nbsp;<span class="element-name">withProjectRuleFiles</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;files)</span></div>
+<div class="block">Loads optional project rule files on top of built-ins.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>files</code> - categories.json / shaft-patterns.json paths</dd>
+<dt>Returns:</dt>
+<dd>engine with project rules prepended</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="withDiscoveredProjectRules(java.util.List)">
+<h3>withDiscoveredProjectRules</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="DeterministicRuleEngine.html" title="class in com.shaft.doctor.analysis">DeterministicRuleEngine</a></span>&nbsp;<span class="element-name">withDiscoveredProjectRules</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;inputPaths)</span></div>
+<div class="block">Returns this engine when no project files exist; otherwise a new engine with those files.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>inputPaths</code> - Doctor analysis input paths</dd>
+<dt>Returns:</dt>
+<dd>engine honoring optional project categories/patterns</dd>
+</dl>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="diagnose(com.shaft.doctor.model.EvidenceBundle,java.util.List)">
 <h3>diagnose</h3>
