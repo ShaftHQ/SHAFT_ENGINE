@@ -86,8 +86,9 @@ final class OcrTargetResolver {
                         .map(OcrTextBlock::text)
                         .map(OcrTargetResolver::normalizeWhitespace)
                         .toList()), target);
-                if (joined.equals(normalizedExpected)
-                        || leadingCharacterDropped(joined, normalizedExpected)) {
+                if ((joined.equals(normalizedExpected)
+                        || leadingCharacterDropped(joined, normalizedExpected))
+                        && !digitSuffixContinues(words, end, normalizedExpected)) {
                     exact.add(toMatch(window, line));
                 }
                 if (joined.length() > normalizedExpected.length()) {
@@ -192,6 +193,24 @@ final class OcrTargetResolver {
 
     private static String compact(String text) {
         return text == null ? "" : text.replace(" ", "");
+    }
+
+
+    /**
+     * Tesseract often splits multi-digit labels ("TAB 10" → words TAB, 1, 0). An EXACT
+     * window of TAB+1 must not count as "TAB 1" when the next word continues the number.
+     */
+    private static boolean digitSuffixContinues(List<OcrTextBlock> words, int endExclusive,
+                                                String normalizedExpected) {
+        if (normalizedExpected == null || normalizedExpected.isEmpty() || endExclusive >= words.size()) {
+            return false;
+        }
+        char last = normalizedExpected.charAt(normalizedExpected.length() - 1);
+        if (!Character.isDigit(last)) {
+            return false;
+        }
+        String next = normalizeWhitespace(words.get(endExclusive).text());
+        return !next.isEmpty() && Character.isDigit(next.charAt(0));
     }
 
     /** Tesseract often drops the leading T on TAB labels ("AB 1" for "TAB 1"). */

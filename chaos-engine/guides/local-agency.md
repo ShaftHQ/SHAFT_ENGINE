@@ -74,6 +74,29 @@ ROG FreeToken (`127.0.0.1:1919`). Until the platform exposes `machineId` to Task
   and `dispatch.py resolve --prefer freetoken` fail closed on fake box hostnames
   unless `CE_ALLOW_BOX_LOCAL_AGENCY=1` (or `CE_ROG_CHECKOUT`). Not READY on this host → clear error JSON.
 
+
+
+## Cost and savings reporting
+
+After a delivery that used local loopback inference, the process-owner final
+report (and Learning Session notes) must include:
+
+1. **Actual cost** — USD + EGP for any cloud tokens used in the same delivery.
+2. **Avoided cloud spend** — local prompt + completion tokens × the published
+   per-1M input/output rates of the cloud model that would otherwise have done
+   the writer work, converted to EGP with the owner's FX.
+
+Record local usage during the session:
+
+```bash
+python3 chaos-engine/session_token_usage.py record \
+  --session-id "$SESSION_ID" --channel local --runtime-class local-openai-compat \
+  --prompt-tokens N --completion-tokens M
+```
+
+Do not invent rates or FX. Cite the rate source and FX date in the report.
+Local channel actual cost is $0 unless a paid local host was used.
+
 ## Session agents vs local agency
 
 Default orchestrator labor stays on host session subagents / Task. Use this

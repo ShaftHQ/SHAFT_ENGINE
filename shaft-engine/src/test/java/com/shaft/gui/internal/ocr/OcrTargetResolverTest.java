@@ -102,6 +102,35 @@ public class OcrTargetResolverTest {
     }
 
     @Test
+    public void exactTabOneDoesNotMatchTabTenWhenDigitsAreSplitWords() {
+        OcrResult result = result(
+                line("TAB 10 TAB 11", 10, 20, 200, 24, 0.94),
+                word("TAB", 10, 20, 40, 24, 0.96),
+                word("1", 55, 20, 12, 24, 0.95),
+                word("0", 68, 20, 12, 24, 0.94),
+                word("TAB", 90, 20, 40, 24, 0.96),
+                word("1", 135, 20, 12, 24, 0.95),
+                word("1", 148, 20, 12, 24, 0.94));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1")));
+        Assert.assertTrue(notFound.getMessage().contains("TAB 1"));
+    }
+
+    @Test
+    public void exactTabOneDoesNotMatchSplitTabTwelveWithDroppedLeadingT() {
+        OcrResult result = result(
+                line("AB 12", 10, 20, 80, 24, 0.90),
+                word("AB", 10, 20, 30, 24, 0.91),
+                word("1", 45, 20, 12, 24, 0.92),
+                word("2", 58, 20, 12, 24, 0.91));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1")));
+        Assert.assertTrue(notFound.getMessage().contains("TAB 1"));
+    }
+
+    @Test
     public void exactTabOneMatchesDroppedLeadingT() {
         OcrResult result = result(
                 line("AB 1 TAB 2", 10, 20, 180, 24, 0.90),
