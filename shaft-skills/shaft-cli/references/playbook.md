@@ -28,6 +28,6 @@ names live in the [generated MCP catalog](../../references/shaft-mcp-tools.md).
 ## Boundary
 
 - If the task is exploratory, already owns an MCP connection, needs direct schema-guided calls, or must keep live state without managing a CLI daemon, route to `shaft-mcp`.
-- Automation stage CLI: keep `shaft capture` (live MCP aliases) and `shaft codegen` (offline CaptureCli; no MCP session). Healing belongs to Reporting (Stage 3), not record/codegen.
+- Three-stage CLI families (#5943): `shaft design` (Design), `shaft capture` + offline `shaft codegen` (Automation), `shaft report` + `shaft doctor` (Reporting). Healing belongs to Reporting (Stage 3), not record/codegen.
 
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

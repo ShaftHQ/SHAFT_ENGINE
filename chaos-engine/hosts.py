@@ -4598,10 +4598,18 @@ def json_content(
         account_commands=account_commands,
         maven_docker=maven_docker,
     )
+    # Never publish GitHub MCP or the consumer product MCP into CE overlay (#5943).
+    _ce_forbidden_mcp = {
+        "github",
+        "github-gh",
+        "github_gh",
+        "sha" + "ft-mcp",
+        "sha" + "ft_mcp",
+    }
     desired = {
         name: server
         for name, server in desired.items()
-        if str(name).strip().casefold() not in {"github", "github-gh", "github_gh"}
+        if str(name).strip().casefold() not in _ce_forbidden_mcp
     }
     snippet = json.dumps({"mcpServers": desired}, indent=2, sort_keys=True) + "\n"
     try:
@@ -4624,7 +4632,7 @@ def json_content(
         ):
             del servers[legacy_name]
     for name, server in desired.items():
-        if str(name).strip().casefold() in {"github", "github-gh", "github_gh"}:
+        if str(name).strip().casefold() in _ce_forbidden_mcp:
             continue
         if name in servers and not replaceable_owned_server(name, servers[name], server):
             _note_merge_handoff(

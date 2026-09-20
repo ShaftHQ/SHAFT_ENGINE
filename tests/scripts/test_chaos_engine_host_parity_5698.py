@@ -182,6 +182,31 @@ class HostParity5698Tests(unittest.TestCase):
         self.assertIn("chaosengine-memory", after["mcpServers"])
         self.assertNotIn("github-gh", self.hosts.owned_servers())
 
+    def test_default_owned_servers_never_include_shaft_product_mcp(self):
+        # #5943 FR-005: ChaosEngine installer remains separate from shaft-mcp.
+        servers = self.hosts.owned_servers()
+        self.assertNotIn("shaft-mcp", servers)
+        self.assertNotIn("shaft_mcp", servers)
+        self.assertEqual(
+            {"keep": {}},
+            self.policy.omit_product_mcp_from_defaults({"shaft-mcp": {}, "keep": {}}),
+        )
+        # Consumer agentic install may already publish shaft-mcp; CE must leave it.
+        before = json.dumps(
+            {
+                "mcpServers": {
+                    "shaft-mcp": {"command": "java", "args": ["-jar", "shaft-mcp.jar"]},
+                    "keep-me": {"command": "echo"},
+                }
+            }
+        ).encode()
+        after = json.loads(self.hosts.json_content(before).decode("utf-8"))
+        self.assertEqual(
+            {"command": "java", "args": ["-jar", "shaft-mcp.jar"]},
+            after["mcpServers"]["shaft-mcp"],
+        )
+        self.assertNotIn("shaft-mcp", self.hosts.owned_servers())
+
     def test_instruction_block_matches_heal_prompt(self):
         block = self.hosts.instruction_block("chaos-engine")
         # Instruction block stays token-cheap; doctor HEAL_PROMPT is the long form.

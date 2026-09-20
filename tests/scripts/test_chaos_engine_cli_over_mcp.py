@@ -69,6 +69,16 @@ class CliOverMcpTests(unittest.TestCase):
         servers = {"github": {}, "keep": {}}
         self.assertEqual({"keep": {}}, self.policy.omit_github_from_defaults(servers))
 
+    def test_omit_product_mcp_from_defaults(self):
+        # #5943 FR-005: CE catalog never publishes shaft-mcp.
+        servers = {"shaft-mcp": {}, "shaft_mcp": {}, "keep": {}}
+        self.assertEqual(
+            {"keep": {}},
+            self.policy.omit_product_mcp_from_defaults(servers),
+        )
+        self.assertTrue(self.policy.is_product_mcp_id("shaft-mcp"))
+        self.assertFalse(self.policy.is_product_mcp_id("chaosengine-memory"))
+
     def test_router_lists_prefer_cli_and_runners(self):
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("prefer-cli-over-mcp", skill)
