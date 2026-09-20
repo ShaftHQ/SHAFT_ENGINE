@@ -45,5 +45,35 @@ class CeBriefTests(unittest.TestCase):
         self.assertLessEqual(brief["bytes"], 6144)
 
 
+
+    def test_brief_text_is_locator_only_paths(self):
+        """#6072: brief text is path locators, not skill-body prose."""
+        brief = self.mod.build_brief(project=ROOT, max_bytes=4096)
+        lines = [ln.strip() for ln in brief["text"].splitlines() if ln.strip()]
+        self.assertGreaterEqual(len(lines), 3)
+        for line in lines:
+            self.assertFalse(line.startswith("#"), f"markdown heading leaked: {line!r}")
+            self.assertNotIn("```", line)
+            # locator paths use / or end with .md/.py
+            self.assertTrue(
+                "/" in line or line.endswith(".md") or line.endswith(".py"),
+                f"non-locator line: {line!r}",
+            )
+        # must not dump skill body markers
+        blob = brief["text"].lower()
+        for banned in ("never regress", "hard rails", "api_key", "bearer ", "ghp_", "sk-"):
+            self.assertNotIn(banned, blob)
+
+    def test_brief_contains_no_secret_material(self):
+        """#6072: no-secret — brief must not embed tokens/credentials."""
+        brief = self.mod.build_brief(project=ROOT, max_bytes=6144)
+        blob = brief["text"]
+        for needle in ("BEGIN PRIVATE", "AKIA", "xoxb-", "password=", "Authorization:"):
+            self.assertNotIn(needle, blob)
+        # used/skipped are path strings only
+        for item in brief["used"] + brief["skipped"]:
+            self.assertIsInstance(item, str)
+            self.assertNotRegex(item, r"(?i)(token|secret|password|api[_-]?key)\s*=")
+
 if __name__ == "__main__":
     unittest.main()
