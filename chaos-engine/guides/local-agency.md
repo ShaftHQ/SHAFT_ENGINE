@@ -115,11 +115,14 @@ report (and Learning Session notes) must include:
    per-1M input/output rates of the cloud model that would otherwise have done
    the writer work, converted to EGP with the owner's FX.
 
+Record local usage during the session (or let `dispatch.py chat --session-id …` do it when the
+runtime returns `usage`; never pass model/provider ids into the ledger) (#6069):
+
 Record local usage during the session:
 
 ```bash
 python3 chaos-engine/session_token_usage.py record \
-  --session-id "$SESSION_ID" --channel local --runtime-class local-openai-compat \
+  --session-id "$SESSION_ID" --channel local --runtime-class openai-compat \
   --prompt-tokens N --completion-tokens M
 ```
 

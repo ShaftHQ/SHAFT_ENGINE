@@ -612,5 +612,99 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertIn(".agents/skills/chaos-engine", blob)
         self.assertIn("--pure", blob)
 
+
+    def test_runtime_class_for_maps_coarse_enums_only(self):
+        """#6069: ledger runtime classes never include model ids."""
+        self.assertEqual(dispatch.runtime_class_for("freetoken"), "freetoken")
+        self.assertEqual(dispatch.runtime_class_for("llamacpp"), "openai-compat")
+        self.assertEqual(dispatch.runtime_class_for("ollama"), "openai-compat")
+        self.assertEqual(dispatch.runtime_class_for("lmstudio"), "openai-compat")
+        self.assertEqual(dispatch.runtime_class_for("colibri"), "colibri")
+        self.assertEqual(dispatch.runtime_class_for("nope"), "unknown")
+
+    def test_chat_records_session_token_usage_without_model_ids(self):
+        """#6069: chat records local usage when known; ledger has no model ids."""
+        captured = {}
+
+        def probe(runtime: str):
+            if runtime == "llamacpp":
+                return {
+                    "runtime": "llamacpp",
+                    "state": "READY",
+                    "openai_base_url": dispatch.OPENAI_COMPAT_BASES["llamacpp"],
+                    "models": ["qwen-secret-name"],
+                    "provider_id": "llamacpp",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": _base_for(runtime),
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {
+                        "choices": [{"message": {"content": "ok"}}],
+                        "usage": {"prompt_tokens": 11, "completion_tokens": 3},
+                        "model": "qwen-secret-name",
+                    }
+                ).encode("utf-8")
+
+        def fake_urlopen(req, timeout=0):
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _Resp()
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "AGENTS.md").write_text("x\n", encoding="utf-8")
+            skill = project / ".agents" / "skills" / "chaos-engine"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("y\n", encoding="utf-8")
+            with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+                with mock.patch.object(dispatch, "urlopen", side_effect=fake_urlopen):
+                    buf = StringIO()
+                    with redirect_stdout(buf):
+                        args = dispatch.parse_args(
+                            [
+                                "--prefer",
+                                "llamacpp",
+                                "chat",
+                                "--prompt",
+                                "hi",
+                                "--with-ce-brief",
+                                "--session-id",
+                                "ce-brief-p3-6069",
+                                "--project",
+                                str(project),
+                            ]
+                        )
+                        code = dispatch.cmd_chat(args)
+                    self.assertEqual(code, 0)
+                    out = buf.getvalue()
+            self.assertIn('"recorded": true', out.replace("True", "true"))
+            # ledger on disk
+            ledger_path = project / ".chaos-engine-state" / "session-token-usage" / "ce-brief-p3-6069.json"
+            self.assertTrue(ledger_path.is_file(), ledger_path)
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            blob = json.dumps(ledger)
+            self.assertNotIn("qwen-secret-name", blob)
+            self.assertNotIn("provider", blob.lower().replace("runtimeclass", ""))
+            event = ledger["events"][-1]
+            self.assertEqual(event["channel"], "local")
+            self.assertEqual(event["runtimeClass"], "openai-compat")
+            self.assertEqual(event["promptTokens"], 11)
+            self.assertEqual(event["completionTokens"], 3)
+            # request body may include model for the API call — that is fine; ledger must not
+            self.assertEqual(captured["body"]["model"], "qwen-secret-name")
+
 if __name__ == "__main__":
     unittest.main()

@@ -37,6 +37,59 @@ def attach_ce_brief(out: dict[str, object], project: Path | None = None) -> dict
     return out
 
 
+SESSION_TOKEN_USAGE_PATH = SKILLS_ROOT.parent / "session_token_usage.py"
+
+
+def load_session_token_usage():
+    """Import chaos-engine/session_token_usage.py by path."""
+    return _load_module("session_token_usage", SESSION_TOKEN_USAGE_PATH)
+
+
+def runtime_class_for(runtime: str) -> str:
+    """Map dispatch runtime id to session_token_usage coarse class (#6069).
+
+    Never returns a model or vendor product id — only ledger enums.
+    """
+    if runtime == "freetoken":
+        return "freetoken"
+    if runtime == "colibri":
+        return "colibri"
+    if runtime in OPENAI_COMPAT_BASES:
+        return "openai-compat"
+    return "unknown"
+
+
+def record_local_usage_from_chat(
+    *,
+    session_id: str,
+    runtime: str,
+    usage: dict[str, object],
+    project: Path | None = None,
+) -> dict[str, object] | None:
+    """Record chat usage when known. Omits model/provider fields entirely."""
+    if not session_id:
+        return None
+    prompt = usage.get("prompt_tokens", usage.get("promptTokens", 0))
+    completion = usage.get("completion_tokens", usage.get("completionTokens", 0))
+    try:
+        prompt_i = int(prompt)  # type: ignore[arg-type]
+        completion_i = int(completion)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if prompt_i <= 0 and completion_i <= 0:
+        return None
+    stu = load_session_token_usage()
+    return stu.record(
+        session_id,
+        channel="local",
+        prompt_tokens=prompt_i,
+        completion_tokens=completion_i,
+        runtime_class=runtime_class_for(runtime),
+        project=project,
+    )
+
+
+
 # Prefer FreeToken, then OpenAI-compat peers. Order is intentional.
 RUNTIME_RANK = ("freetoken", "ollama", "lmstudio", "llamacpp", "colibri")
 
@@ -527,7 +580,38 @@ def cmd_chat(args: argparse.Namespace) -> int:
     )
     with urlopen(req, timeout=120) as response:
         raw = response.read()
-    print(raw.decode("utf-8"))
+    decoded = raw.decode("utf-8")
+    print(decoded)
+    session_id = getattr(args, "session_id", None) or ""
+    if session_id:
+        try:
+            parsed = json.loads(decoded)
+        except json.JSONDecodeError:
+            parsed = {}
+        usage = parsed.get("usage") if isinstance(parsed, dict) else None
+        if isinstance(usage, dict):
+            project = Path(args.project) if getattr(args, "project", None) else None
+            ledger = record_local_usage_from_chat(
+                session_id=session_id,
+                runtime=str(chosen.get("runtime") or "unknown"),
+                usage=usage,
+                project=project,
+            )
+            if ledger is not None:
+                # Second line: privacy-safe receipt (no model ids).
+                print(
+                    json.dumps(
+                        {
+                            "session_token_usage": {
+                                "recorded": True,
+                                "channel": "local",
+                                "runtimeClass": runtime_class_for(str(chosen.get("runtime") or "unknown")),
+                                "path": ledger.get("path"),
+                            }
+                        },
+                        sort_keys=True,
+                    )
+                )
     return 0
 
 
@@ -572,6 +656,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     chat_p.add_argument("--prompt", required=True, help="user message")
     chat_p.add_argument("--project", default=None, help="project root for CE brief")
     chat_p.add_argument("--with-ce-brief", action="store_true", help="set system= from CE brief")
+    chat_p.add_argument(
+        "--session-id",
+        default=None,
+        help="when set and response usage is present, record session_token_usage (#6069)",
+    )
     return parser.parse_args(argv)
 
 
