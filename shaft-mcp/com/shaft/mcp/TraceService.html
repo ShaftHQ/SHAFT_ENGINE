@@ -64,6 +64,7 @@
 <li><a href="#reportFlake(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" tabindex="0">reportFlake(String, String, String, Integer, Integer)</a></li>
 <li><a href="#reportClusters(java.lang.String,java.lang.String)" tabindex="0">reportClusters(String, String)</a></li>
 <li><a href="#reportHeal(java.lang.String,java.lang.String)" tabindex="0">reportHeal(String, String)</a></li>
+<li><a href="#reportMute(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Boolean,java.lang.Boolean)" tabindex="0">reportMute(String, String, String, String, Integer, Boolean, Boolean)</a></li>
 <li><a href="#doctorAnalyzeTrace(java.lang.String,java.lang.String)" tabindex="0">doctorAnalyzeTrace(String, String)</a></li>
 </ol>
 </li>
@@ -209,28 +210,40 @@
 one Allure result set plus a timeline "speedboard" HTML and a cross-shard flaky-clustering
 summary.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceLatestResult.html" title="class in com.shaft.mcp">TraceService.McpTraceLatestResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceLatest(int)" class="member-name-link">traceLatest</a><wbr>(int&nbsp;maxResults)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/LocalMuteModels.MuteTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">LocalMuteModels.MuteTable</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportMute(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Boolean,java.lang.Boolean)" class="member-name-link">reportMute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reason,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;muteStorePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;recoverAfterPasses,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;passed,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;writeSurefireExcludes)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Local flake mute / quarantine lifecycle for the SHAFT Tests panel and CLI
+(issue #5974 / S3-08).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceLatestResult.html" title="class in com.shaft.mcp">TraceService.McpTraceLatestResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceLatest(int)" class="member-name-link">traceLatest</a><wbr>(int&nbsp;maxResults)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Lists recent persisted SHAFT trace indexes under <code>target/shaft-traces</code>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceViewerResult.html" title="class in com.shaft.mcp">TraceService.McpTraceViewerResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceOpenViewer(java.lang.String)" class="member-name-link">traceOpenViewer</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceViewerResult.html" title="class in com.shaft.mcp">TraceService.McpTraceViewerResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceOpenViewer(java.lang.String)" class="member-name-link">traceOpenViewer</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Resolves (extracting from the trace ZIP if needed) the static offline "SHAFT Trace Report.html"
 viewer for a persisted trace -- the same time-travel timeline / action-list / DOM-snapshot /
 network / console viewer produced at trace-generation time, so callers (an IDE panel, a CI
 step, or a human) can open a real file path without re-deriving the HTML themselves.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceReadResult.html" title="class in com.shaft.mcp">TraceService.McpTraceReadResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRead(java.lang.String,int)" class="member-name-link">traceRead</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceReadResult.html" title="class in com.shaft.mcp">TraceService.McpTraceReadResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRead(java.lang.String,int)" class="member-name-link">traceRead</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath,
  int&nbsp;maxCharacters)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Reads a persisted trace JSON file, trace ZIP, trace directory, or index path with bounded output.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceSummary.html" title="class in com.shaft.mcp">TraceService.McpTraceSummary</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceSummarize(java.lang.String)" class="member-name-link">traceSummarize</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceSummary.html" title="class in com.shaft.mcp">TraceService.McpTraceSummary</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceSummarize(java.lang.String)" class="member-name-link">traceSummarize</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Summarizes a persisted SHAFT trace deterministically without provider calls.</div>
 </div>
 </div>
@@ -473,6 +486,44 @@ apply-to-source primary action. NO_CANDIDATES is shown, not silent. Reuse
                      <code>target/shaft-doctor/healing-proposals</code> when present</dd>
 <dt>Returns:</dt>
 <dd>heal insights table for the IDE Reporting canvas / CLI</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reportMute(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Boolean,java.lang.Boolean)">
+<h3>reportMute</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="report_mute",
+      description="local flake mute/quarantine with required reason and recover-after-N-local-passes; never writes Maven Surefire excludes by default; store is gitignored .shaft/local-mutes.json unless muteStorePath opts into a shared project file")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/LocalMuteModels.MuteTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">LocalMuteModels.MuteTable</a></span>&nbsp;<span class="element-name">reportMute</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testId,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reason,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;muteStorePath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;recoverAfterPasses,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;passed,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;writeSurefireExcludes)</span></div>
+<div class="block">Local flake mute / quarantine lifecycle for the SHAFT Tests panel and CLI
+(issue #5974 / S3-08). Mute requires a reason. Recover clears after N consecutive
+local passes. Never writes Maven Surefire excludes in v1 (FR-002 / SC-002).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>action</code> - <code>mute</code>, <code>unmute</code>, <code>list</code>, or <code>observe</code></dd>
+<dd><code>testId</code> - test id (required for mute/unmute/observe)</dd>
+<dd><code>reason</code> - mute reason (required for mute)</dd>
+<dd><code>muteStorePath</code> - optional store path; blank uses <code>.shaft/local-mutes.json</code></dd>
+<dd><code>recoverAfterPasses</code> - optional recover threshold for new mutes (default 3)</dd>
+<dd><code>passed</code> - observe outcome; required when action is observe</dd>
+<dd><code>writeSurefireExcludes</code> - refused in v1 — warning only</dd>
+<dt>Returns:</dt>
+<dd>mute table (active mutes; observe may include a RECOVERED row)</dd>
 </dl>
 </div>
 </section>
