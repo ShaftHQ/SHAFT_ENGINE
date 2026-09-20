@@ -361,32 +361,38 @@ public final class ProjectPatternRuleLoader {
          * @return true when status/message/trace constraints all pass
          */
         public boolean matches(EvidenceItem item) {
-            if (item == null) {
+            if (item == null || !statusAllowed(item)) {
                 return false;
             }
-            String status = item.attributes().getOrDefault("status", "").toLowerCase(Locale.ROOT);
-            if (!matchedStatuses.isEmpty() && !matchedStatuses.contains(status)) {
+            boolean messageOk = patternAllows(messagePattern, attributeOrContent(item, "failureMessage"));
+            boolean traceOk = patternAllows(tracePattern, attributeOrContent(item, "traceTop"));
+            if (messagePattern == null && tracePattern == null) {
                 return false;
             }
-            String message = item.attributes().getOrDefault("failureMessage", "");
-            if (message.isBlank() && item.content() != null) {
-                message = item.content();
-            }
-            String trace = item.attributes().getOrDefault("traceTop", "");
-            if (trace.isBlank() && item.content() != null) {
-                trace = item.content();
-            }
-            if (messagePattern != null && !messagePattern.matcher(nullToEmpty(message)).matches()) {
-                return false;
-            }
-            if (tracePattern != null && !tracePattern.matcher(nullToEmpty(trace)).matches()) {
-                return false;
-            }
-            return messagePattern != null || tracePattern != null;
+            return messageOk && traceOk;
         }
 
-        private static String nullToEmpty(String value) {
-            return value == null ? "" : value;
+        private boolean statusAllowed(EvidenceItem item) {
+            if (matchedStatuses.isEmpty()) {
+                return true;
+            }
+            String status = item.attributes().getOrDefault("status", "").toLowerCase(Locale.ROOT);
+            return matchedStatuses.contains(status);
+        }
+
+        private static boolean patternAllows(Pattern pattern, String text) {
+            if (pattern == null) {
+                return true;
+            }
+            return pattern.matcher(text == null ? "" : text).matches();
+        }
+
+        private static String attributeOrContent(EvidenceItem item, String attribute) {
+            String value = item.attributes().getOrDefault(attribute, "");
+            if (!value.isBlank()) {
+                return value;
+            }
+            return item.content() == null ? "" : item.content();
         }
     }
 }
