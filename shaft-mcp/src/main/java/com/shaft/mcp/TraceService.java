@@ -10,6 +10,8 @@ import com.shaft.doctor.history.DualFlakeComputer;
 import com.shaft.doctor.history.ErrorClusterModels;
 import com.shaft.doctor.history.HealInsightModels;
 import com.shaft.doctor.history.HealInsightsAggregator;
+import com.shaft.doctor.history.LocalMuteModels;
+import com.shaft.doctor.history.LocalMuteStore;
 import com.shaft.doctor.history.FlakeModels;
 import com.shaft.doctor.history.UniqueErrorClusterer;
 import com.shaft.doctor.shard.FlakyCluster;
@@ -354,6 +356,59 @@ public class TraceService {
                 proposalsPath, "target/shaft-doctor/healing-proposals",
                 "SHAFT Heal proposal manifests directory");
         return HealInsightsAggregator.aggregate(reports, proposals);
+    }
+
+
+
+
+    /**
+     * Local flake mute / quarantine lifecycle for the SHAFT Tests panel and CLI
+     * (issue #5974 / S3-08). Mute requires a reason. Recover clears after N consecutive
+     * local passes. Never writes Maven Surefire excludes in v1 (FR-002 / SC-002).
+     *
+     * @param action {@code mute}, {@code unmute}, {@code list}, or {@code observe}
+     * @param testId test id (required for mute/unmute/observe)
+     * @param reason mute reason (required for mute)
+     * @param muteStorePath optional store path; blank uses {@code .shaft/local-mutes.json}
+     * @param recoverAfterPasses optional recover threshold for new mutes (default 3)
+     * @param passed observe outcome; required when action is observe
+     * @param writeSurefireExcludes refused in v1 — warning only
+     * @return mute table (active mutes; observe may include a RECOVERED row)
+     */
+    @Tool(name = "report_mute",
+            description = "local flake mute/quarantine with required reason and recover-after-N-local-passes; never writes Maven Surefire excludes by default; store is gitignored .shaft/local-mutes.json unless muteStorePath opts into a shared project file")
+    public LocalMuteModels.MuteTable reportMute(
+            @ToolParam(required = false) String action,
+            @ToolParam(required = false) String testId,
+            @ToolParam(required = false) String reason,
+            @ToolParam(required = false) String muteStorePath,
+            @ToolParam(required = false) Integer recoverAfterPasses,
+            @ToolParam(required = false) Boolean passed,
+            @ToolParam(required = false) Boolean writeSurefireExcludes) {
+        String act = action == null || action.isBlank() ? "list" : action.trim().toLowerCase(Locale.ROOT);
+        Path storePath = resolveMuteStorePath(muteStorePath);
+        LocalMuteStore store = LocalMuteStore.open(storePath,
+                recoverAfterPasses == null ? LocalMuteModels.DEFAULT_RECOVER_AFTER_PASSES : recoverAfterPasses);
+        return switch (act) {
+            case "mute", "add", "quarantine" -> store.mute(testId, reason, recoverAfterPasses, writeSurefireExcludes);
+            case "unmute", "remove", "clear" -> store.unmute(testId);
+            case "observe", "record", "outcome" -> {
+                if (passed == null) {
+                    throw new IllegalArgumentException("passed=true|false is required for action=observe");
+                }
+                yield store.observe(testId, passed);
+            }
+            case "list", "mutes", "status" -> store.list();
+            default -> throw new IllegalArgumentException(
+                    "Unknown report_mute action '" + action + "'. Use mute, unmute, list, or observe.");
+        };
+    }
+
+    private Path resolveMuteStorePath(String muteStorePath) {
+        if (muteStorePath == null || muteStorePath.isBlank()) {
+            return LocalMuteStore.defaultStorePath(workspacePolicy.root());
+        }
+        return workspacePolicy.output(muteStorePath.trim(), "Local mute store");
     }
 
     private Path resolveOptionalReadable(String value, String defaultRelative, String label) {

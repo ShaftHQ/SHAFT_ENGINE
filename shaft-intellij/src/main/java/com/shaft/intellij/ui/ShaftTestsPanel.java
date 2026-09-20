@@ -9,6 +9,7 @@ import com.shaft.intellij.notifications.FailedRunDoctorNotifier;
 import com.shaft.intellij.notifications.ShaftToolWorkflowLauncher;
 import com.shaft.intellij.testindex.ShaftRunConfigurationResolver;
 import com.shaft.intellij.testindex.ShaftTestDiscovery;
+import com.shaft.intellij.testindex.LocalFlakeMuteStore;
 import com.shaft.intellij.testindex.ShaftTestIndex;
 
 import javax.swing.Icon;
@@ -99,6 +100,7 @@ final class ShaftTestsPanel extends JPanel {
 
     private final Project project;
     private final ShaftTestIndex testIndex;
+    private final LocalFlakeMuteStore muteStore;
     private final Supplier<List<ShaftTestDiscovery.DiscoveredTestClass>> discoverySource;
     private final DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     private final Tree tree = new Tree(treeModel);
@@ -137,6 +139,7 @@ final class ShaftTestsPanel extends JPanel {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.testIndex = testIndex;
+        this.muteStore = LocalFlakeMuteStore.forProject(project);
         this.discoverySource = discoverySource;
         setBorder(JBUI.Borders.empty(8));
 
@@ -160,7 +163,7 @@ final class ShaftTestsPanel extends JPanel {
                         treeComponent, value, selected, expanded, leaf, row, hasFocus);
                 if (component instanceof JLabel label && value instanceof DefaultMutableTreeNode node
                         && node.getUserObject() instanceof TestTreeNode treeNode) {
-                    label.setText(formatNodeLabel(treeNode.displayName(), treeNode.runState()));
+                    label.setText(formatNodeLabel(treeNode.displayName(), treeNode.runState(), isMutedNode(treeNode)));
                     if (treeNode.kind() != NodeKind.PACKAGE) {
                         label.setIcon(new RunDebugIcon());
                         label.setIconTextGap(ICON_GAP + 2);
@@ -213,6 +216,13 @@ final class ShaftTestsPanel extends JPanel {
         debugMenuItem.addActionListener(event -> debugSelected());
         rowContextMenu.add(navigateMenuItem);
         rowContextMenu.add(debugMenuItem);
+        JMenuItem muteMenuItem = new JMenuItem("Mute flaky test…");
+        muteMenuItem.addActionListener(event -> muteSelected());
+        JMenuItem unmuteMenuItem = new JMenuItem("Unmute test");
+        unmuteMenuItem.addActionListener(event -> unmuteSelected());
+        rowContextMenu.addSeparator();
+        rowContextMenu.add(muteMenuItem);
+        rowContextMenu.add(unmuteMenuItem);
         JBScrollPane treeScroll = new JBScrollPane(tree);
         treeScroll.setPreferredSize(JBUI.size(400, 260));
 
@@ -281,6 +291,7 @@ final class ShaftTestsPanel extends JPanel {
         List<ShaftTestDiscovery.DiscoveredTestClass> discoveredClasses = discoverySource.get();
         Map<String, ShaftTestIndex.TestRowState> rowsByTestId = new HashMap<>();
         testIndex.snapshot().forEach(row -> rowsByTestId.put(row.testId(), row));
+        observeMuteOutcomes(rowsByTestId);
 
         List<ShaftTestDiscovery.DiscoveredTestClass> sorted = new ArrayList<>(discoveredClasses);
         sorted.sort(Comparator.comparing(ShaftTestDiscovery.DiscoveredTestClass::packageName)
@@ -484,6 +495,63 @@ final class ShaftTestsPanel extends JPanel {
      * @param row matched run-history row for a node, or {@code null} when the node has never run
      * @return {@code true} only for a non-null {@link ShaftTestIndex.Status#FAIL} row
      */
+
+    private boolean isMutedNode(TestTreeNode treeNode) {
+        if (treeNode == null || treeNode.kind() == NodeKind.PACKAGE) {
+            return false;
+        }
+        return muteStore.isMuted(muteKey(treeNode));
+    }
+
+    private static String muteKey(TestTreeNode treeNode) {
+        if (treeNode.kind() == NodeKind.METHOD) {
+            return treeNode.qualifiedName() + "#" + treeNode.displayName();
+        }
+        return treeNode.qualifiedName();
+    }
+
+    private void muteSelected() {
+        TestTreeNode selected = selectedNode();
+        if (selected == null || selected.kind() == NodeKind.PACKAGE) {
+            return;
+        }
+        String reason = javax.swing.JOptionPane.showInputDialog(
+                this,
+                "Why is this test muted locally? (required — does not skip CI/Surefire)",
+                "Mute flaky test",
+                javax.swing.JOptionPane.QUESTION_MESSAGE);
+        if (reason == null) {
+            return;
+        }
+        if (reason.isBlank()) {
+            statusLabel.setText("Mute cancelled: reason is required.");
+            return;
+        }
+        muteStore.mute(muteKey(selected), reason.trim(), LocalFlakeMuteStore.DEFAULT_RECOVER_AFTER_PASSES);
+        refresh();
+        statusLabel.setText("Muted " + muteKey(selected) + " (local only; Surefire unchanged).");
+    }
+
+    private void unmuteSelected() {
+        TestTreeNode selected = selectedNode();
+        if (selected == null || selected.kind() == NodeKind.PACKAGE) {
+            return;
+        }
+        muteStore.unmute(muteKey(selected));
+        refresh();
+        statusLabel.setText("Unmuted " + muteKey(selected) + ".");
+    }
+
+    private void observeMuteOutcomes(Map<String, ShaftTestIndex.TestRowState> rowsByTestId) {
+        for (LocalFlakeMuteStore.MuteEntry entry : List.copyOf(muteStore.list())) {
+            ShaftTestIndex.TestRowState row = rowsByTestId.get(entry.testId());
+            if (row == null || row.status() == ShaftTestIndex.Status.RUNNING) {
+                continue;
+            }
+            muteStore.observe(entry.testId(), row.status() == ShaftTestIndex.Status.PASS);
+        }
+    }
+
     static boolean isFailRow(ShaftTestIndex.TestRowState row) {
         return row != null && row.status() == ShaftTestIndex.Status.FAIL;
     }
@@ -510,10 +578,21 @@ final class ShaftTestsPanel extends JPanel {
      *         {@code "SearchTest"} when never run
      */
     static String formatNodeLabel(String displayName, ShaftTestIndex.TestRowState runState) {
+        return formatNodeLabel(displayName, runState, false);
+    }
+
+    /**
+     * Formats a tree node label, optionally decorating muted tests (issue #5974 / S3-08 / SC-001).
+     */
+    static String formatNodeLabel(String displayName, ShaftTestIndex.TestRowState runState, boolean muted) {
+        String base;
         if (runState == null) {
-            return displayName;
+            base = displayName;
+        } else {
+            base = statusText(runState.status()) + "  " + displayName + "  "
+                    + formatTimestamp(runState.lastRunAtMillis());
         }
-        return statusText(runState.status()) + "  " + displayName + "  " + formatTimestamp(runState.lastRunAtMillis());
+        return muted ? "MUTED  " + base : base;
     }
 
     /**

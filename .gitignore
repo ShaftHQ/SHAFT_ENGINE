@@ -1,5 +1,6 @@
 .shaft/design-lexicon.json
 .shaft/doctor-confirmed-labels.json
+.shaft/local-mutes.json
 **/target/
 /allure-results/
 /shaft-engine/allure-results/

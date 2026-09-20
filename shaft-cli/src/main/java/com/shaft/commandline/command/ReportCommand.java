@@ -17,20 +17,23 @@ import java.util.concurrent.Callable;
 
 /**
  * Curated Reporting-stage shortcuts. Pure alias over {@code call} to MCP {@code report_*} tools
- * (issues #5967 / S3-01, #5968 / S3-02, #5969 / S3-03, #5972 / S3-06).
+ * (issues #5967 / S3-01, #5968 / S3-02, #5969 / S3-03, #5972 / S3-06, #5974 / S3-08).
  */
 @Command(mixinStandardHelpOptions = true,
         name = "report",
-        description = "Reporting shortcuts: history, flake, clusters, heal.")
+        description = "Reporting shortcuts: history, flake, clusters, heal, mute, unmute, mutes.")
 public final class ReportCommand implements Callable<Integer> {
 
-    private static final Map<String, String> ACTIONS = Map.of(
-            "history", "report_history",
-            "flake", "report_flake",
-            "clusters", "report_clusters",
-            "heal", "report_heal");
+    private static final Map<String, String> ACTIONS = Map.ofEntries(
+            Map.entry("history", "report_history"),
+            Map.entry("flake", "report_flake"),
+            Map.entry("clusters", "report_clusters"),
+            Map.entry("heal", "report_heal"),
+            Map.entry("mute", "report_mute"),
+            Map.entry("unmute", "report_mute"),
+            Map.entry("mutes", "report_mute"));
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "history, flake, clusters, heal")
+    @Parameters(index = "0", paramLabel = "ACTION", description = "history, flake, clusters, heal, mute, unmute, mutes")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value",
@@ -61,7 +64,15 @@ public final class ReportCommand implements Callable<Integer> {
         if (tool == null) {
             return 2;
         }
-        return ToolInvoker.invoke(factory, tool, options, keyValues, false,
+        List<String> args = new ArrayList<>(keyValues);
+        String normalized = action == null ? "" : action.trim().toLowerCase(java.util.Locale.ROOT);
+        if ("mute".equals(normalized) || "unmute".equals(normalized) || "mutes".equals(normalized)) {
+            String muteAction = "mutes".equals(normalized) ? "list" : normalized;
+            if (args.stream().noneMatch(v -> v != null && v.startsWith("action="))) {
+                args.add(0, "action=" + muteAction);
+            }
+        }
+        return ToolInvoker.invoke(factory, tool, options, args, false,
                 spec.commandLine().getOut(), spec.commandLine().getErr());
     }
 }
