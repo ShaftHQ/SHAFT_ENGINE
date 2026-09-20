@@ -156,30 +156,36 @@ public final class LocalFlakeMuteStore {
                 return;
             }
             for (JsonElement element : entries) {
-                if (!element.isJsonObject()) {
-                    continue;
+                MuteEntry entry = readMutedEntry(element);
+                if (entry != null) {
+                    entriesByTestId.put(entry.testId(), entry);
                 }
-                JsonObject node = element.getAsJsonObject();
-                String status = text(node, "status");
-                if (!status.isBlank() && !"MUTED".equalsIgnoreCase(status)) {
-                    continue;
-                }
-                String testId = text(node, "testId");
-                if (testId.isBlank()) {
-                    continue;
-                }
-                entriesByTestId.put(testId, new MuteEntry(
-                        testId,
-                        text(node, "reason"),
-                        longVal(node, "mutedAtMillis"),
-                        intVal(node, "consecutivePasses"),
-                        intVal(node, "recoverAfterPasses") <= 0
-                                ? defaultRecoverAfterPasses
-                                : intVal(node, "recoverAfterPasses")));
             }
         } catch (IOException | RuntimeException ignored) {
             // Corrupt store → start empty.
         }
+    }
+
+    private MuteEntry readMutedEntry(JsonElement element) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        JsonObject node = element.getAsJsonObject();
+        String status = text(node, "status");
+        if (!status.isBlank() && !"MUTED".equalsIgnoreCase(status)) {
+            return null;
+        }
+        String testId = text(node, "testId");
+        if (testId.isBlank()) {
+            return null;
+        }
+        int recover = intVal(node, "recoverAfterPasses");
+        return new MuteEntry(
+                testId,
+                text(node, "reason"),
+                longVal(node, "mutedAtMillis"),
+                intVal(node, "consecutivePasses"),
+                recover <= 0 ? defaultRecoverAfterPasses : recover);
     }
 
     private void persist() {

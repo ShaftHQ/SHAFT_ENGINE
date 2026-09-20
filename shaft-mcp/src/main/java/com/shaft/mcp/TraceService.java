@@ -386,22 +386,36 @@ public class TraceService {
             @ToolParam(required = false) Boolean passed,
             @ToolParam(required = false) Boolean writeSurefireExcludes) {
         String act = action == null || action.isBlank() ? "list" : action.trim().toLowerCase(Locale.ROOT);
-        Path storePath = resolveMuteStorePath(muteStorePath);
-        LocalMuteStore store = LocalMuteStore.open(storePath,
+        LocalMuteStore store = LocalMuteStore.open(
+                resolveMuteStorePath(muteStorePath),
                 recoverAfterPasses == null ? LocalMuteModels.DEFAULT_RECOVER_AFTER_PASSES : recoverAfterPasses);
+        return dispatchMuteAction(act, store, testId, reason, recoverAfterPasses, passed, writeSurefireExcludes, action);
+    }
+
+    private static LocalMuteModels.MuteTable dispatchMuteAction(
+            String act,
+            LocalMuteStore store,
+            String testId,
+            String reason,
+            Integer recoverAfterPasses,
+            Boolean passed,
+            Boolean writeSurefireExcludes,
+            String originalAction) {
         return switch (act) {
             case "mute", "add", "quarantine" -> store.mute(testId, reason, recoverAfterPasses, writeSurefireExcludes);
             case "unmute", "remove", "clear" -> store.unmute(testId);
-            case "observe", "record", "outcome" -> {
-                if (passed == null) {
-                    throw new IllegalArgumentException("passed=true|false is required for action=observe");
-                }
-                yield store.observe(testId, passed);
-            }
+            case "observe", "record", "outcome" -> observeMute(store, testId, passed);
             case "list", "mutes", "status" -> store.list();
             default -> throw new IllegalArgumentException(
-                    "Unknown report_mute action '" + action + "'. Use mute, unmute, list, or observe.");
+                    "Unknown report_mute action '" + originalAction + "'. Use mute, unmute, list, or observe.");
         };
+    }
+
+    private static LocalMuteModels.MuteTable observeMute(LocalMuteStore store, String testId, Boolean passed) {
+        if (passed == null) {
+            throw new IllegalArgumentException("passed=true|false is required for action=observe");
+        }
+        return store.observe(testId, passed);
     }
 
     private Path resolveMuteStorePath(String muteStorePath) {
