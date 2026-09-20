@@ -604,6 +604,100 @@ class AssistantMarkdownTest {
                 () -> assertFalse(rendered.contains("couldn't finish"), rendered));
     }
 
+
+    @Test
+    void doctorCardSurfacesRetryCorrelationAsTimingNotProduct() {
+        // SC-001 / #5973: FailedRunDoctorNotifier card path via AssistantMarkdown.
+        String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "DETERMINISTIC",
+                  "bundleId": "retry-hidden",
+                  "primaryCause": "TIMING_SYNCHRONIZATION",
+                  "confidence": "MEDIUM",
+                  "summary": "Earlier attempts failed before a green final retry.",
+                  "diagnosis": {
+                    "schemaVersion": "1.1",
+                    "primaryCause": "TIMING_SYNCHRONIZATION",
+                    "contributingCauses": [],
+                    "confidence": "MEDIUM",
+                    "summary": "Earlier attempts failed before a green final retry.",
+                    "rationale": "Retry correlation.",
+                    "findings": [
+                      {
+                        "id": "f-retry",
+                        "kind": "OBSERVATION",
+                        "category": "TIMING_SYNCHRONIZATION",
+                        "severity": "WARNING",
+                        "title": "A retry hid an earlier failed or broken attempt",
+                        "detail": "The final attempt passed.",
+                        "ruleId": "retry-correlation",
+                        "evidenceIds": ["a", "b"]
+                      }
+                    ],
+                    "remediations": [],
+                    "missingEvidence": [],
+                    "rankedCauses": []
+                  },
+                  "actions": [],
+                  "codeBlocks": [],
+                  "warnings": []
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("TIMING_SYNCHRONIZATION"), markdown),
+                () -> assertTrue(markdown.contains("Retry correlation"), markdown),
+                () -> assertTrue(markdown.contains("not a product defect"), markdown),
+                () -> assertFalse(markdown.contains("**Primary cause:** PRODUCT"), markdown));
+    }
+
+    @Test
+    void doctorCardSurfacesHistoricalSignatureClusterKey() {
+        // SC-002 / #5973
+        String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "DETERMINISTIC",
+                  "bundleId": "hist",
+                  "primaryCause": "LOCATOR",
+                  "confidence": "HIGH",
+                  "summary": "Locator did not resolve an element.",
+                  "diagnosis": {
+                    "schemaVersion": "1.1",
+                    "primaryCause": "LOCATOR",
+                    "contributingCauses": [],
+                    "confidence": "HIGH",
+                    "summary": "Locator did not resolve an element.",
+                    "rationale": "locator-not-found",
+                    "findings": [
+                      {
+                        "id": "f-hist",
+                        "kind": "OBSERVATION",
+                        "category": "UNKNOWN",
+                        "severity": "WARNING",
+                        "title": "Failure signature recurred across evidence bundles",
+                        "detail": "A normalized current failure signature was also present in supplied historical bundles. Cluster key: fp-stable.",
+                        "ruleId": "historical-signature-correlation",
+                        "evidenceIds": ["e-1"]
+                      }
+                    ],
+                    "remediations": [],
+                    "missingEvidence": [],
+                    "rankedCauses": []
+                  },
+                  "actions": [],
+                  "codeBlocks": [],
+                  "warnings": []
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("Historical signature"), markdown),
+                () -> assertTrue(markdown.contains("fp-stable"), markdown),
+                () -> assertTrue(markdown.contains("Diagnosis card"), markdown));
+    }
+
     @Test
     void formatsDoctorAnalysisReportWithActionsSnippetsAndReportPaths() {
         String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""

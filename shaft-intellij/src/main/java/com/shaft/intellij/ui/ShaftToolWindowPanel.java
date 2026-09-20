@@ -186,6 +186,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         ReportingFlakePanel flake = new ReportingFlakePanel(project);
         ReportingClustersPanel clusters = new ReportingClustersPanel(project);
         ReportingLabelsPanel labels = new ReportingLabelsPanel(project);
+        ReportingDoctorPanel doctor = new ReportingDoctorPanel(project);
         ReportingHealPanel heal = new ReportingHealPanel(project);
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
@@ -199,6 +200,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         reportingTabs.addTab(ReportingFlakePanel.TAB_TITLE, ShaftIcons.VIEW, flake);
         reportingTabs.addTab(ReportingClustersPanel.TAB_TITLE, ShaftIcons.VIEW, clusters);
         reportingTabs.addTab(ReportingLabelsPanel.TAB_TITLE, ShaftIcons.EDIT, labels);
+        reportingTabs.addTab(ReportingDoctorPanel.TAB_TITLE, ShaftIcons.VIEW, doctor);
         reportingTabs.addTab(ReportingHealPanel.TAB_TITLE, ShaftIcons.VIEW, heal);
         reportingTabs.addTab("Triage", ShaftIcons.VIEW, triage);
         reportingTabs.addTab("Visual Baselines", ShaftIcons.VIEW, visualBaselines);
@@ -882,6 +884,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case ReportingFlakePanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingFlakePanel.TAB_TITLE, null);
             case ReportingClustersPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingClustersPanel.TAB_TITLE, null);
             case ReportingLabelsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingLabelsPanel.TAB_TITLE, null);
+            case ReportingDoctorPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingDoctorPanel.TAB_TITLE, null);
             case ReportingHealPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingHealPanel.TAB_TITLE, null);
             case "Triage" -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
             case "Visual Baselines" -> new SurfaceTarget(STAGE_REPORTING, "Visual Baselines", null);
@@ -920,7 +923,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         return switch (label) {
             case STAGE_DESIGN -> "Turn a user story or requirements into reviewable Gherkin, then hand off to Automation";
             case STAGE_AUTOMATION -> "Live record, inspect, run, and generate SHAFT fluent Java";
-            case STAGE_REPORTING -> "Analyze Allure, Doctor, flake, unique-error clusters, and heal evidence";
+            case STAGE_REPORTING -> "Analyze Allure, Doctor diagnosis card, flake, unique-error clusters, and heal evidence";
             case "More" -> "Project setup and raw MCP tools";
             default -> "";
         };

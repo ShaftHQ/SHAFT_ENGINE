@@ -195,6 +195,10 @@ class DeterministicRuleEngineTest {
 
         assertTrue(diagnosis.findings().stream()
                 .anyMatch(finding -> "historical-signature-correlation".equals(finding.ruleId())));
+        assertTrue(diagnosis.findings().stream()
+                .filter(finding -> "historical-signature-correlation".equals(finding.ruleId()))
+                .anyMatch(finding -> finding.detail().contains("Cluster key: fp-stable")),
+                diagnosis.findings().toString());
     }
 
     @Test

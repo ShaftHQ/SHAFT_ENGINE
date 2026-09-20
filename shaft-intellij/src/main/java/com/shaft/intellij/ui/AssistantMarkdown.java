@@ -1001,48 +1001,205 @@ final class AssistantMarkdown {
     }
 
     private static String doctorMarkdown(JsonObject object) {
-        if (!object.has("schemaVersion") || !object.has("primaryCause") || !object.has("codeBlocks")) {
+        JsonObject card = doctorCardRoot(object);
+        if (card == null) {
             return "";
         }
         List<String> sections = new ArrayList<>();
         sections.add(metadataLine(
-                "Doctor", string(object, "status", ""),
-                "Primary cause", string(object, "primaryCause", ""),
-                "Confidence", string(object, "confidence", ""),
-                "Bundle", string(object, "bundleId", "")));
-        String summary = string(object, "summary", "");
+                "Doctor", string(card, "status", ""),
+                "Primary cause", string(card, "primaryCause", ""),
+                "Confidence", string(card, "confidence", ""),
+                "Bundle", string(card, "bundleId", "")));
+        String summary = string(card, "summary", "");
         if (!summary.isBlank()) {
             sections.add("**Diagnosis:** " + summary);
         }
+        appendNonBlank(sections, doctorDimensionsMarkdown(card));
         String reports = metadataLine(
-                "JSON report", string(object, "jsonReportPath", ""),
-                "Markdown report", string(object, "markdownReportPath", ""),
-                "Evidence bundle", string(object, "bundlePath", ""));
+                "JSON report", string(card, "jsonReportPath", ""),
+                "Markdown report", string(card, "markdownReportPath", ""),
+                "Evidence bundle", string(card, "bundlePath", ""));
         if (!reports.isBlank()) {
             sections.add(reports);
         }
-        if (object.has("actions") && object.get("actions").isJsonArray()) {
-            String actions = doctorActionsMarkdown(object.getAsJsonArray("actions"));
+        if (card.has("actions") && card.get("actions").isJsonArray()) {
+            String actions = doctorActionsMarkdown(card.getAsJsonArray("actions"));
             if (!actions.isBlank()) {
                 sections.add(actions);
             }
         }
-        String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
-        if (!blocks.isBlank()) {
-            sections.add("**Fix snippets**\n\n" + blocks);
+        if (card.has("codeBlocks") && card.get("codeBlocks").isJsonArray()) {
+            String blocks = codeBlocksMarkdown(card.getAsJsonArray("codeBlocks"));
+            if (!blocks.isBlank()) {
+                sections.add("**Fix snippets**\n\n" + blocks);
+            }
         }
-        String warnings = warnings(object);
+        String warnings = warnings(card);
         if (!warnings.isBlank()) {
             sections.add(warnings);
         }
-        if (object.has("providerFallback") && object.get("providerFallback").isJsonObject()) {
-            JsonObject fallback = object.getAsJsonObject("providerFallback");
+        if (card.has("providerFallback") && card.get("providerFallback").isJsonObject()) {
+            JsonObject fallback = card.getAsJsonObject("providerFallback");
             String reason = string(fallback, "reason", "");
             if (!reason.isBlank()) {
                 sections.add("**AI advisory:** " + (booleanValue(fallback, "used") ? "used" : "off") + " — " + reason);
             }
         }
         return joinSections(sections);
+    }
+
+    /**
+     * Resolves the Doctor diagnosis card root from an MCP analysis envelope, a combined
+     * doctor-report.json {@code {diagnosis:...}}, or a bare Diagnosis object with findings
+     * (issue #5973 / S3-07). Returns {@code null} when the payload is not Doctor-shaped.
+     */
+    private static JsonObject doctorCardRoot(JsonObject object) {
+        if (object.has("diagnosis") && object.get("diagnosis").isJsonObject()
+                && !(object.has("primaryCause") && object.has("codeBlocks"))) {
+            JsonObject diagnosis = object.getAsJsonObject("diagnosis").deepCopy();
+            copyIfAbsent(object, diagnosis, "bundleId");
+            copyIfAbsent(object, diagnosis, "bundlePath");
+            copyIfAbsent(object, diagnosis, "jsonReportPath");
+            copyIfAbsent(object, diagnosis, "markdownReportPath");
+            copyIfAbsent(object, diagnosis, "status");
+            if (!diagnosis.has("codeBlocks")) {
+                diagnosis.add("codeBlocks", new JsonArray());
+            }
+            if (!diagnosis.has("status") || string(diagnosis, "status", "").isBlank()) {
+                diagnosis.addProperty("status", "DETERMINISTIC");
+            }
+            return diagnosis.has("schemaVersion") && diagnosis.has("primaryCause") ? diagnosis : null;
+        }
+        if (!(object.has("schemaVersion") && object.has("primaryCause"))) {
+            return null;
+        }
+        if (object.has("codeBlocks")) {
+            return object;
+        }
+        if (object.has("findings")) {
+            JsonObject copy = object.deepCopy();
+            copy.add("codeBlocks", new JsonArray());
+            return copy;
+        }
+        return null;
+    }
+
+    private static void copyIfAbsent(JsonObject source, JsonObject target, String key) {
+        if (source.has(key) && !target.has(key)) {
+            target.add(key, source.get(key));
+        }
+    }
+
+    /**
+     * Renders existing Doctor retry-correlation, historical-signature, and timing vs locator
+     * fields onto the diagnosis card. Reads findings / primaryCause / contributingCauses only —
+     * no parallel detector in the plugin (FR-002 / issue #5973).
+     */
+    private static String doctorDimensionsMarkdown(JsonObject object) {
+        JsonObject diagnosis = object;
+        if (object.has("diagnosis") && object.get("diagnosis").isJsonObject()) {
+            diagnosis = object.getAsJsonObject("diagnosis");
+        }
+        String primary = string(diagnosis, "primaryCause", string(object, "primaryCause", ""));
+        List<String> lines = new ArrayList<>();
+        boolean sawRetry = false;
+        boolean sawTiming = false;
+        boolean sawLocator = false;
+
+        if (diagnosis.has("findings") && diagnosis.get("findings").isJsonArray()) {
+            for (JsonElement element : diagnosis.getAsJsonArray("findings")) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject finding = element.getAsJsonObject();
+                String ruleId = string(finding, "ruleId", "");
+                String category = string(finding, "category", "");
+                String title = string(finding, "title", "");
+                String detail = string(finding, "detail", "");
+                if ("retry-correlation".equals(ruleId)) {
+                    sawRetry = true;
+                    sawTiming = true;
+                    lines.add("- **Retry correlation:** `TIMING_SYNCHRONIZATION` — " + title
+                            + " (timing/flake across attempts; not a product defect).");
+                    if (!detail.isBlank()) {
+                        lines.add("  - " + detail);
+                    }
+                } else if ("historical-signature-correlation".equals(ruleId)) {
+                    String clusterKey = clusterKeyFromFindingDetail(detail);
+                    lines.add("- **Historical signature:** cluster key `" + clusterKey + "` — " + title);
+                    if (!detail.isBlank()) {
+                        lines.add("  - " + detail);
+                    }
+                } else if ("TIMING_SYNCHRONIZATION".equals(category) || ruleId.startsWith("timing-")) {
+                    sawTiming = true;
+                    lines.add("- **Timing:** `" + category + "` (`" + ruleId + "`) — " + title);
+                } else if ("LOCATOR".equals(category) || ruleId.startsWith("locator-")) {
+                    sawLocator = true;
+                    lines.add("- **Locator:** `" + category + "` (`" + ruleId + "`) — " + title);
+                }
+            }
+        }
+
+        if (!sawRetry && !sawTiming && "TIMING_SYNCHRONIZATION".equals(primary)) {
+            lines.add(0, "- **Timing:** `TIMING_SYNCHRONIZATION` — primary cause "
+                    + "(synchronization / retry timing, not product).");
+            sawTiming = true;
+        }
+        if (!sawLocator && "LOCATOR".equals(primary)) {
+            lines.add("- **Locator:** `LOCATOR` — primary cause.");
+            sawLocator = true;
+        }
+        appendContributingDimension(lines, diagnosis, object, "TIMING_SYNCHRONIZATION", "Timing", sawTiming);
+        appendContributingDimension(lines, diagnosis, object, "LOCATOR", "Locator", sawLocator);
+
+        if (lines.isEmpty()) {
+            return "";
+        }
+        return "**Diagnosis card — retries vs history vs timing vs locator**\n" + String.join("\n", lines);
+    }
+
+    private static void appendContributingDimension(
+            List<String> lines,
+            JsonObject diagnosis,
+            JsonObject object,
+            String category,
+            String label,
+            boolean alreadyShown) {
+        if (alreadyShown) {
+            return;
+        }
+        JsonArray contributors = null;
+        if (diagnosis.has("contributingCauses") && diagnosis.get("contributingCauses").isJsonArray()) {
+            contributors = diagnosis.getAsJsonArray("contributingCauses");
+        } else if (object.has("contributingCauses") && object.get("contributingCauses").isJsonArray()) {
+            contributors = object.getAsJsonArray("contributingCauses");
+        }
+        if (contributors == null) {
+            return;
+        }
+        for (JsonElement element : contributors) {
+            if (element.isJsonPrimitive() && category.equals(element.getAsString())) {
+                lines.add("- **" + label + ":** `" + category + "` — contributing cause.");
+                return;
+            }
+        }
+    }
+
+    private static String clusterKeyFromFindingDetail(String detail) {
+        if (detail == null || detail.isBlank()) {
+            return "unknown";
+        }
+        String marker = "Cluster key:";
+        int index = detail.indexOf(marker);
+        if (index < 0) {
+            return "unknown";
+        }
+        String rest = detail.substring(index + marker.length()).trim();
+        if (rest.endsWith(".")) {
+            rest = rest.substring(0, rest.length() - 1).trim();
+        }
+        return rest.isBlank() ? "unknown" : rest;
     }
 
     private static String doctorActionsMarkdown(JsonArray actions) {
