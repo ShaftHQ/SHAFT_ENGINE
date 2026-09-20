@@ -127,35 +127,56 @@ final class ReportingLabelsPanel extends JPanel {
             return;
         }
         try {
-            JsonElement parsed = JsonParser.parseString(raw);
-            if (!parsed.isJsonObject()) {
-                status.setText(truncate(raw));
-                return;
-            }
-            JsonObject root = parsed.getAsJsonObject();
-            String action = text(root, "action");
-            String message = text(root, "message");
-            String alias = text(root, "displayAlias");
-            String cause = text(root, "causeCategory");
-            boolean matched = root.has("matched") && root.get("matched").getAsBoolean();
-            boolean replaced = root.has("replaced") && root.get("replaced").getAsBoolean();
-            StringBuilder builder = new StringBuilder();
-            if (!action.isBlank()) {
-                builder.append(action).append(": ");
-            }
-            builder.append(message.isBlank() ? truncate(raw) : message);
-            if (matched && !alias.isBlank()) {
-                builder.append(" → ").append(alias);
-            } else if (matched && !cause.isBlank()) {
-                builder.append(" → ").append(cause);
-            }
-            if (replaced) {
-                builder.append(" (replaced prior label)");
-            }
-            status.setText(builder.toString());
+            status.setText(formatResult(raw));
         } catch (RuntimeException exception) {
             status.setText(truncate(raw));
         }
+    }
+
+    private static String formatResult(String raw) {
+        JsonElement parsed = JsonParser.parseString(raw);
+        if (!parsed.isJsonObject()) {
+            return truncate(raw);
+        }
+        JsonObject root = parsed.getAsJsonObject();
+        StringBuilder builder = new StringBuilder();
+        appendAction(builder, text(root, "action"));
+        appendMessage(builder, text(root, "message"), raw);
+        appendMatch(builder, root);
+        appendReplaced(builder, booleanFlag(root, "replaced"));
+        return builder.toString();
+    }
+
+    private static void appendAction(StringBuilder builder, String action) {
+        if (!action.isBlank()) {
+            builder.append(action).append(": ");
+        }
+    }
+
+    private static void appendMessage(StringBuilder builder, String message, String raw) {
+        builder.append(message.isBlank() ? truncate(raw) : message);
+    }
+
+    private static void appendMatch(StringBuilder builder, JsonObject root) {
+        if (!booleanFlag(root, "matched")) {
+            return;
+        }
+        String alias = text(root, "displayAlias");
+        String cause = text(root, "causeCategory");
+        String shown = !alias.isBlank() ? alias : cause;
+        if (!shown.isBlank()) {
+            builder.append(" → ").append(shown);
+        }
+    }
+
+    private static void appendReplaced(StringBuilder builder, boolean replaced) {
+        if (replaced) {
+            builder.append(" (replaced prior label)");
+        }
+    }
+
+    private static boolean booleanFlag(JsonObject root, String field) {
+        return root.has(field) && root.get(field).getAsBoolean();
     }
 
     private void invoke(String action) {

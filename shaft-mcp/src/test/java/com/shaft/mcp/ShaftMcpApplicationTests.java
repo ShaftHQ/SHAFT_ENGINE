@@ -69,10 +69,10 @@ class ShaftMcpApplicationTests {
 
         Set<String> expected = expectedTools();
         assertEquals(expected, toolNames);
-        assertEquals(114, toolNames.size(), "the tool architecture sweep plus unified setup exposes 114 tools "
+        assertEquals(115, toolNames.size(), "the tool architecture sweep plus unified setup exposes 115 tools "
                 + "(design doc Decision 2, +1 for issue #4194, +1 design_ingest #5947, "
                 + "+1 design_analyze #5948, +1 design_gherkin_draft #5949, +1 design_examples #5950, "
-                + "+1 design_lexicon #5951, +1 design_coverage #5952, +1 design_lint #5953, +1 design_gap_map #5954, +1 design_readiness #5955, +1 design_handoff #5956, +1 report_history #5967, +1 report_flake #5968, +1 report_clusters #5969); "
+                + "+1 design_lexicon #5951, +1 design_coverage #5952, +1 design_lint #5953, +1 design_gap_map #5954, +1 design_readiness #5955, +1 design_handoff #5956, +1 report_history #5967, +1 report_flake #5968, +1 report_clusters #5969, +1 doctor_cause_label #5971); "
                 + "update the manifest fixture deliberately, never this literal");
         assertTrue(toolNames.contains("design_ingest"));
         assertTrue(toolNames.contains("design_analyze"));
