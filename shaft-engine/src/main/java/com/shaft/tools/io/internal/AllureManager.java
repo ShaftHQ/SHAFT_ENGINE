@@ -2269,12 +2269,25 @@ public class AllureManager {
      * @return {@code true} if the executable was found
      */
     private static boolean isExecutableOnPath(String name) {
+        // Honor a pre-set interrupt before spawning a process: a fast "which"/"where" can
+        // finish before waitFor observes InterruptedException (CI flake on JDK 25).
+        if (Thread.currentThread().isInterrupted()) {
+            ReportManager.logDiscrete(
+                    "PATH-check for '" + name + "' skipped due to interrupt; assuming not found.");
+            return false;
+        }
         try {
             ProcessBuilder pb = SystemUtils.IS_OS_WINDOWS
                     ? new ProcessBuilder("cmd.exe", "/c", "where", name)
                     : new ProcessBuilder("which", name);
             pb.redirectErrorStream(true);
-            return pb.start().waitFor() == 0;
+            int exitCode = pb.start().waitFor();
+            if (Thread.currentThread().isInterrupted()) {
+                ReportManager.logDiscrete(
+                        "PATH-check for '" + name + "' was interrupted; assuming not found.");
+                return false;
+            }
+            return exitCode == 0;
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 ReportManager.logDiscrete("PATH-check for '" + name + "' was interrupted; assuming not found.");

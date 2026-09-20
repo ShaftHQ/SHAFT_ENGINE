@@ -897,10 +897,18 @@ public class AllureManagerUnitTest {
         Method isExecutableOnPath = AllureManager.class.getDeclaredMethod("isExecutableOnPath", String.class);
         isExecutableOnPath.setAccessible(true);
 
-        Thread.currentThread().interrupt();
-        Object executableOnPath = isExecutableOnPath.invoke(null, "java");
-        SHAFT.Validations.assertThat().object(executableOnPath).isEqualTo(false).perform();
-        Thread.interrupted();
+        try {
+            Thread.currentThread().interrupt();
+            Object executableOnPath = isExecutableOnPath.invoke(null, "java");
+            // Use TestNG Assert: SHAFT Validations attaches Allure evidence and can throw
+            // ClosedByInterruptException while the interrupt flag is still set.
+            org.testng.Assert.assertEquals(executableOnPath, false,
+                    "interrupted PATH check must assume the executable is not found");
+            org.testng.Assert.assertTrue(Thread.currentThread().isInterrupted(),
+                    "interrupt flag must remain set for the caller");
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @Test(description = "downloadNodeJsPortable should surface download failures when archive URL is unreachable")
