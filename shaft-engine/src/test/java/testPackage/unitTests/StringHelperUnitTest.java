@@ -115,6 +115,15 @@ public class StringHelperUnitTest {
         Assert.assertEquals(stripped, "Hello World", "Stripped string should match");
     }
 
+    @Test(description = "Test string trim")
+    public void testStringTrim() {
+        String text = "  SHAFT  ";
+        String trimmed = text.trim();
+        Assert.assertEquals(trimmed, "SHAFT", "Trimmed string should match");
+        Assert.assertEquals("".trim(), "", "Empty trim should stay empty");
+        Assert.assertEquals("no-pad".trim(), "no-pad", "No-pad trim should be identity");
+    }
+
     @Test(description = "Test string repeat")
     public void testStringRepeat() {
         String text = "AB";
