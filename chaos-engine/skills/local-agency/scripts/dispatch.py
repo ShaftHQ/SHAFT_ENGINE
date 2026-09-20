@@ -17,9 +17,25 @@ import tempfile
 from pathlib import Path
 from types import ModuleType
 from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILLS_ROOT = SCRIPT_DIR.parents[1]
+
+CE_BRIEF_PATH = SKILLS_ROOT.parent / "ce_brief.py"
+
+
+def load_ce_brief():
+    """Import chaos-engine/ce_brief.py by path (stdlib only)."""
+    return _load_module("ce_brief", CE_BRIEF_PATH)
+
+
+def attach_ce_brief(out: dict[str, object], project: Path | None = None) -> dict[str, object]:
+    """Attach locator-only CE brief payload under ce_brief (#6068)."""
+    brief = load_ce_brief().build_brief(project=project)
+    out["ce_brief"] = brief
+    return out
+
 
 # Prefer FreeToken, then OpenAI-compat peers. Order is intentional.
 RUNTIME_RANK = ("freetoken", "ollama", "lmstudio", "llamacpp", "colibri")
@@ -375,6 +391,8 @@ def cmd_config(args: argparse.Namespace) -> int:
         "omniroute_fallback": False,
         "note": "OpenCode merges configs; enabled_providers limits this process to the local provider",
     }
+    if getattr(args, "with_ce_brief", False):
+        attach_ce_brief(out, project=Path(args.project) if getattr(args, "project", None) else None)
     print(json.dumps(out, sort_keys=True))
     return 0
 
@@ -412,7 +430,50 @@ def cmd_argv(args: argparse.Namespace) -> int:
         "omniroute_fallback": False,
         "note": "OpenCode merges configs; enabled_providers limits this process to the local provider",
     }
+    if getattr(args, "with_ce_brief", False):
+        attach_ce_brief(out, project=Path(args.project) if getattr(args, "project", None) else None)
     print(json.dumps(out, sort_keys=True))
+    return 0
+
+
+def cmd_brief(args: argparse.Namespace) -> int:
+    """Print CE brief text or JSON (#6068)."""
+    project = Path(args.project) if getattr(args, "project", None) else None
+    brief = load_ce_brief().build_brief(project=project)
+    if getattr(args, "json", False):
+        print(json.dumps(brief, sort_keys=True))
+    else:
+        sys.stdout.write(str(brief["text"]))
+    return 0
+
+
+def cmd_chat(args: argparse.Namespace) -> int:
+    """POST one chat completion to a READY local OpenAI-compat runtime (#6068)."""
+    payload = resolve_local(prefer=args.prefer, model=args.model, allow_cloud=args.allow_cloud)
+    chosen = _chosen_or_fail(payload)
+    if chosen is None:
+        return 1
+    messages: list[dict[str, str]] = []
+    if getattr(args, "with_ce_brief", False):
+        project = Path(args.project) if getattr(args, "project", None) else None
+        brief = load_ce_brief().build_brief(project=project)
+        messages.append({"role": "system", "content": str(brief["text"])})
+    messages.append({"role": "user", "content": args.prompt})
+    body = {
+        "model": str(chosen["model"]),
+        "messages": messages,
+    }
+    base = str(chosen["openai_base_url"]).rstrip("/")
+    url = f"{base}/chat/completions"
+    req = Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Authorization": "Bearer local"},
+        method="POST",
+    )
+    with urlopen(req, timeout=120) as response:
+        raw = response.read()
+    print(raw.decode("utf-8"))
     return 0
 
 
@@ -434,6 +495,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     sub.add_parser("resolve", help="JSON readiness + chosen local runtime (default)")
     config_p = sub.add_parser("config", help="write ephemeral OpenCode config; print env")
     config_p.add_argument("--dir", default=None, help="directory for opencode.json (default: temp)")
+    config_p.add_argument("--project", default=None, help="project root for CE brief locators")
+    config_p.add_argument("--with-ce-brief", action="store_true", help="attach locator-only CE brief JSON")
     argv_p = sub.add_parser("argv", help="print env + opencode run argv (does not execute)")
     argv_p.add_argument("--prompt", required=True, help="message for opencode run")
     argv_p.add_argument("--workdir", default=None, help="--dir for opencode")
@@ -446,6 +509,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=("low", "medium", "high"),
         help="OpenCode --variant for tool loops (default: medium)",
     )
+    argv_p.add_argument("--project", default=None, help="project root for CE brief locators")
+    argv_p.add_argument("--with-ce-brief", action="store_true", help="attach locator-only CE brief JSON")
+    brief_p = sub.add_parser("brief", help="print locator-only CE system brief (#6068)")
+    brief_p.add_argument("--project", default=None, help="project root")
+    brief_p.add_argument("--json", action="store_true", help="print brief receipt JSON")
+    chat_p = sub.add_parser("chat", help="POST chat completion to READY local runtime (#6068)")
+    chat_p.add_argument("--prompt", required=True, help="user message")
+    chat_p.add_argument("--project", default=None, help="project root for CE brief")
+    chat_p.add_argument("--with-ce-brief", action="store_true", help="set system= from CE brief")
     return parser.parse_args(argv)
 
 
@@ -458,6 +530,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_config(args)
     if command == "argv":
         return cmd_argv(args)
+    if command == "brief":
+        return cmd_brief(args)
+    if command == "chat":
+        return cmd_chat(args)
     print(f"unknown command: {command}", file=sys.stderr)
     return 2
 

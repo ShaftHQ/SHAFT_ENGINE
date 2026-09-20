@@ -69,7 +69,15 @@ plugins. `--pure` still only disables plugins.
 
 ## CE brief (design turns)
 
-For design/spec-shaped local turns, build a locator-only system brief with [`ce_brief.py`](../../ce_brief.py) (`python3 chaos-engine/ce_brief.py --json`). Do not dump full SKILL bodies into the model context (#6067).
+For design/spec-shaped local turns, build a locator-only system brief with [`ce_brief.py`](../../ce_brief.py) or via dispatch:
+
+```text
+python3 chaos-engine/skills/local-agency/scripts/dispatch.py brief --json
+python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp config --with-ce-brief
+python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp chat --prompt '…' --with-ce-brief
+```
+
+Do not dump full SKILL bodies into the model context (#6067/#6068).
 
 ## Mechanical dispatch (small-context local models)
 
