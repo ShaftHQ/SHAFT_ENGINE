@@ -383,5 +383,122 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertEqual(preferred["chosen"]["opencode_model"], "colibri/glm-frontier")
 
 
+
+    def test_brief_subcommand_emits_text_and_receipt_fields(self):
+        """#6068: dispatch.py brief [--project PATH] uses ce_brief.build_brief."""
+        self.assertTrue(hasattr(dispatch, "cmd_brief"), "cmd_brief missing — implement P1 brief")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "chaos-engine").mkdir()
+            # minimal locators optional; build_brief tolerates missing identity
+            buf = StringIO()
+            with redirect_stdout(buf):
+                args = dispatch.parse_args(["brief", "--project", str(project), "--json"])
+                code = dispatch.cmd_brief(args)
+            self.assertEqual(code, 0)
+            payload = json.loads(buf.getvalue())
+            self.assertIn("text", payload)
+            self.assertIn("bytes", payload)
+            self.assertIn("schemaVersion", payload)
+            self.assertIsInstance(payload["text"], str)
+            self.assertGreater(payload["bytes"], 0)
+
+    def test_with_ce_brief_flag_on_config_and_argv(self):
+        """#6068: --with-ce-brief attaches brief without durable rewrite."""
+        self.assertIn("--with-ce-brief", DISPATCH.read_text(encoding="utf-8"))
+
+        def probe(runtime: str):
+            if runtime == "freetoken":
+                return {
+                    "runtime": "freetoken",
+                    "state": "READY",
+                    "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE,
+                    "models": ["m"],
+                    "provider_id": "freetoken",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": _base_for(runtime),
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            with tempfile.TemporaryDirectory() as temporary:
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    args = dispatch.parse_args(["config", "--dir", temporary, "--with-ce-brief"])
+                    code = dispatch.cmd_config(args)
+                self.assertEqual(code, 0)
+                out = json.loads(buf.getvalue())
+                self.assertFalse(out.get("durable_config_rewrite"))
+                self.assertIn("ce_brief", out)
+                self.assertIn("text", out["ce_brief"])
+
+                buf2 = StringIO()
+                with redirect_stdout(buf2):
+                    args = dispatch.parse_args(
+                        ["argv", "--prompt", "PING", "--dir", temporary, "--with-ce-brief"]
+                    )
+                    code = dispatch.cmd_argv(args)
+                self.assertEqual(code, 0)
+                out2 = json.loads(buf2.getvalue())
+                self.assertIn("ce_brief", out2)
+                self.assertIn("text", out2["ce_brief"])
+
+    def test_chat_helper_posts_system_from_ce_brief(self):
+        """#6068: optional chat helper POSTs to READY openai-compat with system=brief."""
+        self.assertTrue(hasattr(dispatch, "cmd_chat"), "cmd_chat missing — implement P1 chat")
+        captured = {}
+
+        def probe(runtime: str):
+            if runtime == "llamacpp":
+                return {
+                    "runtime": "llamacpp",
+                    "state": "READY",
+                    "openai_base_url": dispatch.OPENAI_COMPAT_BASES["llamacpp"],
+                    "models": ["qwen"],
+                    "provider_id": "llamacpp",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": _base_for(runtime),
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {"choices": [{"message": {"content": "ok"}}]}
+                ).encode("utf-8")
+
+        def fake_urlopen(req, timeout=0):
+            captured["url"] = req.full_url
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _Resp()
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            with mock.patch.object(dispatch, "urlopen", side_effect=fake_urlopen):
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    args = dispatch.parse_args(
+                        ["--prefer", "llamacpp", "chat", "--prompt", "hi", "--with-ce-brief"]
+                    )
+                    code = dispatch.cmd_chat(args)
+                self.assertEqual(code, 0)
+        self.assertIn("/chat/completions", captured["url"])
+        self.assertEqual(captured["body"]["messages"][0]["role"], "system")
+        self.assertTrue(captured["body"]["messages"][0]["content"])
+        self.assertEqual(captured["body"]["messages"][1]["role"], "user")
+
 if __name__ == "__main__":
     unittest.main()
