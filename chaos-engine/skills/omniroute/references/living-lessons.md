@@ -60,3 +60,11 @@ host. A box-only Shell that reports FreeToken down is **box fallback**, not
 ## 2026-09-19 — Task Shell lacks machineId; ROG FreeToken is process-owner-only (#6021)
 
 Fail closed on box FreeToken claims (`require_rog_freetoken.py` / `resolve --prefer freetoken`); process-owner Shell with machineId on ROG until Grok Bot exposes machineId to Task.
+
+## 2026-09-20 — Task Shell still has no machineId (#6051)
+
+Empirical: parent Task tool schema has no `machineId`; executor implementers
+report box `hostname=cursor` and cannot reach ROG `:1919`/`:8080`. CE workaround
+is mandatory parent Shell-with-machineId for ROG writers; see
+`assert_parent_rog_shell.py` and `guides/local-agency.md`. Platform must expose
+machineId on Task→executor Shell to close the hard blocker.

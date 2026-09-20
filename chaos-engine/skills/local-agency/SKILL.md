@@ -43,8 +43,10 @@ first.
   [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py) fail closed unless
   the hostname looks like ROG, cwd is the operator ROG checkout (see
   [local-agency guide](../../guides/local-agency.md)), or
-  `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Process-owner Shell with `machineId` on ROG is
-  required until Grok Bot exposes `machineId` to Task. Clear error when FreeToken
+  `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Process-owner Shell with `machineId` on ROG is **mandatory** for ROG
+  FreeToken/OpenCode writers (#6051). Do **not** dispatch those writers via
+  Task until Grok Bot exposes `machineId` to Task/executor Shell. Diagnostic:
+  [`assert_parent_rog_shell.py`](scripts/assert_parent_rog_shell.py). Clear error when FreeToken
   is not READY on this host.
 
 ## Probe → resolve → ephemeral OpenCode
@@ -129,3 +131,4 @@ this skill when the adopter names OpenCode or “local agents”.
 - Local OpenAI-compat: [local-openai-compat](../local-openai-compat/SKILL.md)
 - OmniRoute (explicit cloud only): [omniroute](../omniroute/SKILL.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
+- Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md) (#6051)
