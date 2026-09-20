@@ -30,6 +30,14 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt 'smok
 (default `medium`).
 
 
+
+## CE project pointers (#6070)
+
+`dispatch.py config` / `argv` preflight the worktree (`--project` or `--workdir`, else cwd)
+for `AGENTS.md` and the install-generated `.agents/skills/chaos-engine/` skill adapter. Fail closed if either is missing.
+`--pure` only disables plugins — install/activate ChaosEngine in the worktree first so the
+pointers exist, then dispatch.
+
 ## Coach loop
 
 When the host process-owner delegates to a READY openai-compat writer, follow [coach-loop.md](../skills/local-agency/references/coach-loop.md): verify every artifact, grounded feedback with runtime evidence, RED-first then worked-example reproduce after free-form fails, never leave the local model unsupervised (#6075).

@@ -80,6 +80,18 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp c
 Do not dump full SKILL bodies into the model context (#6067/#6068).
 Unit/eval contracts: [`ce-brief-unit-fixtures.json`](../../evals/ce-brief-unit-fixtures.json) (#6072).
 
+
+## CE project pointers (OpenCode preflight)
+
+Before emitting `config` / `argv` OpenCode material, `dispatch.py` fail-closes unless the
+target worktree has ChaosEngine project pointers:
+
+- `AGENTS.md`
+- `.agents/skills/chaos-engine/` (install-generated skill adapter)
+
+`--pure` only disables external plugins; it does **not** load ChaosEngine and does **not**
+replace those pointers (#6070). Missing pointers → `state=UNHEALTHY` with `ce_pointers.missing`.
+
 ## Mechanical dispatch (small-context local models)
 
 Treat a READY local coder as a **mechanical runner**, not a designer.

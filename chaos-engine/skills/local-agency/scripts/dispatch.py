@@ -66,6 +66,52 @@ def is_durable_opencode_dir(directory: Path) -> bool:
     return any(marker in rendered for marker in DURABLE_OPENCODE_MARKERS)
 
 
+
+REQUIRED_CE_POINTERS = (
+    "AGENTS.md",
+    ".agents/skills/chaos-engine/SKILL.md",
+)
+
+
+def require_ce_pointers(project: Path | None = None) -> dict[str, object]:
+    """Fail closed when project CE pointers for OpenCode are missing (#6070).
+
+    ``--pure`` only disables plugins; it does not load ChaosEngine. OpenCode still
+    needs project pointers (AGENTS.md + chaos-engine skill adapter) in the worktree.
+    """
+    root = Path(project).expanduser().resolve() if project is not None else Path.cwd().resolve()
+    missing: list[str] = []
+    for relative in REQUIRED_CE_POINTERS:
+        if not (root / relative).is_file():
+            missing.append(relative)
+    if missing:
+        return {
+            "ok": False,
+            "project": str(root),
+            "missing": missing,
+            "advice": (
+                "ChaosEngine project pointers missing for OpenCode: "
+                + ", ".join(missing)
+                + ". Install/activate ChaosEngine in this worktree "
+                "(python3 .chaos-engine/install.py doctor --project .), then retry. "
+                "Note: opencode --pure only disables plugins; it does not replace CE pointers (#6070)."
+            ),
+        }
+    return {"ok": True, "project": str(root), "missing": []}
+
+
+def _project_root_from_args(args: argparse.Namespace) -> Path | None:
+    """Prefer explicit --project, else argv --workdir, else None (cwd)."""
+    project = getattr(args, "project", None)
+    if project:
+        return Path(project)
+    workdir = getattr(args, "workdir", None)
+    if workdir:
+        return Path(workdir)
+    return None
+
+
+
 def _load_module(name: str, path: Path) -> ModuleType:
     """Load a sibling probe module by path."""
     spec = importlib.util.spec_from_file_location(name, path)
@@ -368,6 +414,10 @@ def cmd_resolve(args: argparse.Namespace) -> int:
 
 
 def cmd_config(args: argparse.Namespace) -> int:
+    pointers = require_ce_pointers(_project_root_from_args(args))
+    if not pointers.get("ok"):
+        print(json.dumps({"state": "UNHEALTHY", "ce_pointers": pointers, "durable_config_rewrite": False}, sort_keys=True))
+        return 2
     payload = resolve_local(prefer=args.prefer, model=args.model, allow_cloud=args.allow_cloud)
     chosen = _chosen_or_fail(payload)
     if chosen is None:
@@ -398,6 +448,10 @@ def cmd_config(args: argparse.Namespace) -> int:
 
 
 def cmd_argv(args: argparse.Namespace) -> int:
+    pointers = require_ce_pointers(_project_root_from_args(args))
+    if not pointers.get("ok"):
+        print(json.dumps({"state": "UNHEALTHY", "ce_pointers": pointers, "durable_config_rewrite": False}, sort_keys=True))
+        return 2
     payload = resolve_local(prefer=args.prefer, model=args.model, allow_cloud=args.allow_cloud)
     chosen = _chosen_or_fail(payload)
     if chosen is None:
