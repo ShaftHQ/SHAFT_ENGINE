@@ -107,6 +107,15 @@ report MUST include actual cost in **USD and EGP**, inferred from tokens ×
 cost-per-token for the current agent/model/effort. Do not omit currency
 conversion when EGP is the owner's reporting currency.
 
+When any delivery step used a **local** inference channel (loopback
+OpenAI-compat runtime, optional MoE companion, or peer local runtime), also
+report **avoided cloud spend**: local tokens × the would-have-used cloud
+model's published per-1M rates (input/output), converted to EGP with the same
+FX used for actual cost. Meter with `session_token_usage.py record --channel
+local` during the session so Learning Session finalize can attach the
+retrospective. If no cloud tokens were spent, actual cost is **$0 / 0 EGP**
+and the avoided line is the savings estimate.
+
 Evidence still binds every claim. Publish on ask, on follow-through inspection,
 or when an **adaptive follow-up** fires with material change (see below).
 

@@ -90,6 +90,47 @@ Until Grok Bot exposes `machineId` on Task → executor Shell/Read/AwaitShell:
 
 See issue #6051 (platform + harness) and living lesson under OmniRoute references.
 
+
+
+## Cost and savings reporting
+
+After a delivery that used local loopback inference, the process-owner final
+report (and Learning Session notes) must include:
+
+1. **Actual cost** — USD + EGP for any cloud tokens used in the same delivery.
+2. **Avoided cloud spend** — local prompt + completion tokens × the published
+   per-1M input/output rates of the cloud model that would otherwise have done
+   the writer work, converted to EGP with the owner's FX.
+
+Record local usage during the session:
+
+```bash
+python3 chaos-engine/session_token_usage.py record \
+  --session-id "$SESSION_ID" --channel local --runtime-class local-openai-compat \
+  --prompt-tokens N --completion-tokens M
+```
+
+Do not invent rates or FX. Cite the rate source and FX date in the report.
+Local channel actual cost is $0 unless a paid local host was used.
+
+
+
+## Locked work-machine stack (adopter default)
+
+When the work machine has a proven OpenAI-compat loopback coding runtime:
+
+1. Prefer `dispatch.py --prefer openai-compat` (not FreeToken) for local writers.
+2. Parent Shell with `machineId` on the work machine — Task children have no
+   `machineId` (#6051).
+3. Keep a single user systemd unit for the loopback server so it returns after
+   reboot; do not leave experimental MoE / alternate checkpoints loaded by
+   default.
+4. Record local token usage and report avoided cloud spend on delivery close
+   (see Cost and savings reporting above).
+
+FreeToken remains an optional companion skill in-tree; it is not the default
+writer on hosts that locked OpenAI-compat.
+
 ## Session agents vs local agency
 
 Default orchestrator labor stays on host session subagents / Task. Use this
