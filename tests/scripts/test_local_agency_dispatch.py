@@ -706,5 +706,87 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             # request body may include model for the API call — that is fine; ledger must not
             self.assertEqual(captured["body"]["model"], "qwen-secret-name")
 
+
+    def test_mode_defaults_to_mechanical(self):
+        """#6073: default mode is mechanical (apply.sh-only)."""
+        args = dispatch.parse_args(["resolve"])
+        self.assertEqual(dispatch.resolve_dispatch_mode(args), "mechanical")
+        self.assertFalse(dispatch.wants_ce_brief(args))
+
+    def test_mode_design_implies_ce_brief_on_config(self):
+        """#6073: --mode design attaches CE brief without requiring --with-ce-brief."""
+
+        def probe(runtime: str):
+            if runtime == "freetoken":
+                return {
+                    "runtime": "freetoken",
+                    "state": "READY",
+                    "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE,
+                    "models": ["m"],
+                    "provider_id": "freetoken",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": _base_for(runtime),
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            with tempfile.TemporaryDirectory() as temporary:
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    args = dispatch.parse_args(
+                        [
+                            "--mode",
+                            "design",
+                            "config",
+                            "--dir",
+                            temporary,
+                            "--project",
+                            str(ROOT),
+                        ]
+                    )
+                    code = dispatch.cmd_config(args)
+                self.assertEqual(code, 0)
+                out = json.loads(buf.getvalue())
+                self.assertEqual(out["mode"], "design")
+                self.assertIn("ce_brief", out)
+                self.assertIn("text", out["ce_brief"])
+
+    def test_mode_mechanical_omits_brief_unless_flagged(self):
+        """#6073: mechanical default does not attach ce_brief."""
+
+        def probe(runtime: str):
+            if runtime == "freetoken":
+                return {
+                    "runtime": "freetoken",
+                    "state": "READY",
+                    "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE,
+                    "models": ["m"],
+                    "provider_id": "freetoken",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": _base_for(runtime),
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            with tempfile.TemporaryDirectory() as temporary:
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    args = dispatch.parse_args(
+                        ["config", "--dir", temporary, "--project", str(ROOT)]
+                    )
+                    code = dispatch.cmd_config(args)
+                self.assertEqual(code, 0)
+                out = json.loads(buf.getvalue())
+                self.assertEqual(out.get("mode"), "mechanical")
+                self.assertNotIn("ce_brief", out)
+
 if __name__ == "__main__":
     unittest.main()
