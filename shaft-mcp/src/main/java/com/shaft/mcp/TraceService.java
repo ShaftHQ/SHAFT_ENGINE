@@ -462,7 +462,7 @@ public class TraceService {
             @ToolParam(required = false) String healProposalsPath) {
         Path results = resolveOptionalReadable(
                 allureResultsPath, "target/allure-results", "Allure results directory");
-        if (results == null || !java.nio.file.Files.isDirectory(results)) {
+        if (results == null || !Files.isDirectory(results)) {
             Path discovered = McpAllureResultsLocator.latest(workspacePolicy.root());
             if (discovered != null) {
                 results = discovered;
@@ -572,7 +572,7 @@ public class TraceService {
             return null;
         }
         Path candidate = workspacePolicy.output(reportPath.trim(), "Allure HTML report");
-        return java.nio.file.Files.isRegularFile(candidate) ? candidate : null;
+        return Files.isRegularFile(candidate) ? candidate : null;
     }
 
     private String relativeOrAbsolute(Path path) {

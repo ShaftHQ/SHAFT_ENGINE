@@ -103,17 +103,7 @@ public final class ReportSummaryComputer {
                 recovered,
                 ambiguous,
                 noCandidates,
-                engineerText(
-                        counts,
-                        pathString(allureResultsRoot),
-                        pathString(reportHtml),
-                        pathString(doctorJson),
-                        retryHidden,
-                        transitions,
-                        heal.totalReports(),
-                        recovered,
-                        ambiguous,
-                        noCandidates),
+                engineerText(new SummaryFacts(counts, pathString(allureResultsRoot), pathString(reportHtml), pathString(doctorJson), retryHidden, transitions, heal.totalReports(), recovered, ambiguous, noCandidates)),
                 stakeholderText(counts, retryHidden, transitions, recovered),
                 List.copyOf(warnings));
     }
@@ -230,17 +220,8 @@ public final class ReportSummaryComputer {
         return totals;
     }
 
-    private static String engineerText(
-            Map<String, Integer> counts,
-            String resultsPath,
-            String reportPath,
-            String doctorPath,
-            int retryHidden,
-            int transitions,
-            int healTotal,
-            int recovered,
-            int ambiguous,
-            int noCandidates) {
+    private static String engineerText(SummaryFacts facts) {
+        Map<String, Integer> counts = facts.counts();
         return """
                 Audience: Engineering
                 Period: latest local Allure results
@@ -255,9 +236,9 @@ public final class ReportSummaryComputer {
                 Gate: local-only; no release recommendation from engineer summary
                 Risks/next: Open Allure; review Doctor for failed/broken; copy stakeholder summary if needed
                 """.formatted(
-                blankDash(resultsPath),
-                blankDash(reportPath),
-                blankDash(doctorPath),
+                blankDash(facts.resultsPath()),
+                blankDash(facts.reportPath()),
+                blankDash(facts.doctorPath()),
                 counts.getOrDefault("selected", 0),
                 counts.getOrDefault("started", 0),
                 counts.getOrDefault("completed", 0),
@@ -266,12 +247,12 @@ public final class ReportSummaryComputer {
                 counts.getOrDefault("broken", 0),
                 counts.getOrDefault("skipped", 0),
                 counts.getOrDefault("unknown", 0),
-                retryHidden,
-                transitions,
-                healTotal,
-                recovered,
-                ambiguous,
-                noCandidates);
+                facts.retryHidden(),
+                facts.transitions(),
+                facts.healTotal(),
+                facts.recovered(),
+                facts.ambiguous(),
+                facts.noCandidates());
     }
 
     private static String stakeholderText(
@@ -351,6 +332,19 @@ public final class ReportSummaryComputer {
             }
         }
         return "";
+    }
+
+    private record SummaryFacts(
+            Map<String, Integer> counts,
+            String resultsPath,
+            String reportPath,
+            String doctorPath,
+            int retryHidden,
+            int transitions,
+            int healTotal,
+            int recovered,
+            int ambiguous,
+            int noCandidates) {
     }
 
     private record StatusAttempt(String status, long stop) {

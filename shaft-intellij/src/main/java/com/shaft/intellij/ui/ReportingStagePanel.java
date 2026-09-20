@@ -287,32 +287,47 @@ final class ReportingStagePanel extends JPanel {
             allureStatus.setText(output.isBlank() ? "report_open failed." : truncate(output));
             return;
         }
-        String raw = result.output() == null ? "" : result.output();
+        applyOpenPayload(result.output() == null ? "" : result.output(), afterGenerate);
+    }
+
+    private void applyOpenPayload(String raw, boolean afterGenerate) {
         try {
             JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
-            boolean empty = root.has("empty") && root.get("empty").getAsBoolean();
-            if (empty) {
-                String message = text(root, "emptyMessage");
-                String cta = text(root, "ctaTool");
-                allureStatus.setText(message.isBlank()
-                        ? "Allure missing. Use Generate report (generate_test_report)."
-                        : message + (cta.isBlank() ? "" : " CTA: " + cta));
+            if (isEmptyPayload(root)) {
+                showMissingAllure(root);
                 return;
             }
-            String reportPath = text(root, "reportPath");
-            if (!reportPath.isBlank()) {
-                try {
-                    BrowserUtil.browse(java.nio.file.Path.of(reportPath).toUri());
-                } catch (RuntimeException ignored) {
-                    // MCP may already have opened the report.
-                }
-            }
-            allureStatus.setText(afterGenerate
-                    ? "Allure generated and opened: " + blankDash(reportPath)
-                    : "Allure opened: " + blankDash(reportPath));
+            openReportPath(text(root, "reportPath"), afterGenerate);
         } catch (RuntimeException exception) {
             allureStatus.setText(truncate(raw));
         }
+    }
+
+    private static boolean isEmptyPayload(JsonObject root) {
+        return root.has("empty") && root.get("empty").getAsBoolean();
+    }
+
+    private void showMissingAllure(JsonObject root) {
+        String message = text(root, "emptyMessage");
+        String cta = text(root, "ctaTool");
+        if (message.isBlank()) {
+            allureStatus.setText("Allure missing. Use Generate report (generate_test_report).");
+            return;
+        }
+        allureStatus.setText(cta.isBlank() ? message : message + " CTA: " + cta);
+    }
+
+    private void openReportPath(String reportPath, boolean afterGenerate) {
+        if (!reportPath.isBlank()) {
+            try {
+                BrowserUtil.browse(java.nio.file.Path.of(reportPath).toUri());
+            } catch (RuntimeException ignored) {
+                // MCP may already have opened the report.
+            }
+        }
+        allureStatus.setText(afterGenerate
+                ? "Allure generated and opened: " + blankDash(reportPath)
+                : "Allure opened: " + blankDash(reportPath));
     }
 
     private void applySummaryResult(@Nullable ShaftMcpToolResult result, @Nullable Throwable error) {
