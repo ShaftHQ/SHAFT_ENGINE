@@ -293,6 +293,19 @@ final class ShaftTestsPanel extends JPanel {
         testIndex.snapshot().forEach(row -> rowsByTestId.put(row.testId(), row));
         observeMuteOutcomes(rowsByTestId);
 
+        TreeBuildResult built = buildTree(discoveredClasses, rowsByTestId);
+        treeModel.setRoot(built.root());
+        expandAll();
+        statusLabel.setText(statusText(discoveredClasses.size(), built.decoratedCount()));
+        onSelectionChanged();
+    }
+
+    private record TreeBuildResult(DefaultMutableTreeNode root, int decoratedCount) {
+    }
+
+    private TreeBuildResult buildTree(
+            List<ShaftTestDiscovery.DiscoveredTestClass> discoveredClasses,
+            Map<String, ShaftTestIndex.TestRowState> rowsByTestId) {
         List<ShaftTestDiscovery.DiscoveredTestClass> sorted = new ArrayList<>(discoveredClasses);
         sorted.sort(Comparator.comparing(ShaftTestDiscovery.DiscoveredTestClass::packageName)
                 .thenComparing(ShaftTestDiscovery.DiscoveredTestClass::simpleName));
@@ -301,28 +314,30 @@ final class ShaftTestsPanel extends JPanel {
         Map<String, DefaultMutableTreeNode> packageNodes = new TreeMap<>();
         int decoratedCount = 0;
         for (ShaftTestDiscovery.DiscoveredTestClass discoveredClass : sorted) {
-            ShaftTestIndex.TestRowState runState = matchRunState(rowsByTestId, discoveredClass);
-            if (runState != null) {
-                decoratedCount++;
-            }
-            DefaultMutableTreeNode packageNode = packageNodes.computeIfAbsent(discoveredClass.packageName(),
-                    pkg -> new DefaultMutableTreeNode(new TestTreeNode(
-                            NodeKind.PACKAGE, null, pkg.isEmpty() ? "(default package)" : pkg, null)));
-            DefaultMutableTreeNode classNode = new DefaultMutableTreeNode(new TestTreeNode(
-                    NodeKind.CLASS, discoveredClass.qualifiedName(), discoveredClass.simpleName(), runState));
-            for (String methodName : discoveredClass.methodNames()) {
-                ShaftTestIndex.TestRowState methodRunState =
-                        matchMethodRunState(rowsByTestId, discoveredClass.qualifiedName(), methodName, runState);
-                classNode.add(new DefaultMutableTreeNode(new TestTreeNode(
-                        NodeKind.METHOD, discoveredClass.qualifiedName(), methodName, methodRunState)));
-            }
-            packageNode.add(classNode);
+            decoratedCount += appendClassNode(packageNodes, discoveredClass, rowsByTestId);
         }
         packageNodes.values().forEach(newRoot::add);
-        treeModel.setRoot(newRoot);
-        expandAll();
-        statusLabel.setText(statusText(discoveredClasses.size(), decoratedCount));
-        onSelectionChanged();
+        return new TreeBuildResult(newRoot, decoratedCount);
+    }
+
+    private int appendClassNode(
+            Map<String, DefaultMutableTreeNode> packageNodes,
+            ShaftTestDiscovery.DiscoveredTestClass discoveredClass,
+            Map<String, ShaftTestIndex.TestRowState> rowsByTestId) {
+        ShaftTestIndex.TestRowState runState = matchRunState(rowsByTestId, discoveredClass);
+        DefaultMutableTreeNode packageNode = packageNodes.computeIfAbsent(discoveredClass.packageName(),
+                pkg -> new DefaultMutableTreeNode(new TestTreeNode(
+                        NodeKind.PACKAGE, null, pkg.isEmpty() ? "(default package)" : pkg, null)));
+        DefaultMutableTreeNode classNode = new DefaultMutableTreeNode(new TestTreeNode(
+                NodeKind.CLASS, discoveredClass.qualifiedName(), discoveredClass.simpleName(), runState));
+        for (String methodName : discoveredClass.methodNames()) {
+            ShaftTestIndex.TestRowState methodRunState =
+                    matchMethodRunState(rowsByTestId, discoveredClass.qualifiedName(), methodName, runState);
+            classNode.add(new DefaultMutableTreeNode(new TestTreeNode(
+                    NodeKind.METHOD, discoveredClass.qualifiedName(), methodName, methodRunState)));
+        }
+        packageNode.add(classNode);
+        return runState != null ? 1 : 0;
     }
 
     private void expandAll() {

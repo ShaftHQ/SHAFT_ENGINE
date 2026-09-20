@@ -127,30 +127,39 @@ public final class LocalMuteStore {
         if (current == null || !current.muted()) {
             return table(List.of());
         }
-        if (!passed) {
-            entriesByTestId.put(id, withPasses(current, 0));
+        return passed ? observePass(current) : observeFail(current);
+    }
+
+    private LocalMuteModels.MuteTable observeFail(LocalMuteModels.MuteEntry current) {
+        entriesByTestId.put(current.testId(), withPasses(current, 0));
+        persist();
+        return table(List.of());
+    }
+
+    private LocalMuteModels.MuteTable observePass(LocalMuteModels.MuteEntry current) {
+        int next = current.consecutivePasses() + 1;
+        if (next < current.recoverAfterPasses()) {
+            entriesByTestId.put(current.testId(), withPasses(current, next));
             persist();
             return table(List.of());
         }
-        int next = current.consecutivePasses() + 1;
-        if (next >= current.recoverAfterPasses()) {
-            entriesByTestId.remove(id);
-            persist();
-            LocalMuteModels.MuteEntry recovered = new LocalMuteModels.MuteEntry(
-                    current.testId(),
-                    current.reason(),
-                    current.mutedAtMillis(),
-                    next,
-                    current.recoverAfterPasses(),
-                    LocalMuteModels.MuteStatus.RECOVERED);
-            List<LocalMuteModels.MuteEntry> rows = new ArrayList<>(activeEntries());
-            rows.add(0, recovered);
-            return LocalMuteModels.MuteTable.of(
-                    storePathString(), defaultRecoverAfterPasses, rows, List.of());
-        }
-        entriesByTestId.put(id, withPasses(current, next));
+        return recover(current, next);
+    }
+
+    private LocalMuteModels.MuteTable recover(LocalMuteModels.MuteEntry current, int consecutivePasses) {
+        entriesByTestId.remove(current.testId());
         persist();
-        return table(List.of());
+        LocalMuteModels.MuteEntry recovered = new LocalMuteModels.MuteEntry(
+                current.testId(),
+                current.reason(),
+                current.mutedAtMillis(),
+                consecutivePasses,
+                current.recoverAfterPasses(),
+                LocalMuteModels.MuteStatus.RECOVERED);
+        List<LocalMuteModels.MuteEntry> rows = new ArrayList<>(activeEntries());
+        rows.add(0, recovered);
+        return LocalMuteModels.MuteTable.of(
+                storePathString(), defaultRecoverAfterPasses, rows, List.of());
     }
 
     /** @return true when the test is currently muted */

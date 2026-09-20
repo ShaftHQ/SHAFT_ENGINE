@@ -3674,7 +3674,7 @@
           "type": "string",
           "required": false,
           "default": null,
-          "description": "mute, unmute, list, or observe"
+          "description": null
         },
         {
           "name": "testId",
