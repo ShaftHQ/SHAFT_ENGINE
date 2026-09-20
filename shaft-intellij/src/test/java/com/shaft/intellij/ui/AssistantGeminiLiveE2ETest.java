@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,6 +29,7 @@ class AssistantGeminiLiveE2ETest {
     private static final String LIVE_CANARY_PROMPT = "Return exactly the ASCII token " + LIVE_CANARY_TOKEN
             + " as the entire response. Do not include any other words, punctuation, quotes, markdown, code fences,"
             + " or leading/trailing whitespace.";
+    private static final Set<String> RETRYABLE_STATUSES = Set.of("PROVIDER_UNAVAILABLE", "RATE_LIMITED");
 
     @Test
     void livePluginMcpGeminiPromptReturnsExpectedProviderResponse() throws Exception {
@@ -39,9 +41,10 @@ class AssistantGeminiLiveE2ETest {
         String commandLine = System.getProperty("shaft.intellij.liveMcpCommand", "").trim();
         Assumptions.assumeTrue(!commandLine.isBlank(),
                 "Set -Dshaft.intellij.liveMcpCommand to a SHAFT MCP stdio command.");
-        // The default flash model is periodically load-shed by Google with 503 "high demand"
-        // responses; override the model when live verification needs a less contended one.
+        // Primary flash is periodically load-shed by Google with 503 "high demand"
+        // (PROVIDER_UNAVAILABLE). Override either model when live verification needs it.
         String model = System.getProperty("shaft.intellij.liveGeminiModel", "gemini-3.5-flash").trim();
+        String fallbackModel = System.getProperty("shaft.intellij.liveGeminiFallbackModel", "gemini-2.5-flash").trim();
 
         Path workspace = Path.of(System.getProperty("shaft.intellij.workspaceRoot", ".."))
                 .toAbsolutePath()
@@ -54,6 +57,34 @@ class AssistantGeminiLiveE2ETest {
         // created before use, the same way every other live-tool-E2E test's workspace already is
         // (e.g. ShaftAssistantPanelLiveDiagnosticsToolE2ETest.LiveContext.assumeConfigured()).
         Files.createDirectories(workspace);
+
+        List<String> command = ShaftCommandLine.parse(commandLine);
+        JsonObject first = invokeLiveGemini(command, workspace, apiKey, model);
+        String status = first.get("status").getAsString();
+        JsonObject response = first;
+        String usedModel = model;
+        if (RETRYABLE_STATUSES.contains(status)
+                && !fallbackModel.isBlank()
+                && !fallbackModel.equals(model)) {
+            response = invokeLiveGemini(command, workspace, apiKey, fallbackModel);
+            usedModel = fallbackModel;
+        }
+
+        String answer = response.get("answer").getAsString();
+        assertEquals("SUCCESS", response.get("status").getAsString(),
+                "primaryModel=" + model + " usedModel=" + usedModel + " response=" + response);
+        assertEquals("gemini", response.get("provider").getAsString());
+        assertTrue(response.get("model").getAsString().startsWith(usedModel),
+                "expected model prefix " + usedModel + " but was " + response.get("model").getAsString());
+        assertEquals("ASK", response.get("mode").getAsString());
+        assertEquals(LIVE_CANARY_TOKEN, answer.trim(), answer);
+    }
+
+    private static JsonObject invokeLiveGemini(
+            List<String> command,
+            Path workspace,
+            String apiKey,
+            String model) throws Exception {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.assistantProviderType = "CLOUD";
         settings.cloudProvider = "gemini";
@@ -65,7 +96,7 @@ class AssistantGeminiLiveE2ETest {
 
         String options = environment.getOrDefault("JAVA_TOOL_OPTIONS", "");
         assertTrue(options.contains("-Dpilot.ai.provider=gemini"));
-        assertTrue(options.contains("-Dpilot.ai.gemini.model=" + model));
+        assertTrue(options.contains("-Dpilot.ai.gemini.model=" + model), options);
 
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 LIVE_CANARY_PROMPT,
@@ -80,27 +111,20 @@ class AssistantGeminiLiveE2ETest {
         assertEquals("ASK", invocation.arguments().get("mode").getAsString());
 
         JsonElement result = callTool(
-                ShaftCommandLine.parse(commandLine),
+                command,
                 workspace,
                 environment,
                 invocation.toolName(),
                 invocation.arguments(),
                 Duration.ofSeconds(150));
         String responseText = mcpText(result);
-        JsonObject response;
         try {
-            response = JsonParser.parseString(responseText).getAsJsonObject();
+            return JsonParser.parseString(responseText).getAsJsonObject();
         } catch (com.google.gson.JsonSyntaxException exception) {
-            fail("MCP text response was not JSON. Preview: " + preview(responseText), exception);
-            return;
+            fail("MCP text response was not JSON for model " + model + ". Preview: " + preview(responseText),
+                    exception);
+            return new JsonObject();
         }
-        String answer = response.get("answer").getAsString();
-
-        assertEquals("SUCCESS", response.get("status").getAsString(), response.toString());
-        assertEquals("gemini", response.get("provider").getAsString());
-        assertTrue(response.get("model").getAsString().startsWith(model), response.get("model").getAsString());
-        assertEquals("ASK", response.get("mode").getAsString());
-        assertEquals(LIVE_CANARY_TOKEN, answer.trim(), answer);
     }
 
     @SuppressWarnings("unchecked")
