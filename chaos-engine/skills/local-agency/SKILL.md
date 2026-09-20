@@ -122,6 +122,12 @@ Hardware size-class hint:
 [`local-coding-delegate/scripts/probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py)
 (`small` / `medium` / `large` / `refuse`).
 
+## Coach loop (host process-owner)
+
+Local openai-compat writers need an active host coach — verify every artifact,
+grounded feedback, never unsupervised finish. Playbook:
+[coach-loop.md](references/coach-loop.md) (#6075).
+
 ## Folded: local-coding-delegate
 
 [local-coding-delegate](../local-coding-delegate/SKILL.md) is a **compat shim**:
@@ -135,5 +141,6 @@ this skill when the adopter names OpenCode or “local agents”.
 - Local OpenAI-compat: [local-openai-compat](../local-openai-compat/SKILL.md)
 - OmniRoute (explicit cloud only): [omniroute](../omniroute/SKILL.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
+- Coach loop: [coach-loop.md](references/coach-loop.md) (#6075)
 - Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md) (#6051)
 - Parent ROG Shell assert smoke: [test_assert_parent_rog_shell.py](scripts/tests/test_assert_parent_rog_shell.py) (#6051)
