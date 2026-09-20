@@ -6,6 +6,7 @@ com.shaft.doctor.collect
 com.shaft.doctor.format
 com.shaft.doctor.history
 com.shaft.doctor.internal
+com.shaft.doctor.label
 com.shaft.doctor.model
 com.shaft.doctor.repair
 com.shaft.doctor.report
