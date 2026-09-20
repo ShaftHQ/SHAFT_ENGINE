@@ -187,6 +187,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         ReportingStagePanel reporting = new ReportingStagePanel(project, this::prefillTool, settings);
         reportingStagePanel = reporting;
         reportingTabs = reporting.surfaces();
+        // Keep Evidence in featurePanels so prefillTool can route doctor_*/heal_* (issue #5976).
+        featurePanels.add(reporting.evidenceFeaturePanel());
         reportingTabs.addChangeListener(event -> persistSelectedWorkflowView());
 
         moreToolsPanel = new JPanel(new BorderLayout());

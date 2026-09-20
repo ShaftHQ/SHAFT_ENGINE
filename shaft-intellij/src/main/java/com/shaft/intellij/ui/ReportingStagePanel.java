@@ -46,6 +46,7 @@ final class ReportingStagePanel extends JPanel {
     private final ReportingDoctorPanel doctor;
     private final ReportingFlakePanel flake;
     private final ReportingHealPanel heal;
+    private final ShaftFeaturePanel evidenceTools;
     private final JBLabel allureStatus;
     private final JBTextArea engineerSummary;
     private final JBTextArea stakeholderSummary;
@@ -90,7 +91,7 @@ final class ReportingStagePanel extends JPanel {
         ReportingLabelsPanel labels = new ReportingLabelsPanel(project);
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, prefill);
         VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
-        ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
+        evidenceTools = new ShaftFeaturePanel(project, settings,
                 List.of(new ToolCategory("Evidence",
                         Stream.concat(ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
 
@@ -190,6 +191,10 @@ final class ReportingStagePanel extends JPanel {
 
     ReportingHealPanel healPanel() {
         return heal;
+    }
+
+    ShaftFeaturePanel evidenceFeaturePanel() {
+        return evidenceTools;
     }
 
     JButton openAllureButton() {
