@@ -7,6 +7,8 @@ import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.history.AllureHistoryIngestor;
 import com.shaft.doctor.history.AllureHistoryModels;
 import com.shaft.doctor.history.DualFlakeComputer;
+import com.shaft.doctor.history.SmartTagModels;
+import com.shaft.doctor.history.SmartTagsComputer;
 import com.shaft.doctor.history.ErrorClusterModels;
 import com.shaft.doctor.history.HealInsightModels;
 import com.shaft.doctor.history.HealInsightsAggregator;
@@ -309,6 +311,38 @@ public class TraceService {
         AllureHistoryModels.HistoryView view =
                 AllureHistoryIngestor.ingest(history, doctor, results, limit);
         return DualFlakeComputer.compute(view, limit, threshold);
+    }
+
+    /**
+     * Smart tags: New / Always-failing / Flaky / Regressed / Fixed from Allure history
+     * (issue #5975 / S3-09). First-seen failure is New, not Regressed. Insufficient history
+     * never invents Flaky. Duration-anomaly is optional when timings exist.
+     *
+     * @param historyPath optional history.jsonl; blank defaults to {@code target/history.jsonl}
+     * @param doctorReportPath optional Doctor JSON
+     * @param allureResultsPath optional allure-results (unused for tags; accepted for path parity)
+     * @param limitPerHistoryId max launches in the window (default 10, max 50)
+     * @param flakyTransitionThreshold min flips to tag Flaky (default 3)
+     * @return smart-tag table for Reporting / SHAFT Tests
+     */
+    @Tool(name = "report_smart_tags",
+            description = "computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist")
+    public SmartTagModels.SmartTagTable reportSmartTags(
+            @ToolParam(required = false) String historyPath,
+            @ToolParam(required = false) String doctorReportPath,
+            @ToolParam(required = false) String allureResultsPath,
+            @ToolParam(required = false) Integer limitPerHistoryId,
+            @ToolParam(required = false) Integer flakyTransitionThreshold) {
+        Path history = resolveOptionalReadable(
+                historyPath, "target/history.jsonl", "Allure history.jsonl");
+        Path doctor = resolveOptionalReadable(doctorReportPath, null, "Doctor report JSON");
+        Path results = resolveOptionalReadable(
+                allureResultsPath, "target/allure-results", "Allure results directory");
+        int limit = limitPerHistoryId == null ? 10 : limitPerHistoryId;
+        int threshold = flakyTransitionThreshold == null ? 3 : flakyTransitionThreshold;
+        AllureHistoryModels.HistoryView view =
+                AllureHistoryIngestor.ingest(history, doctor, results, limit);
+        return SmartTagsComputer.compute(view, limit, threshold);
     }
 
     /**

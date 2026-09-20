@@ -2081,6 +2081,36 @@
       "description" : null
     } ]
   }, {
+    "name" : "report_smart_tags",
+    "service" : "TraceService",
+    "description" : "computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist",
+    "params" : [ {
+      "name" : "allureResultsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "doctorReportPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "flakyTransitionThreshold",
+      "type" : "integer",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "historyPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "limitPerHistoryId",
+      "type" : "integer",
+      "required" : false,
+      "description" : null
+    } ]
+  }, {
     "name" : "setup_catalog",
     "service" : "InfrastructureMcpService",
     "description" : "returns the deterministic SHAFT setup profiles, targets, and capabilities",

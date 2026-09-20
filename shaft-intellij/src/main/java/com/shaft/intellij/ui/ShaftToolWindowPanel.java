@@ -184,6 +184,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
 
         ReportingHistoryPanel history = new ReportingHistoryPanel(project);
         ReportingFlakePanel flake = new ReportingFlakePanel(project);
+        ReportingSmartTagsPanel smartTags = new ReportingSmartTagsPanel(project);
         ReportingClustersPanel clusters = new ReportingClustersPanel(project);
         ReportingLabelsPanel labels = new ReportingLabelsPanel(project);
         ReportingDoctorPanel doctor = new ReportingDoctorPanel(project);
@@ -198,6 +199,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         reportingTabs.getAccessibleContext().setAccessibleName("SHAFT reporting surfaces");
         reportingTabs.addTab(ReportingHistoryPanel.TAB_TITLE, ShaftIcons.CHECK, history);
         reportingTabs.addTab(ReportingFlakePanel.TAB_TITLE, ShaftIcons.VIEW, flake);
+        reportingTabs.addTab(ReportingSmartTagsPanel.TAB_TITLE, ShaftIcons.VIEW, smartTags);
         reportingTabs.addTab(ReportingClustersPanel.TAB_TITLE, ShaftIcons.VIEW, clusters);
         reportingTabs.addTab(ReportingLabelsPanel.TAB_TITLE, ShaftIcons.EDIT, labels);
         reportingTabs.addTab(ReportingDoctorPanel.TAB_TITLE, ShaftIcons.VIEW, doctor);
@@ -882,6 +884,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case "API Recording" -> new SurfaceTarget(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
             case ReportingHistoryPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingHistoryPanel.TAB_TITLE, null);
             case ReportingFlakePanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingFlakePanel.TAB_TITLE, null);
+            case ReportingSmartTagsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingSmartTagsPanel.TAB_TITLE, null);
             case ReportingClustersPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingClustersPanel.TAB_TITLE, null);
             case ReportingLabelsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingLabelsPanel.TAB_TITLE, null);
             case ReportingDoctorPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingDoctorPanel.TAB_TITLE, null);

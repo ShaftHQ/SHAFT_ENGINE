@@ -11,6 +11,7 @@ import com.shaft.intellij.testindex.ShaftRunConfigurationResolver;
 import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.LocalFlakeMuteStore;
 import com.shaft.intellij.testindex.ShaftTestIndex;
+import com.shaft.intellij.testindex.SmartTagHistoryReader;
 
 import javax.swing.Icon;
 import javax.swing.JButton;
@@ -32,6 +33,7 @@ import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -95,13 +97,22 @@ final class ShaftTestsPanel extends JPanel {
      * its containing class -- see class javadoc), and {@code null} for {@link NodeKind#PACKAGE}
      * nodes. {@code runState} is the matched run-history row, or {@code null} for "not yet run".
      */
-    record TestTreeNode(NodeKind kind, String qualifiedName, String displayName, ShaftTestIndex.TestRowState runState) {
+    record TestTreeNode(
+            NodeKind kind,
+            String qualifiedName,
+            String displayName,
+            ShaftTestIndex.TestRowState runState,
+            List<String> smartTags) {
+        TestTreeNode {
+            smartTags = List.copyOf(smartTags == null ? List.of() : smartTags);
+        }
     }
 
     private final Project project;
     private final ShaftTestIndex testIndex;
     private final LocalFlakeMuteStore muteStore;
     private final Supplier<List<ShaftTestDiscovery.DiscoveredTestClass>> discoverySource;
+    private final Supplier<Map<String, List<String>>> smartTagsSource;
     private final DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     private final Tree tree = new Tree(treeModel);
     private final JButton refreshButton;
@@ -136,11 +147,19 @@ final class ShaftTestsPanel extends JPanel {
      */
     ShaftTestsPanel(Project project, ShaftTestIndex testIndex,
                      Supplier<List<ShaftTestDiscovery.DiscoveredTestClass>> discoverySource) {
+        this(project, testIndex, discoverySource, () -> readSmartTags(project));
+    }
+
+    /** Test-only seam for deterministic smart-tag decorations. */
+    ShaftTestsPanel(Project project, ShaftTestIndex testIndex,
+                    Supplier<List<ShaftTestDiscovery.DiscoveredTestClass>> discoverySource,
+                    Supplier<Map<String, List<String>>> smartTagsSource) {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.testIndex = testIndex;
         this.muteStore = LocalFlakeMuteStore.forProject(project);
         this.discoverySource = discoverySource;
+        this.smartTagsSource = smartTagsSource;
         setBorder(JBUI.Borders.empty(8));
 
         refreshButton = button("Refresh", "Re-discover SHAFT tests and reload run history",
@@ -163,7 +182,8 @@ final class ShaftTestsPanel extends JPanel {
                         treeComponent, value, selected, expanded, leaf, row, hasFocus);
                 if (component instanceof JLabel label && value instanceof DefaultMutableTreeNode node
                         && node.getUserObject() instanceof TestTreeNode treeNode) {
-                    label.setText(formatNodeLabel(treeNode.displayName(), treeNode.runState(), isMutedNode(treeNode)));
+                    label.setText(formatNodeLabel(
+                            treeNode.displayName(), treeNode.runState(), isMutedNode(treeNode), treeNode.smartTags()));
                     if (treeNode.kind() != NodeKind.PACKAGE) {
                         label.setIcon(new RunDebugIcon());
                         label.setIconTextGap(ICON_GAP + 2);
@@ -292,8 +312,12 @@ final class ShaftTestsPanel extends JPanel {
         Map<String, ShaftTestIndex.TestRowState> rowsByTestId = new HashMap<>();
         testIndex.snapshot().forEach(row -> rowsByTestId.put(row.testId(), row));
         observeMuteOutcomes(rowsByTestId);
+        Map<String, List<String>> smartTags = smartTagsSource.get();
+        if (smartTags == null) {
+            smartTags = Map.of();
+        }
 
-        TreeBuildResult built = buildTree(discoveredClasses, rowsByTestId);
+        TreeBuildResult built = buildTree(discoveredClasses, rowsByTestId, smartTags);
         treeModel.setRoot(built.root());
         expandAll();
         statusLabel.setText(statusText(discoveredClasses.size(), built.decoratedCount()));
@@ -305,7 +329,8 @@ final class ShaftTestsPanel extends JPanel {
 
     private TreeBuildResult buildTree(
             List<ShaftTestDiscovery.DiscoveredTestClass> discoveredClasses,
-            Map<String, ShaftTestIndex.TestRowState> rowsByTestId) {
+            Map<String, ShaftTestIndex.TestRowState> rowsByTestId,
+            Map<String, List<String>> smartTags) {
         List<ShaftTestDiscovery.DiscoveredTestClass> sorted = new ArrayList<>(discoveredClasses);
         sorted.sort(Comparator.comparing(ShaftTestDiscovery.DiscoveredTestClass::packageName)
                 .thenComparing(ShaftTestDiscovery.DiscoveredTestClass::simpleName));
@@ -314,7 +339,7 @@ final class ShaftTestsPanel extends JPanel {
         Map<String, DefaultMutableTreeNode> packageNodes = new TreeMap<>();
         int decoratedCount = 0;
         for (ShaftTestDiscovery.DiscoveredTestClass discoveredClass : sorted) {
-            decoratedCount += appendClassNode(packageNodes, discoveredClass, rowsByTestId);
+            decoratedCount += appendClassNode(packageNodes, discoveredClass, rowsByTestId, smartTags);
         }
         packageNodes.values().forEach(newRoot::add);
         return new TreeBuildResult(newRoot, decoratedCount);
@@ -323,18 +348,26 @@ final class ShaftTestsPanel extends JPanel {
     private int appendClassNode(
             Map<String, DefaultMutableTreeNode> packageNodes,
             ShaftTestDiscovery.DiscoveredTestClass discoveredClass,
-            Map<String, ShaftTestIndex.TestRowState> rowsByTestId) {
+            Map<String, ShaftTestIndex.TestRowState> rowsByTestId,
+            Map<String, List<String>> smartTags) {
         ShaftTestIndex.TestRowState runState = matchRunState(rowsByTestId, discoveredClass);
         DefaultMutableTreeNode packageNode = packageNodes.computeIfAbsent(discoveredClass.packageName(),
                 pkg -> new DefaultMutableTreeNode(new TestTreeNode(
-                        NodeKind.PACKAGE, null, pkg.isEmpty() ? "(default package)" : pkg, null)));
+                        NodeKind.PACKAGE, null, pkg.isEmpty() ? "(default package)" : pkg, null, List.of())));
+        List<String> classTags = firstTags(
+                smartTags, discoveredClass.qualifiedName(), discoveredClass.simpleName());
         DefaultMutableTreeNode classNode = new DefaultMutableTreeNode(new TestTreeNode(
-                NodeKind.CLASS, discoveredClass.qualifiedName(), discoveredClass.simpleName(), runState));
+                NodeKind.CLASS, discoveredClass.qualifiedName(), discoveredClass.simpleName(), runState, classTags));
         for (String methodName : discoveredClass.methodNames()) {
             ShaftTestIndex.TestRowState methodRunState =
                     matchMethodRunState(rowsByTestId, discoveredClass.qualifiedName(), methodName, runState);
+            List<String> methodTags = firstTags(
+                    smartTags,
+                    methodKey(discoveredClass.qualifiedName(), methodName),
+                    discoveredClass.qualifiedName() + "." + methodName,
+                    methodName);
             classNode.add(new DefaultMutableTreeNode(new TestTreeNode(
-                    NodeKind.METHOD, discoveredClass.qualifiedName(), methodName, methodRunState)));
+                    NodeKind.METHOD, discoveredClass.qualifiedName(), methodName, methodRunState, methodTags)));
         }
         packageNode.add(classNode);
         return runState != null ? 1 : 0;
@@ -600,12 +633,24 @@ final class ShaftTestsPanel extends JPanel {
      * Formats a tree node label, optionally decorating muted tests (issue #5974 / S3-08 / SC-001).
      */
     static String formatNodeLabel(String displayName, ShaftTestIndex.TestRowState runState, boolean muted) {
+        return formatNodeLabel(displayName, runState, muted, List.of());
+    }
+
+    /** Formats status plus S3-09 smart tags for the SHAFT Tests tree (FR-002). */
+    static String formatNodeLabel(
+            String displayName,
+            ShaftTestIndex.TestRowState runState,
+            boolean muted,
+            List<String> smartTags) {
         String base;
         if (runState == null) {
             base = displayName;
         } else {
             base = statusText(runState.status()) + "  " + displayName + "  "
                     + formatTimestamp(runState.lastRunAtMillis());
+        }
+        if (smartTags != null && !smartTags.isEmpty()) {
+            base = "[" + String.join(", ", smartTags) + "]  " + base;
         }
         return muted ? "MUTED  " + base : base;
     }
@@ -678,6 +723,23 @@ final class ShaftTestsPanel extends JPanel {
         return discoveredCount == 0
                 ? "No SHAFT tests found in this project."
                 : discoveredCount + " test(s) discovered, " + decoratedCount + " with recorded runs.";
+    }
+
+    private static Map<String, List<String>> readSmartTags(Project project) {
+        if (project == null || project.getBasePath() == null || project.getBasePath().isBlank()) {
+            return Map.of();
+        }
+        return SmartTagHistoryReader.read(Path.of(project.getBasePath()).resolve("target/history.jsonl"));
+    }
+
+    private static List<String> firstTags(Map<String, List<String>> tags, String... keys) {
+        for (String key : keys) {
+            List<String> found = tags.get(key);
+            if (found != null && !found.isEmpty()) {
+                return found;
+            }
+        }
+        return List.of();
     }
 
     private static String formatTimestamp(long millis) {

@@ -12,6 +12,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -120,6 +121,40 @@ class ShaftTestsPanelTest {
                 "com.example.SignInTest", ShaftTestIndex.Status.RUNNING, 1_000L, 0);
 
         assertTrue(ShaftTestsPanel.formatNodeLabel("SignInTest", row).startsWith("RUNNING"));
+    }
+
+    @Test
+    void formatNodeLabelIncludesSmartTagsBeforeStatus() {
+        ShaftTestIndex.TestRowState row = new ShaftTestIndex.TestRowState(
+                "com.example.CheckoutTest", ShaftTestIndex.Status.FAIL, 1_000L, 1);
+        String label = ShaftTestsPanel.formatNodeLabel(
+                "CheckoutTest", row, false, List.of("Regressed"));
+        assertTrue(label.startsWith("[Regressed]"));
+        assertTrue(label.contains("FAIL"));
+        assertTrue(label.contains("CheckoutTest"));
+    }
+
+    @Test
+    void refreshDecoratesMethodNodeWithInjectedSmartTags() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("com.example.RegressedTest#test", 1, 1_000L);
+        ShaftTestsPanel panel = new ShaftTestsPanel(
+                null,
+                testIndex,
+                () -> List.of(new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.RegressedTest", "com.example", "RegressedTest", List.of("test"))),
+                () -> Map.of("com.example.RegressedTest#test", List.of("Regressed")));
+
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) packageNode.getFirstChild();
+        DefaultMutableTreeNode methodNode = (DefaultMutableTreeNode) classNode.getFirstChild();
+        ShaftTestsPanel.TestTreeNode treeNode =
+                (ShaftTestsPanel.TestTreeNode) methodNode.getUserObject();
+        assertEquals(List.of("Regressed"), treeNode.smartTags());
+        assertTrue(ShaftTestsPanel.formatNodeLabel(
+                treeNode.displayName(), treeNode.runState(), false, treeNode.smartTags())
+                .startsWith("[Regressed]"));
     }
 
     // ------------------------------------------------------------------

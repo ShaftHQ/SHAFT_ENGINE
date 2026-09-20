@@ -937,6 +937,21 @@
         "transition count"
       ]
     },
+    "report_smart_tags": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report tags",
+      "intentKeywords": [
+        "smart tags",
+        "new failure",
+        "always failing",
+        "regressed",
+        "fixed test",
+        "report tags",
+        "duration anomaly",
+        "test stability tags"
+      ]
+    },
     "report_clusters": {
       "mutation": false,
       "sensitive": false,

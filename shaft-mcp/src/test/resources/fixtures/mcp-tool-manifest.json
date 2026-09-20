@@ -595,6 +595,12 @@
       "deprecated": false
     },
     {
+      "name": "report_smart_tags",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "setup_catalog",
       "mutation": false,
       "sensitive": false,
