@@ -70,70 +70,120 @@ public final class HealInsightsAggregator {
         List<String> warnings = new ArrayList<>();
         String reportsPath = pathString(reportsDirectory);
         String proposalsPath = pathString(proposalsDirectory);
-
         Map<String, String> proposalsByAttempt = indexProposals(proposalsDirectory, warnings);
-
-        if (reportsDirectory == null || !Files.isDirectory(reportsDirectory)) {
-            if (reportsDirectory != null) {
-                warnings.add("heal reports path is not a directory: " + reportsPath);
-            }
+        if (!isReadableDirectory(reportsDirectory)) {
+            noteMissingReportsDirectory(reportsDirectory, reportsPath, warnings);
             return emptyTable(reportsPath, proposalsPath, warnings);
         }
-
         List<Path> files = listReportFiles(reportsDirectory, warnings);
         if (files.isEmpty()) {
             return emptyTable(reportsPath, proposalsPath, warnings);
         }
+        ParsedReports parsed = parseReports(files, proposalsByAttempt, warnings);
+        if (parsed.readCount() == 0) {
+            return emptyTable(reportsPath, proposalsPath, warnings);
+        }
+        return populatedTable(reportsPath, proposalsPath, parsed, warnings);
+    }
 
+    private static boolean isReadableDirectory(Path directory) {
+        return directory != null && Files.isDirectory(directory);
+    }
+
+    private static void noteMissingReportsDirectory(
+            Path reportsDirectory, String reportsPath, List<String> warnings) {
+        if (reportsDirectory != null) {
+            warnings.add("heal reports path is not a directory: " + reportsPath);
+        }
+    }
+
+    private static ParsedReports parseReports(
+            List<Path> files,
+            Map<String, String> proposalsByAttempt,
+            List<String> warnings) {
+        Map<String, Integer> counts = zeroCounts();
+        List<HealInsightModels.HealInsight> insights = new ArrayList<>();
+        int read = 0;
+        for (Path file : files) {
+            HealInsightModels.HealInsight insight = tryParseReport(file, proposalsByAttempt, warnings);
+            if (insight == null) {
+                continue;
+            }
+            bump(counts, insight.status());
+            insights.add(insight);
+            read++;
+        }
+        return new ParsedReports(read, counts, insights);
+    }
+
+    private static HealInsightModels.HealInsight tryParseReport(
+            Path file,
+            Map<String, String> proposalsByAttempt,
+            List<String> warnings) {
+        try {
+            JsonNode report = JSON.readTree(Files.readString(file, StandardCharsets.UTF_8));
+            HealInsightModels.HealInsight insight = toInsight(report, file, proposalsByAttempt);
+            if (insight.attemptId().isBlank() && insight.status().isBlank()) {
+                warnings.add("Skipped unreadable heal report (missing attemptId/status): " + file);
+                return null;
+            }
+            return insight;
+        } catch (IOException | RuntimeException exception) {
+            warnings.add("Failed to parse heal report: " + file.getFileName()
+                    + " (" + shortMessage(exception) + ")");
+            return null;
+        }
+    }
+
+    private static Map<String, Integer> zeroCounts() {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (String status : STATUS_ORDER) {
             counts.put(status, 0);
         }
-        List<HealInsightModels.HealInsight> insights = new ArrayList<>();
-        int read = 0;
-        for (Path file : files) {
-            try {
-                JsonNode report = JSON.readTree(Files.readString(file, StandardCharsets.UTF_8));
-                HealInsightModels.HealInsight insight = toInsight(report, file, proposalsByAttempt);
-                if (insight.attemptId().isBlank() && insight.status().isBlank()) {
-                    warnings.add("Skipped unreadable heal report (missing attemptId/status): " + file);
-                    continue;
-                }
-                bump(counts, insight.status());
-                insights.add(insight);
-                read++;
-            } catch (IOException | RuntimeException exception) {
-                warnings.add("Failed to parse heal report: " + file.getFileName()
-                        + " (" + shortMessage(exception) + ")");
-            }
-        }
+        return counts;
+    }
 
-        if (read == 0) {
-            return emptyTable(reportsPath, proposalsPath, warnings);
-        }
-
+    private static HealInsightModels.HealInsightsTable populatedTable(
+            String reportsPath,
+            String proposalsPath,
+            ParsedReports parsed,
+            List<String> warnings) {
+        List<HealInsightModels.HealInsight> insights = new ArrayList<>(parsed.insights());
         insights.sort(Comparator
                 .comparing(HealInsightModels.HealInsight::canProposeSourcePatch).reversed()
                 .thenComparing(HealInsightModels.HealInsight::status)
                 .thenComparing(HealInsightModels.HealInsight::attemptId));
-
-        List<HealInsightModels.StatusCount> statusCounts = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
-            if (entry.getValue() > 0 || STATUS_ORDER.contains(entry.getKey())) {
-                statusCounts.add(new HealInsightModels.StatusCount(entry.getKey(), entry.getValue()));
-            }
-        }
-
         return new HealInsightModels.HealInsightsTable(
                 HealInsightModels.SCHEMA_VERSION,
                 false,
                 "",
                 reportsPath,
                 proposalsPath,
-                read,
-                statusCounts,
+                parsed.readCount(),
+                toStatusCounts(parsed.counts()),
                 insights,
                 List.copyOf(warnings));
+    }
+
+    private static List<HealInsightModels.StatusCount> toStatusCounts(Map<String, Integer> counts) {
+        List<HealInsightModels.StatusCount> statusCounts = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > 0 || STATUS_ORDER.contains(entry.getKey())) {
+                statusCounts.add(new HealInsightModels.StatusCount(entry.getKey(), entry.getValue()));
+            }
+        }
+        return statusCounts;
+    }
+
+    private record ParsedReports(
+            int readCount,
+            Map<String, Integer> counts,
+            List<HealInsightModels.HealInsight> insights) {
+        private ParsedReports {
+            counts = Map.copyOf(counts == null ? Map.of() : counts);
+            insights = List.copyOf(insights == null ? List.of() : insights);
+            readCount = Math.max(0, readCount);
+        }
     }
 
     /**
@@ -150,15 +200,22 @@ public final class HealInsightsAggregator {
             String selectedCandidateId,
             String actionOutcome,
             String postActionVerification) {
-        if (!"RECOVERED".equals(normalize(status))) {
-            return false;
-        }
-        if (selectedCandidateId == null || selectedCandidateId.isBlank()) {
-            return false;
-        }
-        if (!"PASSED".equals(normalize(actionOutcome))) {
-            return false;
-        }
+        return isRecoveredWithCandidate(status, selectedCandidateId)
+                && isPassingAction(actionOutcome)
+                && isVerificationAcceptable(postActionVerification);
+    }
+
+    private static boolean isRecoveredWithCandidate(String status, String selectedCandidateId) {
+        return "RECOVERED".equals(normalize(status))
+                && selectedCandidateId != null
+                && !selectedCandidateId.isBlank();
+    }
+
+    private static boolean isPassingAction(String actionOutcome) {
+        return "PASSED".equals(normalize(actionOutcome));
+    }
+
+    private static boolean isVerificationAcceptable(String postActionVerification) {
         String verification = normalize(postActionVerification);
         return !"FAILED".equals(verification)
                 && !"ELEMENT_NOT_INTERACTABLE".equals(verification)
@@ -180,20 +237,8 @@ public final class HealInsightsAggregator {
         String original = text(report, "originalLocator");
         String proposed = selectedLocator(report, selectedId);
 
-        boolean canPropose = mayPersistProposal(status, selectedId, outcome, verification);
-        HealInsightModels.PrimaryAction primary = canPropose
-                ? HealInsightModels.PrimaryAction.REVIEW_DIFF
-                : HealInsightModels.PrimaryAction.NONE;
-        // SC-001: AMBIGUOUS explicitly has no apply-to-source primary action.
-        if ("AMBIGUOUS".equals(normalize(status))) {
-            primary = HealInsightModels.PrimaryAction.NONE;
-            canPropose = false;
-        }
-        String label = primary == HealInsightModels.PrimaryAction.REVIEW_DIFF
-                ? "Review patch"
-                : "";
+        ReviewGate gate = reviewGate(status, selectedId, outcome, verification);
         String proposalPath = proposalsByAttempt.getOrDefault(attemptId, "");
-
         return new HealInsightModels.HealInsight(
                 attemptId,
                 file.toAbsolutePath().normalize().toString(),
@@ -204,11 +249,36 @@ public final class HealInsightsAggregator {
                 outcome.isBlank() ? "PENDING" : outcome,
                 verification,
                 reason,
-                canPropose,
-                primary,
-                label,
+                gate.canPropose(),
+                gate.primaryAction(),
+                gate.primaryActionLabel(),
                 proposalPath,
                 sourcePatchProposed);
+    }
+
+    private static ReviewGate reviewGate(
+            String status, String selectedId, String outcome, String verification) {
+        // SC-001: AMBIGUOUS never gets an apply-to-source primary action.
+        if ("AMBIGUOUS".equals(normalize(status))) {
+            return ReviewGate.none();
+        }
+        if (!mayPersistProposal(status, selectedId, outcome, verification)) {
+            return ReviewGate.none();
+        }
+        return ReviewGate.reviewDiff();
+    }
+
+    private record ReviewGate(
+            boolean canPropose,
+            HealInsightModels.PrimaryAction primaryAction,
+            String primaryActionLabel) {
+        private static ReviewGate none() {
+            return new ReviewGate(false, HealInsightModels.PrimaryAction.NONE, "");
+        }
+
+        private static ReviewGate reviewDiff() {
+            return new ReviewGate(true, HealInsightModels.PrimaryAction.REVIEW_DIFF, "Review patch");
+        }
     }
 
     private static String selectedLocator(JsonNode report, String selectedId) {
