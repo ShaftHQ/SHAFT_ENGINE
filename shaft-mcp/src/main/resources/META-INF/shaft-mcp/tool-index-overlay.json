@@ -965,6 +965,21 @@
         "doctor cause-label",
         "label memory"
       ]
+    },
+    "report_heal": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report heal",
+      "intentKeywords": [
+        "heal insights",
+        "healing decision",
+        "persist-on-pass",
+        "review gate",
+        "recovered heal",
+        "ambiguous heal",
+        "report heal",
+        "locator patch review"
+      ]
     }
   }
 }

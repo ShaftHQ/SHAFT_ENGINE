@@ -565,6 +565,12 @@
       "deprecated": false
     },
     {
+      "name": "report_heal",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "report_merge_shards",
       "mutation": true,
       "sensitive": false,

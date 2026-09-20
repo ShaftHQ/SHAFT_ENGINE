@@ -1986,6 +1986,21 @@
       "description" : null
     } ]
   }, {
+    "name" : "report_heal",
+    "service" : "TraceService",
+    "description" : "dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators",
+    "params" : [ {
+      "name" : "proposalsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "reportsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    } ]
+  }, {
     "name" : "report_history",
     "service" : "TraceService",
     "description" : "ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state",
