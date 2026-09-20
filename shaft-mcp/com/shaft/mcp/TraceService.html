@@ -65,6 +65,8 @@
 <li><a href="#reportSmartTags(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" tabindex="0">reportSmartTags(String, String, String, Integer, Integer)</a></li>
 <li><a href="#reportClusters(java.lang.String,java.lang.String)" tabindex="0">reportClusters(String, String)</a></li>
 <li><a href="#reportHeal(java.lang.String,java.lang.String)" tabindex="0">reportHeal(String, String)</a></li>
+<li><a href="#reportOpen(java.lang.String,java.lang.String,java.lang.Boolean)" tabindex="0">reportOpen(String, String, Boolean)</a></li>
+<li><a href="#reportSummary(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">reportSummary(String, String, String, String, String, String)</a></li>
 <li><a href="#reportMute(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Boolean,java.lang.Boolean)" tabindex="0">reportMute(String, String, String, String, Integer, Boolean, Boolean)</a></li>
 <li><a href="#doctorAnalyzeTrace(java.lang.String,java.lang.String)" tabindex="0">doctorAnalyzeTrace(String, String)</a></li>
 </ol>
@@ -223,15 +225,33 @@ summary.</div>
 <div class="block">Local flake mute / quarantine lifecycle for the SHAFT Tests panel and CLI
 (issue #5974 / S3-08).</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/SmartTagModels.SmartTagTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">SmartTagModels.SmartTagTable</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportSmartTags(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" class="member-name-link">reportSmartTags</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/ReportSummaryModels.OpenView.html" title="class or interface in com.shaft.doctor.history" class="external-link">ReportSummaryModels.OpenView</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportOpen(java.lang.String,java.lang.String,java.lang.Boolean)" class="member-name-link">reportOpen</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;openInBrowser)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Opens the newest Allure HTML report when present; otherwise returns an empty-state CTA for
+<code>generate_test_report</code> (issue #5976 / S3-10).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/SmartTagModels.SmartTagTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">SmartTagModels.SmartTagTable</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportSmartTags(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" class="member-name-link">reportSmartTags</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;doctorReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;limitPerHistoryId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;flakyTransitionThreshold)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Smart tags: New / Always-failing / Flaky / Regressed / Fixed from Allure history
 (issue #5975 / S3-09).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/ReportSummaryModels.SummaryView.html" title="class or interface in com.shaft.doctor.history" class="external-link">ReportSummaryModels.SummaryView</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportSummary(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">reportSummary</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;doctorReportPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healReportsPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healProposalsPath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Builds engineer + stakeholder summaries with reconciled Allure counts (issue #5976 / S3-10).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceLatestResult.html" title="class in com.shaft.mcp">TraceService.McpTraceLatestResult</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceLatest(int)" class="member-name-link">traceLatest</a><wbr>(int&nbsp;maxResults)</code></div>
@@ -529,6 +549,65 @@ apply-to-source primary action. NO_CANDIDATES is shown, not silent. Reuse
                      <code>target/shaft-doctor/healing-proposals</code> when present</dd>
 <dt>Returns:</dt>
 <dd>heal insights table for the IDE Reporting canvas / CLI</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reportOpen(java.lang.String,java.lang.String,java.lang.Boolean)">
+<h3>reportOpen</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="report_open",
+      description="opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/ReportSummaryModels.OpenView.html" title="class or interface in com.shaft.doctor.history" class="external-link">ReportSummaryModels.OpenView</a></span>&nbsp;<span class="element-name">reportOpen</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;openInBrowser)</span></div>
+<div class="block">Opens the newest Allure HTML report when present; otherwise returns an empty-state CTA for
+<code>generate_test_report</code> (issue #5976 / S3-10). Never rewrites Allure HTML.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>reportPath</code> - optional Allure HTML path; blank auto-discovers <code>*AllureReport.html</code></dd>
+<dd><code>allureResultsPath</code> - optional allure-results directory for empty-state context</dd>
+<dd><code>openInBrowser</code> - when true (default), attempt to open the HTML in the host browser</dd>
+<dt>Returns:</dt>
+<dd>open view with path or generate_test_report CTA</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reportSummary(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+<h3>reportSummary</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="report_summary",
+      description="builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/ReportSummaryModels.SummaryView.html" title="class or interface in com.shaft.doctor.history" class="external-link">ReportSummaryModels.SummaryView</a></span>&nbsp;<span class="element-name">reportSummary</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;doctorReportPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healReportsPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healProposalsPath)</span></div>
+<div class="block">Builds engineer + stakeholder summaries with reconciled Allure counts (issue #5976 / S3-10).
+Reuses shaft-execution-reporting / shaft-stakeholder-reporting playbook shapes. Never secrets.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>allureResultsPath</code> - optional allure-results; blank defaults to target/allure-results</dd>
+<dd><code>reportPath</code> - optional Allure HTML path</dd>
+<dd><code>historyPath</code> - optional history.jsonl for flake tallies</dd>
+<dd><code>doctorReportPath</code> - optional Doctor JSON (path only; contents never copied)</dd>
+<dd><code>healReportsPath</code> - optional heal reports directory</dd>
+<dd><code>healProposalsPath</code> - optional heal proposals directory</dd>
+<dt>Returns:</dt>
+<dd>dual-audience summary with reconciled counts</dd>
 </dl>
 </div>
 </section>
