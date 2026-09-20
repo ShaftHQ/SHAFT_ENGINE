@@ -551,17 +551,38 @@ public final class DeterministicRuleEngine {
         return DoctorHashing.sha256(value.getBytes(StandardCharsets.UTF_8)).substring(0, 16);
     }
 
-    private static boolean clusterableFailure(EvidenceItem item) {
+    /**
+     * Whether an evidence item participates in unique-error / historical-signature clustering
+     * (failed/broken Allure results or items that already carry a {@code clusterFingerprint}).
+     *
+     * @param item evidence item
+     * @return true when the item can contribute a clustering key
+     */
+    public static boolean clusterableFailure(EvidenceItem item) {
         String status = item.attributes().get("status");
         return (status != null && FAILURE_STATUSES.contains(status))
                 || !item.attributes().getOrDefault("clusterFingerprint", "").isBlank();
     }
 
-    private static String clusteringKey(EvidenceItem item) {
+    /**
+     * Doctor historical-signature clustering key for one item (issue #5969 / S3-03).
+     *
+     * @param item evidence item
+     * @return fingerprint when present, else normalized {@code signature}
+     */
+    public static String clusteringKey(EvidenceItem item) {
         return clusteringKey(item, List.of());
     }
 
-    private static String clusteringKey(EvidenceItem item, List<EvidenceItem> siblings) {
+    /**
+     * Doctor historical-signature clustering key, preferring {@code clusterFingerprint} on the item
+     * or a diagnostics sibling in the same bundle (same rule as historical-signature-correlation).
+     *
+     * @param item evidence item
+     * @param siblings other items in the same bundle (may include diagnostics fingerprints)
+     * @return non-blank signature key, or blank when none can be derived
+     */
+    public static String clusteringKey(EvidenceItem item, List<EvidenceItem> siblings) {
         String fingerprint = item.attributes().getOrDefault("clusterFingerprint", "");
         if (!fingerprint.isBlank()) {
             return fingerprint;

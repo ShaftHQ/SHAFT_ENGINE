@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReportCommandTest {
     @Test
-    void helpListsHistoryAndFlakeActions() {
+    void helpListsHistoryFlakeAndClustersActions() {
         StringWriter out = new StringWriter();
         CommandLine commandLine = new CommandLine(new ReportCommand());
         commandLine.setOut(new PrintWriter(out));
@@ -20,6 +20,7 @@ class ReportCommandTest {
         String help = out.toString();
         assertTrue(help.contains("history"));
         assertTrue(help.contains("flake"));
+        assertTrue(help.contains("clusters"));
     }
 
     @Test

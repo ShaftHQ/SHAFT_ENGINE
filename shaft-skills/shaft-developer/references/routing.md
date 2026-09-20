@@ -74,3 +74,5 @@ tool specialists resolve them from the generated canonical catalogs.
 Use MCP `report_history` / CLI `shaft report history` for cross-run Allure history in the IDE Reporting canvas. Never confuse with HealingHistoryStore (#3315). Honor `allure.accumulateHistory`; never replace the allure-results root.
 
 Use MCP `report_flake` / CLI `shaft report flake` for dual flake definitions (retry-hidden vs transitions). Never collapse into one score; unknown history is explicit; CI commit metadata is optional (#5968).
+
+Use MCP `report_clusters` / CLI `shaft report clusters` for unique-error clustering by Doctor historical-signature keys (error → impacted tests). No cloud ML; empty results are empty-state (#5969).
