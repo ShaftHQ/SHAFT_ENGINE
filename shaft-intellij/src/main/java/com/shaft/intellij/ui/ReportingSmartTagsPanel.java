@@ -134,43 +134,67 @@ final class ReportingSmartTagsPanel extends JPanel {
             return;
         }
         try {
-            JsonElement parsed = JsonParser.parseString(raw);
-            if (!parsed.isJsonObject()) {
-                status.setText(truncate(raw));
-                return;
-            }
-            JsonObject root = parsed.getAsJsonObject();
-            if (root.has("empty") && root.get("empty").getAsBoolean()) {
-                String message = text(root, "emptyMessage");
-                status.setText(message.isBlank() ? "No smart tags yet." : message);
-                return;
-            }
-            int rows = 0;
-            for (JsonElement element : array(root, "rows")) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                JsonObject row = element.getAsJsonObject();
-                tableModel.addRow(new Object[]{
-                        text(row, "historyId"),
-                        text(row, "name"),
-                        text(row, "primaryTag"),
-                        joinTags(row),
-                        String.valueOf(intValue(row, "launchCount")),
-                        transitionCountCell(row),
-                        text(row, "newestStatus"),
-                        text(row, "previousStatus"),
-                        row.has("durationAnomaly") && row.get("durationAnomaly").getAsBoolean()
-                                ? "yes" : ""
-                });
-                rows++;
-            }
-            status.setText(rows == 0
-                    ? "No smart tag rows."
-                    : ("Showing " + rows + " smart-tag rows (insufficient history never invents Flaky)."));
+            JsonObject root = parseObject(raw);
+            applyParsedTags(root, raw);
         } catch (RuntimeException exception) {
             status.setText(truncate(raw));
         }
+    }
+
+    private static JsonObject parseObject(String raw) {
+        JsonElement parsed = JsonParser.parseString(raw);
+        return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+    }
+
+    private void applyParsedTags(@Nullable JsonObject root, String raw) {
+        if (root == null) {
+            status.setText(truncate(raw));
+            return;
+        }
+        if (root.has("empty") && root.get("empty").getAsBoolean()) {
+            applyEmptyState(root);
+            return;
+        }
+        int rows = appendRows(root);
+        status.setText(rows == 0
+                ? "No smart tag rows."
+                : ("Showing " + rows + " smart-tag rows (insufficient history never invents Flaky)."));
+    }
+
+    private void applyEmptyState(JsonObject root) {
+        String message = text(root, "emptyMessage");
+        status.setText(message.isBlank() ? "No smart tags yet." : message);
+    }
+
+    private int appendRows(JsonObject root) {
+        int rows = 0;
+        for (JsonElement element : array(root, "rows")) {
+            if (element.isJsonObject()) {
+                tableModel.addRow(toTableRow(element.getAsJsonObject()));
+                rows++;
+            }
+        }
+        return rows;
+    }
+
+    private static Object[] toTableRow(JsonObject row) {
+        return new Object[]{
+                text(row, "historyId"),
+                text(row, "name"),
+                text(row, "primaryTag"),
+                joinTags(row),
+                String.valueOf(intValue(row, "launchCount")),
+                transitionCountCell(row),
+                text(row, "newestStatus"),
+                text(row, "previousStatus"),
+                durationAnomalyCell(row)
+        };
+    }
+
+    private static String durationAnomalyCell(JsonObject row) {
+        return row.has("durationAnomaly") && row.get("durationAnomaly").getAsBoolean()
+                ? "yes"
+                : "";
     }
 
     private void loadTags() {

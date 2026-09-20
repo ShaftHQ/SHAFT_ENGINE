@@ -90,40 +90,62 @@ public final class SmartTagHistoryReader {
     }
 
     static List<String> tags(List<Observation> raw) {
-        List<Observation> outcomes = raw.stream()
-                .filter(observation -> isPassed(observation.status()) || isFailed(observation.status()))
-                .sorted(Comparator.comparingLong(Observation::timestamp).reversed())
-                .limit(10)
-                .toList();
+        List<Observation> outcomes = knownOutcomes(raw);
         if (outcomes.isEmpty()) {
             return List.of();
         }
         if (outcomes.size() == 1) {
-            return isFailed(outcomes.get(0).status()) ? List.of("New") : List.of();
+            return firstSeenTags(outcomes.get(0));
         }
 
+        List<String> tags = changedStatusTags(outcomes.get(0), outcomes.get(1));
+        addAlwaysFailing(outcomes, tags);
+        addFlaky(outcomes, tags);
+        return List.copyOf(tags);
+    }
+
+    private static List<Observation> knownOutcomes(List<Observation> raw) {
+        return raw.stream()
+                .filter(observation -> isPassed(observation.status()) || isFailed(observation.status()))
+                .sorted(Comparator.comparingLong(Observation::timestamp).reversed())
+                .limit(10)
+                .toList();
+    }
+
+    private static List<String> firstSeenTags(Observation outcome) {
+        return isFailed(outcome.status()) ? List.of("New") : List.of();
+    }
+
+    private static List<String> changedStatusTags(Observation newest, Observation previous) {
         List<String> tags = new ArrayList<>();
-        boolean newestPass = isPassed(outcomes.get(0).status());
-        boolean previousPass = isPassed(outcomes.get(1).status());
-        if (newestPass && !previousPass) {
+        if (isPassed(newest.status()) && isFailed(previous.status())) {
             tags.add("Fixed");
-        } else if (!newestPass && previousPass) {
+        } else if (isFailed(newest.status()) && isPassed(previous.status())) {
             tags.add("Regressed");
         }
+        return tags;
+    }
 
-        boolean allFail = outcomes.stream().allMatch(o -> isFailed(o.status()));
-        boolean allPass = outcomes.stream().allMatch(o -> isPassed(o.status()));
-        if (allFail) {
+    private static void addAlwaysFailing(List<Observation> outcomes, List<String> tags) {
+        if (outcomes.stream().allMatch(outcome -> isFailed(outcome.status()))) {
             tags.add("Always-failing");
         }
-        int flips = countFlips(outcomes);
-        if (outcomes.size() >= MIN_LAUNCHES_FOR_FLAKY
-                && flips >= FLAKY_TRANSITION_THRESHOLD
-                && !allFail
-                && !allPass) {
+    }
+
+    private static void addFlaky(List<Observation> outcomes, List<String> tags) {
+        if (isFlaky(outcomes)) {
             tags.add("Flaky");
         }
-        return List.copyOf(tags);
+    }
+
+    private static boolean isFlaky(List<Observation> outcomes) {
+        if (outcomes.size() < MIN_LAUNCHES_FOR_FLAKY
+                || countFlips(outcomes) < FLAKY_TRANSITION_THRESHOLD) {
+            return false;
+        }
+        boolean allFail = outcomes.stream().allMatch(outcome -> isFailed(outcome.status()));
+        boolean allPass = outcomes.stream().allMatch(outcome -> isPassed(outcome.status()));
+        return !allFail && !allPass;
     }
 
     private static int countFlips(List<Observation> outcomesNewestFirst) {

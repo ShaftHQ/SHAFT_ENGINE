@@ -72,46 +72,8 @@ public final class SmartTagsComputer {
         List<AllureHistoryModels.LaunchStatus> launches =
                 truncateNewestFirst(series.launches(), window);
         List<Outcome> outcomes = passFailOutcomesNewestFirst(launches);
-
-        String newestStatus = outcomes.isEmpty() ? "" : outcomes.get(0).status();
-        String previousStatus = outcomes.size() < 2 ? "" : outcomes.get(1).status();
-        Integer transitionCount = outcomes.size() < 2 ? null : Integer.valueOf(countFlips(outcomes));
-
-        List<String> tags = new ArrayList<>();
-        boolean durationAnomaly = false;
-
-        if (outcomes.size() == 1) {
-            if (outcomes.get(0).failed()) {
-                // SC-002: first-seen failure is New, never Regressed / Flaky.
-                tags.add(SmartTagModels.TAG_NEW);
-            }
-        } else if (outcomes.size() >= 2) {
-            Outcome newest = outcomes.get(0);
-            Outcome previous = outcomes.get(1);
-            boolean allFail = outcomes.stream().allMatch(Outcome::failed);
-            boolean allPass = outcomes.stream().allMatch(Outcome::passed);
-            int flips = countFlips(outcomes);
-
-            if (newest.passed() && previous.failed()) {
-                tags.add(SmartTagModels.TAG_FIXED);
-            }
-            if (newest.failed() && previous.passed()) {
-                // SC-001: passed then failed → Regressed (not New).
-                tags.add(SmartTagModels.TAG_REGRESSED);
-            }
-            if (allFail && outcomes.size() >= MIN_LAUNCHES_FOR_ALWAYS_FAILING) {
-                tags.add(SmartTagModels.TAG_ALWAYS_FAILING);
-            }
-            // FR-003: never invent Flaky from insufficient history.
-            if (outcomes.size() >= MIN_LAUNCHES_FOR_FLAKY
-                    && flips >= threshold
-                    && !allFail
-                    && !allPass) {
-                tags.add(SmartTagModels.TAG_FLAKY);
-            }
-        }
-
-        durationAnomaly = assessDurationAnomaly(launches);
+        List<String> tags = statusTags(outcomes, threshold);
+        boolean durationAnomaly = assessDurationAnomaly(launches);
         if (durationAnomaly) {
             tags.add(SmartTagModels.TAG_DURATION_ANOMALY);
         }
@@ -123,10 +85,72 @@ public final class SmartTagsComputer {
                 primaryTag(tags),
                 tags,
                 outcomes.size(),
-                transitionCount,
+                transitionCount(outcomes),
                 durationAnomaly,
-                newestStatus,
-                previousStatus);
+                statusAt(outcomes, 0),
+                statusAt(outcomes, 1));
+    }
+
+    private static List<String> statusTags(List<Outcome> outcomes, int threshold) {
+        List<String> tags = new ArrayList<>();
+        if (outcomes.size() == 1) {
+            addNewTag(outcomes.get(0), tags);
+            return tags;
+        }
+        if (outcomes.size() < 2) {
+            return tags;
+        }
+        addChangedStatusTag(outcomes.get(0), outcomes.get(1), tags);
+        addAlwaysFailingTag(outcomes, tags);
+        addFlakyTag(outcomes, threshold, tags);
+        return tags;
+    }
+
+    private static void addNewTag(Outcome outcome, List<String> tags) {
+        if (outcome.failed()) {
+            // SC-002: first-seen failure is New, never Regressed / Flaky.
+            tags.add(SmartTagModels.TAG_NEW);
+        }
+    }
+
+    private static void addChangedStatusTag(Outcome newest, Outcome previous, List<String> tags) {
+        if (newest.passed() && previous.failed()) {
+            tags.add(SmartTagModels.TAG_FIXED);
+        } else if (newest.failed() && previous.passed()) {
+            // SC-001: passed then failed → Regressed (not New).
+            tags.add(SmartTagModels.TAG_REGRESSED);
+        }
+    }
+
+    private static void addAlwaysFailingTag(List<Outcome> outcomes, List<String> tags) {
+        if (outcomes.size() >= MIN_LAUNCHES_FOR_ALWAYS_FAILING
+                && outcomes.stream().allMatch(Outcome::failed)) {
+            tags.add(SmartTagModels.TAG_ALWAYS_FAILING);
+        }
+    }
+
+    private static void addFlakyTag(List<Outcome> outcomes, int threshold, List<String> tags) {
+        // FR-003: never invent Flaky from insufficient history.
+        if (isFlaky(outcomes, threshold)) {
+            tags.add(SmartTagModels.TAG_FLAKY);
+        }
+    }
+
+    private static boolean isFlaky(List<Outcome> outcomes, int threshold) {
+        if (outcomes.size() < MIN_LAUNCHES_FOR_FLAKY || countFlips(outcomes) < threshold) {
+            return false;
+        }
+        boolean allFail = outcomes.stream().allMatch(Outcome::failed);
+        boolean allPass = outcomes.stream().allMatch(Outcome::passed);
+        return !allFail && !allPass;
+    }
+
+    private static Integer transitionCount(List<Outcome> outcomes) {
+        return outcomes.size() < 2 ? null : Integer.valueOf(countFlips(outcomes));
+    }
+
+    private static String statusAt(List<Outcome> outcomes, int index) {
+        return outcomes.size() <= index ? "" : outcomes.get(index).status();
     }
 
     static String primaryTag(List<String> tags) {
