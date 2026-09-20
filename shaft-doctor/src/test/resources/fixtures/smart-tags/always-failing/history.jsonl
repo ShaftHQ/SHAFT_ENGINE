@@ -1,0 +1,5 @@
+{"uuid":"af1","name":"AF1","timestamp":1700004001000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"af2","name":"AF2","timestamp":1700004002000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"af3","name":"AF3","timestamp":1700004003000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"af4","name":"AF4","timestamp":1700004004000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"af5","name":"AF5","timestamp":1700004005000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}

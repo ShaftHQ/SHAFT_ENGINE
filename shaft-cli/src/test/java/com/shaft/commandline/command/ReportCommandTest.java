@@ -20,6 +20,7 @@ class ReportCommandTest {
         String help = out.toString();
         assertTrue(help.contains("history"));
         assertTrue(help.contains("flake"));
+        assertTrue(help.contains("tags"));
         assertTrue(help.contains("clusters"));
         assertTrue(help.contains("mute"));
         assertTrue(help.contains("mutes"));

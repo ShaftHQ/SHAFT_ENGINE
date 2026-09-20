@@ -17,23 +17,24 @@ import java.util.concurrent.Callable;
 
 /**
  * Curated Reporting-stage shortcuts. Pure alias over {@code call} to MCP {@code report_*} tools
- * (issues #5967 / S3-01, #5968 / S3-02, #5969 / S3-03, #5972 / S3-06, #5974 / S3-08).
+ * (issues #5967 / S3-01, #5968 / S3-02, #5969 / S3-03, #5972 / S3-06, #5974 / S3-08, #5975 / S3-09).
  */
 @Command(mixinStandardHelpOptions = true,
         name = "report",
-        description = "Reporting shortcuts: history, flake, clusters, heal, mute, unmute, mutes.")
+        description = "Reporting shortcuts: history, flake, tags, clusters, heal, mute, unmute, mutes.")
 public final class ReportCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.ofEntries(
             Map.entry("history", "report_history"),
             Map.entry("flake", "report_flake"),
+            Map.entry("tags", "report_smart_tags"),
             Map.entry("clusters", "report_clusters"),
             Map.entry("heal", "report_heal"),
             Map.entry("mute", "report_mute"),
             Map.entry("unmute", "report_mute"),
             Map.entry("mutes", "report_mute"));
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "history, flake, clusters, heal, mute, unmute, mutes")
+    @Parameters(index = "0", paramLabel = "ACTION", description = "history, flake, tags, clusters, heal, mute, unmute, mutes")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value",
