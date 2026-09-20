@@ -96,6 +96,22 @@ to one focused specialist. Exact MCP names and CLI syntax are generated from
 source in [`shaft-mcp-tools.md`](shaft-skills/references/shaft-mcp-tools.md) and
 [`shaft-cli-commands.md`](shaft-skills/references/shaft-cli-commands.md).
 
+For ChaosEngine adopters who want local writers without cloud defaulting:
+
+- **Local agency (OpenCode).** Optional OpenCode dispatch stays loopback-only via
+  ephemeral `OPENCODE_CONFIG` and `--pure`; see
+  [`chaos-engine/guides/local-agency.md`](chaos-engine/guides/local-agency.md)
+  and [`skills/local-agency`](chaos-engine/skills/local-agency/SKILL.md).
+- **FreeToken.** Optional MoE serve on `127.0.0.1:1919` (probe/use; CE never
+  runs `ft launch`) —
+  [`chaos-engine/guides/freetoken.md`](chaos-engine/guides/freetoken.md).
+- **Colibri.** Optional frontier MoE on `127.0.0.1:8000` when disk/RAM allow;
+  keep ABSENT on constrained laptops —
+  [`chaos-engine/guides/colibri.md`](chaos-engine/guides/colibri.md).
+- **Three-stage UX.** CLI, MCP, skills, and installer share the same Plan → Do →
+  Check contract so agent and human surfaces stay aligned (see recent
+  three-stage parity work and [`chaos-engine/README.md`](chaos-engine/README.md)).
+
 ## Join the project
 
 - Found a bug or have an idea? [Open an issue](https://github.com/ShaftHQ/SHAFT_ENGINE/issues).
