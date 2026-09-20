@@ -121,4 +121,11 @@ public class StringHelperUnitTest {
         String repeated = text.repeat(3);
         Assert.assertEquals(repeated, "ABABAB", "Repeated string should match");
     }
+
+    @Test(description = "Test string trim")
+    public void testStringTrim() {
+        String text = "  SHAFT  ";
+        Assert.assertEquals(text.trim(), "SHAFT", "Trimmed string should match");
+    }
+
 }
