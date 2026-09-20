@@ -63,6 +63,7 @@
 <li><a href="#reportHistory(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer)" tabindex="0">reportHistory(String, String, String, Integer)</a></li>
 <li><a href="#reportFlake(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" tabindex="0">reportFlake(String, String, String, Integer, Integer)</a></li>
 <li><a href="#reportClusters(java.lang.String,java.lang.String)" tabindex="0">reportClusters(String, String)</a></li>
+<li><a href="#reportHeal(java.lang.String,java.lang.String)" tabindex="0">reportHeal(String, String)</a></li>
 <li><a href="#doctorAnalyzeTrace(java.lang.String,java.lang.String)" tabindex="0">doctorAnalyzeTrace(String, String)</a></li>
 </ol>
 </li>
@@ -183,46 +184,53 @@
 <div class="block">Dual flake table: retry-hidden (intra-run) and cross-launch transitions as separate columns
 (issue #5968 / S3-02).</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/AllureHistoryModels.HistoryView.html" title="class or interface in com.shaft.doctor.history" class="external-link">AllureHistoryModels.HistoryView</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportHistory(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer)" class="member-name-link">reportHistory</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/HealInsightModels.HealInsightsTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">HealInsightModels.HealInsightsTable</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportHeal(java.lang.String,java.lang.String)" class="member-name-link">reportHeal</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportsPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;proposalsPath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Heal insights: counts by HealingDecision status with persist-on-pass review gate
+(issue #5972 / S3-06).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/AllureHistoryModels.HistoryView.html" title="class or interface in com.shaft.doctor.history" class="external-link">AllureHistoryModels.HistoryView</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportHistory(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer)" class="member-name-link">reportHistory</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;doctorReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;limitPerHistoryId)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Ingests Allure <code>history.jsonl</code> plus optional Doctor JSON for the Reporting canvas
 (issue #5967 / S3-01).</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpMergeShardsResult.html" title="class in com.shaft.mcp">TraceService.McpMergeShardsResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportMergeShards(java.util.List,java.lang.String)" class="member-name-link">reportMergeShards</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;shardBlobPaths,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpMergeShardsResult.html" title="class in com.shaft.mcp">TraceService.McpMergeShardsResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportMergeShards(java.util.List,java.lang.String)" class="member-name-link">reportMergeShards</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;shardBlobPaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Merges N per-shard blobs (raw Allure results + optional traces + optional doctor
 <code>ExecutionIntelligence</code>, produced by independent <code>-Dshaft.shard=N/M</code> runs) into
 one Allure result set plus a timeline "speedboard" HTML and a cross-shard flaky-clustering
 summary.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceLatestResult.html" title="class in com.shaft.mcp">TraceService.McpTraceLatestResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceLatest(int)" class="member-name-link">traceLatest</a><wbr>(int&nbsp;maxResults)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceLatestResult.html" title="class in com.shaft.mcp">TraceService.McpTraceLatestResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceLatest(int)" class="member-name-link">traceLatest</a><wbr>(int&nbsp;maxResults)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Lists recent persisted SHAFT trace indexes under <code>target/shaft-traces</code>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceViewerResult.html" title="class in com.shaft.mcp">TraceService.McpTraceViewerResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceOpenViewer(java.lang.String)" class="member-name-link">traceOpenViewer</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceViewerResult.html" title="class in com.shaft.mcp">TraceService.McpTraceViewerResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceOpenViewer(java.lang.String)" class="member-name-link">traceOpenViewer</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Resolves (extracting from the trace ZIP if needed) the static offline "SHAFT Trace Report.html"
 viewer for a persisted trace -- the same time-travel timeline / action-list / DOM-snapshot /
 network / console viewer produced at trace-generation time, so callers (an IDE panel, a CI
 step, or a human) can open a real file path without re-deriving the HTML themselves.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceReadResult.html" title="class in com.shaft.mcp">TraceService.McpTraceReadResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRead(java.lang.String,int)" class="member-name-link">traceRead</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceReadResult.html" title="class in com.shaft.mcp">TraceService.McpTraceReadResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRead(java.lang.String,int)" class="member-name-link">traceRead</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath,
  int&nbsp;maxCharacters)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Reads a persisted trace JSON file, trace ZIP, trace directory, or index path with bounded output.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceSummary.html" title="class in com.shaft.mcp">TraceService.McpTraceSummary</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceSummarize(java.lang.String)" class="member-name-link">traceSummarize</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceSummary.html" title="class in com.shaft.mcp">TraceService.McpTraceSummary</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceSummarize(java.lang.String)" class="member-name-link">traceSummarize</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Summarizes a persisted SHAFT trace deterministically without provider calls.</div>
 </div>
 </div>
@@ -438,6 +446,33 @@ Deterministic — no cloud ML. Empty results yield empty-state.</div>
 <dd><code>doctorReportPath</code> - optional Doctor JSON that may carry clusterFingerprint evidence</dd>
 <dt>Returns:</dt>
 <dd>unique-error cluster table for the IDE Reporting canvas / CLI</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reportHeal(java.lang.String,java.lang.String)">
+<h3>reportHeal</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="report_heal",
+      description="dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/HealInsightModels.HealInsightsTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">HealInsightModels.HealInsightsTable</a></span>&nbsp;<span class="element-name">reportHeal</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportsPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;proposalsPath)</span></div>
+<div class="block">Heal insights: counts by HealingDecision status with persist-on-pass review gate
+(issue #5972 / S3-06). Proposals are never auto-landed; only RECOVERED + passing replay
+offers a reviewable diff via <code>doctor_propose_healed_locator</code>. AMBIGUOUS has no
+apply-to-source primary action. NO_CANDIDATES is shown, not silent. Reuse
+<code>healer_run_failed_test</code> for guarded replay. Policy: locator-healing.md / #5454.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>reportsPath</code> - optional heal-reports directory; blank defaults to
+                   <code>target/shaft-heal/reports</code> when present</dd>
+<dd><code>proposalsPath</code> - optional proposal-manifests directory; blank defaults to
+                     <code>target/shaft-doctor/healing-proposals</code> when present</dd>
+<dt>Returns:</dt>
+<dd>heal insights table for the IDE Reporting canvas / CLI</dd>
 </dl>
 </div>
 </section>
