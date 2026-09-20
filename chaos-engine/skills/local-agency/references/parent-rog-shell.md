@@ -33,4 +33,5 @@ machine's project checkout.
 HARD_BLOCKER: Task Shell has no machineId
 hostname=<box>
 Need parent Shell(machineId=<work-machine>) for work-machine FreeToken/OpenCode (#6051).
+Locked adopter default writer is **openai-compat / llamacpp** on `127.0.0.1:8080` (`dispatch.py --prefer llamacpp`); FreeToken is optional companion, not the default.
 ```
