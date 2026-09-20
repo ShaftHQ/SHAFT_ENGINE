@@ -55,6 +55,9 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#diagnose(com.shaft.doctor.model.EvidenceBundle,java.util.List)" tabindex="0">diagnose(EvidenceBundle, List)</a></li>
+<li><a href="#clusterableFailure(com.shaft.doctor.model.EvidenceItem)" tabindex="0">clusterableFailure(EvidenceItem)</a></li>
+<li><a href="#clusteringKey(com.shaft.doctor.model.EvidenceItem)" tabindex="0">clusteringKey(EvidenceItem)</a></li>
+<li><a href="#clusteringKey(com.shaft.doctor.model.EvidenceItem,java.util.List)" tabindex="0">clusteringKey(EvidenceItem, List)</a></li>
 </ol>
 </li>
 </ol>
@@ -95,16 +98,34 @@
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="table-tab">Concrete Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="table-tab">Concrete Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel" aria-labelledby="method-summary-table-tab0">
 <div class="summary-table three-column-summary">
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../model/Diagnosis.html" title="class in com.shaft.doctor.model">Diagnosis</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#diagnose(com.shaft.doctor.model.EvidenceBundle,java.util.List)" class="member-name-link">diagnose</a><wbr>(<a href="../model/EvidenceBundle.html" title="class in com.shaft.doctor.model">EvidenceBundle</a>&nbsp;bundle,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#clusterableFailure(com.shaft.doctor.model.EvidenceItem)" class="member-name-link">clusterableFailure</a><wbr>(<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&nbsp;item)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Whether an evidence item participates in unique-error / historical-signature clustering
+(failed/broken Allure results or items that already carry a <code>clusterFingerprint</code>).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#clusteringKey(com.shaft.doctor.model.EvidenceItem)" class="member-name-link">clusteringKey</a><wbr>(<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&nbsp;item)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Doctor historical-signature clustering key for one item (issue #5969 / S3-03).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#clusteringKey(com.shaft.doctor.model.EvidenceItem,java.util.List)" class="member-name-link">clusteringKey</a><wbr>(<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&nbsp;item,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&gt;&nbsp;siblings)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Doctor historical-signature clustering key, preferring <code>clusterFingerprint</code> on the item
+or a diagnostics sibling in the same bundle (same rule as historical-signature-correlation).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../model/Diagnosis.html" title="class in com.shaft.doctor.model">Diagnosis</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#diagnose(com.shaft.doctor.model.EvidenceBundle,java.util.List)" class="member-name-link">diagnose</a><wbr>(<a href="../model/EvidenceBundle.html" title="class in com.shaft.doctor.model">EvidenceBundle</a>&nbsp;bundle,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../model/EvidenceBundle.html" title="class in com.shaft.doctor.model">EvidenceBundle</a>&gt;&nbsp;history)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Diagnoses one current bundle with optional historical bundles.</div>
 </div>
 </div>
@@ -153,6 +174,55 @@
 <dd><code>history</code> - older evidence bundles</dd>
 <dt>Returns:</dt>
 <dd>deterministic diagnosis</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clusterableFailure(com.shaft.doctor.model.EvidenceItem)">
+<h3>clusterableFailure</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">clusterableFailure</span><wbr><span class="parameters">(<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&nbsp;item)</span></div>
+<div class="block">Whether an evidence item participates in unique-error / historical-signature clustering
+(failed/broken Allure results or items that already carry a <code>clusterFingerprint</code>).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>item</code> - evidence item</dd>
+<dt>Returns:</dt>
+<dd>true when the item can contribute a clustering key</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clusteringKey(com.shaft.doctor.model.EvidenceItem)">
+<h3>clusteringKey</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">clusteringKey</span><wbr><span class="parameters">(<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&nbsp;item)</span></div>
+<div class="block">Doctor historical-signature clustering key for one item (issue #5969 / S3-03).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>item</code> - evidence item</dd>
+<dt>Returns:</dt>
+<dd>fingerprint when present, else normalized <code>signature</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clusteringKey(com.shaft.doctor.model.EvidenceItem,java.util.List)">
+<h3>clusteringKey</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">clusteringKey</span><wbr><span class="parameters">(<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&nbsp;item,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../model/EvidenceItem.html" title="class in com.shaft.doctor.model">EvidenceItem</a>&gt;&nbsp;siblings)</span></div>
+<div class="block">Doctor historical-signature clustering key, preferring <code>clusterFingerprint</code> on the item
+or a diagnostics sibling in the same bundle (same rule as historical-signature-correlation).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>item</code> - evidence item</dd>
+<dd><code>siblings</code> - other items in the same bundle (may include diagnostics fingerprints)</dd>
+<dt>Returns:</dt>
+<dd>non-blank signature key, or blank when none can be derived</dd>
 </dl>
 </div>
 </section>
