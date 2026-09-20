@@ -120,8 +120,9 @@ def record(
     if prompt == 0 and completion == 0:
         raise ValueError("at least one of prompt_tokens or completion_tokens must be > 0")
     ledger = _load(session_id, project)
-    events = ledger["events"]
-    assert isinstance(events, list)
+    events = ledger.get("events")
+    if not isinstance(events, list):
+        raise TypeError("ledger events must be a list")
     events.append(
         {
             "channel": channel,
@@ -195,8 +196,8 @@ def estimate_cost_usd(
 def summarize(session_id: str, project: Path | None = None) -> dict[str, object]:
     """Return privacy-safe totals + cost estimate for Learning Session."""
     ledger = _load(session_id, project)
-    totals = ledger.get("totals") if isinstance(ledger.get("totals"), dict) else {}
-    assert isinstance(totals, dict)
+    raw_totals = ledger.get("totals")
+    totals = raw_totals if isinstance(raw_totals, dict) else {}
     cost = estimate_cost_usd(totals)
     events = ledger.get("events") if isinstance(ledger.get("events"), list) else []
     runtime_classes = sorted(
@@ -224,7 +225,6 @@ def summarize(session_id: str, project: Path | None = None) -> dict[str, object]
 
 def format_retrospective(summary: dict[str, object]) -> str:
     """Short retrospective paragraph for the Learning Session user summary."""
-    totals = summary.get("totals") if isinstance(summary.get("totals"), dict) else {}
     cost = summary.get("cost") if isinstance(summary.get("cost"), dict) else {}
     local_tokens = int(cost.get("localTokens") or 0)
     cloud_tokens = int(cost.get("cloudTokens") or 0)

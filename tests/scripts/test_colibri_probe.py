@@ -38,12 +38,14 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def log_message(self, fmt, *args):  # noqa: A003
+    def log_message(self, format, *args):  # noqa: A003  # pylint: disable=redefined-builtin
+        """Silence request logs."""
         return
 
 
 class LocalServer:
     def __init__(self, payload: bytes, status: int = 200, redirect: str | None = None):
+        """Bind payload for a one-shot loopback models server."""
         self.payload = payload
         self.status = status
         self.redirect = redirect
@@ -51,6 +53,7 @@ class LocalServer:
         self.thread = None
 
     def __enter__(self):
+        """Start the loopback server thread."""
         handler = type(
             "Handler",
             (_Handler,),
@@ -63,6 +66,7 @@ class LocalServer:
         return f"http://{host}:{port}/v1/models"
 
     def __exit__(self, exc_type, exc, tb):
+        """Stop the loopback server thread."""
         self.httpd.shutdown()
         self.httpd.server_close()
         self.thread.join(timeout=2)
@@ -144,13 +148,17 @@ class ColibriProbeTest(unittest.TestCase):
         import tempfile
 
         with tempfile.TemporaryDirectory() as temporary:
+            marker = Path(temporary) / "must-not-run"
             binary = Path(temporary) / "coli"
-            binary.write_text("#!/bin/sh\necho launched > /tmp/coli-must-not-run\nexit 99\n", encoding="utf-8")
+            binary.write_text(
+                f"#!/bin/sh\necho launched > {marker}\nexit 99\n",
+                encoding="utf-8",
+            )
             binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
             completed = run_cli("http://127.0.0.1:9/v1/models", path=f"{temporary}:/usr/bin:/bin")
             self.assertEqual(completed.returncode, 0)
             self.assertEqual(completed.stdout.strip(), "UNHEALTHY")
-            self.assertFalse(Path("/tmp/coli-must-not-run").exists())
+            self.assertFalse(marker.exists())
 
     def test_ready_models_payload_and_does_not_print_model_ids(self):
         body = json.dumps({"data": [{"id": "x"}]}).encode("utf-8")
