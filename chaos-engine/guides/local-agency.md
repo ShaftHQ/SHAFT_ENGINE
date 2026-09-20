@@ -61,18 +61,34 @@ With a READY local runtime on loopback:
 3. Durable `~/.config/opencode/opencode.json` hash unchanged
 
 
-## ROG FreeToken bind (#6021)
+## ROG FreeToken bind (#6021 / #6051)
 
-Grok Bot Task / executor Shell has **no** `machineId`. Box children cannot reach
-ROG FreeToken (`127.0.0.1:1919`). Until the platform exposes `machineId` to Task:
+### Hard blocker (platform)
 
-- Task/box writers must **not** claim FreeToken READY.
-- Process-owner must run FreeToken / OpenCode via parent Shell with `machineId`
-  on ROG (`/media/mohab/OS/Users/Mohab/IdeaProjects/SHAFT_ENGINE`).
-- Gate:
-  `python3 chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py check`
-  and `dispatch.py resolve --prefer freetoken` fail closed on fake box hostnames
-  unless `CE_ALLOW_BOX_LOCAL_AGENCY=1` (or `CE_ROG_CHECKOUT`). Not READY on this host → clear error JSON.
+Grok Bot **Task / executor Shell has no `machineId` parameter** (confirmed in
+Task tool schema; children report `hostname=cursor` / box). Parent
+`ListMachines` + `Shell(machineId=…)` can reach ROG; Task cannot. FreeToken /
+llama on ROG `127.0.0.1:1919` / `:8080` are unreachable from Task writers.
+
+### Required workaround (harness)
+
+Until Grok Bot exposes `machineId` on Task → executor Shell/Read/AwaitShell:
+
+1. **Process-owner is the only ROG writer** for FreeToken / OpenCode / local-agency
+   delivery. Use parent Shell with the connected ROG `machineId` and checkout
+   `/media/mohab/OS/Users/Mohab/IdeaProjects/SHAFT_ENGINE`.
+2. **Do not** dispatch ROG implementers via `Task` expecting them to bind ROG.
+   Task may still do box-safe work (docs on `/workspace`, GitHub API) but must
+   **not** claim ROG/FreeToken delivery.
+3. Gates (fail closed on box):
+   - `python3 chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py check`
+   - `python3 chaos-engine/skills/local-agency/scripts/assert_parent_rog_shell.py`
+   - `dispatch.py resolve --prefer freetoken`
+   Override only with `CE_ALLOW_BOX_LOCAL_AGENCY=1` (or `CE_ROG_CHECKOUT`).
+4. When a Task hits the gap, it must report verbatim:
+   `HARD_BLOCKER: Task Shell has no machineId` and stop — parent re-runs on ROG Shell.
+
+See issue #6051 (platform + harness) and living lesson under OmniRoute references.
 
 ## Session agents vs local agency
 
