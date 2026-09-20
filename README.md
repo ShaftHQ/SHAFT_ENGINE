@@ -29,6 +29,13 @@ configuration, test data, screenshots, logs, and Allure evidence. Its modular
 Maven reactor keeps the core lean and lets teams add advanced tooling only when
 they need it.
 
+## Local agency (ChaosEngine)
+
+- FreeToken / llama.cpp on ROG: resolve with `chaos-engine/skills/local-agency` (`dispatch.py --prefer freetoken` or OpenAI-compat on `:8080`).
+- Colibri is optional only when `http://127.0.0.1:8000` is READY; not the default on 6GB VRAM laptops.
+- Three-stage UX (Architect, Automation, Reporting): see `chaos-engine/README.md`.
+- Proof runner note (#6045): preferred dense coder is Qwen2.5-Coder-7B Q4_K_M via llama-server when FreeToken KV is ~8k.
+
 ## From zero to useful evidence
 
 1. [Open the SHAFT landing page](https://shafthq.github.io/) and generate a
