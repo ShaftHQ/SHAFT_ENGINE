@@ -143,6 +143,14 @@ Hardware size-class hint:
 [`local-coding-delegate/scripts/probe_hardware.py`](../local-coding-delegate/scripts/probe_hardware.py)
 (`small` / `medium` / `large` / `refuse`).
 
+
+## Session token usage (#6069)
+
+When `dispatch.py chat` returns OpenAI-compat `usage` and `--session-id` is set, dispatch records
+`session_token_usage.py` with `--channel local` and a coarse `--runtime-class`
+(`freetoken` / `openai-compat` / `colibri`). Never write model or provider ids into the ledger.
+`brief` / `config` / `argv` do not call the model, so they do not record usage.
+
 ## Coach loop (host process-owner)
 
 Local openai-compat writers need an active host coach — verify every artifact,
