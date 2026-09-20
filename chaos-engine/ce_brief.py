@@ -69,6 +69,41 @@ def build_brief(project: Path | None = None, max_bytes: int = DEFAULT_MAX_BYTES)
     }
 
 
+
+def doctor_ce_brief(project: Path | None = None) -> dict:
+    """Bounded doctor --json ceBrief surface (healthy|absent; no secrets) (#6071)."""
+    root = Path(project).resolve() if project is not None else Path.cwd().resolve()
+    module_path = Path(__file__).resolve()
+    dispatch_path = (
+        module_path.parent / "skills" / "local-agency" / "scripts" / "dispatch.py"
+    )
+    if not module_path.is_file():
+        return {"schemaVersion": SCHEMA_VERSION, "status": "absent", "detail": "ce_brief.py missing"}
+    try:
+        sample = build_brief(project=root, max_bytes=DEFAULT_MAX_BYTES)
+    except (OSError, TypeError, ValueError) as error:
+        return {
+            "schemaVersion": SCHEMA_VERSION,
+            "status": "absent",
+            "detail": f"build_brief failed: {error}",
+        }
+    healthy = (
+        isinstance(sample.get("text"), str)
+        and isinstance(sample.get("bytes"), int)
+        and sample.get("schemaVersion") == SCHEMA_VERSION
+        and bool(sample.get("used"))
+    )
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "status": "healthy" if healthy else "absent",
+        "dispatchBrief": dispatch_path.is_file(),
+        "defaultMaxBytes": DEFAULT_MAX_BYTES,
+        "absoluteMaxBytes": ABSOLUTE_MAX_BYTES,
+        "sampleBytes": sample.get("bytes") if healthy else 0,
+        "locatorCount": len(sample.get("used") or []) if healthy else 0,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, default=None)

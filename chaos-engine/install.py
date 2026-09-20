@@ -4647,6 +4647,7 @@ def doctor_with_dependencies(
         result["activationProof"] = {}
         result["phaseLedger"] = {"schemaVersion": 1, "sessions": 0, "status": "absent"}
         result["learningMetrics"] = {"schemaVersion": 1, "status": "absent"}
+        result["ceBrief"] = {"schemaVersion": 1, "status": "absent"}
         result["officialSelfHeal"] = {"healed": [], "failed": [], "skipped": []}
         return result
     target = project.resolve() / INSTALL_DIRECTORY
@@ -4769,6 +4770,10 @@ def doctor_with_dependencies(
             "learningMetrics",
             {"schemaVersion": 1, "status": "absent"},
         )
+        result.setdefault(
+            "ceBrief",
+            {"schemaVersion": 1, "status": "absent"},
+        )
         reconcile_doctor_overall_status(result)
         return result
     apply_plugin_client_health(
@@ -4804,6 +4809,20 @@ def doctor_with_dependencies(
                 result["learningMetrics"] = _mod.doctor_learning_metrics(project)
     except (OSError, RuntimeError, ValueError, AttributeError):
         result["learningMetrics"] = {"schemaVersion": 1, "status": "absent"}
+    try:
+        brief_path = Path(__file__).resolve().with_name("ce_brief.py")
+        if brief_path.is_file():
+            import importlib.util as _ilu
+
+            _spec = _ilu.spec_from_file_location(
+                "chaos_engine_ce_brief_doctor", brief_path
+            )
+            if _spec is not None and _spec.loader is not None:
+                _mod = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                result["ceBrief"] = _mod.doctor_ce_brief(project)
+    except (OSError, RuntimeError, ValueError, AttributeError):
+        result["ceBrief"] = {"schemaVersion": 1, "status": "absent"}
     reconcile_doctor_overall_status(result)
     return result
 
@@ -4820,7 +4839,7 @@ _DIAGNOSTIC_FIELDS = {
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
-        "activationProof", "phaseLedger", "learningMetrics", "officialSelfHeal",
+        "activationProof", "phaseLedger", "learningMetrics", "ceBrief", "officialSelfHeal",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",

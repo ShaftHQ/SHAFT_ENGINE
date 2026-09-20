@@ -231,6 +231,7 @@ class S0S1SelfImproveTests(unittest.TestCase):
         fields = self.install._DIAGNOSTIC_FIELDS["doctor"]
         self.assertIn("learningMetrics", fields)
         self.assertIn("phaseLedger", fields)
+        self.assertIn("ceBrief", fields)
 
     def test_learning_metrics_cli(self):
         completed = subprocess.run(  # nosec B603
