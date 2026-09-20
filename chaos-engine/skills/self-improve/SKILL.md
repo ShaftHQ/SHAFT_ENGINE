@@ -1,8 +1,8 @@
 ---
 name: self-improve
 description: >
-  ChaosEngine Learning Session self-improve skill. Dual-track harness +
-  product lessons via learning.py. Trigger on self-improve or learning session.
+  Use when running ChaosEngine Learning Session self-improve: dual-track
+  harness + product lessons via learning.py after delivery or on request.
 ---
 
 # self-improve — ChaosEngine learning & adapting
@@ -93,6 +93,8 @@ python3 -c "from pathlib import Path; assert Path('chaos-engine/skills/self-impr
 
 
 ## Token retrospective (#5981)
+
+Helper: [`session_token_usage.py`](../../session_token_usage.py).
 
 During the session, record coarse usage (no model/provider ids, prompts, or paths):
 

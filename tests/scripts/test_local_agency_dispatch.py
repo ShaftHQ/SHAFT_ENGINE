@@ -23,6 +23,14 @@ dispatch = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(dispatch)
 
 
+def _base_for(runtime: str) -> str:
+    if runtime == "freetoken":
+        return dispatch.FREETOKEN_OPENAI_BASE
+    if runtime == "colibri":
+        return dispatch.COLIBRI_OPENAI_BASE
+    return dispatch.OPENAI_COMPAT_BASES[runtime]
+
+
 class LocalAgencyDispatchTest(unittest.TestCase):
     def test_source_never_mentions_ft_launch_or_omniroute_exec(self):
         text = DISPATCH.read_text(encoding="utf-8")
@@ -60,11 +68,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
     def test_resolve_absent_when_all_runtimes_missing(self):
         def absent(runtime: str):
-            base = (
-                dispatch.FREETOKEN_OPENAI_BASE
-                if runtime == "freetoken"
-                else dispatch.OPENAI_COMPAT_BASES[runtime]
-            )
+            base = _base_for(runtime)
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
@@ -83,11 +87,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
     def test_resolve_does_not_silent_cloud_fallback_even_with_allow_cloud(self):
         def absent(runtime: str):
-            base = (
-                dispatch.FREETOKEN_OPENAI_BASE
-                if runtime == "freetoken"
-                else dispatch.OPENAI_COMPAT_BASES[runtime]
-            )
+            base = _base_for(runtime)
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
@@ -116,7 +116,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "READY",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": ["other"],
                 "provider_id": runtime,
             }
@@ -162,7 +162,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }
@@ -212,7 +212,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }
@@ -260,7 +260,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }
@@ -330,7 +330,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
-                "openai_base_url": dispatch.OPENAI_COMPAT_BASES[runtime],
+                "openai_base_url": _base_for(runtime),
                 "models": [],
                 "provider_id": runtime,
             }

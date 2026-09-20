@@ -58,7 +58,7 @@ require Local Execution / the user host, and stop. Do not invent remote
 
 ### 1. Probe
 
-Probe helper: [`scripts/probe.py`](scripts/probe.py).
+Probe helper: [`chaos-engine/skills/colibri/scripts/probe.py`](scripts/probe.py).
 
 ```text
 command -v coli

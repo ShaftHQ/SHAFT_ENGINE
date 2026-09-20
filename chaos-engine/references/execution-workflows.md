@@ -36,8 +36,8 @@ the selected host and task boundary:
    Prefer FreeToken for coding agency; Colibri when the operator hosts frontier MoE.
    Colibri does not replace FreeToken or OmniRoute and is not a workflow owner.
    FreeToken does not replace OmniRoute, does not require OmniRoute, and is not a workflow owner.
-3. A qualified host-native lower-capability implementer.
-4. No qualified delegate: `SOLO`.
+4. A qualified host-native lower-capability implementer.
+5. No qualified delegate: `SOLO`.
 
 The transport does not change the selected workflow, role boundaries, tests,
 review, learning, or completion duties. Canonical orchestration must probe the
