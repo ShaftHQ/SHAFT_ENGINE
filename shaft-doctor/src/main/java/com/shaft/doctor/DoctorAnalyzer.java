@@ -85,7 +85,8 @@ public final class DoctorAnalyzer {
         DoctorAnalysisRequest resolvedRequest = resolveOutputBoundary(request);
         EvidenceBundle bundle = collector.collect(resolvedRequest);
         List<EvidenceBundle> history = collector.loadHistoricalBundles(resolvedRequest);
-        Diagnosis diagnosis = rules.diagnose(bundle, history);
+        DeterministicRuleEngine effectiveRules = rules.withDiscoveredProjectRules(resolvedRequest.inputPaths());
+        Diagnosis diagnosis = effectiveRules.diagnose(bundle, history);
         Path output = resolvedRequest.outputDirectory();
         Path bundlePath = output.resolve("doctor-evidence.json");
         Path jsonReportPath = output.resolve("doctor-report.json");

@@ -12,6 +12,7 @@ import com.shaft.doctor.model.RankedCause;
 import com.shaft.doctor.model.Remediation;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -25,11 +26,16 @@ import java.util.function.Predicate;
 
 /**
  * Ordered explainable rules for common SHAFT failure categories.
+ *
+ * <p>Optional project Allure {@code categories.json} / {@code shaft-patterns.json} rules load
+ * <em>on top of</em> the immutable built-in list (issue #5970 / S3-04). Project files cannot
+ * remove built-ins; invalid regex fails closed.</p>
  */
 public final class DeterministicRuleEngine {
     private static final Set<String> FAILURE_STATUSES = Set.of("failed", "broken");
     private static final Set<String> NON_FINAL_ISSUE_STATUSES = Set.of("failed", "broken", "skipped");
-    private static final List<Rule> RULES = List.of(
+    /** Immutable production defaults — never rewritten by project files (FR-003). */
+    private static final List<Rule> BUILTIN_RULES = List.of(
             rule("infrastructure-driver-startup", CauseCategory.ENVIRONMENT_CONFIGURATION, Confidence.HIGH,
                     text -> containsAny(text, "sessionnotcreatedexception", "session not created",
                             "unable to obtain driver", "this version of chromedriver",
@@ -111,6 +117,64 @@ public final class DeterministicRuleEngine {
                     "Correlate the failing request with application logs and reproduce outside the test harness before assigning ownership.")
     );
 
+    private final List<Rule> rules;
+    private final List<String> projectLoadErrors;
+
+    /**
+     * Creates an engine that uses only the immutable built-in rules.
+     */
+    public DeterministicRuleEngine() {
+        this(List.of(), List.of());
+    }
+
+    /**
+     * Creates an engine with optional compiled project rules prepended to built-ins.
+     *
+     * @param projectRules additive project rules (never remove built-ins)
+     * @param projectLoadErrors fail-closed load errors to surface as observations
+     */
+    public DeterministicRuleEngine(
+            List<ProjectPatternRuleLoader.CompiledProjectRule> projectRules,
+            List<String> projectLoadErrors) {
+        List<Rule> effective = new ArrayList<>();
+        if (projectRules != null) {
+            for (ProjectPatternRuleLoader.CompiledProjectRule project : projectRules) {
+                if (project == null) {
+                    continue;
+                }
+                effective.add(toRule(project));
+            }
+        }
+        effective.addAll(BUILTIN_RULES);
+        this.rules = List.copyOf(effective);
+        this.projectLoadErrors = projectLoadErrors == null ? List.of() : List.copyOf(projectLoadErrors);
+    }
+
+    /**
+     * Loads optional project rule files on top of built-ins.
+     *
+     * @param files categories.json / shaft-patterns.json paths
+     * @return engine with project rules prepended
+     */
+    public static DeterministicRuleEngine withProjectRuleFiles(List<Path> files) {
+        ProjectPatternRuleLoader.LoadResult loaded = ProjectPatternRuleLoader.load(files);
+        return new DeterministicRuleEngine(loaded.rules(), loaded.errors());
+    }
+
+    /**
+     * Returns this engine when no project files exist; otherwise a new engine with those files.
+     *
+     * @param inputPaths Doctor analysis input paths
+     * @return engine honoring optional project categories/patterns
+     */
+    public DeterministicRuleEngine withDiscoveredProjectRules(List<Path> inputPaths) {
+        List<Path> files = ProjectPatternRuleLoader.discover(inputPaths);
+        if (files.isEmpty()) {
+            return this;
+        }
+        return withProjectRuleFiles(files);
+    }
+
     /**
      * Diagnoses one current bundle with optional historical bundles.
      *
@@ -135,6 +199,7 @@ public final class DeterministicRuleEngine {
         List<Finding> findings = new ArrayList<>();
         List<Remediation> remediations = new ArrayList<>();
         List<String> missingEvidence = new ArrayList<>();
+        addProjectLoadErrorFindings(findings);
         int minimumResults = integer(bundle.metadata().get("minimumAllureResultCount"), 1);
 
         if (validAllure.size() < minimumResults) {
@@ -163,13 +228,13 @@ public final class DeterministicRuleEngine {
         addAccessibilityFindings(bundle, findings);
 
         List<RuleMatch> matches = new ArrayList<>();
-        for (Rule rule : RULES) {
+        for (Rule rule : rules) {
             List<EvidenceItem> matched = failures.stream()
-                    .filter(item -> rule.predicate().test(searchText(item)))
+                    .filter(item -> rule.matcher().test(item))
                     .toList();
             if (matched.isEmpty()) {
                 matched = supplemental.stream()
-                        .filter(item -> rule.predicate().test(searchText(item)))
+                        .filter(item -> rule.matcher().test(item))
                         .toList();
             }
             if (!matched.isEmpty()) {
@@ -645,14 +710,37 @@ public final class DeterministicRuleEngine {
         }
     }
 
+    private void addProjectLoadErrorFindings(List<Finding> findings) {
+        int index = 0;
+        for (String error : projectLoadErrors) {
+            findings.add(finding("project-rule-error-" + index, Finding.Kind.OBSERVATION,
+                    CauseCategory.ENVIRONMENT_CONFIGURATION, Finding.Severity.WARNING,
+                    "Project pattern rule failed closed",
+                    error,
+                    "project-pattern-fail-closed", List.of()));
+            index++;
+        }
+    }
+
+    private static Rule toRule(ProjectPatternRuleLoader.CompiledProjectRule project) {
+        return new Rule(
+                project.id(),
+                project.category(),
+                project.confidence(),
+                project::matches,
+                project.title(),
+                project.action());
+    }
+
     private static Rule rule(
             String id,
             CauseCategory category,
             Confidence confidence,
-            Predicate<String> predicate,
+            Predicate<String> textPredicate,
             String title,
             String action) {
-        return new Rule(id, category, confidence, predicate, title, action);
+        return new Rule(id, category, confidence,
+                item -> textPredicate.test(searchText(item)), title, action);
     }
 
     private static <T> List<T> append(List<T> values, T value) {
@@ -665,7 +753,7 @@ public final class DeterministicRuleEngine {
             String id,
             CauseCategory category,
             Confidence confidence,
-            Predicate<String> predicate,
+            Predicate<EvidenceItem> matcher,
             String title,
             String action) {
     }
