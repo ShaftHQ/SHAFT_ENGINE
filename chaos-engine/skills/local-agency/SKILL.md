@@ -132,3 +132,4 @@ this skill when the adopter names OpenCode or “local agents”.
 - OmniRoute (explicit cloud only): [omniroute](../omniroute/SKILL.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
 - Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md) (#6051)
+- Parent ROG Shell assert smoke: [test_assert_parent_rog_shell.py](scripts/tests/test_assert_parent_rog_shell.py) (#6051)
