@@ -62,6 +62,7 @@
 <li><a href="#reportMergeShards(java.util.List,java.lang.String)" tabindex="0">reportMergeShards(List, String)</a></li>
 <li><a href="#reportHistory(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer)" tabindex="0">reportHistory(String, String, String, Integer)</a></li>
 <li><a href="#reportFlake(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" tabindex="0">reportFlake(String, String, String, Integer, Integer)</a></li>
+<li><a href="#reportSmartTags(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" tabindex="0">reportSmartTags(String, String, String, Integer, Integer)</a></li>
 <li><a href="#reportClusters(java.lang.String,java.lang.String)" tabindex="0">reportClusters(String, String)</a></li>
 <li><a href="#reportHeal(java.lang.String,java.lang.String)" tabindex="0">reportHeal(String, String)</a></li>
 <li><a href="#reportMute(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Boolean,java.lang.Boolean)" tabindex="0">reportMute(String, String, String, String, Integer, Boolean, Boolean)</a></li>
@@ -222,28 +223,38 @@ summary.</div>
 <div class="block">Local flake mute / quarantine lifecycle for the SHAFT Tests panel and CLI
 (issue #5974 / S3-08).</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceLatestResult.html" title="class in com.shaft.mcp">TraceService.McpTraceLatestResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceLatest(int)" class="member-name-link">traceLatest</a><wbr>(int&nbsp;maxResults)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/SmartTagModels.SmartTagTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">SmartTagModels.SmartTagTable</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportSmartTags(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)" class="member-name-link">reportSmartTags</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;doctorReportPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;limitPerHistoryId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;flakyTransitionThreshold)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Smart tags: New / Always-failing / Flaky / Regressed / Fixed from Allure history
+(issue #5975 / S3-09).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceLatestResult.html" title="class in com.shaft.mcp">TraceService.McpTraceLatestResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceLatest(int)" class="member-name-link">traceLatest</a><wbr>(int&nbsp;maxResults)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Lists recent persisted SHAFT trace indexes under <code>target/shaft-traces</code>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceViewerResult.html" title="class in com.shaft.mcp">TraceService.McpTraceViewerResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceOpenViewer(java.lang.String)" class="member-name-link">traceOpenViewer</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceViewerResult.html" title="class in com.shaft.mcp">TraceService.McpTraceViewerResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceOpenViewer(java.lang.String)" class="member-name-link">traceOpenViewer</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Resolves (extracting from the trace ZIP if needed) the static offline "SHAFT Trace Report.html"
 viewer for a persisted trace -- the same time-travel timeline / action-list / DOM-snapshot /
 network / console viewer produced at trace-generation time, so callers (an IDE panel, a CI
 step, or a human) can open a real file path without re-deriving the HTML themselves.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceReadResult.html" title="class in com.shaft.mcp">TraceService.McpTraceReadResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRead(java.lang.String,int)" class="member-name-link">traceRead</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceReadResult.html" title="class in com.shaft.mcp">TraceService.McpTraceReadResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRead(java.lang.String,int)" class="member-name-link">traceRead</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath,
  int&nbsp;maxCharacters)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Reads a persisted trace JSON file, trace ZIP, trace directory, or index path with bounded output.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceSummary.html" title="class in com.shaft.mcp">TraceService.McpTraceSummary</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceSummarize(java.lang.String)" class="member-name-link">traceSummarize</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TraceService.McpTraceSummary.html" title="class in com.shaft.mcp">TraceService.McpTraceSummary</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceSummarize(java.lang.String)" class="member-name-link">traceSummarize</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tracePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Summarizes a persisted SHAFT trace deterministically without provider calls.</div>
 </div>
 </div>
@@ -435,6 +446,38 @@ Insufficient history is <code>unknown</code>, not a fabricated 0% rate; 100% fai
 <dd><code>transitionThreshold</code> - min flips to tag transitions (default 3)</dd>
 <dt>Returns:</dt>
 <dd>flake table with independent retry-hidden and transition assessments</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reportSmartTags(java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer)">
+<h3>reportSmartTags</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="report_smart_tags",
+      description="computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/SmartTagModels.SmartTagTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">SmartTagModels.SmartTagTable</a></span>&nbsp;<span class="element-name">reportSmartTags</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;doctorReportPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;limitPerHistoryId,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;flakyTransitionThreshold)</span></div>
+<div class="block">Smart tags: New / Always-failing / Flaky / Regressed / Fixed from Allure history
+(issue #5975 / S3-09). First-seen failure is New, not Regressed. Insufficient history
+never invents Flaky. Duration-anomaly is optional when timings exist.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>historyPath</code> - optional history.jsonl; blank defaults to <code>target/history.jsonl</code></dd>
+<dd><code>doctorReportPath</code> - optional Doctor JSON</dd>
+<dd><code>allureResultsPath</code> - optional allure-results (unused for tags; accepted for path parity)</dd>
+<dd><code>limitPerHistoryId</code> - max launches in the window (default 10, max 50)</dd>
+<dd><code>flakyTransitionThreshold</code> - min flips to tag Flaky (default 3)</dd>
+<dt>Returns:</dt>
+<dd>smart-tag table for Reporting / SHAFT Tests</dd>
 </dl>
 </div>
 </section>
