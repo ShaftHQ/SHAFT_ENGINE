@@ -398,10 +398,21 @@ public final class DeterministicRuleEngine {
                 .filter(item -> historical.contains(clusteringKey(item, siblings)))
                 .toList();
         if (!repeated.isEmpty()) {
+            // S3-07 / #5973: Doctor JSON is the API — surface the cluster key on the finding so
+            // Reporting / FailedRunDoctorNotifier cards can render it without a parallel detector.
+            Set<String> clusterKeys = new LinkedHashSet<>();
+            for (EvidenceItem item : repeated) {
+                String key = clusteringKey(item, siblings);
+                if (!key.isBlank()) {
+                    clusterKeys.add(key);
+                }
+            }
+            String keyText = clusterKeys.isEmpty() ? "unknown" : String.join(", ", clusterKeys);
             findings.add(finding("historical-signature", Finding.Kind.OBSERVATION,
                     CauseCategory.UNKNOWN, Finding.Severity.WARNING,
                     "Failure signature recurred across evidence bundles",
-                    "A normalized current failure signature was also present in supplied historical bundles.",
+                    "A normalized current failure signature was also present in supplied historical bundles. "
+                            + "Cluster key: " + keyText + ".",
                     "historical-signature-correlation",
                     repeated.stream().map(EvidenceItem::id).toList()));
         }
