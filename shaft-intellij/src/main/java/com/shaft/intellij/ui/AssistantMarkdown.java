@@ -1055,21 +1055,8 @@ final class AssistantMarkdown {
      * (issue #5973 / S3-07). Returns {@code null} when the payload is not Doctor-shaped.
      */
     private static JsonObject doctorCardRoot(JsonObject object) {
-        if (object.has("diagnosis") && object.get("diagnosis").isJsonObject()
-                && !(object.has("primaryCause") && object.has("codeBlocks"))) {
-            JsonObject diagnosis = object.getAsJsonObject("diagnosis").deepCopy();
-            copyIfAbsent(object, diagnosis, "bundleId");
-            copyIfAbsent(object, diagnosis, "bundlePath");
-            copyIfAbsent(object, diagnosis, "jsonReportPath");
-            copyIfAbsent(object, diagnosis, "markdownReportPath");
-            copyIfAbsent(object, diagnosis, "status");
-            if (!diagnosis.has("codeBlocks")) {
-                diagnosis.add("codeBlocks", new JsonArray());
-            }
-            if (!diagnosis.has("status") || string(diagnosis, "status", "").isBlank()) {
-                diagnosis.addProperty("status", "DETERMINISTIC");
-            }
-            return diagnosis.has("schemaVersion") && diagnosis.has("primaryCause") ? diagnosis : null;
+        if (isDoctorReportFile(object)) {
+            return unwrapDoctorReportFile(object);
         }
         if (!(object.has("schemaVersion") && object.has("primaryCause"))) {
             return null;
@@ -1085,6 +1072,27 @@ final class AssistantMarkdown {
         return null;
     }
 
+    private static boolean isDoctorReportFile(JsonObject object) {
+        return object.has("diagnosis") && object.get("diagnosis").isJsonObject()
+                && !(object.has("primaryCause") && object.has("codeBlocks"));
+    }
+
+    private static JsonObject unwrapDoctorReportFile(JsonObject object) {
+        JsonObject diagnosis = object.getAsJsonObject("diagnosis").deepCopy();
+        copyIfAbsent(object, diagnosis, "bundleId");
+        copyIfAbsent(object, diagnosis, "bundlePath");
+        copyIfAbsent(object, diagnosis, "jsonReportPath");
+        copyIfAbsent(object, diagnosis, "markdownReportPath");
+        copyIfAbsent(object, diagnosis, "status");
+        if (!diagnosis.has("codeBlocks")) {
+            diagnosis.add("codeBlocks", new JsonArray());
+        }
+        if (string(diagnosis, "status", "").isBlank()) {
+            diagnosis.addProperty("status", "DETERMINISTIC");
+        }
+        return diagnosis.has("schemaVersion") && diagnosis.has("primaryCause") ? diagnosis : null;
+    }
+
     private static void copyIfAbsent(JsonObject source, JsonObject target, String key) {
         if (source.has(key) && !target.has(key)) {
             target.add(key, source.get(key));
@@ -1097,66 +1105,101 @@ final class AssistantMarkdown {
      * no parallel detector in the plugin (FR-002 / issue #5973).
      */
     private static String doctorDimensionsMarkdown(JsonObject object) {
-        JsonObject diagnosis = object;
-        if (object.has("diagnosis") && object.get("diagnosis").isJsonObject()) {
-            diagnosis = object.getAsJsonObject("diagnosis");
-        }
+        JsonObject diagnosis = nestedOrSelf(object, "diagnosis");
         String primary = string(diagnosis, "primaryCause", string(object, "primaryCause", ""));
         List<String> lines = new ArrayList<>();
-        boolean sawRetry = false;
-        boolean sawTiming = false;
-        boolean sawLocator = false;
+        DimensionFlags flags = appendFindingDimensionLines(lines, diagnosis);
 
-        if (diagnosis.has("findings") && diagnosis.get("findings").isJsonArray()) {
-            for (JsonElement element : diagnosis.getAsJsonArray("findings")) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                JsonObject finding = element.getAsJsonObject();
-                String ruleId = string(finding, "ruleId", "");
-                String category = string(finding, "category", "");
-                String title = string(finding, "title", "");
-                String detail = string(finding, "detail", "");
-                if ("retry-correlation".equals(ruleId)) {
-                    sawRetry = true;
-                    sawTiming = true;
-                    lines.add("- **Retry correlation:** `TIMING_SYNCHRONIZATION` — " + title
-                            + " (timing/flake across attempts; not a product defect).");
-                    if (!detail.isBlank()) {
-                        lines.add("  - " + detail);
-                    }
-                } else if ("historical-signature-correlation".equals(ruleId)) {
-                    String clusterKey = clusterKeyFromFindingDetail(detail);
-                    lines.add("- **Historical signature:** cluster key `" + clusterKey + "` — " + title);
-                    if (!detail.isBlank()) {
-                        lines.add("  - " + detail);
-                    }
-                } else if ("TIMING_SYNCHRONIZATION".equals(category) || ruleId.startsWith("timing-")) {
-                    sawTiming = true;
-                    lines.add("- **Timing:** `" + category + "` (`" + ruleId + "`) — " + title);
-                } else if ("LOCATOR".equals(category) || ruleId.startsWith("locator-")) {
-                    sawLocator = true;
-                    lines.add("- **Locator:** `" + category + "` (`" + ruleId + "`) — " + title);
-                }
-            }
-        }
-
-        if (!sawRetry && !sawTiming && "TIMING_SYNCHRONIZATION".equals(primary)) {
+        if (!flags.sawRetry && !flags.sawTiming && "TIMING_SYNCHRONIZATION".equals(primary)) {
             lines.add(0, "- **Timing:** `TIMING_SYNCHRONIZATION` — primary cause "
                     + "(synchronization / retry timing, not product).");
-            sawTiming = true;
+            flags = flags.withTiming();
         }
-        if (!sawLocator && "LOCATOR".equals(primary)) {
+        if (!flags.sawLocator && "LOCATOR".equals(primary)) {
             lines.add("- **Locator:** `LOCATOR` — primary cause.");
-            sawLocator = true;
+            flags = flags.withLocator();
         }
-        appendContributingDimension(lines, diagnosis, object, "TIMING_SYNCHRONIZATION", "Timing", sawTiming);
-        appendContributingDimension(lines, diagnosis, object, "LOCATOR", "Locator", sawLocator);
+        appendContributingDimension(lines, diagnosis, object, "TIMING_SYNCHRONIZATION", "Timing", flags.sawTiming);
+        appendContributingDimension(lines, diagnosis, object, "LOCATOR", "Locator", flags.sawLocator);
 
         if (lines.isEmpty()) {
             return "";
         }
         return "**Diagnosis card — retries vs history vs timing vs locator**\n" + String.join("\n", lines);
+    }
+
+    private static JsonObject nestedOrSelf(JsonObject object, String key) {
+        if (object.has(key) && object.get(key).isJsonObject()) {
+            return object.getAsJsonObject(key);
+        }
+        return object;
+    }
+
+    private static DimensionFlags appendFindingDimensionLines(List<String> lines, JsonObject diagnosis) {
+        DimensionFlags flags = DimensionFlags.empty();
+        if (!diagnosis.has("findings") || !diagnosis.get("findings").isJsonArray()) {
+            return flags;
+        }
+        for (JsonElement element : diagnosis.getAsJsonArray("findings")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            flags = appendOneFindingDimension(lines, element.getAsJsonObject(), flags);
+        }
+        return flags;
+    }
+
+    private static DimensionFlags appendOneFindingDimension(
+            List<String> lines, JsonObject finding, DimensionFlags flags) {
+        String ruleId = string(finding, "ruleId", "");
+        String category = string(finding, "category", "");
+        String title = string(finding, "title", "");
+        String detail = string(finding, "detail", "");
+        if ("retry-correlation".equals(ruleId)) {
+            lines.add("- **Retry correlation:** `TIMING_SYNCHRONIZATION` — " + title
+                    + " (timing/flake across attempts; not a product defect).");
+            appendDetailBullet(lines, detail);
+            return flags.withRetryTiming();
+        }
+        if ("historical-signature-correlation".equals(ruleId)) {
+            lines.add("- **Historical signature:** cluster key `"
+                    + clusterKeyFromFindingDetail(detail) + "` — " + title);
+            appendDetailBullet(lines, detail);
+            return flags;
+        }
+        if ("TIMING_SYNCHRONIZATION".equals(category) || ruleId.startsWith("timing-")) {
+            lines.add("- **Timing:** `" + category + "` (`" + ruleId + "`) — " + title);
+            return flags.withTiming();
+        }
+        if ("LOCATOR".equals(category) || ruleId.startsWith("locator-")) {
+            lines.add("- **Locator:** `" + category + "` (`" + ruleId + "`) — " + title);
+            return flags.withLocator();
+        }
+        return flags;
+    }
+
+    private static void appendDetailBullet(List<String> lines, String detail) {
+        if (!detail.isBlank()) {
+            lines.add("  - " + detail);
+        }
+    }
+
+    private record DimensionFlags(boolean sawRetry, boolean sawTiming, boolean sawLocator) {
+        static DimensionFlags empty() {
+            return new DimensionFlags(false, false, false);
+        }
+
+        DimensionFlags withRetryTiming() {
+            return new DimensionFlags(true, true, sawLocator);
+        }
+
+        DimensionFlags withTiming() {
+            return new DimensionFlags(sawRetry, true, sawLocator);
+        }
+
+        DimensionFlags withLocator() {
+            return new DimensionFlags(sawRetry, sawTiming, true);
+        }
     }
 
     private static void appendContributingDimension(
