@@ -3677,21 +3677,21 @@
           "description": null
         },
         {
-          "name": "testId",
+          "name": "muteStorePath",
           "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "passed",
+          "type": "boolean",
           "required": false,
           "default": null,
           "description": null
         },
         {
           "name": "reason",
-          "type": "string",
-          "required": false,
-          "default": null,
-          "description": null
-        },
-        {
-          "name": "muteStorePath",
           "type": "string",
           "required": false,
           "default": null,
@@ -3705,8 +3705,8 @@
           "description": null
         },
         {
-          "name": "passed",
-          "type": "boolean",
+          "name": "testId",
+          "type": "string",
           "required": false,
           "default": null,
           "description": null
