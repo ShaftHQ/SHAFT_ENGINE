@@ -97,6 +97,24 @@ python3 chaos-engine/session_token_usage.py record \
 Do not invent rates or FX. Cite the rate source and FX date in the report.
 Local channel actual cost is $0 unless a paid local host was used.
 
+
+
+## Locked work-machine stack (adopter default)
+
+When the work machine has a proven OpenAI-compat loopback coding runtime:
+
+1. Prefer `dispatch.py --prefer openai-compat` (not FreeToken) for local writers.
+2. Parent Shell with `machineId` on the work machine — Task children have no
+   `machineId` (#6051).
+3. Keep a single user systemd unit for the loopback server so it returns after
+   reboot; do not leave experimental MoE / alternate checkpoints loaded by
+   default.
+4. Record local token usage and report avoided cloud spend on delivery close
+   (see Cost and savings reporting above).
+
+FreeToken remains an optional companion skill in-tree; it is not the default
+writer on hosts that locked OpenAI-compat.
+
 ## Session agents vs local agency
 
 Default orchestrator labor stays on host session subagents / Task. Use this
