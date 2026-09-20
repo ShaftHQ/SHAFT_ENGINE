@@ -39,7 +39,7 @@
     },
     {
       "name": "report",
-      "description": "Reporting shortcuts: history, flake, tags, clusters, heal, mute, unmute, mutes."
+      "description": "Reporting shortcuts: open, summary, history, flake, tags, clusters, heal, mute, unmute, mutes."
     },
     {
       "name": "session",

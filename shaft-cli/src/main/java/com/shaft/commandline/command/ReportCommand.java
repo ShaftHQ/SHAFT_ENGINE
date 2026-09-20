@@ -21,10 +21,12 @@ import java.util.concurrent.Callable;
  */
 @Command(mixinStandardHelpOptions = true,
         name = "report",
-        description = "Reporting shortcuts: history, flake, tags, clusters, heal, mute, unmute, mutes.")
+        description = "Reporting shortcuts: open, summary, history, flake, tags, clusters, heal, mute, unmute, mutes.")
 public final class ReportCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.ofEntries(
+            Map.entry("open", "report_open"),
+            Map.entry("summary", "report_summary"),
             Map.entry("history", "report_history"),
             Map.entry("flake", "report_flake"),
             Map.entry("tags", "report_smart_tags"),
@@ -34,7 +36,7 @@ public final class ReportCommand implements Callable<Integer> {
             Map.entry("unmute", "report_mute"),
             Map.entry("mutes", "report_mute"));
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "history, flake, tags, clusters, heal, mute, unmute, mutes")
+    @Parameters(index = "0", paramLabel = "ACTION", description = "open, summary, history, flake, tags, clusters, heal, mute, unmute, mutes")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value",

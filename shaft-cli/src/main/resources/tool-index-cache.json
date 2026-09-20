@@ -3735,6 +3735,48 @@
       "example": null
     },
     {
+      "name": "report_open",
+      "service": "TraceService",
+      "description": "opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure",
+      "params": [
+        {
+          "name": "allureResultsPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "openInBrowser",
+          "type": "boolean",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "reportPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "open allure",
+        "open report",
+        "allure html",
+        "report open",
+        "generate_test_report cta",
+        "reporting canvas",
+        "open allure report"
+      ],
+      "slashAlias": null,
+      "cliCommand": "report open",
+      "example": null
+    },
+    {
       "name": "report_smart_tags",
       "service": "TraceService",
       "description": "computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist",
@@ -3789,6 +3831,69 @@
       ],
       "slashAlias": null,
       "cliCommand": "report tags",
+      "example": null
+    },
+    {
+      "name": "report_summary",
+      "service": "TraceService",
+      "description": "builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA",
+      "params": [
+        {
+          "name": "allureResultsPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "doctorReportPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "healProposalsPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "healReportsPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "historyPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "reportPath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "report summary",
+        "engineer summary",
+        "stakeholder summary",
+        "reconciled counts",
+        "execution reporting",
+        "stakeholder reporting",
+        "copy summary"
+      ],
+      "slashAlias": null,
+      "cliCommand": "report summary",
       "example": null
     },
     {

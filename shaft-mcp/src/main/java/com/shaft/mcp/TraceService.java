@@ -12,6 +12,8 @@ import com.shaft.doctor.history.SmartTagsComputer;
 import com.shaft.doctor.history.ErrorClusterModels;
 import com.shaft.doctor.history.HealInsightModels;
 import com.shaft.doctor.history.HealInsightsAggregator;
+import com.shaft.doctor.history.ReportSummaryComputer;
+import com.shaft.doctor.history.ReportSummaryModels;
 import com.shaft.doctor.history.LocalMuteModels;
 import com.shaft.doctor.history.LocalMuteStore;
 import com.shaft.doctor.history.FlakeModels;
@@ -393,7 +395,112 @@ public class TraceService {
     }
 
 
+    /**
+     * Opens the newest Allure HTML report when present; otherwise returns an empty-state CTA for
+     * {@code generate_test_report} (issue #5976 / S3-10). Never rewrites Allure HTML.
+     *
+     * @param reportPath optional Allure HTML path; blank auto-discovers {@code *AllureReport.html}
+     * @param allureResultsPath optional allure-results directory for empty-state context
+     * @param openInBrowser when true (default), attempt to open the HTML in the host browser
+     * @return open view with path or generate_test_report CTA
+     */
+    @Tool(name = "report_open",
+            description = "opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure")
+    public ReportSummaryModels.OpenView reportOpen(
+            @ToolParam(required = false) String reportPath,
+            @ToolParam(required = false) String allureResultsPath,
+            @ToolParam(required = false) Boolean openInBrowser) {
+        Path results = resolveOptionalReadable(
+                allureResultsPath, "target/allure-results", "Allure results directory");
+        Path report = resolveExplicitReport(reportPath);
+        if (report == null) {
+            report = McpAllureResultsLocator.latestReport(workspacePolicy.root()).orElse(null);
+        }
+        if (results == null) {
+            results = McpAllureResultsLocator.latest(workspacePolicy.root());
+        }
+        boolean wantOpen = openInBrowser == null || openInBrowser;
+        boolean opened = false;
+        if (report != null && wantOpen) {
+            opened = browseHtml(report);
+        }
+        ReportSummaryModels.OpenView view = ReportSummaryComputer.openView(report, results, opened);
+        if (!view.empty()) {
+            return new ReportSummaryModels.OpenView(
+                    view.schemaVersion(),
+                    false,
+                    "",
+                    relativeOrAbsolute(report),
+                    results == null ? "" : relativeOrAbsolute(results),
+                    opened,
+                    "",
+                    view.warnings());
+        }
+        return view;
+    }
 
+    /**
+     * Builds engineer + stakeholder summaries with reconciled Allure counts (issue #5976 / S3-10).
+     * Reuses shaft-execution-reporting / shaft-stakeholder-reporting playbook shapes. Never secrets.
+     *
+     * @param allureResultsPath optional allure-results; blank defaults to target/allure-results
+     * @param reportPath optional Allure HTML path
+     * @param historyPath optional history.jsonl for flake tallies
+     * @param doctorReportPath optional Doctor JSON (path only; contents never copied)
+     * @param healReportsPath optional heal reports directory
+     * @param healProposalsPath optional heal proposals directory
+     * @return dual-audience summary with reconciled counts
+     */
+    @Tool(name = "report_summary",
+            description = "builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA")
+    public ReportSummaryModels.SummaryView reportSummary(
+            @ToolParam(required = false) String allureResultsPath,
+            @ToolParam(required = false) String reportPath,
+            @ToolParam(required = false) String historyPath,
+            @ToolParam(required = false) String doctorReportPath,
+            @ToolParam(required = false) String healReportsPath,
+            @ToolParam(required = false) String healProposalsPath) {
+        Path results = resolveOptionalReadable(
+                allureResultsPath, "target/allure-results", "Allure results directory");
+        if (results == null || !java.nio.file.Files.isDirectory(results)) {
+            Path discovered = McpAllureResultsLocator.latest(workspacePolicy.root());
+            if (discovered != null) {
+                results = discovered;
+            }
+        }
+        Path report = resolveExplicitReport(reportPath);
+        if (report == null) {
+            report = McpAllureResultsLocator.latestReport(workspacePolicy.root()).orElse(null);
+        }
+        Path history = resolveOptionalReadable(
+                historyPath, "target/history.jsonl", "Allure history.jsonl");
+        Path doctor = resolveOptionalReadable(doctorReportPath, null, "Doctor report JSON");
+        Path healReports = resolveOptionalReadable(
+                healReportsPath, "target/shaft-heal/reports", "SHAFT Heal reports directory");
+        Path healProposals = resolveOptionalReadable(
+                healProposalsPath, "target/shaft-doctor/healing-proposals",
+                "SHAFT Heal proposal manifests directory");
+        ReportSummaryModels.SummaryView view = ReportSummaryComputer.compute(
+                results, report, history, doctor, healReports, healProposals);
+        if (view.empty()) {
+            return view;
+        }
+        return new ReportSummaryModels.SummaryView(
+                view.schemaVersion(),
+                false,
+                "",
+                results == null ? view.allureResultsPath() : relativeOrAbsolute(results),
+                report == null ? view.reportPath() : relativeOrAbsolute(report),
+                view.counts(),
+                view.flakeRetryHiddenCount(),
+                view.flakeTransitionsCount(),
+                view.healRecoveredCount(),
+                view.healAmbiguousCount(),
+                view.healNoCandidatesCount(),
+                view.engineerSummary(),
+                view.stakeholderSummary(),
+                view.warnings());
+    }
 
     /**
      * Local flake mute / quarantine lifecycle for the SHAFT Tests panel and CLI
@@ -457,6 +564,47 @@ public class TraceService {
             return LocalMuteStore.defaultStorePath(workspacePolicy.root());
         }
         return workspacePolicy.output(muteStorePath.trim(), "Local mute store");
+    }
+
+
+    private Path resolveExplicitReport(String reportPath) {
+        if (reportPath == null || reportPath.isBlank()) {
+            return null;
+        }
+        Path candidate = workspacePolicy.output(reportPath.trim(), "Allure HTML report");
+        return java.nio.file.Files.isRegularFile(candidate) ? candidate : null;
+    }
+
+    private String relativeOrAbsolute(Path path) {
+        if (path == null) {
+            return "";
+        }
+        try {
+            Path root = workspacePolicy.root();
+            Path absolute = path.toAbsolutePath().normalize();
+            if (absolute.startsWith(root)) {
+                return relative(absolute);
+            }
+        } catch (RuntimeException ignored) {
+            // fall through to absolute path
+        }
+        return path.toAbsolutePath().normalize().toString().replace('\\', '/');
+    }
+
+    private static boolean browseHtml(Path report) {
+        try {
+            if (!java.awt.Desktop.isDesktopSupported()) {
+                return false;
+            }
+            java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+            if (!desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+                return false;
+            }
+            desktop.browse(report.toUri());
+            return true;
+        } catch (Exception exception) {
+            return false;
+        }
     }
 
     private Path resolveOptionalReadable(String value, String defaultRelative, String label) {

@@ -74,6 +74,18 @@ class ShaftToolWindowPanelStagesTest {
         assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, panel.selectedSurfaceLabel());
     }
 
+
+    @Test
+    void reportingOverviewIsDefaultCanvasWithoutFivePrimaryTabs() {
+        ShaftToolWindowPanel panel = newPanel(false);
+        panel.workflowSelector().setSelectedIndex(2);
+        assertEquals(ShaftToolWindowPanel.STAGE_REPORTING, panel.selectedStageLabel());
+        assertNotNull(panel.reportingStagePanel());
+        assertEquals(ReportingStagePanel.OVERVIEW_TAB, panel.selectedSurfaceLabel());
+        assertEquals(ReportingStagePanel.ACCESSIBLE_NAME,
+                panel.reportingStagePanel().getAccessibleContext().getAccessibleName());
+    }
+
     private static ShaftToolWindowPanel newPanel(boolean expert) {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpSetupComplete = true;

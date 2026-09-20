@@ -18,6 +18,8 @@ class ReportCommandTest {
         int code = commandLine.execute("--help");
         assertEquals(0, code);
         String help = out.toString();
+        assertTrue(help.contains("open"));
+        assertTrue(help.contains("summary"));
         assertTrue(help.contains("history"));
         assertTrue(help.contains("flake"));
         assertTrue(help.contains("tags"));

@@ -595,10 +595,24 @@
       "deprecated": false
     },
     {
+      "name": "report_open",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "description": "Open Allure HTML or return generate_test_report CTA"
+    },
+    {
       "name": "report_smart_tags",
       "mutation": false,
       "sensitive": false,
       "deprecated": false
+    },
+    {
+      "name": "report_summary",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "description": "Engineer and stakeholder summaries with reconciled counts"
     },
     {
       "name": "setup_catalog",
