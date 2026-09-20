@@ -31,6 +31,10 @@ the selected host and task boundary:
    [OmniRoute skill](../skills/omniroute/SKILL.md) (cloud-quota gateway).
 2. A qualified optional local FreeToken process through the
    [FreeToken skill](../skills/freetoken/SKILL.md) (local-weights server).
+3. A qualified optional local Colibri process through the
+   [Colibri skill](../skills/colibri/SKILL.md) (frontier MoE multitier server).
+   Prefer FreeToken for coding agency; Colibri when the operator hosts frontier MoE.
+   Colibri does not replace FreeToken or OmniRoute and is not a workflow owner.
    FreeToken does not replace OmniRoute, does not require OmniRoute, and is not a workflow owner.
 3. A qualified host-native lower-capability implementer.
 4. No qualified delegate: `SOLO`.

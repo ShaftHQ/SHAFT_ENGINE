@@ -90,3 +90,21 @@ python3 -c "from pathlib import Path; assert Path('chaos-engine/skills/self-impr
 # Queue one harness + one product candidate (privacy-safe fixtures) via learning.py
 # then confirm queue.json grew by two items without secrets/paths.
 ```
+
+
+## Token retrospective (#5981)
+
+During the session, record coarse usage (no model/provider ids, prompts, or paths):
+
+```bash
+python3 chaos-engine/session_token_usage.py record \
+  --session-id "$SESSION_ID" --channel local --runtime-class freetoken \
+  --prompt-tokens 1200 --completion-tokens 400
+python3 chaos-engine/session_token_usage.py record \
+  --session-id "$SESSION_ID" --channel cloud --runtime-class host-session \
+  --prompt-tokens 8000 --completion-tokens 1500
+```
+
+`learning_session.py finalize` attaches a privacy-safe local vs cloud token
+summary with a ballpark USD estimate. Include that retrospective in the
+user-facing Learning Session closing notes.

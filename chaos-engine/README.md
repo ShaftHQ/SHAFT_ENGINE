@@ -163,6 +163,7 @@ companions.
 | --- | --- | --- | --- |
 | OmniRoute | [skill](skills/omniroute/SKILL.md) · [guide](guides/omniroute.md) | [OmniRoute docs / guides](https://github.com/diegosouzapw/OmniRoute/tree/release/v3.8.51/docs/guides) (npm: see guide § Install) | Optional cloud-quota gateway on `127.0.0.1:20128` |
 | FreeToken | [skill](skills/freetoken/SKILL.md) · [guide](guides/freetoken.md) | [FreeToken install.md](https://github.com/FlashML-org/FreeToken/blob/main/docs/install.md) | Optional local MoE / weights on `127.0.0.1:1919` |
+| Colibri | [skill](skills/colibri/SKILL.md) · [guide](guides/colibri.md) | [Colibri README](https://github.com/JustVugg/colibri) | Optional frontier MoE on `127.0.0.1:8000` |
 | Ollama | [skill](skills/local-openai-compat/SKILL.md) · [guide](guides/local-openai-compat.md) | [Ollama](https://ollama.com/) · [OpenAI compatibility](https://ollama.com/blog/openai-compatibility) | Optional local OpenAI-compat on `127.0.0.1:11434` |
 | LM Studio | [skill](skills/local-openai-compat/SKILL.md) · [guide](guides/local-openai-compat.md) | [LM Studio OpenAI compat](https://lmstudio.ai/docs/developer/openai-compat) | Optional local OpenAI-compat on `127.0.0.1:1234` |
 | llama.cpp | [skill](skills/local-openai-compat/SKILL.md) · [guide](guides/local-openai-compat.md) | [llama.cpp](https://github.com/ggml-org/llama.cpp) | Optional local OpenAI-compat on `127.0.0.1:8080` |

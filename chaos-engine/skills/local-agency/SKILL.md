@@ -22,7 +22,8 @@ first.
 ## Hard rails (never regress)
 
 - Prefer a **READY** local runtime: FreeToken (`:1919`), then Ollama / LM Studio /
-  llamacpp via [local-openai-compat](../local-openai-compat/SKILL.md).
+  llamacpp via [local-openai-compat](../local-openai-compat/SKILL.md), then Colibri (`:8000`)
+  via [colibri](../colibri/SKILL.md) (frontier MoE; prefer FreeToken for coding agency).
 - Configure OpenCode with **ephemeral** `OPENCODE_CONFIG` /
   `OPENCODE_CONFIG_CONTENT` that sets `enabled_providers` to the READY local
   provider. OpenCode merges global config; the allowlist keeps other providers
@@ -57,7 +58,7 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken 
 python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt '…' --workdir '<worktree>'
 ```
 
-`resolve` ranks FreeToken then OpenAI-compat peers. On `READY`, `config` /
+`resolve` ranks FreeToken, then OpenAI-compat peers, then Colibri. Use `--prefer colibri` when the adopter asked for Colibri. On `READY`, `config` /
 `argv` emit ephemeral OpenCode material (`OPENCODE_CONFIG` path). Run OpenCode
 yourself with that env; do not persist the config into the durable user file.
 `argv` defaults include `--pure` and `--variant` (`medium`; use `low` or

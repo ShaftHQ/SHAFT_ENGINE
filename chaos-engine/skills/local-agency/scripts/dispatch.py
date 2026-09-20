@@ -22,10 +22,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 SKILLS_ROOT = SCRIPT_DIR.parents[1]
 
 # Prefer FreeToken, then OpenAI-compat peers. Order is intentional.
-RUNTIME_RANK = ("freetoken", "ollama", "lmstudio", "llamacpp")
+RUNTIME_RANK = ("freetoken", "ollama", "lmstudio", "llamacpp", "colibri")
 
 FREETOKEN_OPENAI_BASE = "http://127.0.0.1:1919/v1"
 FREETOKEN_MODELS_URL = "http://127.0.0.1:1919/v1/models"
+
+COLIBRI_OPENAI_BASE = "http://127.0.0.1:8000/v1"
+COLIBRI_MODELS_URL = "http://127.0.0.1:8000/v1/models"
 
 OPENAI_COMPAT_BASES = {
     "ollama": "http://127.0.0.1:11434/v1",
@@ -60,6 +63,11 @@ def _load_module(name: str, path: Path) -> ModuleType:
 def freetoken_probe() -> ModuleType:
     """Import the FreeToken probe helper."""
     return _load_module("freetoken_probe", SKILLS_ROOT / "freetoken/scripts/probe.py")
+
+
+def colibri_probe() -> ModuleType:
+    """Import the Colibri probe helper."""
+    return _load_module("colibri_probe", SKILLS_ROOT / "colibri/scripts/probe.py")
 
 
 def rog_freetoken_gate() -> ModuleType:
@@ -114,6 +122,22 @@ def probe_runtime(runtime: str) -> dict[str, object]:
             "openai_base_url": FREETOKEN_OPENAI_BASE,
             "models": models,
             "provider_id": "freetoken",
+        }
+
+    if runtime == "colibri":
+        coli = colibri_probe()
+        state = coli.probe(COLIBRI_MODELS_URL)
+        models = (
+            _ready_models(coli.fetch_models, coli.is_models_payload, coli.parse_model_ids, COLIBRI_MODELS_URL)
+            if state == "READY"
+            else []
+        )
+        return {
+            "runtime": "colibri",
+            "state": state,
+            "openai_base_url": COLIBRI_OPENAI_BASE,
+            "models": models,
+            "provider_id": "colibri",
         }
 
     if runtime not in OPENAI_COMPAT_BASES:
@@ -239,7 +263,7 @@ def resolve_local(
     payload["state"] = "ABSENT"
     payload["chosen"] = None
     advice = (
-        "No READY local runtime. Start FreeToken/Ollama/LM Studio/llamacpp "
+        "No READY local runtime. Start FreeToken/Ollama/LM Studio/llamacpp/Colibri "
         "yourself, or ask explicitly for cloud OmniRoute / session agents."
     )
     if allow_cloud:
@@ -398,7 +422,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--prefer",
         choices=RUNTIME_RANK,
         default=None,
-        help="prefer this READY runtime first (default: FreeToken then peers)",
+        help="prefer this READY runtime first (default: FreeToken, OpenAI-compat peers, then Colibri)",
     )
     parser.add_argument("--model", default=None, help="optional model id from the READY runtime")
     parser.add_argument(

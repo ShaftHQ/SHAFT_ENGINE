@@ -344,5 +344,44 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertEqual(chosen["opencode_model"], "ollama/coder")
 
 
+
+    def test_resolve_ranks_colibri_after_openai_compat_peers(self):
+        def probe(runtime: str):
+            if runtime == "colibri":
+                return {
+                    "runtime": "colibri",
+                    "state": "READY",
+                    "openai_base_url": dispatch.COLIBRI_OPENAI_BASE,
+                    "models": ["glm-frontier"],
+                    "provider_id": "colibri",
+                }
+            if runtime == "ollama":
+                return {
+                    "runtime": "ollama",
+                    "state": "READY",
+                    "openai_base_url": dispatch.OPENAI_COMPAT_BASES["ollama"],
+                    "models": ["coder"],
+                    "provider_id": "ollama",
+                }
+            return {
+                "runtime": runtime,
+                "state": "ABSENT",
+                "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE
+                if runtime == "freetoken"
+                else dispatch.OPENAI_COMPAT_BASES.get(runtime, dispatch.COLIBRI_OPENAI_BASE),
+                "models": [],
+                "provider_id": runtime,
+            }
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            payload = dispatch.resolve_local()
+        self.assertEqual(payload["chosen"]["runtime"], "ollama")
+
+        with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+            preferred = dispatch.resolve_local(prefer="colibri")
+        self.assertEqual(preferred["chosen"]["runtime"], "colibri")
+        self.assertEqual(preferred["chosen"]["opencode_model"], "colibri/glm-frontier")
+
+
 if __name__ == "__main__":
     unittest.main()

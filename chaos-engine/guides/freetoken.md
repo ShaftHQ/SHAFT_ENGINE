@@ -65,3 +65,14 @@ harness.
 Operator soak notes stay on the operator host. Closeout evidence for the
 FreeToken coding loop lives in
 [freetoken-5867-closeout-proof.md](./freetoken-5867-closeout-proof.md).
+
+
+## FreeToken vs Colibri
+
+| | FreeToken | Colibri |
+| --- | --- | --- |
+| Loopback | `127.0.0.1:1919` | `127.0.0.1:8000` |
+| Best for | Local coding MoE / agency | Frontier MoE on disk→RAM→VRAM |
+| CE default agency rank | First | Last (use `--prefer colibri`) |
+
+Support both. See [colibri.md](colibri.md).
