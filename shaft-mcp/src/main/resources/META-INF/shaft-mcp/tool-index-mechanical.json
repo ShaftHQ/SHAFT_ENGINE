@@ -2081,6 +2081,26 @@
       "description" : null
     } ]
   }, {
+    "name" : "report_open",
+    "service" : "TraceService",
+    "description" : "opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure",
+    "params" : [ {
+      "name" : "allureResultsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "openInBrowser",
+      "type" : "boolean",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "reportPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    } ]
+  }, {
     "name" : "report_smart_tags",
     "service" : "TraceService",
     "description" : "computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist",
@@ -2107,6 +2127,41 @@
     }, {
       "name" : "limitPerHistoryId",
       "type" : "integer",
+      "required" : false,
+      "description" : null
+    } ]
+  }, {
+    "name" : "report_summary",
+    "service" : "TraceService",
+    "description" : "builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA",
+    "params" : [ {
+      "name" : "allureResultsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "doctorReportPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "healProposalsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "healReportsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "historyPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "reportPath",
+      "type" : "string",
       "required" : false,
       "description" : null
     } ]

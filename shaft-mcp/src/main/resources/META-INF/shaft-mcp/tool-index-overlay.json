@@ -1009,6 +1009,34 @@
         "report mute",
         "mute list"
       ]
+    },
+    "report_open": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report open",
+      "intentKeywords": [
+        "open allure",
+        "open report",
+        "allure html",
+        "report open",
+        "generate_test_report cta",
+        "reporting canvas",
+        "open allure report"
+      ]
+    },
+    "report_summary": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report summary",
+      "intentKeywords": [
+        "report summary",
+        "engineer summary",
+        "stakeholder summary",
+        "reconciled counts",
+        "execution reporting",
+        "stakeholder reporting",
+        "copy summary"
+      ]
     }
   }
 }

@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.stream.Stream;
 
 /**
  * Top-level SHAFT IntelliJ tool window content: three stages (Design, Automation, Reporting)
@@ -66,6 +65,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private JLabel workflowSelectorLabel;
     private DesignStagePanel designStagePanel;
     private AutomationStagePanel automationStagePanel;
+    private ReportingStagePanel reportingStagePanel;
     private JBTabbedPane automationTabs;
     private JBTabbedPane reportingTabs;
     private JPanel moreToolsPanel;
@@ -126,6 +126,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         recorderPanel = null;
         designStagePanel = null;
         automationStagePanel = null;
+        reportingStagePanel = null;
         automationTabs = null;
         reportingTabs = null;
         moreToolsPanel = null;
@@ -182,31 +183,12 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             automationTabs.addTab("SHAFT Tests", ShaftIcons.RERUN, shaftTests);
         }
 
-        ReportingHistoryPanel history = new ReportingHistoryPanel(project);
-        ReportingFlakePanel flake = new ReportingFlakePanel(project);
-        ReportingSmartTagsPanel smartTags = new ReportingSmartTagsPanel(project);
-        ReportingClustersPanel clusters = new ReportingClustersPanel(project);
-        ReportingLabelsPanel labels = new ReportingLabelsPanel(project);
-        ReportingDoctorPanel doctor = new ReportingDoctorPanel(project);
-        ReportingHealPanel heal = new ReportingHealPanel(project);
-        EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
-        VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
-        ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
-                List.of(new ToolCategory("Evidence", Stream.concat(
-                        ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
-        featurePanels.add(evidenceTools);
-        reportingTabs = new JBTabbedPane();
-        reportingTabs.getAccessibleContext().setAccessibleName("SHAFT reporting surfaces");
-        reportingTabs.addTab(ReportingHistoryPanel.TAB_TITLE, ShaftIcons.CHECK, history);
-        reportingTabs.addTab(ReportingFlakePanel.TAB_TITLE, ShaftIcons.VIEW, flake);
-        reportingTabs.addTab(ReportingSmartTagsPanel.TAB_TITLE, ShaftIcons.VIEW, smartTags);
-        reportingTabs.addTab(ReportingClustersPanel.TAB_TITLE, ShaftIcons.VIEW, clusters);
-        reportingTabs.addTab(ReportingLabelsPanel.TAB_TITLE, ShaftIcons.EDIT, labels);
-        reportingTabs.addTab(ReportingDoctorPanel.TAB_TITLE, ShaftIcons.VIEW, doctor);
-        reportingTabs.addTab(ReportingHealPanel.TAB_TITLE, ShaftIcons.VIEW, heal);
-        reportingTabs.addTab("Triage", ShaftIcons.VIEW, triage);
-        reportingTabs.addTab("Visual Baselines", ShaftIcons.VIEW, visualBaselines);
-        reportingTabs.addTab("Evidence", ShaftIcons.EDIT, evidenceTools);
+        // Issue #5976 / S3-10: one Reporting canvas composing Allure/Doctor/flake/heal/summaries.
+        ReportingStagePanel reporting = new ReportingStagePanel(project, this::prefillTool, settings);
+        reportingStagePanel = reporting;
+        reportingTabs = reporting.surfaces();
+        // Keep Evidence in featurePanels so prefillTool can route doctor_*/heal_* (issue #5976).
+        featurePanels.add(reporting.evidenceFeaturePanel());
         reportingTabs.addChangeListener(event -> persistSelectedWorkflowView());
 
         moreToolsPanel = new JPanel(new BorderLayout());
@@ -350,6 +332,10 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
 
     AutomationStagePanel automationStagePanel() {
         return automationStagePanel;
+    }
+
+    ReportingStagePanel reportingStagePanel() {
+        return reportingStagePanel;
     }
 
     /**
@@ -883,19 +869,19 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case "SHAFT Tests" -> new SurfaceTarget(STAGE_AUTOMATION, "SHAFT Tests", null);
             case "API Recording" -> new SurfaceTarget(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
             case ReportingHistoryPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingHistoryPanel.TAB_TITLE, null);
-            case ReportingFlakePanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingFlakePanel.TAB_TITLE, null);
+            case ReportingFlakePanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
             case ReportingSmartTagsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingSmartTagsPanel.TAB_TITLE, null);
             case ReportingClustersPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingClustersPanel.TAB_TITLE, null);
             case ReportingLabelsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingLabelsPanel.TAB_TITLE, null);
-            case ReportingDoctorPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingDoctorPanel.TAB_TITLE, null);
-            case ReportingHealPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingHealPanel.TAB_TITLE, null);
+            case ReportingDoctorPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
+            case ReportingHealPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
             case "Triage" -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
             case "Visual Baselines" -> new SurfaceTarget(STAGE_REPORTING, "Visual Baselines", null);
             case "Evidence" -> new SurfaceTarget(STAGE_REPORTING, "Evidence", null);
             case "Projects", "Advanced", "More" -> new SurfaceTarget("More", savedKey, null);
             case STAGE_AUTOMATION -> new SurfaceTarget(
                     STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
-            case STAGE_REPORTING -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
+            case STAGE_REPORTING -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
             default -> new SurfaceTarget(STAGE_DESIGN, STAGE_DESIGN, designStagePanel);
         };
     }
@@ -926,7 +912,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         return switch (label) {
             case STAGE_DESIGN -> "Turn a user story or requirements into reviewable Gherkin, then hand off to Automation";
             case STAGE_AUTOMATION -> "Live record, inspect, run, and generate SHAFT fluent Java";
-            case STAGE_REPORTING -> "Analyze Allure, Doctor diagnosis card, flake, unique-error clusters, and heal evidence";
+            case STAGE_REPORTING -> "Open Allure, Doctor, flake, heal, and copy engineer/stakeholder summaries";
             case "More" -> "Project setup and raw MCP tools";
             default -> "";
         };
