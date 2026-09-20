@@ -92,6 +92,22 @@ target worktree has ChaosEngine project pointers:
 `--pure` only disables external plugins; it does **not** load ChaosEngine and does **not**
 replace those pointers (#6070). Missing pointers → `state=UNHEALTHY` with `ce_pointers.missing`.
 
+
+## Dispatch modes (#6073)
+
+`--mode mechanical` (**default** for small local coding models / 7B tool loops): treat the
+prompt as one bounded apply command; do not auto-attach CE brief (still allowed via
+`--with-ce-brief`).
+
+`--mode design`: attach the locator-only CE brief (same as `--with-ce-brief`) for richer
+design/spec turns. Prefer this only when the host coach wants a design draft, not for
+mechanical apply.sh loops.
+
+```text
+python3 chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash /abs/apply.sh'
+python3 chaos-engine/skills/local-agency/scripts/dispatch.py --mode design argv --prompt '…' --project .
+```
+
 ## Mechanical dispatch (small-context local models)
 
 Treat a READY local coder as a **mechanical runner**, not a designer.
