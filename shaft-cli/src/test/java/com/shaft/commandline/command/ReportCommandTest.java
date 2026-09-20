@@ -21,6 +21,8 @@ class ReportCommandTest {
         assertTrue(help.contains("history"));
         assertTrue(help.contains("flake"));
         assertTrue(help.contains("clusters"));
+        assertTrue(help.contains("mute"));
+        assertTrue(help.contains("mutes"));
     }
 
     @Test

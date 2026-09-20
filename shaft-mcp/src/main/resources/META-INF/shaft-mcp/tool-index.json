@@ -3665,6 +3665,76 @@
       "example": null
     },
     {
+      "name": "report_mute",
+      "service": "TraceService",
+      "description": "local flake mute/quarantine with required reason and recover-after-N-local-passes; never writes Maven Surefire excludes by default; store is gitignored .shaft/local-mutes.json unless muteStorePath opts into a shared project file",
+      "params": [
+        {
+          "name": "action",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "muteStorePath",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "passed",
+          "type": "boolean",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "recoverAfterPasses",
+          "type": "integer",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "testId",
+          "type": "string",
+          "required": false,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "writeSurefireExcludes",
+          "type": "boolean",
+          "required": false,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": true,
+      "sensitive": false,
+      "intentKeywords": [
+        "mute flake",
+        "quarantine test",
+        "local mute",
+        "unmute test",
+        "recover mute",
+        "report mute",
+        "mute list"
+      ],
+      "slashAlias": null,
+      "cliCommand": "report mute",
+      "example": null
+    },
+    {
       "name": "setup_catalog",
       "service": "InfrastructureMcpService",
       "description": "returns the deterministic SHAFT setup profiles, targets, and capabilities",

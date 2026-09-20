@@ -491,4 +491,14 @@ class ShaftTestsPanelTest {
             listener.mouseClicked(doubleClick);
         }
     }
+
+    @Test
+    void formatNodeLabelPrefixesMutedWhenRequested() {
+        ShaftTestIndex.TestRowState row = new ShaftTestIndex.TestRowState(
+                "com.example.FlakyTest", ShaftTestIndex.Status.FAIL, 1_000L, 1);
+        String label = ShaftTestsPanel.formatNodeLabel("FlakyTest", row, true);
+        assertTrue(label.startsWith("MUTED"));
+        assertTrue(label.contains("FAIL"));
+        assertTrue(label.contains("FlakyTest"));
+    }
 }

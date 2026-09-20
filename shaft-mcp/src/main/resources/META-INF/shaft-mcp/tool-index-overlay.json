@@ -980,6 +980,20 @@
         "report heal",
         "locator patch review"
       ]
+    },
+    "report_mute": {
+      "mutation": true,
+      "sensitive": false,
+      "cliCommand": "report mute",
+      "intentKeywords": [
+        "mute flake",
+        "quarantine test",
+        "local mute",
+        "unmute test",
+        "recover mute",
+        "report mute",
+        "mute list"
+      ]
     }
   }
 }

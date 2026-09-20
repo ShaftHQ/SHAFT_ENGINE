@@ -20,13 +20,13 @@
       "deprecated": false
     },
     {
-      "name": "autobot_provider_status",
+      "name": "autobot_provider_models",
       "mutation": false,
       "sensitive": false,
       "deprecated": false
     },
     {
-      "name": "autobot_provider_models",
+      "name": "autobot_provider_status",
       "mutation": false,
       "sensitive": false,
       "deprecated": false
@@ -277,19 +277,13 @@
       "deprecated": false
     },
     {
-      "name": "design_ingest",
-      "mutation": false,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
       "name": "design_analyze",
       "mutation": false,
       "sensitive": true,
       "deprecated": false
     },
     {
-      "name": "design_gherkin_draft",
+      "name": "design_coverage",
       "mutation": false,
       "sensitive": true,
       "deprecated": false
@@ -301,14 +295,32 @@
       "deprecated": false
     },
     {
-      "name": "design_lexicon",
-      "mutation": true,
+      "name": "design_gap_map",
+      "mutation": false,
       "sensitive": true,
       "deprecated": false
     },
     {
-      "name": "design_coverage",
+      "name": "design_gherkin_draft",
       "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_handoff",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_ingest",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_lexicon",
+      "mutation": true,
       "sensitive": true,
       "deprecated": false
     },
@@ -319,19 +331,7 @@
       "deprecated": false
     },
     {
-      "name": "design_gap_map",
-      "mutation": false,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
       "name": "design_readiness",
-      "mutation": false,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "design_handoff",
       "mutation": false,
       "sensitive": true,
       "deprecated": false
@@ -565,7 +565,19 @@
       "deprecated": false
     },
     {
+      "name": "report_flake",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "report_heal",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_history",
       "mutation": false,
       "sensitive": false,
       "deprecated": false
@@ -577,7 +589,61 @@
       "deprecated": false
     },
     {
-      "name": "report_history",
+      "name": "report_mute",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_catalog",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_doctor",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_install",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_logs",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "setup_plan",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_start",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_stop",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_verify",
       "mutation": false,
       "sensitive": false,
       "deprecated": false
@@ -643,60 +709,6 @@
       ]
     },
     {
-      "name": "setup_catalog",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "setup_doctor",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "setup_install",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "setup_logs",
-      "mutation": false,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "setup_plan",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "setup_start",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "setup_status",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "setup_stop",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "setup_verify",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
       "name": "test_automation_scenarios",
       "mutation": false,
       "sensitive": false,
@@ -755,12 +767,6 @@
       "name": "verify_run_focused",
       "mutation": true,
       "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "report_flake",
-      "mutation": false,
-      "sensitive": false,
       "deprecated": false
     }
   ]
