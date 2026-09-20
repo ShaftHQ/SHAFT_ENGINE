@@ -169,7 +169,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
         with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
             with tempfile.TemporaryDirectory() as temporary:  # nosec B108
-                args = dispatch.parse_args(["config", "--dir", temporary])
+                args = dispatch.parse_args(["config", "--dir", temporary, "--project", str(ROOT)])
                 buf = StringIO()
                 with redirect_stdout(buf):
                     code = dispatch.cmd_config(args)
@@ -220,7 +220,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
             with tempfile.TemporaryDirectory() as temporary:  # nosec B108
                 args = dispatch.parse_args(
-                    ["argv", "--prompt", "one-command", "--workdir", "wt", "--dir", temporary]
+                    ["argv", "--prompt", "one-command", "--workdir", "wt", "--dir", temporary, "--project", str(ROOT)]
                 )
                 buf = StringIO()
                 with redirect_stdout(buf):
@@ -428,7 +428,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             with tempfile.TemporaryDirectory() as temporary:
                 buf = StringIO()
                 with redirect_stdout(buf):
-                    args = dispatch.parse_args(["config", "--dir", temporary, "--with-ce-brief"])
+                    args = dispatch.parse_args(["config", "--dir", temporary, "--with-ce-brief", "--project", str(ROOT)])
                     code = dispatch.cmd_config(args)
                 self.assertEqual(code, 0)
                 out = json.loads(buf.getvalue())
@@ -439,7 +439,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
                 buf2 = StringIO()
                 with redirect_stdout(buf2):
                     args = dispatch.parse_args(
-                        ["argv", "--prompt", "PING", "--dir", temporary, "--with-ce-brief"]
+                        ["argv", "--prompt", "PING", "--dir", temporary, "--with-ce-brief", "--project", str(ROOT)]
                     )
                     code = dispatch.cmd_argv(args)
                 self.assertEqual(code, 0)
@@ -534,6 +534,83 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             payload = dispatch.resolve_local(prefer="freetoken")
         self.assertEqual(payload["state"], "UNHEALTHY")
         self.assertIsNone(payload["chosen"])
+
+
+    def test_require_ce_pointers_ok_when_present(self):
+        """#6070: installed project with AGENTS.md + chaos-engine skill passes."""
+        result = dispatch.require_ce_pointers(ROOT)
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["missing"], [])
+
+    def test_missing_ce_pointers_fail_closed(self):
+        """#6070: missing AGENTS.md / skill adapter fails closed with clear advice."""
+        with tempfile.TemporaryDirectory() as temporary:
+            empty = Path(temporary)
+            result = dispatch.require_ce_pointers(empty)
+            self.assertFalse(result["ok"])
+            self.assertIn("AGENTS.md", result["missing"])
+            self.assertIn(".agents/skills/chaos-engine/SKILL.md", result["missing"])
+            self.assertIn("--pure", result["advice"])
+            self.assertIn("#6070", result["advice"])
+
+            def probe(runtime: str):
+                if runtime == "freetoken":
+                    return {
+                        "runtime": "freetoken",
+                        "state": "READY",
+                        "openai_base_url": dispatch.FREETOKEN_OPENAI_BASE,
+                        "models": ["m"],
+                        "provider_id": "freetoken",
+                    }
+                return {
+                    "runtime": runtime,
+                    "state": "ABSENT",
+                    "openai_base_url": _base_for(runtime),
+                    "models": [],
+                    "provider_id": runtime,
+                }
+
+            with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    args = dispatch.parse_args(
+                        ["config", "--dir", temporary, "--project", str(empty)]
+                    )
+                    code = dispatch.cmd_config(args)
+                self.assertEqual(code, 2)
+                out = json.loads(buf.getvalue())
+                self.assertEqual(out["state"], "UNHEALTHY")
+                self.assertIn("ce_pointers", out)
+                self.assertFalse(out["ce_pointers"]["ok"])
+
+                buf2 = StringIO()
+                with redirect_stdout(buf2):
+                    args = dispatch.parse_args(
+                        [
+                            "argv",
+                            "--prompt",
+                            "PING",
+                            "--dir",
+                            temporary,
+                            "--workdir",
+                            str(empty),
+                        ]
+                    )
+                    code = dispatch.cmd_argv(args)
+                self.assertEqual(code, 2)
+                out2 = json.loads(buf2.getvalue())
+                self.assertEqual(out2["state"], "UNHEALTHY")
+                self.assertFalse(out2["ce_pointers"]["ok"])
+
+    def test_skill_documents_pure_vs_ce_pointers(self):
+        """#6070: skill + guide document --pure vs CE pointer preflight."""
+        skill = (ROOT / "chaos-engine/skills/local-agency/SKILL.md").read_text(encoding="utf-8")
+        guide = (ROOT / "chaos-engine/guides/local-agency.md").read_text(encoding="utf-8")
+        blob = skill + "\n" + guide
+        self.assertIn("#6070", blob)
+        self.assertIn("AGENTS.md", blob)
+        self.assertIn(".agents/skills/chaos-engine", blob)
+        self.assertIn("--pure", blob)
 
 if __name__ == "__main__":
     unittest.main()
