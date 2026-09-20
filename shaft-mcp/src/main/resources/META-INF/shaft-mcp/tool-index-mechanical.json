@@ -1241,6 +1241,31 @@
       "description" : null
     } ]
   }, {
+    "name" : "doctor_cause_label",
+    "service" : "DoctorService",
+    "description" : "confirms or suggests persisted Doctor defect labels keyed by signature (PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING); local gitignored store; override replaces; evidence paths redacted; no cloud ML",
+    "params" : [ {
+      "name" : "action",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "causeCategory",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "evidencePath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "signature",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "doctor_managed_local_ai_status",
     "service" : "DoctorService",
     "description" : "returns read-only managed local AI configuration, eligibility, cache health, runtime and model diagnostics",

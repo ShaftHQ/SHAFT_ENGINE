@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import com.shaft.doctor.DoctorAiAnalysisRequest;
 import com.shaft.doctor.DoctorAnalysisRequest;
 import com.shaft.doctor.DoctorAnalyzer;
+import com.shaft.doctor.label.ConfirmedCauseLabelStore;
 import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.doctor.model.DoctorAnalysisResult;
 import com.shaft.doctor.model.DoctorAnalysisSummary;
@@ -197,6 +198,51 @@ public class DoctorService {
      * @param backend optional codegen target ("web" default | "playwright"); absorbs playwright_doctor_suggest_fix
      * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
      */
+
+    /**
+     * Confirms or suggests a persisted Doctor defect label keyed by historical signature
+     * (issue #5971 / S3-05). Local gitignored workspace store; no cloud ML. Evidence paths
+     * are redacted and never written. Override replaces the stored label.
+     *
+     * @param action {@code confirm} to persist, {@code suggest} to look up
+     * @param signature Doctor historical-signature / clusterFingerprint key
+     * @param causeCategory PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING (confirm)
+     * @param evidencePath optional evidence path — ignored/redacted, never stored
+     * @return confirm or suggest projection
+     */
+    @Tool(name = "doctor_cause_label",
+            description = "confirms or suggests persisted Doctor defect labels keyed by signature "
+                    + "(PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING); local gitignored store; "
+                    + "override replaces; evidence paths redacted; no cloud ML")
+    public McpCauseLabelResult causeLabel(
+            String action,
+            String signature,
+            @ToolParam(required = false) String causeCategory,
+            @ToolParam(required = false) String evidencePath) {
+        Path workspace = workspacePolicy.root();
+        String normalizedAction = action == null ? "" : action.trim().toLowerCase();
+        if ("suggest".equals(normalizedAction)) {
+            return McpCauseLabelResult.fromSuggest(
+                    ConfirmedCauseLabelStore.suggest(workspace, signature));
+        }
+        if ("confirm".equals(normalizedAction)) {
+            return McpCauseLabelResult.fromConfirm(
+                    ConfirmedCauseLabelStore.confirm(workspace, signature, causeCategory, evidencePath));
+        }
+        return new McpCauseLabelResult(
+                McpCauseLabelResult.CURRENT_SCHEMA_VERSION,
+                normalizedAction.isBlank() ? "unknown" : normalizedAction,
+                "error",
+                "action must be confirm or suggest.",
+                signature == null ? "" : signature.trim(),
+                com.shaft.doctor.model.CauseCategory.UNKNOWN,
+                "",
+                false,
+                false,
+                ConfirmedCauseLabelStore.storePath(workspace).toString(),
+                List.of());
+    }
+
     @Tool(name = "doctor_suggest_fix",
             description = "returns copy-paste remediation code blocks from an existing SHAFT Doctor report; "
                     + "optional backend (web|playwright, defaults to web) selects the generated snippets' engine, "
