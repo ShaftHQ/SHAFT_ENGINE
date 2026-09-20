@@ -29,6 +29,11 @@ python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt 'smok
 `~/.config/opencode/opencode.json`. `argv` includes `--pure` and `--variant`
 (default `medium`).
 
+
+## Coach loop
+
+When the host process-owner delegates to a READY openai-compat writer, follow [coach-loop.md](../skills/local-agency/references/coach-loop.md): verify every artifact, grounded feedback with runtime evidence, RED-first then worked-example reproduce after free-form fails, never leave the local model unsupervised (#6075).
+
 ## Mechanical dispatch
 
 Small-context local models often exit 0 without tools, overflow on the next

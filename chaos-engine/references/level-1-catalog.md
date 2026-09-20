@@ -12,6 +12,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Host parity / GAP-EXIT2 | Host deny fidelity differs (Grok/Copilot); compensating UX checklist | [`host-parity-matrix.md`](host-parity-matrix.md) |
 | Script-first | Multi-hop mechanical transforms belong in a script, not a tool chain | [`script-first.md`](script-first.md) |
 | CE brief | Locator-only system brief for local-agency design turns | [`../ce_brief.py`](../ce_brief.py) |
+| Coach loop | Host coach cadence for local openai-compat writers | [`../skills/local-agency/references/coach-loop.md`](../skills/local-agency/references/coach-loop.md) |
 | Silent verify | Check/Stop green must add zero context; fail with one line | [`silent-verify.md`](silent-verify.md) |
 | Significance capture | Mid-session friction marks only; Learning Session drain | [`significance-capture.md`](significance-capture.md) |
 | Skill compress audit | Propose-only SKILL.md bloat audit; never auto-apply | [`skill-compress-audit.md`](skill-compress-audit.md) |
