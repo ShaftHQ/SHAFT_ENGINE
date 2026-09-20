@@ -17,19 +17,20 @@ import java.util.concurrent.Callable;
 
 /**
  * Curated Reporting-stage shortcuts. Pure alias over {@code call} to MCP {@code report_*} tools
- * (issues #5967 / S3-01, #5968 / S3-02, #5969 / S3-03).
+ * (issues #5967 / S3-01, #5968 / S3-02, #5969 / S3-03, #5972 / S3-06).
  */
 @Command(mixinStandardHelpOptions = true,
         name = "report",
-        description = "Reporting shortcuts: history, flake, clusters.")
+        description = "Reporting shortcuts: history, flake, clusters, heal.")
 public final class ReportCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.of(
             "history", "report_history",
             "flake", "report_flake",
-            "clusters", "report_clusters");
+            "clusters", "report_clusters",
+            "heal", "report_heal");
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "history, flake, clusters")
+    @Parameters(index = "0", paramLabel = "ACTION", description = "history, flake, clusters, heal")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value",

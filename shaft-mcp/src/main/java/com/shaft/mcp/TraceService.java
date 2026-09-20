@@ -8,6 +8,8 @@ import com.shaft.doctor.history.AllureHistoryIngestor;
 import com.shaft.doctor.history.AllureHistoryModels;
 import com.shaft.doctor.history.DualFlakeComputer;
 import com.shaft.doctor.history.ErrorClusterModels;
+import com.shaft.doctor.history.HealInsightModels;
+import com.shaft.doctor.history.HealInsightsAggregator;
 import com.shaft.doctor.history.FlakeModels;
 import com.shaft.doctor.history.UniqueErrorClusterer;
 import com.shaft.doctor.shard.FlakyCluster;
@@ -326,6 +328,32 @@ public class TraceService {
                 allureResultsPath, "target/allure-results", "Allure results directory");
         Path doctor = resolveOptionalReadable(doctorReportPath, null, "Doctor report JSON");
         return UniqueErrorClusterer.cluster(results, doctor);
+    }
+
+    /**
+     * Heal insights: counts by HealingDecision status with persist-on-pass review gate
+     * (issue #5972 / S3-06). Proposals are never auto-landed; only RECOVERED + passing replay
+     * offers a reviewable diff via {@code doctor_propose_healed_locator}. AMBIGUOUS has no
+     * apply-to-source primary action. NO_CANDIDATES is shown, not silent. Reuse
+     * {@code healer_run_failed_test} for guarded replay. Policy: locator-healing.md / #5454.
+     *
+     * @param reportsPath optional heal-reports directory; blank defaults to
+     *                    {@code target/shaft-heal/reports} when present
+     * @param proposalsPath optional proposal-manifests directory; blank defaults to
+     *                      {@code target/shaft-doctor/healing-proposals} when present
+     * @return heal insights table for the IDE Reporting canvas / CLI
+     */
+    @Tool(name = "report_heal",
+            description = "dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators")
+    public HealInsightModels.HealInsightsTable reportHeal(
+            @ToolParam(required = false) String reportsPath,
+            @ToolParam(required = false) String proposalsPath) {
+        Path reports = resolveOptionalReadable(
+                reportsPath, "target/shaft-heal/reports", "SHAFT Heal reports directory");
+        Path proposals = resolveOptionalReadable(
+                proposalsPath, "target/shaft-doctor/healing-proposals",
+                "SHAFT Heal proposal manifests directory");
+        return HealInsightsAggregator.aggregate(reports, proposals);
     }
 
     private Path resolveOptionalReadable(String value, String defaultRelative, String label) {

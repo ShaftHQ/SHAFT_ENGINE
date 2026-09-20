@@ -186,6 +186,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         ReportingFlakePanel flake = new ReportingFlakePanel(project);
         ReportingClustersPanel clusters = new ReportingClustersPanel(project);
         ReportingLabelsPanel labels = new ReportingLabelsPanel(project);
+        ReportingHealPanel heal = new ReportingHealPanel(project);
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
         ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
@@ -198,6 +199,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         reportingTabs.addTab(ReportingFlakePanel.TAB_TITLE, ShaftIcons.VIEW, flake);
         reportingTabs.addTab(ReportingClustersPanel.TAB_TITLE, ShaftIcons.VIEW, clusters);
         reportingTabs.addTab(ReportingLabelsPanel.TAB_TITLE, ShaftIcons.EDIT, labels);
+        reportingTabs.addTab(ReportingHealPanel.TAB_TITLE, ShaftIcons.VIEW, heal);
         reportingTabs.addTab("Triage", ShaftIcons.VIEW, triage);
         reportingTabs.addTab("Visual Baselines", ShaftIcons.VIEW, visualBaselines);
         reportingTabs.addTab("Evidence", ShaftIcons.EDIT, evidenceTools);
@@ -880,6 +882,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case ReportingFlakePanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingFlakePanel.TAB_TITLE, null);
             case ReportingClustersPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingClustersPanel.TAB_TITLE, null);
             case ReportingLabelsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingLabelsPanel.TAB_TITLE, null);
+            case ReportingHealPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingHealPanel.TAB_TITLE, null);
             case "Triage" -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
             case "Visual Baselines" -> new SurfaceTarget(STAGE_REPORTING, "Visual Baselines", null);
             case "Evidence" -> new SurfaceTarget(STAGE_REPORTING, "Evidence", null);

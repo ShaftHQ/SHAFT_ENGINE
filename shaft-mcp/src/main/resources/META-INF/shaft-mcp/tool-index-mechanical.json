@@ -1956,6 +1956,21 @@
       "description" : null
     } ]
   }, {
+    "name" : "report_heal",
+    "service" : "TraceService",
+    "description" : "dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators",
+    "params" : [ {
+      "name" : "reportsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    }, {
+      "name" : "proposalsPath",
+      "type" : "string",
+      "required" : false,
+      "description" : null
+    } ]
+  }, {
     "name" : "report_flake",
     "service" : "TraceService",
     "description" : "builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional",

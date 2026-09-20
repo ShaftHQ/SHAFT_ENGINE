@@ -76,4 +76,5 @@ Use MCP `report_history` / CLI `shaft report history` for cross-run Allure histo
 Use MCP `report_flake` / CLI `shaft report flake` for dual flake definitions (retry-hidden vs transitions). Never collapse into one score; unknown history is explicit; CI commit metadata is optional (#5968).
 
 Use MCP `report_clusters` / CLI `shaft report clusters` for unique-error clustering by Doctor historical-signature keys (error → impacted tests). No cloud ML; empty results are empty-state (#5969).
+Use MCP `report_heal` / CLI `shaft report heal` for HealingDecision status counts with persist-on-pass review gate (RECOVERED+pass → reviewable diff; AMBIGUOUS no apply-to-source; NO_CANDIDATES shown; never auto-land). Reuse `healer_run_failed_test` (#5972).
 Use MCP `doctor_cause_label` / CLI `shaft doctor cause-label` to confirm or suggest persisted Doctor defect labels (PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING) keyed by signature. Local gitignored store; no cloud ML (#5971).
