@@ -78,7 +78,7 @@
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.2</tools.jackson.core.version>
         <selenium.version>4.49.0</selenium.version>
-        <playwright.version>1.62.0</playwright.version>
+        <playwright.version>1.63.0</playwright.version>
         <slf4j.version>2.0.19</slf4j.version>
         <grpc.version>1.84.0</grpc.version>
         <protobuf.version>4.36.1</protobuf.version>
