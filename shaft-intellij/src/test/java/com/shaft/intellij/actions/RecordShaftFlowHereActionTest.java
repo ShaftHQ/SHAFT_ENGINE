@@ -19,4 +19,17 @@ class RecordShaftFlowHereActionTest {
 
         assertEquals("Record a SHAFT flow at logsIn in LoginTest", prompt);
     }
+
+    @Test
+    void logStatusDetailPassesThroughStatusText() {
+        assertEquals(
+                "Live SHAFT recording starting, anchored at LoginTest#logsIn.",
+                RecordShaftFlowHereAction.logStatusDetail(
+                        "Live SHAFT recording starting, anchored at LoginTest#logsIn."));
+    }
+
+    @Test
+    void logStatusDetailTreatsNullAsEmpty() {
+        assertEquals("", RecordShaftFlowHereAction.logStatusDetail(null));
+    }
 }

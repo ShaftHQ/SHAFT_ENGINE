@@ -34,15 +34,14 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
         PsiFile file = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument());
         JavaTargetContext context = JavaTargetContextResolver.resolve(file, editor.getCaretModel().getOffset());
         if (context == null) {
-            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Open a Java file and place the caret inside a class or method.");
+            logStatusWarn(project, "Open a Java file and place the caret inside a class or method.");
             return;
         }
 
         // Issue #5942: Automation/Recorder is a product stage, not expert-only. Always start a
         // live capture_start anchored at the caret (issue #3661).
         startLiveRecording(project, context);
-        ShaftNotifier.info(project, NOTIFICATION_TITLE,
-                "Live SHAFT recording starting, anchored at " + context.displayName() + ".");
+        logStatus(project, "Live SHAFT recording starting, anchored at " + context.displayName() + ".");
     }
 
     @Override
@@ -55,6 +54,37 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
             available = JavaTargetContextResolver.resolve(file, editor.getCaretModel().getOffset()) != null;
         }
         event.getPresentation().setEnabledAndVisible(available);
+    }
+
+
+    /**
+     * Pure status-detail contract for flow-recording notifications. Package-private for unit tests.
+     *
+     * @param detail notification body
+     * @return detail, or empty when null
+     */
+    static String logStatusDetail(String detail) {
+        return detail == null ? "" : detail;
+    }
+
+    /**
+     * User-visible success/status update via {@link ShaftNotifier#info}.
+     *
+     * @param project current project
+     * @param detail  status detail
+     */
+    static void logStatus(Project project, String detail) {
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, logStatusDetail(detail));
+    }
+
+    /**
+     * User-visible warning via {@link ShaftNotifier#warn}, sharing the same detail contract.
+     *
+     * @param project current project
+     * @param detail  warning detail
+     */
+    static void logStatusWarn(Project project, String detail) {
+        ShaftNotifier.warn(project, NOTIFICATION_TITLE, logStatusDetail(detail));
     }
 
     /**
