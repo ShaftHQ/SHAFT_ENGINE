@@ -45,6 +45,15 @@ Default `--mode mechanical` keeps OpenCode on apply.sh-only prompts for small lo
 coders. Use `--mode design` when you want `dispatch.py` to attach the CE brief automatically
 (design/spec turns). Mechanical remains the default for 7B tool loops.
 
+## Parent CLI flags (#6087)
+
+`dispatch.py` sets `allow_abbrev=False` on its parent `ArgumentParser`. Otherwise
+`--mode` abbreviates to `--model` and a value like `design` is stored as the model
+id. Keep that guard on any CE parent parser that defines short overlapping options
+(for example `--mode` beside `--model`), and keep a regression test that parses
+`--mode design` with `model` unset.
+
+
 ## Coach loop
 
 When the host process-owner delegates to a READY openai-compat writer, follow [coach-loop.md](../skills/local-agency/references/coach-loop.md): verify every artifact, grounded feedback with runtime evidence, RED-first then worked-example reproduce after free-form fails, never leave the local model unsupervised (#6075).

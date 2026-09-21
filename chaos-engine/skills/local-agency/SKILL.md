@@ -103,6 +103,10 @@ prompt as one bounded apply command; do not auto-attach CE brief (still allowed 
 design/spec turns. Prefer this only when the host coach wants a design draft, not for
 mechanical apply.sh loops.
 
+
+Parent parser uses `allow_abbrev=False` so `--mode` cannot abbreviate to `--model`
+(#6087). Keep that guard when adding short overlapping flags.
+
 ```text
 python3 chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash /abs/apply.sh'
 python3 chaos-engine/skills/local-agency/scripts/dispatch.py --mode design argv --prompt '…' --project .
