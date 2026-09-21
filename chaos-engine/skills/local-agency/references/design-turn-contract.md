@@ -1,4 +1,4 @@
-# Design / spec turn contract (local llama)
+# Design / spec turn contract (local openai-compat writer)
 
 ## When
 
@@ -16,7 +16,7 @@ CE_BRIEF_LOCATORS: <path1> | <path2> | …
 Rules:
 
 - Paths MUST be copied verbatim from the system brief text (locator-only lines).
-- Do **not** invent product labels such as `SHAFT_ENGINE` or `CHAOS_ENGINE`.
+- Do **not** invent product labels or umbrella repo names as locator paths.
 - If the brief is empty/skipped, write `CE_BRIEF_LOCATORS: none`.
 
 ## Spec schema (GitHub issue body)
@@ -42,7 +42,7 @@ Reject and re-coach when any gate fails:
 | Reality | Named classes/files do not exist and were not marked `NEW` |
 | Schema | Missing required sections |
 | Scope | Multi-epic sprawl in one ticket |
-| Fluff | Generic IDE ideas with no SHAFT/CE tie |
+| Fluff | Generic IDE ideas with no product/CE capability tie |
 
 On reject: paste the failing gate + evidence (missing path, wrong locator list,
 schema diff). Do not praise partial free-form.

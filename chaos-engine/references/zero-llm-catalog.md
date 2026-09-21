@@ -30,7 +30,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) |
 | Learning metrics | [`learning.py`](../learning.py) `metrics` + [`learning_counters.py`](../learning_counters.py) (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests (#5653) |
 | CE brief | [`ce_brief.py`](../ce_brief.py) | Locator-only byte-capped system brief for local-agency design turns (#6067) |
-| Design-turn gate | citation+schema zero-LLM gate for llama specs | [`../skills/local-agency/scripts/design_turn_gate.py`](../skills/local-agency/scripts/design_turn_gate.py) |
+| Design-turn gate | citation+schema zero-LLM gate for local design/spec turns | [`../skills/local-agency/scripts/design_turn_gate.py`](../skills/local-agency/scripts/design_turn_gate.py) |
 | Dispatch CE brief | [`skills/local-agency/scripts/dispatch.py`](../skills/local-agency/scripts/dispatch.py) `brief` / `--with-ce-brief` | Attach locator-only brief to OpenCode/chat paths (#6068/#6071) |
 | CE brief eval fixtures | [`../evals/ce-brief-unit-fixtures.json`](../evals/ce-brief-unit-fixtures.json) | Locator-only / byte-cap / no-secret unit contracts (#6072) |
 | Silent verify | [`silent_verify.py`](../silent_verify.py) / `finalize --silent` | Success silent exit 0; failure one stderr line (#5654) |
