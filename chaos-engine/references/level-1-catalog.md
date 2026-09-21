@@ -14,6 +14,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | CE brief | Locator-only system brief for local-agency design turns | [`../ce_brief.py`](../ce_brief.py) |
 | Dispatch CE brief | `dispatch.py brief` / `--with-ce-brief` / chat system brief | [`../skills/local-agency/scripts/dispatch.py`](../skills/local-agency/scripts/dispatch.py) |
 | Coach loop | Host coach cadence for local openai-compat writers | [`../skills/local-agency/references/coach-loop.md`](../skills/local-agency/references/coach-loop.md) |
+| Design-turn contract | Verbatim CE_BRIEF_LOCATORS + host reject gates for llama specs | [`../skills/local-agency/references/design-turn-contract.md`](../skills/local-agency/references/design-turn-contract.md) |
 | CE brief eval fixtures | Unit/eval contracts for locator-only brief + byte caps | [`../evals/ce-brief-unit-fixtures.json`](../evals/ce-brief-unit-fixtures.json) |
 | Silent verify | Check/Stop green must add zero context; fail with one line | [`silent-verify.md`](silent-verify.md) |
 | Significance capture | Mid-session friction marks only; Learning Session drain | [`significance-capture.md`](significance-capture.md) |

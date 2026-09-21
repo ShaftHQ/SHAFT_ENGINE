@@ -103,6 +103,9 @@ prompt as one bounded apply command; do not auto-attach CE brief (still allowed 
 design/spec turns. Prefer this only when the host coach wants a design draft, not for
 mechanical apply.sh loops.
 
+Design/spec turns must follow [design-turn-contract.md](references/design-turn-contract.md)
+(verbatim `CE_BRIEF_LOCATORS:` closing line; host reject gates).
+
 
 Parent parser uses `allow_abbrev=False` so `--mode` cannot abbreviate to `--model`
 (#6087). Keep that guard when adding short overlapping flags.
@@ -191,5 +194,7 @@ this skill when the adopter names OpenCode or “local agents”.
 - OmniRoute (explicit cloud only): [omniroute](../omniroute/SKILL.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
 - Coach loop: [coach-loop.md](references/coach-loop.md) (#6075)
+- Design-turn contract: [design-turn-contract.md](references/design-turn-contract.md)
+- Design-turn gate: [`design_turn_gate.py`](scripts/design_turn_gate.py)
 - Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md) (#6051)
 - Parent ROG Shell assert smoke: [test_assert_parent_rog_shell.py](scripts/tests/test_assert_parent_rog_shell.py) (#6051)

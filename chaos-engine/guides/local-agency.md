@@ -54,6 +54,13 @@ id. Keep that guard on any CE parent parser that defines short overlapping optio
 `--mode design` with `model` unset.
 
 
+## Design-turn contract
+
+For `--mode design` / CE-brief chat, require the writer closing line
+`CE_BRIEF_LOCATORS:` with verbatim brief paths. Host reject rules live in
+[design-turn-contract.md](../skills/local-agency/references/design-turn-contract.md).
+
+
 ## Coach loop
 
 When the host process-owner delegates to a READY openai-compat writer, follow [coach-loop.md](../skills/local-agency/references/coach-loop.md): verify every artifact, grounded feedback with runtime evidence, RED-first then worked-example reproduce after free-form fails, never leave the local model unsupervised (#6075).
