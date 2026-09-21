@@ -47,6 +47,13 @@ Reject and re-coach when any gate fails:
 On reject: paste the failing gate + evidence (missing path, wrong locator list,
 schema diff). Do not praise partial free-form.
 
+
+## Coach tip: worked-example closing line
+
+When free-form citation fails, re-ask with a skeleton that already contains the
+exact `CE_BRIEF_LOCATORS:` line and instruct the writer to leave that line
+unchanged. Prefer this over multi-turn meta rejection text.
+
 ## Related
 
 - [coach-loop.md](coach-loop.md) section C
