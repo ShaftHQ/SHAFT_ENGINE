@@ -184,9 +184,9 @@ class PlaywrightSetupServiceTest {
         Path root = service.browserRoot();
         createReadyWindowsLayout(root);
         Path external = temp.resolve("external-chromium");
-        Files.move(root.resolve("chromium-1234"), external);
+        Files.move(root.resolve("chromium-1243"), external);
         try {
-            Files.createSymbolicLink(root.resolve("chromium-1234"), external);
+            Files.createSymbolicLink(root.resolve("chromium-1243"), external);
         } catch (UnsupportedOperationException | java.io.IOException unsupported) {
             org.junit.jupiter.api.Assumptions.abort("Symbolic links unavailable: " + unsupported.getMessage());
         }
@@ -304,7 +304,7 @@ class PlaywrightSetupServiceTest {
                 SetupMode.MANAGED);
         SetupApproval approval = new SetupApproval(plan.digest(), Instant.EPOCH, Set.of());
         service.install(plan, approval);
-        Path knownGood = service.browserRoot().resolve("chromium-1234/chrome-win64/chrome.exe");
+        Path knownGood = service.browserRoot().resolve("chromium-1243/chrome-win64/chrome.exe");
         Path quarantine = service.browserRoot().resolveSibling(service.browserRoot().getFileName() + ".quarantine");
         Path external = Files.createDirectory(temp.resolve("external-quarantine"));
         try {
@@ -473,17 +473,17 @@ class PlaywrightSetupServiceTest {
     }
 
     private static void createReadyWindowsLayout(Path root) throws java.io.IOException {
-        for (String marker : List.of("chromium-1234/INSTALLATION_COMPLETE",
-                "chromium_headless_shell-1234/INSTALLATION_COMPLETE", "firefox-1538/INSTALLATION_COMPLETE",
-                "webkit-2336/INSTALLATION_COMPLETE", "ffmpeg-1011/INSTALLATION_COMPLETE",
+        for (String marker : List.of("chromium-1243/INSTALLATION_COMPLETE",
+                "chromium_headless_shell-1243/INSTALLATION_COMPLETE", "firefox-1543/INSTALLATION_COMPLETE",
+                "webkit-2359/INSTALLATION_COMPLETE", "ffmpeg-1011/INSTALLATION_COMPLETE",
                 "winldd-1007/INSTALLATION_COMPLETE")) {
             Path file = root.resolve(marker);
             Files.createDirectories(file.getParent());
             Files.writeString(file, "");
         }
-        for (String executable : List.of("chromium-1234/chrome-win64/chrome.exe",
-                "chromium_headless_shell-1234/chrome-headless-shell-win64/chrome-headless-shell.exe",
-                "firefox-1538/firefox/firefox.exe", "webkit-2336/Playwright.exe",
+        for (String executable : List.of("chromium-1243/chrome-win64/chrome.exe",
+                "chromium_headless_shell-1243/chrome-headless-shell-win64/chrome-headless-shell.exe",
+                "firefox-1543/firefox/firefox.exe", "webkit-2359/Playwright.exe",
                 "ffmpeg-1011/ffmpeg-win64.exe", "winldd-1007/PrintDeps.exe")) {
             Path file = root.resolve(executable);
             Files.createDirectories(file.getParent());
@@ -492,16 +492,16 @@ class PlaywrightSetupServiceTest {
     }
 
     private static void createReadyUbuntuLayout(Path root) throws java.io.IOException {
-        for (String marker : List.of("chromium-1234/INSTALLATION_COMPLETE",
-                "chromium_headless_shell-1234/INSTALLATION_COMPLETE", "firefox-1538/INSTALLATION_COMPLETE",
-                "webkit-2336/INSTALLATION_COMPLETE", "ffmpeg-1011/INSTALLATION_COMPLETE")) {
+        for (String marker : List.of("chromium-1243/INSTALLATION_COMPLETE",
+                "chromium_headless_shell-1243/INSTALLATION_COMPLETE", "firefox-1543/INSTALLATION_COMPLETE",
+                "webkit-2359/INSTALLATION_COMPLETE", "ffmpeg-1011/INSTALLATION_COMPLETE")) {
             Path file = root.resolve(marker);
             Files.createDirectories(file.getParent());
             Files.writeString(file, "");
         }
-        for (String executable : List.of("chromium-1234/chrome-linux64/chrome",
-                "chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
-                "firefox-1538/firefox/firefox", "webkit-2336/pw_run.sh", "ffmpeg-1011/ffmpeg-linux")) {
+        for (String executable : List.of("chromium-1243/chrome-linux64/chrome",
+                "chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+                "firefox-1543/firefox/firefox", "webkit-2359/pw_run.sh", "ffmpeg-1011/ffmpeg-linux")) {
             Path file = root.resolve(executable);
             Files.createDirectories(file.getParent());
             Files.writeString(file, "binary");

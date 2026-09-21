@@ -15,7 +15,7 @@ class PlaywrightArtifactManifestTest {
         PlaywrightArtifactManifest manifest = PlaywrightArtifactManifest.load();
         List<PlaywrightArtifactManifest.Artifact> artifacts = manifest.requirePlatform("win64");
 
-        assertEquals("1.62.0", manifest.playwrightVersion());
+        assertEquals("1.63.0", manifest.playwrightVersion());
         assertEquals(List.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg", "winldd"),
                 artifacts.stream().map(PlaywrightArtifactManifest.Artifact::name).toList());
         assertTrue(artifacts.stream().allMatch(artifact -> artifact.source().getScheme().equals("https")));
