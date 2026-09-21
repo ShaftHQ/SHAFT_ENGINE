@@ -6,16 +6,25 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 from pathlib import Path
 
 LOCATOR_LINE = re.compile(r"(?m)^CE_BRIEF_LOCATORS:\s*(.+?)\s*$")
+
+SPEC_HEADERS = [
+    "Goal",
+    "Context",
+    "Acceptance",
+    "Out of scope",
+    "First slice",
+    "Validation",
+    "Risks",
+]
 
 
 def parse_locator_closing(text: str) -> list[str] | None:
     """Return locator paths from the required closing line, or None if missing."""
     match = LOCATOR_LINE.search(text or "")
-    if not match:
+    if match is None:
         return None
     raw = match.group(1).strip()
     if raw.lower() == "none":
@@ -65,37 +74,41 @@ def gate_schema(writer_text: str, required_headers: list[str]) -> dict[str, obje
     return {"ok": True, "gate": "schema", "missing": []}
 
 
-SPEC_HEADERS = [
-    "Goal",
-    "Context",
-    "Acceptance",
-    "Out of scope",
-    "First slice",
-    "Validation",
-    "Risks",
-]
+def _read_text_file(path_arg: str) -> str:
+    """Read a regular file as UTF-8 after resolving the path."""
+    path = Path(path_arg).expanduser().resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"not a readable file: {path}")
+    return path.read_text(encoding="utf-8")
+
+
+def _emit(result: dict[str, object], as_json: bool) -> int:
+    if as_json:
+        print(json.dumps(result, sort_keys=True))
+    else:
+        print("PASS" if result.get("ok") else "FAIL", result)
+    return 0 if result.get("ok") else 1
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+
     cite = sub.add_parser("citation", help="validate CE_BRIEF_LOCATORS against brief text")
     cite.add_argument("--writer", required=True, help="path to writer output")
     cite.add_argument("--brief", required=True, help="path to brief text file")
     cite.add_argument("--json", action="store_true")
+
     schema = sub.add_parser("schema", help="validate required ## headers for a ticket spec")
     schema.add_argument("--writer", required=True)
     schema.add_argument("--json", action="store_true")
+
     args = parser.parse_args(argv)
     if args.command == "citation":
-        result = gate_citation(Path(args.writer).read_text(), Path(args.brief).read_text())
-    else:
-        result = gate_schema(Path(args.writer).read_text(), SPEC_HEADERS)
-    if args.json:
-        print(json.dumps(result, sort_keys=True))
-    else:
-        print("PASS" if result.get("ok") else "FAIL", result)
-    return 0 if result.get("ok") else 1
+        result = gate_citation(_read_text_file(args.writer), _read_text_file(args.brief))
+        return _emit(result, args.json)
+    result = gate_schema(_read_text_file(args.writer), SPEC_HEADERS)
+    return _emit(result, args.json)
 
 
 if __name__ == "__main__":
