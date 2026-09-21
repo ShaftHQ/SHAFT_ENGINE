@@ -30,18 +30,18 @@ class VerifiedArtifactMirrorTest {
         Path artifact = Files.write(temp.resolve("browser.zip"), expected);
         URI base;
         try (VerifiedArtifactMirror mirror = VerifiedArtifactMirror.open(Map.of(
-                "/builds/firefox/1538/firefox-win64.zip", artifact))) {
+                "/builds/firefox/1543/firefox-win64.zip", artifact))) {
             base = mirror.baseUri();
             assertTrue(base.getHost().equals("127.0.0.1"));
             assertTrue(!base.toString().endsWith("/"));
-            assertArrayEquals(expected, request(URI.create(base + "//builds/firefox/1538/firefox-win64.zip"),
+            assertArrayEquals(expected, request(URI.create(base + "//builds/firefox/1543/firefox-win64.zip"),
                     "GET").body());
-            assertEquals(404, request(base.resolve("builds/firefox/1538/missing.zip"), "GET").status());
-            assertEquals(405, request(base.resolve("builds/firefox/1538/firefox-win64.zip"), "POST").status());
-            assertEquals(404, request(base.resolve("builds/firefox/1538/%2e%2e/browser.zip"), "GET").status());
+            assertEquals(404, request(base.resolve("builds/firefox/1543/missing.zip"), "GET").status());
+            assertEquals(405, request(base.resolve("builds/firefox/1543/firefox-win64.zip"), "POST").status());
+            assertEquals(404, request(base.resolve("builds/firefox/1543/%2e%2e/browser.zip"), "GET").status());
         }
 
-        URI closedMirror = base.resolve("builds/firefox/1538/firefox-win64.zip");
+        URI closedMirror = base.resolve("builds/firefox/1543/firefox-win64.zip");
         byte[] replacementBody = "replacement listener".getBytes(StandardCharsets.UTF_8);
         Response reusedPort = requestAfterPortReuse(closedMirror, replacementBody);
         assertEquals(200, reusedPort.status());

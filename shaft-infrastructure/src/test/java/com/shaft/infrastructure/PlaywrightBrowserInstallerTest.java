@@ -95,7 +95,7 @@ class PlaywrightBrowserInstallerTest {
                             command);
                     String mirror = environment.get("PLAYWRIGHT_DOWNLOAD_HOST");
                     HttpURLConnection connection = (HttpURLConnection) java.net.URI.create(mirror)
-                            .resolve("builds/firefox/1538/firefox-win64.zip").toURL().openConnection();
+                            .resolve("builds/firefox/1543/firefox-win64.zip").toURL().openConnection();
                     assertEquals(200, connection.getResponseCode());
                     assertEquals("firefox", new String(connection.getInputStream().readAllBytes()));
                     connection.disconnect();
