@@ -52,6 +52,11 @@ Inject a locator-only system brief via `chaos-engine/ce_brief.py` when present
 (`python3 chaos-engine/ce_brief.py --json`; #6067). Do not paste full SKILL bodies.
 Host still reviews the design before implementation.
 
+Follow the [design-turn contract](design-turn-contract.md): require a verbatim
+`CE_BRIEF_LOCATORS:` closing line, reject vague product labels, and reject specs
+that name non-existent files unless marked `NEW`. Fold every durable reject into
+this contract (keep it short).
+
 ## Locked ROG writer stack
 
 Prefer:
@@ -73,6 +78,8 @@ claim READY from a box probe of the work-machine ports.
 | Bad imports / empty file / syntax error after free-form | Worked-example reproduce + runtime evidence |
 | Inventory / reachability CI red | Host updates catalogs + skill links; refresh README inventory with the validator `--write` |
 | Task child cannot see work-machine loopback | Stop Task writer; parent Shell `machineId` (#6051) |
+| Design output cites fake CE locators / missing `CE_BRIEF_LOCATORS` | Reject; re-ask with contract + paste injected locator list |
+| Spec names missing files without `NEW` | Reject; host pastes `rg`/`find` evidence |
 
 ## After every delivery
 
@@ -86,5 +93,6 @@ claim READY from a box probe of the work-machine ports.
 - Skill: [local-agency SKILL.md](../SKILL.md)
 - Guide: [local-agency.md](../../../guides/local-agency.md)
 - CE brief builder: `chaos-engine/ce_brief.py` (#6067; land with CE-Brief P0)
+- Design/spec contract: [design-turn-contract.md](design-turn-contract.md)
 - Parent ROG Shell: [parent-rog-shell.md](parent-rog-shell.md) (#6051)
 - Delegation / review stays host: [delegation.md](../../../references/delegation.md)
