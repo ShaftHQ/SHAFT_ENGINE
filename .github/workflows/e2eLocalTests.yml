@@ -664,7 +664,7 @@ jobs:
       - name: Setup Android SDK
         # Default packages include deprecated `tools`, which Google stopped
         # serving (android-actions/setup-android#537). Request only what we need.
-        uses: android-actions/setup-android@v4.0.1
+        uses: android-actions/setup-android@v4.0.4
         with:
           packages: platform-tools
       - name: Flutter emulator preflight
