@@ -38,6 +38,13 @@ for `AGENTS.md` and the install-generated `.agents/skills/chaos-engine/` skill a
 `--pure` only disables plugins — install/activate ChaosEngine in the worktree first so the
 pointers exist, then dispatch.
 
+
+## Dispatch modes (#6073)
+
+Default `--mode mechanical` keeps OpenCode on apply.sh-only prompts for small local
+coders. Use `--mode design` when you want `dispatch.py` to attach the CE brief automatically
+(design/spec turns). Mechanical remains the default for 7B tool loops.
+
 ## Coach loop
 
 When the host process-owner delegates to a READY openai-compat writer, follow [coach-loop.md](../skills/local-agency/references/coach-loop.md): verify every artifact, grounded feedback with runtime evidence, RED-first then worked-example reproduce after free-form fails, never leave the local model unsupervised (#6075).

@@ -164,6 +164,25 @@ def _project_root_from_args(args: argparse.Namespace) -> Path | None:
     return None
 
 
+DISPATCH_MODES = ("mechanical", "design")
+
+
+def resolve_dispatch_mode(args: argparse.Namespace) -> str:
+    """Return mechanical|design. Default mechanical for 7B tool loops (#6073)."""
+    mode = getattr(args, "mode", None) or "mechanical"
+    if mode not in DISPATCH_MODES:
+        raise ValueError(f"unsupported dispatch mode: {mode}")
+    return mode
+
+
+def wants_ce_brief(args: argparse.Namespace) -> bool:
+    """Design mode always attaches CE brief; mechanical only when flagged."""
+    if resolve_dispatch_mode(args) == "design":
+        return True
+    return bool(getattr(args, "with_ce_brief", False))
+
+
+
 
 def _load_module(name: str, path: Path) -> ModuleType:
     """Load a sibling probe module by path."""
@@ -494,7 +513,9 @@ def cmd_config(args: argparse.Namespace) -> int:
         "omniroute_fallback": False,
         "note": "OpenCode merges configs; enabled_providers limits this process to the local provider",
     }
-    if getattr(args, "with_ce_brief", False):
+    mode = resolve_dispatch_mode(args)
+    out["mode"] = mode
+    if wants_ce_brief(args):
         attach_ce_brief(out, project=Path(args.project) if getattr(args, "project", None) else None)
     print(json.dumps(out, sort_keys=True))
     return 0
@@ -537,7 +558,9 @@ def cmd_argv(args: argparse.Namespace) -> int:
         "omniroute_fallback": False,
         "note": "OpenCode merges configs; enabled_providers limits this process to the local provider",
     }
-    if getattr(args, "with_ce_brief", False):
+    mode = resolve_dispatch_mode(args)
+    out["mode"] = mode
+    if wants_ce_brief(args):
         attach_ce_brief(out, project=Path(args.project) if getattr(args, "project", None) else None)
     print(json.dumps(out, sort_keys=True))
     return 0
@@ -561,7 +584,7 @@ def cmd_chat(args: argparse.Namespace) -> int:
     if chosen is None:
         return 1
     messages: list[dict[str, str]] = []
-    if getattr(args, "with_ce_brief", False):
+    if wants_ce_brief(args):
         project = Path(args.project) if getattr(args, "project", None) else None
         brief = load_ce_brief().build_brief(project=project)
         messages.append({"role": "system", "content": str(brief["text"])})
@@ -616,12 +639,19 @@ def cmd_chat(args: argparse.Namespace) -> int:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    # allow_abbrev=False: otherwise --mode abbreviates to --model (#6073).
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument(
         "--prefer",
         choices=RUNTIME_RANK,
         default=None,
         help="prefer this READY runtime first (default: FreeToken, OpenAI-compat peers, then Colibri)",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=DISPATCH_MODES,
+        default="mechanical",
+        help="mechanical (default, 7B tool loops) or design (auto-attaches CE brief) (#6073)",
     )
     parser.add_argument("--model", default=None, help="optional model id from the READY runtime")
     parser.add_argument(
