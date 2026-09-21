@@ -31,7 +31,7 @@ public final class OpenCodexTerminalAction extends AnAction implements DumbAware
             return;
         }
         if (!CliTerminalSupport.isExecutableOnPath(EXECUTABLE)) {
-            ShaftNotifier.warn(project, NOTIFICATION_TITLE, INSTALL_HINT);
+            logStatusWarn(project, INSTALL_HINT);
             return;
         }
         String workingDirectory = project.getBasePath() == null ? "." : project.getBasePath();
@@ -40,8 +40,41 @@ public final class OpenCodexTerminalAction extends AnAction implements DumbAware
         // for the same reasoning against the same ShaftTerminalCommands seam).
         CliTerminalSupport.openInteractiveCliTerminal(project, workingDirectory, TAB_NAME, EXECUTABLE, typed -> {
             if (!typed) {
-                ShaftNotifier.warn(project, NOTIFICATION_TITLE, TERMINAL_UNAVAILABLE_HINT);
+                logStatusWarn(project, TERMINAL_UNAVAILABLE_HINT);
+            } else {
+                logStatus(project, "Opened Codex terminal tab.");
             }
         });
     }
+
+    /**
+     * Pure status-detail contract for Codex terminal notifications. Package-private for unit tests.
+     *
+     * @param detail notification body
+     * @return detail, or empty when null
+     */
+    static String logStatusDetail(String detail) {
+        return detail == null ? "" : detail;
+    }
+
+    /**
+     * User-visible success/status update via {@link ShaftNotifier#info}.
+     *
+     * @param project current project
+     * @param detail  status detail
+     */
+    static void logStatus(Project project, String detail) {
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, logStatusDetail(detail));
+    }
+
+    /**
+     * User-visible warning via {@link ShaftNotifier#warn}, sharing the same detail contract.
+     *
+     * @param project current project
+     * @param detail  warning detail
+     */
+    static void logStatusWarn(Project project, String detail) {
+        ShaftNotifier.warn(project, NOTIFICATION_TITLE, logStatusDetail(detail));
+    }
+
 }
