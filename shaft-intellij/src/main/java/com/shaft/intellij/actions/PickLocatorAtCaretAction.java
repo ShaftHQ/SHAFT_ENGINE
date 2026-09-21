@@ -75,28 +75,60 @@ public final class PickLocatorAtCaretAction extends AnAction implements DumbAwar
 
     private static void handleResult(Project project, Editor editor, ShaftMcpToolResult result, Throwable error) {
         if (error != null) {
-            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Pick Locator failed: " + error.getMessage());
+            logStatusWarn(project, "Pick Locator failed: " + error.getMessage());
             return;
         }
         PickOutcome outcome = classify(result);
         switch (outcome.kind()) {
-            case TOOL_FAILURE -> ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Pick Locator failed: " + outcome.detail());
-            case NO_PICK -> ShaftNotifier.warn(project, NOTIFICATION_TITLE, NO_PICK_MESSAGE);
+            case TOOL_FAILURE -> logStatusWarn(project, "Pick Locator failed: " + outcome.detail());
+            case NO_PICK -> logStatusWarn(project, NO_PICK_MESSAGE);
             case SNIPPET -> insertSnippet(project, editor, outcome.detail());
-            default -> ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Pick Locator returned an unexpected outcome: " + outcome.kind());
+            default -> logStatusWarn(project, "Pick Locator returned an unexpected outcome: " + outcome.kind());
         }
     }
 
     private static void insertSnippet(Project project, Editor editor, String snippet) {
         Document document = editor.getDocument();
         if (!FileDocumentManager.getInstance().requestWriting(document, project)) {
-            ShaftNotifier.warn(project, NOTIFICATION_TITLE, READ_ONLY_MESSAGE);
+            logStatusWarn(project, READ_ONLY_MESSAGE);
             return;
         }
         int offset = resolveInsertionOffset(editor.getCaretModel().getOffset(), document.getTextLength());
         WriteCommandAction.writeCommandAction(project)
                 .withName(COMMAND_NAME)
                 .run(() -> document.insertString(offset, snippet));
+        logStatus(project, "Inserted SHAFT.GUI.Locator snippet at caret.");
+    }
+
+
+    /**
+     * Pure status-detail contract for pick-locator notifications. Package-private for unit tests.
+     *
+     * @param detail notification body
+     * @return detail, or empty when null
+     */
+    static String logStatusDetail(String detail) {
+        return detail == null ? "" : detail;
+    }
+
+    /**
+     * User-visible success/status update via {@link ShaftNotifier#info}.
+     *
+     * @param project current project
+     * @param detail  status detail
+     */
+    static void logStatus(Project project, String detail) {
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, logStatusDetail(detail));
+    }
+
+    /**
+     * User-visible warning via {@link ShaftNotifier#warn}, sharing the same detail contract.
+     *
+     * @param project current project
+     * @param detail  warning detail
+     */
+    static void logStatusWarn(Project project, String detail) {
+        ShaftNotifier.warn(project, NOTIFICATION_TITLE, logStatusDetail(detail));
     }
 
     /**

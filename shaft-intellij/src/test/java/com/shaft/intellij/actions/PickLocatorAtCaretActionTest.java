@@ -122,4 +122,16 @@ class PickLocatorAtCaretActionTest {
     void resolveInsertionOffsetClampsAnOffsetPastTheDocumentEndToTheDocumentLength() {
         assertEquals(10, PickLocatorAtCaretAction.resolveInsertionOffset(42, 10));
     }
+
+    @Test
+    void logStatusDetailPassesThroughStatusText() {
+        assertEquals(
+                "Inserted SHAFT.GUI.Locator snippet at caret.",
+                PickLocatorAtCaretAction.logStatusDetail("Inserted SHAFT.GUI.Locator snippet at caret."));
+    }
+
+    @Test
+    void logStatusDetailTreatsNullAsEmpty() {
+        assertEquals("", PickLocatorAtCaretAction.logStatusDetail(null));
+    }
 }
