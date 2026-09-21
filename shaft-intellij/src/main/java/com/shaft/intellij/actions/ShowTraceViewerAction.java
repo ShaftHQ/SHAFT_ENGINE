@@ -73,20 +73,52 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
         try {
             viewer = basePath == null ? null : resolveLatestTraceViewer(Path.of(basePath));
         } catch (IOException e) {
-            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Could not resolve a SHAFT trace viewer: " + e.getMessage());
+            logStatusWarn(project, "Could not resolve a SHAFT trace viewer: " + e.getMessage());
             return;
         }
         if (viewer == null) {
-            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "No SHAFT trace was found under target/shaft-traces.");
+            logStatusWarn(project, "No SHAFT trace was found under target/shaft-traces.");
             return;
         }
         BrowserUtil.browse(viewer.toUri());
+        logStatus(project, "Opened SHAFT trace viewer: " + viewer.getFileName());
     }
 
     @Override
     public void update(@NotNull AnActionEvent event) {
         Project project = event.getProject();
         event.getPresentation().setEnabledAndVisible(project != null && ShaftProjectDetector.isShaftProject(project));
+    }
+
+
+    /**
+     * Pure status-detail contract for trace-viewer notifications. Package-private for unit tests.
+     *
+     * @param detail notification body
+     * @return detail, or empty when null
+     */
+    static String logStatusDetail(String detail) {
+        return detail == null ? "" : detail;
+    }
+
+    /**
+     * User-visible success/status update via {@link ShaftNotifier#info}.
+     *
+     * @param project current project
+     * @param detail  status detail
+     */
+    static void logStatus(Project project, String detail) {
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, logStatusDetail(detail));
+    }
+
+    /**
+     * User-visible warning via {@link ShaftNotifier#warn}, sharing the same detail contract.
+     *
+     * @param project current project
+     * @param detail  warning detail
+     */
+    static void logStatusWarn(Project project, String detail) {
+        ShaftNotifier.warn(project, NOTIFICATION_TITLE, logStatusDetail(detail));
     }
 
     /**

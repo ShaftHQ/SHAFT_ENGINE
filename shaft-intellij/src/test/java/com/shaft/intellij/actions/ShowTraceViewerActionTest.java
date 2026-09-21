@@ -394,4 +394,16 @@ class ShowTraceViewerActionTest {
             throw new IllegalStateException(impossible);
         }
     }
+
+    @Test
+    void logStatusDetailPassesThroughStatusText() {
+        assertEquals(
+                "Opened SHAFT trace viewer: SHAFT Trace Report.html",
+                ShowTraceViewerAction.logStatusDetail("Opened SHAFT trace viewer: SHAFT Trace Report.html"));
+    }
+
+    @Test
+    void logStatusDetailTreatsNullAsEmpty() {
+        assertEquals("", ShowTraceViewerAction.logStatusDetail(null));
+    }
 }
