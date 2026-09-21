@@ -707,6 +707,14 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             self.assertEqual(captured["body"]["model"], "qwen-secret-name")
 
 
+    def test_mode_does_not_abbreviate_to_model(self):
+        """#6087: allow_abbrev=False so --mode is not swallowed by --model."""
+        args = dispatch.parse_args(["--mode", "design", "resolve"])
+        self.assertEqual(args.mode, "design")
+        self.assertIsNone(args.model)
+        # With default allow_abbrev=True, argparse would set model='design'.
+        self.assertNotEqual(getattr(args, "model", None), "design")
+
     def test_mode_defaults_to_mechanical(self):
         """#6073: default mode is mechanical (apply.sh-only)."""
         args = dispatch.parse_args(["resolve"])
