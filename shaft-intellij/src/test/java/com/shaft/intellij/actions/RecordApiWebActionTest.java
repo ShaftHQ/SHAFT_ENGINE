@@ -54,4 +54,16 @@ class RecordApiWebActionTest {
                 "captureResponseBodies", "captureRequestBodies")));
         assertEquals(6, RecordApiWebAction.NETWORK_CAPTURE_OPTIONS_FIELDS.size());
     }
+
+    @Test
+    void logStatusDetailPassesThroughStatusText() {
+        assertEquals(
+                "API recording prepared for https://example.com",
+                RecordApiWebAction.logStatusDetail("API recording prepared for https://example.com"));
+    }
+
+    @Test
+    void logStatusDetailTreatsNullAsEmpty() {
+        assertEquals("", RecordApiWebAction.logStatusDetail(null));
+    }
 }
