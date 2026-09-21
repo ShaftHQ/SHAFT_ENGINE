@@ -89,12 +89,11 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
             // equivalent plain-language request, instead of discarding it behind a dead-end warning
             // (issue #3552) -- the raw API Recording tab stays hidden here.
             openAssistantPrompt(project, recordApiPrompt(targetUrl.trim()));
-            ShaftNotifier.info(project, NOTIFICATION_TITLE,
-                    "API recording request ready in the Assistant for " + targetUrl.trim() + ".");
+            logStatus(project, "API recording request ready in the Assistant for " + targetUrl.trim() + ".");
             return;
         }
         openApiRecordingTab(project, targetUrl.trim(), arguments);
-        ShaftNotifier.info(project, NOTIFICATION_TITLE, "API recording prepared for " + targetUrl.trim() + ".");
+        logStatus(project, "API recording prepared for " + targetUrl.trim() + ".");
     }
 
     @Override
@@ -161,6 +160,28 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
                 }
             });
         });
+    }
+
+
+    /**
+     * Emits a user-visible status update for API recording (web) via {@link ShaftNotifier}.
+     * Package-private so unit tests can assert the message contract without an IDE Project.
+     *
+     * @param detail status detail shown in the notification body
+     * @return the detail string that will be / was shown (for tests)
+     */
+    static String logStatusDetail(String detail) {
+        return detail == null ? "" : detail;
+    }
+
+    /**
+     * Logs a status update for the current project using {@link ShaftNotifier#info}.
+     *
+     * @param project current IntelliJ project
+     * @param detail  status detail
+     */
+    static void logStatus(Project project, String detail) {
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, logStatusDetail(detail));
     }
 
     /**

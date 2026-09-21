@@ -53,12 +53,11 @@ public final class RecordApiMobileAction extends AnAction implements DumbAware {
             // RecordApiWebAction's equivalent plain-language routing (issue #3552) -- the raw API
             // Recording tab stays hidden here.
             openAssistantPrompt(project, recordApiMobilePrompt(trimmedPlatform));
-            ShaftNotifier.info(project, NOTIFICATION_TITLE,
-                    "Pure-API recording request ready in the Assistant for " + trimmedPlatform + ".");
+            logStatus(project, "Pure-API recording request ready in the Assistant for " + trimmedPlatform + ".");
             return;
         }
         openApiRecordingTab(project, trimmedPlatform, arguments);
-        ShaftNotifier.info(project, NOTIFICATION_TITLE, "Pure-API recording prepared for " + trimmedPlatform + ".");
+        logStatus(project, "Pure-API recording prepared for " + trimmedPlatform + ".");
     }
 
     @Override
@@ -74,6 +73,29 @@ public final class RecordApiMobileAction extends AnAction implements DumbAware {
     static String recordApiMobilePrompt(String platform) {
         return "Record API traffic without a browser on " + platform;
     }
+
+
+    /**
+     * Emits a user-visible status update for API recording (mobile) via {@link ShaftNotifier}.
+     * Package-private so unit tests can assert the message contract without an IDE Project.
+     *
+     * @param detail status detail shown in the notification body
+     * @return the detail string that will be / was shown (for tests)
+     */
+    static String logStatusDetail(String detail) {
+        return detail == null ? "" : detail;
+    }
+
+    /**
+     * Logs a status update for the current project using {@link ShaftNotifier#info}.
+     *
+     * @param project current IntelliJ project
+     * @param detail  status detail
+     */
+    static void logStatus(Project project, String detail) {
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, logStatusDetail(detail));
+    }
+
 
     private static void openAssistantPrompt(Project project, String text) {
         ToolWindowManager.getInstance(project).invokeLater(() -> {

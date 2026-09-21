@@ -15,4 +15,16 @@ class RecordApiMobileActionTest {
 
         assertEquals("Record API traffic without a browser on iOS", prompt);
     }
+
+    @Test
+    void logStatusDetailPassesThroughStatusText() {
+        assertEquals(
+                "Pure-API recording prepared for Android",
+                RecordApiMobileAction.logStatusDetail("Pure-API recording prepared for Android"));
+    }
+
+    @Test
+    void logStatusDetailTreatsNullAsEmpty() {
+        assertEquals("", RecordApiMobileAction.logStatusDetail(null));
+    }
 }
