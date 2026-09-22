@@ -68,6 +68,14 @@ def _tool_py(project: Path) -> Path | None:
     return None
 
 
+def _bounded_excerpt(body: str, limit: int = 4096) -> str:
+    """Return the store text the caller can use, capped so a receipt stays small."""
+    raw = body.encode("utf-8")
+    if len(raw) <= limit:
+        return body
+    return raw[:limit].decode("utf-8", errors="ignore")
+
+
 def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     """One attempt; no retries. Missing/unhealthy → degraded; empty relevance → skipped."""
     tool = _tool_py(project)
@@ -140,12 +148,14 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             "reason": "no-relevant-hits",
             "query": query,
         }
+    excerpt = _bounded_excerpt(body)
     receipt = {
         "store": store,
         "status": STATUS_USED,
         "reason": "hits",
         "query": query,
-        "bytes": min(len(body.encode("utf-8")), 4096),
+        "excerpt": excerpt,
+        "bytes": len(excerpt.encode("utf-8")),
     }
     if store in {"mempalace", "graphify"}:
         _record_store_citations(project, store, body)

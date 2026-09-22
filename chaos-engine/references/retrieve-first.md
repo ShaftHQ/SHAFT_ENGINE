@@ -21,6 +21,8 @@ that check cited. `skipped` and `degraded` do not cite a path and do not
 unlock reads. Neither state blocks implementation once the cited files have
 been read. The deny text and the ledger live in one
 [citation ledger](../hooks/retrieve_justification.py) for every host.
+A used receipt includes `excerpt`, the store text capped at 4096 bytes.
+That excerpt is the answer. Read a file only to verify a path it cites.
 
 ## What each store is for
 
