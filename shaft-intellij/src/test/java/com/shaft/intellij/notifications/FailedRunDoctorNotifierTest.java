@@ -258,4 +258,14 @@ class FailedRunDoctorNotifierTest {
             });
         }
     }
+
+    @Test
+    void logStatusDetailReturnsEmptyWhenNull() {
+        assertEquals("", FailedRunDoctorNotifier.logStatusDetail(null));
+    }
+
+    @Test
+    void logStatusDetailPassthrough() {
+        assertEquals("Running SHAFT Doctor diagnosis.", FailedRunDoctorNotifier.logStatusDetail("Running SHAFT Doctor diagnosis."));
+    }
 }
