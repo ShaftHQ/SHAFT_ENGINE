@@ -67,8 +67,10 @@ Inject a locator-only system brief via `chaos-engine/ce_brief.py` when present
 (`python3 chaos-engine/ce_brief.py --json`; #6067). Do not paste full SKILL bodies.
 Host still reviews the design before implementation.
 
-Follow the [design-turn contract](design-turn-contract.md): require a verbatim
-`CE_BRIEF_LOCATORS:` closing line, reject vague product labels, and reject specs
+Follow the [design-turn contract](design-turn-contract.md). The first design
+request is a skeleton that already contains the exact `CE_BRIEF_LOCATORS` line.
+The writer must leave that line unchanged. Accept the draft only after
+`design_turn_gate.py` citation passes. Reject vague product labels and specs
 that name non-existent files unless marked `NEW`. Fold every durable reject into
 this contract (keep it short).
 
@@ -94,7 +96,7 @@ claim READY from a box probe of the work-machine ports.
 | Bad imports / empty file / syntax error after free-form | Worked-example reproduce + runtime evidence |
 | Inventory / reachability CI red | Host updates catalogs + skill links; refresh README inventory with the validator `--write` |
 | Task child cannot see work-machine loopback | Stop Task writer; parent Shell `machineId` (#6051) |
-| Design output cites fake CE locators / missing `CE_BRIEF_LOCATORS` | Reject; re-ask with contract + paste injected locator list |
+| Design output cites fake CE locators / missing `CE_BRIEF_LOCATORS` | Reject. The first ask is the frozen `CE_BRIEF_LOCATORS` skeleton. Accept only after `design_turn_gate.py` citation |
 | Spec names missing files without `NEW` | Reject; host pastes `rg`/`find` evidence |
 
 ## After every delivery

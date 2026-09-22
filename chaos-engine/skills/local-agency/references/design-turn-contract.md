@@ -48,11 +48,11 @@ On reject: paste the failing gate + evidence (missing path, wrong locator list,
 schema diff). Do not praise partial free-form.
 
 
-## Coach tip: worked-example closing line
+## Default first ask
 
-When free-form citation fails, re-ask with a skeleton that already contains the
-exact `CE_BRIEF_LOCATORS:` line and instruct the writer to leave that line
-unchanged. Prefer this over multi-turn meta rejection text.
+The first design request is a skeleton that already contains the exact
+`CE_BRIEF_LOCATORS` line. The writer must leave that line unchanged. The host
+accepts the draft only after `design_turn_gate.py` citation passes.
 
 ## Related
 
