@@ -12,6 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class AssistantAgentRouteTest {
 
     @Test
+    void fromInstallerTargetFindsAKnownTokenAndRejectsUnknown() {
+        assertEquals(AssistantAgentRoute.GROK, AssistantAgentRoute.fromInstallerTarget("GROK"));
+        assertNull(AssistantAgentRoute.fromInstallerTarget("NOPE"));
+        assertNull(AssistantAgentRoute.fromInstallerTarget("  "));
+    }
+
+
+    @Test
     void routesAreAlphabeticalAndOwnTheirInstallerDestinations() throws Exception {
         Class<?> type = Class.forName("com.shaft.intellij.settings.AssistantAgentRoute");
         Object[] routes = type.getEnumConstants();
