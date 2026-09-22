@@ -78,6 +78,19 @@ public enum AssistantAgentRoute {
         settings.defaultAutobotClient = client;
     }
 
+    /** Route whose installer target matches target, or null. */
+    public static AssistantAgentRoute fromInstallerTarget(String target) {
+        if (target == null || target.trim().isEmpty()) {
+            return null;
+        }
+        for (AssistantAgentRoute route : AssistantAgentRoute.values()) {
+            if (route.installerTarget.equals(target)) {
+                return route;
+            }
+        }
+        return null;
+    }
+
     public static AssistantAgentRoute fromSettings(ShaftSettingsState.Settings settings) {
         String provider = normalize(settings.assistantProviderType, "LOCAL");
         String cloud = normalize(settings.cloudProvider, "");
