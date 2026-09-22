@@ -1102,7 +1102,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
         preventive = module.PRE_TOOL_MATCHER
         observational = module.POST_TOOL_MATCHER
 
-        for tool in ("Read", "Grep", "WebSearch", "WebFetch", "web__run", "update_plan"):
+        for tool in ("Read", "read_file", "Grep", "Glob", "list_dir"):
+            self.assertIsNotNone(re.fullmatch(preventive, tool), tool)
+        for tool in ("WebSearch", "WebFetch", "web__run", "update_plan"):
             self.assertIsNone(re.fullmatch(preventive, tool), tool)
             self.assertIsNone(re.fullmatch(observational, tool), tool)
         for tool in ("Bash", "PowerShell", "apply_patch", "Write", "spawn_agent"):

@@ -46,6 +46,20 @@ def pick_store(query: str, store: str | None = None) -> str:
     return "memory"
 
 
+def _record_store_citations(project: Path, store: str, text: str) -> None:
+    path = Path(__file__).resolve().with_name("hooks") / "retrieve_justification.py"
+    if not path.is_file():
+        return
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("chaos_engine_retrieve_justification", path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.record_citations(project, store, text)
+
+
 def _tool_py(project: Path) -> Path | None:
     for relative in (".chaos-engine/tool.py", "chaos-engine/tool.py"):
         path = project / relative
@@ -133,6 +147,8 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         "query": query,
         "bytes": min(len(body.encode("utf-8")), 4096),
     }
+    if store in {"mempalace", "graphify"}:
+        _record_store_citations(project, store, body)
     if origin_sync:
         receipt["originSync"] = "advisory"
     return receipt

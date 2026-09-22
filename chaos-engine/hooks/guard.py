@@ -43,6 +43,7 @@ if _lifecycle is None:
 _kernel = _load_sibling("kernel")
 if _kernel is None:
     raise RuntimeError("ChaosEngine policy kernel is unavailable")
+justification = _load_sibling("retrieve_justification")
 reflection = _load_sibling("reflection")
 if reflection is None:  # Repository adapter fallback for a source-only layout.
     repository_root = Path(__file__).resolve().parents[2]
@@ -741,6 +742,18 @@ def _run_event(event: dict, _host: str) -> int:
         _record_denial_with_significance(event, event_name, tool_name)
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
         return 2
+    if justification is not None:
+        read_reason = justification.file_read_block_reason(
+            project=Path(str(event.get("cwd") or Path.cwd())),
+            event_name=str(normalized_kernel_event.name or event_name),
+            tool_name=str(normalized_kernel_event.tool_name or tool_name),
+            tool_input=tool_input if isinstance(tool_input, dict) else {},
+            commands=commands,
+        )
+        if read_reason:
+            _record_denial_with_significance(event, event_name, tool_name)
+            print(json.dumps({"decision": "block", "reason": read_reason}))
+            return 2
     research_reason = _research_before_mutation_reason(
         event_name,
         bool(normalized_kernel_event.stateful_mutation),

@@ -15,9 +15,12 @@ depth off that answer rather than judging it twice.
 | One module, reversible | Select stores relevant to the subsystem or affected callers. |
 | Public contract, many callers, or hard to reverse | Use every relevant store, then verify every useful hit against live files. |
 
-Memory, MemPalace, and Graphify are advisory for ordinary tasks. Irrelevance is
-recorded as `skipped`; a missing, corrupt, stale, timed-out, or inaccessible
-store is `degraded`. Neither state blocks implementation or completion.
+Memory is advisory. A MemPalace or Graphify check is required before a file
+read or a file search: the portable guard allows those calls only for paths
+that check cited. `skipped` and `degraded` do not cite a path and do not
+unlock reads. Neither state blocks implementation once the cited files have
+been read. The deny text and the ledger live in one
+[citation ledger](../hooks/retrieve_justification.py) for every host.
 
 ## What each store is for
 
@@ -26,7 +29,7 @@ store is `degraded`. Neither state blocks implementation or completion.
 | Has this constraint or gotcha already bitten us? | native Memory — `memory search`, then `memory inspect <id>` |
 | What happened around this before, and what does it touch? | MemPalace |
 | What calls or depends on this? | [Graphify](graphify.md) — unclassified extract skips are coverage, not a failed install |
-| What does the code do right now? | targeted `rg` and exact reads |
+| What does the code do right now? | targeted `rg` and exact reads of paths a MemPalace or Graphify check already cited |
 
 Only the last one settles a disagreement. A retrieved claim is a lead: confirm
 it against the file on disk before acting, and never let an index outrank what

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import runpy
 import subprocess  # nosec B404 - executes only fixed owned tool names.
@@ -15,6 +16,40 @@ TOOLS = {"uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}
 MEMORY_ORIGIN_MAIN_TOOLS = frozenset({"memory", "memory-mcp"})
 ADVISORY_ORIGIN_MAIN_TOOLS = frozenset({"mempalace", "mempalace-mcp", "graphify"})
 ORIGIN_MAIN_SYNC_FIX_NEXT = "git fetch origin main && git merge --ff-only origin/main"
+HELP_FLAGS = frozenset({"--help", "-h", "help"})
+_CAPTURE_STORES = frozenset({"mempalace", "graphify"})
+
+
+def tool_help_text() -> str:
+    """One usage text for every host. There is no per-host help."""
+    names = ", ".join(sorted(TOOLS | {"retrieve"}))
+    return (
+        "usage: tool.py <tool|retrieve> [args...]\n"
+        "       tool.py --help\n"
+        "\n"
+        f"tools: {names}\n"
+        "\n"
+        "retrieve (MemPalace or Graphify checks justify later file reads):\n"
+        "  tool.py retrieve [--store {memory,mempalace,graphify}] [--project PATH] [--dry-run] QUERY\n"
+        "  tool.py mempalace search QUERY\n"
+        "  tool.py graphify query QUERY\n"
+    )
+
+
+def _record_store_output(installed_root: Path, store: str, text: str) -> None:
+    path = installed_root / "hooks" / "retrieve_justification.py"
+    if not path.is_file() or not text.strip():
+        return
+    spec = importlib.util.spec_from_file_location("chaos_engine_retrieve_justification", path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.record_citations(
+        shared_project_root(installed_root.resolve().parent),
+        store,
+        text,
+    )
 
 
 def shared_project_root(project: Path) -> Path:
@@ -154,7 +189,11 @@ def resolve_maven_tools_command(installed_root: Path) -> list[str]:
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: tool.py <tool|retrieve> [args...]", file=sys.stderr)
+        print("try: tool.py --help", file=sys.stderr)
         return 2
+    if sys.argv[1] in HELP_FLAGS:
+        print(tool_help_text(), end="")
+        return 0
     try:
         installed_root = Path(__file__).resolve().parent
         tool = sys.argv[1]
@@ -186,10 +225,32 @@ def main() -> int:
             if isinstance(command, list)
             else [str(command), *arguments]  # Compatibility for injected legacy tests.
         )
+        project = shared_project_root(installed_root.resolve().parent)
+        if tool in _CAPTURE_STORES:
+            completed = subprocess.run(  # nosec B603
+                invocation,
+                env=environment,
+                cwd=project,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            sys.stdout.write(completed.stdout)
+            sys.stderr.write(completed.stderr)
+            if completed.returncode == 0:
+                try:
+                    _record_store_output(
+                        installed_root,
+                        tool,
+                        completed.stdout + "\n" + completed.stderr,
+                    )
+                except (OSError, RuntimeError, ValueError):
+                    pass
+            return completed.returncode
         return subprocess.call(  # nosec B603
             invocation,
             env=environment,
-            cwd=shared_project_root(installed_root.resolve().parent),
+            cwd=project,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import re
 import shutil
 # Fixed list-form calls to repository resolvers and the MemPalace CLI.
@@ -63,18 +64,44 @@ def run_mempalace(palace: str, arguments: list[str], cwd: Path) -> int:
     executable = shutil.which("mempalace")
     if executable is None:
         raise RuntimeError("mempalace is not on PATH")
+    capture = bool(arguments and arguments[0] == "search")
     try:
         completed = subprocess.run(  # nosec B603
             [executable, "--palace", palace, "--backend", "sqlite_exact", *arguments],
             cwd=cwd,
             check=False,
             timeout=STORE_TIMEOUT_SECONDS,
+            capture_output=capture,
+            text=capture,
         )
     except subprocess.TimeoutExpired as error:
         raise RuntimeError(
             f"MemPalace query timed out after {STORE_TIMEOUT_SECONDS}s"
         ) from error
+    if capture:
+        sys.stdout.write(completed.stdout or "")
+        sys.stderr.write(completed.stderr or "")
+        if completed.returncode == 0:
+            _record_mempalace_search(cwd, completed.stdout or "")
     return completed.returncode
+
+
+def _record_mempalace_search(cwd: Path, text: str) -> None:
+    """Hand search hits to the one portable citation ledger."""
+    for relative in (
+        "chaos-engine/hooks/retrieve_justification.py",
+        ".chaos-engine/hooks/retrieve_justification.py",
+    ):
+        path = cwd / relative
+        if not path.is_file():
+            continue
+        spec = importlib.util.spec_from_file_location("chaos_engine_retrieve_justification", path)
+        if spec is None or spec.loader is None:
+            return
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.record_citations(cwd, "mempalace", text)
+        return
 
 
 def cmd_status(cwd: Path) -> int:

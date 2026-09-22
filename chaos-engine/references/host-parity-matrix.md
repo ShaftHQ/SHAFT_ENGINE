@@ -14,6 +14,17 @@ installer/doctor, and host guidance adapters (`AGENTS.md` / `CLAUDE.md` /
 agent's memory or routines. Unchanged `chaos-engine/` sources are not a
 valid Learning Session skip on any host.
 
+## One implementation for every host
+
+Claude, Codex (the GPT host), Copilot, Gemini, and Grok run one portable
+implementation. Do not add a separate GPT adapter, and do not copy a rule
+into a host skill, a host guard, or a second policy file. A new harness
+rule is one shared row in `scripts/ci/agent_harness_parity.json`: every
+host column names the same evidence path, and one test runs that decision
+for every host in `hosts`. File reads and file searches follow this rule
+through `hooks/retrieve_justification.py` and `hooks/guard.py`. `tool.py
+--help` is the same CLI on every host.
+
 Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (see below), N = not applicable.
 
 
