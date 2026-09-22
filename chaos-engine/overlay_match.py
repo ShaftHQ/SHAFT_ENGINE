@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 import secrets
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,6 +52,40 @@ def _install_module():
 def owned_source_files(source: Path) -> tuple[Path, ...]:
     """Same payload source_files() copies for distribution=repository."""
     return _install_module().source_files(source, REPOSITORY_DISTRIBUTION)
+
+
+def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> list[str] | None:
+    probe = subprocess.run(
+        ["git", "-C", str(project), "cat-file", "-e", f"{commit}^{{commit}}"],
+        capture_output=True,
+        check=False,
+    )
+    if probe.returncode != 0:
+        return None
+    differing: list[str] = []
+    source = project / "chaos-engine"
+    for file in owned_source_files(source):
+        relative = file.relative_to(source).as_posix()
+        shown = subprocess.run(
+            ["git", "-C", str(project), "show", f"{commit}:chaos-engine/{relative}"],
+            capture_output=True,
+            check=False,
+        )
+        current = tree / relative
+        if shown.returncode != 0 or not current.is_file() or shown.stdout != current.read_bytes():
+            differing.append(relative)
+    return differing
+
+
+def _manifest_commit(project: Path) -> str | None:
+    manifest_path = project / OVERLAY_DIR / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    source = manifest.get("source") if isinstance(manifest, dict) else None
+    commit = source.get("commit") if isinstance(source, dict) else None
+    return commit if isinstance(commit, str) else None
 
 
 def core_matches_source(project: Path) -> dict[str, object]:
@@ -247,6 +282,30 @@ def apply_doctor_overlay_match(
     core = components.get("core")
     if not isinstance(core, dict):
         return
+
+    commit = _manifest_commit(Path(project))
+    if commit:
+        overlay_diff = owned_tree_differs_from_commit(
+            Path(project), Path(project) / OVERLAY_DIR, commit
+        )
+        source_diff = owned_tree_differs_from_commit(
+            Path(project), Path(project) / SOURCE_DIR, commit
+        )
+        if overlay_diff is not None and source_diff is not None:
+            if not overlay_diff:
+                core["coreMatchesSource"] = True
+                clear_overlay_handoff(Path(project))
+                return
+            if source_diff:
+                result["status"] = "recovery-required"
+                core["status"] = "recovery-required"
+                core["detail"] = "overlay-commit-mismatch"
+                core["coreMatchesSource"] = False
+                core["fixNext"] = (
+                    "Owned overlay bytes differ from the manifest commit and local "
+                    "SOURCE is not that commit. Do not rewrite manifest file digests."
+                )
+                return
 
     heal_error: str | None = None
     if matched.get("scope") == "repository" and not matched.get("coreMatchesSource"):
