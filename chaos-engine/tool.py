@@ -245,6 +245,7 @@ def main() -> int:
                         completed.stdout + "\n" + completed.stderr,
                     )
                 except (OSError, RuntimeError, ValueError):
+                    # The store text already printed. A ledger write must not hide it.
                     pass
             return completed.returncode
         return subprocess.call(  # nosec B603
