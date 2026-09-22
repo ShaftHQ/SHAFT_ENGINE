@@ -242,22 +242,8 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
    extract kind-family helpers immediately; do not wait for unit jobs when
    Complexity already failed.
 
-#### Unresolved conversations are not a watch state
-
-`mergeStateStatus: BLOCKED` with "A conversation must be resolved before this
-pull request can be merged" means auto-merge will never fire. A monitor wake
-that names a comment, a bot finding, or that blocked state is the same turn's
-work, not a status report:
-
-1. Query `reviewThreads` and list every thread with `isResolved: false`.
-2. Fix the finding on the branch, or reply with the evidence that it does not apply.
-3. Reply on that thread, then `resolveReviewThread`.
-4. Re-query and require zero unresolved threads before returning to the watch.
-5. Do not end the turn while a known unresolved thread remains. A bot summary
-   that says "up to standards" is not handled while one of its threads is open.
-
-A required approving review from someone other than the author is a halt.
-Say that once. Do not poll it. Do not edit the bundled `watch_pr.py` skill.
+Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
+`resolveReviewThread` before returning to the watch.
 8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
 
 #### Nightly full-matrix autoclose
