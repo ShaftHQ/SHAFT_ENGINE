@@ -96,6 +96,18 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertTrue(routing.is_file())
         self.assertIn("references/routing.md", profile.read_text(encoding="utf-8"))
 
+    def test_router_reads_selected_profile_when_portable_entrypoint_is_omitted(self):
+        skill = " ".join(CANONICAL_SKILL.read_text(encoding="utf-8").split())
+        identity = " ".join((CORE / "identity.md").read_text(encoding="utf-8").split())
+        self.assertIn("profiles/<id>/entrypoint.md", skill)
+        self.assertIn("portable entrypoint on purpose", skill)
+        self.assertIn("A 404 on the portable link is not a skipped load.", skill)
+        self.assertIn("Peer with the owner", identity)
+        self.assertIn("When the portable path is absent", identity)
+        truth = identity.split("<!-- CHAOSENGINE-IDENTITY-TRUTH:START -->", 1)[1]
+        truth = truth.split("<!-- CHAOSENGINE-IDENTITY-TRUTH:END -->", 1)[0]
+        self.assertNotIn("Peer with the owner", truth)
+
     def test_portable_readme_uses_existing_contained_targets(self):
         readme = PORTABLE_README.read_text(encoding="utf-8")
         targets = re.findall(r'\[[^]]+\]\(([^)]+)\)', readme)

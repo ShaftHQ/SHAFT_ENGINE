@@ -78,9 +78,13 @@ passed", "close enough", "no need to run it", "the check covers it".
 
 ## Project profile
 
-Load the adapter-selected profile before task work. The
-[portable profile](../../profiles/portable/entrypoint.md) is default;
-the [profiles catalog](../../profiles/README.md) owns selection. The
+Load the adapter-selected profile before task work. In the live overlay
+that file is the `profiles/<id>/entrypoint.md` the installer copied. The
+[portable profile](../../profiles/portable/entrypoint.md) is the default only
+when it is the profile present. A repository-profile install omits the
+portable entrypoint on purpose; read the selected entrypoint. A 404 on the
+portable link is not a skipped load. The
+[profiles catalog](../../profiles/README.md) owns selection. The
 core never assumes a repository, default branch, local root, or companion
 project. A standalone distribution that bundles exactly one profile selects
 that profile automatically and must link it from its discoverable skill.
