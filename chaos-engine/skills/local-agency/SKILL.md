@@ -129,7 +129,10 @@ the host session model (see [delegation](../../references/delegation.md)).
    **inside** the script; commit stays orchestrator-owned.
 2. OpenCode invokes **exactly that one bash command**. Multi-step specs in
    chat are writer failures: EXIT 0 with zero tool calls is writer failure,
-   not success. Glob/Grep of prompt English before the named bash command,
+   not success. The same failure is EXIT 0 when the tool JSON is only in
+   message content and `tool_calls` is null: stop OpenCode and switch to
+   fixed-signature chat in [coach-loop](references/coach-loop.md) section B.
+   Glob/Grep of prompt English before the named bash command,
    or overflow with no worktree mutation, is writer failure — run the same
    command in the worktree; do not retry the oversized prompt.
 3. OpenCode bash tool wall-clock is **120s** (#5998). Maven/Gradle apply

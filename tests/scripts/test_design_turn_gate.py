@@ -52,5 +52,16 @@ class DesignTurnGateTest(unittest.TestCase):
         self.assertTrue(result["ok"])
 
 
+class FixedSignatureCoachTest(unittest.TestCase):
+    def test_fake_tool_call_switches_to_fixed_signature_chat(self):
+        coach = (
+            ROOT / "chaos-engine/skills/local-agency/references/coach-loop.md"
+        ).read_text(encoding="utf-8")
+        skill = (ROOT / "chaos-engine/skills/local-agency/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("tool_calls` null", coach)
+        self.assertIn("fixed-signature chat", coach)
+        self.assertIn("tool_calls` is null", skill)
+
+
 if __name__ == "__main__":
     unittest.main()
