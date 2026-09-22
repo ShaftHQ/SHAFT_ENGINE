@@ -2380,6 +2380,42 @@ def status(project: Path) -> dict[str, str]:
         }
 
 
+
+def _prior_host_receipt_image(path: Path) -> dict[str, object] | None:
+    """Read the live host receipt before quarantine unlinks it (#6126)."""
+    if not path.is_file() or is_link_or_reparse(path):
+        return None
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if not raw:
+        return None
+    return {"raw": raw}
+
+
+def account_rollback_has_exact_prior_host_receipt(project: Path) -> bool:
+    """True when account rollback can read an exact prior host receipt."""
+    project = project.resolve()
+    target = project / INSTALL_DIRECTORY
+    backup = project / BACKUP_NAME
+    host_receipt = project / ".chaos-engine-hosts.json"
+    if not target.exists() or not backup.exists():
+        return False
+    if not host_receipt.exists() and not is_link_or_reparse(host_receipt):
+        return False
+    try:
+        previous_commit = str(verify_install(backup)["source"]["commit"])
+        receipt_controller = load_installed_controller(target, "hosts")
+        previous_receipt = getattr(receipt_controller, "rollback_previous_receipt", None)
+        if not callable(previous_receipt):
+            return False
+        raw = previous_receipt(project, previous_commit)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
+    return isinstance(raw, bytes)
+
+
 def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
     project: Path, _locked: bool = False, provisioner=None
 ) -> Path:
@@ -3199,10 +3235,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                                     "ChaosEngine host adapter drift detected "
                                     "(receipt integrity drift)"
                                 ) from error
+                            captured = _prior_host_receipt_image(host_receipt_path)
                             quarantine_orphaned_host_receipt(
                                 project, reporter=reporter, force=True
                             )
-                            host_snapshot = None
+                            host_snapshot = captured
                 if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
@@ -3386,8 +3423,14 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             except ValueError as error:
                 if not _is_healable_host_drift(error):
                     raise
+                prior_snapshot = host_snapshot if isinstance(host_snapshot, dict) else None
+                if prior_snapshot is None or not isinstance(prior_snapshot.get("raw"), bytes):
+                    prior_snapshot = _prior_host_receipt_image(host_receipt)
                 quarantine_orphaned_host_receipt(project, reporter=reporter, force=True)
-                host_controller.install(project, **host_bind)
+                rebound = dict(host_bind)
+                if prior_snapshot is not None:
+                    rebound["upgrade_snapshot"] = prior_snapshot
+                host_controller.install(project, **rebound)
             if account_rollback_journal is not None:
                 recover_account_rollback_journal(project)
                 if account_rollback_journal.exists():

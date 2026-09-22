@@ -1961,7 +1961,19 @@ def install_latest(
             error.observed_upgrade_components = error.observed_components
             error.observed_upgrade_component_details = error.observed_component_details
         if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
-            if prior_install and (project / ".chaos-engine.backup").exists():
+            backup = project / ".chaos-engine.backup"
+            keep_core = False
+            if isinstance(error, InstallHealthError) and prior_install and backup.exists():
+                probe = getattr(
+                    installer, "account_rollback_has_exact_prior_host_receipt", None
+                )
+                if callable(probe):
+                    try:
+                        keep_core = probe(project) is False
+                    except (OSError, ValueError):
+                        # A probe failure must not replace the doctor error.
+                        keep_core = True
+            if prior_install and backup.exists() and not keep_core:
                 installer.rollback(project)
         if terminal_context is not None:
             terminal_context.__exit__(*sys.exc_info())
