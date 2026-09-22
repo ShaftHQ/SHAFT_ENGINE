@@ -43,6 +43,7 @@ if _lifecycle is None:
 _kernel = _load_sibling("kernel")
 if _kernel is None:
     raise RuntimeError("ChaosEngine policy kernel is unavailable")
+justification = _load_sibling("retrieve_justification")
 reflection = _load_sibling("reflection")
 if reflection is None:  # Repository adapter fallback for a source-only layout.
     repository_root = Path(__file__).resolve().parents[2]
@@ -453,13 +454,20 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
     ):
         return ""
     elapsed = reflection.session_elapsed_seconds(session_id)
-    if elapsed is not None and elapsed > 3600 and not reflection.has_valid_terminal_receipt(session_id):
-        return "Terminal reflection required before this session can stop."
-    if elapsed is not None and elapsed > 3600:
+    if (
+        elapsed is not None
+        and elapsed > 3600
+        and not reflection.has_valid_terminal_receipt(session_id)
+    ):
         message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
         missing = [label for label in TERMINAL_LABELS if label not in message]
         if missing:
-            return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
+            return (
+                "Terminal reflection required once this session. Include "
+                + ", ".join(missing)
+                + ", and append one long-session-completion receipt. Do not repeat it after later tool calls."
+            )
+        return "Terminal reflection required before this session can stop."
     loop_reason = learning_session_reason(session_id, event)
     if loop_reason:
         return loop_reason
@@ -741,6 +749,18 @@ def _run_event(event: dict, _host: str) -> int:
         _record_denial_with_significance(event, event_name, tool_name)
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
         return 2
+    if justification is not None:
+        read_reason = justification.file_read_block_reason(
+            project=Path(str(event.get("cwd") or Path.cwd())),
+            event_name=str(normalized_kernel_event.name or event_name),
+            tool_name=str(normalized_kernel_event.tool_name or tool_name),
+            tool_input=tool_input if isinstance(tool_input, dict) else {},
+            commands=commands,
+        )
+        if read_reason:
+            _record_denial_with_significance(event, event_name, tool_name)
+            print(json.dumps({"decision": "block", "reason": read_reason}))
+            return 2
     research_reason = _research_before_mutation_reason(
         event_name,
         bool(normalized_kernel_event.stateful_mutation),

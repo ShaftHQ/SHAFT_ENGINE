@@ -71,7 +71,6 @@ class ChaosEngineHookTest(unittest.TestCase):
         # Stop is excluded on purpose: without a valid Learning Session
         # completion artifact it is fail-closed, not required to be silent.
         fixtures = (
-            {"hook_event_name": "PreToolUse", "tool_name": "Read"},
             {"hook_event_name": "PostToolUse", "tool_name": "Read"},
             {"hook_event_name": "PostToolUseFailure", "tool_name": "Read"},
             {"hook_event_name": "SubagentStop", "stop_hook_active": False},
@@ -89,6 +88,128 @@ class ChaosEngineHookTest(unittest.TestCase):
                         result = self.run_hook(event, environment)
                         self.assertEqual(0, result.returncode)
                         self.assertEqual({}, json.loads(result.stdout))
+
+    def test_shared_tool_help_lists_mempalace_and_graphify(self):
+        result = subprocess.run(  # nosec B603 - fixed repository CLI.
+            [sys.executable, str(ROOT / "chaos-engine/tool.py"), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("mempalace", result.stdout)
+        self.assertIn("graphify", result.stdout)
+        self.assertNotIn("unsupported ChaosEngine tool", result.stderr)
+
+    def test_file_read_without_store_citation_is_blocked(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Read",
+                    "cwd": temporary,
+                    "tool_input": {"file_path": "chaos-engine/hooks/guard.py"},
+                }
+            )
+        self.assertEqual(2, result.returncode)
+        self.assertIn("MemPalace or Graphify", result.stdout + result.stderr)
+
+    def test_file_read_gate_is_identical_on_every_host(self):
+        hosts = (
+            ("claude", {"hook_event_name": "PreToolUse", "tool_name": "Read"}),
+            ("codex", {"hook_event_name": "PreToolUse", "tool_name": "read_file"}),
+            ("gemini", {"hook_event_name": "BeforeTool", "tool_name": "read_file"}),
+            ("grok", {"hook_event_name": "pre_tool_use", "tool_name": "read_file"}),
+            ("copilot", {"hook_event_name": "preToolUse", "toolName": "read_file"}),
+        )
+        reasons = []
+        with tempfile.TemporaryDirectory() as temporary:
+            for host, event in hosts:
+                payload = {
+                    **event,
+                    "cwd": temporary,
+                    "session_id": f"read-gate-{host}",
+                    "tool_input": {"file_path": "chaos-engine/hooks/guard.py"},
+                    "toolArgs": {"file_path": "chaos-engine/hooks/guard.py"},
+                }
+                result = self.run_hook(
+                    payload,
+                    {**os.environ, "CHAOS_ENGINE_HOST": host},
+                )
+                reason = self._deny_reason(result)
+                with self.subTest(host=host):
+                    self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                    self.assertIn("MemPalace or Graphify", reason)
+                reasons.append(reason)
+        self.assertEqual(1, len(set(reasons)))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            ledger = Path(temporary) / ".chaos-engine-state"
+            ledger.mkdir()
+            (ledger / "retrieve-justification.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "citations": ["chaos-engine/hooks/guard.py"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            allows = []
+            for host, event in hosts:
+                payload = {
+                    **event,
+                    "cwd": temporary,
+                    "session_id": f"read-allow-{host}",
+                    "tool_input": {"file_path": "chaos-engine/hooks/guard.py"},
+                    "toolArgs": {"file_path": "chaos-engine/hooks/guard.py"},
+                }
+                result = self.run_hook(
+                    payload,
+                    {**os.environ, "CHAOS_ENGINE_HOST": host},
+                )
+                with self.subTest(host=host, phase="cited"):
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                allows.append(result.returncode)
+        self.assertEqual([0, 0, 0, 0, 0], allows)
+
+    def test_store_query_is_not_a_file_read(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Bash",
+                    "cwd": temporary,
+                    "session_id": "store-help",
+                    "tool_input": {
+                        "command": "python3 .chaos-engine/tool.py --help && python3 scripts/agents/knowledge_stores.py --help"
+                    },
+                }
+            )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_preventive_matcher_invokes_the_guard_for_file_reads(self):
+        matchers = json.loads(
+            (ROOT / "chaos-engine/hooks/matchers.json").read_text(encoding="utf-8")
+        )
+        pattern = "|".join(matchers["preventive"])
+        for tool in ("Read", "read_file", "Grep", "grep_search", "Glob", "list_dir"):
+            with self.subTest(tool=tool):
+                self.assertRegex(tool, pattern)
+
+    def _deny_reason(self, result) -> str:
+        rendered = (result.stdout or result.stderr or "").strip() or "{}"
+        payload = json.loads(rendered)
+        if isinstance(payload.get("reason"), str):
+            return payload["reason"]
+        if isinstance(payload.get("permissionDecisionReason"), str):
+            return payload["permissionDecisionReason"]
+        specific = payload.get("hookSpecificOutput")
+        if isinstance(specific, dict):
+            for key in ("permissionDecisionReason", "reason"):
+                if isinstance(specific.get(key), str):
+                    return specific[key]
+        return rendered
 
     def _hook_decision_payload(self, result):
         rendered = (result.stdout or "").strip() or (result.stderr or "").strip() or "{}"
@@ -677,11 +798,18 @@ process.stderr.write(result.stderr || '');
                 },
                 environment,
             )
+            ledger = Path(temporary) / ".chaos-engine-state"
+            ledger.mkdir()
+            (ledger / "retrieve-justification.json").write_text(
+                json.dumps({"schemaVersion": 1, "citations": ["chaos-engine/hooks/guard.py"]}),
+                encoding="utf-8",
+            )
             diagnosis = self.run_hook(
                 {
                     "hook_event_name": "PreToolUse",
                     "tool_name": "PowerShell",
-                    "tool_input": {"command": "rg reflection scripts"},
+                    "cwd": temporary,
+                    "tool_input": {"command": "rg reflection chaos-engine/hooks/guard.py"},
                     "session_id": "portable-reflection",
                 },
                 environment,
@@ -748,7 +876,7 @@ process.stderr.write(result.stderr || '');
             )
             self.assertEqual(0, delivered.returncode)
             with patch.dict(os.environ, environment):
-                self.assertFalse(reflection.has_valid_terminal_receipt("portable-delivery"))
+                self.assertTrue(reflection.has_valid_terminal_receipt("portable-delivery"))
 
     def test_reflection_receipt_alone_does_not_clear_stop_after_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:

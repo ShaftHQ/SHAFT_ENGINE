@@ -3,6 +3,7 @@
     "Task", "Agent", "spawn_agent", "collaboration[.]spawn_agent", "task", "agent",
     "Bash", "PowerShell", "shell_command", "exec_command", "functions[.]exec", "run_shell_command", "run_in_terminal",
     "Write", "Edit", "NotebookEdit", "apply_patch", "write_file", "create_file", "edit_file", "replace", "replace_string_in_file", "multi_replace_string_in_file",
+    "Read", "read_file", "read_many_files", "Grep", "grep_search", "Glob", "list_dir",
     "store",
     "mcp__[^|]*memory__(?:remember_memory|save_memory_patch)",
     "mcp__mempalace__mempalace_(?:add_drawer|checkpoint|create_tunnel|delete_by_source|delete_drawer|delete_hallway|delete_tunnel|diary_write|kg_(?:add|invalidate|supersede)|mine|sync|update_drawer)"

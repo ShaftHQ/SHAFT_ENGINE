@@ -14,7 +14,9 @@ state still fails closed for mutation and fail-open as an advisory.
 
 After this gate, freeze the base commit, create a dedicated `ChaosEngine/*`
 branch and linked worktree rooted at it, and perform planning, discovery, and
-implementation there. SessionStart creates or reuses one sibling detached
+implementation there. Commit the fix on that branch before the next turn.
+Uncommitted edits on the primary checkout are not delivery, and the
+fresh-primary gate may discard them. SessionStart creates or reuses one sibling detached
 session worktree named from the host session_id; the agent then creates the
 `ChaosEngine/*` branch inside it. Stop never deletes that worktree. SessionEnd
 removes it only after merge is recorded and the tree is clean, keeping the

@@ -155,6 +155,25 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         self.assertEqual("retrieve-orchestrator", payload["kind"])
         self.assertIn(payload["status"], {"used", "skipped", "degraded"})
 
+    def test_used_receipt_includes_a_bounded_excerpt(self):
+        body = "src=chaos-engine/hooks/guard.py L714\n" + ("x" * 5000)
+        completed = mock.Mock(returncode=0, stdout=body, stderr="")
+        with (
+            mock.patch.object(self.retrieve.subprocess, "run", return_value=completed),
+            mock.patch.object(self.retrieve, "_tool_py", return_value=ROOT / "chaos-engine/tool.py"),
+            mock.patch.object(self.retrieve, "_record_store_citations"),
+        ):
+            receipt = self.retrieve._run_store(ROOT, "graphify", "what calls guard")
+        self.assertEqual("used", receipt["status"])
+        self.assertEqual(
+            [{"path": "chaos-engine/hooks/guard.py", "line": 714}],
+            receipt["hits"],
+        )
+        self.assertIn("chaos-engine/hooks/guard.py", receipt["excerpt"])
+        self.assertLessEqual(len(receipt["excerpt"].encode("utf-8")), 800)
+        self.assertEqual(len(receipt["excerpt"].encode("utf-8")), receipt["bytes"])
+        self.assertLess(len(receipt["excerpt"]), len(body))
+
     def test_portable_learning_finalize_no_draft_prs(self):
         with tempfile.TemporaryDirectory() as temporary:
             cwd = Path.cwd()
