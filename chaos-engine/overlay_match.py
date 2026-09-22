@@ -5,10 +5,15 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import os
+import re
 import secrets
+import subprocess  # nosec B404 - git show of a validated commit, no shell
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 SOURCE_DIR = "chaos-engine"
@@ -51,6 +56,106 @@ def _install_module():
 def owned_source_files(source: Path) -> tuple[Path, ...]:
     """Same payload source_files() copies for distribution=repository."""
     return _install_module().source_files(source, REPOSITORY_DISTRIBUTION)
+
+
+_GIT_COMMIT = re.compile(r"[0-9a-f]{40}")
+_GIT_RELATIVE = re.compile(r"[A-Za-z0-9_./+-]+")
+
+
+def _git_show_owned(project: Path, commit: str, relative: str) -> bytes | None:
+    """Return the blob for one owned path, or None when git cannot show it."""
+    if _GIT_COMMIT.fullmatch(commit) is None or _GIT_RELATIVE.fullmatch(relative) is None:
+        return None
+    if ".." in Path(relative).parts:
+        return None
+    shown = subprocess.run(  # nosec B603 B607 - fixed git binary, validated commit and path
+        ["git", "-C", str(project), "show", f"{commit}:chaos-engine/{relative}"],
+        capture_output=True,
+        check=False,
+        shell=False,
+    )
+    if shown.returncode != 0:
+        return None
+    return shown.stdout
+
+
+def _owned_rels_at_commit(project: Path, commit: str) -> list[str] | None:
+    """Owned paths from the commit tree, including paths the working tree lacks."""
+    archived = subprocess.run(  # nosec B603 B607 - fixed git archive of one tree
+        ["git", "-C", str(project), "archive", commit, "chaos-engine"],
+        capture_output=True,
+        check=False,
+        shell=False,
+    )
+    if archived.returncode != 0 or not archived.stdout:
+        return None
+    with tempfile.TemporaryDirectory() as temporary:
+        with tarfile.open(fileobj=io.BytesIO(archived.stdout), mode="r:") as bundle:
+            bundle.extractall(temporary, filter="data")  # nosec B202 - archive of our own commit
+        source = Path(temporary) / "chaos-engine"
+        if not (source / "skills/chaos-engine/SKILL.md").is_file():
+            return None
+        return [path.relative_to(source).as_posix() for path in owned_source_files(source)]
+
+
+def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> list[str] | None:
+    if _GIT_COMMIT.fullmatch(commit) is None:
+        return None
+    probe = subprocess.run(  # nosec B603 B607 - fixed git binary, validated commit
+        ["git", "-C", str(project), "cat-file", "-e", f"{commit}^{{commit}}"],
+        capture_output=True,
+        check=False,
+        shell=False,
+    )
+    if probe.returncode != 0:
+        return None
+    relatives = _owned_rels_at_commit(project, commit)
+    if relatives is None:
+        return None
+    differing: list[str] = []
+    for relative in relatives:
+        current = tree / relative
+        blob = _git_show_owned(project, commit, relative)
+        if blob is None or not current.is_file() or current.read_bytes() != blob:
+            differing.append(relative)
+    return differing
+
+
+def _apply_commit_byte_gate(result: dict[str, object], core: dict[str, object], project: Path) -> bool:
+    """True when the commit object decides the doctor result and the caller must return."""
+    commit = _manifest_commit(project)
+    if not commit:
+        return False
+    overlay_diff = owned_tree_differs_from_commit(project, project / OVERLAY_DIR, commit)
+    source_diff = owned_tree_differs_from_commit(project, project / SOURCE_DIR, commit)
+    if overlay_diff is None or source_diff is None:
+        return False
+    if not overlay_diff:
+        core["coreMatchesSource"] = True
+        clear_overlay_handoff(project)
+        return True
+    if not source_diff:
+        return False
+    result["status"] = "recovery-required"
+    core["status"] = "recovery-required"
+    core["detail"] = "overlay-commit-mismatch"
+    core["coreMatchesSource"] = False
+    core["fixNext"] = (
+        "Owned overlay bytes differ from the manifest commit and local "
+        "SOURCE is not that commit. Do not rewrite manifest file digests."
+    )
+    return True
+
+
+def _manifest_commit(project: Path) -> str | None:
+    manifest_path = project / OVERLAY_DIR / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    source = manifest.get("source") if isinstance(manifest, dict) else None
+    commit = source.get("commit") if isinstance(source, dict) else None
+    return commit if isinstance(commit, str) else None
 
 
 def core_matches_source(project: Path) -> dict[str, object]:
@@ -246,6 +351,9 @@ def apply_doctor_overlay_match(
     matched = core_matches_source(project)
     core = components.get("core")
     if not isinstance(core, dict):
+        return
+
+    if _apply_commit_byte_gate(result, core, Path(project)):
         return
 
     heal_error: str | None = None
