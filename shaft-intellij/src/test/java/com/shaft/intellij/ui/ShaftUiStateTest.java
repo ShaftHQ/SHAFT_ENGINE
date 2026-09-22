@@ -40,6 +40,13 @@ class ShaftUiStateTest {
     }
 
     @Test
+    void restoredWorkflowLabelUsesStoredValueOrDefault() {
+        assertEquals("default", ShaftUiState.restoredWorkflowLabel(null));
+        assertEquals("default", ShaftUiState.restoredWorkflowLabel("  "));
+        assertEquals("Inspector", ShaftUiState.restoredWorkflowLabel("Inspector"));
+    }
+
+    @Test
     void featureSplitDividerRoundTripsThroughAFakePropertiesComponent() {
         ShaftUiState state = new ShaftUiState(new FakePropertiesComponent());
 

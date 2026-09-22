@@ -56,4 +56,12 @@ final class ShaftUiState {
             properties.setValue(FEATURE_SPLIT_DIVIDER_KEY, value, Integer.MIN_VALUE);
         }
     }
+
+    /** Stored workflow label, or {@code default} when nothing was persisted. */
+    static String restoredWorkflowLabel(String saved) {
+        if (saved == null || saved.isBlank()) {
+            return "default";
+        }
+        return saved;
+    }
 }
