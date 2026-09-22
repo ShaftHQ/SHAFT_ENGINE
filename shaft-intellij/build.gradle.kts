@@ -186,7 +186,7 @@ tasks {
 
     processResources {
         inputs.property("pluginVersion", project.version.toString())
-        filesMatching("messages/ShaftBundle.properties") {
+        filesMatching("messages/*.properties") {
             expand("pluginVersion" to project.version.toString())
         }
         // Bundles a build-time copy of shaft-mcp's canonical tool catalog (design doc Decision 4/5;

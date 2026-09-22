@@ -35,7 +35,7 @@
     },
     {
       "id": "allow-read-tool",
-      "policy": "non-mutation-allow",
+      "policy": "retrieve-before-read",
       "ratchet": "hooks",
       "event": {
         "hook_event_name": "PreToolUse",
@@ -46,8 +46,11 @@
         }
       },
       "expect": {
-        "exit_code": 0,
-        "decision": "allow"
+        "exit_code": 2,
+        "decision": "deny",
+        "reason_substrings": [
+          "MemPalace or Graphify"
+        ]
       }
     },
     {

@@ -4,7 +4,7 @@
 
 Any delivery that uses a READY local OpenAI-compat / llamacpp / FreeToken coder
 through [local-agency](../SKILL.md) `dispatch.py`, especially small-context
-coding checkpoints (for example Qwen2.5-Coder-7B on `127.0.0.1:8080`).
+coding checkpoints on a loopback OpenAI-compat server.
 
 The **host process-owner** is teacher / mentor / coach / consultant. The local
 model is a **mechanical runner** (and, with a locator-only CE brief, a bounded
@@ -36,7 +36,22 @@ Orchestrator writes one idempotent script with exact paths. Local prompt is
 **only** that executable line (see Mechanical dispatch in the skill). Commit
 stays host-owned.
 
-### B. RED → GREEN codegen
+### B. Fixed-signature chat (when tool calls are fake)
+
+Use this only when message content holds the tool JSON and `tool_calls` is
+null. Exit 0 with no worktree change and no tool JSON stays on the bash retry
+in the table below.
+
+Ask for one method or one properties file. Temperature 0. Cap generation
+small. Put the exact signature, or the exact property lines, in the prompt.
+No skill body.
+
+Host gate for a method: strip one fence, require the signature, reject a
+wrapping class or `main`, splice only that method. Host gate for properties:
+exact non-empty lines, no fence. Run the one contract test. On failure, the
+next prompt is the failing assertion only.
+
+### C. RED → GREEN codegen
 
 1. Host lands failing contract tests first (or asks the local writer to add them
    from a precise spec, then verifies RED).
@@ -46,14 +61,16 @@ stays host-owned.
    minimal correct snippet or prior green file and ask for an equivalent under
    the new names/paths.
 
-### C. Design / spec turns
+### D. Design / spec turns
 
 Inject a locator-only system brief via `chaos-engine/ce_brief.py` when present
 (`python3 chaos-engine/ce_brief.py --json`; #6067). Do not paste full SKILL bodies.
 Host still reviews the design before implementation.
 
-Follow the [design-turn contract](design-turn-contract.md): require a verbatim
-`CE_BRIEF_LOCATORS:` closing line, reject vague product labels, and reject specs
+Follow the [design-turn contract](design-turn-contract.md). The first design
+request is a skeleton that already contains the exact `CE_BRIEF_LOCATORS` line.
+The writer must leave that line unchanged. Accept the draft only after
+`design_turn_gate.py` citation passes. Reject vague product labels and specs
 that name non-existent files unless marked `NEW`. Fold every durable reject into
 this contract (keep it short).
 
@@ -74,11 +91,12 @@ claim READY from a box probe of the work-machine ports.
 | Symptom | Coach move |
 | --- | --- |
 | EXIT 0, zero tool calls / no worktree change | Writer failure — re-run one bounded bash apply; do not praise |
+| EXIT 0 and the tool JSON is only in message content (`tool_calls` null) | Stop OpenCode. Switch to fixed-signature chat in section B |
 | `context_length_exceeded` | Shrink prompt + tool output; drop high reasoning; one command only |
 | Bad imports / empty file / syntax error after free-form | Worked-example reproduce + runtime evidence |
 | Inventory / reachability CI red | Host updates catalogs + skill links; refresh README inventory with the validator `--write` |
 | Task child cannot see work-machine loopback | Stop Task writer; parent Shell `machineId` (#6051) |
-| Design output cites fake CE locators / missing `CE_BRIEF_LOCATORS` | Reject; re-ask with contract + paste injected locator list |
+| Design output cites fake CE locators / missing `CE_BRIEF_LOCATORS` | Reject. The first ask is the frozen `CE_BRIEF_LOCATORS` skeleton. Accept only after `design_turn_gate.py` citation |
 | Spec names missing files without `NEW` | Reject; host pastes `rg`/`find` evidence |
 
 ## After every delivery

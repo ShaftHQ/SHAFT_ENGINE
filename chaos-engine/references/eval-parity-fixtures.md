@@ -31,7 +31,7 @@ runner: identical CE policy, host-native deny/context payloads.
 | ID | Policy | Expected |
 | --- | --- | --- |
 | `deny-catastrophic-rm-rf-root` | catastrophic deny | exit 2 + native deny on all hosts |
-| `allow-read-tool` | non-mutation allow | exit 0, no deny payload |
+| `allow-read-tool` | retrieve-before-read | exit 2 when the path has no MemPalace or Graphify citation |
 | `allow-safe-echo` | non-mutation allow | exit 0 for `echo hello` |
 | `sessionstart-locator-budget` | SessionStart locator | ≤4096 bytes, companion paths, identical context |
 | `research-before-mutation-enforced` | research receipt gate | deny until preflight when env enforced |

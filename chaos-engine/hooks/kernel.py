@@ -226,6 +226,9 @@ TOOL_ALIASES = {
     "read_file": "Read",
     "readmanyfiles": "Read",
     "read_many_files": "Read",
+    "glob": "Glob",
+    "list_dir": "Glob",
+    "listdir": "Glob",
     "grep": "Grep",
     "grepsearch": "Grep",
     "grep_search": "Grep",
@@ -246,7 +249,7 @@ TOOL_ALIASES = {
     "apply_patch": "apply_patch",
 }
 
-_DIRECT_READ_ONLY_TOOLS = frozenset({"glob", "grep", "read"})
+_DIRECT_READ_ONLY_TOOLS = frozenset({"glob", "grep", "listdir", "read"})
 
 
 @dataclass(frozen=True)

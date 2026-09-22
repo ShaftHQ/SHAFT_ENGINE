@@ -52,5 +52,29 @@ class DesignTurnGateTest(unittest.TestCase):
         self.assertTrue(result["ok"])
 
 
+class FixedSignatureCoachTest(unittest.TestCase):
+    def test_fake_tool_call_switches_to_fixed_signature_chat(self):
+        coach = (
+            ROOT / "chaos-engine/skills/local-agency/references/coach-loop.md"
+        ).read_text(encoding="utf-8")
+        skill = (ROOT / "chaos-engine/skills/local-agency/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("tool_calls` null", coach)
+        self.assertIn("Use this only when message content holds the tool JSON", coach)
+        self.assertIn("Host gate for properties", coach)
+        self.assertIn("fixed-signature chat", coach)
+        self.assertIn("tool_calls` is null", skill)
+        contract = (
+            ROOT / "chaos-engine/skills/local-agency/references/design-turn-contract.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("coach-loop.md) section D", contract)
+        self.assertIn(
+            "The first design request is a skeleton that already contains the exact",
+            contract,
+        )
+        self.assertIn("design_turn_gate.py` citation passes", contract)
+        self.assertIn("request is a skeleton that already contains the exact", coach)
+        self.assertIn("design_turn_gate.py` citation", coach)
+
+
 if __name__ == "__main__":
     unittest.main()

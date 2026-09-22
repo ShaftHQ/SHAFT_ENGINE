@@ -91,6 +91,7 @@
     "CLAUDE.md",
     ".agents/skills/README.md",
     "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/skills/local-agency/references/*.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",
     ".github/copilot-instructions.md",

@@ -220,14 +220,46 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
         return previous != 0 && now - previous < THROTTLE_MILLIS;
     }
 
+
+    /**
+     * Pure status-detail contract for Doctor/Heal recovery notifications. Package-private for unit tests.
+     *
+     * @param detail notification body
+     * @return detail, or empty when null
+     */
+    static String logStatusDetail(String detail) {
+        return detail == null ? "" : detail;
+    }
+
+    /**
+     * User-visible success/status update via {@link ShaftNotifier#info}.
+     *
+     * @param project current project
+     * @param detail  status detail
+     */
+    static void logStatus(Project project, String detail) {
+        ShaftNotifier.info(project, "SHAFT Doctor", logStatusDetail(detail));
+    }
+
+    /**
+     * User-visible warning via {@link ShaftNotifier#warn}, sharing the same detail contract.
+     *
+     * @param project current project
+     * @param detail  warning detail
+     */
+    static void logStatusWarn(Project project, String detail) {
+        ShaftNotifier.warn(project, "SHAFT Doctor", logStatusDetail(detail));
+    }
+
     private static void notifyDoctorAvailable(
             Project project, String testIdentity, @Nullable String allureResultsPath, @Nullable String tracePath) {
         Notification notification = NotificationGroupManager.getInstance()
                 .getNotificationGroup(GROUP_ID)
                 .createNotification(
                         "Test run failed",
-                        "SHAFT Doctor is diagnosing the failure now -- open the SHAFT Assistant tab for the "
-                                + "root cause, or re-run it below.",
+                        logStatusDetail(
+                                "SHAFT Doctor is diagnosing the failure now -- open the SHAFT Assistant tab for the "
+                                        + "root cause, or re-run it below."),
                         NotificationType.WARNING);
         notification.addAction(new NotificationAction("Diagnose with SHAFT Doctor") {
             @Override
@@ -254,6 +286,7 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
      */
     private static void openDoctorWorkflow(
             Project project, @Nullable String allureResultsPath, @Nullable String tracePath) {
+        logStatus(project, "Running SHAFT Doctor diagnosis.");
         if (allureResultsPath != null) {
             ShaftToolWorkflowLauncher.runAndRender(
                     project, "doctor_analyze_failed_allure", doctorArguments(allureResultsPath));
@@ -268,6 +301,7 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
      * than only prefilling the composer (issue #3547).
      */
     private static void openHealerWorkflow(Project project, String testIdentity) {
+        logStatus(project, "Running Healer for " + logStatusDetail(testIdentity) + ".");
         ShaftToolWorkflowLauncher.runAndRender(project, "healer_run_failed_test", healerArguments(testIdentity));
     }
 

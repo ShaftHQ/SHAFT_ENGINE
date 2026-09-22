@@ -16,6 +16,11 @@ public final class ShaftStatusPresentation {
         throw new IllegalStateException("Utility class");
     }
 
+    /** Non-negative elapsed milliseconds for status text. */
+    public static String formatElapsed(long elapsedMillis) {
+        return Math.max(0L, elapsedMillis) + " ms";
+    }
+
     public static Color success() {
         // Light leg unchanged at 0x0A7F26 (5.15:1 on white). Dark leg 0x81C784 clears WCAG's 4.5:1
         // minimum against the Darcula panel background (~0x3C3F41, 5.27:1) -- see

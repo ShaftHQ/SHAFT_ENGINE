@@ -820,6 +820,11 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         return STAGE_DESIGN.equals(stage) ? STAGE_DESIGN : stage;
     }
 
+    /** Label of the persisted workflow, or {@code default} when unset. */
+    String restoredWorkflowLabel() {
+        return ShaftUiState.restoredWorkflowLabel(ShaftUiState.getInstance(project).workflowView());
+    }
+
     /**
      * Restores the last-selected workflow view across IDE restarts (issue #3636), keyed by
      * {@link WorkflowView#label()} -- the same stable string already used as the {@code CardLayout}

@@ -1102,7 +1102,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
         preventive = module.PRE_TOOL_MATCHER
         observational = module.POST_TOOL_MATCHER
 
-        for tool in ("Read", "Grep", "WebSearch", "WebFetch", "web__run", "update_plan"):
+        for tool in ("Read", "read_file", "Grep", "Glob", "list_dir"):
+            self.assertIsNotNone(re.fullmatch(preventive, tool), tool)
+        for tool in ("WebSearch", "WebFetch", "web__run", "update_plan"):
             self.assertIsNone(re.fullmatch(preventive, tool), tool)
             self.assertIsNone(re.fullmatch(observational, tool), tool)
         for tool in ("Bash", "PowerShell", "apply_patch", "Write", "spawn_agent"):
@@ -4405,11 +4407,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             with mock.patch.object(module.sys, "argv", ["tool.py", "mempalace", "status"]):
                 with mock.patch.object(
                     module, "shared_project_root", return_value=project
-                ), mock.patch.object(module, "resolve_command", return_value=command):
-                    with mock.patch.object(module.subprocess, "call", return_value=0) as call:
+                ), mock.patch.object(module, "resolve_command", return_value=[str(command)]):
+                    completed = mock.Mock(returncode=0, stdout="", stderr="")
+                    with mock.patch.object(module.subprocess, "run", return_value=completed) as run:
                         self.assertEqual(0, module.main())
 
-            self.assertEqual("1", call.call_args.kwargs["env"]["PYTHONDONTWRITEBYTECODE"])
+            self.assertEqual("1", run.call_args.kwargs["env"]["PYTHONDONTWRITEBYTECODE"])
 
     def test_host_tests_are_reached_by_pull_request_gate(self):
         budget = json.loads(

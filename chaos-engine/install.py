@@ -2185,8 +2185,12 @@ def recover_transaction(project: Path) -> None:
 
 
 
-def sync_repository_overlay_from_source(project: Path) -> None:
-    """After core publish, heal `.chaos-engine` from local SOURCE on origin checkouts."""
+def sync_repository_overlay_from_source(project: Path, commit: str | None = None) -> None:
+    """After core publish, heal `.chaos-engine` from local SOURCE on origin checkouts.
+
+    When ``commit`` is a git object and local SOURCE bytes are not that commit,
+    keep the published payload (#6121).
+    """
     match_path = Path(__file__).resolve().with_name("overlay_match.py")
     if not match_path.is_file():
         return
@@ -2199,6 +2203,9 @@ def sync_repository_overlay_from_source(project: Path) -> None:
         module = _ilu.module_from_spec(spec)
         spec.loader.exec_module(module)
         if not getattr(module, "is_repository_checkout", lambda _p: False)(project):
+            return
+        differs = getattr(module, "owned_tree_differs_from_commit", None)
+        if commit and callable(differs) and differs(project, project / "chaos-engine", commit):
             return
         module.sync_overlay_from_source(project)
     except (OSError, RuntimeError, ValueError, AttributeError, ImportError):
@@ -2308,7 +2315,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                         finally:
                             if temporary_manifest.exists():
                                 temporary_manifest.unlink()
-                    sync_repository_overlay_from_source(project)
+                    sync_repository_overlay_from_source(project, commit)
                     return target
                 # Drift at the same commit: fall through to rematerialize.
         if backup.exists():
@@ -2357,7 +2364,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         finally:
             if stage.exists():
                 shutil.rmtree(stage)
-    sync_repository_overlay_from_source(project)
+    sync_repository_overlay_from_source(project, commit)
     return target
 
 
@@ -3548,7 +3555,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         finally:
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
-        sync_repository_overlay_from_source(project)
+        sync_repository_overlay_from_source(project, commit)
         return target
 
 

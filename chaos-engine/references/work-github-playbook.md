@@ -241,6 +241,9 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
    unit-red urgency ([codacy-complexity-gate](codacy-complexity-gate.md)):
    extract kind-family helpers immediately; do not wait for unit jobs when
    Complexity already failed.
+
+Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
+`resolveReviewThread` before returning to the watch.
 8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
 
 #### Nightly full-matrix autoclose
