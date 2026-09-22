@@ -69,6 +69,7 @@ class OverlayCommitBytes6121Test(unittest.TestCase):
                 project, project / ".chaos-engine", new_sha
             )
             self.assertIn("identity.md", differing)
+            self.assertIn("commit-only-6121.txt", differing)
             self.assertIsNone(
                 self.overlay.owned_tree_differs_from_commit(
                     project, project / ".chaos-engine", "b" * 40
@@ -93,6 +94,10 @@ class OverlayCommitBytes6121Test(unittest.TestCase):
             )
             text = (installed / "identity.md").read_text(encoding="utf-8")
             self.assertIn("commit-byte-marker-6121", text)
+            self.assertEqual(
+                "only-on-commit\n",
+                (installed / "commit-only-6121.txt").read_text(encoding="utf-8"),
+            )
             manifest = json.loads((installed / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(new_sha, manifest["source"]["commit"])
 
@@ -132,7 +137,10 @@ class OverlayCommitBytes6121Test(unittest.TestCase):
         git(project, "checkout", "-b", "newer")
         identity = project / "chaos-engine" / "identity.md"
         identity.write_text(identity.read_text(encoding="utf-8") + MARKER, encoding="utf-8")
-        git(project, "add", "chaos-engine/identity.md")
+        (project / "chaos-engine" / "commit-only-6121.txt").write_text(
+            "only-on-commit\n", encoding="utf-8"
+        )
+        git(project, "add", "chaos-engine/identity.md", "chaos-engine/commit-only-6121.txt")
         git(project, "commit", "-m", "new")
         new_sha = git(project, "rev-parse", "HEAD")
         source_new = root / "source-new"

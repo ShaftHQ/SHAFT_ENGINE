@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import re
 import secrets
 import subprocess  # nosec B404 - git show of a validated commit, no shell
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 SOURCE_DIR = "chaos-engine"
@@ -76,6 +79,25 @@ def _git_show_owned(project: Path, commit: str, relative: str) -> bytes | None:
     return shown.stdout
 
 
+def _owned_rels_at_commit(project: Path, commit: str) -> list[str] | None:
+    """Owned paths from the commit tree, including paths the working tree lacks."""
+    archived = subprocess.run(  # nosec B603 B607 - fixed git archive of one tree
+        ["git", "-C", str(project), "archive", commit, "chaos-engine"],
+        capture_output=True,
+        check=False,
+        shell=False,
+    )
+    if archived.returncode != 0 or not archived.stdout:
+        return None
+    with tempfile.TemporaryDirectory() as temporary:
+        with tarfile.open(fileobj=io.BytesIO(archived.stdout), mode="r:") as bundle:
+            bundle.extractall(temporary, filter="data")  # nosec B202 - archive of our own commit
+        source = Path(temporary) / "chaos-engine"
+        if not (source / "skills/chaos-engine/SKILL.md").is_file():
+            return None
+        return [path.relative_to(source).as_posix() for path in owned_source_files(source)]
+
+
 def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> list[str] | None:
     if _GIT_COMMIT.fullmatch(commit) is None:
         return None
@@ -87,10 +109,11 @@ def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> li
     )
     if probe.returncode != 0:
         return None
+    relatives = _owned_rels_at_commit(project, commit)
+    if relatives is None:
+        return None
     differing: list[str] = []
-    source = project / "chaos-engine"
-    for file in owned_source_files(source):
-        relative = file.relative_to(source).as_posix()
+    for relative in relatives:
         current = tree / relative
         blob = _git_show_owned(project, commit, relative)
         if blob is None or not current.is_file() or current.read_bytes() != blob:
