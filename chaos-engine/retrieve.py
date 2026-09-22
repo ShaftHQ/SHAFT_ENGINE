@@ -68,6 +68,34 @@ def _tool_py(project: Path) -> Path | None:
     return None
 
 
+_HIT = re.compile(
+    r"(?P<path>(?:[\w.-]+/)+[\w.-]+\.[A-Za-z0-9]+)"
+    r"(?::L?(?P<colon>\d+)|\s+L(?P<space>\d+))?"
+)
+_HIT_LIMIT = 8
+_EXCERPT_WITH_HITS = 800
+
+
+def _structured_hits(body: str, limit: int = _HIT_LIMIT) -> list[dict[str, object]]:
+    """Repo-relative path and line, deduped. Absolute paths are not added."""
+    found: list[dict[str, object]] = []
+    seen: set[tuple[str, str | None]] = set()
+    for match in _HIT.finditer(body):
+        path = match.group("path")
+        line_text = match.group("colon") or match.group("space")
+        key = (path, line_text)
+        if key in seen:
+            continue
+        seen.add(key)
+        item: dict[str, object] = {"path": path}
+        if line_text:
+            item["line"] = int(line_text)
+        found.append(item)
+        if len(found) >= limit:
+            break
+    return found
+
+
 def _bounded_excerpt(body: str, limit: int = 4096) -> str:
     """Return the store text the caller can use, capped so a receipt stays small."""
     raw = body.encode("utf-8")
@@ -148,12 +176,14 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             "reason": "no-relevant-hits",
             "query": query,
         }
-    excerpt = _bounded_excerpt(body)
+    hits = _structured_hits(body)
+    excerpt = _bounded_excerpt(body, _EXCERPT_WITH_HITS if hits else 4096)
     receipt = {
         "store": store,
         "status": STATUS_USED,
         "reason": "hits",
         "query": query,
+        "hits": hits,
         "excerpt": excerpt,
         "bytes": len(excerpt.encode("utf-8")),
     }

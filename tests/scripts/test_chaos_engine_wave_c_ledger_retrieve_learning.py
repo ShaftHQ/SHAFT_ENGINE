@@ -165,8 +165,12 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         ):
             receipt = self.retrieve._run_store(ROOT, "graphify", "what calls guard")
         self.assertEqual("used", receipt["status"])
+        self.assertEqual(
+            [{"path": "chaos-engine/hooks/guard.py", "line": 714}],
+            receipt["hits"],
+        )
         self.assertIn("chaos-engine/hooks/guard.py", receipt["excerpt"])
-        self.assertLessEqual(len(receipt["excerpt"].encode("utf-8")), 4096)
+        self.assertLessEqual(len(receipt["excerpt"].encode("utf-8")), 800)
         self.assertEqual(len(receipt["excerpt"].encode("utf-8")), receipt["bytes"])
         self.assertLess(len(receipt["excerpt"]), len(body))
 
