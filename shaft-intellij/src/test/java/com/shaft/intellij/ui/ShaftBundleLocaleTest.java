@@ -17,6 +17,8 @@ class ShaftBundleLocaleTest {
 
         assertEquals("es", bundle.getLocale().getLanguage());
         assertEquals("SHAFT", bundle.getString("toolwindow.stripe.SHAFT"));
-        assertFalse(bundle.getString("shaft.plugin.version").isBlank());
+        String version = bundle.getString("shaft.plugin.version");
+        assertFalse(version.isBlank());
+        assertFalse(version.contains("${"), version);
     }
 }
