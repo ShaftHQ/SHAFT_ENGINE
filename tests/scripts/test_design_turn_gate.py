@@ -67,6 +67,13 @@ class FixedSignatureCoachTest(unittest.TestCase):
             ROOT / "chaos-engine/skills/local-agency/references/design-turn-contract.md"
         ).read_text(encoding="utf-8")
         self.assertIn("coach-loop.md) section D", contract)
+        self.assertIn(
+            "The first design request is a skeleton that already contains the exact",
+            contract,
+        )
+        self.assertIn("design_turn_gate.py` citation passes", contract)
+        self.assertIn("request is a skeleton that already contains the exact", coach)
+        self.assertIn("design_turn_gate.py` citation", coach)
 
 
 if __name__ == "__main__":
