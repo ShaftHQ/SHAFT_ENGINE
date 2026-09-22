@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -16,6 +17,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * unreadable dark-mode fallback fails the build.
  */
 class ShaftStatusPresentationTest {
+
+    @Test
+    void formatElapsedClampsNegativeAndPrintsMilliseconds() {
+        assertEquals("0 ms", ShaftStatusPresentation.formatElapsed(-5));
+        assertEquals("42 ms", ShaftStatusPresentation.formatElapsed(42));
+    }
+
     /** Darcula panel background used elsewhere in the plugin's screenshot/theme fixtures. */
     private static final Color DARK_PANEL_BACKGROUND = new Color(0x3C3F41);
     private static final Color LIGHT_PANEL_BACKGROUND = Color.WHITE;
