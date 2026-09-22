@@ -38,12 +38,17 @@ stays host-owned.
 
 ### B. Fixed-signature chat (when tool calls are fake)
 
-Use this when OpenCode exits 0 and the worktree did not change. Ask for one
-method or one properties file. Temperature 0. Cap generation small. Put the
-exact signature and the exact expected strings in the prompt. No skill body.
+Use this only when message content holds the tool JSON and `tool_calls` is
+null. Exit 0 with no worktree change and no tool JSON stays on the bash retry
+in the table below.
 
-Host gate: strip one fence, require the signature, reject a wrapping class or
-`main`. Splice only that method. Run the one contract test. On failure, the
+Ask for one method or one properties file. Temperature 0. Cap generation
+small. Put the exact signature, or the exact property lines, in the prompt.
+No skill body.
+
+Host gate for a method: strip one fence, require the signature, reject a
+wrapping class or `main`, splice only that method. Host gate for properties:
+exact non-empty lines, no fence. Run the one contract test. On failure, the
 next prompt is the failing assertion only.
 
 ### C. RED → GREEN codegen

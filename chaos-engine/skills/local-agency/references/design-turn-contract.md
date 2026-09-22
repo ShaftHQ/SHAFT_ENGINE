@@ -56,6 +56,6 @@ unchanged. Prefer this over multi-turn meta rejection text.
 
 ## Related
 
-- [coach-loop.md](coach-loop.md) section C
+- [coach-loop.md](coach-loop.md) section D
 - `ce_brief.py` (#6067)
 - Dispatch modes (#6073)
