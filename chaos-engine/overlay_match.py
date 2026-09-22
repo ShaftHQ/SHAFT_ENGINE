@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -54,11 +55,35 @@ def owned_source_files(source: Path) -> tuple[Path, ...]:
     return _install_module().source_files(source, REPOSITORY_DISTRIBUTION)
 
 
+_GIT_COMMIT = re.compile(r"[0-9a-f]{40}")
+_GIT_RELATIVE = re.compile(r"[A-Za-z0-9_./+-]+")
+
+
+def _git_show_owned(project: Path, commit: str, relative: str) -> bytes | None:
+    """Return the blob for one owned path, or None when git cannot show it."""
+    if _GIT_COMMIT.fullmatch(commit) is None or _GIT_RELATIVE.fullmatch(relative) is None:
+        return None
+    if ".." in Path(relative).parts:
+        return None
+    shown = subprocess.run(
+        ["git", "-C", str(project), "show", f"{commit}:chaos-engine/{relative}"],
+        capture_output=True,
+        check=False,
+        shell=False,
+    )
+    if shown.returncode != 0:
+        return None
+    return shown.stdout
+
+
 def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> list[str] | None:
+    if _GIT_COMMIT.fullmatch(commit) is None:
+        return None
     probe = subprocess.run(
         ["git", "-C", str(project), "cat-file", "-e", f"{commit}^{{commit}}"],
         capture_output=True,
         check=False,
+        shell=False,
     )
     if probe.returncode != 0:
         return None
@@ -66,15 +91,37 @@ def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> li
     source = project / "chaos-engine"
     for file in owned_source_files(source):
         relative = file.relative_to(source).as_posix()
-        shown = subprocess.run(
-            ["git", "-C", str(project), "show", f"{commit}:chaos-engine/{relative}"],
-            capture_output=True,
-            check=False,
-        )
         current = tree / relative
-        if shown.returncode != 0 or not current.is_file() or shown.stdout != current.read_bytes():
+        blob = _git_show_owned(project, commit, relative)
+        if blob is None or not current.is_file() or current.read_bytes() != blob:
             differing.append(relative)
     return differing
+
+
+def _apply_commit_byte_gate(result: dict[str, object], core: dict[str, object], project: Path) -> bool:
+    """True when the commit object decides the doctor result and the caller must return."""
+    commit = _manifest_commit(project)
+    if not commit:
+        return False
+    overlay_diff = owned_tree_differs_from_commit(project, project / OVERLAY_DIR, commit)
+    source_diff = owned_tree_differs_from_commit(project, project / SOURCE_DIR, commit)
+    if overlay_diff is None or source_diff is None:
+        return False
+    if not overlay_diff:
+        core["coreMatchesSource"] = True
+        clear_overlay_handoff(project)
+        return True
+    if not source_diff:
+        return False
+    result["status"] = "recovery-required"
+    core["status"] = "recovery-required"
+    core["detail"] = "overlay-commit-mismatch"
+    core["coreMatchesSource"] = False
+    core["fixNext"] = (
+        "Owned overlay bytes differ from the manifest commit and local "
+        "SOURCE is not that commit. Do not rewrite manifest file digests."
+    )
+    return True
 
 
 def _manifest_commit(project: Path) -> str | None:
@@ -283,29 +330,8 @@ def apply_doctor_overlay_match(
     if not isinstance(core, dict):
         return
 
-    commit = _manifest_commit(Path(project))
-    if commit:
-        overlay_diff = owned_tree_differs_from_commit(
-            Path(project), Path(project) / OVERLAY_DIR, commit
-        )
-        source_diff = owned_tree_differs_from_commit(
-            Path(project), Path(project) / SOURCE_DIR, commit
-        )
-        if overlay_diff is not None and source_diff is not None:
-            if not overlay_diff:
-                core["coreMatchesSource"] = True
-                clear_overlay_handoff(Path(project))
-                return
-            if source_diff:
-                result["status"] = "recovery-required"
-                core["status"] = "recovery-required"
-                core["detail"] = "overlay-commit-mismatch"
-                core["coreMatchesSource"] = False
-                core["fixNext"] = (
-                    "Owned overlay bytes differ from the manifest commit and local "
-                    "SOURCE is not that commit. Do not rewrite manifest file digests."
-                )
-                return
+    if _apply_commit_byte_gate(result, core, Path(project)):
+        return
 
     heal_error: str | None = None
     if matched.get("scope") == "repository" and not matched.get("coreMatchesSource"):
