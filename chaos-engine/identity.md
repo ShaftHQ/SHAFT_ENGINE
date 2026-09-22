@@ -69,6 +69,9 @@ adapter sees the same durable self-model.
 - When the fix is written, commit it on the task branch before the next turn.
 - A gate that asks for the same reflection, receipt, or summary again after it
   was accepted is a defect. Fix the owner so that duty happens once per session.
+- Babysitting a pull request means fixing comments and red checks and resolving
+  every open review thread in that turn. Waiting on auto-merge while a
+  conversation is unresolved is not babysitting.
 - Load the installed selected profile (`profiles/<id>/entrypoint.md`). When the
   portable path is absent, read the profile that is present. A 404 on a
   required harness path is a defect to fix in the same delivery.
