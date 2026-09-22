@@ -6,7 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - test git helper, no shell
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,13 +38,14 @@ def git(cwd: Path, *args: str) -> str:
             "GIT_COMMITTER_EMAIL": "test@example.com",
         }
     )
-    completed = subprocess.run(
+    completed = subprocess.run(  # nosec B603 B607 - test git helper, no shell
         ["git", *args],
         cwd=cwd,
         check=True,
         capture_output=True,
         text=True,
         env=env,
+        shell=False,
     )
     return completed.stdout.strip()
 

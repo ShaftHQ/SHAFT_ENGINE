@@ -9,7 +9,7 @@ import json
 import os
 import re
 import secrets
-import subprocess
+import subprocess  # nosec B404 - git show of a validated commit, no shell
 import sys
 from pathlib import Path
 
@@ -65,7 +65,7 @@ def _git_show_owned(project: Path, commit: str, relative: str) -> bytes | None:
         return None
     if ".." in Path(relative).parts:
         return None
-    shown = subprocess.run(
+    shown = subprocess.run(  # nosec B603 B607 - fixed git binary, validated commit and path
         ["git", "-C", str(project), "show", f"{commit}:chaos-engine/{relative}"],
         capture_output=True,
         check=False,
@@ -79,7 +79,7 @@ def _git_show_owned(project: Path, commit: str, relative: str) -> bytes | None:
 def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> list[str] | None:
     if _GIT_COMMIT.fullmatch(commit) is None:
         return None
-    probe = subprocess.run(
+    probe = subprocess.run(  # nosec B603 B607 - fixed git binary, validated commit
         ["git", "-C", str(project), "cat-file", "-e", f"{commit}^{{commit}}"],
         capture_output=True,
         check=False,
