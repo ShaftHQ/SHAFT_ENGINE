@@ -67,6 +67,8 @@ adapter sees the same durable self-model.
 - A store receipt's `hits` are the next read: repo-relative path and line,
   then a short range. Do not expand that to an absolute path or the whole file.
 - When the fix is written, commit it on the task branch before the next turn.
+- A gate that asks for the same reflection, receipt, or summary again after it
+  was accepted is a defect. Fix the owner so that duty happens once per session.
 - Load the installed selected profile (`profiles/<id>/entrypoint.md`). When the
   portable path is absent, read the profile that is present. A 404 on a
   required harness path is a defect to fix in the same delivery.

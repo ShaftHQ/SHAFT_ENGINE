@@ -414,25 +414,30 @@ def session_elapsed_seconds(session_id: str, now: datetime | None = None) -> flo
 
 
 def has_valid_terminal_receipt(session_id: str) -> bool:
+    """One accepted long-session receipt covers the rest of the session.
+
+    Later tool activity and later failures do not demand another summary.
+    The active-failure list still clears on that receipt, matching
+    ``active_entries``, so the receipt's digest can validate.
+    """
     active: list[dict] = []
     terminal = False
     for item in entries(session_id):
         kind = item.get("kind")
-        if kind == "task-failure" and item.get("attempted") is not False:
-            active.append(item)
-            terminal = False
-        elif kind == "reflection-trigger":
-            active.append(item)
-            terminal = False
-        elif kind in {"task-activity", "platform-outcome", "failure-disposition"}:
-            terminal = False
-        elif kind == "reflection-receipt" and _receipt_clears_active(
-            session_id, item, active
-        ):
+        if kind == "reflection-receipt" and _receipt_clears_active(session_id, item, active):
+            active = []
             if item.get("trigger") == "long-session-completion":
                 terminal = True
-            else:
-                active = []
+        elif kind == "task-failure" and item.get("attempted") is not False:
+            active.append(item)
+        elif kind == "reflection-trigger":
+            active.append(item)
+        elif kind == "failure-disposition" and item.get("disposition") == "non-attempt":
+            active = [
+                candidate
+                for candidate in active
+                if candidate.get("failureId") != item.get("failureId")
+            ]
     return terminal
 
 

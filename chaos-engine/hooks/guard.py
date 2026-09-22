@@ -454,13 +454,20 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
     ):
         return ""
     elapsed = reflection.session_elapsed_seconds(session_id)
-    if elapsed is not None and elapsed > 3600 and not reflection.has_valid_terminal_receipt(session_id):
-        return "Terminal reflection required before this session can stop."
-    if elapsed is not None and elapsed > 3600:
+    if (
+        elapsed is not None
+        and elapsed > 3600
+        and not reflection.has_valid_terminal_receipt(session_id)
+    ):
         message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
         missing = [label for label in TERMINAL_LABELS if label not in message]
         if missing:
-            return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
+            return (
+                "Terminal reflection required once this session. Include "
+                + ", ".join(missing)
+                + ", and append one long-session-completion receipt. Do not repeat it after later tool calls."
+            )
+        return "Terminal reflection required before this session can stop."
     loop_reason = learning_session_reason(session_id, event)
     if loop_reason:
         return loop_reason

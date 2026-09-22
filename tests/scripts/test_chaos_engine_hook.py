@@ -876,7 +876,7 @@ process.stderr.write(result.stderr || '');
             )
             self.assertEqual(0, delivered.returncode)
             with patch.dict(os.environ, environment):
-                self.assertFalse(reflection.has_valid_terminal_receipt("portable-delivery"))
+                self.assertTrue(reflection.has_valid_terminal_receipt("portable-delivery"))
 
     def test_reflection_receipt_alone_does_not_clear_stop_after_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
