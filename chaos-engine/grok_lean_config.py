@@ -15,6 +15,12 @@ LEAN_START = "# CHAOSENGINE-GROK-LEAN:START"
 LEAN_END = "# CHAOSENGINE-GROK-LEAN:END"
 SKILLS_START = "# CHAOSENGINE-GROK-SKILLS:START"
 SKILLS_END = "# CHAOSENGINE-GROK-SKILLS:END"
+UI_START = "# CHAOSENGINE-GROK-UI:START"
+UI_END = "# CHAOSENGINE-GROK-UI:END"
+UI_ASSIGNMENTS = (
+    ("show_thinking_blocks", "true"),
+    ("group_tool_verbs", "false"),
+)
 
 COMPAT_FALSE_KEYS = (
     "hooks",
@@ -155,6 +161,127 @@ def lean_compat_applied(text: str) -> bool:
         if f"{key} = false" not in interior and f"{key}=false" not in interior:
             return False
     return True
+
+
+
+def grok_ui_block() -> str:
+    """Owned ``[ui]`` span. Used only when the user has no ``[ui]`` table."""
+    lines = [UI_START, "[ui]"]
+    for key, value in UI_ASSIGNMENTS:
+        lines.append(f"{key} = {value}")
+    lines.append(UI_END)
+    return "\n".join(lines) + "\n"
+
+
+def _assignment_key(line: str) -> str | None:
+    bare = line.split("#", 1)[0].strip()
+    if not bare or bare.startswith("["):
+        return None
+    key, _sep, _value = bare.partition("=")
+    key = key.strip()
+    return key or None
+
+
+def _ui_table_span(lines: list[str]) -> tuple[int, int] | None:
+    """Return ``[start, end)`` covering a top-level ``[ui]`` table, header included."""
+    start = None
+    for index, line in enumerate(lines):
+        match = _TABLE_HEADER.match(line.strip())
+        if match is None:
+            continue
+        name = match.group(1).strip().strip('"')
+        if start is None:
+            if name == "ui":
+                start = index
+            continue
+        return start, index
+    if start is None:
+        return None
+    return start, len(lines)
+
+
+def _keys_in_ui(lines: list[str], start: int, end: int) -> set[str]:
+    found: set[str] = set()
+    for line in lines[start + 1 : end]:
+        key = _assignment_key(line)
+        if key:
+            found.add(key)
+    return found
+
+
+def merge_grok_ui(text: str) -> str:
+    """Pin thinking visibility without a second ``[ui]`` table or clobbering user keys."""
+    body = _strip_marker_span(text, UI_START, UI_END)
+    lines = body.splitlines()
+    span = _ui_table_span(lines)
+    if span is None:
+        prefix = _ensure_trailing_newline(body)
+        if prefix and not prefix.endswith("\n\n"):
+            prefix = prefix.rstrip("\n") + "\n\n"
+        return prefix + grok_ui_block()
+    start, end = span
+    present = _keys_in_ui(lines, start, end)
+    missing = [(key, value) for key, value in UI_ASSIGNMENTS if key not in present]
+    if not missing:
+        return _ensure_trailing_newline(body)
+    insertion = [UI_START]
+    insertion.extend(f"{key} = {value}" for key, value in missing)
+    insertion.append(UI_END)
+    updated = lines[:end] + insertion + lines[end:]
+    return _ensure_trailing_newline("\n".join(updated))
+
+
+def remove_grok_ui(text: str) -> str:
+    """Remove only the CE Grok UI marker span."""
+    return _strip_marker_span(text, UI_START, UI_END)
+
+
+def grok_ui_applied(text: str) -> bool:
+    """True when both pins are set, either by the user or inside the CE span."""
+    body = _strip_marker_span(text, UI_START, UI_END)
+    lines = body.splitlines()
+    span = _ui_table_span(lines)
+    outside = _keys_in_ui(lines, *span) if span else set()
+    interior = ""
+    if UI_START in text and UI_END in text:
+        interior = text.split(UI_START, 1)[1].split(UI_END, 1)[0]
+    for key, _value in UI_ASSIGNMENTS:
+        in_span = f"{key} =" in interior or f"{key}=" in interior
+        if key not in outside and not in_span:
+            return False
+    return True
+
+
+def apply_grok_ui_file(path: Path, *, dry_run: bool = False) -> dict[str, object]:
+    result: dict[str, object] = {"path": str(path), "changed": False, "status": "healthy"}
+    before = path.read_text(encoding="utf-8") if path.is_file() else ""
+    after = merge_grok_ui(before)
+    if after == before:
+        result["detail"] = "grok-ui-already-applied"
+        return result
+    if not dry_run:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(after, encoding="utf-8")
+    result["changed"] = True
+    result["detail"] = "grok-ui-applied"
+    return result
+
+
+def remove_grok_ui_file(path: Path, *, dry_run: bool = False) -> dict[str, object]:
+    result: dict[str, object] = {"path": str(path), "changed": False, "status": "healthy"}
+    if not path.is_file():
+        result["detail"] = "missing"
+        return result
+    before = path.read_text(encoding="utf-8")
+    after = remove_grok_ui(before)
+    if after == before:
+        result["detail"] = "grok-ui-absent"
+        return result
+    if not dry_run:
+        path.write_text(after, encoding="utf-8")
+    result["changed"] = True
+    result["detail"] = "grok-ui-removed"
+    return result
 
 
 def merge_lean_skills(
@@ -318,10 +445,12 @@ def sync_project_grok_lean(
         path = grok_user_config_path(home)
         compat = remove_lean_compat_file(path)
         skills = remove_lean_skills_file(path)
+        ui = remove_grok_ui_file(path)
         report = {
             "status": "healthy",
             "compat": compat,
             "skills": skills,
+            "ui": ui,
             "path": str(path),
         }
         return report
@@ -329,6 +458,7 @@ def sync_project_grok_lean(
         return report
     path = grok_user_config_path(home)
     compat = apply_lean_compat_file(path)
+    ui = apply_grok_ui_file(path)
     skills_result: dict[str, object] = {"status": "skipped", "detail": "flag-off"}
     if lean_skills:
         skills_result = apply_lean_skills_file(path)
@@ -336,6 +466,7 @@ def sync_project_grok_lean(
         "status": "healthy",
         "compat": compat,
         "skills": skills_result,
+        "ui": ui,
         "path": str(path),
     }
     return report
@@ -353,11 +484,31 @@ def doctor_lean_compat(
         return {"status": "skipped", "detail": "grok-not-in-play"}
     path = grok_user_config_path(home)
     text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    ui_text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if not grok_ui_applied(ui_text):
+        if heal:
+            try:
+                apply_grok_ui_file(path)
+            except OSError as error:
+                return {
+                    "status": "sync-advisory",
+                    "detail": f"grok-ui-heal-failed: {error}",
+                    "path": str(path),
+                    "fixNext": f"Ensure write access to {path}, then rerun doctor.",
+                }
+        else:
+            return {
+                "status": "sync-advisory",
+                "detail": "grok-ui-missing",
+                "path": str(path),
+                "fixNext": f"Rerun doctor to merge the Grok UI span into {path}.",
+            }
     if lean_compat_applied(text):
         return {
             "status": "healthy",
             "detail": "lean-compat-ok",
             "path": str(path),
+            "ui": "grok-ui-ok",
         }
     if heal:
         try:
