@@ -41,6 +41,29 @@ def load_tool():
 
 
 class ChaosEngineDependenciesTest(unittest.TestCase):
+    def test_windows_graphify_extract_empty_failure_keeps_a_healthy_launcher(self):
+        """#6127: a silent graphify.exe extract must not abort reupgrade."""
+        module = load_controller()
+        calls = []
+
+        def runner(command, **_kwargs):
+            calls.append(list(command))
+            if list(command)[1:] == ["--version"]:
+                return SimpleNamespace(returncode=0, stdout="graphify 1\n", stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "graphify-out").mkdir()
+            result = module._run_project_setup_command(
+                [str(project / "graphify.exe"), "extract", ".", "--code-only"],
+                project,
+                runner=runner,
+            )
+            self.assertFalse((project / "graphify-out").exists())
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual([item[1] for item in calls], ["extract", "extract", "--version"])
+
     def symlink_or_skip(self, target: Path | str, link: Path) -> None:
         try:
             link.symlink_to(target)

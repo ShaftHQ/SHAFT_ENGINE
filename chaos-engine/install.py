@@ -2380,6 +2380,87 @@ def status(project: Path) -> dict[str, str]:
         }
 
 
+
+
+def _restore_captured_host_snapshot(project: Path, controller, saved: object) -> None:
+    """Put a pre-upgrade host image back during compensation.
+
+    A full preflight snapshot uses restore_snapshot. The quarantine path keeps
+    only the receipt bytes (#6127). Writing those bytes back must not require
+    the image map, and must not raise "host snapshot is invalid" over the
+    original failure.
+    """
+    if not isinstance(saved, dict):
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    images = saved.get("images")
+    receipt = saved.get("receipt")
+    raw = saved.get("raw")
+    if isinstance(images, dict) and isinstance(receipt, dict) and isinstance(raw, bytes):
+        try:
+            controller.restore_snapshot(project, saved)
+        except ValueError as error:
+            # A pre-swap snapshot can miss paths the new core manages. Keep the
+            # receipt bytes and let the original failure surface.
+            if "host snapshot is invalid" not in str(error):
+                raise
+            path = project / ".chaos-engine-hosts.json"
+            reject_link_or_reparse(path)
+            path.write_bytes(raw)
+        return
+    if not isinstance(raw, bytes) or not raw:
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    path = project / ".chaos-engine-hosts.json"
+    reject_link_or_reparse(path)
+    path.write_bytes(raw)
+
+
+def _prior_host_receipt_image(path: Path) -> dict[str, object] | None:
+    """Read the live host receipt before quarantine unlinks it (#6126).
+
+    Compensation calls hosts.restore_snapshot, which requires both the parsed
+    receipt and the exact bytes. A raw-only image raises
+    "ChaosEngine host snapshot is invalid" and hides the original failure.
+    """
+    if not path.is_file() or is_link_or_reparse(path):
+        return None
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if not raw:
+        return None
+    image: dict[str, object] = {"raw": raw}
+    try:
+        receipt = json.loads(raw.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError):
+        return image
+    if isinstance(receipt, dict):
+        image["receipt"] = receipt
+    return image
+
+
+def account_rollback_has_exact_prior_host_receipt(project: Path) -> bool:
+    """True when account rollback can read an exact prior host receipt."""
+    project = project.resolve()
+    target = project / INSTALL_DIRECTORY
+    backup = project / BACKUP_NAME
+    host_receipt = project / ".chaos-engine-hosts.json"
+    if not target.exists() or not backup.exists():
+        return False
+    if not host_receipt.exists() and not is_link_or_reparse(host_receipt):
+        return False
+    try:
+        previous_commit = str(verify_install(backup)["source"]["commit"])
+        receipt_controller = load_installed_controller(target, "hosts")
+        previous_receipt = getattr(receipt_controller, "rollback_previous_receipt", None)
+        if not callable(previous_receipt):
+            return False
+        raw = previous_receipt(project, previous_commit)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
+    return isinstance(raw, bytes)
+
+
 def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
     project: Path, _locked: bool = False, provisioner=None
 ) -> Path:
@@ -3199,10 +3280,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                                     "ChaosEngine host adapter drift detected "
                                     "(receipt integrity drift)"
                                 ) from error
+                            captured = _prior_host_receipt_image(host_receipt_path)
                             quarantine_orphaned_host_receipt(
                                 project, reporter=reporter, force=True
                             )
-                            host_snapshot = None
+                            host_snapshot = captured
                 if generation_mode:
                     try:
                         old_dependencies = load_dependency_controller(current)
@@ -3386,8 +3468,14 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             except ValueError as error:
                 if not _is_healable_host_drift(error):
                     raise
+                prior_snapshot = host_snapshot if isinstance(host_snapshot, dict) else None
+                if prior_snapshot is None or not isinstance(prior_snapshot.get("raw"), bytes):
+                    prior_snapshot = _prior_host_receipt_image(host_receipt)
                 quarantine_orphaned_host_receipt(project, reporter=reporter, force=True)
-                host_controller.install(project, **host_bind)
+                rebound = dict(host_bind)
+                if prior_snapshot is not None:
+                    rebound["upgrade_snapshot"] = prior_snapshot
+                host_controller.install(project, **rebound)
             if account_rollback_journal is not None:
                 recover_account_rollback_journal(project)
                 if account_rollback_journal.exists():
@@ -3467,7 +3555,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     compensation_errors.append(cleanup_error)
             if can_compensate and host_snapshot is not None:
                 try:
-                    host_controller.restore_snapshot(project, host_snapshot)
+                    _restore_captured_host_snapshot(project, host_controller, host_snapshot)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             if (

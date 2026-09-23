@@ -575,7 +575,44 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             installer.rollback.assert_called_once_with(project.resolve())
 
-    
+    def test_failed_doctor_without_exact_prior_keeps_health_error(self):
+        """#6126: missing prior host receipt must not replace InstallHealthError."""
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            (project / ".chaos-engine").mkdir()
+            (project / ".chaos-engine.backup").mkdir()
+            opener, _ = self.opener([(COMMIT_TWO, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.account_rollback_has_exact_prior_host_receipt.return_value = False
+            installer.doctor_with_dependencies.return_value = {
+                "commit": COMMIT_TWO,
+                "components": {
+                    "hooks": {
+                        "status": "recovery-required",
+                        "taskImpact": "required",
+                    }
+                },
+                "kernel": {"status": "healthy"},
+                "hosts": {"status": "healthy"},
+                "dependencies": {"status": "healthy"},
+            }
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                with self.assertRaises(module.InstallHealthError) as raised:
+                    module.install_latest(
+                        project,
+                        repository="Example/Project",
+                        branch="main",
+                        opener=opener,
+                    )
+
+            self.assertIn("hooks", str(raised.exception))
+            self.assertNotIn("no exact prior host receipt", str(raised.exception))
+            installer.rollback.assert_not_called()
+
     def test_install_failure_issue_query_includes_filesystem_diagnostics(self):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:

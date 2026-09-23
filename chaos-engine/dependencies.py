@@ -1013,6 +1013,64 @@ def _run_transient_mempalace_mine(
     raise AssertionError("bounded MemPalace retry did not return or raise")
 
 
+
+def _run_project_setup_command(
+    command: list[str],
+    project: Path,
+    *,
+    runner=subprocess.run,
+    extra_environment: dict[str, str] | None = None,
+    stdin=None,
+) -> subprocess.CompletedProcess[str]:
+    """Run one project-setup command.
+
+    Windows reupgrade can launch graphify.exe for ``extract`` and get a
+    non-zero exit with empty streams even though ``--version`` still works.
+    Retry once after clearing a partial graphify-out. If the launcher is
+    healthy, keep the upgrade moving; graphify output is derived data.
+    """
+    try:
+        return _run_account_command(
+            command,
+            project,
+            runner=runner,
+            extra_environment=extra_environment,
+            stdin=stdin,
+        )
+    except _AccountCommandError as error:
+        name = Path(command[0]).name.casefold()
+        if not (
+            name in {"graphify", "graphify.exe"}
+            and len(command) >= 2
+            and command[1] == "extract"
+            and "no process output" in str(error)
+        ):
+            raise
+        partial = project / "graphify-out"
+        if partial.exists() and not (partial / "graph.json").is_file():
+            shutil.rmtree(partial, ignore_errors=True)
+        try:
+            return _run_account_command(
+                command,
+                project,
+                runner=runner,
+                extra_environment=extra_environment,
+                stdin=stdin,
+            )
+        except _AccountCommandError as retry_error:
+            if "no process output" not in str(retry_error):
+                raise
+            version = _run_account_command(
+                [command[0], "--version"],
+                project,
+                runner=runner,
+                extra_environment=extra_environment,
+            )
+            if version.returncode != 0:
+                raise retry_error
+            return version
+
+
 def install_account_dependencies(  # noqa: MC0001 - preflight then ordered account mutation.
     project: Path,
     specification: dict[str, object],
@@ -1214,7 +1272,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 command, project, runner=runner, extra_environment=environment
             )
         else:
-            _run_account_command(
+            _run_project_setup_command(
                 command,
                 project,
                 runner=runner,

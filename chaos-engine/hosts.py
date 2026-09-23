@@ -6980,6 +6980,51 @@ def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for ev
         raise
 
 
+def _stamp_exact_rollback_fields(
+    project: Path,
+    receipt: dict[str, object],
+    *,
+    upgrade_snapshot: dict[str, object] | None,
+    rollback_account_receipt: bytes | None,
+    rollback_mempalace_state: dict[str, object] | None,
+) -> None:
+    """Keep an exact prior host receipt when a drifted receipt is rebound.
+
+    Quarantine removes the live receipt before rebind (#6126). The snapshot
+    captured before unlink is the only authenticated rollback image.
+    """
+    if isinstance(upgrade_snapshot, dict):
+        snapshot_raw = upgrade_snapshot.get("raw")
+        if isinstance(snapshot_raw, bytes):
+            try:
+                previous = rollback_base_receipt(project, snapshot_raw)
+            except ValueError:
+                previous = None
+            if previous is not None:
+                receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(previous).decode("ascii")
+    if ROLLBACK_PREVIOUS_RECEIPT not in receipt:
+        return
+    if rollback_account_receipt is not None:
+        try:
+            account_receipt = json.loads(rollback_account_receipt.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("ChaosEngine account rollback receipt is invalid") from error
+        if (
+            not isinstance(account_receipt, dict)
+            or account_receipt.get("schemaVersion") != 2
+            or not isinstance(account_receipt.get("components"), dict)
+            or not isinstance(account_receipt.get("commands"), dict)
+        ):
+            raise ValueError("ChaosEngine account rollback receipt is invalid")
+        receipt[ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT] = base64.b64encode(
+            rollback_account_receipt
+        ).decode("ascii")
+    if rollback_mempalace_state is not None:
+        receipt[ROLLBACK_PREVIOUS_MEMPALACE_STATE] = validate_rollback_mempalace_state(
+            rollback_mempalace_state
+        )
+
+
 def install(
     project: Path,
     core_commit: str | None = None,
@@ -7150,6 +7195,13 @@ def install(
         "before": encode_images(before),
         "after": encode_images(after),
     }
+    _stamp_exact_rollback_fields(
+        project,
+        receipt,
+        upgrade_snapshot=upgrade_snapshot,
+        rollback_account_receipt=rollback_account_receipt,
+        rollback_mempalace_state=rollback_mempalace_state,
+    )
     apply_hook_receipt(receipt, before, after)
     raw = write_receipt(project, receipt, None)
     try:

@@ -65,6 +65,59 @@ class AccountDependencyController:
 
 
 class HostAdapterDrift5633Test(unittest.TestCase):
+
+    def test_invalid_full_snapshot_falls_back_to_receipt_bytes(self):
+        """#6127: an image-map mismatch must not hide the original failure."""
+        install = load(INSTALL, "chaos_engine_install_6127_invalid_full")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            raw = b'{"phase":"installed"}\n'
+
+            class Controller:
+                def restore_snapshot(self, project, saved):
+                    raise ValueError("ChaosEngine host snapshot is invalid")
+
+            install._restore_captured_host_snapshot(
+                project,
+                Controller(),
+                {"raw": raw, "receipt": {"phase": "installed"}, "images": {"AGENTS.md": b""}},
+            )
+            self.assertEqual((project / ".chaos-engine-hosts.json").read_bytes(), raw)
+
+
+    def test_receipt_only_snapshot_is_written_back_without_restore(self):
+        """#6127: compensation must not call restore_snapshot for a raw receipt."""
+        install = load(INSTALL, "chaos_engine_install_6127_restore_bytes")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            raw = b'{"schemaVersion":1,"phase":"installed"}\n'
+            calls = []
+
+            class Controller:
+                def restore_snapshot(self, project, saved):
+                    calls.append(saved)
+
+            install._restore_captured_host_snapshot(
+                project, Controller(), {"raw": raw, "receipt": {"phase": "installed"}}
+            )
+            self.assertEqual((project / ".chaos-engine-hosts.json").read_bytes(), raw)
+            self.assertEqual(calls, [])
+
+
+    def test_prior_host_receipt_image_keeps_parsed_receipt(self):
+        """#6127: restore_snapshot needs the receipt dict, not raw bytes alone."""
+        install = load(INSTALL, "chaos_engine_install_6127_prior_image")
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / ".chaos-engine-hosts.json"
+            path.write_text(
+                json.dumps({"schemaVersion": 1, "phase": "installed", "coreCommit": "a" * 40}),
+                encoding="utf-8",
+            )
+            image = install._prior_host_receipt_image(path)
+        self.assertIsInstance(image, dict)
+        self.assertIsInstance(image["raw"], bytes)
+        self.assertEqual(image["receipt"]["phase"], "installed")
+
     def test_corecommit_mismatch_with_deps_quarantines(self):
         install = load(INSTALL, "chaos_engine_install_5633_corecommit")
         with tempfile.TemporaryDirectory() as temporary:
@@ -396,6 +449,82 @@ class HostAdapterDrift5633Test(unittest.TestCase):
                 healed_mcp["mcpServers"]["user-foreign-5685"]["command"],
             )
             self.assertTrue((project / ".chaos-engine").is_dir())
+
+
+    def test_live_bind_drift_rebind_keeps_exact_prior_receipt(self):
+        """#6126: quarantine+rebind must keep upgrade_snapshot for a real rollback."""
+        install = load(INSTALL, "chaos_engine_install_6126_rebind")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            project.mkdir()
+            source = root / "chaos-engine-source"
+            def _ignore_runtime(_directory, names):
+                return {
+                    name
+                    for name in names
+                    if name in {"__pycache__", "graphify-out"}
+                    or name.startswith(".chaos-engine")
+                    or name.endswith(".pyc")
+                }
+
+            shutil.copytree(SOURCE, source, ignore=_ignore_runtime)
+            load_controller = install.load_dependency_controller
+
+            def account_loader(installed_root: Path):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                install, "load_dependency_controller", side_effect=account_loader
+            ):
+                install.install_with_dependencies(project, source, "1" * 40)
+
+            real_load = install.load_installed_controller
+            raised = {"done": False}
+
+            def load_hosts(installed_root, name):
+                controller = real_load(installed_root, name)
+                if name != "hosts" or installed_root.name != ".chaos-engine":
+                    return controller
+                original = controller.install
+
+                def install_with_one_drift(*args, **kwargs):
+                    if (
+                        not raised["done"]
+                        and kwargs.get("core_commit") == "2" * 40
+                        and "upgrade_snapshot" in kwargs
+                    ):
+                        raised["done"] = True
+                        raise ValueError(
+                            "ChaosEngine host adapter drift detected: .claude/settings.json"
+                        )
+                    return original(*args, **kwargs)
+
+                controller.install = install_with_one_drift
+                return controller
+
+            with mock.patch.object(
+                install, "load_dependency_controller", side_effect=account_loader
+            ), mock.patch.object(
+                install, "load_installed_controller", side_effect=load_hosts
+            ):
+                install.install_with_dependencies(project, source, "2" * 40)
+
+            self.assertTrue(raised["done"])
+            receipt = json.loads(
+                (project / ".chaos-engine-hosts.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("2" * 40, receipt.get("coreCommit"))
+            self.assertIsInstance(receipt.get("rollbackPreviousReceipt"), str)
+            self.assertTrue(receipt["rollbackPreviousReceipt"])
+            manifest = install.verify_install(project / ".chaos-engine")
+            self.assertEqual("2" * 40, manifest["source"]["commit"])
+            with mock.patch.object(
+                install, "load_dependency_controller", side_effect=account_loader
+            ):
+                install.rollback(project)
+            restored = install.verify_install(project / ".chaos-engine")
+            self.assertEqual("1" * 40, restored["source"]["commit"])
 
 
 class OrphanCoreMissingHosts5636Test(unittest.TestCase):
