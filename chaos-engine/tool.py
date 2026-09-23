@@ -33,6 +33,9 @@ def tool_help_text() -> str:
         "  tool.py retrieve [--store {memory,mempalace,graphify}] [--project PATH] [--dry-run] QUERY\n"
         "  tool.py mempalace search QUERY\n"
         "  tool.py graphify query QUERY\n"
+        "  tool.py stores refresh [--if-stale]\n"
+        "  tool.py stores install-schedule\n"
+        "  tool.py stores status\n"
     )
 
 
@@ -118,6 +121,58 @@ def load_host_controller(installed_root: Path):
     return runpy.run_path(str(path), run_name="_chaos_engine_runtime_hosts")
 
 
+def _load_stores(installed_root: Path):
+    """Load the colocated store resolver, including a source tree beside tool.py."""
+    candidates = (
+        installed_root / "stores.py",
+        Path(__file__).resolve().with_name("stores.py"),
+    )
+    for path in candidates:
+        if path.is_file():
+            return runpy.run_path(str(path), run_name="_chaos_engine_stores")
+    raise ValueError("ChaosEngine store resolver could not be loaded")
+
+
+def bind_store_invocation(tool: str, invocation: list[str], project: Path, installed_root: Path) -> list[str]:
+    """Pin MemPalace and Graphify invocations to the shared repository stores."""
+    if tool not in {"mempalace", "mempalace-mcp", "graphify"} or len(invocation) < 2:
+        return invocation
+    stores = _load_stores(installed_root)
+    if tool in {"mempalace", "mempalace-mcp"}:
+        try:
+            palace = stores["resolve_palace"](project)
+        except RuntimeError as error:
+            raise ValueError(str(error)) from error
+        return [invocation[0], *stores["inject_mempalace_arguments"](invocation[1:], palace)]
+    graph_json = stores["resolve_graph_out"](project) / "graph.json"
+    return [invocation[0], *stores["inject_graphify_arguments"](invocation[1:], graph_json)]
+
+
+def stores_command(installed_root: Path, arguments: list[str]) -> int:
+    """Refresh, describe, or schedule the shared MemPalace and Graphify stores."""
+    stores = _load_stores(installed_root)
+    project = installed_root.resolve().parent
+    action = arguments[0] if arguments else ""
+    if action in HELP_FLAGS or action == "":
+        print(
+            "usage: tool.py stores refresh [--if-stale]\n"
+            "       tool.py stores status\n"
+            "       tool.py stores install-schedule\n",
+            end="",
+        )
+        return 0 if action in HELP_FLAGS else 2
+    if action == "status":
+        fresh, message = stores["graph_freshness"](project)
+        print(message)
+        return 0 if fresh else 1
+    if action == "install-schedule":
+        print(stores["install_schedule"](project))
+        return 0
+    if action == "refresh":
+        return int(stores["refresh"](project, if_stale="--if-stale" in arguments[1:]))
+    raise ValueError(f"unsupported stores command: {action}")
+
+
 def mempalace_mcp_arguments(installed_root: Path, arguments: list[str]) -> list[str]:
     """Resolve the one owned palace and return its native MCP arguments."""
     project = installed_root.resolve().parent
@@ -125,11 +180,10 @@ def mempalace_mcp_arguments(installed_root: Path, arguments: list[str]) -> list[
         raise ValueError(
             "MemPalace MCP does not accept host-supplied storage arguments"
         )
-    resolver = project / "tools/repository-map/resolve_mempalace.py"
-    palace = project / ".chaos-engine-state/mempalace"
-    if resolver.is_file():
-        namespace = runpy.run_path(str(resolver), run_name="_chaos_engine_mempalace_resolver")
-        palace = Path(namespace["find_shared_mempalace"](project))
+    try:
+        palace = _load_stores(installed_root)["resolve_palace"](project)
+    except RuntimeError as error:
+        raise ValueError(str(error)) from error
     if not palace.is_absolute():
         raise ValueError("MemPalace MCP resolver returned a relative path")
     palace = palace.resolve()
@@ -198,6 +252,8 @@ def main() -> int:
         installed_root = Path(__file__).resolve().parent
         tool = sys.argv[1]
         arguments = sys.argv[2:]
+        if tool == "stores":
+            return stores_command(installed_root, arguments)
         if tool == "retrieve":
             path = installed_root / "retrieve.py"
             if not path.is_file():
@@ -226,6 +282,7 @@ def main() -> int:
             else [str(command), *arguments]  # Compatibility for injected legacy tests.
         )
         project = shared_project_root(installed_root.resolve().parent)
+        invocation = bind_store_invocation(tool, invocation, project, installed_root)
         if tool in _CAPTURE_STORES:
             completed = subprocess.run(  # nosec B603
                 invocation,

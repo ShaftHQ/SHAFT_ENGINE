@@ -35,33 +35,26 @@ retrieval during the active task.
 
 ## Refresh
 
-Refresh only from the active primary checkout. Do not refresh from a linked
-worktree, while another refresh is active, or when generated state belongs to
-another revision.
+The shared cache is one `graphify-out/` for the repository, resolved from any
+branch or linked worktree. Refresh indexes a detached snapshot of the local
+default-branch tip. It does not fetch, reset, or clean a checkout, and it does
+not read `~/.mempalace`.
 
 ```text
-python .chaos-engine/tool.py graphify update .
-python .chaos-engine/tool.py graphify diagnose multigraph --graph graphify-out/graph.json --json
+python3 .chaos-engine/tool.py stores refresh --if-stale
+python3 .chaos-engine/tool.py stores install-schedule
+python3 .chaos-engine/install.py repair --project . --component graphify
 ```
 
-The refresh writes generated data under `graphify-out/`; the installed
-`.gitignore` keeps it untracked. A failed update never authorizes deleting or
-overwriting an existing graph. Use `--force` only after a verified refactor
-that intentionally removed nodes.
+A second refresh exits while the repository lock is held. Session start and the
+daily user timer call the same `--if-stale` command. An ordinary task must not
+refresh, retry-loop, clear the lock, or alter a checkout to manufacture
+freshness. When the default-branch commit is not local, refresh stops with
+`fix-next: git fetch`.
 
-The configured maintenance controller is the sole refresh owner. A stale cache,
-linked-worktree revision mismatch, or active refresh lock is an expected
-degraded state, not an implementation blocker. An ordinary task must not
-refresh, retry-loop, clear or replace the lock or cache, or alter the primary
-checkout to manufacture freshness. Only the maintenance owner updates derived
-store state.
-
-After landing PRs, the maintenance owner first
-`git fetch origin main && git merge --ff-only origin/main` on the primary
-checkout, then Graphify `update` plus diagnose, then MemPalace
-`mine` / `sweep` / `sync` against
-`python3 tools/repository-map/resolve_mempalace.py`. `--palace` is a global
-flag before the subcommand. Do not mine from a linked worktree.
+Queries still run through `tool.py`, which binds `--graph` to the shared
+`graph.json`. `--palace` and `--backend sqlite_exact` are global MemPalace
+flags and must precede the subcommand.
 
 An extract line that says files were not classified (no supported extension or
 shebang) means the scanner saw those paths and has no file type. It is coverage

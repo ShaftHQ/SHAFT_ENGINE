@@ -5241,8 +5241,24 @@ def run_session_end(hook_input: dict) -> int:
     return 0
 
 
+def _schedule_portable_store_refresh(hook_input: dict) -> None:
+    """Ask the portable store owner to refresh in the background. Never blocks."""
+    try:
+        import runpy
+
+        stores = runpy.run_path(
+            str(Path(_HARNESS_IMPORT_ROOT) / "chaos-engine" / "stores.py"),
+            run_name="_chaos_engine_agent_guard_stores",
+        )
+        cwd = _hook_working_directory(hook_input)
+        stores["maybe_spawn_refresh"](Path(cwd) if cwd else Path.cwd())
+    except (OSError, RuntimeError, ValueError, KeyError):
+        return
+
+
 def run_session_start(hook_input: dict) -> int:
-    """Inject one bounded locator payload without starting optional stores."""
+    """Inject one bounded locator payload and schedule a detached store refresh."""
+    _schedule_portable_store_refresh(hook_input)
     reflection_token = _reflection.record_session_start(
         _reflection_session_id(hook_input)
     )

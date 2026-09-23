@@ -18,6 +18,33 @@ SCRIPT = ROOT / "tools/agent-infra/shaft_knowledge_refresh.py"
 ORIGIN = "https://github.com/ShaftHQ/SHAFT_ENGINE"
 SHA = "a" * 40
 TRUST_MODEL = "exclusive-maintenance-home-v1"
+_MEMPALACE_FLAGS = {
+    "--palace",
+    "--backend",
+    "--wing",
+    "--agent",
+    "--room",
+    "--results",
+    "--include-ignored",
+}
+
+
+def mempalace_verb(command):
+    """Return the MemPalace subcommand after global flags."""
+    if not command or command[0] != "mempalace":
+        return None
+    skip_next = False
+    for token in command[1:]:
+        if skip_next:
+            skip_next = False
+            continue
+        if token in _MEMPALACE_FLAGS:
+            skip_next = True
+            continue
+        if token.startswith("-"):
+            continue
+        return token
+    return None
 
 
 class ShaftKnowledgeRefreshTest(unittest.TestCase):
@@ -92,17 +119,21 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
         self.assertIn(["git", "reset", "--hard", SHA], invoked)
         self.assertIn(["git", "clean", "-ffd"], invoked)
         self.assertFalse(any("--dry-run" in command for command in invoked))
-        self.assertIn(
-            ["mempalace", "sync", str(root.resolve()), "--wing", "from_yaml_main", "--apply"],
-            invoked,
-        )
+        palace = module.shared_palace(root)
+        sync = [
+            "mempalace", "--palace", palace, "--backend", "sqlite_exact",
+            "sync", str(root.resolve()), "--wing", "from_yaml_main", "--apply",
+        ]
+        self.assertIn(sync, invoked)
+        self.assertLess(sync.index("--palace"), sync.index("sync"))
+        self.assertLess(sync.index("--backend"), sync.index("sync"))
         child_commands = [
             next(
                 item for item in commands
                 if any(value.endswith("graphify_maintenance.py") for value in item[0])
             ),
-            next(item for item in commands if item[0][0:2] == ["mempalace", "sync"]),
-            next(item for item in commands if item[0][0:2] == ["mempalace", "mine"]),
+            next(item for item in commands if mempalace_verb(item[0]) == "sync"),
+            next(item for item in commands if mempalace_verb(item[0]) == "mine"),
         ]
         for _command, environment in child_commands:
             self.assertIsNotNone(environment)
@@ -151,8 +182,8 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Graphify=failed.*MemPalace=healthy"):
                 module.refresh(root, sentinel)
 
-        self.assertTrue(any(command[0:2] == ["mempalace", "sync"] for command in commands))
-        self.assertTrue(any(command[0:2] == ["mempalace", "mine"] for command in commands))
+        self.assertTrue(any(mempalace_verb(command) == "sync" for command in commands))
+        self.assertTrue(any(mempalace_verb(command) == "mine" for command in commands))
 
     def test_refresh_force_includes_exact_promote_paths_on_mine(self):
         module = self.module()
@@ -193,7 +224,7 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
         ):
             module.refresh(root, sentinel)
 
-        mines = [command for command in commands if command[0:2] == ["mempalace", "mine"]]
+        mines = [command for command in commands if mempalace_verb(command) == "mine"]
         self.assertTrue(mines)
         self.assertIn("from_yaml_main", mines[0])
         included = " ".join(" ".join(command) for command in mines)
@@ -221,7 +252,7 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
                 return SHA + "\n"
             if arguments[1:2] == ["ls-remote"]:
                 return f"{SHA}\trefs/heads/main\n"
-            if arguments[0:2] == ["mempalace", "sync"]:
+            if mempalace_verb(arguments) == "sync":
                 raise subprocess.CalledProcessError(9, arguments)
             return ""
 

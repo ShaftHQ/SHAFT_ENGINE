@@ -266,13 +266,6 @@ def retrieve(
         receipt["status"] = STATUS_SKIPPED
         receipt["reason"] = "dry-run"
         return receipt
-    if chosen == "mempalace":
-        module = _justification(root)
-        if module is not None and module.backend_mismatch_recorded(root):
-            receipt["status"] = STATUS_DEGRADED
-            receipt["reason"] = "backend-mismatch"
-            receipt["scheduled"] = False
-            return receipt
     outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)
     if receipt.get("status") in {STATUS_DEGRADED, STATUS_SKIPPED}:

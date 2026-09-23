@@ -1,43 +1,32 @@
 #!/usr/bin/env python3
-"""Resolve the shared MemPalace path from any worktree."""
+"""Resolve the shared MemPalace path from any worktree.
+
+SHAFT_MEMPALACE must be absolute. The palace lives under git-common-dir at
+``chaos-engine/mempalace``. ``CHAOS_ENGINE_MEMPALACE`` is the portable alias.
+"""
 
 from __future__ import annotations
 
 import argparse
-import os
-import shutil
-# Only used to run one fixed git command (list-args, no shell) with the
-# executable resolved to an absolute path below.
-import subprocess  # nosec B404
+import importlib.util
+import subprocess  # nosec B404 - imported for the CLI error type only.
 import sys
 from pathlib import Path
 
 
+def _stores():
+    path = Path(__file__).resolve().parents[2] / "chaos-engine" / "stores.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_stores", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"ChaosEngine store resolver is absent: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def find_shared_mempalace(cwd: Path) -> Path:
     """Return the shared palace path under the main checkout git directory."""
-    if "SHAFT_MEMPALACE" in os.environ:
-        configured = os.environ["SHAFT_MEMPALACE"].strip()
-        if not configured:
-            raise RuntimeError("SHAFT_MEMPALACE must not be blank")
-        palace = Path(configured).expanduser()
-        if not palace.is_absolute():
-            raise RuntimeError("SHAFT_MEMPALACE must be absolute")
-        return palace.resolve()
-    git_executable = shutil.which("git")
-    if git_executable is None:
-        raise RuntimeError("git is not on PATH")
-    # Absolute executable path, fixed internal arguments, no shell.
-    completed = subprocess.run(  # nosec B603
-        [git_executable, "rev-parse", "--git-common-dir"],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    common_dir = Path(completed.stdout.strip())
-    if not common_dir.is_absolute():
-        common_dir = (cwd / common_dir).resolve()
-    return common_dir / "chaos-engine" / "mempalace"
+    return _stores().resolve_palace(cwd)
 
 
 def build_parser() -> argparse.ArgumentParser:

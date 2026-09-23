@@ -620,6 +620,20 @@ def _unattended_delivery():
     return module
 
 
+def _schedule_store_refresh(cwd: Path) -> None:
+    """Spawn a detached store refresh when the shared cache is stale. Never blocks."""
+    try:
+        import runpy
+
+        stores = runpy.run_path(
+            str(Path(__file__).resolve().parents[1] / "stores.py"),
+            run_name="_chaos_engine_guard_stores",
+        )
+        stores["maybe_spawn_refresh"](cwd)
+    except (OSError, RuntimeError, ValueError, KeyError):
+        return
+
+
 def _event_context(event_name: str, token: object) -> str:
     if event_name == "SessionStart":
         return _lifecycle.session_start_context(token, ACTIVATION)
@@ -870,6 +884,7 @@ def _run_event(event: dict, _host: str) -> int:
             print(json.dumps({"additionalContext": module.resume_prompt(checkpoint)}))
             return 0
     if event_name == "SessionStart":
+        _schedule_store_refresh(Path(str(event.get("cwd") or Path.cwd())))
         print(json.dumps({"additionalContext": _event_context(event_name, token)}))
         return 0
     complexity_hint = classifier_complexity_gate_hint(

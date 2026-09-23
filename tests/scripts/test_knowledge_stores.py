@@ -220,16 +220,16 @@ class KnowledgeStoresTest(unittest.TestCase):
         self.assertEqual("search", tokens[tokens.index("search")])
         self.assertFalse(self.checkout_palace_created(self.linked))
 
-    def test_refresh_refuses_linked_worktree_and_ordinary_checkout(self):
+    def test_refresh_from_a_linked_worktree_does_not_create_a_checkout_palace(self):
         linked = self.cli("refresh", cwd=self.linked)
         primary = self.cli("refresh", cwd=self.primary)
 
         for completed in (linked, primary):
             combined = completed.stdout + completed.stderr
             self.assertNotEqual(0, completed.returncode, combined)
-            self.assertIn("SHAFT-Nightly-Knowledge-Refresh", combined)
-            self.assertIn("graphify_maintenance.py refresh", combined)
-            self.assertFalse(self.log.exists())
+            self.assertIn("fix-next: git fetch", combined)
+            self.assertNotIn("Refuse linked worktrees", combined)
+        self.assertFalse(self.log.exists())
         self.assertFalse(self.checkout_palace_created(self.linked))
         self.assertFalse(self.checkout_palace_created(self.primary))
 

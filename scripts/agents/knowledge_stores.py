@@ -136,16 +136,25 @@ def cmd_search(cwd: Path, query: str, wing: str | None, room: str | None, result
     return run_mempalace(palace, arguments, cwd)
 
 
-def cmd_refresh() -> int:
-    """Refuse refresh from ordinary checkouts and linked worktrees."""
-    print(
-        "Refresh is owned by SHAFT-Nightly-Knowledge-Refresh (#4809). "
-        "Refuse linked worktrees and ordinary checkouts. "
-        "From the installer-owned maintenance clone run "
-        "py -3 tools/repository-map/graphify_maintenance.py refresh --root .",
-        file=sys.stderr,
-    )
-    return 1
+def _portable_stores():
+    path = REPO_ROOT / "chaos-engine" / "stores.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_stores", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"ChaosEngine store resolver is absent: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def cmd_refresh(cwd: Path) -> int:
+    """Refresh shared stores from any checkout, including a linked worktree.
+
+    The installer-owned nightly job remains SHAFT-Nightly-Knowledge-Refresh.
+    That job still runs
+    ``py -3 tools/repository-map/graphify_maintenance.py refresh --root .``
+    on its maintenance clone. This command is the portable refresh.
+    """
+    return int(_portable_stores().refresh(cwd, if_stale=False))
 
 
 COMMANDS = frozenset({"status", "search", "refresh"})
@@ -196,7 +205,10 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--wing", help="Limit to one wing")
     search.add_argument("--room", help="Limit to one room")
     search.add_argument("--results", type=int, help="Number of results")
-    subparsers.add_parser("refresh", help="Refuse; point at the nightly maintenance owner.")
+    subparsers.add_parser(
+        "refresh",
+        help="Refresh the shared stores from any worktree.",
+    )
     return parser
 
 
@@ -217,7 +229,7 @@ def main(argv: list[str] | None = None, cwd: Path | None = None) -> int:
                 args.room,
                 args.results,
             )
-        return cmd_refresh()
+        return cmd_refresh(working_directory)
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         print(str(error), file=sys.stderr)
         return 1
