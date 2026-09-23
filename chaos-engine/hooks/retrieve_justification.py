@@ -66,7 +66,7 @@ _INSTRUCTION_MARKERS = (
 )
 _STORE_HEADS = frozenset({"mempalace", "graphify"})
 _PY = frozenset({"py", "python", "python3"})
-_SPLIT = re.compile(r"\s*(?:&&|\|\||;)\s*")
+_SHELL_PATH = re.compile(r"(?<![\w@])(\.?[\w.-]+(?:/[\w.-]+)+\.[\w.]+)")
 
 
 def _norm(value: str) -> str:
@@ -311,7 +311,53 @@ def _command_head(tokens: list[str]) -> tuple[str, list[str]]:
 
 
 def _segments(command: str) -> list[str]:
-    return [segment.strip() for segment in _SPLIT.split(command) if segment.strip()]
+    """Split on &&, ||, and ; outside quotes. A quoted semicolon stays in one command."""
+    parts: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    index = 0
+    text = command or ""
+    while index < len(text):
+        character = text[index]
+        if quote:
+            buf.append(character)
+            if character == quote and text[index - 1] != "\\":
+                quote = ""
+            index += 1
+            continue
+        if character in {"'", '"'}:
+            quote = character
+            buf.append(character)
+            index += 1
+            continue
+        if text.startswith("&&", index) or text.startswith("||", index):
+            parts.append("".join(buf).strip())
+            buf = []
+            index += 2
+            continue
+        if character == ";":
+            parts.append("".join(buf).strip())
+            buf = []
+            index += 1
+            continue
+        buf.append(character)
+        index += 1
+    tail = "".join(buf).strip()
+    if tail:
+        parts.append(tail)
+    return [part for part in parts if part]
+
+
+def _shell_read_paths(text: str) -> list[str]:
+    """Slash paths, including `.chaos-engine/...`, that a shell command can open."""
+    found: list[str] = []
+    for match in _SHELL_PATH.finditer(text or ""):
+        path = _norm(match.group(1))
+        if "://" in path or path.startswith(".."):
+            continue
+        if path not in found:
+            found.append(path)
+    return found
 
 
 def _is_store_segment(segment: str) -> bool:
@@ -362,10 +408,10 @@ def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
 
                 tokens = shlex.split(segment, posix=True)
             except ValueError:
-                continue
+                tokens = []
             head, _arguments = _command_head(tokens)
-            if head in _PY:
-                paths = extract_citations(segment)
+            if head in _PY or (not tokens and "python" in segment.casefold()):
+                paths = _shell_read_paths(segment)
                 if paths and all(read_allowed(project, path) for path in paths):
                     continue
                 if paths:
