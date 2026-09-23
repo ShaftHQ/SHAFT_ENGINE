@@ -1035,7 +1035,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
           python scripts/ci/chaos_engine_live_installer_acceptance.py
-          --candidate-sha ${{ github.event.pull_request.head.sha }}
+          --candidate-sha ${{ github.event.pull_request.head.sha || github.sha }}
           --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
           --output chaos-engine-live-installer-evidence.json
       - name: Upload fresh-install evidence
