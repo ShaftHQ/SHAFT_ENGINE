@@ -969,6 +969,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 input=json.dumps(failure), capture_output=True, text=True,
                 env=hook_environment, check=False,
             )
+            third = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
+                [os.sys.executable, str(installed_hook)],
+                input=json.dumps(failure), capture_output=True, text=True,
+                env=hook_environment, check=False,
+            )
             wrapped_destruction = subprocess.run(  # nosec B603 - installed local hook.
                 [os.sys.executable, str(installed_hook)],
                 input=json.dumps(
@@ -1006,7 +1011,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
-            self.assertIn("Reflection required", second.stdout)
+            self.assertEqual(0, third.returncode, third.stderr)
+            self.assertNotIn("Reflection required", second.stdout)
+            self.assertIn("Reflection required", third.stdout)
             self.assertEqual(2, wrapped_destruction.returncode)
             self.assertEqual(
                 "block", json.loads(wrapped_destruction.stdout)["decision"]

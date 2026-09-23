@@ -537,7 +537,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
 class ReflectionReceiptPrivacyTest(unittest.TestCase):
     """#5000: reflection recovery is private, bound, and non-bypassable."""
     def _pending(self, session):
-        for _ in range(2):
+        for _ in range(3):
             reflection.record_failure(
                 session,
                 phase="tool-outcome",
@@ -717,7 +717,7 @@ class ReflectionReceiptPrivacyTest(unittest.TestCase):
                 )
             self.assertIsNone(reflection.pending_checkpoint("cli-non-attempt"))
             remaining = reflection.active_entries("cli-non-attempt")
-            self.assertEqual([failure_ids[0]], [item["failureId"] for item in remaining])
+            self.assertEqual(failure_ids[:-1], [item["failureId"] for item in remaining])
 
     def test_cli_recovery_resolves_agent_scope_from_root_identity(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
