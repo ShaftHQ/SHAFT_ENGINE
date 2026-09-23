@@ -66,6 +66,25 @@ class AccountDependencyController:
 
 class HostAdapterDrift5633Test(unittest.TestCase):
 
+    def test_receipt_only_snapshot_is_written_back_without_restore(self):
+        """#6127: compensation must not call restore_snapshot for a raw receipt."""
+        install = load(INSTALL, "chaos_engine_install_6127_restore_bytes")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            raw = b'{"schemaVersion":1,"phase":"installed"}\n'
+            calls = []
+
+            class Controller:
+                def restore_snapshot(self, project, saved):
+                    calls.append(saved)
+
+            install._restore_captured_host_snapshot(
+                project, Controller(), {"raw": raw, "receipt": {"phase": "installed"}}
+            )
+            self.assertEqual((project / ".chaos-engine-hosts.json").read_bytes(), raw)
+            self.assertEqual(calls, [])
+
+
     def test_prior_host_receipt_image_keeps_parsed_receipt(self):
         """#6127: restore_snapshot needs the receipt dict, not raw bytes alone."""
         install = load(INSTALL, "chaos_engine_install_6127_prior_image")

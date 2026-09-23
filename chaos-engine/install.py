@@ -2381,6 +2381,30 @@ def status(project: Path) -> dict[str, str]:
 
 
 
+
+def _restore_captured_host_snapshot(project: Path, controller, saved: object) -> None:
+    """Put a pre-upgrade host image back during compensation.
+
+    A full preflight snapshot uses restore_snapshot. The quarantine path keeps
+    only the receipt bytes (#6127). Writing those bytes back must not require
+    the image map, and must not raise "host snapshot is invalid" over the
+    original failure.
+    """
+    if not isinstance(saved, dict):
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    images = saved.get("images")
+    receipt = saved.get("receipt")
+    raw = saved.get("raw")
+    if isinstance(images, dict) and isinstance(receipt, dict) and isinstance(raw, bytes):
+        controller.restore_snapshot(project, saved)
+        return
+    if not isinstance(raw, bytes) or not raw:
+        raise ValueError("ChaosEngine host snapshot is invalid")
+    path = project / ".chaos-engine-hosts.json"
+    reject_link_or_reparse(path)
+    path.write_bytes(raw)
+
+
 def _prior_host_receipt_image(path: Path) -> dict[str, object] | None:
     """Read the live host receipt before quarantine unlinks it (#6126).
 
@@ -3522,7 +3546,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     compensation_errors.append(cleanup_error)
             if can_compensate and host_snapshot is not None:
                 try:
-                    host_controller.restore_snapshot(project, host_snapshot)
+                    _restore_captured_host_snapshot(project, host_controller, host_snapshot)
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             if (
@@ -3602,10 +3626,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             if compensation_errors:
-                if len(compensation_errors) == 1:
-                    raise compensation_errors[0] from error
+                cause = " ".join(str(error).split())[:300]
                 details = "; ".join(str(item) for item in compensation_errors)
-                raise RuntimeError(f"ChaosEngine compensation failures: {details}") from error
+                raise RuntimeError(
+                    f"ChaosEngine compensation failures: {details} | cause: {cause}"
+                ) from error
             raise
         finally:
             if project_setup_snapshot is not None:
