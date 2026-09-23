@@ -7,6 +7,10 @@ GitHub writes use `gh` (`issue create`, `pr create`, comments, labels). Never
 GitHub MCP for those jobs. Default ChaosEngine MCP catalogs never include
 GitHub MCP. If a host already has GitHub MCP, leave it unchanged.
 
+## Harness program
+
+During planning, ask the open decisions. Skip those questions only when the owner explicitly asked for unattended planning. Record attendance once on the epic. Sub-issues do not ask it again.
+
 ## 4. Implement, check, review, deliver
 
 Rule every open design choice on the issue before the first implementing commit;

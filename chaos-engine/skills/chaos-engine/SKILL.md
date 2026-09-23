@@ -25,10 +25,11 @@ below.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
    requirement disagree, stop and report which one you believe is wrong.
 5. Never claim a check you did not run.
-6. During planning, ask attendance (interactive / moderate / **fully
-   unattended** — recommend + default unattended), validation scope, and
-   terminal adversarial review (recommend on; ≤2 rounds after final scope
-   commit + CI fixes). No hook may force tests/reviews mid-implementation.
+6. Terminal adversarial review is on. Run at most two rounds only after
+   complete implementation and CI fixes. No hook may force tests or reviews
+   mid-implementation.
+7. During planning, ask the open decisions. Skip those questions only when
+   the owner explicitly asked for unattended planning.
 
 ## Triage
 
