@@ -82,6 +82,7 @@ ROUTER_SUFFIXES = (
     "skills/chaos-engine/SKILL.md",
     "chaos-engine/identity.md",
     ".chaos-engine/identity.md",
+    "chaos-engine/bootstrap.py",
 )
 _FAIL_OPEN = frozenset({"degraded", "skipped"})
 
