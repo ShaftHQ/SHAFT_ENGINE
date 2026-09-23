@@ -11,9 +11,12 @@ ROOT = Path(__file__).resolve().parents[2]
 class HarnessProgramTest(unittest.TestCase):
     def test_program_rules_and_interactive_planning_sentence(self):
         text = (ROOT / "chaos-engine/references/work-github-playbook.md").read_text(encoding="utf-8")
-        self.assertIn("Skip planning questions only when the owner explicitly asked for unattended planning.", text)
+        self.assertIn(
+            "Skip planning questions only when the owner explicitly asked for unattended planning.",
+            text,
+        )
         for phrase in (
-            "epic plus its native sub-issues",
+            "epic plus native sub-issues",
             "one orchestrator",
             "local implementers",
             "one adversarial reviewer per PR",

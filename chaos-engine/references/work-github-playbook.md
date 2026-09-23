@@ -11,19 +11,13 @@ GitHub MCP. If a host already has GitHub MCP, leave it unchanged.
 
 Skip planning questions only when the owner explicitly asked for unattended planning.
 
-A harness program is an epic plus its native sub-issues, one orchestrator, local implementers, and one adversarial reviewer per PR. Run one Learning Session after the epic's in-scope pull requests merge. Unchanged overlay files are an invalid Learning Session skip only after a confirmed delivery. Sub-issues do not re-ask attendance. Each implementation PR names its unittest module. Close the program only when every sub-issue is merged or explicitly dropped on the tracker.
+Program: epic plus native sub-issues; one orchestrator; local implementers; one adversarial reviewer per PR; one Learning Session after the epic's in-scope pull requests merge. Unchanged overlay files are an invalid Learning Session skip only after a confirmed delivery. Sub-issues do not re-ask attendance. Each implementation PR names its unittest module. Close only when every sub-issue is merged or explicitly dropped on the tracker.
 
 ## 4. Implement, check, review, deliver
 
 Rule every open design choice on the issue before the first implementing commit;
 a ticket that reaches code still choosing between candidate fixes converts that
-choice into review rounds. This is measured rather than asserted, and the
-practice already works: on #4554, #4545 and #4547 each carried a two-option
-design question, each was ruled on its issue before any code, and each cost zero
-rounds, while #4536 carried "Trigger points worth considering" into code unruled
-and cost four.
-
-A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
+choice into review rounds. A subagent report is intent. Before review, read the diff and its tests. File real deferred findings before done.
 
 Complete approved scope and create its final scope commit before any local
 validation or review. Triage automated CI, annotations, bots, and PR comments;
