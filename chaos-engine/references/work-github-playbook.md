@@ -9,7 +9,7 @@ GitHub MCP. If a host already has GitHub MCP, leave it unchanged.
 
 ## Harness program
 
-During planning, ask the open decisions. Skip those questions only when the owner explicitly asked for unattended planning. Record attendance once on the epic. Sub-issues do not ask it again.
+Skip planning questions only when the owner explicitly asked for unattended planning.
 
 ## 4. Implement, check, review, deliver
 
@@ -252,10 +252,8 @@ Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
 
 #### Nightly full-matrix autoclose
 
-Nightly trackers that wait on `E2E Tests` and `Local E2E Tests` auto-close
-**only** when those workflows succeed with `jobs=all` (empty or the literal
-`all`). A targeted workflow_dispatch must not close them. Prove-close
-dispatches must pass `jobs=all`.
+Nightly trackers on `E2E Tests` and `Local E2E Tests` auto-close only when
+those workflows succeed with `jobs=all`. A targeted dispatch must not close them.
 
 ## 8. Report
 
