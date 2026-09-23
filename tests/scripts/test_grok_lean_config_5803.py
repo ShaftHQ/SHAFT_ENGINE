@@ -181,3 +181,64 @@ class SkillAdapterPointerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GrokUiSpanTests(unittest.TestCase):
+    def test_merge_idempotent_and_foreign_ui_keys_survive(self):
+        mod = load()
+        before = """# user\n[ui]\ntheme = \"oscura-midnight\"\nsimple_mode = true\n\n[features]\ntelemetry = false\n"""
+        once = mod.merge_grok_ui(before)
+        twice = mod.merge_grok_ui(once)
+        self.assertEqual(once, twice)
+        self.assertEqual(once.count("[ui]"), 1)
+        self.assertIn("theme = \"oscura-midnight\"", once)
+        self.assertIn("telemetry = false", once)
+        self.assertIn("show_thinking_blocks = true", once)
+        self.assertIn("group_tool_verbs = false", once)
+        self.assertIn(mod.UI_START, once)
+        self.assertLess(once.index("theme"), once.index(mod.UI_START))
+
+    def test_user_values_outside_the_span_are_kept(self):
+        mod = load()
+        before = "[ui]\nshow_thinking_blocks = false\ngroup_tool_verbs = true\ntheme = \"x\"\n"
+        merged = mod.merge_grok_ui(before)
+        self.assertNotIn(mod.UI_START, merged)
+        self.assertIn("show_thinking_blocks = false", merged)
+        self.assertIn("group_tool_verbs = true", merged)
+        self.assertEqual(merged.count("show_thinking_blocks"), 1)
+        self.assertIn('theme = "x"', merged)
+
+    def test_uninstall_removes_only_the_span(self):
+        mod = load()
+        merged = mod.merge_grok_ui("[ui]\ntheme = \"kept\"\n")
+        removed = mod.remove_grok_ui(merged)
+        self.assertNotIn(mod.UI_START, removed)
+        self.assertNotIn("show_thinking_blocks", removed)
+        self.assertIn('theme = "kept"', removed)
+        self.assertIn("[ui]", removed)
+
+    def test_doctor_heals_a_missing_span(self):
+        mod = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary)
+            project = home / "project"
+            project.mkdir()
+            hooks = project / ".grok" / "hooks"
+            hooks.mkdir(parents=True)
+            (hooks / "lifecycle.json").write_text("{}", encoding="utf-8")
+            config = home / ".grok" / "config.toml"
+            config.parent.mkdir(parents=True)
+            config.write_text("# empty\n", encoding="utf-8")
+            report = mod.doctor_lean_compat(
+                project, home=home, which=lambda _name: None, heal=True
+            )
+            self.assertEqual("healthy", report["status"])
+            healed = config.read_text(encoding="utf-8")
+            self.assertIn(mod.UI_START, healed)
+            self.assertIn("show_thinking_blocks = true", healed)
+            self.assertIn("group_tool_verbs = false", healed)
+            again = mod.doctor_lean_compat(
+                project, home=home, which=lambda _name: None, heal=True
+            )
+            self.assertEqual("healthy", again["status"])
+            self.assertEqual(healed, config.read_text(encoding="utf-8"))
