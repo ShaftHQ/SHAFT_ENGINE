@@ -246,6 +246,8 @@ NODE install [src=chaos-engine/install.py loc=L12]
                 'python3 - <<\'PY\'\nPath("chaos-engine/hooks/guard.py").read_text()\nPY',
                 'python3 -c \'print(open(".chaos-engine/hooks/guard.py").read())\'',
                 'python3 -c \'import pathlib; pathlib.Path("chaos-engine/hooks/guard.py").read_text()\'',
+                'python3 -c \'open(".chaos-engine/hooks/guard.py").read()\' .chaos-engine/tool.py --help',
+                "python3 - <<'PY'\nimport os; open(\".chaos-engine/hooks/guard.py\").read()\nPY",
             )
             for command in denied:
                 self.assertIsNotNone(

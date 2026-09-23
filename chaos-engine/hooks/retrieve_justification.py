@@ -398,8 +398,18 @@ def _paths_in_segment(segment: str) -> list[str]:
     return [item for item in arguments if not item.startswith("-") and ("/" in item or "." in item)]
 
 
+def _only_store_scripts(paths: list[str]) -> bool:
+    scripts = ("tool.py", "retrieve.py", "knowledge_stores.py")
+    return bool(paths) and all(path.endswith(scripts) for path in paths)
+
+
 def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
     for command in commands:
+        if re.search(r"\b(python3?|py|sed)\b", command):
+            opened = _shell_read_paths(command)
+            if opened and not all(read_allowed(project, path) for path in opened):
+                if not _only_store_scripts(opened):
+                    return BLOCK_REASON
         for segment in _segments(command):
             if _is_store_segment(segment):
                 continue
