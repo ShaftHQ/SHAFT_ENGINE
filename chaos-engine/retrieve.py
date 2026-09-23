@@ -60,13 +60,26 @@ def _justification(project: Path):
     return module
 
 
-def _record_store_outcome(project: Path, store: str, status: str, query: str, text: str = "") -> None:
+_BACKEND_MISMATCH = re.compile(r"backend[-_ ]mismatch", re.IGNORECASE)
+
+
+def _is_backend_mismatch(*parts: str) -> bool:
+    blob = " ".join(parts)
+    if _BACKEND_MISMATCH.search(blob):
+        return True
+    folded = blob.casefold()
+    return "chroma" in folded and "mismatch" in folded
+
+
+def _record_store_outcome(
+    project: Path, store: str, status: str, query: str, text: str = "", reason: str = ""
+) -> None:
     if store not in {"mempalace", "graphify"}:
         return
     module = _justification(project)
     if module is None:
         return
-    module.record_store_outcome(project, store, status, query, text)
+    module.record_store_outcome(project, store, status, query, text, reason)
 
 
 def _tool_py(project: Path) -> Path | None:
@@ -193,10 +206,13 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
                 "storeHealth": "unchecked",
                 "query": query,
             }
+        mismatch = store == "mempalace" and _is_backend_mismatch(
+            completed.stderr or "", completed.stdout or "", tip
+        )
         return {
             "store": store,
             "status": STATUS_DEGRADED,
-            "reason": tip or "nonzero-exit",
+            "reason": "backend-mismatch" if mismatch else (tip or "nonzero-exit"),
             "query": query,
             "exitCode": completed.returncode,
         }
@@ -250,10 +266,24 @@ def retrieve(
         receipt["status"] = STATUS_SKIPPED
         receipt["reason"] = "dry-run"
         return receipt
+    if chosen == "mempalace":
+        module = _justification(root)
+        if module is not None and module.backend_mismatch_recorded(root):
+            receipt["status"] = STATUS_DEGRADED
+            receipt["reason"] = "backend-mismatch"
+            receipt["scheduled"] = False
+            return receipt
     outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)
     if receipt.get("status") in {STATUS_DEGRADED, STATUS_SKIPPED}:
-        _record_store_outcome(root, chosen, str(receipt["status"]), cleaned, "")
+        _record_store_outcome(
+            root,
+            chosen,
+            str(receipt["status"]),
+            cleaned,
+            "",
+            str(receipt.get("reason") or ""),
+        )
     return receipt
 
 

@@ -374,8 +374,40 @@ def active_entries(session_id: str) -> list[dict]:
     return active
 
 
+def _receipt_commit_state(session_id: str) -> tuple[int, bool]:
+    """Return (commit credit, whether a valid receipt has cleared a window)."""
+    active: list[dict] = []
+    credit = 0
+    saw = False
+    for item in entries(session_id):
+        kind = item.get("kind")
+        if kind == "reflection-receipt":
+            if _receipt_clears_active(session_id, item, active):
+                active = []
+                credit = 1
+                saw = True
+        elif kind == "task-failure" and item.get("attempted") is not False:
+            active.append(item)
+        elif kind == "reflection-trigger":
+            active.append(item)
+        elif kind == "failure-disposition" and item.get("disposition") == "non-attempt":
+            active = [
+                candidate
+                for candidate in active
+                if candidate.get("failureId") != item.get("failureId")
+            ]
+        elif kind == "task-activity" and item.get("activity") == "fix-commit" and credit:
+            credit = 0
+    return credit, saw
+
+
 def pending_checkpoint(session_id: str) -> dict | None:
-    """Reduce ledger records to the currently required reflection checkpoint."""
+    """Reduce ledger records to the currently required reflection checkpoint.
+
+    Two attempted failures do not demand a receipt. The third does. After a
+    valid receipt spends its one commit, the next attempted failure is blocked
+    until a new receipt.
+    """
     active = active_entries(session_id)
     explicit = next((item for item in reversed(active) if item.get("kind") == "reflection-trigger"), None)
     if explicit is not None:
@@ -387,13 +419,15 @@ def pending_checkpoint(session_id: str) -> dict | None:
             ),
             "attemptCount": len(active),
         }
-    if len(active) < 2:
+    credit, saw = _receipt_commit_state(session_id)
+    reopen = bool(saw and credit == 0 and active)
+    if len(active) < 3 and not reopen:
         return None
     fingerprints = [str(item.get("fingerprint", "manual")) for item in active]
     same = len(set(fingerprints)) == 1
     return {
         "depth": "deep" if same else "task",
-        "trigger": "repeated-fingerprint" if same else "second-failure",
+        "trigger": "repeated-fingerprint" if same else "third-fix",
         "failureFingerprints": sorted(set(fingerprints)),
         "attemptCount": len(active),
     }

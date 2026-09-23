@@ -387,5 +387,155 @@ class WatchPrChecksSupersededCancelledTest(unittest.TestCase):
         self.assertEqual(1, len(effective))
         self.assertEqual("QUEUED", effective[0]["state"])
 
+
+class QuietUnattendedWatchTest(unittest.TestCase):
+    """#6149: one blocking watch, one line, no second status table."""
+
+    def test_in_progress_with_auto_merge_armed_stays_pending(self):
+        checks = [
+            {"name": "Agent Guidance Gate", "state": "IN_PROGRESS", "link": "https://checks/1"}
+        ]
+        pull = {"state": "OPEN", "mergedAt": None, "autoMergeRequest": {"enabledAt": "t"}}
+        bucket, failing = watch_pr_checks.classify_unattended(checks, pull)
+        self.assertEqual("PENDING", bucket)
+        self.assertEqual([], failing)
+
+    def test_unattended_command_is_one_blocking_watch(self):
+        command = watch_pr_checks.unattended_watch_command(9, repo="ShaftHQ/SHAFT_ENGINE")
+        self.assertIn("scripts/agents/watch_pr_checks.py", command)
+        self.assertIn("--until-merged", command)
+        self.assertNotIn("--poll-once", command)
+        self.assertNotIn("--admin", command)
+        self.assertNotIn("gh pr view", command)
+        self.assertNotIn("gh pr checks", command)
+
+    def test_pending_polls_print_one_green_line_and_no_table(self):
+        polls = iter(
+            (
+                [{"name": "gate", "state": "IN_PROGRESS", "link": "https://checks/1"}],
+                [{"name": "gate", "state": "IN_PROGRESS", "link": "https://checks/1"}],
+                [{"name": "gate", "state": "SUCCESS", "link": "https://checks/1"}],
+            )
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            unittest.mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "watch_pr_checks.py",
+                    "--pr",
+                    "https://github.com/owner/project/pull/9",
+                    "--max-polls",
+                    "3",
+                    "--interval",
+                    "10",
+                ],
+            ),
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+            unittest.mock.patch.object(
+                watch_pr_checks, "poll_once", side_effect=lambda *_a, **_k: next(polls)
+            ),
+            unittest.mock.patch.object(watch_pr_checks.time, "sleep"),
+            unittest.mock.patch("sys.stdout", stdout),
+            unittest.mock.patch("sys.stderr", stderr),
+        ):
+            exit_code = watch_pr_checks.main()
+        self.assertEqual(0, exit_code)
+        self.assertEqual("all checks green\n", stdout.getvalue())
+        self.assertEqual("", stderr.getvalue())
+        self.assertEqual(0, len(watch_pr_checks._STATUS_TABLE.findall(stdout.getvalue())))
+
+    def test_second_status_table_in_one_watch_fails(self):
+        table = "| job | state |\n| --- | --- |\n| gate | pending |\n"
+        with self.assertRaises(watch_pr_checks.CheckWatchError):
+            watch_pr_checks.reject_repeated_status_table(table + table)
+
+    def test_until_merged_keeps_green_checks_pending_and_prints_merged_once(self):
+        states = iter(
+            (
+                {
+                    "state": "OPEN",
+                    "mergedAt": None,
+                    "autoMergeRequest": {"enabledAt": "t"},
+                    "mergeStateStatus": "CLEAN",
+                },
+                {
+                    "state": "MERGED",
+                    "mergedAt": "2026-09-23T00:00:00Z",
+                    "mergeStateStatus": "CLEAN",
+                },
+            )
+        )
+        green = [{"name": "gate", "state": "SUCCESS", "link": "https://checks/1"}]
+        stdout = io.StringIO()
+        with (
+            unittest.mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "watch_pr_checks.py",
+                    "--pr",
+                    "https://github.com/owner/project/pull/9",
+                    "--until-merged",
+                    "--max-polls",
+                    "2",
+                    "--interval",
+                    "10",
+                ],
+            ),
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+            unittest.mock.patch.object(watch_pr_checks, "poll_once", return_value=green),
+            unittest.mock.patch.object(
+                watch_pr_checks, "fetch_pull", side_effect=lambda *_a, **_k: next(states)
+            ),
+            unittest.mock.patch.object(watch_pr_checks.time, "sleep"),
+            unittest.mock.patch("sys.stdout", stdout),
+            unittest.mock.patch("sys.stderr", io.StringIO()),
+        ):
+            exit_code = watch_pr_checks.main()
+        self.assertEqual(0, exit_code)
+        self.assertEqual("MERGED\n", stdout.getvalue())
+
+    def test_red_line_is_job_name_and_log_url_only(self):
+        stdout = io.StringIO()
+        with (
+            unittest.mock.patch.object(
+                sys,
+                "argv",
+                ["watch_pr_checks.py", "--pr", "https://github.com/owner/project/pull/9", "--poll-once"],
+            ),
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+            unittest.mock.patch.object(
+                watch_pr_checks,
+                "poll_once",
+                return_value=[{"name": "gate", "state": "FAILURE", "link": "https://checks/red"}],
+            ),
+            unittest.mock.patch("sys.stdout", stdout),
+            unittest.mock.patch("sys.stderr", io.StringIO()),
+        ):
+            self.assertEqual(1, watch_pr_checks.main())
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual([{"name": "gate", "runUrl": "https://checks/red"}], payload["failingJobs"])
+        self.assertEqual(set(payload), {"failingJobs"})
+
+    def test_scripts_do_not_force_merge(self):
+        root = Path(__file__).resolve().parents[2]
+        offenders: list[str] = []
+        for base in (root / "scripts", root / "chaos-engine", root / "tests" / "scripts"):
+            for path in base.rglob("*"):
+                if path.suffix not in {".py", ".md"} or not path.is_file():
+                    continue
+                merge = "gh pr " + "merge"
+                admin = "--" + "admin"
+                for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                    if merge in line and admin in line:
+                        offenders.append(f"{path.relative_to(root)}:{number}")
+        self.assertEqual([], offenders)
+        watcher = (root / "scripts/agents/watch_pr_checks.py").read_text(encoding="utf-8")
+        self.assertNotIn("pr merge", watcher)
+
+
 if __name__ == "__main__":
     unittest.main()

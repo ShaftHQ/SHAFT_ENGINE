@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Local pre-push contract for overlay markdown, skills, and hook entrypoints.
+
+The same reachability, 16384-byte reference budget, and pinned playbook clauses
+that CI enforces. A diff that does not touch those paths does not run the gate.
+"""
+
+from __future__ import annotations
+
+import subprocess  # nosec B404 - fixed git invocations, list args only.
+import sys
+from pathlib import Path
+
+PLAYBOOK = "chaos-engine/references/work-github-playbook.md"
+BYTE_BUDGET = 16384
+PINNED_CLAUSES = (
+    "Before committing any subagent's work",
+    "Before reviewing or shipping any nontrivial diff",
+    "deferred/out-of-scope/adjacent-finding/follow-up",
+)
+
+
+def touches_overlay_contract(path: str) -> bool:
+    """True for overlay markdown or a hook/skill entrypoint."""
+    normalized = path.replace("\\", "/").lstrip("./")
+    if normalized.startswith("chaos-engine/") and normalized.endswith(".md"):
+        return True
+    if normalized.startswith("chaos-engine/hooks/") and normalized.endswith(".py"):
+        return True
+    return normalized.startswith("chaos-engine/skills/") and normalized.endswith("SKILL.md")
+
+
+def playbook_contract_failures(text: str, *, budget: int = BYTE_BUDGET) -> list[str]:
+    """Fail an over-budget playbook and a playbook that drops a pinned clause."""
+    failures: list[str] = []
+    size = len(text.encode("utf-8"))
+    if size > budget:
+        failures.append(f"playbook is {size} bytes; budget is {budget}")
+    for clause in PINNED_CLAUSES:
+        if clause not in text:
+            failures.append(f"dropped pinned clause: {clause}")
+    return failures
+
+
+def _unique(paths: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for path in paths:
+        if path and path not in seen:
+            seen.add(path)
+            ordered.append(path)
+    return ordered
+
+
+def changed_overlay_paths(root: Path) -> list[str]:
+    """Names changed versus origin/main plus the uncommitted worktree."""
+    names: list[str] = []
+    for args in (
+        ["git", "diff", "--name-only", "origin/main...HEAD"],
+        ["git", "diff", "--name-only", "HEAD"],
+        ["git", "diff", "--name-only", "--cached"],
+    ):
+        try:
+            completed = subprocess.run(  # nosec B603 - fixed git argv.
+                args,
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            continue
+        if completed.returncode == 0:
+            names.extend(line.strip() for line in completed.stdout.splitlines() if line.strip())
+    return _unique(names)
+
+
+def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
+    """Return contract failures for one overlay diff. Empty means the push may proceed."""
+    changed = list(paths) if paths is not None else changed_overlay_paths(root)
+    if not any(touches_overlay_contract(path) for path in changed):
+        return []
+    failures: list[str] = []
+    playbook = root / PLAYBOOK
+    if playbook.is_file():
+        failures.extend(playbook_contract_failures(playbook.read_text(encoding="utf-8")))
+    elif any(path.replace("\\", "/").endswith(PLAYBOOK) for path in changed):
+        failures.append("dropped pinned clause: playbook missing")
+    budget_path = root / "scripts/ci/agent_guidance_budget.json"
+    if budget_path.is_file():
+        from scripts.ci.validate_agent_guidance import load_budget, validate_file_budgets
+
+        for item in validate_file_budgets(root, load_budget(budget_path)):
+            failures.append(f"{item.get('path')}: {item.get('message')}")
+    skill = root / "chaos-engine/skills/chaos-engine/SKILL.md"
+    if skill.is_file():
+        from scripts.ci.validate_agent_setup import validate_harness_reachability
+
+        for item in validate_harness_reachability(root):
+            failures.append(f"{item.get('path')}: {item.get('message')}")
+    return failures
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Exit 1 when the overlay pre-push contract fails."""
+    root = Path(argv[1]).resolve() if argv and len(argv) > 1 else Path.cwd()
+    failures = overlay_pre_push_failures(root)
+    if not failures:
+        print("overlay pre-push: pass")
+        return 0
+    for failure in failures:
+        print(f"overlay pre-push: {failure}", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

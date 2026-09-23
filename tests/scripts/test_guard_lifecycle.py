@@ -111,7 +111,7 @@ def isolate_stop_rules(
 
 
 class ReflectionCheckpointContractTest(unittest.TestCase):
-    """#5001: the second attempt failure opens a reflection checkpoint."""
+    """The third attempted failure opens a reflection checkpoint."""
 
     def test_second_failure_in_one_task_requires_reflection(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -131,15 +131,19 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 second_output = io.StringIO()
                 with redirect_stdout(second_output):
                     guard.run_posttooluse(payload)
+                third_output = io.StringIO()
+                with redirect_stdout(third_output):
+                    guard.run_posttooluse(payload)
                 ledger = Path(guard._ledger_path(payload))
 
                 self.assertTrue(ledger.is_file(), "failed outcomes must reach the task ledger")
                 self.assertIn('"kind":"task-failure"', ledger.read_text(encoding="utf-8"))
-                self.assertIn("reflection", second_output.getvalue().casefold())
+                self.assertNotIn("reflection", second_output.getvalue().casefold())
+                self.assertIn("reflection", third_output.getvalue().casefold())
                 fingerprint = reflection.pending_checkpoint(
                     "reflection-second-failure"
                 )["failureFingerprints"][0]
-                self.assertIn(fingerprint, second_output.getvalue())
+                self.assertIn(fingerprint, third_output.getvalue())
 
     def test_first_failure_remains_normal(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -201,12 +205,14 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
         ):
             first = self._failure("distinct", command="py -3 -m unittest first")
             second = self._failure("distinct", command="mvn -pl shaft-engine test")
+            third = self._failure("distinct", command="gradle test")
             with redirect_stdout(io.StringIO()):
                 guard.run_posttooluse(first)
                 guard.run_posttooluse(second)
+                guard.run_posttooluse(third)
             checkpoint = reflection.pending_checkpoint("distinct")
             self.assertEqual("task", checkpoint["depth"])
-            self.assertEqual("second-failure", checkpoint["trigger"])
+            self.assertEqual("third-fix", checkpoint["trigger"])
 
     def test_same_second_failure_requires_deep_reflection_and_blocks_third_attempt(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -214,6 +220,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
         ):
             payload = self._failure("same")
             with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
             checkpoint = reflection.pending_checkpoint("same")
@@ -235,6 +242,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
             output = io.StringIO()
             with redirect_stdout(output):
                 guard.run_pretooluse(
@@ -250,7 +258,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 if item.get("kind") == "task-failure"
             ][-1]
             reflection.mark_non_attempt("diagnosis", newest["failureId"], "capability-probe")
-            self.assertEqual(2, reflection.pending_checkpoint("diagnosis")["attemptCount"])
+            self.assertEqual(3, reflection.pending_checkpoint("diagnosis")["attemptCount"])
 
     def test_pending_checkpoint_denial_does_not_create_another_failure(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -258,6 +266,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
         ):
             payload = self._failure("non-recursive")
             with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
             before = [
@@ -280,7 +289,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             ]
 
             self.assertEqual(before, after)
-            self.assertEqual(2, reflection.pending_checkpoint("non-recursive")["attemptCount"])
+            self.assertEqual(3, reflection.pending_checkpoint("non-recursive")["attemptCount"])
 
     def test_guard_refusals_are_non_attempt_observations(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -308,6 +317,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             payload = self._failure("root-session")
             payload["agent_id"] = "audit-a"
             with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
 
@@ -354,11 +364,13 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
             checkpoint = reflection.pending_checkpoint("receipt")
             token = reflection.record_session_start("receipt")
             recorded = reflection.record_receipt("receipt", self._receipt(checkpoint), token)
             self.assertIsNone(reflection.pending_checkpoint("receipt"))
             with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
             self.assertEqual("deep", reflection.pending_checkpoint("receipt")["depth"])
@@ -377,12 +389,14 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
             checkpoint = reflection.pending_checkpoint("tampered")
             token = reflection.record_session_start("tampered")
             receipt = reflection.record_receipt("tampered", self._receipt(checkpoint), token)
             receipt["proofOutcome"] = "tampered after validation"
             reflection.append_entry("tampered", receipt)
             with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
             self.assertEqual("deep", reflection.pending_checkpoint("tampered")["depth"])
@@ -393,6 +407,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
         ):
             payload = self._failure("unsafe")
             with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
             checkpoint = reflection.pending_checkpoint("unsafe")
@@ -452,6 +467,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
         ):
             payload = self._failure("changed-diagnostic")
             with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
             self.assertIsNotNone(reflection.pending_checkpoint("changed-diagnostic"))

@@ -99,6 +99,45 @@ PENDING_STATES = {
 SUCCESS_STATES = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 KNOWN_STATES = RED_STATES | PENDING_STATES | SUCCESS_STATES
 _TRANSIENT_GITHUB_HTTP = re.compile(r"\bHTTP\s*(?:429|503)\b", re.IGNORECASE)
+_STATUS_TABLE = re.compile(
+    r"(?m)^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$"
+)
+_FORCE_MERGE = re.compile(r"(?:^|\s)--admin(?:\s|$)")
+
+
+def unattended_watch_command(pr: int | str, *, repo: str | None = None) -> str:
+    """One blocking watch. Not a turn-ending status poll."""
+    parts = [
+        "python3",
+        "scripts/agents/watch_pr_checks.py",
+        "--pr",
+        str(pr),
+        "--until-merged",
+    ]
+    if repo:
+        parts.extend(["--repo", repo])
+    command = " ".join(parts)
+    if _FORCE_MERGE.search(command) or "--poll-once" in command:
+        raise CheckWatchError("unattended watch must not force-merge or poll once")
+    return command
+
+
+def reject_repeated_status_table(text: str) -> None:
+    """A second markdown status table in one watch is a contract failure."""
+    if len(_STATUS_TABLE.findall(text or "")) > 1:
+        raise CheckWatchError("repeated PR status table in one watch")
+
+
+def classify_unattended(checks: list[dict], pull: dict | None) -> tuple[str, list[dict]]:
+    """Pending stays pending while auto-merge is armed. Merged is its own line."""
+    view = pull or {}
+    state = str(view.get("state") or "").upper()
+    if state == "MERGED" or view.get("mergedAt"):
+        return "MERGED", []
+    merge_state = str(view.get("mergeStateStatus") or "").upper()
+    if merge_state in {"DIRTY", "BEHIND"}:
+        return "RED", [{"name": "mergeStateStatus", "link": merge_state}]
+    return classify_checks(checks)
 
 class CheckWatchError(RuntimeError):
     """Raised for gh/environment failures that map to exit code 3."""
@@ -220,6 +259,34 @@ def poll_via_check_runs_api(gh_executable: str, root: Path, repo: str, pr: int) 
         [normalize_check_run(run) for run in payload["check_runs"]],
         "gh api check-runs",
     )
+
+
+def fetch_pull(gh_executable: str, root: Path, repo: str, pr: int) -> dict:
+    """Read merge state inside the same watch. Not a second status channel."""
+    proc = run_gh(
+        gh_executable,
+        [
+            "pr",
+            "view",
+            str(pr),
+            "--repo",
+            repo,
+            "--json",
+            "state,mergedAt,autoMergeRequest,mergeStateStatus",
+        ],
+        root,
+    )
+    if proc.returncode != 0:
+        raise CheckWatchError(
+            f"gh pr view failed: {proc.stderr.strip() or proc.stdout.strip()}"
+        )
+    try:
+        payload = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError as error:
+        raise CheckWatchError(f"gh pr view returned unparseable JSON: {error}") from error
+    if not isinstance(payload, dict):
+        raise CheckWatchError("gh pr view returned a non-object payload")
+    return payload
 
 
 def poll_once(gh_executable: str, root: Path, repo: str, pr: int) -> list[dict]:
@@ -344,6 +411,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Poll exactly one time and exit immediately (no sleep); for cheap "
         "testing or a single agent-driven check.",
     )
+    parser.add_argument(
+        "--until-merged",
+        action="store_true",
+        help="Block until the PR is merged or a check is red. Green checks stay "
+        "pending. Auto-merge armed does not end the watch.",
+    )
     parser.add_argument("--root", type=Path, default=Path.cwd())
     return parser
 
@@ -405,12 +478,20 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     checks: list[dict] = []
+    transcript: list[str] = []
+
+    def emit(line: str) -> None:
+        transcript.append(line)
+        reject_repeated_status_table("\n".join(transcript))
+        print(line)
+
     # THE bounded loop: a plain `for` over a fixed range, never `while True`.
     # There is no path through this function that can iterate more than
-    # `poll_budget` (<= HARD_MAX_POLLS) times.
+    # `poll_budget` (<= HARD_MAX_POLLS) times. Pending polls print nothing.
     for attempt in range(poll_budget):
         try:
             checks = poll_once(gh_executable, root, repo, pr)
+            pull = fetch_pull(gh_executable, root, repo, pr) if args.until_merged else None
         except CheckWatchError as error:
             print(f"watch_pr_checks: {error}", file=sys.stderr)
             if is_transient_github_http_error(error) and attempt < poll_budget - 1:
@@ -418,10 +499,18 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             return 3
 
-        bucket, failing = classify_checks(checks)
-        if bucket == "GREEN":
-            print("all checks green")
+        if args.until_merged:
+            bucket, failing = classify_unattended(checks, pull)
+        else:
+            bucket, failing = classify_checks(checks)
+        if bucket == "MERGED":
+            emit("MERGED")
             return 0
+        if bucket == "GREEN" and not args.until_merged:
+            emit("all checks green")
+            return 0
+        if bucket == "GREEN":
+            bucket = "PENDING"
         if bucket == "RED":
             payload = {
                 "failingJobs": [
@@ -429,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
                     for check in failing
                 ]
             }
-            print(json.dumps(payload))
+            emit(json.dumps(payload))
             return 1
 
         is_last_attempt = attempt == poll_budget - 1

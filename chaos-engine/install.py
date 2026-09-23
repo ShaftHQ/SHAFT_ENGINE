@@ -5453,6 +5453,11 @@ def parser() -> argparse.ArgumentParser:
         if name in {"status", "doctor"}:
             command.add_argument("--json", action="store_true")
             command.add_argument(
+                "--agent-summary",
+                action="store_true",
+                help="Print at most four lines: pass/fail, component, hash, drift.",
+            )
+            command.add_argument(
                 "--fix-next-only",
                 action="store_true",
                 help="Print only fix-next repair lines (zero-LLM / script-first).",
@@ -5847,6 +5852,65 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
 
 
 
+AGENT_SUMMARY_MAX_LINES = 4
+
+
+def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
+    """Pick one component line and a single drift token for the agent summary."""
+    components = document.get("components")
+    name = "core"
+    status = str(document.get("status") or "unknown")
+    drift = "none"
+    policy = str(document.get("policySha256") or "")
+    if policy == "0" * 64:
+        drift = "policy-hash-drift"
+    if isinstance(components, dict):
+        for candidate in sorted(str(item) for item in components):
+            item = components[candidate]
+            if not isinstance(item, dict):
+                continue
+            detail = str(item.get("detail") or "")
+            code = str(item.get("code") or "")
+            blob = f"{detail} {code}".casefold()
+            mismatched = item.get("coreMatchesSource") is False or "drift" in blob or "mismatch" in blob
+            if mismatched:
+                return candidate, str(item.get("status") or "recovery-required"), detail or code or "policy-hash-drift"
+        core = components.get("core")
+        if isinstance(core, dict):
+            name = "core"
+            status = str(core.get("status") or status)
+    return name, status, drift
+
+
+def format_agent_summary(document: dict[str, object]) -> str:
+    """Bounded agent-facing doctor summary. `--json` stays the full document."""
+    verdict = "pass" if str(document.get("status") or "") == "healthy" and _agent_summary_parts(document)[2] == "none" else "fail"
+    name, status, drift = _agent_summary_parts(document)
+    policy = str(document.get("policySha256") or "missing")
+    lines = [
+        f"doctor: {verdict}",
+        f"component: {name} {status}",
+        f"hash: {policy}",
+        f"drift: {drift}",
+    ]
+    return "\n".join(lines[:AGENT_SUMMARY_MAX_LINES]) + "\n"
+
+
+def agent_summary_exit_code(document: dict[str, object]) -> int:
+    """Fail closed when policy hash drifted or the summary cannot stay bounded."""
+    rendered = format_agent_summary(document)
+    if len(rendered.splitlines()) > AGENT_SUMMARY_MAX_LINES:
+        return 1
+    policy = str(document.get("policySha256") or "")
+    if re.fullmatch(r"[0-9a-f]{64}", policy) is None:
+        return 1
+    if _agent_summary_parts(document)[2] != "none":
+        return 1
+    if str(document.get("status") or "") != "healthy":
+        return 1
+    return 0
+
+
 def format_fix_next_only(document: dict[str, object]) -> str:
     """Emit only actionable fix-next lines for unhealthy components (#5582)."""
     components = document.get("components")
@@ -5937,6 +6001,8 @@ def validate_install_options(args: argparse.Namespace) -> None:
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
     if getattr(args, "json", False) and getattr(args, "fix_next_only", False):
         raise ValueError("--fix-next-only cannot be combined with --json")
+    if getattr(args, "json", False) and getattr(args, "agent_summary", False):
+        raise ValueError("--agent-summary cannot be combined with --json")
 
 
 def main() -> int:
@@ -6118,6 +6184,9 @@ def main() -> int:
     if args.command in {"status", "doctor"} and not getattr(args, "json", False):
         if not isinstance(result, dict):
             raise TypeError("doctor/status result must be an object")
+        if getattr(args, "agent_summary", False):
+            print(format_agent_summary(result), end="")
+            return agent_summary_exit_code(result)
         if getattr(args, "fix_next_only", False):
             print(format_fix_next_only(result), end="")
         else:

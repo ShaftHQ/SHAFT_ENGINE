@@ -108,7 +108,7 @@ def record_citations(project: Path, store: str, text: str) -> list[str]:
 
 
 def record_store_outcome(
-    project: Path, store: str, status: str, query: str, text: str = ""
+    project: Path, store: str, status: str, query: str, text: str = "", reason: str = ""
 ) -> list[str]:
     """Record a store attempt. Degraded or skipped attempts fail open for query paths."""
     chosen = str(store or "").casefold()
@@ -125,11 +125,29 @@ def record_store_outcome(
     outcomes = payload.get("outcomes")
     kept = [item for item in outcomes if isinstance(item, dict)] if isinstance(outcomes, list) else []
     if status in _FAIL_OPEN:
-        kept.append({"store": chosen, "status": status, "query": str(query or "")[:500]})
+        outcome = {"store": chosen, "status": status, "query": str(query or "")[:500]}
+        if reason:
+            outcome["reason"] = str(reason)[:120]
+        kept.append(outcome)
         kept = kept[-32:]
     payload = {"schemaVersion": 1, "store": chosen, "citations": current, "outcomes": kept}
     _write_payload(project, payload)
     return fresh
+
+
+def backend_mismatch_recorded(project: Path) -> bool:
+    """True when MemPalace backend-mismatch was already recorded for this project."""
+    outcomes = _load_payload(project).get("outcomes")
+    if not isinstance(outcomes, list):
+        return False
+    for item in outcomes:
+        if not isinstance(item, dict):
+            continue
+        if item.get("store") != "mempalace" or item.get("status") != "degraded":
+            continue
+        if item.get("reason") == "backend-mismatch":
+            return True
+    return False
 
 
 

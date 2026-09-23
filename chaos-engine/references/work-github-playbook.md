@@ -176,8 +176,7 @@ After **you** merge a PR that changes `chaos-engine/`, immediately rebuild the
 live overlay from the new `origin/main` on the **primary checkout**:
 `git fetch origin main && git merge --ff-only origin/main`, then
 `python3 chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main`
-and `python3 .chaos-engine/install.py doctor --project .`. Reload host hooks and
-skills before the next turn so work builds on what is now on main. Do not call
+and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reload host hooks and skills before the next turn so work builds on what is now on main. Do not call
 `install.py install` without `--source` and `--commit`. Replace
 `<configured-upstream>` with the adopter repository from installer identity.
 
@@ -227,12 +226,14 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
 
 4. **Arm** immediately after that acceptance remains current:
    `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
-5. **Watch** from the target repository with
-   `gh pr checks <n> --watch --fail-fast`. Pass `--repo` for an explicit
-   cross-repository target.
-6. **Ask for unseen states** with `gh pr view <n> --json
-   mergeStateStatus,mergedAt`; `DIRTY` conflicts and `BEHIND` stale heads need
-   action even when no event fires.
+5. **Watch** with one blocking command until merged or a new red check is
+   pushed: `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`
+   or `gh pr checks <n> --watch --fail-fast`. One line on GREEN, RED, or
+   MERGED. No heartbeat, no second status table, no second poll or monitor.
+   Installer logs only after a job is RED. Stale pending emits no chat event.
+   Never pass `--admin`.
+6. One status channel. It reports `DIRTY` and `BEHIND`.
+   Do not add `gh pr view` beside it.
 7. **Fix** red checks, failed tests, review comments, and bot findings on the
    branch, or merge the fetched configured upstream default branch for a
    conflict or stale head, then return to watch. Never force-push away

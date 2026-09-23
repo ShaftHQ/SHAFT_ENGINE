@@ -36,7 +36,10 @@ coach the owner through how-to-work impediments; escalate owner-only decisions.
 ## Delivery and escalation
 
 Opening a PR does not complete follow-through. Continue until the in-scope
-delivery condition is met.
+delivery condition is met. Unattended watch is one blocking
+`scripts/agents/watch_pr_checks.py --until-merged` (or
+`gh pr checks <n> --watch --fail-fast`): one line on GREEN, RED, or MERGED.
+No second poll, no heartbeat, no status table.
 
 When the owner asks to **deliver**, **babysit**, or keep the work going, that
 is the goal: finalize the in-scope outcome in the best honest way. Keep

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 
@@ -142,6 +145,66 @@ NODE install [src=chaos-engine/install.py loc=L12]
         excerpt = retrieve._bounded_excerpt(body)
         self.assertNotIn("--budget", excerpt)
         self.assertIn("TRUNCATED", excerpt)
+
+    def test_graphify_citation_authorizes_a_second_read_and_denies_uncited(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_session")
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_session")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            body = "NODE guard [src=chaos-engine/hooks/guard.py loc=L10]\n"
+            completed = unittest.mock.Mock(returncode=0, stdout=body, stderr="")
+            with unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed) as run:
+                receipt = retrieve.retrieve("guard.py calls", store="graphify", project=project)
+            self.assertEqual("used", receipt["status"])
+            self.assertEqual(1, run.call_count)
+            for _read in range(2):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Read",
+                        tool_input={"target_file": "chaos-engine/hooks/guard.py"},
+                        commands=(),
+                    )
+                )
+            self.assertIsNotNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Read",
+                    tool_input={"target_file": "tests/fixtures/uncited.py"},
+                    commands=(),
+                )
+            )
+
+    def test_backend_mismatch_is_recorded_once_and_does_not_touch_mempalace(self):
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_mismatch")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            home = project / "home"
+            home.mkdir()
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            completed = unittest.mock.Mock(
+                returncode=1, stdout="", stderr="chroma backend mismatch"
+            )
+            with (
+                unittest.mock.patch.dict(os.environ, {"HOME": str(home)}),
+                unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed) as run,
+            ):
+                first = retrieve.retrieve("guard history", store="mempalace", project=project)
+                second = retrieve.retrieve("guard history", store="mempalace", project=project)
+            self.assertEqual("backend-mismatch", first["reason"])
+            self.assertEqual("degraded", first["status"])
+            self.assertEqual("backend-mismatch", second["reason"])
+            self.assertFalse(second.get("scheduled", True))
+            self.assertEqual(1, run.call_count)
+            self.assertNotIn("migrate", json.dumps(second))
+            self.assertFalse((home / ".mempalace").exists())
 
 
 if __name__ == "__main__":

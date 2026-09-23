@@ -7,11 +7,14 @@ source excerpts, or user-specific absolute paths.
 
 ## Triggers and depth
 
-- After two attempted failures with different bounded fingerprints, stop for
-  task reflection.
-- After two attempted failures with the same fingerprint, stop for deep
-  reflection. A third same-symptom fix attempt without a receipt is forbidden.
-- Also stop after a third fix attempt, two local/CI disagreements, repeated
+- Two attempted failures do not demand a receipt.
+- The third attempted failure stops for a receipt (`third-fix`, or
+  `repeated-fingerprint` when every fingerprint matches). A fourth distinct
+  failure without a new receipt is forbidden.
+- A valid receipt authorizes one following `git commit` of that fix. The
+  receipt and the commit are separate commands. A combined shell does not
+  hide the third failure. The one-hour terminal receipt stays mandatory.
+- Also stop after two local/CI disagreements, repeated
   review or user corrections, repeated guard blocks, a safety incident, scope
   expansion, an invalidated premise, or an unchanged rerun.
 - A diagnostic or capability probe recorded as `non_attempt` does not advance
