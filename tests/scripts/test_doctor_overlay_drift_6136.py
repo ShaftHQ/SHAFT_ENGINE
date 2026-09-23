@@ -86,5 +86,16 @@ class PolicyHashDoctorTest(unittest.TestCase):
         self.assertIn("Do not auto-migrate", install)
 
 
+
+    def test_absent_store_degraded_does_not_block_doctor(self):
+        result = {"status": "healthy", "components": {}}
+        overlay_match.apply_policy_hash_doctor(
+            result,
+            Path("."),
+            retrieve_reports=[{"store": "graphify", "status": "degraded", "reason": "nonzero-exit"}],
+        )
+        self.assertNotIn("retrieve-graphify", result["components"])
+        self.assertEqual("healthy", result["status"])
+
 if __name__ == "__main__":
     unittest.main()

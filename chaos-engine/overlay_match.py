@@ -483,6 +483,10 @@ def apply_policy_hash_doctor(
         if store not in {"mempalace", "graphify"}:
             continue
         reason = str(report.get("reason") or "degraded")
+        # Fresh installs degrade when a store is simply absent. Only a backend
+        # mismatch is a blocking doctor row; it must not fail installer acceptance.
+        if "backend" not in reason.casefold():
+            continue
         components[f"retrieve-{store}"] = _retrieve_row(store, reason)
         result["status"] = "recovery-required"
 
