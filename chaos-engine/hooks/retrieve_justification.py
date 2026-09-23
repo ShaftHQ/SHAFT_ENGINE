@@ -334,7 +334,9 @@ def _is_store_segment(segment: str) -> bool:
         return True
     if any(item.endswith("retrieve.py") for item in scripts):
         return True
-    if "knowledge_stores.py" in joined and "search" in scripts:
+    if "knowledge_stores.py" in joined and any(
+        name in scripts for name in ("search", "--help", "-h")
+    ):
         return True
     return False
 
