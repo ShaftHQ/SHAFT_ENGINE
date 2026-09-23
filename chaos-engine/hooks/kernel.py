@@ -100,11 +100,23 @@ class HostCapability:
 
 
 
+# Plugin hook copies do not ship references/. Keep this equal to the
+# GAP-EXIT2-SENTENCE line in references/host-parity-matrix.md.
+_GAP_EXIT2_FALLBACK = (
+    "GAP-EXIT2: ChaosEngine still emits decision=block or "
+    "permissionDecision=deny and exit 2; verify host trust."
+)
+
+
 def gap_exit2_sentence() -> str:
     """Single compensating sentence owned by host-parity-matrix.md."""
     path = Path(__file__).resolve().parents[1] / "references" / "host-parity-matrix.md"
     marker = "GAP-EXIT2-SENTENCE:"
-    for line in path.read_text(encoding="utf-8").splitlines():
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return _GAP_EXIT2_FALLBACK
+    for line in lines:
         if line.startswith(marker):
             sentence = line[len(marker):].strip()
             if sentence:
