@@ -20,6 +20,7 @@ the next decision. Stop exploring when that decision is supported.
 - After truncation, narrow once. Do not repeat the same broad query.
 - Do not reread an unchanged input.
 - Prefer a path plus a discriminating excerpt over a full dump.
+- Doctor reloads use `--agent-summary` (four lines). Keep full `--json` for humans and contract tests.
 
 ## Spill large tool output
 

@@ -1029,12 +1029,27 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip pinned Memory CLI and git diff checks.",
     )
+    parser.add_argument(
+        "--overlay-pre-push",
+        action="store_true",
+        help="Run reachability, byte budget, and pinned-clause checks for an overlay diff.",
+    )
     return parser
 
 
 def main() -> int:
     """Run the CLI."""
     args = build_parser().parse_args()
+    if args.overlay_pre_push:
+        from scripts.ci.overlay_pre_push import overlay_pre_push_failures
+
+        failures = overlay_pre_push_failures(args.root.resolve())
+        if failures:
+            for failure in failures:
+                print(f"overlay pre-push: {failure}", file=sys.stderr)
+            return 1
+        print("overlay pre-push: pass")
+        return 0
     errors, metrics = validate_repository(
         args.root.resolve(), run_external=not args.skip_external
     )

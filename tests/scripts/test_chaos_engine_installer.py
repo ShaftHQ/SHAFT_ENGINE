@@ -2526,6 +2526,10 @@ module.install_with_dependencies(project, source, "3" * 40)
                 [sys.executable, str(hook)], input=json.dumps(failure),
                 capture_output=True, text=True, env=environment, check=False,
             )
+            third = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
+                [sys.executable, str(hook)], input=json.dumps(failure),
+                capture_output=True, text=True, env=environment, check=False,
+            )
             self.assertEqual(0, start.returncode, start.stderr)
             self.assertEqual(0, locator_start.returncode, locator_start.stderr)
             self.assertIn("additionalContext", json.loads(locator_start.stdout))
@@ -2541,7 +2545,9 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertIn("caveman=ultra; ponytail=ultra", installed_context)
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
-            self.assertIn("Reflection required", second.stdout)
+            self.assertEqual(0, third.returncode, third.stderr)
+            self.assertNotIn("Reflection required", second.stdout)
+            self.assertIn("Reflection required", third.stdout)
 
     def test_distribution_cannot_change_during_an_update(self):
         with tempfile.TemporaryDirectory() as temporary:

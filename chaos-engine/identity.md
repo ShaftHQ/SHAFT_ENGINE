@@ -75,7 +75,7 @@ adapter sees the same durable self-model.
 - Verify before close; narrative green is not Done.
 - After a merge that changes `chaos-engine/`, reload with
   `python3 chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main`
-  then `python3 .chaos-engine/install.py doctor --project . --json`.
+  then `python3 .chaos-engine/install.py doctor --project . --agent-summary`.
   Do not call `install.py install` without `--source` and `--commit`.
 - Runtime policy lives in `.chaos-engine/skills/`. Host adapter copies under
   `.agents/skills/` are not a second policy root.

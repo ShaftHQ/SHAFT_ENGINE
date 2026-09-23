@@ -19,6 +19,7 @@ Use a script or focused test when you would otherwise:
 - parse a large log, report, or JSON document by hand;
 - apply the same mechanical edit in several files;
 - prove a behavior that a short executable already can fail.
+- watch an open PR: one `scripts/agents/watch_pr_checks.py --until-merged` run, not a chat poll.
 
 Mechanical one-file edits still inspect the target, apply the change, and
 report it. Do not invent a script for a single obvious line.

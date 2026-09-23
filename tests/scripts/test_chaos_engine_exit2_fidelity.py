@@ -111,6 +111,14 @@ class Exit2FidelityTests(unittest.TestCase):
         self.assertIn("GAP-EXIT2", text)
         self.assertIn("process_exit2_honored", text)
         self.assertIn("test_chaos_engine_exit2_fidelity.py", text)
+        marker = "GAP-EXIT2-SENTENCE:"
+        sentence = next(
+            line[len(marker):].strip()
+            for line in text.splitlines()
+            if line.startswith(marker)
+        )
+        self.assertEqual(sentence, self.kernel._GAP_EXIT2_FALLBACK)
+        self.assertEqual(sentence, self.kernel.gap_exit2_sentence())
 
     def test_doctor_surfaces_blocking_gap_warnings(self):
         install = load_module("ce_install_exit2", "chaos-engine/install.py")

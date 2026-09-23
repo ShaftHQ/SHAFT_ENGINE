@@ -785,6 +785,7 @@ process.stderr.write(result.stderr || '');
             }
             self.run_hook(failure, environment)
             second = self.run_hook(failure, environment)
+            third = self.run_hook(failure, environment)
             unchanged = self.run_hook(
                 {**failure, "hook_event_name": "PreToolUse", "tool_response": {}},
                 environment,
@@ -835,7 +836,8 @@ process.stderr.write(result.stderr || '');
                 environment,
             )
 
-            self.assertIn("Reflection required", second.stdout)
+            self.assertNotIn("Reflection required", second.stdout)
+            self.assertIn("Reflection required", third.stdout)
             self.assertEqual(2, unchanged.returncode)
             self.assertEqual(0, changed.returncode)
             self.assertEqual(0, diagnosis.returncode)
@@ -884,6 +886,13 @@ process.stderr.write(result.stderr || '');
             session = "learn-reflection-only"
             with patch.dict(os.environ, environment):
                 token = reflection.record_session_start(session)
+                reflection.record_failure(
+                    session,
+                    phase="tool-outcome",
+                    target="flaky-command",
+                    failure_class="tool-failure",
+                    attempted=True,
+                )
                 reflection.record_failure(
                     session,
                     phase="tool-outcome",

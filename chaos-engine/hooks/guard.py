@@ -180,6 +180,33 @@ def tracker_command(command: str) -> bool:
     return head == "gh" and arguments[:2] in (["issue", "comment"], ["issue", "edit"])
 
 
+def git_commit_command(command: str) -> bool:
+    """True for one git commit, not a combined shell that hides the commit."""
+    parsed = shell_tokens(command)
+    if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    return head == "git" and bool(arguments) and arguments[0] == "commit"
+
+
+def _overlay_push_block(commands: tuple[str, ...]) -> str:
+    if not any(re.search(r"\bgit\s+push\b", command) for command in commands):
+        return ""
+    project = Path.cwd()
+    script = project / "scripts/ci/overlay_pre_push.py"
+    if not script.is_file():
+        return ""
+    spec = importlib.util.spec_from_file_location("chaos_engine_overlay_pre_push", script)
+    if spec is None or spec.loader is None:
+        return "overlay pre-push contract failed: checker unavailable"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    failures = module.overlay_pre_push_failures(project)
+    if not failures:
+        return ""
+    return "overlay pre-push contract failed: " + str(failures[0])
+
+
 def delivery_command(command: str) -> bool:
     parsed = shell_tokens(command)
     if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
@@ -548,6 +575,9 @@ def _command_guard_state(
     )
     checkpoint = reflection.pending_checkpoint(session_id)
     unchanged_test = _unchanged_test_requested(event, commands, tool_name, session_id)
+    push_block = _overlay_push_block(commands) if event_name == "PreToolUse" else ""
+    if push_block:
+        return receipt_command, mutation, push_block
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
         return receipt_command, mutation, checkpoint_reason(checkpoint)
     uninspectable = _uninspectable_functions_call(
@@ -793,6 +823,8 @@ def _run_event(event: dict, _host: str) -> int:
             reflection.record_activity(session_id, "delivery-complete")
         elif mutation or any(delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "mutation")
+            if any(git_commit_command(candidate) for candidate in commands):
+                reflection.record_activity(session_id, "fix-commit")
     if event_name in {"Stop", "SubagentStop"}:
         stop_reason = _stop_block_reason(event, session_id)
         if stop_reason:

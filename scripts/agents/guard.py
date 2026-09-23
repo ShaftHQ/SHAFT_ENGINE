@@ -3029,6 +3029,23 @@ def _hook_commands(hook_input: dict, tool_name: str) -> tuple[str, ...]:
     return ()
 
 
+def _overlay_pre_push_reason(root: str) -> str | None:
+    """Block git push when the overlay contract fails. Absent checker means not this repo."""
+    project = Path(root) if root else Path.cwd()
+    script = project / "scripts/ci/overlay_pre_push.py"
+    if not script.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("shaft_overlay_pre_push", script)
+    if spec is None or spec.loader is None:
+        return "overlay pre-push contract failed: checker unavailable"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    failures = module.overlay_pre_push_failures(project)
+    if not failures:
+        return None
+    return "overlay pre-push contract failed: " + str(failures[0])
+
+
 def _is_git_commit_command(command: str) -> bool:
     """True when a shell command contains an actual git commit invocation."""
     for segment in _git_segments(command):
@@ -4527,6 +4544,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             )
             invocation_cwd = _hook_working_directory(invocation_hook)
             reason = evaluate_command(command)
+            if reason is None and re.search(r"\bgit\s+push\b", command):
+                reason = _overlay_pre_push_reason(invocation_cwd)
             if reason is None:
                 reason = check_r9_worktree_add(command, command_tool)
             if reason is None:
@@ -4609,6 +4628,8 @@ def run_posttooluse(hook_input: dict) -> int:
         _reflection.record_activity(
             _reflection_session_id(hook_input), "mutation-or-delivery"
         )
+        if not result_failed and any(_is_git_commit_command(command) for command in commands):
+            _reflection.record_activity(_reflection_session_id(hook_input), "fix-commit")
     if not result_failed and (
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
     ):

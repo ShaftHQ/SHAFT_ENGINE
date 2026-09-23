@@ -21,6 +21,10 @@ that check cited. `skipped` and `degraded` do not cite a path and do not
 unlock reads. Neither state blocks implementation once the cited files have
 been read. The deny text and the ledger live in one
 [citation ledger](../hooks/retrieve_justification.py) for every host.
+One Graphify citation of path P authorizes later reads of P in that session
+without another retrieve. An uncited path stays denied. A MemPalace
+backend-mismatch is recorded once: do not retrieve MemPalace again, do not
+write `~/.mempalace`, and do not turn it into a recovery essay.
 A used receipt includes `hits` (repo-relative path and line, at most 8) and
 `excerpt` (800 bytes when hits exist, otherwise 4096). Read the cited line
 range. Do not turn the path into an absolute path or read the whole file.
