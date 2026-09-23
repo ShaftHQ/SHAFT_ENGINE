@@ -1062,6 +1062,12 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("Opening a PR does not complete follow-through", policy)
         self.assertIn("not permission to end babysit", policy)
         self.assertIn("in-scope delivery condition", policy)
+        self.assertIn("you will be notified", policy)
+        self.assertIn("does not end the turn", policy)
+        self.assertIn("Compaction restores the watch task", policy)
+        self.assertIn("not-done-until-merged", policy)
+        self.assertIn("No second poll", policy)
+        self.assertIn("Compaction is not stop", policy)
 
     def test_harness_merge_reinstalls_overlay_from_main(self):
         playbook = (CORE / "references/work-github-playbook.md").read_text(encoding="utf-8")

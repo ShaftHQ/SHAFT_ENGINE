@@ -226,12 +226,10 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
 
 4. **Arm** immediately after that acceptance remains current:
    `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
-5. **Watch** with one blocking command until merged or a new red check is
-   pushed: `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`
-   or `gh pr checks <n> --watch --fail-fast`. One line on GREEN, RED, or
-   MERGED. No heartbeat, no second status table, no second poll or monitor.
-   Installer logs only after a job is RED. Stale pending emits no chat event.
-   Never pass `--admin`.
+5. **Watch** with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`
+   until merged or a red fix is pushed. One line on GREEN, RED, or MERGED.
+   No second poll. Reject a `gh run view` loop and a second watch while one task is pending.
+   Never pass `--admin`. Resume text: `scripts/agents/unattended_delivery.py`.
 6. One status channel. It reports `DIRTY` and `BEHIND`.
    Do not add `gh pr view` beside it.
 7. **Fix** red checks, failed tests, review comments, and bot findings on the
@@ -246,11 +244,12 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
 Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
 `resolveReviewThread` before returning to the watch.
 8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
+   Learning Session runs only after that `mergedAt`.
 
 #### Nightly full-matrix autoclose
 
 Nightly trackers on `E2E Tests` and `Local E2E Tests` auto-close only when
-those workflows succeed with `jobs=all`. A targeted dispatch must not close them.
+those workflows succeed with `jobs=all`. A targeted workflow_dispatch must not close them.
 
 ## 8. Report
 

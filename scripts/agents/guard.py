@@ -4817,7 +4817,9 @@ def _reflection_block_reason(checkpoint: dict) -> str:
         f"Sanitized fingerprints: {fingerprints}. "
         "Pause mutation and unchanged reruns; reconstruct the bounded fingerprint, "
         "compare at least two approaches, choose one diagnostic experiment, prove its "
-        "outcome, then append a validated receipt with scripts/agents/reflection.py."
+        "outcome, then append a validated receipt with "
+        "`py -3 scripts/agents/reflection.py receipt`. "
+        "Do not read reflection.py to discover that command."
     )
 
 

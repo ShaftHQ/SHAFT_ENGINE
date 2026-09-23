@@ -289,8 +289,10 @@ def checkpoint_reason(checkpoint: dict) -> str:
     fingerprints = ",".join(checkpoint["failureFingerprints"])
     return (
         f"Reflection required ({checkpoint['depth']}). Sanitized fingerprints: "
-        f"{fingerprints}. Pause mutation and unchanged retries; append a validated "
-        "receipt before resuming."
+        f"{fingerprints}. Pause mutation and unchanged retries. Append a validated "
+        "receipt with `py -3 scripts/agents/reflection.py receipt` "
+        "(installed: `.chaos-engine/hooks/reflection.py receipt`) before resuming. "
+        "Do not read reflection.py to discover that command."
     )
 
 
@@ -498,7 +500,7 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
     loop_reason = learning_session_reason(session_id, event)
     if loop_reason:
         return loop_reason
-    return ""
+    return _pending_watch_claim_reason(event)
 
 
 def _record_failed_result(
@@ -586,6 +588,36 @@ def _command_guard_state(
     if uninspectable or any(_command_is_destructive(candidate) for candidate in commands):
         return receipt_command, mutation, "ChaosEngine rejected destructive broad scope."
     return receipt_command, mutation, ""
+
+
+def _pending_watch_claim_reason(event: dict) -> str:
+    module = _unattended_delivery()
+    if module is None:
+        return ""
+    checkpoint = module.checkpoint_from_event(event)
+    if checkpoint is None:
+        return ""
+    message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "")
+    follow_up_open = bool(checkpoint.get("followUpOpen", True))
+    if not module.delivery_claim_rejected(message, follow_up_open=follow_up_open):
+        return ""
+    return (
+        "Delivery is not complete while the watch is pending. "
+        "Wait on that same task id until MERGED or RED."
+    )
+
+
+def _unattended_delivery():
+    root = Path(__file__).resolve().parents[2]
+    path = root / "scripts/agents/unattended_delivery.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_unattended_delivery", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _event_context(event_name: str, token: object) -> str:
@@ -831,6 +863,12 @@ def _run_event(event: dict, _host: str) -> int:
             _record_denial_with_significance(event, event_name, tool_name)
             print(json.dumps({"decision": "block", "reason": stop_reason}))
             return 2
+    if event_name in {"SessionStart", "PreCompact"}:
+        module = _unattended_delivery()
+        checkpoint = module.checkpoint_from_event(event) if module is not None else None
+        if checkpoint is not None:
+            print(json.dumps({"additionalContext": module.resume_prompt(checkpoint)}))
+            return 0
     if event_name == "SessionStart":
         print(json.dumps({"additionalContext": _event_context(event_name, token)}))
         return 0

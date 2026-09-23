@@ -37,14 +37,21 @@ coach the owner through how-to-work impediments; escalate owner-only decisions.
 
 Opening a PR does not complete follow-through. Continue until the in-scope
 delivery condition is met. Unattended watch is one blocking
-`scripts/agents/watch_pr_checks.py --until-merged` (or
-`gh pr checks <n> --watch --fail-fast`): one line on GREEN, RED, or MERGED.
-No second poll, no heartbeat, no status table.
+`python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`: one line
+on GREEN, RED, or MERGED. No second poll, no heartbeat, no status table.
+A host "you will be notified" line does not end the turn. Ending the turn,
+a completion summary, or a worker_completed record while that watch is pending
+is a failed delivery. If the host backgrounds the command, resume attaches to
+that same task id and does not start another poller. Resume text is
+`scripts/agents/unattended_delivery.py`.
 
 When the owner asks to **deliver**, **babysit**, or keep the work going, that
 is the goal: finalize the in-scope outcome in the best honest way. Keep
 iterating after red CI, a merged partial slice, or a stalled delegate. Re-spec,
-expedite, and support writers. Compaction is not stop. A quiet interval with no
+expedite, and support writers. Compaction is not stop. Compaction restores the
+watch task id, pull request number, repository, head SHA, and the
+not-done-until-merged bit. The resumed turn waits on that task. It does not
+re-read the router before MERGED or RED. A quiet interval with no
 live writer is not permission to end babysit until the delivery condition is
 met or a named HALT applies.
 

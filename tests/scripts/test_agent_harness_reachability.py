@@ -771,7 +771,7 @@ class EntrypointDutyTest(unittest.TestCase):
             "auto-merge",
             "arm",
             "watch",
-            "`gh pr checks <n> --watch --fail-fast`",
+            "`python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`",
             "merged",
             "red",
             "conflicting",

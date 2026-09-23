@@ -31,11 +31,42 @@ _PATH = re.compile(r"(?<![\w.@])((?:[\w.-]+/)+[\w.-]+\.[\w.]+)")
 _SOURCE_LINE = re.compile(r"(?m)^[ \t]*Source:\s*(\S+)")
 _READ_TOOLS = frozenset({"Read", "Grep", "Glob"})
 _FILE_HEADS = frozenset(
-    {"rg", "grep", "ag", "ack", "fd", "find", "cat", "head", "tail", "less", "more", "bat", "nl"}
+    {
+        "rg",
+        "grep",
+        "ag",
+        "ack",
+        "fd",
+        "find",
+        "cat",
+        "head",
+        "tail",
+        "less",
+        "more",
+        "bat",
+        "nl",
+        "sed",
+    }
+)
+_HOST_POINTERS = frozenset(
+    {
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        ".github/copilot-instructions.md",
+    }
+)
+_INSTRUCTION_MARKERS = (
+    "chaos-engine/references/",
+    "chaos-engine/skills/",
+    "chaos-engine/profiles/",
+    ".chaos-engine/references/",
+    ".chaos-engine/skills/",
+    ".chaos-engine/profiles/",
 )
 _STORE_HEADS = frozenset({"mempalace", "graphify"})
 _PY = frozenset({"py", "python", "python3"})
-_SPLIT = re.compile(r"\s*(?:&&|\|\||;)\s*")
+_SHELL_PATH = re.compile(r"(?<![\w@])(\.?[\w.-]+(?:/[\w.-]+)+\.[\w.]+)")
 
 
 def _norm(value: str) -> str:
@@ -43,6 +74,26 @@ def _norm(value: str) -> str:
     while text.startswith("./"):
         text = text[2:]
     return text
+
+
+def _project_relative(project: Path, target: str) -> str:
+    """Host reads pass absolute paths. The ledger stores repo-relative ones."""
+    wanted = _norm(target)
+    if not wanted:
+        return ""
+    roots = {_norm(str(Path(project))), _norm(str(Path(project).resolve()))}
+    for root in roots:
+        if root and (wanted == root or wanted.startswith(root + "/")):
+            return wanted[len(root) :].lstrip("/")
+    return wanted
+
+
+def _instruction_markdown(wanted: str) -> bool:
+    if not wanted.endswith(".md"):
+        return False
+    if wanted in _HOST_POINTERS:
+        return True
+    return any(marker in wanted for marker in _INSTRUCTION_MARKERS)
 
 
 def extract_citations(text: str) -> list[str]:
@@ -162,6 +213,8 @@ def _allowlisted(project: Path, target: str) -> bool:
         return False
     if wanted.endswith(ROUTER_SUFFIXES) or wanted in ROUTER_SUFFIXES:
         return True
+    if _instruction_markdown(wanted):
+        return True
     lowered = wanted.casefold()
     if "/memory-v2/" in f"/{lowered}" and "/topics/" in f"/{lowered}" and lowered.endswith(".md"):
         return True
@@ -219,11 +272,12 @@ def _fail_open(project: Path, target: str) -> bool:
 
 def read_allowed(project: Path, target: str) -> bool:
     """True when this path may be read without another store round trip."""
+    relative = _project_relative(project, target)
     return (
-        _allowlisted(project, target)
-        or cites(project, target)
-        or _prefix_allowed(project, target)
-        or _fail_open(project, target)
+        _allowlisted(project, relative)
+        or cites(project, relative)
+        or _prefix_allowed(project, relative)
+        or _fail_open(project, relative)
     )
 
 
@@ -257,7 +311,53 @@ def _command_head(tokens: list[str]) -> tuple[str, list[str]]:
 
 
 def _segments(command: str) -> list[str]:
-    return [segment.strip() for segment in _SPLIT.split(command) if segment.strip()]
+    """Split on &&, ||, and ; outside quotes. A quoted semicolon stays in one command."""
+    parts: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    index = 0
+    text = command or ""
+    while index < len(text):
+        character = text[index]
+        if quote:
+            buf.append(character)
+            if character == quote and text[index - 1] != "\\":
+                quote = ""
+            index += 1
+            continue
+        if character in {"'", '"'}:
+            quote = character
+            buf.append(character)
+            index += 1
+            continue
+        if text.startswith("&&", index) or text.startswith("||", index):
+            parts.append("".join(buf).strip())
+            buf = []
+            index += 2
+            continue
+        if character == ";":
+            parts.append("".join(buf).strip())
+            buf = []
+            index += 1
+            continue
+        buf.append(character)
+        index += 1
+    tail = "".join(buf).strip()
+    if tail:
+        parts.append(tail)
+    return [part for part in parts if part]
+
+
+def _shell_read_paths(text: str) -> list[str]:
+    """Slash paths, including `.chaos-engine/...`, that a shell command can open."""
+    found: list[str] = []
+    for match in _SHELL_PATH.finditer(text or ""):
+        path = _norm(match.group(1))
+        if "://" in path or path.startswith(".."):
+            continue
+        if path not in found:
+            found.append(path)
+    return found
 
 
 def _is_store_segment(segment: str) -> bool:
@@ -280,7 +380,9 @@ def _is_store_segment(segment: str) -> bool:
         return True
     if any(item.endswith("retrieve.py") for item in scripts):
         return True
-    if "knowledge_stores.py" in joined and "search" in scripts:
+    if "knowledge_stores.py" in joined and any(
+        name in scripts for name in ("search", "--help", "-h")
+    ):
         return True
     return False
 
@@ -296,8 +398,18 @@ def _paths_in_segment(segment: str) -> list[str]:
     return [item for item in arguments if not item.startswith("-") and ("/" in item or "." in item)]
 
 
+def _only_store_scripts(paths: list[str]) -> bool:
+    scripts = ("tool.py", "retrieve.py", "knowledge_stores.py")
+    return bool(paths) and all(path.endswith(scripts) for path in paths)
+
+
 def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
     for command in commands:
+        if re.search(r"\b(python3?|py|sed)\b", command):
+            opened = _shell_read_paths(command)
+            if opened and not all(read_allowed(project, path) for path in opened):
+                if not _only_store_scripts(opened):
+                    return BLOCK_REASON
         for segment in _segments(command):
             if _is_store_segment(segment):
                 continue
@@ -306,8 +418,15 @@ def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
 
                 tokens = shlex.split(segment, posix=True)
             except ValueError:
-                continue
+                tokens = []
             head, _arguments = _command_head(tokens)
+            if head in _PY or (not tokens and "python" in segment.casefold()):
+                paths = _shell_read_paths(segment)
+                if paths and all(read_allowed(project, path) for path in paths):
+                    continue
+                if paths:
+                    return BLOCK_REASON
+                continue
             if head not in _FILE_HEADS:
                 continue
             paths = _paths_in_segment(segment)
