@@ -43,6 +43,28 @@ second, searches for verification gaps, and returns actionable `file:line`
 findings. Never edits. When acting as the independent adversarial pass, it is
 prompted to refute the work and is never the agent that produced it.
 
+Use these headings, in order:
+
+### regression
+
+Behavior that used to work and no longer does.
+
+### missing-adoption
+
+The required caller, host, or document does not use the new contract.
+
+### broken-verification
+
+A check does not exercise the shipped behavior.
+
+### unbound-check
+
+A check can pass while the behavior is absent.
+
+### verdict
+
+`pass` or `fail`. Fail only for one of the four headings above.
+
 ## Tester
 
 Reproduces before fixing, writes focused regression and acceptance checks, and

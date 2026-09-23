@@ -113,6 +113,7 @@ individual implementation steps. Independence remains mandatory when enabled:
   prose claiming the one-shot review happened is not evidence.
 - The reviewer is prompted to **refute** the work — find where it is wrong,
   unverified, or over-claimed — not to approve it.
+- The reviewer uses the headings `regression`, `missing-adoption`, `broken-verification`, `unbound-check`, and `verdict` from [roles](roles.md#reviewer).
 - The reviewer is handed **the exact revision under review** and a way to read
   it that does not touch the shared working tree: `gh pr diff <n>`,
   `git show <ref>:<path>`, or its own `git worktree add`. A read-only reviewer
