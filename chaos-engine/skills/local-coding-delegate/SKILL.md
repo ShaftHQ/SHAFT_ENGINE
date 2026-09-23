@@ -22,7 +22,8 @@ This skill is a **compatibility shim**.
 
 Stdlib hardware size-class probe (no downloads, no vendor model names):
 
-See [`chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py`](scripts/probe_hardware.py):
+See [`chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py`](scripts/probe_hardware.py).
+Shim imports use [`hardware_probe.py`](hardware_probe.py), which re-exports that home:
 
 ```text
 python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py

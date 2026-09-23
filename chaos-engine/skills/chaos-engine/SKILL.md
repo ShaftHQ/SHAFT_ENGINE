@@ -321,7 +321,7 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | colibri | Optional local Colibri frontier MoE process. | `skills/colibri/SKILL.md` |
 | local-openai-compat | Optional Ollama/LM Studio/llamacpp peers. | `skills/local-openai-compat/SKILL.md` |
 | local-agency | Local OpenCode agency vs session agents. | `skills/local-agency/SKILL.md` |
-| local-coding-delegate | Compat shim; hardware probe. | `skills/local-coding-delegate/SKILL.md` |
+| local-coding-delegate | Pointer shim; one hardware-probe home. | `skills/local-coding-delegate/SKILL.md` |
 | caveman | Ultra-compressed chat style; intensity ultra unless stopped. | `vendor/caveman/skills/caveman/SKILL.md` |
 | ponytail | Laziest solution that works; intensity ultra unless stopped. | `vendor/ponytail/skills/ponytail/SKILL.md` |
 | orchestrator | Plan, architecture, synthesis, and final verification. | `references/roles.md#orchestrator` |
@@ -331,7 +331,7 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | mechanical-helper | Deterministic reversible spec-exact work; stop on ambiguity. | `references/roles.md#mechanical-helper` |
 | harness-learn | Tune git-tracked harness from repeated traces; never `~/.grok/skills`. | `references/harness-learn.md` |
 | design-loop | Write-review-revise design docs until 0 open issues. | `references/design-loop.md` |
-| icm-architect | ICM (advisory). | [icm-architect.md](../../references/icm-architect.md) |
+| icm-architect | ICM (advisory). | `vendor/icm-architect/skills/icm-architect/SKILL.md` |
 | deep-research | Bounded parallel research; verify; cited report. | `references/deep-research.md` |
 | learn-traces | Map-reduce-verify session traces without a host TUI. | `references/learn-traces.md` |
 

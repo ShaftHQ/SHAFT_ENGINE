@@ -5,6 +5,8 @@ description: Design any process, idea, problem, or body of knowledge into an ICM
 
 # ICM Architect
 
+Portable reference (not a second entrypoint): [icm-architect.md](../../../../references/icm-architect.md).
+
 Build workspaces where the folder structure does the orchestration. One agent, reading the right files at the right moment, replaces a multi-agent framework: numbered folders carry sequencing, hierarchy carries context scoping, plain markdown files carry state. A human can open any folder and see exactly what state the system is in, because state is just files.
 
 Think of the workspace as a library. The routing files are the catalog: small, stable, they point at everything and store almost nothing. The content lives on the shelves (stage folders, node files, reference material). One librarian — one model — walks the building, and the question decides which shelf gets walked to. Nobody photocopies the library into a backpack; that is what context-stuffing is. The catalog is small on purpose.
