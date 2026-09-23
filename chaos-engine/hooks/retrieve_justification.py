@@ -20,7 +20,11 @@ BLOCK_REASON = (
     "this path. Run `python3 .chaos-engine/tool.py retrieve --store graphify "
     "\"<what calls or depends on this>\"` or `--store mempalace "
     "\"<what happened around this>\"`, then read only the cited paths. "
-    "The same rule is `chaos-engine/references/host-parity-matrix.md`."
+    "The same rule is `chaos-engine/references/host-parity-matrix.md`. "
+    "When retrieve is degraded, doctor prints blocking row `retrieve-mempalace` "
+    "or `retrieve-graphify` with the backend reason. Repair with "
+    "`python3 .chaos-engine/install.py repair --project . --component mempalace` "
+    "or `--component graphify`. Do not auto-migrate ~/.mempalace."
 )
 
 _PATH = re.compile(r"(?<![\w.@])((?:[\w.-]+/)+[\w.-]+\.[\w.]+)")
