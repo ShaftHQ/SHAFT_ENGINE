@@ -11,6 +11,8 @@ GitHub MCP. If a host already has GitHub MCP, leave it unchanged.
 
 Skip planning questions only when the owner explicitly asked for unattended planning.
 
+A harness program is an epic plus its native sub-issues, one orchestrator, local implementers, and one adversarial reviewer per PR. Run one Learning Session after the epic's in-scope pull requests merge. Unchanged overlay files are an invalid Learning Session skip only after a confirmed delivery. Sub-issues do not re-ask attendance. Each implementation PR names its unittest module. Close the program only when every sub-issue is merged or explicitly dropped on the tracker.
+
 ## 4. Implement, check, review, deliver
 
 Rule every open design choice on the issue before the first implementing commit;
