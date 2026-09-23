@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -80,6 +81,39 @@ class DoctorAgentSummaryTest(unittest.TestCase):
             INSTALL.validate_install_options(
                 parser.parse_args(["doctor", "--project", ".", "--json", "--agent-summary"])
             )
+
+    def test_policy_overlay_reason_is_the_drift_row(self):
+        overlay_match = load("ce_overlay_match_summary", ROOT / "chaos-engine/overlay_match.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for tree_name in ("chaos-engine", ".chaos-engine"):
+                tree = root / tree_name
+                for relative, body in (
+                    ("identity.md", "same-identity\n"),
+                    ("skills/chaos-engine/SKILL.md", "router\n"),
+                    ("references/roles.md", "roles\n"),
+                    ("hooks/guard.py", "guard\n"),
+                ):
+                    path = tree / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(body, encoding="utf-8")
+            (root / ".chaos-engine" / "identity.md").write_text("other-identity\n", encoding="utf-8")
+            result = {
+                "status": "healthy",
+                "policySha256": "ab" * 32,
+                "components": {"core": {"status": "healthy"}},
+            }
+            overlay_match.apply_policy_hash_doctor(result, root)
+            policy = result["components"]["policy-overlay"]
+            self.assertEqual("policy hash drift", policy["reason"])
+            self.assertNotIn("detail", policy)
+            self.assertNotIn("code", policy)
+            rendered = INSTALL.format_agent_summary(result)
+            self.assertIn("component: policy-overlay recovery-required", rendered)
+            self.assertIn("drift: policy hash drift", rendered)
+            self.assertNotIn("component: core healthy", rendered)
+            self.assertNotIn("drift: none", rendered)
+            self.assertEqual(1, INSTALL.agent_summary_exit_code(result))
 
     def test_learning_session_non_skip_sentence_stays_reachable(self):
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")

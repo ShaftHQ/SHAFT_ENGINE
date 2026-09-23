@@ -1518,7 +1518,10 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("os: [ubuntu-22.04, macos-15, windows-2025]", block)
         self.assertIn("GITHUB_TOKEN: ${{ github.token }}", block)
         self.assertIn("scripts/ci/chaos_engine_live_installer_acceptance.py", block)
-        self.assertIn("--candidate-sha ${{ github.event.pull_request.head.sha }}", block)
+        self.assertIn(
+            "--candidate-sha ${{ github.event.pull_request.head.sha || github.sha }}",
+            block,
+        )
         self.assertIn(
             "--base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3", block
         )

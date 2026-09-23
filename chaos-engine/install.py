@@ -5875,10 +5875,15 @@ def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
                 continue
             detail = str(item.get("detail") or "")
             code = str(item.get("code") or "")
-            blob = f"{detail} {code}".casefold()
+            reason = str(item.get("reason") or "")
+            blob = f"{detail} {code} {reason}".casefold()
             mismatched = item.get("coreMatchesSource") is False or "drift" in blob or "mismatch" in blob
             if mismatched:
-                return candidate, str(item.get("status") or "recovery-required"), detail or code or "policy-hash-drift"
+                return (
+                    candidate,
+                    str(item.get("status") or "recovery-required"),
+                    detail or code or reason or "policy-hash-drift",
+                )
         core = components.get("core")
         if isinstance(core, dict):
             name = "core"

@@ -276,6 +276,10 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         ]
         self.assertIn(f"--base-sha {module.KNOWN_BASE_SHA}", pr_block)
         self.assertNotIn("github.event.pull_request.base.sha", pr_block)
+        self.assertIn(
+            "--candidate-sha ${{ github.event.pull_request.head.sha || github.sha }}",
+            pr_block,
+        )
 
     def test_project_mcp_probe_never_supplies_mempalace_storage_arguments(self):
         module = load_acceptance()
