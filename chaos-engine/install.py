@@ -3626,11 +3626,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             if compensation_errors:
-                cause = " ".join(str(error).split())[:300]
+                if len(compensation_errors) == 1:
+                    raise compensation_errors[0] from error
                 details = "; ".join(str(item) for item in compensation_errors)
-                raise RuntimeError(
-                    f"ChaosEngine compensation failures: {details} | cause: {cause}"
-                ) from error
+                raise RuntimeError(f"ChaosEngine compensation failures: {details}") from error
             raise
         finally:
             if project_setup_snapshot is not None:
