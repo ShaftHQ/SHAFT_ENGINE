@@ -84,6 +84,8 @@ See also the [hook trigger map](hook-trigger-map.md).
 
 ## GAP-EXIT2 compensating UX checklist (Grok / Copilot)
 
+GAP-EXIT2-SENTENCE: GAP-EXIT2: ChaosEngine still emits decision=block or permissionDecision=deny and exit 2; verify host trust.
+
 Do **not** pretend a hard process exit-2 block on these hosts. ChaosEngine still
 emits `decision=block` / `permissionDecision=deny` and exit 2; owners must
 verify trust and static surfaces.

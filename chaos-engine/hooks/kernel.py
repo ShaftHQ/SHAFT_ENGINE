@@ -99,6 +99,22 @@ class HostCapability:
     blocking_gap: str = ""
 
 
+
+def gap_exit2_sentence() -> str:
+    """Single compensating sentence owned by host-parity-matrix.md."""
+    path = Path(__file__).resolve().parents[1] / "references" / "host-parity-matrix.md"
+    marker = "GAP-EXIT2-SENTENCE:"
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith(marker):
+            sentence = line[len(marker):].strip()
+            if sentence:
+                return sentence
+    raise RuntimeError("GAP-EXIT2 sentence missing from host-parity-matrix.md")
+
+
+GAP_EXIT2_SENTENCE = gap_exit2_sentence()
+
+
 def _aliases(supported: tuple[str, ...], **values: str) -> Mapping[str, str]:
     base = {event: event for event in supported}
     base.update(values)
@@ -164,10 +180,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
         hard_block_mechanism="decision_json",
         deny_exit_code=2,
         process_exit2_honored=False,
-        blocking_gap=(
-            "GAP-EXIT2: Grok may not honor process exit-2 as a hard block; "
-            "ChaosEngine still emits decision=block and exit 2 — verify adapter trust."
-        ),
+        blocking_gap=GAP_EXIT2_SENTENCE,
     ),
     "copilot": HostCapability(
         ("AGENTS.md", ".github/copilot-instructions.md", ".github/skills/chaos-engine/SKILL.md"),
@@ -188,10 +201,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
         hard_block_mechanism="permission_decision",
         deny_exit_code=2,
         process_exit2_honored=False,
-        blocking_gap=(
-            "GAP-EXIT2: Copilot cloud/ide surfaces may not honor process exit-2; "
-            "denies use permissionDecision — verify host trust and static surfaces."
-        ),
+        blocking_gap=GAP_EXIT2_SENTENCE,
     ),
 }
 
