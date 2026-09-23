@@ -1527,10 +1527,52 @@ class HostParityTest(unittest.TestCase):
     """Codex and Claude resolve the same policy from their own discovery paths."""
 
     def test_both_hosts_expose_the_same_skill_set(self):
+        """Checks portable skill directories, and that Claude adapters expose only the router entrypoint."""
         canonical = {path.parent.name for path in CANONICAL_SKILLS.glob("*/SKILL.md")}
         claude = {path.parent.name for path in CLAUDE_SKILLS.glob("*/SKILL.md")}
         self.assertEqual(canonical, {"chaos-engine", "colibri", "freetoken", "local-agency", "local-coding-delegate", "local-openai-compat", "omniroute", "self-improve", "work-item"})
         self.assertEqual(claude, {"chaos-engine"})
+
+
+    def test_router_catalog_inventories_portable_and_vendor_skills(self):
+        """CI fails when a skill name is missing, or a catalog SKILL.md path is missing or untracked."""
+        import subprocess
+
+        entry = ENTRYPOINT.read_text(encoding="utf-8")
+        catalog = entry.split("## Catalog", 1)[1]
+        rows = []
+        for line in catalog.splitlines():
+            if not line.startswith("|") or line.startswith("| name") or line.startswith("| ---"):
+                continue
+            cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+            if len(cells) < 3:
+                continue
+            rows.append((cells[0], cells[2]))
+        names = {name for name, _path in rows}
+        def skill_name(path: Path) -> str:
+            match = re.search(r"(?m)^name:\s*(\S+)", path.read_text(encoding="utf-8"))
+            self.assertIsNotNone(match, path)
+            return match.group(1)
+        discovered = [
+            path for path in list(CANONICAL_SKILLS.glob("*/SKILL.md")) + list((ROOT / "chaos-engine/vendor").rglob("SKILL.md"))
+        ]
+        missing = sorted(skill_name(path) for path in discovered if skill_name(path) not in names)
+        self.assertEqual(missing, [])
+        untracked = []
+        for _name, rel in rows:
+            if not rel.endswith("SKILL.md"):
+                continue
+            path = ROOT / "chaos-engine" / rel
+            if not path.is_file():
+                untracked.append(f"missing:{rel}")
+                continue
+            tracked = subprocess.run(
+                ["git", "ls-files", "--error-unmatch", "--", f"chaos-engine/{rel}"],
+                cwd=ROOT, capture_output=True, text=True,
+            )
+            if tracked.returncode != 0:
+                untracked.append(f"untracked:{rel}")
+        self.assertEqual(untracked, [])
 
     def test_claude_skills_are_redirects_to_the_canonical_body(self):
         for adapter in sorted(CLAUDE_SKILLS.glob("*/SKILL.md")):

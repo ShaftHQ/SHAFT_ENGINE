@@ -13,6 +13,8 @@ Optional **local MoE / local-weights** companion from
 workflow owner; select the canonical workflow in
 [execution workflows](../../references/execution-workflows.md) first.
 
+Peer ports for FreeToken, Colibri, OmniRoute, and local OpenAI-compat are the [transport-order table](../../references/execution-workflows.md#transport-is-orthogonal).
+
 **Standalone from OmniRoute.** FreeToken loopback is
 `http://127.0.0.1:1919`. OmniRoute is `http://127.0.0.1:20128`. Neither
 requires the other. Missing FreeToken is normal: use OmniRoute (if READY), a

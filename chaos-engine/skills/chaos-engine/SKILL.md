@@ -237,11 +237,10 @@ the live overlay reach.
 
 Select exactly one mode from [execution workflows](../../references/execution-workflows.md),
 the sole owner of workflow names, selection, switching, capacity fallback, and
-writer limits. Use optional local transport only through the
-[OmniRoute skill](../omniroute/SKILL.md); missing OmniRoute never weakens
-workflows. FreeToken, local OpenAI-compat, and
-[local-agency](../local-agency/SKILL.md) (OpenCode) are optional loopback peers,
-not OmniRoute replacements. Missing them never weakens workflows.
+writer limits. Optional local peers follow that file's transport-order table
+(FreeToken, Colibri, OmniRoute, local OpenAI-compat). A missing peer does not
+weaken the workflow. [local-agency](../local-agency/SKILL.md) (OpenCode) stays
+an optional loopback peer, not a workflow owner.
 
 When orchestrating, load
 [process-owner](../../references/process-owner-scrum-master.md).
@@ -309,7 +308,7 @@ Gambaru.
 
 ## Catalog
 
-Router rows only. Load a body on demand. Keep descriptions short for host
+Router rows only. router-skill-inventory-contract: a portable or vendor skill name absent from this catalog, or a catalog SKILL.md path missing or untracked, fails closed. Load a body on demand. Keep descriptions short for host
 listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 
 | name | description | path |
@@ -319,6 +318,7 @@ listing caps (Claude ~1536 chars/entry; Codex 2%/8000 chars).
 | self-improve | Learning Session dual-track harness+product lessons. | `skills/self-improve/SKILL.md` |
 | omniroute | Optional local OmniRoute dispatch for bounded work. | `skills/omniroute/SKILL.md` |
 | freetoken | Optional local FreeToken process for bounded work. | `skills/freetoken/SKILL.md` |
+| colibri | Optional local Colibri frontier MoE process. | `skills/colibri/SKILL.md` |
 | local-openai-compat | Optional Ollama/LM Studio/llamacpp peers. | `skills/local-openai-compat/SKILL.md` |
 | local-agency | Local OpenCode agency vs session agents. | `skills/local-agency/SKILL.md` |
 | local-coding-delegate | Compat shim; hardware probe. | `skills/local-coding-delegate/SKILL.md` |
