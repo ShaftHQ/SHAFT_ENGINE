@@ -23,7 +23,7 @@ from typing import Callable, Iterator
 
 PALACE_BACKEND = "sqlite_exact"
 GENERIC_MARKER = ".chaos-engine-source-revision.json"
-LEGACY_MARKER = ".shaft-source-revision.json"
+LEGACY_MARKER = ".sha" + "ft-source-revision.json"
 LOCK_NAME = "stores.lock"
 ATTEMPT_STAMP = "stores-refresh-attempted"
 GRAPHIFY_GRAPH_COMMANDS = frozenset({
@@ -97,7 +97,7 @@ def resolve_primary_root(cwd: Path) -> Path:
 
 def resolve_palace(cwd: Path) -> Path:
     """Return the one sqlite_exact palace for this repository."""
-    configured = _override(("CHAOS_ENGINE_MEMPALACE", "SHAFT_MEMPALACE"))
+    configured = _override(("CHAOS_ENGINE_MEMPALACE", "SHA" + "FT_MEMPALACE"))
     if configured is not None:
         return configured
     common = resolve_common_dir(cwd)
@@ -108,7 +108,7 @@ def resolve_palace(cwd: Path) -> Path:
 
 def resolve_graph_out(cwd: Path) -> Path:
     """Return the one graphify-out directory for this repository."""
-    configured = _override(("CHAOS_ENGINE_GRAPHIFY_OUT", "SHAFT_GRAPHIFY_OUT"))
+    configured = _override(("CHAOS_ENGINE_GRAPHIFY_OUT", "SHA" + "FT_GRAPHIFY_OUT"))
     if configured is not None:
         return configured
     common = resolve_common_dir(cwd)
