@@ -112,3 +112,8 @@ guide; continue with other qualified paths. Never auto-serve.
 - Local OpenCode agency: [local-agency](../local-agency/SKILL.md)
 - OmniRoute peer (cloud-quota, not a dependency): [omniroute skill](../omniroute/SKILL.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
+
+
+## llamacpp bring-up
+
+Use the existing `llama-server` and an already downloaded GGUF. Bind loopback only (`127.0.0.1`). The backend id is `llamacpp`. Check `http://127.0.0.1:8080/health` and continue only when the body is ok. Do not use `ft launch`. Do not download a model from this skill.
