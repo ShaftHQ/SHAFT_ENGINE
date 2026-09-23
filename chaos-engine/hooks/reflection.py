@@ -402,12 +402,7 @@ def _receipt_commit_state(session_id: str) -> tuple[int, bool]:
 
 
 def pending_checkpoint(session_id: str) -> dict | None:
-    """Reduce ledger records to the currently required reflection checkpoint.
-
-    Two attempted failures do not demand a receipt. The third does. After a
-    valid receipt spends its one commit, the next attempted failure is blocked
-    until a new receipt.
-    """
+    """Open a receipt on the third attempted failure, then allow one commit."""
     active = active_entries(session_id)
     explicit = next((item for item in reversed(active) if item.get("kind") == "reflection-trigger"), None)
     if explicit is not None:

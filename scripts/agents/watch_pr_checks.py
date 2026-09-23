@@ -356,20 +356,31 @@ def collapse_checks_by_name(checks: list[dict]) -> list[dict]:
     return effective
 
 
+def _without_unexpanded_matrix_jobs(checks: list[dict]) -> list[dict]:
+    """Drop matrix jobs cancelled before GitHub expanded ``${{ }}`` in the name."""
+    expanded = [check for check in checks if "${{" not in str(check.get("name", ""))]
+    return expanded if expanded else checks
+
+
 def classify_checks(checks: list[dict]) -> tuple[str, list[dict]]:
     """Classify one poll's checks into RED, GREEN, or PENDING."""
     # Returns (bucket, failing_checks); failing_checks is only populated
     # for RED. An empty check list (nothing reported yet) is PENDING, not
     # GREEN. Collapse same-named superseded cancellations first (#5753).
+    # A PR Gate Summary failure while another check is still running is the
+    # cancelled workflow's summary, not a new red.
     if not checks:
         return "PENDING", []
-    effective = collapse_checks_by_name(checks)
+    effective = collapse_checks_by_name(_without_unexpanded_matrix_jobs(checks))
     failing = [
         check for check in effective if str(check.get("state", "")).upper() in RED_STATES
     ]
+    pending = any(str(check.get("state", "")).upper() in PENDING_STATES for check in effective)
+    if failing and pending:
+        failing = [check for check in failing if str(check.get("name", "")) != "PR Gate Summary"]
     if failing:
         return "RED", failing
-    if any(str(check.get("state", "")).upper() in PENDING_STATES for check in effective):
+    if pending:
         return "PENDING", []
     return "GREEN", []
 

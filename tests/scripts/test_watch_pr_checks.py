@@ -391,6 +391,31 @@ class WatchPrChecksSupersededCancelledTest(unittest.TestCase):
 class QuietUnattendedWatchTest(unittest.TestCase):
     """#6149: one blocking watch, one line, no second status table."""
 
+    def test_superseded_summary_stays_pending_while_another_check_runs(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "PR Gate Summary", "state": "FAILURE", "link": "https://checks/old"},
+                {
+                    "name": "ChaosEngine fresh installer (${{ matrix.os }})",
+                    "state": "CANCELLED",
+                    "link": "https://checks/matrix",
+                },
+                {"name": "Agent Guidance Gate", "state": "IN_PROGRESS", "link": "https://checks/live"},
+            ]
+        )
+        self.assertEqual("PENDING", bucket)
+        self.assertEqual([], failing)
+
+    def test_a_real_failure_stays_red_while_another_check_runs(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "Agent Guidance Gate", "state": "FAILURE", "link": "https://checks/red"},
+                {"name": "CodeQL", "state": "IN_PROGRESS", "link": "https://checks/live"},
+            ]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertEqual("Agent Guidance Gate", failing[0]["name"])
+
     def test_in_progress_with_auto_merge_armed_stays_pending(self):
         checks = [
             {"name": "Agent Guidance Gate", "state": "IN_PROGRESS", "link": "https://checks/1"}

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed git init/add against a temp repo only.
 import tempfile
 import unittest
 from pathlib import Path
@@ -70,8 +70,10 @@ class OverlayPrePushTest(unittest.TestCase):
             playbook = root / PLAYBOOK
             playbook.parent.mkdir(parents=True)
             playbook.write_text(("z" * 16385) + "\n" + "\n".join(PINNED), encoding="utf-8")
-            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
-            subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+            git = shutil.which("git")
+            self.assertIsNotNone(git)
+            subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)  # nosec B603
+            subprocess.run([git, "add", "-A"], cwd=root, check=True, capture_output=True)  # nosec B603
             reason = guard._overlay_pre_push_reason(str(root))
             self.assertIsNotNone(reason)
             self.assertIn("16384", reason)

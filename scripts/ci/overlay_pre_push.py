@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Local pre-push contract for overlay markdown, skills, and hook entrypoints.
-
-The same reachability, 16384-byte reference budget, and pinned playbook clauses
-that CI enforces. A diff that does not touch those paths does not run the gate.
-"""
+"""Local pre-push contract for overlay markdown, skills, and hook entrypoints."""
 
 from __future__ import annotations
 
