@@ -384,3 +384,128 @@ def apply_doctor_overlay_match(
         "then rerun doctor. Do not rerun the install one-liner."
     )
     core["agentPrompt"] = overlay_handoff_prompt()
+
+
+_POLICY_GROUPS = ("skills", "references", "hooks")
+_POLICY_SUFFIXES = {".md", ".py", ".json", ".js"}
+_NESTED_RELATIVES = ("identity.md", "skills/chaos-engine/SKILL.md")
+
+
+def _policy_digest_map(root: Path) -> dict[str, str]:
+    files: dict[str, str] = {}
+    identity = root / "identity.md"
+    if identity.is_file():
+        files["identity.md"] = _sha256(identity)
+    for group in _POLICY_GROUPS:
+        base = root / group
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in _POLICY_SUFFIXES:
+                continue
+            if ".chaos-engine" in path.relative_to(root).parts:
+                continue
+            files[path.relative_to(root).as_posix()] = _sha256(path)
+    return files
+
+
+def policy_hash_mismatches(portable: Path, overlay: Path) -> list[str]:
+    """Return policy paths whose sha256 differs between SOURCE and the overlay."""
+    left = _policy_digest_map(portable)
+    right = _policy_digest_map(overlay)
+    return sorted(key for key in set(left) | set(right) if left.get(key) != right.get(key))
+
+
+def nested_overlay_drift(overlay: Path) -> list[str]:
+    """Fail when a nested overlay identity or router skill differs from the overlay."""
+    nested = overlay / ".chaos-engine"
+    if not nested.is_dir():
+        return []
+    drifted: list[str] = []
+    for relative in _NESTED_RELATIVES:
+        outer = overlay / relative
+        inner = nested / relative
+        if outer.is_file() and inner.is_file() and _sha256(outer) != _sha256(inner):
+            drifted.append(relative)
+    return drifted
+
+
+def _retrieve_row(store: str, reason: str) -> dict[str, str]:
+    return {
+        "status": "recovery-required",
+        "taskImpact": "required",
+        "reason": reason,
+        "code": "CE_RETRIEVE_DEGRADED",
+        "fixNext": (
+            f"python3 .chaos-engine/install.py repair --project . --component {store}. "
+            "Do not auto-migrate ~/.mempalace."
+        ),
+    }
+
+
+def apply_policy_hash_doctor(
+    result: dict[str, object],
+    project: Path,
+    *,
+    retrieve_reports: list[dict[str, object]] | None = None,
+    probe_retrieve: bool = False,
+) -> None:
+    """Attach policy-overlay and degraded-retrieve rows. Does not refresh stores."""
+    components = result.get("components")
+    if not isinstance(components, dict):
+        return
+    root = Path(project)
+    portable = root / SOURCE_DIR
+    overlay = root / OVERLAY_DIR
+    if portable.is_dir() and overlay.is_dir():
+        mismatches = policy_hash_mismatches(portable, overlay)
+        nested = nested_overlay_drift(overlay)
+        if mismatches or nested:
+            components["policy-overlay"] = {
+                "status": "recovery-required",
+                "taskImpact": "required",
+                "reason": "policy hash drift",
+                "mismatches": mismatches,
+                "nestedDrift": nested,
+                "fixNext": (
+                    "python3 .chaos-engine/install.py repair --project . --component core. "
+                    "Do not hand-edit a nested .chaos-engine/.chaos-engine tree."
+                ),
+            }
+            result["status"] = "recovery-required"
+    reports = list(retrieve_reports or [])
+    if probe_retrieve and not reports and (root / OVERLAY_DIR / "tool.py").is_file():
+        reports = _probe_degraded_retrieves(root)
+    for report in reports:
+        if not isinstance(report, dict) or report.get("status") != "degraded":
+            continue
+        store = str(report.get("store") or "")
+        if store not in {"mempalace", "graphify"}:
+            continue
+        reason = str(report.get("reason") or "degraded")
+        components[f"retrieve-{store}"] = _retrieve_row(store, reason)
+        result["status"] = "recovery-required"
+
+
+def _probe_degraded_retrieves(project: Path) -> list[dict[str, object]]:
+    """One attempt per store. Never migrates a palace and never refreshes indexes."""
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("retrieve.py")
+    if not path.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("ce_retrieve_doctor_probe", path)
+    if spec is None or spec.loader is None:
+        return []
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    reports: list[dict[str, object]] = []
+    for store in ("mempalace", "graphify"):
+        try:
+            receipt = module.retrieve("doctor policy", store=store, project=project)
+        except (OSError, RuntimeError, ValueError):
+            reports.append({"store": store, "status": "degraded", "reason": "probe-failed"})
+            continue
+        if isinstance(receipt, dict):
+            reports.append(receipt)
+    return reports

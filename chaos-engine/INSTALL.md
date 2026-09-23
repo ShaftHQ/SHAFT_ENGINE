@@ -325,6 +325,7 @@ Overall doctor status stays **healthy** when the only non-healthy findings are `
 ```bash
 python3 .chaos-engine/install.py repair --project . --component plugins
 python3 .chaos-engine/install.py repair --project . --component mempalace
+A degraded MemPalace or Graphify retrieve is blocking doctor row `retrieve-mempalace` or `retrieve-graphify`. Use that existing repair command. Do not auto-migrate `~/.mempalace` and do not refresh stores from doctor.
 ```
 
 Supported components: `plugins`, `hosts`, `core`, `mempalace`,

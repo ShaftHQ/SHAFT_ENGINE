@@ -4733,7 +4733,7 @@ def apply_mcp_policy_doctor(
 
 
 def doctor_with_dependencies(
-    project: Path, *, verify_clients: bool = True
+    project: Path, *, verify_clients: bool = True, probe_retrieve: bool = False
 ) -> dict[str, object]:
     """Verify installed files and actively execute every dependency entrypoint probe."""
     result = status_with_dependencies(project, active_probes=True)
@@ -4833,6 +4833,10 @@ def doctor_with_dependencies(
                 _mod = _ilu.module_from_spec(_spec)
                 _spec.loader.exec_module(_mod)
                 _mod.apply_doctor_overlay_match(result, project.resolve())
+                if hasattr(_mod, "apply_policy_hash_doctor"):
+                    _mod.apply_policy_hash_doctor(
+                        result, project.resolve(), probe_retrieve=probe_retrieve
+                    )
         heal_path = Path(__file__).resolve().with_name("official_self_heal.py")
         if heal_path.is_file() and isinstance(components, dict):
             _spec = _ilu.spec_from_file_location("ce_official_self_heal_doctor", heal_path)
@@ -4994,7 +4998,7 @@ def validate_diagnostic_json(document: object) -> dict[str, object]:
 def status_json(project: Path, *, active_probes: bool = False) -> dict[str, object]:
     """Expose the stable secret-free status JSON v2 contract."""
     if active_probes:
-        state = doctor_with_dependencies(project)
+        state = doctor_with_dependencies(project, probe_retrieve=True)
     else:
         state = status_with_dependencies(project)
         # Required `plugins` must never look healthier than doctor when a native
