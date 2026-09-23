@@ -66,6 +66,25 @@ class AccountDependencyController:
 
 class HostAdapterDrift5633Test(unittest.TestCase):
 
+    def test_invalid_full_snapshot_falls_back_to_receipt_bytes(self):
+        """#6127: an image-map mismatch must not hide the original failure."""
+        install = load(INSTALL, "chaos_engine_install_6127_invalid_full")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            raw = b'{"phase":"installed"}\n'
+
+            class Controller:
+                def restore_snapshot(self, project, saved):
+                    raise ValueError("ChaosEngine host snapshot is invalid")
+
+            install._restore_captured_host_snapshot(
+                project,
+                Controller(),
+                {"raw": raw, "receipt": {"phase": "installed"}, "images": {"AGENTS.md": b""}},
+            )
+            self.assertEqual((project / ".chaos-engine-hosts.json").read_bytes(), raw)
+
+
     def test_receipt_only_snapshot_is_written_back_without_restore(self):
         """#6127: compensation must not call restore_snapshot for a raw receipt."""
         install = load(INSTALL, "chaos_engine_install_6127_restore_bytes")

@@ -2396,7 +2396,16 @@ def _restore_captured_host_snapshot(project: Path, controller, saved: object) ->
     receipt = saved.get("receipt")
     raw = saved.get("raw")
     if isinstance(images, dict) and isinstance(receipt, dict) and isinstance(raw, bytes):
-        controller.restore_snapshot(project, saved)
+        try:
+            controller.restore_snapshot(project, saved)
+        except ValueError as error:
+            # A pre-swap snapshot can miss paths the new core manages. Keep the
+            # receipt bytes and let the original failure surface.
+            if "host snapshot is invalid" not in str(error):
+                raise
+            path = project / ".chaos-engine-hosts.json"
+            reject_link_or_reparse(path)
+            path.write_bytes(raw)
         return
     if not isinstance(raw, bytes) or not raw:
         raise ValueError("ChaosEngine host snapshot is invalid")

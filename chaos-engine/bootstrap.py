@@ -2065,6 +2065,11 @@ def classify_install_error(error: BaseException) -> str:
 
 def one_line_cause(error: BaseException) -> str:
     text = str(error).strip() or error.__class__.__name__
+    cause = getattr(error, "__cause__", None)
+    if isinstance(cause, BaseException):
+        extra = str(cause).strip() or cause.__class__.__name__
+        if extra and extra not in text:
+            text = f"{text} | cause: {extra}"
     if isinstance(error, FileNotFoundError) or getattr(error, "winerror", None) == 2:
         missing = None
         if getattr(error, "filename", None):
