@@ -80,6 +80,7 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (ENTRYPOINT, IRON_LAWS, "never weaken, delete, or rewrite a test to reach green"),
     (ENTRYPOINT, IRON_LAWS, "never claim a check you did not run"),
     (ENTRYPOINT, IRON_LAWS, "run at most two rounds only after complete implementation"),
+    (ENTRYPOINT, IRON_LAWS, "explicitly asked for unattended planning"),
     (ENTRYPOINT, RED_FLAGS, "the check covers it"),
     (LENS, GAP_SHAPES, "unbound-check gap"),
     (LENS, BINDING, "apply it, run it, read the failure, revert"),
@@ -146,7 +147,7 @@ class PlanArtifactRoutingTest(unittest.TestCase):
 # a pinned section grows a list nobody counted, and if a count names a section
 # that is not pinned.
 PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
-    (ENTRYPOINT, IRON_LAWS): 6,
+    (ENTRYPOINT, IRON_LAWS): 7,
     (LENS, GAP_SHAPES): 4,
 }
 
