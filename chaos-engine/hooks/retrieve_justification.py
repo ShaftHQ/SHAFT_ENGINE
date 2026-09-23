@@ -65,35 +65,144 @@ def receipt_path(project: Path) -> Path:
 
 
 def load_citations(project: Path) -> list[str]:
-    path = receipt_path(project)
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return []
-    raw = payload.get("citations") if isinstance(payload, dict) else None
+    raw = _load_payload(project).get("citations")
     if not isinstance(raw, list):
         return []
     return [item for item in raw if isinstance(item, str)]
 
 
+HEAL_ARTIFACTS = frozenset({
+    ".chaos-engine-state/heal-handoff.md",
+    ".chaos-engine-state/doctor-failure.json",
+    ".chaos-engine-state/install-trace.json",
+    ".chaos-engine-state/install-console.log",
+})
+HEAL_ARTIFACT_CAP = 65536
+ROUTER_SUFFIXES = (
+    "skills/chaos-engine/SKILL.md",
+    "chaos-engine/identity.md",
+    ".chaos-engine/identity.md",
+    "chaos-engine/bootstrap.py",
+)
+_FAIL_OPEN = frozenset({"degraded", "skipped"})
+
+
+def _load_payload(project: Path) -> dict:
+    path = receipt_path(project)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _write_payload(project: Path, payload: dict) -> None:
+    destination = receipt_path(project)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def record_citations(project: Path, store: str, text: str) -> list[str]:
     """Append paths from a MemPalace or Graphify result. Other stores no-op."""
+    return record_store_outcome(project, store, "used", "", text)
+
+
+def record_store_outcome(
+    project: Path, store: str, status: str, query: str, text: str = ""
+) -> list[str]:
+    """Record a store attempt. Degraded or skipped attempts fail open for query paths."""
     chosen = str(store or "").casefold()
     if chosen not in STORES:
         return []
-    fresh = extract_citations(text)
-    if not fresh:
-        return []
-    current = load_citations(project)
+    payload = _load_payload(project)
+    citations = payload.get("citations")
+    current = [item for item in citations if isinstance(item, str)] if isinstance(citations, list) else []
+    fresh = extract_citations(text) if status == "used" else []
     for path in fresh:
         if path not in current:
             current.append(path)
     current = current[-CITATION_LIMIT:]
-    destination = receipt_path(project)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"schemaVersion": 1, "store": chosen, "citations": current}
-    destination.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    outcomes = payload.get("outcomes")
+    kept = [item for item in outcomes if isinstance(item, dict)] if isinstance(outcomes, list) else []
+    if status in _FAIL_OPEN:
+        kept.append({"store": chosen, "status": status, "query": str(query or "")[:500]})
+        kept = kept[-32:]
+    payload = {"schemaVersion": 1, "store": chosen, "citations": current, "outcomes": kept}
+    _write_payload(project, payload)
     return fresh
+
+
+
+def _allowlisted(project: Path, target: str) -> bool:
+    """Router files, named memory topics, and small heal artifacts need no citation."""
+    wanted = _norm(target)
+    if not wanted:
+        return False
+    if wanted.endswith(ROUTER_SUFFIXES) or wanted in ROUTER_SUFFIXES:
+        return True
+    lowered = wanted.casefold()
+    if "/memory-v2/" in f"/{lowered}" and "/topics/" in f"/{lowered}" and lowered.endswith(".md"):
+        return True
+    if wanted not in HEAL_ARTIFACTS and not any(wanted.endswith("/" + name) for name in HEAL_ARTIFACTS):
+        return False
+    relative = wanted if wanted in HEAL_ARTIFACTS else next(
+        name for name in HEAL_ARTIFACTS if wanted.endswith("/" + name)
+    )
+    candidate = Path(project) / relative
+    try:
+        if candidate.is_symlink() or not candidate.is_file():
+            return True
+        return candidate.stat().st_size <= HEAL_ARTIFACT_CAP
+    except OSError:
+        return True
+
+
+def _prefix_allowed(project: Path, target: str) -> bool:
+    """A cited file unlocks its directory for the rest of this ledger."""
+    wanted = _norm(target)
+    if not wanted or wanted.endswith("/"):
+        return False
+    for citation in load_citations(project):
+        cited = _norm(citation)
+        if "/" not in cited:
+            continue
+        prefix = cited.rsplit("/", 1)[0] + "/"
+        if wanted.startswith(prefix):
+            return True
+    return False
+
+
+def _path_named_in_query(target: str, query: str) -> bool:
+    wanted = _norm(target)
+    if not wanted:
+        return False
+    text = _norm(query)
+    if wanted in text:
+        return True
+    base = wanted.rsplit("/", 1)[-1]
+    return bool(base) and base in query.replace("\\", "/").split()
+
+
+def _fail_open(project: Path, target: str) -> bool:
+    outcomes = _load_payload(project).get("outcomes")
+    if not isinstance(outcomes, list):
+        return False
+    for item in outcomes:
+        if not isinstance(item, dict) or item.get("status") not in _FAIL_OPEN:
+            continue
+        if _path_named_in_query(target, str(item.get("query") or "")):
+            return True
+    return False
+
+
+def read_allowed(project: Path, target: str) -> bool:
+    """True when this path may be read without another store round trip."""
+    return (
+        _allowlisted(project, target)
+        or cites(project, target)
+        or _prefix_allowed(project, target)
+        or _fail_open(project, target)
+    )
 
 
 def cites(project: Path, target: str) -> bool:
@@ -180,7 +289,7 @@ def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
             if head not in _FILE_HEADS:
                 continue
             paths = _paths_in_segment(segment)
-            if paths and all(cites(project, path) for path in paths):
+            if paths and all(read_allowed(project, path) for path in paths):
                 continue
             return BLOCK_REASON
     return None
@@ -208,7 +317,7 @@ def file_read_block_reason(
         return None
     if tool_name in _READ_TOOLS:
         paths = _input_paths(tool_input)
-        if paths and all(cites(project, path) for path in paths):
+        if paths and all(read_allowed(project, path) for path in paths):
             return None
         return BLOCK_REASON
     return _shell_block(project, commands)

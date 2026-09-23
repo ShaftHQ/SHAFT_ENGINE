@@ -46,18 +46,27 @@ def pick_store(query: str, store: str | None = None) -> str:
     return "memory"
 
 
-def _record_store_citations(project: Path, store: str, text: str) -> None:
+def _justification(project: Path):
     path = Path(__file__).resolve().with_name("hooks") / "retrieve_justification.py"
     if not path.is_file():
-        return
+        return None
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("chaos_engine_retrieve_justification", path)
     if spec is None or spec.loader is None:
-        return
+        return None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    module.record_citations(project, store, text)
+    return module
+
+
+def _record_store_outcome(project: Path, store: str, status: str, query: str, text: str = "") -> None:
+    if store not in {"mempalace", "graphify"}:
+        return
+    module = _justification(project)
+    if module is None:
+        return
+    module.record_store_outcome(project, store, status, query, text)
 
 
 def _tool_py(project: Path) -> Path | None:
@@ -76,8 +85,22 @@ _HIT_LIMIT = 8
 _EXCERPT_WITH_HITS = 800
 
 
-def _structured_hits(body: str, limit: int = _HIT_LIMIT) -> list[dict[str, object]]:
-    """Repo-relative path and line, deduped. Absolute paths are not added."""
+def _query_tokens(query: str) -> set[str]:
+    return {token.casefold() for token in re.findall(r"[A-Za-z0-9_.-]{3,}", query or "")}
+
+
+def _hit_matches_query(path: str, tokens: set[str]) -> bool:
+    if not tokens:
+        return False
+    lowered = path.casefold()
+    parts = [part for part in re.split(r"[/_.-]+", lowered) if part]
+    return any(token in parts or token in lowered for token in tokens)
+
+
+def _structured_hits(
+    body: str, limit: int = _HIT_LIMIT, query: str = ""
+) -> list[dict[str, object]]:
+    """Repo-relative path and line. Token-sharing paths fill the slots first."""
     found: list[dict[str, object]] = []
     seen: set[tuple[str, str | None]] = set()
     for match in _HIT.finditer(body):
@@ -91,13 +114,22 @@ def _structured_hits(body: str, limit: int = _HIT_LIMIT) -> list[dict[str, objec
         if line_text:
             item["line"] = int(line_text)
         found.append(item)
-        if len(found) >= limit:
+        if len(found) >= 200:
             break
-    return found
+    tokens = _query_tokens(query)
+    matched = [item for item in found if _hit_matches_query(str(item["path"]), tokens)]
+    chosen = matched if matched else found
+    return chosen[:limit]
+
+
+_BUDGET_HINT = re.compile(
+    r"raise the token budget \(CLI: --budget\)[^.]*\.?\s*"
+)
 
 
 def _bounded_excerpt(body: str, limit: int = 4096) -> str:
     """Return the store text the caller can use, capped so a receipt stays small."""
+    body = _BUDGET_HINT.sub("", body)
     raw = body.encode("utf-8")
     if len(raw) <= limit:
         return body
@@ -176,7 +208,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             "reason": "no-relevant-hits",
             "query": query,
         }
-    hits = _structured_hits(body)
+    hits = _structured_hits(body, query=query)
     excerpt = _bounded_excerpt(body, _EXCERPT_WITH_HITS if hits else 4096)
     receipt = {
         "store": store,
@@ -187,8 +219,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         "excerpt": excerpt,
         "bytes": len(excerpt.encode("utf-8")),
     }
-    if store in {"mempalace", "graphify"}:
-        _record_store_citations(project, store, body)
+    _record_store_outcome(project, store, STATUS_USED, query, body)
     if origin_sync:
         receipt["originSync"] = "advisory"
     return receipt
@@ -221,6 +252,8 @@ def retrieve(
         return receipt
     outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)
+    if receipt.get("status") in {STATUS_DEGRADED, STATUS_SKIPPED}:
+        _record_store_outcome(root, chosen, str(receipt["status"]), cleaned, "")
     return receipt
 
 
