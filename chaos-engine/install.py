@@ -2382,7 +2382,12 @@ def status(project: Path) -> dict[str, str]:
 
 
 def _prior_host_receipt_image(path: Path) -> dict[str, object] | None:
-    """Read the live host receipt before quarantine unlinks it (#6126)."""
+    """Read the live host receipt before quarantine unlinks it (#6126).
+
+    Compensation calls hosts.restore_snapshot, which requires both the parsed
+    receipt and the exact bytes. A raw-only image raises
+    "ChaosEngine host snapshot is invalid" and hides the original failure.
+    """
     if not path.is_file() or is_link_or_reparse(path):
         return None
     try:
@@ -2391,7 +2396,14 @@ def _prior_host_receipt_image(path: Path) -> dict[str, object] | None:
         return None
     if not raw:
         return None
-    return {"raw": raw}
+    image: dict[str, object] = {"raw": raw}
+    try:
+        receipt = json.loads(raw.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError):
+        return image
+    if isinstance(receipt, dict):
+        image["receipt"] = receipt
+    return image
 
 
 def account_rollback_has_exact_prior_host_receipt(project: Path) -> bool:

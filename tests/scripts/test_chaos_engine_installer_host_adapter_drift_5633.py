@@ -65,6 +65,21 @@ class AccountDependencyController:
 
 
 class HostAdapterDrift5633Test(unittest.TestCase):
+
+    def test_prior_host_receipt_image_keeps_parsed_receipt(self):
+        """#6127: restore_snapshot needs the receipt dict, not raw bytes alone."""
+        install = load(INSTALL, "chaos_engine_install_6127_prior_image")
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / ".chaos-engine-hosts.json"
+            path.write_text(
+                json.dumps({"schemaVersion": 1, "phase": "installed", "coreCommit": "a" * 40}),
+                encoding="utf-8",
+            )
+            image = install._prior_host_receipt_image(path)
+        self.assertIsInstance(image, dict)
+        self.assertIsInstance(image["raw"], bytes)
+        self.assertEqual(image["receipt"]["phase"], "installed")
+
     def test_corecommit_mismatch_with_deps_quarantines(self):
         install = load(INSTALL, "chaos_engine_install_5633_corecommit")
         with tempfile.TemporaryDirectory() as temporary:
