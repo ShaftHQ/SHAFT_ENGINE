@@ -289,8 +289,10 @@ def checkpoint_reason(checkpoint: dict) -> str:
     fingerprints = ",".join(checkpoint["failureFingerprints"])
     return (
         f"Reflection required ({checkpoint['depth']}). Sanitized fingerprints: "
-        f"{fingerprints}. Pause mutation and unchanged retries; append a validated "
-        "receipt before resuming."
+        f"{fingerprints}. Pause mutation and unchanged retries. Append a validated "
+        "receipt with `py -3 scripts/agents/reflection.py receipt` "
+        "(installed: `.chaos-engine/hooks/reflection.py receipt`) before resuming. "
+        "Do not read reflection.py to discover that command."
     )
 
 

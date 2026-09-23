@@ -89,8 +89,10 @@ with a concrete irrelevance reason, or `degraded`. Do not skip the attempt.
 
 When a store can answer a concrete question, query it before broad discovery.
 Allow one attempt through the existing host timeout, with no retries, repair,
-refresh, mining, checkpointing, polling, or watching. Ordinary tasks launch no
-background store processes. SessionStart launches no optional retrieval tool
+refresh, mining, checkpointing, polling, or watching. Shell opens of a path use
+the same citation ledger as `read_file`. One skipped or degraded retrieve
+fail-opens only paths named in that query. Do not auto-migrate `~/.mempalace`.
+Ordinary tasks launch no background store processes. SessionStart launches no optional retrieval tool
 and injects only tracked locators; any store failure is silent to task control.
 
 Install, upgrade, explicit maintenance, `status`, and `doctor` are not ordinary

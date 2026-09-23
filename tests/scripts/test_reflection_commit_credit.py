@@ -173,6 +173,8 @@ class ReflectionCommitCreditTest(unittest.TestCase):
                     "portable",
                 )
             self.assertIn("Reflection required", blocked.getvalue())
+            self.assertIn("receipt", blocked.getvalue())
+            self.assertIn("Do not read reflection.py", blocked.getvalue())
             portable = _load_portable_guard()
             portable_output = io.StringIO()
             with redirect_stdout(portable_output):
@@ -188,6 +190,8 @@ class ReflectionCommitCreditTest(unittest.TestCase):
                 )
             self.assertEqual(2, code)
             self.assertIn("Reflection required", portable_output.getvalue())
+            self.assertIn("receipt", portable_output.getvalue())
+            self.assertIn("Do not read reflection.py", portable_output.getvalue())
 
 
 def _load_portable_guard():

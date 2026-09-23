@@ -102,6 +102,16 @@ class RetrieveJustificationGateTest(unittest.TestCase):
                     commands=(),
                 )
             )
+            absolute = str(project / "chaos-engine" / "install.py")
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Read",
+                    tool_input={"target_file": absolute},
+                    commands=(),
+                )
+            )
 
     def test_degraded_store_fails_open_only_for_paths_in_the_query(self):
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_open")
@@ -205,6 +215,63 @@ NODE install [src=chaos-engine/install.py loc=L12]
             self.assertEqual(1, run.call_count)
             self.assertNotIn("migrate", json.dumps(second))
             self.assertFalse((home / ".mempalace").exists())
+
+    def test_instruction_markdown_needs_no_citation_and_shell_opens_use_the_ledger(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_shell")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            relative = "chaos-engine/references/eliminate-waste.md"
+            absolute = str(project / relative)
+            for target in (relative, absolute):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Read",
+                        tool_input={"target_file": target},
+                        commands=(),
+                    )
+                )
+            self.assertIsNotNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Read",
+                    tool_input={"target_file": "chaos-engine/hooks/guard.py"},
+                    commands=(),
+                )
+            )
+            denied = (
+                "sed -n '1,20p' chaos-engine/hooks/guard.py",
+                'python3 - <<\'PY\'\nPath("chaos-engine/hooks/guard.py").read_text()\nPY',
+            )
+            for command in denied:
+                self.assertIsNotNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                    ),
+                    command,
+                )
+            allowed = (
+                "sed -n '1,20p' chaos-engine/references/eliminate-waste.md",
+                "python3 -m unittest tests.scripts.test_watch_pr_checks",
+                "python3 .chaos-engine/tool.py retrieve --store graphify guard.py",
+            )
+            for command in allowed:
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                    ),
+                    command,
+                )
 
 
 if __name__ == "__main__":

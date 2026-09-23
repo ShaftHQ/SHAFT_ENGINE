@@ -31,7 +31,38 @@ _PATH = re.compile(r"(?<![\w.@])((?:[\w.-]+/)+[\w.-]+\.[\w.]+)")
 _SOURCE_LINE = re.compile(r"(?m)^[ \t]*Source:\s*(\S+)")
 _READ_TOOLS = frozenset({"Read", "Grep", "Glob"})
 _FILE_HEADS = frozenset(
-    {"rg", "grep", "ag", "ack", "fd", "find", "cat", "head", "tail", "less", "more", "bat", "nl"}
+    {
+        "rg",
+        "grep",
+        "ag",
+        "ack",
+        "fd",
+        "find",
+        "cat",
+        "head",
+        "tail",
+        "less",
+        "more",
+        "bat",
+        "nl",
+        "sed",
+    }
+)
+_HOST_POINTERS = frozenset(
+    {
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        ".github/copilot-instructions.md",
+    }
+)
+_INSTRUCTION_MARKERS = (
+    "chaos-engine/references/",
+    "chaos-engine/skills/",
+    "chaos-engine/profiles/",
+    ".chaos-engine/references/",
+    ".chaos-engine/skills/",
+    ".chaos-engine/profiles/",
 )
 _STORE_HEADS = frozenset({"mempalace", "graphify"})
 _PY = frozenset({"py", "python", "python3"})
@@ -43,6 +74,26 @@ def _norm(value: str) -> str:
     while text.startswith("./"):
         text = text[2:]
     return text
+
+
+def _project_relative(project: Path, target: str) -> str:
+    """Host reads pass absolute paths. The ledger stores repo-relative ones."""
+    wanted = _norm(target)
+    if not wanted:
+        return ""
+    roots = {_norm(str(Path(project))), _norm(str(Path(project).resolve()))}
+    for root in roots:
+        if root and (wanted == root or wanted.startswith(root + "/")):
+            return wanted[len(root) :].lstrip("/")
+    return wanted
+
+
+def _instruction_markdown(wanted: str) -> bool:
+    if not wanted.endswith(".md"):
+        return False
+    if wanted in _HOST_POINTERS:
+        return True
+    return any(marker in wanted for marker in _INSTRUCTION_MARKERS)
 
 
 def extract_citations(text: str) -> list[str]:
@@ -162,6 +213,8 @@ def _allowlisted(project: Path, target: str) -> bool:
         return False
     if wanted.endswith(ROUTER_SUFFIXES) or wanted in ROUTER_SUFFIXES:
         return True
+    if _instruction_markdown(wanted):
+        return True
     lowered = wanted.casefold()
     if "/memory-v2/" in f"/{lowered}" and "/topics/" in f"/{lowered}" and lowered.endswith(".md"):
         return True
@@ -219,11 +272,12 @@ def _fail_open(project: Path, target: str) -> bool:
 
 def read_allowed(project: Path, target: str) -> bool:
     """True when this path may be read without another store round trip."""
+    relative = _project_relative(project, target)
     return (
-        _allowlisted(project, target)
-        or cites(project, target)
-        or _prefix_allowed(project, target)
-        or _fail_open(project, target)
+        _allowlisted(project, relative)
+        or cites(project, relative)
+        or _prefix_allowed(project, relative)
+        or _fail_open(project, relative)
     )
 
 
@@ -308,6 +362,13 @@ def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
             except ValueError:
                 continue
             head, _arguments = _command_head(tokens)
+            if head in _PY:
+                paths = extract_citations(segment)
+                if paths and all(read_allowed(project, path) for path in paths):
+                    continue
+                if paths:
+                    return BLOCK_REASON
+                continue
             if head not in _FILE_HEADS:
                 continue
             paths = _paths_in_segment(segment)

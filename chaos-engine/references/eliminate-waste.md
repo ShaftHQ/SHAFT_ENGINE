@@ -19,5 +19,7 @@ Waste is any token, retry, duplicate tool, proxy hop, or retry-the-same-search t
 - Do not duplicate Caveman bodies into host guidance.
 - Do not spend a second research pass when the first receipt already names the next edit.
 - Do not poll `gh pr checks` and a monitor in the same turn. One watch is the status channel. Fetch installer logs once, only when a job is RED.
+- A retrieve denial is not a shell dump.
+- Re-running a green contract test is not a way to wait on CI.
 
 Checked-in memory: `.memory/memory/constraints/token-optimization-is-eliminate-waste.md`.

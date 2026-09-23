@@ -2,6 +2,7 @@
 
 import io
 import json
+import re
 import subprocess  # nosec B404 - fixed test doubles only.
 import sys
 import tempfile
@@ -433,6 +434,16 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertNotIn("--admin", command)
         self.assertNotIn("gh pr view", command)
         self.assertNotIn("gh pr checks", command)
+        playbook = re.sub(
+            r"\s+",
+            " ",
+            (Path(__file__).resolve().parents[2] / "chaos-engine/references/work-github-playbook.md").read_text(
+                encoding="utf-8"
+            ),
+        )
+        self.assertIn("gh run view", playbook)
+        self.assertIn("second watch while one task is pending", playbook)
+        self.assertNotIn("gh pr checks <n> --watch --fail-fast", playbook)
 
     def test_pending_polls_print_one_green_line_and_no_table(self):
         polls = iter(
