@@ -455,6 +455,7 @@ def refresh(
             try:
                 _git(cwd, "worktree", "remove", "--force", str(snapshot))
             except RuntimeError:
+                # The snapshot worktree may already be gone. Cleanup must not fail the refresh.
                 pass
             shutil.rmtree(scratch, ignore_errors=True)
     return 0

@@ -7,8 +7,8 @@ import shutil
 import subprocess  # nosec B404 - tests run fixed local Git commands.
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -117,10 +117,10 @@ class SharedStoreTest(unittest.TestCase):
         self.assertNotIn(str(Path.home() / ".mempalace"), " ".join(bound))
 
     def test_relative_and_blank_overrides_fail_closed(self):
-        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": "relative/palace"}):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": "relative/palace"}):
             with self.assertRaisesRegex(RuntimeError, "CHAOS_ENGINE_MEMPALACE must be absolute"):
                 self.stores.resolve_palace(self.primary)
-        with mock.patch.dict(os.environ, {"SHAFT_GRAPHIFY_OUT": "   "}):
+        with unittest.mock.patch.dict(os.environ, {"SHAFT_GRAPHIFY_OUT": "   "}):
             with self.assertRaisesRegex(RuntimeError, "SHAFT_GRAPHIFY_OUT must not be blank"):
                 self.stores.resolve_graph_out(self.primary)
 
@@ -175,7 +175,7 @@ class SharedStoreTest(unittest.TestCase):
         bare = self.sandbox / "no-origin"
         bare.mkdir()
         self.git("init", cwd=bare)
-        with mock.patch.dict(os.environ, {"HOME": str(self.home)}):
+        with unittest.mock.patch.dict(os.environ, {"HOME": str(self.home)}):
             with self.assertRaisesRegex(RuntimeError, "fix-next: git fetch"):
                 self.stores.refresh(bare, runner=lambda command, cwd: 0)
 
@@ -213,7 +213,7 @@ class SharedStoreTest(unittest.TestCase):
             self.assertIs(kwargs.get("stdout"), subprocess.DEVNULL)
             return object()
 
-        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_STORE_REFRESH": "1"}):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_STORE_REFRESH": "1"}):
             first = self.stores.maybe_spawn_refresh(self.linked, popen=popen)
             second = self.stores.maybe_spawn_refresh(self.linked, popen=popen)
 
