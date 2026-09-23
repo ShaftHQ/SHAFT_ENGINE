@@ -25,8 +25,8 @@ Every orchestrated workflow loads and enforces
 ## Transport is orthogonal
 
 After workflow selection, choose the first available transport permitted by
-the selected host and task boundary. Ports for these peers live only in this
-table. Skills link here. A missing peer does not weaken the workflow.
+the selected host and task boundary. This table is the comparative port list
+for these peers. Skills link here. A missing peer does not weaken the workflow.
 
 | Order | Transport | Loopback port | Skill |
 | --- | --- | --- | --- |
