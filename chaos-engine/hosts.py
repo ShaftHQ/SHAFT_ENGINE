@@ -3798,6 +3798,7 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/hooks/lifecycle.py",
         "plugins/chaos-engine/hooks/matchers.json",
         "plugins/chaos-engine/hooks/reflection.py",
+        "plugins/chaos-engine/references/host-parity-matrix.md",
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
         *companion_managed_paths(),
         ".codex/hooks.json",
@@ -5795,6 +5796,9 @@ def desired_content(
     ).read_bytes()
     after["plugins/chaos-engine/hooks/kernel.py"] = (
         Path(__file__).resolve().parent / "hooks/kernel.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/references/host-parity-matrix.md"] = (
+        Path(__file__).resolve().parent / "references/host-parity-matrix.md"
     ).read_bytes()
     after["plugins/chaos-engine/hooks/launch.js"] = (
         Path(__file__).resolve().parent / "hooks/launch.js"
