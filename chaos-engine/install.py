@@ -4072,6 +4072,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                         ),
                     }
             apply_grok_lean_doctor(result, project.resolve())
+            apply_dual_grok_hook_doctor(result, project.resolve())
             removing = project / ".chaos-engine-runtime.removing"
             backup = project / ".chaos-engine-runtime.backup"
             building = project / ".chaos-engine-runtime.building"
@@ -4474,6 +4475,31 @@ def apply_ce_plugin_pin_doctor(
             "Enable only chaos-engine, caveman, and ponytail plugins."
         )
 
+
+
+
+def apply_dual_grok_hook_doctor(result: dict[str, object], project: Path) -> None:
+    """Report when Claude-compat settings and native .grok hooks are both active."""
+    claude = project / ".claude" / "settings.json"
+    native = project / ".grok" / "hooks" / "lifecycle.json"
+    if not claude.is_file() or not native.is_file():
+        return
+    try:
+        claude_text = claude.read_text(encoding="utf-8", errors="ignore").casefold()
+        native_text = native.read_text(encoding="utf-8", errors="ignore").casefold()
+    except OSError:
+        return
+    if "chaos" not in claude_text or "chaos" not in native_text:
+        return
+    components = result.get("components")
+    if not isinstance(components, dict):
+        return
+    components["grok-hook-surfaces"] = {
+        "status": "sync-advisory",
+        "taskImpact": "advisory",
+        "reason": "both Claude-compat and native .grok hooks are active",
+        "code": "CE_DUAL_GROK_HOOKS",
+    }
 
 
 def apply_grok_lean_doctor(result: dict, project: Path) -> None:

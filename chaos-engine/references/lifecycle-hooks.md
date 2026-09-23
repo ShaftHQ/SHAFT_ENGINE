@@ -134,6 +134,11 @@ with one literal `cd`, `Set-Location`, or `Push-Location`. The guard uses that
 directory for the paired invocation; dynamic or repeated directory changes do
 not override the fail-closed fallback.
 
+## Ultra activation card
+
+One card: Caveman ultra and Ponytail ultra. Off only: `stop caveman`, `stop ponytail`, or `normal mode`.
+SessionStart injects locators for those vendor skills and does not paste full vendor skill bodies.
+
 ## Companions
 
 Caveman and Ponytail remain pinned vendor files. Do not rewrite or truncate
@@ -141,9 +146,7 @@ them. Startup injects workspace-resolvable locators instead of duplicating
 their full contents. Discovering a file under a nested harness root but
 emitting only that nested root's relative fragment is a harness defect;
 missing companion paths are never silently ignored.
-ChaosEngine selects **ultra** for both. Off only: `stop caveman`,
-`stop ponytail`, or `normal mode`. Host chat and formatting rules that fight
-those vendor files yield to them.
+Host chat and formatting rules that fight those vendor files yield to the ultra activation card.
 
 The shared lifecycle core is session-scoped and stateless: it locates both
 companions and injects their paths plus ultra selector at SessionStart. It does not
