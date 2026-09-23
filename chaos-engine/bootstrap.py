@@ -482,6 +482,52 @@ def heal_handoff_prompt(
     )
 
 
+def _is_reparse(path: Path) -> bool:
+    """True for a symlink or a Windows reparse point. Does not follow links."""
+    try:
+        if path.is_symlink():
+            return True
+        attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+    except OSError:
+        return False
+    return bool(attributes & 0x400)
+
+
+def _regular_file_bytes(path: Path) -> bytes | None:
+    """Return file bytes only when the path itself is a regular file."""
+    try:
+        if _is_reparse(path) or not path.is_file():
+            return None
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
+def clear_stale_install_failure_artifacts(project: Path) -> None:
+    """Drop a previous run's failure handoff after this install is healthy."""
+    state = Path(project) / ".chaos-engine-state"
+    if _is_reparse(state):
+        return
+    try:
+        if not state.is_dir():
+            return
+    except OSError:
+        return
+    for name in ("heal-handoff.md", "doctor-failure.json", "install-console.log"):
+        path = state / name
+        try:
+            if _is_reparse(path) or not path.is_file():
+                continue
+            path.unlink()
+        except OSError:
+            continue
+
+
+def _inexact_prior_rollback(error: BaseException) -> bool:
+    """True when rollback cannot restore an exact prior receipt."""
+    return isinstance(error, ValueError) and "no exact prior" in str(error)
+
+
 def write_heal_handoff(project: Path, fields: dict[str, str], issue_url: str) -> Path:
     target = Path(project) / HEAL_HANDOFF_RELATIVE
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -1034,6 +1080,7 @@ class InstallReporter:
         clients: dict[str, object],
         *,
         repository: str,
+        include_heal_handoff: bool = False,
     ) -> None:
         commit = doctor.get("commit") if isinstance(doctor, dict) else None
         if not isinstance(commit, str) or len(commit) != 40:
@@ -1041,6 +1088,8 @@ class InstallReporter:
         doctor_status = doctor.get("status") if isinstance(doctor, dict) else None
         if not isinstance(doctor_status, str) or not doctor_status:
             doctor_status = "unknown"
+        if doctor_status == "healthy" and not include_heal_handoff:
+            clear_stale_install_failure_artifacts(project)
         components = doctor.get("components") if isinstance(doctor, dict) else None
         healthy = 0
         total = 0
@@ -1099,7 +1148,7 @@ class InstallReporter:
                 ]
             )
         heal = project / HEAL_HANDOFF_RELATIVE
-        if heal.is_file() and not heal.is_symlink():
+        if include_heal_handoff and heal.is_file() and not heal.is_symlink():
             issue_url = "the GitHub issue linked in .chaos-engine-state/heal-handoff.md"
             try:
                 for line in heal.read_text(encoding="utf-8").splitlines():
@@ -1931,7 +1980,11 @@ def install_latest(
                 if terminal_context is not None:
                     terminal_context.__exit__(None, None, None)
                 reporter.success(
-                    project, doctor, doctor["clients"], repository=repository
+                    project,
+                    doctor,
+                    doctor["clients"],
+                    repository=repository,
+                    include_heal_handoff=True,
                 )
                 reporter.close()
                 return {
@@ -1963,7 +2016,7 @@ def install_latest(
         if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
             backup = project / ".chaos-engine.backup"
             keep_core = False
-            if isinstance(error, InstallHealthError) and prior_install and backup.exists():
+            if prior_install and backup.exists():
                 probe = getattr(
                     installer, "account_rollback_has_exact_prior_host_receipt", None
                 )
@@ -1971,10 +2024,22 @@ def install_latest(
                     try:
                         keep_core = probe(project) is False
                     except (OSError, ValueError):
-                        # A probe failure must not replace the doctor error.
+                        # A probe failure must not replace the verify error.
                         keep_core = True
             if prior_install and backup.exists() and not keep_core:
-                installer.rollback(project)
+                core_marker = project / ".chaos-engine" / "install.py"
+                core_before = _regular_file_bytes(core_marker)
+                try:
+                    installer.rollback(project)
+                except ValueError as rollback_error:
+                    # A missing receipt raised before any swap keeps the new core.
+                    # A swap that already replaced the core must stay visible.
+                    core_unchanged = (
+                        core_before is not None
+                        and _regular_file_bytes(core_marker) == core_before
+                    )
+                    if not (_inexact_prior_rollback(rollback_error) and core_unchanged):
+                        raise
         if terminal_context is not None:
             terminal_context.__exit__(*sys.exc_info())
         raise
