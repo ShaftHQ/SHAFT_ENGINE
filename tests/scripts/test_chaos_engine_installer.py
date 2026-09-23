@@ -1173,6 +1173,26 @@ module.install_with_dependencies(project, source, "3" * 40)
 
             journal.assert_not_called()
 
+    def test_compensation_keeps_core_when_rollback_has_no_exact_prior(self):
+        errors: list[BaseException] = []
+        reporter = mock.Mock()
+        inexact = ValueError("account rollback has no exact prior host receipt")
+        MODULE.note_inexact_rollback_compensation(
+            errors, inexact, reporter, core_unchanged=True
+        )
+        self.assertEqual([], errors)
+        reporter.trace.assert_called_once()
+        swapped = ValueError("account rollback has no exact prior dependency receipt")
+        MODULE.note_inexact_rollback_compensation(
+            errors, swapped, reporter, core_unchanged=False
+        )
+        self.assertEqual([swapped], errors)
+        other = ValueError("host path changed before publication")
+        MODULE.note_inexact_rollback_compensation(
+            errors, other, reporter, core_unchanged=True
+        )
+        self.assertEqual([swapped, other], errors)
+
     def test_account_rollback_without_saved_raw_dependency_receipt_fails_without_journal(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

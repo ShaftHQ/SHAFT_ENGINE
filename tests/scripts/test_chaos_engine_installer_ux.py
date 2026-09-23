@@ -1507,6 +1507,163 @@ class InstallerUxTests(unittest.TestCase):
             self.assertIn("Continue with one agent step", handoff)
             installer.rollback.assert_not_called()
 
+    def test_healthy_success_drops_stale_heal_handoff(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            state = project / ".chaos-engine-state"
+            state.mkdir(parents=True)
+            (state / "heal-handoff.md").write_text(
+                "Issue: https://github.com/owner/repo/issues/new?"
+                "template=chaos-engine-installer.yml&title=%5BChaosEngine+installer%5D+"
+                "CE-INSTALL-FAILED\n",
+                encoding="utf-8",
+            )
+            (state / "doctor-failure.json").write_text(
+                '{"cause":"account rollback has no exact prior host receipt",'
+                '"status":"failed"}\n',
+                encoding="utf-8",
+            )
+            (state / "install-console.log").write_text(
+                "PASS Provision dependencies\n",
+                encoding="utf-8",
+            )
+            stream = io.StringIO()
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            reporter.success(
+                project,
+                {
+                    "commit": "a" * 40,
+                    "status": "healthy",
+                    "components": {"core": {"status": "healthy"}},
+                },
+                {"claude": {"status": "healthy"}},
+                repository="owner/repo",
+            )
+            output = stream.getvalue()
+            self.assertIn("Installation Successful!", output)
+            self.assertIn("Doctor: healthy (1/1 components healthy)", output)
+            self.assertNotIn("Heal handoff", output)
+            self.assertNotIn("Open issue:", output)
+            self.assertNotIn("CE-INSTALL-FAILED", output)
+            self.assertFalse((state / "heal-handoff.md").exists())
+            self.assertFalse((state / "doctor-failure.json").exists())
+            self.assertFalse((state / "install-console.log").exists())
+
+    def _upgrade_verify_failure(
+        self, installer, *, probe, rollback_effect=None, expected="memory probe failed"
+    ):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            core = project / ".chaos-engine"
+            core.mkdir()
+            (core / "install.py").write_text("# installer\n", encoding="utf-8")
+            backup = project / ".chaos-engine.backup"
+            backup.mkdir()
+            (backup / "install.py").write_text("# previous\n", encoding="utf-8")
+
+            def install_core(target_project, *_args, **_kwargs):
+                root = Path(target_project) / ".chaos-engine"
+                root.mkdir(parents=True, exist_ok=True)
+                (root / "install.py").write_text("# installer\n", encoding="utf-8")
+                return root
+
+            installer.install_with_dependencies.side_effect = install_core
+            installer.doctor_with_dependencies.side_effect = ValueError(
+                "memory probe failed"
+            )
+            installer.account_rollback_has_exact_prior_host_receipt.return_value = probe
+            if rollback_effect is not None:
+                installer.rollback.side_effect = rollback_effect
+            stream = io.StringIO()
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            with unittest.mock.patch.object(
+                BOOTSTRAP, "resolve_latest", return_value=("b" * 40, "main")
+            ), unittest.mock.patch.object(
+                BOOTSTRAP, "download_source", return_value=ROOT / "chaos-engine"
+            ), unittest.mock.patch.object(
+                BOOTSTRAP, "load_installer", return_value=installer
+            ):
+                with self.assertRaises(ValueError) as caught:
+                    BOOTSTRAP.install_latest(
+                        project,
+                        repository="owner/repo",
+                        branch="main",
+                        opener=unittest.mock.Mock(),
+                        reporter=reporter,
+                    )
+            self.assertEqual(expected, str(caught.exception))
+            self.assertTrue((project / ".chaos-engine" / "install.py").is_file())
+            return installer
+
+    def test_upgrade_verify_without_prior_receipt_keeps_core(self):
+        installer = unittest.mock.Mock()
+        self._upgrade_verify_failure(installer, probe=False)
+        installer.rollback.assert_not_called()
+
+    def test_upgrade_verify_inexact_rollback_keeps_original_error(self):
+        installer = unittest.mock.Mock()
+        self._upgrade_verify_failure(
+            installer,
+            probe=True,
+            rollback_effect=ValueError(
+                "account rollback has no exact prior host receipt"
+            ),
+        )
+        installer.rollback.assert_called_once()
+
+    def test_upgrade_verify_swapped_core_keeps_rollback_error(self):
+        installer = unittest.mock.Mock()
+
+        def swap_then_fail(project):
+            marker = Path(project) / ".chaos-engine" / "install.py"
+            marker.write_text("# swapped\n", encoding="utf-8")
+            raise ValueError("account rollback has no exact prior dependency receipt")
+
+        self._upgrade_verify_failure(
+            installer,
+            probe=True,
+            rollback_effect=swap_then_fail,
+            expected="account rollback has no exact prior dependency receipt",
+        )
+
+    def test_healthy_success_does_not_follow_state_dir_symlink(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "project"
+            project.mkdir()
+            outside = root / "outside"
+            outside.mkdir()
+            handoff = outside / "heal-handoff.md"
+            handoff.write_text(
+                "Issue: https://github.com/owner/repo/issues/new?template=x\n",
+                encoding="utf-8",
+            )
+            (outside / "doctor-failure.json").write_text("{}\n", encoding="utf-8")
+            (outside / "install-console.log").write_text("trace\n", encoding="utf-8")
+            (project / ".chaos-engine-state").symlink_to(outside, target_is_directory=True)
+            stream = io.StringIO()
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            reporter.success(
+                project,
+                {
+                    "commit": "a" * 40,
+                    "status": "healthy",
+                    "components": {"core": {"status": "healthy"}},
+                },
+                {},
+                repository="owner/repo",
+            )
+            output = stream.getvalue()
+            self.assertNotIn("Open issue:", output)
+            self.assertNotIn("Heal handoff", output)
+            self.assertEqual(
+                "Issue: https://github.com/owner/repo/issues/new?template=x\n",
+                handoff.read_text(encoding="utf-8"),
+            )
+            self.assertTrue((outside / "doctor-failure.json").is_file())
+            self.assertTrue((outside / "install-console.log").is_file())
+
     def test_pr_gate_runs_fresh_installer_on_exact_three_os_matrix(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         self.assertIn("chaos_installer: ${{ steps.filter.outputs.chaos_installer }}", workflow)

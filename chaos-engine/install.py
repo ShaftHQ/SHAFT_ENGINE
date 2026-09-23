@@ -2461,6 +2461,29 @@ def account_rollback_has_exact_prior_host_receipt(project: Path) -> bool:
     return isinstance(raw, bytes)
 
 
+def note_inexact_rollback_compensation(
+    errors: list[BaseException],
+    cleanup_error: BaseException,
+    reporter,
+    *,
+    core_unchanged: bool,
+) -> None:
+    """Keep the new core when rollback failed before it swapped anything.
+
+    Direct rollback() stays fail-closed. A missing-receipt error raised after
+    the core directory changed is still a compensation failure.
+    """
+    if (
+        core_unchanged
+        and isinstance(cleanup_error, ValueError)
+        and "no exact prior" in str(cleanup_error)
+    ):
+        if reporter is not None:
+            reporter.trace("kept installed core; rollback has no exact prior receipt")
+        return
+    errors.append(cleanup_error)
+
+
 def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
     project: Path, _locked: bool = False, provisioner=None
 ) -> Path:
@@ -3593,6 +3616,15 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     )
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
+            core_marker = project / INSTALL_DIRECTORY / "install.py"
+            try:
+                core_before = (
+                    None
+                    if is_link_or_reparse(core_marker) or not core_marker.is_file()
+                    else core_marker.read_bytes()
+                )
+            except OSError:
+                core_before = None
             if can_compensate:
                 try:
                     backup_path = project / BACKUP_NAME
@@ -3618,7 +3650,22 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                             expected_core_sha256=old_core_sha256,
                         )
                 except BaseException as cleanup_error:
-                    compensation_errors.append(cleanup_error)
+                    try:
+                        core_after = (
+                            None
+                            if is_link_or_reparse(core_marker) or not core_marker.is_file()
+                            else core_marker.read_bytes()
+                        )
+                    except OSError:
+                        core_after = None
+                    note_inexact_rollback_compensation(
+                        compensation_errors,
+                        cleanup_error,
+                        reporter,
+                        core_unchanged=(
+                            core_before is not None and core_before == core_after
+                        ),
+                    )
             elif old_commit is not None:
                 try:
                     prior_host_receipt = (
