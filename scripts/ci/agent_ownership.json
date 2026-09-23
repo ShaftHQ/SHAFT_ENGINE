@@ -1,5 +1,10 @@
 {
   "duties": {
+    "router skill inventory": {
+      "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
+      "terms": ["router-skill-inventory-contract"],
+      "allowed": ["tests/scripts/test_agent_router_contract.py"]
+    },
     "router": {
       "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
       "terms": ["Canonical provider-neutral skill router", "Roles and capability levels"]

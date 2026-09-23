@@ -8,6 +8,8 @@ license: MIT
 
 # OmniRoute
 
+Peer ports for FreeToken, Colibri, OmniRoute, and local OpenAI-compat are the [transport-order table](../../references/execution-workflows.md#transport-is-orthogonal).
+
 Optional provider-neutral transport. It is not a workflow owner; select the
 canonical workflow in [execution workflows](../../references/execution-workflows.md)
 first. Missing, stopped, unauthenticated, exhausted, or unqualified OmniRoute

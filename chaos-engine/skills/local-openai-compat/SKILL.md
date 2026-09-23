@@ -8,6 +8,8 @@ license: MIT
 
 # Local OpenAI-compat runtimes
 
+Peer ports for FreeToken, Colibri, OmniRoute, and local OpenAI-compat are the [transport-order table](../../references/execution-workflows.md#transport-is-orthogonal).
+
 Optional **bring-your-own** local OpenAI-compatible servers. Peer class to
 [FreeToken](../freetoken/SKILL.md): probe and dispatch against an already-running
 loopback server. Not a workflow owner; select the canonical workflow in

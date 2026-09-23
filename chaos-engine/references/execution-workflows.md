@@ -25,19 +25,22 @@ Every orchestrated workflow loads and enforces
 ## Transport is orthogonal
 
 After workflow selection, choose the first available transport permitted by
-the selected host and task boundary:
+the selected host and task boundary. This table is the comparative port list
+for these peers. Skills link here. A missing peer does not weaken the workflow.
 
-1. A qualified optional local OmniRoute process through the
-   [OmniRoute skill](../skills/omniroute/SKILL.md) (cloud-quota gateway).
-2. A qualified optional local FreeToken process through the
-   [FreeToken skill](../skills/freetoken/SKILL.md) (local-weights server).
-3. A qualified optional local Colibri process through the
-   [Colibri skill](../skills/colibri/SKILL.md) (frontier MoE multitier server).
-   Prefer FreeToken for coding agency; Colibri when the operator hosts frontier MoE.
-   Colibri does not replace FreeToken or OmniRoute and is not a workflow owner.
-   FreeToken does not replace OmniRoute, does not require OmniRoute, and is not a workflow owner.
-4. A qualified host-native lower-capability implementer.
-5. No qualified delegate: `SOLO`.
+| Order | Transport | Loopback port | Skill |
+| --- | --- | --- | --- |
+| 1 | FreeToken | 1919 | [FreeToken](../skills/freetoken/SKILL.md) |
+| 2 | Colibri | 8000 | [Colibri](../skills/colibri/SKILL.md) |
+| 3 | OmniRoute | 20128 | [OmniRoute](../skills/omniroute/SKILL.md) |
+| 4 | local OpenAI-compat | 11434, 1234, 8080 | [local OpenAI-compat](../skills/local-openai-compat/SKILL.md) |
+
+Prefer FreeToken for coding agency; Colibri when the operator hosts frontier MoE.
+Colibri does not replace FreeToken or OmniRoute and is not a workflow owner.
+FreeToken does not replace OmniRoute, does not require OmniRoute, and is not a workflow owner.
+
+5. A qualified host-native lower-capability implementer.
+6. No qualified delegate: `SOLO`.
 
 The transport does not change the selected workflow, role boundaries, tests,
 review, learning, or completion duties. Canonical orchestration must probe the
