@@ -92,7 +92,7 @@ orchestrators live.
 
 ### One status channel (#6163)
 
-While an unattended watch is armed for PR N there is exactly one status channel: that watch (`watch_pr_checks.py --until-merged --digest --status-lease`). Scheduled status routines call `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>` and stay silent while it prints nothing. The parent does not re-narrate CI unless the watch returned RED or MERGED or the owner asked. Status content comes from the digest, never a raw check list. See [CI status economy](ci-status-economy.md).
+While an unattended watch is armed for PR N there is exactly one status channel: that watch (`watch_pr_checks.py --until-merged --digest --status-lease`). Scheduled status routines call `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>` and stay silent while it prints nothing. The parent does not re-narrate CI unless the watch returned RED or MERGED or the owner asked. Status content comes from the digest, never a raw check list. See [CI status economy](ci-status-economy.md). (repo-only)
 
 Codacy `ACTION_REQUIRED` (≥medium, any category) makes the RAG line `red` and the ticket row `Blocked` with the pattern id; it is never reported as pending ([gate](codacy-action-required-gate.md)).
 
@@ -110,14 +110,20 @@ Scrum-master. Keep each report to one screen and use this shape:
    the table only.
 4. **Risks and Decisions** — close with open risks and decisions needed.
 
-**Final completion report:** when the program or owned delivery closes, the
-report MUST include actual cost in **USD and EGP**, inferred from tokens ×
+**Delta-only status:** nothing changed means no message; a small change
+means one line; the full format above is used only on a RAG change or when
+the owner asks. The [status lease](ci-status-economy.md) replaces fixed
+schedules.
+
+**Final completion report:** when the program or owned delivery closes and
+a local inference channel was used (or the owner asks), the report includes
+actual cost in **USD and EGP**, inferred from tokens ×
 cost-per-token for the current agent/model/effort. Do not omit currency
 conversion when EGP is the owner's reporting currency.
 
-When any delivery step used a **local** inference channel (loopback
-OpenAI-compat runtime, optional MoE companion, or peer local runtime), also
-report **avoided cloud spend**: local tokens × the would-have-used cloud
+Report **avoided cloud spend** only when a local inference channel was actually used
+(loopback OpenAI-compat runtime, optional MoE companion, or peer local
+runtime); otherwise omit the line and do not meter. The estimate is local tokens × the would-have-used cloud
 model's published per-1M rates (input/output), converted to EGP with the same
 FX used for actual cost. Meter with `session_token_usage.py record --channel
 local` during the session so Learning Session finalize can attach the

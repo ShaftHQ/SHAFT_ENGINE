@@ -13,12 +13,13 @@ machine's project checkout.
    cwd under `$CE_ROG_CHECKOUT` (or the adopter's configured work-machine
    checkout path).
 3. Gate before claiming READY:
-   `python3 chaos-engine/skills/local-agency/scripts/assert_parent_rog_shell.py`
-   `python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken resolve`
+   `python3 .chaos-engine/skills/local-agency/scripts/assert_parent_rog_shell.py`
+   `python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken resolve`
    Prefer `--prefer llamacpp` when the locked local stack is the OpenAI-compat
    loopback on `:8080`.
-4. Keep long work-machine writers on the **parent** (or parent-driven Shell
-   scripts), not a Task executor.
+4. Run each work-machine write as a one-shot job: the parent starts one Shell
+   command or script, awaits it, and reads its receipt. No long-lived writer
+   session, and no Task executor holding the machine.
 
 ## Do not
 
