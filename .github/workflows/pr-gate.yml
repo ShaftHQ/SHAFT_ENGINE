@@ -434,6 +434,8 @@ jobs:
 
   # Fast harness gate. The repository-owned classifier selects changed-surface
   # tests, protected invariants, and a safe fallback for unknown harness files.
+  # Selected checks run concurrently (issue #6191, `--jobs 4` = the runner's
+  # vCPUs); `--jobs 1` is the sequential rollback.
   # Full cross-platform, native-client, and exhaustive suites run in
   # agent-plugin-acceptance.yml on schedule or workflow_dispatch.
   agent-guidance:
@@ -486,6 +488,7 @@ jobs:
           --head "$HEAD_SHA"
           --reviews "$REVIEWS_PATH"
           --budget-seconds 1200
+          --jobs 4
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()

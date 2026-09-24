@@ -92,6 +92,9 @@ table. Remove a row only in the same change that deletes its workflow.
 - Label and body edits re-run only `release-note-governance.yml`; PR Gate
   ignores them. Both `PR Gate Summary` and `Release-note governance` are
   required status checks (#6190).
+- Agent Guidance Gate runs its selected harness checks concurrently
+  (`harness_pr_gate.py --jobs 4`, one temp dir per check, protected checks
+  first); `--jobs 1` restores the sequential run (#6191).
 - `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
   `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
   through `intellij-verify` modes `build`/`plugin`, both retried. Release
