@@ -26,6 +26,30 @@ CLI_OWNED_MCP: dict[str, frozenset[str]] = {
     "graphify": frozenset({"graphify", "graphifyy"}),
 }
 
+# #6179: servers whose job a first-party CLI already does. Default catalogs
+# omit them; `--with-mcp` (or `with_mcp=True`) opts back in.
+CLI_EQUIVALENT_MCP_IDS = frozenset({"chaosengine-memory", "chaosengine-mempalace", "context7"})
+OPTIONAL_MCP_IDS = ("chaosengine-memory", "chaosengine-mempalace", "context7")
+
+
+def profile_mcp_ids(profile: str) -> tuple[str, ...]:
+    """MCP servers a selected profile declares (`mcpServers` in its profile.json)."""
+    path = Path(__file__).resolve().parent / "profiles" / profile / "profile.json"
+    try:
+        declared = json.loads(path.read_text(encoding="utf-8")).get("mcpServers", [])
+    except (OSError, ValueError, AttributeError):
+        return ()
+    return tuple(str(name) for name in declared if isinstance(name, str))
+
+
+def default_mcp_catalog(profile: str, *, with_mcp: bool = False) -> tuple[str, ...]:
+    """Server IDs the installer publishes by default: CLI first, MCP by opt-in."""
+    names = list(profile_mcp_ids(profile))
+    if with_mcp:
+        names.extend(OPTIONAL_MCP_IDS)
+    return tuple(name for name in dict.fromkeys(names) if with_mcp or name not in CLI_EQUIVALENT_MCP_IDS)
+
+
 HEAL_PROMPT = (
     "Prefer gh for GitHub when gh exists and is configured; "
     "when gh auth status succeeds, disable user-host GitHub MCP. "

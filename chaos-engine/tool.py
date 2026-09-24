@@ -98,6 +98,35 @@ def origin_main_revisions(root: Path) -> tuple[str, str]:
     return revisions[0], revisions[1]
 
 
+QUIET_ENVIRONMENT = {
+    "TQDM_DISABLE": "1",
+    "HF_HUB_DISABLE_PROGRESS_BARS": "1",
+    "TRANSFORMERS_VERBOSITY": "error",
+    "TOKENIZERS_PARALLELISM": "false",
+}
+
+
+def quiet_environment(environment: dict[str, str]) -> dict[str, str]:
+    """#6179: retrieval output carries answers, not download progress bars."""
+    return {**environment, **QUIET_ENVIRONMENT}
+
+
+def desync_notice_applies(repo: Path) -> bool:
+    """#6179: detached session worktrees never see the origin/main desync notice."""
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed Git query, no shell.
+            [_git_executable(), "symbolic-ref", "-q", "HEAD"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return True
+    # `symbolic-ref -q` exits 1 only for a detached HEAD; other failures keep the notice.
+    return completed.returncode != 1
+
+
 def origin_main_desync_message(head: str, origin_main: str) -> str:
     """Name HEAD != origin/main and print the fast-forward fix-next (#5591)."""
     return (
@@ -118,7 +147,7 @@ def enforce_tool_origin_main_policy(project: Path, tool: str) -> None:
     retrieve = os.environ.get("CHAOS_ENGINE_RETRIEVE") == "1"
     if tool in MEMORY_ORIGIN_MAIN_TOOLS and not retrieve:
         raise ValueError(message)
-    if tool in ADVISORY_ORIGIN_MAIN_TOOLS or retrieve:
+    if (tool in ADVISORY_ORIGIN_MAIN_TOOLS or retrieve) and desync_notice_applies(project):
         print(f"warning: {message}", file=sys.stderr)
 
 
@@ -275,7 +304,7 @@ def main() -> int:
             arguments = mempalace_mcp_arguments(installed_root, arguments)
         if tool == "maven-tools-mcp":
             command = resolve_maven_tools_command(installed_root)
-            environment = os.environ.copy()
+            environment = quiet_environment(os.environ.copy())
             environment["PYTHONDONTWRITEBYTECODE"] = "1"
             return subprocess.call(  # nosec B603
                 [*command, *arguments],
@@ -283,7 +312,7 @@ def main() -> int:
                 cwd=shared_project_root(installed_root.resolve().parent),
             )
         command = resolve_command(installed_root, tool, arguments)
-        environment = os.environ.copy()
+        environment = quiet_environment(os.environ.copy())
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
         invocation = (
             command

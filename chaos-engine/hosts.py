@@ -1652,6 +1652,64 @@ def activation_plugins_from_root(root: Path, marketplace_name: str) -> dict[str,
     return plugins
 
 
+def _index_codex_defaults() -> dict[str, str]:
+    """Codex install policy per vendor plugin, from harness-index.json (#6177)."""
+    path = Path(__file__).resolve().with_name("harness-index.json")
+    try:
+        entries = json.loads(path.read_text(encoding="utf-8")).get("entries", [])
+    except (OSError, ValueError, AttributeError):
+        entries = []
+    defaults = {
+        str(entry.get("name")): str(entry.get("codexDefault"))
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("kind") == "vendor" and entry.get("codexDefault")
+    }
+    return {ICM_ARCHITECT_PLUGIN_NAME: "AVAILABLE", **defaults}
+
+
+def codex_plugin_installation(name: str) -> str:
+    """Advisory companions are AVAILABLE on Codex; core companions install by default."""
+    return _index_codex_defaults().get(name, "INSTALLED_BY_DEFAULT")
+
+
+def marketplace_documents(marketplace_name: str, version: str) -> dict[str, dict]:
+    """Codex and Claude marketplace manifests generated from one plugin table."""
+    table = (
+        (PLUGIN_NAME, "Developer Tools", "Neutral project-local agent harness.", version),
+        (CAVEMAN_PLUGIN_NAME, "Productivity", "Ultra-compressed communication mode.", CAVEMAN_PLUGIN_VERSION),
+        (PONYTAIL_PLUGIN_NAME, "Productivity", "Laziest solution that actually works.", PONYTAIL_PLUGIN_VERSION),
+        (ICM_ARCHITECT_PLUGIN_NAME, "Productivity",
+         "ICM workspaces: folder structure as agent architecture.", ICM_ARCHITECT_PLUGIN_VERSION),
+    )
+    codex = {
+        "name": marketplace_name,
+        "interface": {"displayName": "ChaosEngine Project"},
+        "plugins": [
+            {
+                "name": name,
+                "source": {"source": "local", "path": f"./plugins/{name}"},
+                "policy": {"installation": codex_plugin_installation(name), "authentication": "ON_INSTALL"},
+                "category": category,
+            }
+            for name, category, _description, _version in table
+        ],
+    }
+    claude = {
+        "name": marketplace_name,
+        "owner": {"name": "ChaosEngine contributors"},
+        "description": "Neutral project-local agent harness.",
+        "plugins": [
+            {"name": name, "source": f"./plugins/{name}", "description": description, "version": plugin_version}
+            for name, _category, description, plugin_version in table
+        ],
+    }
+    return {
+        ".agents/plugins/marketplace.json": codex,
+        ".codex-plugin/marketplace.json": codex,
+        ".claude-plugin/marketplace.json": claude,
+    }
+
+
 def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
     """Publish one path-unique generated marketplace without tracked machine paths."""
     project = project.resolve()
@@ -1673,81 +1731,7 @@ def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
     try:
         for name, contract in plugins.items():
             shutil.copytree(contract["source"], building / f"plugins/{name}")
-        codex_marketplace = {
-            "name": marketplace_name,
-            "interface": {"displayName": "ChaosEngine Project"},
-            "plugins": [
-                {
-                    "name": PLUGIN_NAME,
-                    "source": {"source": "local", "path": "./plugins/chaos-engine"},
-                    "policy": {"installation": "INSTALLED_BY_DEFAULT", "authentication": "ON_INSTALL"},
-                    "category": "Developer Tools",
-                },
-                {
-                    "name": CAVEMAN_PLUGIN_NAME,
-                    "source": {"source": "local", "path": "./plugins/caveman"},
-                    "policy": {
-                        "installation": "INSTALLED_BY_DEFAULT",
-                        "authentication": "ON_INSTALL",
-                    },
-                    "category": "Productivity",
-                },
-                {
-                    "name": PONYTAIL_PLUGIN_NAME,
-                    "source": {"source": "local", "path": "./plugins/ponytail"},
-                    "policy": {
-                        "installation": "INSTALLED_BY_DEFAULT",
-                        "authentication": "ON_INSTALL",
-                    },
-                    "category": "Productivity",
-                },
-                {
-                    "name": ICM_ARCHITECT_PLUGIN_NAME,
-                    "source": {"source": "local", "path": "./plugins/icm-architect"},
-                    "policy": {
-                        "installation": "INSTALLED_BY_DEFAULT",
-                        "authentication": "ON_INSTALL",
-                    },
-                    "category": "Productivity",
-                },
-            ],
-        }
-        claude_marketplace = {
-            "name": marketplace_name,
-            "owner": {"name": "ChaosEngine contributors"},
-            "description": "Neutral project-local agent harness.",
-            "plugins": [
-                {
-                    "name": PLUGIN_NAME,
-                    "source": "./plugins/chaos-engine",
-                    "description": "Neutral project-local agent harness.",
-                    "version": version,
-                },
-                {
-                    "name": CAVEMAN_PLUGIN_NAME,
-                    "source": "./plugins/caveman",
-                    "description": "Ultra-compressed communication mode.",
-                    "version": CAVEMAN_PLUGIN_VERSION,
-                },
-                {
-                    "name": PONYTAIL_PLUGIN_NAME,
-                    "source": "./plugins/ponytail",
-                    "description": "Laziest solution that actually works.",
-                    "version": PONYTAIL_PLUGIN_VERSION,
-                },
-                {
-                    "name": ICM_ARCHITECT_PLUGIN_NAME,
-                    "source": "./plugins/icm-architect",
-                    "description": "ICM workspaces: folder structure as agent architecture.",
-                    "version": ICM_ARCHITECT_PLUGIN_VERSION,
-                },
-            ],
-        }
-        for relative, document in (
-            (".agents/plugins/marketplace.json", codex_marketplace),
-            (".codex-plugin/marketplace.json", codex_marketplace),
-            (".claude-plugin/marketplace.json", claude_marketplace),
-        ):
+        for relative, document in marketplace_documents(marketplace_name, version).items():
             path = building / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -2711,6 +2695,13 @@ MARKER_POLICY_FILES = (
     "GEMINI.md",
     ".github/copilot-instructions.md",
 )
+# #6178: hosts that read AGENTS.md but have no project hook runtime ChaosEngine installs.
+# The research-receipt `retrieve:` field substitutes for the read gate on these hosts.
+INSTRUCTION_ONLY_HOSTS = {
+    "opencode": {"instructions": "AGENTS.md", "gap": "GAP-OPENCODE-HOOKS"},
+    "cursor": {"instructions": "AGENTS.md", "gap": "GAP-CURSOR-HOOKS"},
+    "grok-bot": {"instructions": "AGENTS.md", "gap": "GAP-GROKBOT-HOOKS"},
+}
 GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
 GITATTRIBUTES_END = "# CHAOSENGINE-EOL:END"
 
@@ -2746,6 +2737,10 @@ def competing_policy_errors(project: Path) -> list[str]:
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8")
+        if relative in IMPORT_POINTER_FILES and START not in text:
+            if EXTRA_POLICY_LOAD.search(text):
+                errors.append(f"{relative}: extra ChaosEngine Load outside marker")
+            continue
         bodies[relative] = normalize_marker_policy(text)
         outside = text
         if START in text and END in text:
@@ -3717,6 +3712,9 @@ def portable_python_server(
     script_args: list[str], extra: dict[str, object] | None = None,
     managed_python: Path | None = None,
 ) -> dict[str, object]:
+    # #6179: tracked MCP config never embeds a workstation interpreter; tool.py
+    # hands off to the managed runtime itself.
+    managed_python = None
     posix_command, posix_prefix = interpreter("posix")
     windows_command, windows_prefix = interpreter("nt")
     server: dict[str, object] = {
@@ -4178,6 +4176,42 @@ def merge_instruction(
 
 def instruction_content(before: bytes | None, instruction: str) -> bytes:
     return merge_instruction(before, instruction, relative="instruction")
+
+
+AGENTS_IMPORT = "@AGENTS.md"
+IMPORT_POINTER_FILES = ("CLAUDE.md", "GEMINI.md")
+
+
+def claude_pointer_bytes() -> bytes:
+    """#6178: CLAUDE.md (and GEMINI.md) only import AGENTS.md; one pointer, one router load."""
+    return f"{AGENTS_IMPORT}\n".encode()
+
+
+def import_pointer_instruction(before: bytes | None, *, relative: str) -> bytes:
+    """Rewrite a host file to import AGENTS.md, keeping any user text outside the owned block."""
+    if before is None:
+        return claude_pointer_bytes()
+    try:
+        existing = before.decode("utf-8").replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        _note_merge_handoff(relative, "file is not valid UTF-8", AGENTS_IMPORT)
+        return before
+    starts, ends = existing.count(START), existing.count(END)
+    if (starts, ends) not in {(0, 0), (1, 1)}:
+        _note_merge_handoff(relative, "marker count is not a single matching start and end", AGENTS_IMPORT)
+        return before
+    if starts:
+        begin = existing.index(START)
+        finish = existing.index(END, begin) + len(END)
+        if finish < begin or not _is_current_or_recognized_legacy_owned_span(
+            existing[begin:finish], START, END, instruction_block()
+        ):
+            _note_merge_handoff(relative, "markers exist but the interior is not the current owned block", AGENTS_IMPORT)
+            return before
+        existing = existing[:begin] + existing[finish:].lstrip("\n")
+    rest = [line for line in existing.split("\n") if line.strip() != AGENTS_IMPORT]
+    body = "\n".join(rest).strip("\n")
+    return (f"{AGENTS_IMPORT}\n" + (f"\n{body}\n" if body else "")).encode()
 
 
 
@@ -5006,8 +5040,44 @@ def is_cwd_unavailable_errno(code: int | None) -> bool:
     return code in _CWD_UNAVAILABLE_ERRNOS
 
 
+DIGEST_OK_STATUSES = frozenset({"healthy", "ok", "compatible-legacy", "sync-advisory"})
+
+
+def doctor_digest(report: dict[str, object]) -> str:
+    """#6179: one line when healthy; otherwise only failing checks and their fix-next."""
+    items: list[tuple[str, dict]] = []
+    checks = report.get("checks")
+    if isinstance(checks, list):
+        items.extend((str(item.get("id") or "?"), item) for item in checks if isinstance(item, dict))
+    components = report.get("components")
+    if isinstance(components, dict):
+        items.extend((str(name), item) for name, item in components.items() if isinstance(item, dict))
+    failing = [
+        (name, item) for name, item in items
+        if str(item.get("status") or "unknown") not in DIGEST_OK_STATUSES
+        and not (item.get("status") == "absent" and item.get("taskImpact") in {"optional", "advisory", "required-when-indexed"})
+    ]
+    status = str(report.get("status") or ("healthy" if not failing else "recovery-required"))
+    if not failing:
+        return f"ChaosEngine doctor: {status} ({len(items)} checks)"
+    lines = [f"ChaosEngine doctor: {status}; {len(failing)} failing"]
+    for name, item in failing:
+        fix = item.get("fixNext") or item.get("fix_next") or item.get("detail") or ""
+        lines.append(f"- {name}: {item.get('status')}" + (f"; fix-next: {fix}" if fix else ""))
+    return "\n".join(lines)
+
+
+HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
+
+
 def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
-    interpreter = json.dumps(str(managed_python)) if managed_python else ("py -3" if windows else "python3")
+    """Portable hook launcher (#6179): tracked host files name `python3` / `py -3` only.
+
+    The managed interpreter, when one exists, is recorded in the untracked
+    `.chaos-engine-state/hook-python` pointer and the launcher hands off to it.
+    """
+    del managed_python
+    interpreter = "py -3" if windows else "python3"
     script = (
         "import errno,json,os,pathlib,runpy,sys\n"
         f"os.environ['CHAOS_ENGINE_HOST']={host!r}\n"
@@ -5024,11 +5094,16 @@ def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Pat
         "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
         "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py')\n"
         "try:\n"
-        "    path=next((root/rel for root in roots for rel in cands if (root/rel).is_file()),None)\n"
+        "    found=next(((root,root/rel) for root in roots for rel in cands if (root/rel).is_file()),None)\n"
         "except OSError as error:\n"
         "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
-        "if path is None:\n"
+        "if found is None:\n"
         "    deny(GUARD)\n"
+        "base,path=found\n"
+        f"ptr=base/{HOOK_PYTHON_POINTER!r}\n"
+        "py=ptr.read_text(encoding='utf-8').strip() if os.name!='nt' and ptr.is_file() else ''\n"
+        "if py and os.path.isfile(py) and os.path.realpath(py)!=os.path.realpath(sys.executable):\n"
+        "    os.execv(py,[py,str(path)])\n"
         "try:\n"
         "    runpy.run_path(str(path),run_name='__main__')\n"
         "except OSError as error:\n"
@@ -5036,6 +5111,29 @@ def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Pat
     )
     # json.dumps(script) alone would leave literal \n for the shell; wrap in exec().
     return f"{interpreter} -c {json.dumps('exec(' + json.dumps(script) + ')')}"
+
+
+def managed_python_for(
+    dependency_runtime: Path | None, account_commands: dict[str, str] | None
+) -> Path | None:
+    """Managed interpreter chosen by the installer, or None for the system Python."""
+    if dependency_runtime is not None:
+        scripts = "Scripts" if os.name == "nt" else "bin"
+        return dependency_runtime / "uv-tools/mempalace" / scripts / ("python.exe" if os.name == "nt" else "python")
+    if account_commands is not None and account_commands.get("python3"):
+        return Path(account_commands["python3"])
+    return None
+
+
+def write_hook_python_pointer(project: Path, managed_python: Path | None) -> None:
+    """Record the managed hook interpreter in untracked state, never in tracked host files."""
+    pointer = project / HOOK_PYTHON_POINTER
+    if managed_python is None:
+        with contextlib.suppress(FileNotFoundError):
+            pointer.unlink()
+        return
+    pointer.parent.mkdir(parents=True, exist_ok=True)
+    pointer.write_text(f"{managed_python}\n", encoding="utf-8")
 
 
 def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, managed_python: Path | None = None) -> bytes:
@@ -5505,7 +5603,7 @@ def desired_content(
         "name": ICM_ARCHITECT_PLUGIN_NAME,
         "source": {"source": "local", "path": "./plugins/icm-architect"},
         "policy": {
-            "installation": "INSTALLED_BY_DEFAULT",
+            "installation": codex_plugin_installation(ICM_ARCHITECT_PLUGIN_NAME),
             "authentication": "ON_INSTALL",
         },
         "category": "Productivity",
@@ -6103,10 +6201,9 @@ def desired_content(
         after["mempalace.yaml"] = mempalace_before
     after[".gitignore"] = gitignore_content(before[".gitignore"])
     block = instruction_block(tree)
-    for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
-        after[relative] = merge_instruction(
-            before[relative], block, relative=relative
-        )
+    after["AGENTS.md"] = merge_instruction(before["AGENTS.md"], block, relative="AGENTS.md")
+    for relative in IMPORT_POINTER_FILES:
+        after[relative] = import_pointer_instruction(before[relative], relative=relative)
     after[".github/copilot-instructions.md"] = merge_instruction(
         before[".github/copilot-instructions.md"],
         copilot_instruction_block(tree),
@@ -6765,8 +6862,12 @@ def known_legacy_guard(project: Path, current: bytes) -> bool:
     )
 
 
-def role_adapter_desired(relative: str) -> bytes | None:
-    """Return the candidate fully-owned role adapter bytes for one managed path."""
+def role_adapter_desired(relative: str, *, legacy: bool = False) -> bytes | None:
+    """Return the candidate fully-owned role adapter bytes for one managed path.
+
+    Role adapters load the ~2 KB delegate card, not the full router (#6176).
+    ``legacy=True`` renders the pre-#6176 router-loading image for upgrades.
+    """
     roles = {
         "orchestrator": (
             "Orchestrator",
@@ -6806,8 +6907,13 @@ def role_adapter_desired(relative: str) -> bytes | None:
         if role == "orchestrator"
         else ""
     )
+    card = (
+        ".chaos-engine/skills/chaos-engine/SKILL.md"
+        if legacy
+        else ".chaos-engine/references/delegate-card.md"
+    )
     body = (
-        f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow the "
+        f"Load `{card}` and follow the "
         f"{title} role at `.chaos-engine/references/roles.md#{role}`."
         f"{process_owner} {responsibility}"
     )
@@ -6887,7 +6993,8 @@ def upgrade_before_images(
             continue
         if relative in ROLE_ADAPTER_PATHS:
             desired = role_adapter_desired(relative)
-            if isinstance(observed, bytes) and desired is not None and observed == desired:
+            legacy = role_adapter_desired(relative, legacy=True)
+            if isinstance(observed, bytes) and observed in {desired, legacy} - {None}:
                 continue
             raise ValueError(
                 f"ChaosEngine host adapter drift detected: {relative}"
@@ -7103,6 +7210,8 @@ def install(
             ):
                 apply_hook_receipt(receipt, after, receipt_after)
                 write_receipt(project, receipt, raw)
+                with contextlib.suppress(OSError):
+                    write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
                 write_merge_handoff(project, _handoff_doctor_command())
                 return receipt
             next_receipt = dict(receipt)
@@ -7146,6 +7255,8 @@ def install(
                 reconcile(project, wanted, (current, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
+                with contextlib.suppress(OSError):
+                    write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
                 write_merge_handoff(project, _handoff_doctor_command())
                 with contextlib.suppress(Exception):
                     next_receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
@@ -7163,6 +7274,8 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        with contextlib.suppress(OSError):
+            write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
         write_merge_handoff(project, _handoff_doctor_command())
         with contextlib.suppress(Exception):
             receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
@@ -7209,6 +7322,8 @@ def install(
         reconcile(project, after, (before, after))
         receipt["phase"] = "installed"
         write_receipt(project, receipt, raw)
+        with contextlib.suppress(OSError):
+            write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
         write_merge_handoff(project, _handoff_doctor_command())
         with contextlib.suppress(Exception):
             receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)

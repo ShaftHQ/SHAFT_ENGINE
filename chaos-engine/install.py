@@ -8,6 +8,7 @@ import inspect
 
 import argparse
 import base64
+import contextlib
 from contextlib import contextmanager, nullcontext
 import hashlib
 import json
@@ -58,8 +59,15 @@ CAPABILITY_ENUMS = {
     "owner": {"installer", "project", "user"},
     "scope": {"project", "repository", "user"},
     "lifecycle": {"receipt-owned", "persistent-data", "derived-single-writer", "user-managed-cache"},
-    "taskImpact": {"required", "advisory", "optional"},
+    "taskImpact": {"required", "required-when-indexed", "advisory", "optional"},
 }
+# #6179: components the retrieve gate depends on. Graphify is required once the
+# project has an index (the guard enforces it) and advisory before that.
+RETRIEVE_GATE_COMPONENTS = frozenset({"graphify"})
+GRAPHIFY_IGNORE_DEFAULTS = (
+    ".chaos-engine/", ".chaos-engine-runtime/", ".chaos-engine-state/", "plugins/",
+    ".claude/", ".codex/", ".gemini/", ".grok/", ".agents/", ".memory/", "graphify-out/",
+)
 CAPABILITY_COMPONENTS = {
     "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
     "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
@@ -111,12 +119,38 @@ def legacy_capability_policy() -> dict[str, dict[str, str]]:
     result["memory"].update(owner="project", lifecycle="persistent-data", taskImpact="advisory")
     result["mempalace"].update(owner="project", lifecycle="persistent-data", taskImpact="advisory")
     result["graphify"].update(
-        owner="project", scope="repository", lifecycle="derived-single-writer", taskImpact="advisory"
+        owner="project", scope="repository", lifecycle="derived-single-writer",
+        taskImpact="required-when-indexed",
     )
     result["maven-tools-mcp"].update(
         owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
     )
     return _validated_capabilities(result)
+
+
+def overlay_unchanged(source: Path, installed: Path, distribution: str = DEFAULT_DISTRIBUTION) -> bool:
+    """#6179: True when every staged overlay file already matches byte-for-byte."""
+    if not installed.is_dir():
+        return False
+    for path in source_files(source, distribution):
+        target = installed / path.relative_to(source)
+        try:
+            if not target.is_file() or target.read_bytes() != path.read_bytes():
+                return False
+        except OSError:
+            return False
+    return True
+
+
+def seed_graphify_ignore(project: Path) -> Path:
+    """#6179: keep harness and generated trees out of the project graph; merge, never drop."""
+    path = project / ".graphifyignore"
+    existing = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    missing = [entry for entry in GRAPHIFY_IGNORE_DEFAULTS if entry not in existing]
+    if missing or not path.is_file():
+        lines = [*existing, *(["# ChaosEngine harness and generated trees"] if missing else []), *missing]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 def file_sha256(path: Path) -> str:
@@ -3915,7 +3949,7 @@ def component_escalates_overall(item: dict[str, object]) -> bool:
     if impact == "optional":
         return False
     # Advisory absences (e.g. gh CLI) are info-only; hard advisory fails still escalate.
-    if status == "absent" and impact == "advisory":
+    if status == "absent" and impact in {"advisory", "required-when-indexed"}:
         return False
     return True
 
@@ -5528,6 +5562,21 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
         raise ValueError(f"repair not implemented for component: {name}")
 
 
+def linked_worktree_refusal(project: Path) -> str | None:
+    """#6178: install into the primary checkout; worktrees get the overlay materialized."""
+    if os.environ.get("CHAOS_ENGINE_ALLOW_LINKED_WORKTREE") == "1":
+        return None
+    module_path = Path(__file__).resolve().with_name("worktree_overlay.py")
+    if not module_path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("ce_worktree_overlay_install", module_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.linked_worktree_reason(Path(project))
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     commands = result.add_subparsers(dest="command", required=True)
@@ -5537,6 +5586,11 @@ def parser() -> argparse.ArgumentParser:
     install_command.add_argument("--commit", required=True)
     install_command.add_argument("--distribution", default=DEFAULT_DISTRIBUTION)
     install_command.add_argument("--skip-tools", action="store_true")
+    install_command.add_argument(
+        "--if-changed",
+        action="store_true",
+        help="No-op when the installed overlay already matches the source byte-for-byte (#6179).",
+    )
     install_command.add_argument("--with-maven-tools", action="store_true")
     install_command.add_argument(
         "--maven-tools-mode", choices=("native", "docker"), default="native"
@@ -5576,6 +5630,11 @@ def parser() -> argparse.ArgumentParser:
                 "--agent-summary",
                 action="store_true",
                 help="Print at most four lines: pass/fail, component, hash, drift.",
+            )
+            command.add_argument(
+                "--digest",
+                action="store_true",
+                help="One line when healthy; otherwise only failing checks with fix-next (#6179).",
             )
             command.add_argument(
                 "--fix-next-only",
@@ -5623,6 +5682,8 @@ def _component_severity(item: dict[str, object]) -> str:
         return "warning"
     if impact == "advisory":
         return "warning"
+    if impact == "required-when-indexed":
+        return "warning" if status == "absent" else "error"
     if impact == "optional":
         return "info"
     return "error"
@@ -6135,6 +6196,14 @@ def main() -> int:
     try:
         validate_install_options(args)
         if args.command == "install":
+            refusal = linked_worktree_refusal(args.project)
+            if refusal:
+                raise RuntimeError(refusal)
+            if getattr(args, "if_changed", False) and overlay_unchanged(
+                args.source, args.project / INSTALL_DIRECTORY, args.distribution
+            ):
+                print(json.dumps({"status": "unchanged", "root": str(args.project / INSTALL_DIRECTORY)}))
+                return 0
             bundle = default_bundle_options()
             for name in DEFAULT_BUNDLE_COMPONENTS:
                 if getattr(args, f"without_{name}", False):
@@ -6159,6 +6228,8 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target), "bundle": bundle}
+            with contextlib.suppress(OSError):
+                seed_graphify_ignore(args.project)
             _install_store_schedule(args.project)
         elif args.command == "repair":
             result = repair_component(args.project, args.component)
@@ -6312,6 +6383,9 @@ def main() -> int:
             raise TypeError("doctor/status result must be an object")
         if getattr(args, "agent_summary", False):
             print(format_agent_summary(result), end="")
+            return agent_summary_exit_code(result)
+        if getattr(args, "digest", False):
+            print(load_source_controller("hosts").doctor_digest(result))
             return agent_summary_exit_code(result)
         if getattr(args, "fix_next_only", False):
             print(format_fix_next_only(result), end="")

@@ -1549,9 +1549,11 @@ module.install_with_dependencies(project, source, "3" * 40)
                 self.assertIn(component["owner"], {"installer", "project", "user"})
                 self.assertIn(component["scope"], {"project", "repository", "user"})
                 self.assertIn(component["lifecycle"], {"receipt-owned", "persistent-data", "derived-single-writer", "user-managed-cache"})
-                self.assertIn(component["taskImpact"], {"required", "advisory", "optional"})
-            for name in ("memory", "mempalace", "graphify"):
+                self.assertIn(component["taskImpact"], {"required", "required-when-indexed", "advisory", "optional"})
+            for name in ("memory", "mempalace"):
                 self.assertEqual("advisory", result["components"][name]["taskImpact"])
+            # #6179: Graphify gates reads only once a project graph index exists.
+            self.assertEqual("required-when-indexed", result["components"]["graphify"]["taskImpact"])
             self.assertEqual("optional", result["components"]["maven-tools-mcp"]["taskImpact"])
             self.assertEqual("receipt-owned", result["components"]["maven-tools-mcp"]["lifecycle"])
             self.assertEqual("recovery-required", result["status"])
@@ -1626,7 +1628,7 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertEqual("advisory", observed["components"]["memory"]["taskImpact"])
             self.assertEqual("optional", observed["components"]["maven-tools-mcp"]["taskImpact"])
             doctor = MODULE.doctor_with_dependencies(project, verify_clients=False)
-            self.assertEqual("advisory", doctor["components"]["graphify"]["taskImpact"])
+            self.assertEqual("required-when-indexed", doctor["components"]["graphify"]["taskImpact"])
             self.assertNotIn("capabilities", json.loads(manifest_path.read_text(encoding="utf-8")))
             MODULE.install_with_dependencies(
                 project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
