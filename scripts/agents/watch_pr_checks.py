@@ -40,6 +40,14 @@
 #     3   Any ``gh``/environment error (gh missing, repo/PR unresolvable,
 #         malformed JSON, etc.). Prints the error to stderr.
 #
+# DIGEST (#6162 / #6163):
+#     ``--digest`` prints ONE bounded JSON digest on terminal states
+#     (``{sha, state, failing[<=10], failing_total, pending_count,
+#     codacy_action_required, updated_at}``; RED keeps ``failingJobs`` in the
+#     same object). ``--digest-out PATH`` / ``--status-lease`` publish the digest
+#     and the one-status-channel lease on state change only -- never a
+#     heartbeat and never the raw ``statusCheckRollup``.
+#
 # Usage:
 #     python3 scripts/ci/watch_pr_checks.py                  # current branch's PR
 #     python3 scripts/ci/watch_pr_checks.py --pr 3368         # explicit PR
@@ -50,6 +58,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 # subprocess is used only for read-only `gh`/`git` invocations below, always
@@ -68,6 +77,11 @@ try:
     )
 except ModuleNotFoundError:
     from repository_context import RepositoryContextError, parse_pr_reference, resolve_repository_context
+
+try:
+    from scripts.agents.status_lease import write_lease
+except ModuleNotFoundError:
+    from status_lease import write_lease
 
 DEFAULT_MAX_POLLS = 20
 HARD_MAX_POLLS = 60
@@ -289,6 +303,29 @@ def fetch_pull(gh_executable: str, root: Path, repo: str, pr: int) -> dict:
     return payload
 
 
+def fetch_head_sha(gh_executable: str, root: Path, repo: str, pr: int) -> str | None:
+    """Head SHA for the digest only; a lookup failure degrades to None, never to exit 3."""
+    proc = run_gh(gh_executable, ["pr", "view", str(pr), "--repo", repo, "--json", "headRefOid"], root)
+    if proc.returncode != 0:
+        return None
+    try:
+        payload = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return None
+    value = payload.get("headRefOid") if isinstance(payload, dict) else None
+    return value if isinstance(value, str) and value else None
+
+
+def _publish(args, root: Path, pr: int, digest: dict) -> None:
+    """Write the shared digest file and the status lease on state change; never stdout."""
+    if args.digest_out:
+        path = Path(args.digest_out)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(digest, sort_keys=True) + "\n", encoding="utf-8")
+    if args.status_lease:
+        write_lease(root, pr, pid=os.getpid(), state=digest["state"], digest_path=str(args.digest_out) if args.digest_out else None)
+
+
 def poll_once(gh_executable: str, root: Path, repo: str, pr: int) -> list[dict]:
     """Fetch the current check list for a single poll, preferring `gh pr checks --json`."""
     proc = run_gh(
@@ -385,6 +422,62 @@ def classify_checks(checks: list[dict]) -> tuple[str, list[dict]]:
     return "GREEN", []
 
 
+DIGEST_FAILING_CAP = 10
+DIGEST_MAX_BYTES = 4096
+DIGEST_NAME_CHARS = 80
+DIGEST_URL_CHARS = 160
+CODACY_NAME_MARKER = "codacy"
+
+
+def _clip(value: object, limit: int) -> str:
+    """Bound one digest field so the whole digest stays under DIGEST_MAX_BYTES."""
+    text = str(value or "")
+    return text if len(text) <= limit else text[: limit - 1] + "\u2026"
+
+
+
+def build_digest(sha: str | None, bucket: str, checks: list[dict], failing: list[dict], *, now: float | None = None) -> dict:
+    """Agent-facing CI status digest (#6162): bounded, never the raw statusCheckRollup."""
+    effective = collapse_checks_by_name(checks) if checks else []
+    pending_count = sum(1 for check in effective if str(check.get("state")).upper() in PENDING_STATES)
+    codacy = sorted(
+        _clip(check.get("name"), DIGEST_NAME_CHARS)
+        for check in effective
+        if CODACY_NAME_MARKER in str(check.get("name", "")).lower()
+        and str(check.get("state", "")).upper() == "ACTION_REQUIRED"
+    )
+    rows = [
+        {"name": _clip(check.get("name"), DIGEST_NAME_CHARS), "url": _clip(check.get("link"), DIGEST_URL_CHARS)}
+        for check in failing[:DIGEST_FAILING_CAP]
+    ]
+    return {
+        "sha": sha,
+        "state": bucket.lower(),
+        "failing": rows,
+        "failing_total": len(failing),
+        "pending_count": pending_count,
+        "codacy_action_required": codacy[:DIGEST_FAILING_CAP],
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() if now is None else now)),
+    }
+
+
+def format_digest_line(digest: dict) -> str:
+    """One human line for the digest."""
+    sha = (digest.get("sha") or "unknown")[:12]
+    names = ", ".join(row["name"] for row in digest.get("failing", []))
+    line = f"{digest.get('state')} sha={sha} failing={digest.get('failing_total', 0)} pending={digest.get('pending_count', 0)}"
+    if digest.get("codacy_action_required"):
+        line += f" codacy_action_required={len(digest['codacy_action_required'])} (blocking)"
+    if names:
+        line += f" :: {names}"
+    return line
+
+
+def rollup_is_waste(payload: str, *, budget: int = DIGEST_MAX_BYTES) -> bool:
+    """True when a tool result pastes a raw statusCheckRollup larger than the digest budget."""
+    return '"statusCheckRollup"' in payload and len(payload.encode("utf-8")) > budget
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     parser = argparse.ArgumentParser(
@@ -427,6 +520,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Block until the PR is merged or a check is red. Green checks stay "
         "pending. Auto-merge armed does not end the watch.",
+    )
+    parser.add_argument(
+        "--digest",
+        action="store_true",
+        help="Print one bounded JSON digest on terminal states (#6162). RED keeps failingJobs.",
+    )
+    parser.add_argument(
+        "--digest-out",
+        type=str,
+        default=None,
+        help="Write the digest JSON to this path on state change (shared status channel, #6163).",
+    )
+    parser.add_argument(
+        "--status-lease",
+        action="store_true",
+        help="Own the status channel: record .chaos-engine/runtime/status-lease-<pr>.json (#6163).",
     )
     parser.add_argument("--root", type=Path, default=Path.cwd())
     return parser
@@ -484,6 +593,8 @@ def main(argv: list[str] | None = None) -> int:
             )
         pr = resolve_pr_number(gh_executable, context.root, repo, context.pr_number)
         root = context.root
+        wants_digest = args.digest or args.digest_out or args.status_lease
+        head_sha = fetch_head_sha(gh_executable, root, repo, pr) if wants_digest else None
     except (CheckWatchError, RepositoryContextError) as error:
         print(f"watch_pr_checks: {error}", file=sys.stderr)
         return 3
@@ -499,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
     # THE bounded loop: a plain `for` over a fixed range, never `while True`.
     # There is no path through this function that can iterate more than
     # `poll_budget` (<= HARD_MAX_POLLS) times. Pending polls print nothing.
+    last_bucket = None
     for attempt in range(poll_budget):
         try:
             checks = poll_once(gh_executable, root, repo, pr)
@@ -514,11 +626,15 @@ def main(argv: list[str] | None = None) -> int:
             bucket, failing = classify_unattended(checks, pull)
         else:
             bucket, failing = classify_checks(checks)
+        digest = build_digest(head_sha, bucket, checks, failing)
+        if bucket != last_bucket:
+            _publish(args, root, pr, digest)
+            last_bucket = bucket
         if bucket == "MERGED":
             emit("MERGED")
             return 0
         if bucket == "GREEN" and not args.until_merged:
-            emit("all checks green")
+            emit(json.dumps(digest) if args.digest else "all checks green")
             return 0
         if bucket == "GREEN":
             bucket = "PENDING"
@@ -529,6 +645,8 @@ def main(argv: list[str] | None = None) -> int:
                     for check in failing
                 ]
             }
+            if args.digest:
+                payload.update(digest)
             emit(json.dumps(payload))
             return 1
 
@@ -537,6 +655,7 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(interval)
 
     pending_count = sum(1 for check in checks if str(check.get("state", "")).upper() in PENDING_STATES)
+    _publish(args, root, pr, build_digest(head_sha, "PENDING", checks, []))
     print(f"watch_pr_checks: timed out waiting, {pending_count} checks still pending", file=sys.stderr)
     return 2
 

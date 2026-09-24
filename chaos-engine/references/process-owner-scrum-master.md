@@ -88,6 +88,12 @@ Cancel or close any pre-compaction general-purpose / Task loop that would act
 as a second process-owner (extra worktrees, competing PRs). Do not leave two
 orchestrators live.
 
+### One status channel (#6163)
+
+While an unattended watch is armed for PR N there is exactly one status channel: that watch (`watch_pr_checks.py --until-merged --digest --status-lease`). Scheduled status routines call `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>` and stay silent while it prints nothing. The parent does not re-narrate CI unless the watch returned RED or MERGED or the owner asked. Status content comes from the digest, never a raw check list. See [CI status economy](ci-status-economy.md).
+
+Codacy `ACTION_REQUIRED` (≥medium, any category) makes the RAG line `red` and the ticket row `Blocked` with the pattern id; it is never reported as pending ([gate](codacy-action-required-gate.md)).
+
 ### Status report format
 
 This format is the **default** whenever orchestrator mode is selected, or when
@@ -137,7 +143,8 @@ wake. Cadence **x** is chosen and retuned from evidence each cycle:
 Notify only on **material** change (download done, serve READY, CI flip,
 actionable blocker). Stay quiet when unchanged. Never heartbeat. Never echo
 secrets. Retune x after every cycle from the latest evidence, not from a fixed
-timer chosen at dispatch.
+timer chosen at dispatch. While a live watch lease exists, that watch is the
+follow-up; see [one status channel](#one-status-channel-6163).
 
 
 ### Unattended default
@@ -182,7 +189,9 @@ authoritative research to improve the process itself.
   delivery and Learning Sessions; escalate outside CE and keep harness work moving.
 - Learning Session Memory writes use `memory save --stdin` as the default path
   (#5852). Drop manual `.memory/**` sidecar authoring; report save failures
-  instead of hand-editing runtime-shaped JSON/markdown.
+  instead of hand-editing runtime-shaped JSON/markdown. If a body changed
+  anyway, `tip_preflight.py --rehash` recomputes `content_hash` in the same
+  tip before push ([tip-churn preflight](tip-churn-preflight.md), #6169).
 
 See also [identity push-back](identity-push-back.md) (fact-grounded opinion / push-back).
 
@@ -200,3 +209,5 @@ See also [identity push-back](identity-push-back.md) (fact-grounded opinion / pu
 | WiFi / host-network rabbit hole inside CE delivery | Declare out of scope; escalate outside CE; resume harness or product work |
 | Skip dual-checkout reinstall after a CE harness merge | Reinstall official CE on desktop and agent checkouts; doctor; then continue |
 | Manual `.memory/**` sidecar authoring in Learning Session | Use `memory save --stdin`; never hand-edit JSON/markdown sidecars (#5852) |
+| Overlapping status channels: status routine + babysit poll + parent narration on one PR | Keep exactly one status channel (the live watch lease); routines run `status_lease.py routine` (#6163) |
+| Codacy `ACTION_REQUIRED` reported as "pending checks" | RAG `red`, row `Blocked`, pattern id named ([gate](codacy-action-required-gate.md), #6168) |

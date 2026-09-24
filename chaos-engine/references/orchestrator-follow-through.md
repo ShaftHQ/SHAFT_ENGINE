@@ -45,6 +45,8 @@ is a failed delivery. If the host backgrounds the command, resume attaches to
 that same task id and does not start another poller. Resume text is
 `scripts/agents/unattended_delivery.py`.
 
+A scheduled status routine, a babysit poll, and parent narration about the same PR are overlapping status channels and a contract failure; the live watch lease owns status ([one status channel](process-owner-scrum-master.md#one-status-channel-6163)).
+
 When the owner asks to **deliver**, **babysit**, or keep the work going, that
 is the goal: finalize the in-scope outcome in the best honest way. Keep
 iterating after red CI, a merged partial slice, or a stalled delegate. Re-spec,

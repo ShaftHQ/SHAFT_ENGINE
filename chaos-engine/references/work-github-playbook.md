@@ -21,7 +21,9 @@ choice into review rounds. Before committing any subagent's work: Before reviewi
 
 Complete approved scope and create its final scope commit before any local
 validation or review. Triage automated CI, annotations, bots, and PR comments;
-batch-fix applicable findings. Then run planning-approved adversarial review,
+batch-fix applicable findings.
+Never push one tip per micro-fix when fresh-installer paths are implicated ([how](tip-churn-preflight.md)).
+Then run planning-approved adversarial review,
 at most two rounds, followed by extra local tests. Do not stop behavior work
 for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
 
@@ -39,7 +41,7 @@ default branch. Before the first push of **any** human PR:
 
 1. Apply **exactly one** release-note classification label in the same
    `gh pr create` step: `breaking-change`, `enhancement`, `bug`, or
-   `skip-release-notes` (bug for fixes, enhancement for features).
+   `skip-release-notes` (bug = fix, enhancement = feature).
 2. For Wave / strategy-matrix Java changes: verify `switch`
    expressions/statements are **exhaustive** (include a `default` branch where
    Codacy/`MissingDefaultCase` requires it). Confirm locally before push so the
@@ -55,7 +57,7 @@ default branch. Before the first push of **any** human PR:
    push.
 5. Before stacking host-parity / harness follow-ons on an unmerged scaffold
    PR: merge the scaffold first **or** absorb it into the follow-on PR and
-   close both together (avoids blocked deliveries and duplicate parallel PRs).
+   close both together.
    Cite #5787.
 
 N-run / flake-proof scripts that invoke Maven under the engine Surefire
@@ -226,7 +228,7 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
 
 4. **Arm** immediately after that acceptance remains current:
    `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
-5. **Watch** with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`
+5. **Watch** with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest`
    until merged or a red fix is pushed. One line on GREEN, RED, or MERGED.
    No second poll. Reject a `gh run view` loop and a second watch while one task is pending.
    Never pass `--admin`. Resume text: `scripts/agents/unattended_delivery.py`.
@@ -236,10 +238,9 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
    branch, or merge the fetched configured upstream default branch for a
    conflict or stale head, then return to watch. Never force-push away
    owner-visible history. Any new push restarts the comment gate before
-   auto-merge may remain armed. Codacy **Complexity** `ACTION_REQUIRED` is
-   unit-red urgency ([codacy-complexity-gate](codacy-complexity-gate.md)):
-   extract kind-family helpers immediately; do not wait for unit jobs when
-   Complexity already failed.
+   auto-merge may remain armed. Codacy `ACTION_REQUIRED` (≥medium, any category)
+   is unit red ([gate](codacy-action-required-gate.md),
+   [Complexity](codacy-complexity-gate.md)); never keep auto-merge armed on it.
 
 Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
 `resolveReviewThread` before returning to the watch.

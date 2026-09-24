@@ -33,6 +33,9 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Research receipt | Before implementation mutation; triage scales depth | [`research-receipt.md`](research-receipt.md) |
 | Delivery phase gates | Phase ledger / research-before-mutation enforcement | [`delivery-phase-gates.md`](delivery-phase-gates.md) |
 | Codacy Complexity gate | Classifier / interaction PRs; Complexity ACTION_REQUIRED == unit red | [`codacy-complexity-gate.md`](codacy-complexity-gate.md) |
+| Codacy ACTION_REQUIRED gate | Any ≥medium Codacy ACTION_REQUIRED (any category) == unit red; never arm auto-merge on it | [`codacy-action-required-gate.md`](codacy-action-required-gate.md) |
+| CI status economy | Babysit: digest-only CI status, one status channel, fingerprint-first logs, executor prompt schema | [`ci-status-economy.md`](ci-status-economy.md) |
+| Tip-churn preflight | Before push: B607, README inventory, Memory content_hash; batch micro-fixes | [`tip-churn-preflight.md`](tip-churn-preflight.md) |
 | Eval-parity fixtures | Cross-host CE policy fixture suite | [`eval-parity-fixtures.md`](eval-parity-fixtures.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
