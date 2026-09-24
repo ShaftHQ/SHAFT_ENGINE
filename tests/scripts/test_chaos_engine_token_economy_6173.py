@@ -24,8 +24,9 @@ BUDGET = json.loads((ROOT / "scripts/ci/agent_guidance_budget.json").read_text(e
 
 
 def git(cwd: Path, *arguments: str) -> str:
-    return subprocess.run(  # nosec B603 B607 - fixed git arguments in a temp repo.
-        ["git", *arguments], cwd=cwd, check=True, capture_output=True, text=True
+    executable = shutil.which("git") or "git"
+    return subprocess.run(  # nosec B603 B607 - resolved git, fixed arguments in a temp repo.
+        [executable, *arguments], cwd=cwd, check=True, capture_output=True, text=True
     ).stdout.strip()
 
 

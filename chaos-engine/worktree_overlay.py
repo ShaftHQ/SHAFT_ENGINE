@@ -45,9 +45,12 @@ SKIP_PARTS = {"__pycache__", ".pytest_cache"}
 
 
 def _git(cwd: Path, *arguments: str) -> str | None:
+    git = shutil.which("git")
+    if git is None:
+        return None
     try:
-        result = subprocess.run(  # nosec B603 B607 - fixed git arguments.
-            ["git", *arguments], cwd=cwd, capture_output=True, text=True, timeout=15, check=False
+        result = subprocess.run(  # nosec B603 - resolved git executable, fixed arguments.
+            [git, *arguments], cwd=cwd, capture_output=True, text=True, timeout=15, check=False
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
