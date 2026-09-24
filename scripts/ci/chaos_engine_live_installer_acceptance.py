@@ -552,6 +552,17 @@ def failure_evidence(error: Exception) -> dict[str, object]:
     return result
 
 
+GRAPHIFY_EMPTY_OUTPUT_FINGERPRINT = "graphify-empty-output-after-version"
+_GRAPHIFY_EMPTY_OUTPUT = re.compile(r"graphify(?:\.exe)?\b.*no process output", re.IGNORECASE)
+
+
+def fingerprint_detail(detail: str) -> str:
+    """Tag the known Windows graphify empty-output flake so babysitters never fetch full logs (#6166)."""
+    if _GRAPHIFY_EMPTY_OUTPUT.search(detail) and GRAPHIFY_EMPTY_OUTPUT_FINGERPRINT not in detail:
+        return f"{detail} [fingerprint: {GRAPHIFY_EMPTY_OUTPUT_FINGERPRINT} (#6166); known flake, do not open a tip]"
+    return detail
+
+
 def installer_failure_detail(value: str) -> str:
     headline = next(
         (line.strip() for line in value.splitlines() if "CE-INSTALL-" in line),
@@ -611,7 +622,7 @@ def run_checked(
     )
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or "no process output"
-        detail = installer_failure_detail(detail)
+        detail = fingerprint_detail(installer_failure_detail(detail))
         raise AcceptanceCommandFailure(command, result.returncode, detail)
     return result
 

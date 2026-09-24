@@ -1030,6 +1030,38 @@ def _run_transient_mempalace_mine(
 
 
 
+GRAPHIFY_EMPTY_OUTPUT_FINGERPRINT = "graphify-empty-output-after-version"
+GRAPHIFY_ABSORBED_SUBCOMMANDS = frozenset({"extract", "install"})
+
+
+def is_graphify_empty_output(command: list[str], error: BaseException) -> bool:
+    """#6166 classifier: graphify(.exe) extract/install exited non-zero with empty streams."""
+    if not command:
+        return False
+    name = Path(command[0]).name.casefold()
+    return (
+        name in {"graphify", "graphify.exe"}
+        and len(command) >= 2
+        and command[1] in GRAPHIFY_ABSORBED_SUBCOMMANDS
+        and "no process output" in str(error)
+    )
+
+
+def record_known_flake(fingerprint: str, *, environ=None) -> str:
+    """Emit one fingerprint line (stderr + GitHub job summary) so babysitters skip full logs."""
+    environ = os.environ if environ is None else environ
+    line = f"chaos-engine: known flake absorbed: {fingerprint} (#6166)"
+    print(line, file=sys.stderr)
+    summary = environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        try:
+            with open(summary, "a", encoding="utf-8") as handle:
+                handle.write(line + "\n")
+        except OSError:
+            return line
+    return line
+
+
 def _run_project_setup_command(
     command: list[str],
     project: Path,
@@ -1040,11 +1072,14 @@ def _run_project_setup_command(
 ) -> subprocess.CompletedProcess[str]:
     """Run one project-setup command.
 
-    Windows reupgrade can launch graphify.exe for ``extract`` and get a
-    non-zero exit with empty streams even though ``--version`` still works.
-    Retry once after clearing a partial graphify-out (including a shared
-    ``--out`` target). If the launcher is healthy, keep the upgrade moving;
-    graphify output is derived data.
+    Windows reupgrade can launch graphify.exe for ``extract`` or
+    ``install --platform agents`` and get a non-zero exit with empty streams
+    even though ``--version`` still works (#6127, #6166). Retry once (after
+    clearing a partial graphify-out for ``extract``, including a shared
+    ``--out`` target). If the launcher is still healthy, keep the upgrade
+    moving and emit the ``graphify-empty-output-after-version`` fingerprint;
+    graphify output is derived data. A non-zero exit that prints a diagnostic
+    stays red.
     """
     try:
         return _run_account_command(
@@ -1055,13 +1090,7 @@ def _run_project_setup_command(
             stdin=stdin,
         )
     except _AccountCommandError as error:
-        name = Path(command[0]).name.casefold()
-        if not (
-            name in {"graphify", "graphify.exe"}
-            and len(command) >= 2
-            and command[1] == "extract"
-            and "no process output" in str(error)
-        ):
+        if not is_graphify_empty_output(command, error):
             raise
         partial = project / "graphify-out"
         if "--out" in command:
@@ -1071,7 +1100,11 @@ def _run_project_setup_command(
                 out_parent = None
             if out_parent is not None:
                 partial = out_parent / "graphify-out"
-        if partial.exists() and not (partial / "graph.json").is_file():
+        if (
+            command[1] == "extract"
+            and partial.exists()
+            and not (partial / "graph.json").is_file()
+        ):
             shutil.rmtree(partial, ignore_errors=True)
         try:
             return _run_account_command(
@@ -1092,6 +1125,7 @@ def _run_project_setup_command(
             )
             if version.returncode != 0:
                 raise retry_error
+            record_known_flake(GRAPHIFY_EMPTY_OUTPUT_FINGERPRINT)
             return version
 
 
