@@ -503,10 +503,9 @@ def classify_paths(paths: list[str]) -> GatePlan:
     check_ids = [check_id for surface in selected for check_id in SURFACE_CHECKS[surface]]
     if dependency_closure:
         check_ids.append("dependency-account-contract")
-    # Run always-on protected checks first so installer suites cannot starve them.
-    for protected_id in reversed(("protected-ownership", "protected-secret-safety")):
+    for protected_id in ("protected-ownership", "protected-secret-safety"):
         if protected_id not in check_ids:
-            check_ids.insert(0, protected_id)
+            check_ids.append(protected_id)
     return GatePlan(
         tuple(selected),
         (
@@ -833,13 +832,14 @@ def run_plan(
     results: list[dict[str, Any]] = []
     failed_ids: set[str] = set()
     execution_cache: dict[tuple[str, ...], tuple[str, int | None, float]] = {}
-    for check in plan.checks:
+
+    def _execute(check: Check) -> tuple[str, int | None, float]:
         remaining = budget_seconds - (time.monotonic() - started)
         check_started = time.monotonic()
         cached = execution_cache.get(check.modules)
         if cached:
-            status, exit_code, duration = cached
-        elif remaining <= 0:
+            return cached
+        if remaining <= 0:
             status, exit_code, duration = "timeout", None, 0.0
         else:
             status, exit_code = _run_check(
@@ -848,7 +848,17 @@ def run_plan(
                 remaining,
             )
             duration = round(time.monotonic() - check_started, 3)
-            execution_cache[check.modules] = status, exit_code, duration
+        execution_cache[check.modules] = status, exit_code, duration
+        return status, exit_code, duration
+
+    # Warm always-on protected checks first so long suites cannot starve them.
+    for pid in ("protected-ownership", "protected-secret-safety"):
+        for check in plan.checks:
+            if check.id == pid:
+                _execute(check)
+
+    for check in plan.checks:
+        status, exit_code, duration = _execute(check)
         if status != "passed":
             failed_ids.add(check.id)
             if (

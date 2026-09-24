@@ -11,6 +11,7 @@ import hashlib
 import importlib.util
 import posixpath
 import re
+import subprocess  # nosec B404 - fixed git argv for toplevel.
 import shlex
 import sys
 from collections.abc import Mapping
@@ -193,6 +194,18 @@ def _overlay_push_block(commands: tuple[str, ...]) -> str:
     if not any(re.search(r"\bgit\s+push\b", command) for command in commands):
         return ""
     project = Path.cwd()
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed git argv.
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode == 0 and completed.stdout.strip():
+            project = Path(completed.stdout.strip())
+    except OSError:
+        pass
     script = project / "scripts/ci/overlay_pre_push.py"
     if not script.is_file():
         return ""

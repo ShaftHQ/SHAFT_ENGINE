@@ -124,11 +124,11 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(("kernel", "identities"), plan.surfaces)
         self.assertEqual(
             (
-                "protected-ownership",
-                "protected-secret-safety",
                 "kernel-contract",
                 "identity-contract",
                 "identity-recovery-contract",
+                "protected-ownership",
+                "protected-secret-safety",
             ),
             tuple(check.id for check in plan.checks),
         )
@@ -143,7 +143,7 @@ class ClassifierTest(unittest.TestCase):
 
         self.assertEqual(("hosts",), plan.surfaces)
         self.assertEqual(
-            ("protected-ownership", "protected-secret-safety", "host-contract"),
+            ("host-contract", "protected-ownership", "protected-secret-safety"),
             tuple(check.id for check in plan.checks),
         )
 
