@@ -250,6 +250,16 @@ CHECKS = {
             "tests.scripts.test_overlay_pre_push",
         ),
     ),
+    "token-economy-contract": Check(
+        "token-economy-contract",
+        "token-economy",
+        (
+            "tests.scripts.test_chaos_engine_token_economy_6173",
+            "tests.scripts.test_retrieve_gate_scope",
+            "tests.scripts.test_ce_guard_reachability",
+            "tests.scripts.test_skill_index_parity",
+        ),
+    ),
     "installer-ux-contract": Check(
         "installer-ux-contract",
         "installer",
@@ -285,6 +295,7 @@ SURFACE_CHECKS = {
     "fallback": ("fallback-contract",),
     "javadoc": ("javadoc-param-arity-contract",),
     "token-waste": ("token-waste-contract",),
+    "token-economy": ("token-economy-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -429,6 +440,42 @@ SURFACE_PATTERNS = {
         "scripts/ci/overlay_pre_push.py",
         "tests/scripts/test_chaos_engine_token_waste_6161.py",
         "tests/scripts/test_overlay_pre_push.py",
+    ),
+    "token-economy": (
+        "chaos-engine/harness_index.py",
+        "chaos-engine/harness-index.json",
+        "chaos-engine/worktree_overlay.py",
+        "chaos-engine/mcp_policy.py",
+        "chaos-engine/identity.md",
+        "chaos-engine/hooks/retrieve_justification.py",
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/hooks/lifecycle.py",
+        "chaos-engine/references/*.md",
+        "chaos-engine/skills/*/SKILL.md",
+        "chaos-engine/skills/*/references/*.md",
+        "chaos-engine/profiles/*/profile.json",
+        "chaos-engine/dependencies.json",
+        "chaos-engine/hosts.py",
+        "chaos-engine/install.py",
+        "chaos-engine/tool.py",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "scripts/agents/session_worktree.py",
+        "scripts/agents/watch_pr_checks.py",
+        "scripts/ci/harness_pr_gate.py",
+        "scripts/ci/overlay_pre_push.py",
+        "scripts/ci/validate_agent_guidance.py",
+        "scripts/ci/validate_skills.py",
+        "scripts/ci/agent_guidance_budget.json",
+        "scripts/ci/agent_harness_parity.json",
+        "tests/scripts/ce_installed_fixture.py",
+        "tests/scripts/ce_host_files.py",
+        "tests/scripts/test_chaos_engine_portable_core.py",
+        "tests/scripts/test_chaos_engine_token_economy_6173.py",
+        "tests/scripts/test_retrieve_gate_scope.py",
+        "tests/scripts/test_ce_guard_reachability.py",
+        "tests/scripts/test_skill_index_parity.py",
     ),
     "javadoc": (
         "scripts/ci/check_javadoc_param_arity.py",
@@ -945,15 +992,18 @@ def run_plan(
 
 
 def render_text(payload: dict[str, Any]) -> str:
-    surfaces = ",".join(payload["surfaces"]) or "none"
+    """Render run and --plan-only payloads; planned checks have no status yet (#6194)."""
+    surfaces = ",".join(payload.get("surfaces", [])) or "none"
+    timing = payload.get("timing", {})
     lines = [
-        f"harness-pr-gate valid={str(payload['valid']).lower()} surfaces={surfaces} "
-        f"elapsed={payload['timing']['elapsed_seconds']}s/{payload['timing']['budget_seconds']}s"
+        f"harness-pr-gate valid={str(payload.get('valid', True)).lower()} surfaces={surfaces} "
+        f"elapsed={timing.get('elapsed_seconds', 0)}s/{timing.get('budget_seconds', 0)}s"
     ]
     lines.extend(
-        f"{item['id']} status={item['status']} protected={str(item['protected']).lower()} "
-        f"tests={','.join(item['tests'])} reproduce={item['reproduction_command']}"
-        for item in payload["checks"]
+        f"{item['id']} status={item.get('status', 'planned')} "
+        f"protected={str(item.get('protected', False)).lower()} "
+        f"tests={','.join(item.get('tests', []))} reproduce={item.get('reproduction_command', '')}"
+        for item in payload.get("checks", [])
     )
     return "\n".join(lines)
 
