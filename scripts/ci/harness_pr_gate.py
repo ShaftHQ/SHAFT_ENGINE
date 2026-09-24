@@ -931,7 +931,8 @@ def run_plan(
     waiver: WaiverReceipt | None,
     jobs: int = 1,
 ) -> tuple[dict[str, Any], int]:
-    """Run every selected check, concurrently when ``jobs`` > 1 (#6191).
+    """
+    Run every selected check, concurrently when ``jobs`` > 1 (#6191).
 
     Each unique module tuple runs once (identical tuples share one execution),
     protected always-on checks are submitted first, and every check gets the

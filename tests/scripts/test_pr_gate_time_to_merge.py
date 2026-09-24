@@ -1,4 +1,5 @@
-"""Workflow pins for the PR time-to-merge epic (#6184).
+"""
+Workflow pins for the PR time-to-merge epic (#6184).
 
 Each class pins one child issue so a later edit cannot silently drop a leg,
 move coverage off every path, or re-couple a slow job to the merge path.
@@ -18,8 +19,11 @@ WORKFLOWS = ROOT / ".github/workflows"
 
 
 def load(name: str) -> dict:
-    # BaseLoader keeps `on:` as a string key and every scalar as text.
-    return yaml.load((WORKFLOWS / name).read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    # YAML 1.1 reads a bare `on:` key as boolean True; restore the workflow name.
+    workflow = yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
+    if True in workflow:
+        workflow["on"] = workflow.pop(True)
+    return workflow
 
 
 class MacosInstallerTierTest(unittest.TestCase):

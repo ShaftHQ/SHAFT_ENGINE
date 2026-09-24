@@ -82,7 +82,10 @@ class PlanTest(unittest.TestCase):
 
 class WorkflowWiringTest(unittest.TestCase):
     def workflow(self) -> dict:
-        return yaml.load(PR_GATE.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+        workflow = yaml.safe_load(PR_GATE.read_text(encoding="utf-8"))
+        if True in workflow:
+            workflow["on"] = workflow.pop(True)
+        return workflow
 
     def test_main_runs_are_never_cancelled_or_dropped(self) -> None:
         concurrency = self.workflow()["concurrency"]

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Resolve the ChaosEngine fresh-installer OS tier for one PR Gate run (#6187).
+"""
+Resolve the ChaosEngine fresh-installer OS tier for one PR Gate run (#6187).
 
 Pull requests run the fresh installer on Linux and Windows only. macOS (27.8
 minute median, zero regressions caught in 22 PR runs) runs on every push to

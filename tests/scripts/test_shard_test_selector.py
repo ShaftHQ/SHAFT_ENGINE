@@ -22,7 +22,8 @@ def workflow_selector() -> str:
         if step.get("name") == "Run shaft-engine unit tests"
     )
     match = re.search(r"'(-Dtest=[^']*)'", step["run"])
-    assert match is not None
+    if match is None:
+        raise AssertionError("shaft-engine unit-test step lost its -Dtest selector")
     return match.group(1)
 
 

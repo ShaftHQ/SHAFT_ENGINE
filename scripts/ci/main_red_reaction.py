@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""React to a post-merge PR Gate run on ``main`` (issue #6185).
+"""
+React to a post-merge PR Gate run on ``main`` (issue #6185).
 
 A red leg files, or updates, one rolling issue per failing leg (label
 ``ci-main-red``, assigned to the owner). A leg that passes again on a later
@@ -113,6 +114,7 @@ class Runner:
     """Thin wrapper over absolute-path ``gh``/``git`` invocations."""
 
     def __init__(self, dry_run: bool = False) -> None:
+        """Resolve ``gh``/``git`` once; ``dry_run`` prints mutating calls instead."""
         self.dry_run = dry_run
         self.gh = shutil.which("gh") or "gh"
         self.git = shutil.which("git") or "git"

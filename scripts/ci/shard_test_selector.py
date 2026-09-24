@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Split one Surefire ``-Dtest`` selector into deterministic shards (#6188).
+"""
+Split one Surefire ``-Dtest`` selector into deterministic shards (#6188).
 
 Shard 1 runs every package glob (``testPackage/unitTests/*``); the named
 classes are dealt round-robin across the remaining shards. Exclusions
