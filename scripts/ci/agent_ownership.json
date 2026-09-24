@@ -1,13 +1,18 @@
 {
   "duties": {
     "router skill inventory": {
-      "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
+      "owner": "chaos-engine/references/catalog.md",
       "terms": ["router-skill-inventory-contract"],
-      "allowed": ["tests/scripts/test_agent_router_contract.py"]
+      "allowed": ["tests/scripts/test_agent_router_contract.py", "chaos-engine/harness_index.py"]
     },
     "router": {
       "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
-      "terms": ["Canonical provider-neutral skill router", "Roles and capability levels"]
+      "terms": ["Canonical provider-neutral skill router"],
+      "allowed": ["chaos-engine/harness_index.py", "chaos-engine/harness-index.json", "chaos-engine/references/catalog.md"]
+    },
+    "router contract": {
+      "owner": "chaos-engine/references/router-contract.md",
+      "terms": ["Roles and capability levels", "Always-composed behavior", "Ownership and completion"]
     },
     "execution workflow policy": {
       "owner": "chaos-engine/references/execution-workflows.md",

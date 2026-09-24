@@ -867,3 +867,22 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
             encoding="utf-8",
         )
         self.assertTrue(self._issues())
+
+
+class TokenEconomyWave2GuidanceParityTest(unittest.TestCase):
+    """#6176 / #6180 parity rows, one decision for every host."""
+
+    def test_mandated_chain_budget_holds_on_every_host(self):
+        root = Path(__file__).resolve().parents[2]
+        budget = json.loads((root / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8"))
+        hosts = json.loads((root / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8"))["hosts"]
+        self.assertEqual(set(hosts), set(budget["mandated_chain"]["hosts"]))
+        self.assertEqual([], guidance_validator.mandated_chain_errors(root, budget))
+
+    def test_always_loaded_guidance_does_not_mandate_local_writers(self):
+        root = Path(__file__).resolve().parents[2]
+        for relative in ("AGENTS.md", "chaos-engine/identity.md", "chaos-engine/skills/chaos-engine/SKILL.md"):
+            text = (root / relative).read_text(encoding="utf-8")
+            with self.subTest(file=relative):
+                self.assertNotIn("prefer a READY loopback coder", text)
+                self.assertNotIn("Keep long work-machine writers", text)

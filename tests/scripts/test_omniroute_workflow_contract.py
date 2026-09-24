@@ -11,7 +11,10 @@ class OmniRouteWorkflowContractTest(unittest.TestCase):
 
     def test_execution_workflows_are_canonical_and_linked(self):
         workflows = self.read("chaos-engine/references/execution-workflows.md")
-        router = self.read("chaos-engine/skills/chaos-engine/SKILL.md")
+        # #6176: the router core card delegates detail to its contract.
+        router = self.read("chaos-engine/skills/chaos-engine/SKILL.md") + "\n" + self.read(
+            "chaos-engine/references/router-contract.md"
+        )
         delegation = self.read("chaos-engine/references/delegation.md")
         roles = self.read("chaos-engine/references/roles.md")
 

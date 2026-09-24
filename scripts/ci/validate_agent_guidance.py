@@ -966,6 +966,42 @@ def validate_executable_spec_guidance(root: Path) -> list[dict[str, str]]:
     return errors
 
 
+def mandated_chain_bytes(root: Path, budget: dict, host: str) -> int:
+    """Bytes a host must load before any task: pointer + core + identity + profile + SessionStart."""
+    chain = budget.get("mandated_chain", {})
+    files = [*chain.get("hosts", {}).get(host, []), *chain.get("common", [])]
+    total = 0
+    for name in dict.fromkeys(files):
+        path = root / name
+        if path.is_file():
+            total += len(path.read_text(encoding="utf-8").encode("utf-8"))
+    if host in chain.get("session_start_hosts", []):
+        total += int(chain.get("session_start_bytes", 0))
+    return total
+
+
+def mandated_chain_errors(root: Path, budget: dict) -> list[dict[str, str]]:
+    """#6176: the whole mandated chain, not only host_contexts, fits one budget per host."""
+    chain = budget.get("mandated_chain")
+    if not isinstance(chain, dict):
+        return []
+    maximum = chain.get("max_bytes")
+    if not isinstance(maximum, int) or maximum <= 0:
+        return [issue("mandated-chain-config", "scripts/ci/agent_guidance_budget.json", "mandated_chain.max_bytes must be a positive integer")]
+    errors: list[dict[str, str]] = []
+    for host in chain.get("hosts", {}):
+        size = mandated_chain_bytes(root, budget, host)
+        if size > maximum:
+            errors.append(
+                issue(
+                    "mandated-chain-budget",
+                    "scripts/ci/agent_guidance_budget.json",
+                    f"{host} mandated chain is {size} bytes; budget is {maximum}",
+                )
+            )
+    return errors
+
+
 def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> list[dict[str, str]]:
     """Run every guidance validation and return sorted issues."""
     selected_budget = budget_path or root / "scripts/ci/agent_guidance_budget.json"
@@ -981,6 +1017,7 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
     errors = [
         *validate_file_budgets(root, budget),
         *validate_host_contexts(root, budget),
+        *mandated_chain_errors(root, budget),
         *validate_total_reduction(root, budget),
         *validate_skills(root, budget),
         *validate_routing_bridges(root, budget),
