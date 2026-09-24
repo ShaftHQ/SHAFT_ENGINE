@@ -219,6 +219,10 @@ jobs:
               - 'tests/scripts/test_chaos_engine_install_wrappers.py'
               - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
               - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              # Issue #6186: every chaos_installer path must also run this
+              # gate, whose installer surface replaced the ubuntu UX step.
+              - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
+              - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
               - 'tests/scripts/test_chaos_engine_promotion.py'
               - 'tests/scripts/test_validate_chaos_engine_readme.py'
               # Not agent guidance, but this is the only gate that runs the
@@ -1008,11 +1012,12 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: echo "review=$(python3 scripts/ci/dependency_review_changes.py "$BASE_SHA" "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
 
+  # Issue #6186: the fresh-installer matrix starts right after `changes`, in
+  # parallel with Agent Guidance Gate, instead of waiting ~14 minutes for it.
+  # A superseding push still cancels both, and the summary still requires both.
   chaos-installer-acceptance:
     name: ChaosEngine fresh installer (${{ matrix.os }})
-    needs:
-      - changes
-      - agent-guidance
+    needs: changes
     if: needs.changes.outputs.chaos_installer == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -1030,13 +1035,6 @@ jobs:
         uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
-      - name: Run installer UX contracts
-        run: >-
-          python -m unittest
-          tests.scripts.test_chaos_engine_installer_ux
-          tests.scripts.test_chaos_engine_same_commit_payload_heal_5839
-          tests.scripts.test_chaos_engine_bootstrap
-          tests.scripts.test_chaos_engine_install_wrappers -v
       - name: Run fresh-install acceptance
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -1052,6 +1050,40 @@ jobs:
           name: chaos-engine-live-installer-${{ matrix.os }}
           path: chaos-engine-live-installer-evidence.json
           if-no-files-found: error
+
+  # Issue #6186: the installer UX contracts used to run first inside every
+  # fresh-installer job (3.5-5.5 min each). They now run as their own parallel
+  # job on the non-Linux runners; on Linux the Agent Guidance Gate `installer`
+  # surface already runs the same modules (installer-ux-contract +
+  # protected-installer-acceptance), and every `chaos_installer` path selects
+  # that surface (pinned by tests/scripts/test_harness_pr_gate.py).
+  chaos-installer-contracts:
+    name: ChaosEngine installer contracts (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.chaos_installer == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, macos-15]
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Run installer UX contracts
+        run: >-
+          python -m unittest
+          tests.scripts.test_chaos_engine_installer_ux
+          tests.scripts.test_chaos_engine_same_commit_payload_heal_5839
+          tests.scripts.test_chaos_engine_bootstrap
+          tests.scripts.test_chaos_engine_install_wrappers -v
 
   summary:
     name: PR Gate Summary
@@ -1074,6 +1106,7 @@ jobs:
       - dependency-changes
       - dependency-review
       - chaos-installer-acceptance
+      - chaos-installer-contracts
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5
@@ -1098,6 +1131,7 @@ jobs:
           DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
           CHAOS_INSTALLER_RESULT: ${{ needs.chaos-installer-acceptance.result }}
+          CHAOS_INSTALLER_CONTRACTS_RESULT: ${{ needs.chaos-installer-contracts.result }}
         run: |
           set -uo pipefail
 
@@ -1122,6 +1156,7 @@ jobs:
             echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
             echo "| chaos-installer-acceptance | ${CHAOS_INSTALLER_RESULT} |"
+            echo "| chaos-installer-contracts | ${CHAOS_INSTALLER_CONTRACTS_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "${RELEASE_GOVERNANCE_RESULT}" != "success" ]; then
@@ -1135,7 +1170,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

@@ -1682,11 +1682,14 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn(
             "--base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3", block
         )
-        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", block)
-        self.assertIn("tests.scripts.test_chaos_engine_install_wrappers", block)
+        # Issue #6186: the UX contracts run in their own parallel job.
+        contracts = workflow[workflow.index("  chaos-installer-contracts:"):workflow.index("  summary:")]
+        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", contracts)
+        self.assertIn("tests.scripts.test_chaos_engine_install_wrappers", contracts)
         self.assertNotIn("tests.scripts.test_chaos_engine_live_installer_acceptance", block)
         summary = workflow[workflow.index("  summary:"):]
         self.assertIn("- chaos-installer-acceptance", summary)
+        self.assertIn("- chaos-installer-contracts", summary)
 
     def test_doctor_human_healthy_report_stays_short(self):
         document = {

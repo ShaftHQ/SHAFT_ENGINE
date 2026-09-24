@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 import shutil
@@ -16,6 +17,7 @@ import yaml
 from scripts.ci.harness_pr_gate import (
     CHECKS,
     SURFACE_CHECKS,
+    SURFACE_PATTERNS,
     Check,
     GateError,
     GatePlan,
@@ -607,10 +609,49 @@ class OutputAndWorkflowTest(unittest.TestCase):
                 self.assertNotIn("outputs.pr_gate", condition)
                 self.assertIn("outputs.infra", condition)
 
-    def test_live_installer_job_needs_successful_agent_guidance_gate(self) -> None:
-        job = self.workflow()["jobs"]["chaos-installer-acceptance"]
+    def test_live_installer_job_runs_in_parallel_with_agent_guidance_gate(self) -> None:
+        # Issue #6186: the matrix used to wait ~14 minutes for this gate.
+        jobs = self.workflow()["jobs"]
+        for name in ("chaos-installer-acceptance", "chaos-installer-contracts"):
+            with self.subTest(job=name):
+                self.assertEqual("changes", jobs[name]["needs"])
+                self.assertIn(name, jobs["summary"]["needs"])
 
-        self.assertIn("agent-guidance", job["needs"])
+    def test_every_chaos_installer_path_selects_the_linux_installer_surface(self) -> None:
+        # Issue #6186: the ubuntu fresh-installer job dropped its UX step
+        # because Agent Guidance's installer surface runs the same modules, so
+        # every chaos_installer path must both trigger that gate and select it.
+        filters = self.filters()
+        installer_patterns = SURFACE_PATTERNS["installer"]
+        for glob in filters["chaos_installer"]:
+            with self.subTest(path=glob):
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in installer_patterns),
+                    f"{glob} does not select the harness installer surface",
+                )
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in filters["agent_guidance"]),
+                    f"{glob} does not trigger Agent Guidance Gate",
+                )
+
+    def test_installer_ux_modules_still_run_on_every_os(self) -> None:
+        legacy = {
+            "tests.scripts.test_chaos_engine_installer_ux",
+            "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
+            "tests.scripts.test_chaos_engine_bootstrap",
+            "tests.scripts.test_chaos_engine_install_wrappers",
+        }
+        linux = set(classify_paths(["chaos-engine/install.py"]).test_modules)
+        self.assertLessEqual(legacy, linux)
+        job = self.workflow()["jobs"]["chaos-installer-contracts"]
+        commands = " ".join(step.get("run", "") for step in job["steps"])
+        self.assertLessEqual(legacy, set(commands.split()))
+        self.assertEqual(["windows-2025", "macos-15"], job["strategy"]["matrix"]["os"])
+        acceptance = self.workflow()["jobs"]["chaos-installer-acceptance"]
+        self.assertNotIn(
+            "tests.scripts.test_chaos_engine_installer_ux",
+            " ".join(step.get("run", "") for step in acceptance["steps"]),
+        )
 
     def test_local_preflight_documents_full_head_write_generated_command(self) -> None:
         readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")

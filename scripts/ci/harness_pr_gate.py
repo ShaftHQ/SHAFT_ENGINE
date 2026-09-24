@@ -257,6 +257,10 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_installer_ux",
             "tests.scripts.test_chaos_engine_managed_runtimes",
             "tests.scripts.test_chaos_engine_install_wrappers",
+            # Issue #6186: the ubuntu fresh-installer job no longer runs these
+            # itself; this Linux check is their PR-time home.
+            "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
+            "tests.scripts.test_chaos_engine_overlay_only_host_pointers",
         ),
     ),
 }
@@ -315,6 +319,11 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_install_wrappers.py",
         "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
         "tests/scripts/test_chaos_engine_managed_runtimes.py",
+        # Issue #6186: every pr-gate `chaos_installer` path selects this
+        # surface, because it replaced the ubuntu fresh-installer UX step.
+        "chaos-engine/hosts.py",
+        "tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py",
+        "tests/scripts/test_chaos_engine_overlay_only_host_pointers.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",

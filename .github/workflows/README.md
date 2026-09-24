@@ -79,6 +79,11 @@ table. Remove a row only in the same change that deletes its workflow.
   `ci-main-red` issue per failing leg, closes it when the leg passes again on
   `main`, and opens a revert PR for a failing ChaosEngine fresh-installer leg
   (#6185).
+- The ChaosEngine fresh-installer matrix and the installer UX contracts
+  (`chaos-installer-contracts`, non-Linux runners) start right after
+  `changes`, in parallel with Agent Guidance Gate. On Linux the UX modules run
+  inside Agent Guidance's `installer` surface, which every `chaos_installer`
+  path selects (#6186).
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.
