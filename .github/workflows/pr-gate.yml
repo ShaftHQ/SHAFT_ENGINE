@@ -378,6 +378,8 @@ jobs:
               # Issue #6187/#6184: installer OS tier and time-to-merge pins.
               - 'scripts/ci/chaos_installer_tier.py'
               - 'tests/scripts/test_pr_gate_time_to_merge.py'
+              - 'scripts/ci/shard_test_selector.py'
+              - 'tests/scripts/test_shard_test_selector.py'
               # Issue #6185: the post-merge main-red reaction and its pins.
               - 'scripts/ci/main_red_reaction.py'
               - 'tests/scripts/test_main_red_reaction.py'
@@ -648,6 +650,8 @@ jobs:
         uses: stCarolas/setup-maven@v5.1
         with:
           maven-version: 3.9.5
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
       # pr-gate has no earlier install step for this module set, unlike the
       # standalone shaft-capture-e2e.yml which is the only workflow to build
       # this leg, so the install step is carried over verbatim here.
@@ -732,8 +736,15 @@ jobs:
   # meaningfully change this job's runtime/character. Left out deliberately;
   # tracked as a follow-up decision in issue #4339's audit rather than done
   # unilaterally.
+  #
+  # Issue #6188: shaft-engine was the Java critical path (9.7 min, test step
+  # 8.3). It runs as two parallel shards of the SAME selector below:
+  # scripts/ci/shard_test_selector.py puts the package glob in shard 1 and the
+  # named classes in shard 2; their union is exactly the selector (pinned by
+  # tests/scripts/test_shard_test_selector.py). Each shard verifies its own
+  # testng-results.xml and uploads its own coverage.
   unit-tests:
-    name: Unit Tests (${{ matrix.module }})
+    name: Unit Tests (${{ matrix.leg || matrix.module }})
     needs: changes
     if: >-
       needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true'
@@ -743,7 +754,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ shaft-infrastructure, shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture, shaft-ocr ]
+        module: [ shaft-infrastructure, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture, shaft-ocr ]
+        include:
+          - module: shaft-engine
+            shard: 1
+            leg: shaft-engine-shard-1
+          - module: shaft-engine
+            shard: 2
+            leg: shaft-engine-shard-2
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
@@ -762,10 +780,14 @@ jobs:
           -am install -DskipTests '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Run shaft-engine unit tests
         if: matrix.module == 'shaft-engine'
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
         run: >-
           mvn --batch-mode
           -pl shaft-engine test
+          "-Dtest=$(python3 scripts/ci/shard_test_selector.py --index "$SHARD_INDEX" --total 2 --selector
           '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, PlaywrightNaturalActionExecutorTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest, JourneyCoverageFixtureTest, testPackage.ThreadLocalGuiTeardownGuardTest, JsonActionsTests, MultipleElementsFailureTest, TouchMultipleElementsFailureTest, LazyLoadingFixtureLiveTest, !RestValidationsBuilderUnitTest'
+          )"
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Verify shaft-engine unit test results
@@ -780,8 +802,8 @@ jobs:
           root = ET.parse('shaft-engine/target/surefire-reports/testng-results.xml').getroot()
           failed = int(root.get('failed', '0'))
           total = int(root.get('total', '0'))
-          print(f'shaft-engine unit tests: total={total} failed={failed}')
-          sys.exit(1 if failed else 0)
+          print(f'shaft-engine unit tests (${{ matrix.leg }}): total={total} failed={failed}')
+          sys.exit(1 if failed or total == 0 else 0)
           "
       - name: Run ${{ matrix.module }} tests
         if: matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
@@ -803,7 +825,7 @@ jobs:
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           required-files: ./${{ matrix.module }}/target/jacoco/jacoco.xml
-          source-id: pr-gate-unit-${{ matrix.module }}
+          source-id: pr-gate-unit-${{ matrix.leg || matrix.module }}
 
   template-coupling:
     name: Template Coupling Gate
@@ -824,6 +846,8 @@ jobs:
         uses: stCarolas/setup-maven@v5.1
         with:
           maven-version: 3.9.12
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
       - name: Run template-coupled shaft-mcp tests
         run: >-
           mvn --batch-mode -pl shaft-mcp -am test
@@ -870,6 +894,7 @@ jobs:
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_main_red_reaction
           tests.scripts.test_pr_gate_time_to_merge
+          tests.scripts.test_shard_test_selector
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py

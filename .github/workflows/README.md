@@ -84,6 +84,10 @@ table. Remove a row only in the same change that deletes its workflow.
   `changes`, in parallel with Agent Guidance Gate. On Linux the UX modules run
   inside Agent Guidance's `installer` surface, which every `chaos_installer`
   path selects (#6186).
+- `Unit Tests (shaft-engine-shard-1|2)` split the unchanged shaft-engine
+  `-Dtest` selector with `scripts/ci/shard_test_selector.py` (package glob vs
+  named classes); each shard verifies `testng-results.xml` and uploads its own
+  coverage (#6188).
 
 ### ChaosEngine fresh-installer tiers (#6187)
 
