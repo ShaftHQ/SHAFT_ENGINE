@@ -3,11 +3,14 @@
 
 from __future__ import annotations
 
+import importlib.util
+import shutil
 import subprocess  # nosec B404 - fixed git invocations, list args only.
 import sys
 from pathlib import Path
 
 PLAYBOOK = "chaos-engine/references/work-github-playbook.md"
+TIP_PREFLIGHT = "chaos-engine/skills/local-agency/scripts/tip_preflight.py"
 BYTE_BUDGET = 16384
 PINNED_CLAUSES = (
     "Before committing any subagent's work",
@@ -51,14 +54,17 @@ def _unique(paths: list[str]) -> list[str]:
 def changed_overlay_paths(root: Path) -> list[str]:
     """Names changed versus origin/main plus the uncommitted worktree."""
     names: list[str] = []
+    git = shutil.which("git")
+    if git is None:
+        return names
     for args in (
-        ["git", "diff", "--name-only", "origin/main...HEAD"],
-        ["git", "diff", "--name-only", "HEAD"],
-        ["git", "diff", "--name-only", "--cached"],
+        ["diff", "--name-only", "origin/main...HEAD"],
+        ["diff", "--name-only", "HEAD"],
+        ["diff", "--name-only", "--cached"],
     ):
         try:
-            completed = subprocess.run(  # nosec B603 - fixed git argv.
-                args,
+            completed = subprocess.run(  # nosec B603 - absolute git from shutil.which, fixed argv.
+                [git, *args],
                 cwd=root,
                 capture_output=True,
                 text=True,
@@ -71,12 +77,25 @@ def changed_overlay_paths(root: Path) -> list[str]:
     return _unique(names)
 
 
+def tip_preflight_failures(root: Path, paths: list[str]) -> list[str]:
+    """Same-tip B607 + README inventory + Memory content_hash preflight (#6164/#6165/#6169)."""
+    script = root / TIP_PREFLIGHT
+    if not script.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("chaos_engine_tip_preflight", script)
+    if spec is None or spec.loader is None:
+        return ["tip preflight: checker unavailable"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return [f"tip preflight: {failure}" for failure in module.preflight_failures(root, paths)]
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
+    failures: list[str] = tip_preflight_failures(root, changed)
     if not any(touches_overlay_contract(path) for path in changed):
-        return []
-    failures: list[str] = []
+        return failures
     playbook = root / PLAYBOOK
     if playbook.is_file():
         failures.extend(playbook_contract_failures(playbook.read_text(encoding="utf-8")))

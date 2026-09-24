@@ -79,7 +79,7 @@ this contract (keep it short).
 Prefer:
 
 ```text
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer openai-compat resolve
+python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp resolve
 ```
 
 Parent Shell must use `machineId` on the work machine (#6051). See
@@ -98,6 +98,17 @@ claim READY from a box probe of the work-machine ports.
 | Task child cannot see work-machine loopback | Stop Task writer; parent Shell `machineId` (#6051) |
 | Design output cites fake CE locators / missing `CE_BRIEF_LOCATORS` | Reject. The first ask is the frozen `CE_BRIEF_LOCATORS` skeleton. Accept only after `design_turn_gate.py` citation |
 | Spec names missing files without `NEW` | Reject; host pastes `rg`/`find` evidence |
+| 7B writer copies `x; if ...` pseudo-code, drops docstrings, or regresses an existing function | Spec as real multi-line Python; after two failed rounds on an existing-function edit, switch to section A mechanical apply (#6161) |
+
+## Pre-push tip preflight (#6164)
+
+1. Run `python3 chaos-engine/skills/local-agency/scripts/tip_preflight.py` before every push (the `git push` guard runs it too).
+2. Bandit B607: resolve argv0 with `shutil.which`; `# nosec B603` alone does not cover a bare executable.
+3. README inventory: a new import in `chaos-engine/**/*.py` changes the inventory; run the validator `--write` in the same commit.
+4. `.memory/` bodies touched outside `memory save --stdin`: `tip_preflight.py --rehash <sidecar>` in the same tip.
+5. Known flake fingerprint (see [CI status economy](../../../references/ci-status-economy.md)): no tip.
+
+Executor / Task prompts: `brief_path:` pointer plus the delta slice only; check with `executor_brief.py lint` (4096-byte cap). Failed CI logs: fingerprint first, at most 40 lines (`executor_brief.py log-budget`). See [tip-churn preflight](../../../references/tip-churn-preflight.md).
 
 ## After every delivery
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import runpy
+import shutil
 import subprocess  # nosec B404 - executes only fixed owned tool names.
 import sys
 from pathlib import Path
@@ -55,12 +56,20 @@ def _record_store_output(installed_root: Path, store: str, text: str) -> None:
     )
 
 
+def _git_executable() -> str:
+    """Resolve git once to an absolute path (Bandit B607 parity, #6165)."""
+    git = shutil.which("git")
+    if git is None:
+        raise FileNotFoundError("git executable not found on PATH")
+    return git
+
+
 def shared_project_root(project: Path) -> Path:
     """Resolve the primary checkout that owns shared MemPalace / Memory / Graphify state."""
     if not (project / "tools/repository-map/resolve_mempalace.py").is_file():
         return project.resolve()
     completed = subprocess.run(  # nosec B603 - fixed Git query, no shell.
-        ["git", "rev-parse", "--git-common-dir"],
+        [_git_executable(), "rev-parse", "--git-common-dir"],
         cwd=project,
         capture_output=True,
         text=True,
@@ -75,7 +84,7 @@ def shared_project_root(project: Path) -> Path:
 def origin_main_revisions(root: Path) -> tuple[str, str]:
     """Return (HEAD, refs/remotes/origin/main) for the primary checkout."""
     revisions = subprocess.run(  # nosec B603 - fixed Git query, no shell.
-        ["git", "rev-parse", "HEAD", "refs/remotes/origin/main"],
+        [_git_executable(), "rev-parse", "HEAD", "refs/remotes/origin/main"],
         cwd=root,
         capture_output=True,
         text=True,
