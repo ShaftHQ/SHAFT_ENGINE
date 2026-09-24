@@ -2271,7 +2271,12 @@ module.install_with_dependencies(project, source, "3" * 40)
                     return None
                 return healed.resolve()
 
+            # #6197: doctor's official self-heal otherwise runs a live
+            # `uv tool install` through repair_component; this test is about
+            # the managed-Python heal only.
             with mock.patch.object(
+                MODULE, "repair_component", return_value={"status": "repaired"}
+            ), mock.patch.object(
                 hosts, "retrieval_runtime_status", return_value={"status": "healthy"}
             ), mock.patch.object(
                 hosts,
