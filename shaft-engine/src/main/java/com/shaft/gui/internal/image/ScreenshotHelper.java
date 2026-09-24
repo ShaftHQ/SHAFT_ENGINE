@@ -255,6 +255,11 @@ public class ScreenshotHelper {
     }
 
     private static byte[] takeFullPageScreenshotManually(WebDriver driver, WebElement... skipElements) throws IOException {
+        // Plain mocks / non-JS drivers cannot stitch a full page; fall back to the viewport shot
+        // instead of ClassCastException (MacOSX_Chrome_Local nightly fingerprint #6133).
+        if (!(driver instanceof JavascriptExecutor)) {
+            return new ScreenshotManager().takeScreenshot(driver, null, Screenshots.VIEWPORT);
+        }
         // scroll up first to start taking screenshots
         scrollVerticallyTo(driver, 0);
         hideScroll(driver);
@@ -321,14 +326,23 @@ public class ScreenshotHelper {
     }
 
     private static void hideScroll(WebDriver driver) {
-        ((JavascriptExecutor) driver).executeScript("document.documentElement.style.overflow = 'hidden';");
+        if (!(driver instanceof JavascriptExecutor javascriptExecutor)) {
+            return;
+        }
+        javascriptExecutor.executeScript("document.documentElement.style.overflow = 'hidden';");
     }
 
     private static void showScroll(WebDriver driver) {
-        ((JavascriptExecutor) driver).executeScript("document.documentElement.style.overflow = 'visible';");
+        if (!(driver instanceof JavascriptExecutor javascriptExecutor)) {
+            return;
+        }
+        javascriptExecutor.executeScript("document.documentElement.style.overflow = 'visible';");
     }
 
     private static void showHideElements(WebDriver driver, Boolean hide, WebElement... skipElements) {
+        if (!(driver instanceof JavascriptExecutor javascriptExecutor)) {
+            return;
+        }
         String display;
         if (Boolean.TRUE.equals(hide)) {
             display = "none";
@@ -337,13 +351,16 @@ public class ScreenshotHelper {
         }
         if (skipElements != null) {
             for (WebElement skipElement : skipElements) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].style.display = arguments[1];", skipElement, display);
+                javascriptExecutor.executeScript("arguments[0].style.display = arguments[1];", skipElement, display);
             }
         }
     }
 
     private static void scrollVerticallyTo(WebDriver driver, int scroll) {
-        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, arguments[0]);", scroll);
+        if (!(driver instanceof JavascriptExecutor javascriptExecutor)) {
+            return;
+        }
+        javascriptExecutor.executeScript("window.scrollTo(0, arguments[0]);", scroll);
         try {
             waitUntilItIsScrolledToPosition(driver, scroll);
         } catch (Exception e) {
@@ -364,8 +381,14 @@ public class ScreenshotHelper {
     }
 
     private static int obtainVerticalScrollPosition(WebDriver driver) {
-        Long scrollLong = (Long) ((JavascriptExecutor) driver).executeScript(
+        if (!(driver instanceof JavascriptExecutor javascriptExecutor)) {
+            return 0;
+        }
+        Object scrollValue = javascriptExecutor.executeScript(
                 "return (window.pageYOffset !== undefined) ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;");
-        return scrollLong.intValue();
+        if (!(scrollValue instanceof Number number)) {
+            return 0;
+        }
+        return number.intValue();
     }
 }

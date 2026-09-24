@@ -40,7 +40,11 @@ public final class EmulatedDeviceProfiles {
     private static final Map<String, Profile> PROFILES = Map.of(
             "pixel 5", new Profile("Pixel 5", 393, 851, 2.75,
                     "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) "
-                            + "Chrome/91.0.4472.77 Mobile Safari/537.36"));
+                            + "Chrome/91.0.4472.77 Mobile Safari/537.36"),
+            // Historical SHAFT default ("Pixel 2") removed from Chromium DevTools lists; pin metrics.
+            "pixel 2", new Profile("Pixel 2", 411, 731, 2.625,
+                    "Mozilla/5.0 (Linux; Android 8.0; Pixel 2) AppleWebKit/537.36 (KHTML, like Gecko) "
+                            + "Chrome/70.0.3538.110 Mobile Safari/537.36"));
 
     private EmulatedDeviceProfiles() {
         throw new IllegalStateException("Utility class");

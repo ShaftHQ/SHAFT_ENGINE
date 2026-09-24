@@ -87,13 +87,15 @@ public class ImageProcessingActions {
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
                                                       org.openqa.selenium.Rectangle elementLocation, Color highlightColor) {
         BufferedImage image;
-        try (var input = new java.io.ByteArrayInputStream(targetScreenshot)) {
+        try (var input = new java.io.ByteArrayInputStream(targetScreenshot == null ? new byte[0] : targetScreenshot)) {
             image = ImageIO.read(input);
         } catch (IOException e) {
-            throw new IllegalArgumentException("Failed to decode screenshot bytes.", e);
+            // Best-effort highlight: undecodable bytes (common with Mockito stub screenshots)
+            // must not abort the surrounding failure-evidence path.
+            return targetScreenshot == null ? new byte[0] : targetScreenshot;
         }
         if (image == null) {
-            throw new IllegalArgumentException("Failed to decode screenshot bytes.");
+            return targetScreenshot == null ? new byte[0] : targetScreenshot;
         }
 
         // JPEG cannot encode an alpha channel: ImageIO.write(.., "jpg", ..) silently returns false

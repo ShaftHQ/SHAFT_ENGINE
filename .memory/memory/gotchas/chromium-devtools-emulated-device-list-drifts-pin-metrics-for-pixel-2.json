@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/chromium-devtools-emulated-device-list-drifts-pin-metrics-for-pixel-2.md",
+  "content_hash": "sha256:7ffbbd4feb4c05be02f8e01cf9abbbda839f8687cb26f585119dfa9ebda5c00d",
+  "created_at": "2026-09-24T18:05:00+03:00",
+  "evidence": [
+    {
+      "id": "6133",
+      "kind": "issue"
+    },
+    {
+      "id": "6132",
+      "kind": "issue"
+    }
+  ],
+  "id": "gotcha.chromium-devtools-emulated-device-list-drifts-pin-metrics-for-pixel-2",
+  "source": {
+    "kind": "agent",
+    "task": "PR #6158 nightly fingerprints #6132/#6133"
+  },
+  "status": "active",
+  "tags": [
+    "chrome",
+    "mobile-emulation",
+    "screenshot",
+    "playwright",
+    "nightly"
+  ],
+  "title": "Chromium DevTools emulated-device list drifts; pin metrics for Pixel 2/5",
+  "type": "gotcha",
+  "updated_at": "2026-09-24T18:05:00+03:00"
+}
