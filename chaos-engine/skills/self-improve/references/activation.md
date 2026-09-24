@@ -36,6 +36,8 @@ Activate the full protocol:
 4. Submit confirmed candidates with `learning.py submit` (GitHub issues, not
    queue-only).
 5. Persist durable Memory knowledge with `memory save --stdin` only — never
-   hand-edit `.memory/**` sidecars (#5852).
+   hand-edit `.memory/**` sidecars (#5852). If a body changed outside
+   `memory save`, run `python3 chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash <sidecar>`
+   before push ([tip-churn preflight](../../../references/tip-churn-preflight.md), #6169).
 6. Do **not** auto-edit skills/hooks; propose via queued `proposedChange`.
 7. Report counts: harness queued N / product queued N / nothing durable.

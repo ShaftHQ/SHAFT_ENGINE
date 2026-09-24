@@ -35,6 +35,10 @@ coach the owner through how-to-work impediments; escalate owner-only decisions.
 
 ## Delivery and escalation
 
+Implementers write code directly. Offload to a local writer when
+[when-to-use-local](../skills/local-agency/references/when-to-use-local.md)
+favors it (#6171).
+
 Opening a PR does not complete follow-through. Continue until the in-scope
 delivery condition is met. Unattended watch is one blocking
 `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`: one line
@@ -44,6 +48,8 @@ a completion summary, or a worker_completed record while that watch is pending
 is a failed delivery. If the host backgrounds the command, resume attaches to
 that same task id and does not start another poller. Resume text is
 `scripts/agents/unattended_delivery.py`.
+
+A scheduled status routine, a babysit poll, and parent narration about the same PR are overlapping status channels and a contract failure; the live watch lease owns status ([one status channel](process-owner-scrum-master.md#one-status-channel-6163)).
 
 When the owner asks to **deliver**, **babysit**, or keep the work going, that
 is the goal: finalize the in-scope outcome in the best honest way. Keep

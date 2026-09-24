@@ -7,6 +7,10 @@ second pass splits it.
 
 ## Iron rule
 
+Complexity is one category of the wider
+[Codacy ACTION_REQUIRED gate](codacy-action-required-gate.md) (#6168): any
+≥medium `ACTION_REQUIRED` finding blocks merge the same way.
+
 Treat Codacy **Complexity** `ACTION_REQUIRED` as a first-class red gate **equal
 to a failing unit test**. Do not wait for GitHub unit jobs to finish when Codacy
 Complexity already failed — extract helpers and re-push.
