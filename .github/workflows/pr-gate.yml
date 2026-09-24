@@ -557,6 +557,8 @@ jobs:
         uses: actions/checkout@v7.0.1
       - name: Build IntelliJ plugin
         uses: ./.github/actions/intellij-verify
+        with:
+          verify: build
       - name: Upload IntelliJ coverage to Codecov
         if: always()
         continue-on-error: true
@@ -572,6 +574,26 @@ jobs:
           name: shaft-intellij-plugin
           path: shaft-intellij/build/distributions/*.zip
           if-no-files-found: error
+
+  # Issue #6189: :verifyPlugin (~2.6-2.9 min of the 6.5 min build) runs as its
+  # own parallel job. The verifier IDEs resolve through Gradle artifact
+  # transforms that setup-gradle already restores from the Gradle User Home
+  # cache, so no second multi-GB cache is added. The two jobs together run
+  # exactly `check buildPlugin verifyPlugin`; release workflows still run the
+  # single combined, retried build.
+  intellij-verify-plugin:
+    name: Verify IntelliJ plugin (Plugin Verifier)
+    needs: changes
+    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Run IntelliJ Plugin Verifier
+        uses: ./.github/actions/intellij-verify
+        with:
+          verify: plugin
 
   cli:
     name: shaft-cli (${{ matrix.os }})
@@ -1150,6 +1172,7 @@ jobs:
       - agent-guidance
       - installer-verify
       - intellij-build
+      - intellij-verify-plugin
       - cli
       - capture-e2e
       - unit-tests
@@ -1175,6 +1198,7 @@ jobs:
           AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
           INTELLIJ_VERIFY_RESULT: ${{ needs.installer-verify.result }}
           INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
+          INTELLIJ_VERIFY_PLUGIN_RESULT: ${{ needs.intellij-verify-plugin.result }}
           CLI_RESULT: ${{ needs.cli.result }}
           CAPTURE_RESULT: ${{ needs.capture-e2e.result }}
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
@@ -1200,6 +1224,7 @@ jobs:
             echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
             echo "| installer-verify | ${INTELLIJ_VERIFY_RESULT} |"
             echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
+            echo "| intellij-verify-plugin | ${INTELLIJ_VERIFY_PLUGIN_RESULT} |"
             echo "| cli | ${CLI_RESULT} |"
             echo "| capture-e2e | ${CAPTURE_RESULT} |"
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
@@ -1225,7 +1250,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

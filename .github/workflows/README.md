@@ -88,6 +88,10 @@ table. Remove a row only in the same change that deletes its workflow.
   `-Dtest` selector with `scripts/ci/shard_test_selector.py` (package glob vs
   named classes); each shard verifies `testng-results.xml` and uploads its own
   coverage (#6188).
+- `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
+  `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
+  through `intellij-verify` modes `build`/`plugin`, both retried. Release
+  workflows keep the combined `verify: true` build (#6189).
 
 ### ChaosEngine fresh-installer tiers (#6187)
 

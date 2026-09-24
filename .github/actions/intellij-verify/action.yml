@@ -10,8 +10,11 @@ inputs:
     default: 'false'
   verify:
     description: >-
-      When "false", skip check/buildPlugin/verifyPlugin. Use with publish=="true"
-      so a long :verifyPlugin cannot consume the Marketplace publish timeout.
+      "true" runs check buildPlugin verifyPlugin in one retried build (release
+      workflows). "build" runs check buildPlugin and "plugin" runs verifyPlugin,
+      so PR Gate can run them as two parallel jobs (#6189). "false" skips the
+      build; use it with publish=="true" so a long :verifyPlugin cannot consume
+      the Marketplace publish timeout.
     required: false
     default: 'true'
   marketplace-token:
@@ -33,6 +36,12 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Reject an unknown verify mode
+      if: inputs.verify != 'true' && inputs.verify != 'false' && inputs.verify != 'build' && inputs.verify != 'plugin'
+      shell: bash
+      run: |
+        echo "::error::intellij-verify: verify must be true, false, build, or plugin"
+        exit 1
     - name: Set up JDK 25
       uses: actions/setup-java@v5
       with:
@@ -53,7 +62,7 @@ runs:
     # makes headless Swing layout tests (font metrics, text wrapping) unstable
     # relative to local/production rendering. No-op on non-Linux runners.
     - name: Install text fonts for headless Swing rendering
-      if: runner.os == 'Linux'
+      if: runner.os == 'Linux' && inputs.verify != 'plugin'
       shell: bash
       run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core fonts-liberation
     - name: Validate Marketplace secrets
@@ -85,9 +94,19 @@ runs:
     # established for Maven Central, and it retries a transfer refusal only:
     # a verifier finding or a compile error still fails on the first attempt.
     - name: Run Gradle build
-      if: inputs.verify != 'false'
+      if: inputs.verify == 'true'
       shell: bash
       run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij check buildPlugin verifyPlugin
+    # PR Gate splits the same three tasks across two parallel jobs (#6189):
+    # the union of these two steps is exactly the release build above.
+    - name: Run Gradle check and buildPlugin
+      if: inputs.verify == 'build'
+      shell: bash
+      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij check buildPlugin
+    - name: Run IntelliJ Plugin Verifier
+      if: inputs.verify == 'plugin'
+      shell: bash
+      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij verifyPlugin
     # Deliberately not retried. A JetBrains Marketplace version number is
     # single-use, so a publish that failed after the upload landed cannot
     # succeed on a second attempt -- it would only bury the real reason under a
