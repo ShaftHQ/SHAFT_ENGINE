@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 import shutil
 import subprocess  # nosec B404 - fixed test fixture commands only.
 import tempfile
+import threading
+import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +19,7 @@ import yaml
 from scripts.ci.harness_pr_gate import (
     CHECKS,
     SURFACE_CHECKS,
+    SURFACE_PATTERNS,
     Check,
     GateError,
     GatePlan,
@@ -24,7 +28,11 @@ from scripts.ci.harness_pr_gate import (
     classify_paths,
     event_waiver,
     parse_waiver,
+    LONG_RUNNING_CHECK_IDS,
+    PRIORITY_CHECK_IDS,
+    _isolated_environment,
     render_json,
+    resolve_jobs,
     run_plan,
     write_generated_artifacts,
 )
@@ -607,10 +615,49 @@ class OutputAndWorkflowTest(unittest.TestCase):
                 self.assertNotIn("outputs.pr_gate", condition)
                 self.assertIn("outputs.infra", condition)
 
-    def test_live_installer_job_needs_successful_agent_guidance_gate(self) -> None:
-        job = self.workflow()["jobs"]["chaos-installer-acceptance"]
+    def test_live_installer_job_runs_in_parallel_with_agent_guidance_gate(self) -> None:
+        # Issue #6186: the matrix used to wait ~14 minutes for this gate.
+        jobs = self.workflow()["jobs"]
+        for name in ("chaos-installer-acceptance", "chaos-installer-contracts"):
+            with self.subTest(job=name):
+                self.assertEqual("changes", jobs[name]["needs"])
+                self.assertIn(name, jobs["summary"]["needs"])
 
-        self.assertIn("agent-guidance", job["needs"])
+    def test_every_chaos_installer_path_selects_the_linux_installer_surface(self) -> None:
+        # Issue #6186: the ubuntu fresh-installer job dropped its UX step
+        # because Agent Guidance's installer surface runs the same modules, so
+        # every chaos_installer path must both trigger that gate and select it.
+        filters = self.filters()
+        installer_patterns = SURFACE_PATTERNS["installer"]
+        for glob in filters["chaos_installer"]:
+            with self.subTest(path=glob):
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in installer_patterns),
+                    f"{glob} does not select the harness installer surface",
+                )
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in filters["agent_guidance"]),
+                    f"{glob} does not trigger Agent Guidance Gate",
+                )
+
+    def test_installer_ux_modules_still_run_on_every_os(self) -> None:
+        legacy = {
+            "tests.scripts.test_chaos_engine_installer_ux",
+            "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
+            "tests.scripts.test_chaos_engine_bootstrap",
+            "tests.scripts.test_chaos_engine_install_wrappers",
+        }
+        linux = set(classify_paths(["chaos-engine/install.py"]).test_modules)
+        self.assertLessEqual(legacy, linux)
+        job = self.workflow()["jobs"]["chaos-installer-contracts"]
+        commands = " ".join(step.get("run", "") for step in job["steps"])
+        self.assertLessEqual(legacy, set(commands.split()))
+        self.assertIn("installer_contracts_os", job["strategy"]["matrix"]["os"])
+        acceptance = self.workflow()["jobs"]["chaos-installer-acceptance"]
+        self.assertNotIn(
+            "tests.scripts.test_chaos_engine_installer_ux",
+            " ".join(step.get("run", "") for step in acceptance["steps"]),
+        )
 
     def test_local_preflight_documents_full_head_write_generated_command(self) -> None:
         readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
@@ -792,6 +839,98 @@ class OutputAndWorkflowTest(unittest.TestCase):
             [],
             [error for error in errors if error["code"] == "host-parity-ci"],
         )
+
+
+class ConcurrentRunPlanTest(unittest.TestCase):
+    """#6191: concurrent checks keep the same selection, verdicts, and protections."""
+
+    PATHS = ["chaos-engine/install.py", "chaos-engine/hooks/kernel.py", "scripts/ci/harness_pr_gate.py"]
+
+    @staticmethod
+    def verdict(command: list[str], *_: object, **__: object) -> tuple[str, int | None]:
+        modules = command[3:-1]
+        return ("failed", 1) if any(m.endswith("_kernel") for m in modules) else ("passed", 0)
+
+    def run_with(self, jobs: int, side_effect=None) -> tuple[dict, int, list]:
+        plan = classify_paths(self.PATHS)
+        calls: list[tuple[str, ...]] = []
+        lock = threading.Lock()
+
+        def record(command: list[str], *args: object, **kwargs: object):
+            with lock:
+                calls.append(tuple(command[3:-1]))
+            return (side_effect or self.verdict)(command, *args, **kwargs)
+
+        with patch("scripts.ci.harness_pr_gate._run_check", side_effect=record):
+            payload, exit_code = run_plan(
+                ROOT, plan, head_sha=HEAD, budget_seconds=240, waiver=None, jobs=jobs
+            )
+        return payload, exit_code, calls
+
+    @staticmethod
+    def verdicts(payload: dict) -> list[tuple[str, str]]:
+        return [(check["id"], check["status"]) for check in payload["checks"]]
+
+    def test_sequential_and_concurrent_runs_select_and_judge_identically(self) -> None:
+        sequential, sequential_exit, sequential_calls = self.run_with(1)
+        concurrent, concurrent_exit, concurrent_calls = self.run_with(4)
+        self.assertEqual(self.verdicts(sequential), self.verdicts(concurrent))
+        self.assertEqual((1, 1), (sequential_exit, concurrent_exit))
+        self.assertCountEqual(sequential_calls, concurrent_calls)
+        self.assertEqual(len(set(sequential_calls)), len(sequential_calls), "a tuple ran twice")
+        self.assertEqual(4, concurrent["timing"]["jobs"])
+        self.assertIn("sum_check_seconds", concurrent["timing"])
+
+    def test_protected_always_on_checks_start_first(self) -> None:
+        plan = classify_paths(self.PATHS)
+        priority = [c.modules for pid in PRIORITY_CHECK_IDS for c in plan.checks if c.id == pid]
+        _, _, calls = self.run_with(1)
+        self.assertEqual(priority, calls[: len(priority)])
+
+    def test_longest_suites_start_right_after_protected_checks(self) -> None:
+        plan = classify_paths(self.PATHS)
+        ordered = [
+            c.modules
+            for pid in (*PRIORITY_CHECK_IDS, *LONG_RUNNING_CHECK_IDS)
+            for c in plan.checks
+            if c.id == pid
+        ]
+        self.assertTrue(any(c.id == "protected-rollback" for c in plan.checks))
+        _, _, calls = self.run_with(1)
+        self.assertEqual(list(dict.fromkeys(ordered)), calls[: len(set(ordered))])
+
+    def test_budget_exhaustion_never_skips_protected_checks(self) -> None:
+        protected_modules = {
+            m for c in classify_paths(self.PATHS).checks if c.id in PRIORITY_CHECK_IDS for m in c.modules
+        }
+
+        def slow_unprotected(command: list[str], *_: object, **__: object):
+            if not set(command[3:-1]) & protected_modules:
+                time.sleep(1.2)
+            return ("passed", 0)
+
+        plan = classify_paths(self.PATHS)
+        with patch("scripts.ci.harness_pr_gate._run_check", side_effect=slow_unprotected):
+            payload, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=1, waiver=None, jobs=1)
+        statuses = {c["id"]: c["status"] for c in payload["checks"]}
+        for pid in PRIORITY_CHECK_IDS:
+            self.assertEqual("passed", statuses[pid])
+        self.assertIn("timeout", statuses.values())
+        self.assertEqual(1, exit_code)
+
+    def test_jobs_resolution_and_temp_isolation(self) -> None:
+        self.assertEqual(3, resolve_jobs(3))
+        self.assertGreaterEqual(resolve_jobs(0), 1)
+        with self.assertRaises(GateError):
+            resolve_jobs(-1)
+        env = _isolated_environment("/isolated")
+        self.assertEqual(("/isolated",) * 3, (env["TMPDIR"], env["TEMP"], env["TMP"]))
+
+    def test_pr_workflow_runs_checks_concurrently_with_a_sequential_escape_hatch(self) -> None:
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        agent_job = pr_gate.split("  agent-guidance:", 1)[1].split("  installer-verify:", 1)[0]
+        self.assertIn("--jobs 4", agent_job)
+        self.assertIn("--jobs 1", pr_gate)
 
 
 if __name__ == "__main__":

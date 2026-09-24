@@ -37,9 +37,10 @@ changing that token silently breaks both distribution publishers.
 
 | File | Trigger | Responsibility |
 |---|---|---|
-| `pr-gate.yml` | pull request, push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `pr-gate.yml` | pull request (no label events), push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label; always reports, no path filter (#6190). |
 | `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
-| `security.yml` | pull request, push to `main`, manual | CodeQL Java analysis. |
+| `security.yml` | Maven Java pull request, push to `main`, weekly, manual | CodeQL Java analysis; PRs only when Java/POM/resources change, `main` and the weekly scan cover everything (#6192). |
 | `shaft-pilot-release.yml` | release-relevant pull request, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, and container. |
 | `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases, dispatches the guide, and announces. |
 | `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
@@ -57,7 +58,7 @@ changing that token silently breaks both distribution publishers.
 | `guided-workflows-live.yml` | nightly, manual | Live IntelliJ guided Web, mobile-emulation, and Doctor flows through real MCP. |
 | `live-tools-nightly.yml` | nightly, manual | Live SHAFT CLI and IntelliJ assistant tool calls that cannot run in the PR gate. |
 | `trace-viewer-acceptance.yml` | trace-relevant pull request and push to `main` | Native Playwright trace parity across engines plus offline Chromium viewer acceptance. |
-| `agent-plugin-acceptance.yml` | weekly, manual | Three independent evidence jobs: native-client routing, immutable external guardrail-corpus scoring, and checksum-verified agnix cross-client conformance. |
+| `agent-plugin-acceptance.yml` | weekly (all jobs), daily (3-OS ChaosEngine installer jobs), manual | Native-client routing, external guardrail-corpus scoring, agnix conformance, and the 3-OS installer acceptance that carries macOS off the PR path; files a tracking issue on a scheduled failure. |
 | `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
 
 The quality validator fails when an active `*.yml` file is missing from this
@@ -73,6 +74,44 @@ table. Remove a row only in the same change that deletes its workflow.
   collide.
 - `pr-gate.yml` intentionally has no `workflow_dispatch`: its path filter needs
   a pull-request or push diff and a manual run could pass vacuously.
+- `pr-gate.yml` cancels superseded pull-request runs only. Each `main` push
+  gets its own concurrency group and is never cancelled, so every merge commit
+  finishes its post-merge legs. `Main red reaction` then files or updates one
+  `ci-main-red` issue per failing leg, closes it when the leg passes again on
+  `main`, and opens a revert PR for a failing ChaosEngine fresh-installer leg
+  (#6185).
+- The ChaosEngine fresh-installer matrix and the installer UX contracts
+  (`chaos-installer-contracts`, non-Linux runners) start right after
+  `changes`, in parallel with Agent Guidance Gate. On Linux the UX modules run
+  inside Agent Guidance's `installer` surface, which every `chaos_installer`
+  path selects (#6186).
+- `Unit Tests (shaft-engine-shard-1|2)` split the unchanged shaft-engine
+  `-Dtest` selector with `scripts/ci/shard_test_selector.py` (package glob vs
+  named classes); each shard verifies `testng-results.xml` and uploads its own
+  coverage (#6188).
+- Label and body edits re-run only `release-note-governance.yml`; PR Gate
+  ignores them. Both `PR Gate Summary` and `Release-note governance` are
+  required status checks (#6190).
+- Agent Guidance Gate runs its selected harness checks concurrently
+  (`harness_pr_gate.py --jobs 4`, one temp dir per check, protected checks
+  first); `--jobs 1` restores the sequential run (#6191).
+- `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
+  `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
+  through `intellij-verify` modes `build`/`plugin`, both retried. Release
+  workflows keep the combined `verify: true` build (#6189).
+
+### ChaosEngine fresh-installer tiers (#6187)
+
+| Trigger | Fresh installer | Installer UX contracts |
+|---|---|---|
+| Pull request | ubuntu-22.04, windows-2025 | windows-2025 (Linux via Agent Guidance) |
+| Pull request labelled `ci:installer-macos` | + macos-15 | + macos-15 |
+| Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
+| Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |
+
+`scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels, so
+re-run PR Gate after adding the label. A macOS-only break is caught post-merge
+and handled by `Main red reaction` (issue + revert PR).
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.

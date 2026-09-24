@@ -1,0 +1,38 @@
+name: Release-note governance
+
+# Issue #6190: release-note classification reads PR labels, so it has to run on
+# label and body edits. It used to live in pr-gate.yml, which made every label
+# change restart the whole gate (35% of PR Gate runs were an extra run on an
+# unchanged SHA). This tiny workflow now owns those events; PR Gate no longer
+# triggers on labeled/unlabeled.
+#
+# Required-check contract: no paths filter and no job-level `if`, so the one
+# job named exactly "Release-note governance" reports a conclusion on every
+# pull request event and never leaves a required check pending. If a merge
+# queue is adopted (#6193), add `merge_group:` here too.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-note-governance-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  release-governance:
+    name: Release-note governance
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Test and validate release-note governance
+        run: |
+          python3 -m unittest tests.scripts.test_validate_release_notes -v
+          python3 scripts/ci/validate_release_notes.py --event "$GITHUB_EVENT_PATH"

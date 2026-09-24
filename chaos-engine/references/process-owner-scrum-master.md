@@ -195,6 +195,10 @@ authoritative research to improve the process itself.
   anyway, `tip_preflight.py --rehash` recomputes `content_hash` in the same
   tip before push ([tip-churn preflight](tip-churn-preflight.md), #6169).
 
+- An open `ci-main-red` issue is P0: a post-merge `main` PR Gate leg failed
+  (filed by `Main red reaction`, #6185). Route a fix-forward or the auto-opened
+  revert PR before new work; CE adopters install from `main`.
+
 See also [identity push-back](identity-push-back.md) (fact-grounded opinion / push-back).
 
 ## Anti-patterns and self-correction

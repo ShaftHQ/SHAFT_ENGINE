@@ -33,8 +33,10 @@ class OcrInfrastructureBoundaryTest(unittest.TestCase):
         e2e = (ROOT / ".github/workflows/e2eTests.yml").read_text()
 
         self.assertIn("shaft-ocr/**", pr_gate)
-        self.assertIn("module: [ shaft-infrastructure, shaft-engine", pr_gate)
+        self.assertIn("module: [ shaft-infrastructure,", pr_gate)
         self.assertIn("shaft-ocr ]", pr_gate)
+        # shaft-engine runs as sharded include legs since #6188.
+        self.assertIn("- module: shaft-engine\n            shard: 1", pr_gate)
         self.assertEqual(2, e2e.count("setup plan --profile OCR"))
         self.assertEqual(2, e2e.count("-Dshaft.ocr.downloadEnabled=false"))
 

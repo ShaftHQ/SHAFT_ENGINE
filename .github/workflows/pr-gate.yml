@@ -25,32 +25,26 @@ name: PR Gate
 # failure) on pushes and pull requests with no dependency-bearing diff, which
 # the summary job's success|skipped leg check already accepts.
 
+# Label events are deliberately absent (issue #6190): release-note
+# classification runs in release-note-governance.yml, so adding or removing a
+# label no longer restarts every leg below.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
   push:
     branches: [ main ]
 
 permissions:
   contents: read
 
+# Superseding pushes cancel an in-flight PR run, but a post-merge `main` run is
+# never cancelled by the next merge (issue #6185): legs that run only after
+# merge (e.g. the macOS fresh installer) need every merge commit to finish.
 concurrency:
-  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: pr-gate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  release-governance:
-    name: Release-note governance
-    runs-on: ubuntu-22.04
-    timeout-minutes: 15
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7.0.1
-      - name: Test and validate release-note governance
-        run: |
-          python3 -m unittest tests.scripts.test_validate_release_notes -v
-          python3 scripts/ci/validate_release_notes.py --event "$GITHUB_EVENT_PATH"
-
   changes:
     name: Detect changed paths
     runs-on: ubuntu-22.04
@@ -70,6 +64,12 @@ jobs:
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
       chaos_installer: ${{ steps.filter.outputs.chaos_installer }}
       chaos_gauge: ${{ steps.filter.outputs.chaos_gauge }}
+      installer_os: ${{ steps.installer-tier.outputs.installer_os }}
+      installer_contracts_os: ${{ steps.installer-tier.outputs.installer_contracts_os }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
@@ -216,6 +216,10 @@ jobs:
               - 'tests/scripts/test_chaos_engine_install_wrappers.py'
               - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
               - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              # Issue #6186: every chaos_installer path must also run this
+              # gate, whose installer surface replaced the ubuntu UX step.
+              - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
+              - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
               - 'tests/scripts/test_chaos_engine_promotion.py'
               - 'tests/scripts/test_validate_chaos_engine_readme.py'
               # Not agent guidance, but this is the only gate that runs the
@@ -362,6 +366,31 @@ jobs:
               - 'tests/scripts/test_validate_workflow_timeouts.py'
               - 'scripts/ci/epic_autoclose.py'
               - 'tests/scripts/test_epic_autoclose.py'
+              # Issue #6187/#6184: installer OS tier and time-to-merge pins.
+              - 'scripts/ci/chaos_installer_tier.py'
+              - 'tests/scripts/test_pr_gate_time_to_merge.py'
+              - 'scripts/ci/shard_test_selector.py'
+              - 'tests/scripts/test_shard_test_selector.py'
+              # Issue #6185: the post-merge main-red reaction and its pins.
+              - 'scripts/ci/main_red_reaction.py'
+              - 'tests/scripts/test_main_red_reaction.py'
+      # Issue #6187: macOS fresh installer runs post-merge on main, nightly, and
+      # on PRs labelled ci:installer-macos. Labels are read live so re-running
+      # this workflow after adding the label picks macOS up (label events no
+      # longer trigger PR Gate, #6190).
+      - name: Resolve ChaosEngine installer OS tier
+        id: installer-tier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          labels="$EVENT_LABELS"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '[.[].name]') || labels="$EVENT_LABELS"
+          fi
+          python3 scripts/ci/chaos_installer_tier.py --event-name "$GITHUB_EVENT_NAME" --labels "$labels" >> "$GITHUB_OUTPUT"
 
   docs-boundary:
     name: Documentation Boundary Gate
@@ -405,6 +434,8 @@ jobs:
 
   # Fast harness gate. The repository-owned classifier selects changed-surface
   # tests, protected invariants, and a safe fallback for unknown harness files.
+  # Selected checks run concurrently (issue #6191, `--jobs 4` = the runner's
+  # vCPUs); `--jobs 1` is the sequential rollback.
   # Full cross-platform, native-client, and exhaustive suites run in
   # agent-plugin-acceptance.yml on schedule or workflow_dispatch.
   agent-guidance:
@@ -457,6 +488,7 @@ jobs:
           --head "$HEAD_SHA"
           --reviews "$REVIEWS_PATH"
           --budget-seconds 1200
+          --jobs 4
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()
@@ -519,6 +551,8 @@ jobs:
         uses: actions/checkout@v7.0.1
       - name: Build IntelliJ plugin
         uses: ./.github/actions/intellij-verify
+        with:
+          verify: build
       - name: Upload IntelliJ coverage to Codecov
         if: always()
         continue-on-error: true
@@ -534,6 +568,26 @@ jobs:
           name: shaft-intellij-plugin
           path: shaft-intellij/build/distributions/*.zip
           if-no-files-found: error
+
+  # Issue #6189: :verifyPlugin (~2.6-2.9 min of the 6.5 min build) runs as its
+  # own parallel job. The verifier IDEs resolve through Gradle artifact
+  # transforms that setup-gradle already restores from the Gradle User Home
+  # cache, so no second multi-GB cache is added. The two jobs together run
+  # exactly `check buildPlugin verifyPlugin`; release workflows still run the
+  # single combined, retried build.
+  intellij-verify-plugin:
+    name: Verify IntelliJ plugin (Plugin Verifier)
+    needs: changes
+    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Run IntelliJ Plugin Verifier
+        uses: ./.github/actions/intellij-verify
+        with:
+          verify: plugin
 
   cli:
     name: shaft-cli (${{ matrix.os }})
@@ -612,6 +666,8 @@ jobs:
         uses: stCarolas/setup-maven@v5.1
         with:
           maven-version: 3.9.5
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
       # pr-gate has no earlier install step for this module set, unlike the
       # standalone shaft-capture-e2e.yml which is the only workflow to build
       # this leg, so the install step is carried over verbatim here.
@@ -696,8 +752,15 @@ jobs:
   # meaningfully change this job's runtime/character. Left out deliberately;
   # tracked as a follow-up decision in issue #4339's audit rather than done
   # unilaterally.
+  #
+  # Issue #6188: shaft-engine was the Java critical path (9.7 min, test step
+  # 8.3). It runs as two parallel shards of the SAME selector below:
+  # scripts/ci/shard_test_selector.py puts the package glob in shard 1 and the
+  # named classes in shard 2; their union is exactly the selector (pinned by
+  # tests/scripts/test_shard_test_selector.py). Each shard verifies its own
+  # testng-results.xml and uploads its own coverage.
   unit-tests:
-    name: Unit Tests (${{ matrix.module }})
+    name: Unit Tests (${{ matrix.leg || matrix.module }})
     needs: changes
     if: >-
       needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true'
@@ -707,7 +770,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ shaft-infrastructure, shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture, shaft-ocr ]
+        module: [ shaft-infrastructure, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture, shaft-ocr ]
+        include:
+          - module: shaft-engine
+            shard: 1
+            leg: shaft-engine-shard-1
+          - module: shaft-engine
+            shard: 2
+            leg: shaft-engine-shard-2
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
@@ -726,10 +796,14 @@ jobs:
           -am install -DskipTests '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Run shaft-engine unit tests
         if: matrix.module == 'shaft-engine'
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
         run: >-
           mvn --batch-mode
           -pl shaft-engine test
+          "-Dtest=$(python3 scripts/ci/shard_test_selector.py --index "$SHARD_INDEX" --total 2 --selector
           '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, PlaywrightNaturalActionExecutorTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest, JourneyCoverageFixtureTest, testPackage.ThreadLocalGuiTeardownGuardTest, JsonActionsTests, MultipleElementsFailureTest, TouchMultipleElementsFailureTest, LazyLoadingFixtureLiveTest, !RestValidationsBuilderUnitTest'
+          )"
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Verify shaft-engine unit test results
@@ -744,8 +818,8 @@ jobs:
           root = ET.parse('shaft-engine/target/surefire-reports/testng-results.xml').getroot()
           failed = int(root.get('failed', '0'))
           total = int(root.get('total', '0'))
-          print(f'shaft-engine unit tests: total={total} failed={failed}')
-          sys.exit(1 if failed else 0)
+          print(f'shaft-engine unit tests (${{ matrix.leg }}): total={total} failed={failed}')
+          sys.exit(1 if failed or total == 0 else 0)
           "
       - name: Run ${{ matrix.module }} tests
         if: matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
@@ -767,7 +841,7 @@ jobs:
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           required-files: ./${{ matrix.module }}/target/jacoco/jacoco.xml
-          source-id: pr-gate-unit-${{ matrix.module }}
+          source-id: pr-gate-unit-${{ matrix.leg || matrix.module }}
 
   template-coupling:
     name: Template Coupling Gate
@@ -788,6 +862,8 @@ jobs:
         uses: stCarolas/setup-maven@v5.1
         with:
           maven-version: 3.9.12
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
       - name: Run template-coupled shaft-mcp tests
         run: >-
           mvn --batch-mode -pl shaft-mcp -am test
@@ -832,6 +908,9 @@ jobs:
           tests.scripts.test_intellij_verify_retry
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release
+          tests.scripts.test_main_red_reaction
+          tests.scripts.test_pr_gate_time_to_merge
+          tests.scripts.test_shard_test_selector
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
@@ -1001,18 +1080,64 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: echo "review=$(python3 scripts/ci/dependency_review_changes.py "$BASE_SHA" "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
 
+  # Issue #6186: the fresh-installer matrix starts right after `changes`, in
+  # parallel with Agent Guidance Gate, instead of waiting ~14 minutes for it.
+  # A superseding push still cancels both, and the summary still requires both.
   chaos-installer-acceptance:
     name: ChaosEngine fresh installer (${{ matrix.os }})
-    needs:
-      - changes
-      - agent-guidance
+    needs: changes
     if: needs.changes.outputs.chaos_installer == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15, windows-2025]
+        # PR: ubuntu-22.04 + windows-2025; push to main / ci:installer-macos
+        # label: + macos-15 (scripts/ci/chaos_installer_tier.py, #6187).
+        os: ${{ fromJSON(needs.changes.outputs.installer_os) }}
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Run fresh-install acceptance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/ci/chaos_engine_live_installer_acceptance.py
+          --candidate-sha ${{ github.event.pull_request.head.sha || github.sha }}
+          --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
+          --output chaos-engine-live-installer-evidence.json
+      - name: Upload fresh-install evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: chaos-engine-live-installer-${{ matrix.os }}
+          path: chaos-engine-live-installer-evidence.json
+          if-no-files-found: error
+
+  # Issue #6186: the installer UX contracts used to run first inside every
+  # fresh-installer job (3.5-5.5 min each). They now run as their own parallel
+  # job on the non-Linux runners; on Linux the Agent Guidance Gate `installer`
+  # surface already runs the same modules (installer-ux-contract +
+  # protected-installer-acceptance), and every `chaos_installer` path selects
+  # that surface (pinned by tests/scripts/test_harness_pr_gate.py).
+  chaos-installer-contracts:
+    name: ChaosEngine installer contracts (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.chaos_installer == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # PR: windows-2025; push to main / ci:installer-macos label: + macos-15.
+        os: ${{ fromJSON(needs.changes.outputs.installer_contracts_os) }}
     steps:
       - name: Enable Windows long paths
         if: runner.os == 'Windows'
@@ -1030,32 +1155,17 @@ jobs:
           tests.scripts.test_chaos_engine_same_commit_payload_heal_5839
           tests.scripts.test_chaos_engine_bootstrap
           tests.scripts.test_chaos_engine_install_wrappers -v
-      - name: Run fresh-install acceptance
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: >-
-          python scripts/ci/chaos_engine_live_installer_acceptance.py
-          --candidate-sha ${{ github.event.pull_request.head.sha || github.sha }}
-          --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
-          --output chaos-engine-live-installer-evidence.json
-      - name: Upload fresh-install evidence
-        if: always()
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: chaos-engine-live-installer-${{ matrix.os }}
-          path: chaos-engine-live-installer-evidence.json
-          if-no-files-found: error
 
   summary:
     name: PR Gate Summary
     needs:
-      - release-governance
       - changes
       - docs-boundary
       - chaos-gauge
       - agent-guidance
       - installer-verify
       - intellij-build
+      - intellij-verify-plugin
       - cli
       - capture-e2e
       - unit-tests
@@ -1067,19 +1177,20 @@ jobs:
       - dependency-changes
       - dependency-review
       - chaos-installer-acceptance
+      - chaos-installer-contracts
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
       - name: Evaluate leg results
         env:
-          RELEASE_GOVERNANCE_RESULT: ${{ needs.release-governance.result }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_RESULT: ${{ needs.docs-boundary.result }}
           CHAOS_GAUGE_RESULT: ${{ needs.chaos-gauge.result }}
           AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
           INTELLIJ_VERIFY_RESULT: ${{ needs.installer-verify.result }}
           INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
+          INTELLIJ_VERIFY_PLUGIN_RESULT: ${{ needs.intellij-verify-plugin.result }}
           CLI_RESULT: ${{ needs.cli.result }}
           CAPTURE_RESULT: ${{ needs.capture-e2e.result }}
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
@@ -1091,19 +1202,20 @@ jobs:
           DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
           CHAOS_INSTALLER_RESULT: ${{ needs.chaos-installer-acceptance.result }}
+          CHAOS_INSTALLER_CONTRACTS_RESULT: ${{ needs.chaos-installer-contracts.result }}
         run: |
           set -uo pipefail
 
           {
             echo "| Leg | Result |"
             echo "| --- | --- |"
-            echo "| release-governance | ${RELEASE_GOVERNANCE_RESULT} |"
             echo "| changes | ${CHANGES_RESULT} |"
             echo "| docs-boundary | ${DOCS_RESULT} |"
             echo "| chaos-gauge | ${CHAOS_GAUGE_RESULT} |"
             echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
             echo "| installer-verify | ${INTELLIJ_VERIFY_RESULT} |"
             echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
+            echo "| intellij-verify-plugin | ${INTELLIJ_VERIFY_PLUGIN_RESULT} |"
             echo "| cli | ${CLI_RESULT} |"
             echo "| capture-e2e | ${CAPTURE_RESULT} |"
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
@@ -1115,12 +1227,8 @@ jobs:
             echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
             echo "| chaos-installer-acceptance | ${CHAOS_INSTALLER_RESULT} |"
+            echo "| chaos-installer-contracts | ${CHAOS_INSTALLER_CONTRACTS_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "${RELEASE_GOVERNANCE_RESULT}" != "success" ]; then
-            echo "::error::release-governance job did not succeed (${RELEASE_GOVERNANCE_RESULT})"
-            exit 1
-          fi
 
           if [ "${CHANGES_RESULT}" != "success" ]; then
             echo "::error::changes job did not succeed (${CHANGES_RESULT})"
@@ -1128,7 +1236,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
@@ -1139,3 +1247,44 @@ jobs:
           done
 
           exit "$status"
+
+  # Issue #6185: a red post-merge `main` run used to go unnoticed. This job
+  # files or updates one rolling `ci-main-red` issue per failing leg (assigned
+  # to the owner), closes an issue once its leg passes again on `main`, and for
+  # a ChaosEngine fresh-installer leg opens a revert PR of the merge commit
+  # (BOT_TOKEN, so the revert PR runs CI). It runs on every `main` push so a
+  # recovery can close the issue; it is not a leg of the summary.
+  main-red-reaction:
+    name: Main red reaction
+    needs: summary
+    if: >-
+      always() && github.event_name == 'push'
+      && (needs.summary.result == 'failure' || needs.summary.result == 'success')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN || github.token }}
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: File, update, or close ci-main-red issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVERT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: >-
+          python3 scripts/ci/main_red_reaction.py
+          --repo "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID"
+          --run-attempt "$GITHUB_RUN_ATTEMPT"
+          --sha "$GITHUB_SHA"
+          --server-url "$GITHUB_SERVER_URL"

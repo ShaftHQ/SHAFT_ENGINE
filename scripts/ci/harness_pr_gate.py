@@ -14,6 +14,7 @@ import subprocess  # nosec B404 - executes fixed unittest commands without a she
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
@@ -77,6 +78,15 @@ PROTECTED_IDS = frozenset(
     }
 )
 WAIVER_OWNER = "MohabMohie"
+# Always-on protected checks start first so long suites cannot starve them.
+PRIORITY_CHECK_IDS = ("protected-ownership", "protected-secret-safety")
+# Longest suites (CI receipts: ~370 s, ~350 s, ~75 s) start next so the
+# concurrent wall time is bounded by the slowest suite, not by queueing (#6191).
+LONG_RUNNING_CHECK_IDS = (
+    "protected-rollback",
+    "protected-installer-acceptance",
+    "setup-aggregator-contract",
+)
 RECORDED_BASELINE_MEDIAN_SECONDS = 600
 PR_BUDGET_SECONDS = 360
 WAIVER_FENCE = re.compile(
@@ -257,6 +267,10 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_installer_ux",
             "tests.scripts.test_chaos_engine_managed_runtimes",
             "tests.scripts.test_chaos_engine_install_wrappers",
+            # Issue #6186: the ubuntu fresh-installer job no longer runs these
+            # itself; this Linux check is their PR-time home.
+            "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
+            "tests.scripts.test_chaos_engine_overlay_only_host_pointers",
         ),
     ),
 }
@@ -315,6 +329,11 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_install_wrappers.py",
         "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
         "tests/scripts/test_chaos_engine_managed_runtimes.py",
+        # Issue #6186: every pr-gate `chaos_installer` path selects this
+        # surface, because it replaced the ubuntu fresh-installer UX step.
+        "chaos-engine/hosts.py",
+        "tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py",
+        "tests/scripts/test_chaos_engine_overlay_only_host_pointers.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",
@@ -810,13 +829,26 @@ def _emit_failure_tail(stream, root: Path) -> None:
         print(f"harness-pr-gate bounded failure tail:\n{detail}", file=sys.stderr)
 
 
+def _isolated_environment(temp_root: str) -> dict[str, str]:
+    """Give one check its own temp directory so concurrent checks never share it."""
+    return {**os.environ, "TMPDIR": temp_root, "TEMP": temp_root, "TMP": temp_root}
+
+
 def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int | None]:
     """Run one quiet check, exposing only a bounded redacted tail on failure."""
+    with tempfile.TemporaryDirectory(prefix="harness-gate-") as temp_root:
+        return _run_isolated_check(command, root, timeout, _isolated_environment(temp_root))
+
+
+def _run_isolated_check(
+    command: list[str], root: Path, timeout: float, env: dict[str, str]
+) -> tuple[str, int | None]:
     windows = os.name == "nt"
     with tempfile.TemporaryFile() as output:
         process = subprocess.Popen(  # nosec B603 - fixed unittest command without a shell.
             command,
             cwd=root,
+            env=env,
             stdout=output,
             stderr=subprocess.STDOUT,
             start_new_session=not windows,
@@ -851,6 +883,45 @@ def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int
             return "timeout", None
 
 
+def resolve_jobs(requested: int) -> int:
+    """Return the worker count: an explicit positive value, or one per CPU for 0."""
+    if requested < 0:
+        raise GateError("jobs must be zero (one per CPU) or a positive count")
+    return requested or max(1, os.cpu_count() or 1)
+
+
+def _execution_order(plan: GatePlan) -> list[tuple[str, ...]]:
+    """Unique module tuples: protected always-on checks, then the longest suites."""
+    priority = [
+        check.modules
+        for pid in (*PRIORITY_CHECK_IDS, *LONG_RUNNING_CHECK_IDS)
+        for check in plan.checks
+        if check.id == pid
+    ]
+    return list(dict.fromkeys([*priority, *(check.modules for check in plan.checks)]))
+
+
+def _result_record(
+    check: Check,
+    outcome: tuple[str, int | None, float],
+    waiver: WaiverReceipt | None,
+) -> dict[str, Any]:
+    status, exit_code, duration = outcome
+    if status == "failed" and waiver and check.id in waiver.check_ids and not check.protected:
+        status = "waived"
+    return {
+        "id": check.id,
+        "surface": check.surface,
+        "protected": check.protected,
+        "class": "blocking-protected-invariant" if check.protected else "change-scoped",
+        "tests": list(check.modules),
+        "status": status,
+        "exit_code": exit_code,
+        "duration_seconds": duration,
+        "reproduction_command": check.reproduction_command,
+    }
+
+
 def run_plan(
     root: Path,
     plan: GatePlan,
@@ -858,63 +929,45 @@ def run_plan(
     head_sha: str,
     budget_seconds: int,
     waiver: WaiverReceipt | None,
+    jobs: int = 1,
 ) -> tuple[dict[str, Any], int]:
+    """
+    Run every selected check, concurrently when ``jobs`` > 1 (#6191).
+
+    Each unique module tuple runs once (identical tuples share one execution),
+    protected always-on checks are submitted first, and every check gets the
+    budget that remains when it actually starts.
+    """
     selected_ids = {check.id for check in plan.checks}
     if waiver and not set(waiver.check_ids) <= selected_ids:
         raise GateError("waiver names checks not selected by this change")
     started = time.monotonic()
-    results: list[dict[str, Any]] = []
-    failed_ids: set[str] = set()
-    execution_cache: dict[tuple[str, ...], tuple[str, int | None, float]] = {}
 
-    def _execute(check: Check) -> tuple[str, int | None, float]:
-        remaining = budget_seconds - (time.monotonic() - started)
+    def _execute(modules: tuple[str, ...]) -> tuple[str, int | None, float]:
         check_started = time.monotonic()
-        cached = execution_cache.get(check.modules)
-        if cached:
-            return cached
+        remaining = budget_seconds - (check_started - started)
         if remaining <= 0:
-            status, exit_code, duration = "timeout", None, 0.0
-        else:
-            status, exit_code = _run_check(
-                [sys.executable, "-m", "unittest", *check.modules, "-v"],
-                root,
-                remaining,
-            )
-            duration = round(time.monotonic() - check_started, 3)
-        execution_cache[check.modules] = status, exit_code, duration
-        return status, exit_code, duration
-
-    # Warm always-on protected checks first so long suites cannot starve them.
-    for pid in ("protected-ownership", "protected-secret-safety"):
-        for check in plan.checks:
-            if check.id == pid:
-                _execute(check)
-
-    for check in plan.checks:
-        status, exit_code, duration = _execute(check)
-        if status != "passed":
-            failed_ids.add(check.id)
-            if (
-                status == "failed"
-                and waiver
-                and check.id in waiver.check_ids
-                and not check.protected
-            ):
-                status = "waived"
-        results.append(
-            {
-                "id": check.id,
-                "surface": check.surface,
-                "protected": check.protected,
-                "class": "blocking-protected-invariant" if check.protected else "change-scoped",
-                "tests": list(check.modules),
-                "status": status,
-                "exit_code": exit_code,
-                "duration_seconds": duration,
-                "reproduction_command": check.reproduction_command,
-            }
+            return "timeout", None, 0.0
+        status, exit_code = _run_check(
+            [sys.executable, "-m", "unittest", *modules, "-v"],
+            root,
+            remaining,
         )
+        return status, exit_code, round(time.monotonic() - check_started, 3)
+
+    order = _execution_order(plan)
+    workers = max(1, min(jobs, len(order)))
+    if workers == 1:
+        outcomes = {modules: _execute(modules) for modules in order}
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {modules: pool.submit(_execute, modules) for modules in order}
+            outcomes = {modules: future.result() for modules, future in futures.items()}
+
+    results = [_result_record(check, outcomes[check.modules], waiver) for check in plan.checks]
+    failed_ids = {
+        check.id for check in plan.checks if outcomes[check.modules][0] != "passed"
+    }
     if waiver and set(waiver.check_ids) != failed_ids.intersection(waiver.check_ids):
         raise GateError("waiver is stale because a named check did not fail")
     valid = all(result["status"] in {"passed", "waived"} for result in results)
@@ -937,6 +990,8 @@ def run_plan(
             "maximum_budget_reduction": round(
                 1 - budget_seconds / RECORDED_BASELINE_MEDIAN_SECONDS, 3
             ),
+            "jobs": workers,
+            "sum_check_seconds": round(sum(outcome[2] for outcome in outcomes.values()), 3),
         },
         "deferred_classes": ["scheduled-exhaustive", "release-promotion"],
         "safe_history_update_command": "git push --force-with-lease origin HEAD",
@@ -965,6 +1020,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--head", required=True)
     parser.add_argument("--reviews", type=Path)
     parser.add_argument("--budget-seconds", type=int, default=PR_BUDGET_SECONDS)
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=0,
+        help="concurrent checks: 0 = one per CPU (default), 1 = sequential escape hatch",
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--plan-only", action="store_true")
@@ -1002,6 +1063,7 @@ def main() -> int:
                 head_sha=args.head,
                 budget_seconds=args.budget_seconds,
                 waiver=waiver,
+                jobs=resolve_jobs(args.jobs),
             )
             payload["written"] = list(written)
     except GateError as error:

@@ -66,6 +66,14 @@ def _truthy(value: object) -> bool:
     return str(value).strip().strip("'\"").lower() == "true"
 
 
+# Issue #6189: "build" and "plugin" each run half of the retried build.
+VERIFYING_MODES = frozenset({"true", "build", "plugin"})
+
+
+def _verifies(value: object) -> bool:
+    return str(value).strip().strip("'\"").lower() in VERIFYING_MODES
+
+
 class IntellijVerifyRetryTest(unittest.TestCase):
     def test_the_retry_helper_the_action_calls_exists(self):
         self.assertTrue(RETRY_SCRIPT.is_file(), f"missing: {RETRY_SCRIPT}")
@@ -114,7 +122,7 @@ class IntellijVerifyRetryTest(unittest.TestCase):
                     extras = _intellij_verify_with(step)
                     if "intellij-verify" not in str(step.get("uses", "")):
                         continue
-                    if "verify" in extras and not _truthy(extras.get("verify")):
+                    if "verify" in extras and not _verifies(extras.get("verify")):
                         continue
                     runs_verify = True
                 if runs_verify:
@@ -127,6 +135,32 @@ class IntellijVerifyRetryTest(unittest.TestCase):
                 MINIMUM_TIMEOUT_MINUTES,
                 f"{workflow}:{job} cannot fit a retried IntelliJ build",
             )
+
+    def test_every_gradle_build_step_is_retried(self):
+        gradle = [step for step in _run_steps() if "gradlew" in step["run"] and "publishPlugin" not in step["run"]]
+        self.assertGreaterEqual(len(gradle), 3)
+        for step in gradle:
+            self.assertIn("scripts/ci/build_retry.sh", step["run"], step.get("name"))
+
+    def test_pr_gate_split_runs_exactly_the_release_tasks(self):
+        # Issue #6189: two parallel PR jobs, same Gradle tasks as the release build.
+        document = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+        tasks_by_mode = {}
+        for step in document["runs"]["steps"]:
+            condition = str(step.get("if", ""))
+            if "gradlew" in step.get("run", "") and "inputs.verify ==" in condition:
+                mode = condition.split("==", 1)[1].strip().strip("'")
+                tasks_by_mode[mode] = step["run"].split("-p shaft-intellij", 1)[1].split()
+        gate = yaml.safe_load((WORKFLOWS / "pr-gate.yml").read_text(encoding="utf-8"))["jobs"]
+        modes = []
+        for name in ("intellij-build", "intellij-verify-plugin"):
+            step = next(s for s in gate[name]["steps"] if "intellij-verify" in str(s.get("uses", "")))
+            modes.append(step["with"]["verify"])
+            self.assertIn("outputs.infra", gate[name]["if"])
+            self.assertIn(name, gate["summary"]["needs"])
+        pr_tasks = [task for mode in modes for task in tasks_by_mode[mode]]
+        self.assertCountEqual(tasks_by_mode["true"], pr_tasks)
+        self.assertCountEqual(["check", "buildPlugin", "verifyPlugin"], pr_tasks)
 
     def test_the_plugin_verifier_is_pinned(self):
         build = BUILD_FILE.read_text(encoding="utf-8")
