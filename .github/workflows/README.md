@@ -37,7 +37,8 @@ changing that token silently breaks both distribution publishers.
 
 | File | Trigger | Responsibility |
 |---|---|---|
-| `pr-gate.yml` | pull request, push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `pr-gate.yml` | pull request (no label events), push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label; always reports, no path filter (#6190). |
 | `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
 | `security.yml` | pull request, push to `main`, manual | CodeQL Java analysis. |
 | `shaft-pilot-release.yml` | release-relevant pull request, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, and container. |
@@ -88,6 +89,9 @@ table. Remove a row only in the same change that deletes its workflow.
   `-Dtest` selector with `scripts/ci/shard_test_selector.py` (package glob vs
   named classes); each shard verifies `testng-results.xml` and uploads its own
   coverage (#6188).
+- Label and body edits re-run only `release-note-governance.yml`; PR Gate
+  ignores them. Both `PR Gate Summary` and `Release-note governance` are
+  required status checks (#6190).
 - `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
   `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
   through `intellij-verify` modes `build`/`plugin`, both retried. Release

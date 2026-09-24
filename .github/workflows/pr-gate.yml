@@ -25,9 +25,12 @@ name: PR Gate
 # failure) on pushes and pull requests with no dependency-bearing diff, which
 # the summary job's success|skipped leg check already accepts.
 
+# Label events are deliberately absent (issue #6190): release-note
+# classification runs in release-note-governance.yml, so adding or removing a
+# label no longer restarts every leg below.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
   push:
     branches: [ main ]
 
@@ -42,18 +45,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  release-governance:
-    name: Release-note governance
-    runs-on: ubuntu-22.04
-    timeout-minutes: 15
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7.0.1
-      - name: Test and validate release-note governance
-        run: |
-          python3 -m unittest tests.scripts.test_validate_release_notes -v
-          python3 scripts/ci/validate_release_notes.py --event "$GITHUB_EVENT_PATH"
-
   changes:
     name: Detect changed paths
     runs-on: ubuntu-22.04
@@ -1165,7 +1156,6 @@ jobs:
   summary:
     name: PR Gate Summary
     needs:
-      - release-governance
       - changes
       - docs-boundary
       - chaos-gauge
@@ -1191,7 +1181,6 @@ jobs:
     steps:
       - name: Evaluate leg results
         env:
-          RELEASE_GOVERNANCE_RESULT: ${{ needs.release-governance.result }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_RESULT: ${{ needs.docs-boundary.result }}
           CHAOS_GAUGE_RESULT: ${{ needs.chaos-gauge.result }}
@@ -1217,7 +1206,6 @@ jobs:
           {
             echo "| Leg | Result |"
             echo "| --- | --- |"
-            echo "| release-governance | ${RELEASE_GOVERNANCE_RESULT} |"
             echo "| changes | ${CHANGES_RESULT} |"
             echo "| docs-boundary | ${DOCS_RESULT} |"
             echo "| chaos-gauge | ${CHAOS_GAUGE_RESULT} |"
@@ -1238,11 +1226,6 @@ jobs:
             echo "| chaos-installer-acceptance | ${CHAOS_INSTALLER_RESULT} |"
             echo "| chaos-installer-contracts | ${CHAOS_INSTALLER_CONTRACTS_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "${RELEASE_GOVERNANCE_RESULT}" != "success" ]; then
-            echo "::error::release-governance job did not succeed (${RELEASE_GOVERNANCE_RESULT})"
-            exit 1
-          fi
 
           if [ "${CHANGES_RESULT}" != "success" ]; then
             echo "::error::changes job did not succeed (${CHANGES_RESULT})"

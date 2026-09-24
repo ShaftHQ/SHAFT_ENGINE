@@ -83,5 +83,35 @@ class MacosInstallerTierTest(unittest.TestCase):
         )
 
 
+class ReleaseNoteGovernanceSplitTest(unittest.TestCase):
+    """#6190: label edits re-run only the release-note check, which always reports."""
+
+    def test_pr_gate_ignores_label_events_and_has_no_release_leg(self) -> None:
+        workflow = load("pr-gate.yml")
+        types = workflow["on"]["pull_request"]["types"]
+        self.assertNotIn("labeled", types)
+        self.assertNotIn("unlabeled", types)
+        self.assertNotIn("release-governance", workflow["jobs"])
+        self.assertNotIn("release-governance", workflow["jobs"]["summary"]["needs"])
+
+    def test_release_workflow_is_a_single_always_reporting_job(self) -> None:
+        workflow = load("release-note-governance.yml")
+        trigger = workflow["on"]["pull_request"]
+        for event_type in ("opened", "edited", "synchronize", "reopened", "labeled", "unlabeled"):
+            self.assertIn(event_type, trigger["types"])
+        self.assertNotIn("paths", trigger)
+        self.assertNotIn("paths-ignore", trigger)
+        self.assertEqual(["release-governance"], list(workflow["jobs"]))
+        job = workflow["jobs"]["release-governance"]
+        self.assertEqual("Release-note governance", job["name"])
+        self.assertNotIn("if", job)
+        run = " ".join(step.get("run", "") for step in job["steps"])
+        self.assertIn("scripts/ci/validate_release_notes.py --event", run)
+        self.assertIn("tests.scripts.test_validate_release_notes", run)
+        self.assertEqual(
+            "${{ github.event_name == 'pull_request' }}", workflow["concurrency"]["cancel-in-progress"]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
