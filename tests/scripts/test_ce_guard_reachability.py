@@ -71,7 +71,7 @@ def argparse_choices(script: str) -> dict[str, frozenset[str]]:
             try:
                 values = ast.literal_eval(keyword.value)
             except ValueError:
-                continue
+                values = ("*",)  # computed choices: not statically checkable
             for flag in flags:
                 if flag.startswith("--"):
                     found[flag] = found.get(flag, frozenset()) | {str(value) for value in values}
@@ -143,7 +143,8 @@ class GuardReachabilityTest(unittest.TestCase):
         for host in parity_hosts():
             for path in emitted:
                 with self.subTest(host=host, path=path):
-                    self.assertIn(path.removeprefix(".chaos-engine/"), layout)
+                    if not path.startswith(".chaos-engine-state/"):  # runtime artifacts are generated
+                        self.assertIn(path.removeprefix(".chaos-engine/"), layout)
                     self.assertTrue(self.allowed(path))
 
     def test_role_adapters_point_at_installed_allowed_paths(self):
@@ -178,7 +179,7 @@ class GuardReachabilityTest(unittest.TestCase):
             choices = argparse_choices(script)
             for flag, value in zip(args, args[1:]):
                 allowed = choices.get(flag)
-                if allowed and value.strip("`'\"") not in allowed and not value.startswith("<"):
+                if allowed and "*" not in allowed and value.strip("`'\"") not in allowed and not value.startswith("<"):
                     failures.append(f"{relative}:{number}: {flag} {value}")
         self.assertEqual([], failures)
 

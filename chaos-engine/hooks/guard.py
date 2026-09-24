@@ -843,7 +843,7 @@ def _run_event(event: dict, _host: str) -> int:
         return 2
     if justification is not None:
         read_reason = justification.file_read_block_reason(
-            project=Path(str(event.get("cwd") or Path.cwd())),
+            project=justification.project_root(Path(str(event.get("cwd") or Path.cwd()))),
             event_name=str(normalized_kernel_event.name or event_name),
             tool_name=str(normalized_kernel_event.tool_name or tool_name),
             tool_input=tool_input if isinstance(tool_input, dict) else {},

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess  # nosec B404 - fixed interpreter and installed fixture hook.
 import sys
 import tempfile
@@ -71,14 +72,8 @@ class RetrieveGateScopeTest(unittest.TestCase):
         cls._tmp.cleanup()
 
     def setUp(self):
-        ledger = self.project / ".chaos-engine-state"
-        if ledger.exists():
-            for item in ledger.iterdir():
-                item.unlink()
-        graph = self.project / "graphify-out"
-        if graph.exists():
-            for item in graph.iterdir():
-                item.unlink()
+        for name in (".chaos-engine-state", "graphify-out"):
+            shutil.rmtree(self.project / name, ignore_errors=True)
 
     def block(self, *, tool_input=None, commands=(), tool="Read", cwd=None):
         return self.gate.file_read_block_reason(
