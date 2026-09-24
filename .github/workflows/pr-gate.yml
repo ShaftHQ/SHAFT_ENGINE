@@ -34,9 +34,12 @@ on:
 permissions:
   contents: read
 
+# Superseding pushes cancel an in-flight PR run, but a post-merge `main` run is
+# never cancelled by the next merge (issue #6185): legs that run only after
+# merge (e.g. the macOS fresh installer) need every merge commit to finish.
 concurrency:
-  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: pr-gate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   release-governance:
@@ -362,6 +365,9 @@ jobs:
               - 'tests/scripts/test_validate_workflow_timeouts.py'
               - 'scripts/ci/epic_autoclose.py'
               - 'tests/scripts/test_epic_autoclose.py'
+              # Issue #6185: the post-merge main-red reaction and its pins.
+              - 'scripts/ci/main_red_reaction.py'
+              - 'tests/scripts/test_main_red_reaction.py'
 
   docs-boundary:
     name: Documentation Boundary Gate
@@ -832,6 +838,7 @@ jobs:
           tests.scripts.test_intellij_verify_retry
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release
+          tests.scripts.test_main_red_reaction
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
@@ -1139,3 +1146,44 @@ jobs:
           done
 
           exit "$status"
+
+  # Issue #6185: a red post-merge `main` run used to go unnoticed. This job
+  # files or updates one rolling `ci-main-red` issue per failing leg (assigned
+  # to the owner), closes an issue once its leg passes again on `main`, and for
+  # a ChaosEngine fresh-installer leg opens a revert PR of the merge commit
+  # (BOT_TOKEN, so the revert PR runs CI). It runs on every `main` push so a
+  # recovery can close the issue; it is not a leg of the summary.
+  main-red-reaction:
+    name: Main red reaction
+    needs: summary
+    if: >-
+      always() && github.event_name == 'push'
+      && (needs.summary.result == 'failure' || needs.summary.result == 'success')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN || github.token }}
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: File, update, or close ci-main-red issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVERT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: >-
+          python3 scripts/ci/main_red_reaction.py
+          --repo "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID"
+          --run-attempt "$GITHUB_RUN_ATTEMPT"
+          --sha "$GITHUB_SHA"
+          --server-url "$GITHUB_SERVER_URL"

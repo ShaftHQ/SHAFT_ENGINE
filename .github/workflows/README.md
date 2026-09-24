@@ -73,6 +73,12 @@ table. Remove a row only in the same change that deletes its workflow.
   collide.
 - `pr-gate.yml` intentionally has no `workflow_dispatch`: its path filter needs
   a pull-request or push diff and a manual run could pass vacuously.
+- `pr-gate.yml` cancels superseded pull-request runs only. Each `main` push
+  gets its own concurrency group and is never cancelled, so every merge commit
+  finishes its post-merge legs. `Main red reaction` then files or updates one
+  `ci-main-red` issue per failing leg, closes it when the leg passes again on
+  `main`, and opens a revert PR for a failing ChaosEngine fresh-installer leg
+  (#6185).
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.
