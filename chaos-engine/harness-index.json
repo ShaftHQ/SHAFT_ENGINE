@@ -1,0 +1,432 @@
+{
+  "entries": [
+    {
+      "description": "Canonical provider-neutral skill router and working contract. Use at the start of every task, on every host, in every main thread and delegate, before discovery, planning, edits, or answering.",
+      "family": "core",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "adapter",
+        "cursor": "catalog",
+        "gemini": "adapter",
+        "grok": "adapter",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "chaos-engine",
+      "path": "skills/chaos-engine/SKILL.md"
+    },
+    {
+      "description": "Use when opening or rewriting a work item on any git-based SCM. Source-control agnostic; GitHub, GitLab, and Azure Boards are adapters only.",
+      "family": "delivery",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "work-item",
+      "path": "skills/work-item/SKILL.md"
+    },
+    {
+      "description": "Use when running ChaosEngine Learning Session self-improve: dual-track harness + product lessons via learning.py after delivery or on request.",
+      "family": "learning",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "self-improve",
+      "path": "skills/self-improve/SKILL.md"
+    },
+    {
+      "description": "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY local runtime instead of orchestrator-session subagents.",
+      "family": "delegation",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "local-agency",
+      "path": "skills/local-agency/SKILL.md"
+    },
+    {
+      "description": "Use when choosing an optional local inference runtime for a narrow mechanical or offline job. One table routes to OmniRoute, FreeToken, Colibri, a loopback server, or the hardware probe.",
+      "family": "local-runtime",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "local-runtimes",
+      "path": "skills/local-runtimes/SKILL.md"
+    },
+    {
+      "description": "Use when local-runtimes selected the OmniRoute process for bounded work: runner, delegate continuity, capability enforcement and proof of dispatch.",
+      "family": "local-runtime",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "omniroute",
+      "path": "skills/omniroute/SKILL.md"
+    },
+    {
+      "description": "Standalone FreeToken process: install, READY probe and bounded dispatch. Use when the local-runtimes table points a job at FreeToken rather than a loopback server.",
+      "family": "local-runtime",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "freetoken",
+      "path": "skills/freetoken/SKILL.md"
+    },
+    {
+      "description": "Frontier MoE through a disk/RAM/VRAM hierarchy via the optional Colibri process. Use when a large-model offline job needs Colibri; not OmniRoute or FreeToken.",
+      "family": "local-runtime",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "colibri",
+      "path": "skills/colibri/SKILL.md"
+    },
+    {
+      "description": "Loopback OpenAI-compatible peers (Ollama, LM Studio, llamacpp on 127.0.0.1). Use when a narrow task should go to an already READY loopback server.",
+      "family": "local-runtime",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "local-openai-compat",
+      "path": "skills/local-openai-compat/SKILL.md"
+    },
+    {
+      "description": "Hardware size-class probe for local models. Use when you must learn which model size this machine can host before any runtime is picked.",
+      "family": "local-runtime",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "local-coding-delegate",
+      "path": "skills/local-coding-delegate/SKILL.md"
+    },
+    {
+      "codexDefault": "INSTALLED_BY_DEFAULT",
+      "description": "Ultra-compressed communication companion. Use on every reply at ultra intensity; mandatory on the implementation path. Stop only with 'stop caveman' or 'normal mode'.",
+      "family": "companion",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "vendor",
+      "name": "caveman",
+      "path": "vendor/caveman/skills/caveman/SKILL.md"
+    },
+    {
+      "codexDefault": "INSTALLED_BY_DEFAULT",
+      "description": "Laziest-solution-that-works companion. Use at ultra before the first edit on the implementation path to choose the smallest correct change. Stop with 'stop ponytail'.",
+      "family": "companion",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "vendor",
+      "name": "ponytail",
+      "path": "vendor/ponytail/skills/ponytail/SKILL.md"
+    },
+    {
+      "codexDefault": "AVAILABLE",
+      "description": "Advisory ICM workspace architect (folder structure as agent architecture). Use only when the task is ICM, workspace structure, or 'ICM this' design work.",
+      "family": "companion",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "vendor",
+      "name": "icm-architect",
+      "path": "vendor/icm-architect/skills/icm-architect/SKILL.md"
+    },
+    {
+      "anchor": "orchestrator",
+      "description": "Plan, architecture, synthesis, and final verification.",
+      "family": "role",
+      "hosts": {
+        "claude": "adapter",
+        "codex": "adapter",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "role",
+      "name": "orchestrator",
+      "path": "references/roles.md"
+    },
+    {
+      "anchor": "implementer",
+      "description": "One bounded specification before consolidated validation.",
+      "family": "role",
+      "hosts": {
+        "claude": "adapter",
+        "codex": "adapter",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "role",
+      "name": "implementer",
+      "path": "references/roles.md"
+    },
+    {
+      "anchor": "reviewer",
+      "description": "Independent read-only adversarial review; never edit.",
+      "family": "role",
+      "hosts": {
+        "claude": "adapter",
+        "codex": "adapter",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "role",
+      "name": "reviewer",
+      "path": "references/roles.md"
+    },
+    {
+      "anchor": "tester",
+      "description": "Reproduce behavior; regression and acceptance evidence.",
+      "family": "role",
+      "hosts": {
+        "claude": "adapter",
+        "codex": "adapter",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "role",
+      "name": "tester",
+      "path": "references/roles.md"
+    },
+    {
+      "anchor": "mechanical-helper",
+      "description": "Deterministic reversible spec-exact work; stop on ambiguity.",
+      "family": "role",
+      "hosts": {
+        "claude": "adapter",
+        "codex": "adapter",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "role",
+      "name": "mechanical-helper",
+      "path": "references/roles.md"
+    },
+    {
+      "description": "Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "harness-learn",
+      "path": "references/harness-learn.md"
+    },
+    {
+      "description": "Use when a design document needs write-review-revise rounds until zero open review issues remain.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "design-loop",
+      "path": "references/design-loop.md"
+    },
+    {
+      "description": "Use when a question needs bounded parallel research with verification and a cited final report.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "deep-research",
+      "path": "references/deep-research.md"
+    },
+    {
+      "description": "Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "learn-traces",
+      "path": "references/learn-traces.md"
+    }
+  ],
+  "generator": "harness_index.py",
+  "harnessFiles": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
+    ".mcp.json",
+    "mempalace.yaml",
+    ".graphifyignore"
+  ],
+  "harnessRoots": [
+    ".chaos-engine/",
+    "chaos-engine/",
+    ".chaos-engine-state/",
+    "plugins/",
+    ".agents/",
+    ".claude/",
+    ".claude-plugin/",
+    ".codex/",
+    ".codex-plugin/",
+    ".gemini/",
+    ".grok/",
+    ".opencode/",
+    ".cursor/",
+    ".github/hooks/",
+    ".github/skills/",
+    ".memory/"
+  ],
+  "hookHosts": [
+    "claude",
+    "codex",
+    "copilot",
+    "gemini",
+    "grok"
+  ],
+  "hosts": [
+    "claude",
+    "codex",
+    "copilot",
+    "gemini",
+    "grok",
+    "opencode",
+    "cursor",
+    "grok-bot"
+  ],
+  "schemaVersion": 1
+}

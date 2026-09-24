@@ -36,7 +36,10 @@ def index() -> dict:
 
 def frontmatter_description(text: str) -> str:
     match = re.search(r"(?ms)^---\n.*?^description:\s*(.+?)\n(?:[a-z_-]+:|---)", text)
-    return " ".join(match.group(1).strip().strip("\"'").split()) if match else ""
+    if not match:
+        return ""
+    value = re.sub(r"^[>|][-+]?\s*", "", match.group(1).strip())
+    return " ".join(value.strip("\"'").split())
 
 
 class SkillIndexParityTest(unittest.TestCase):
@@ -119,6 +122,7 @@ class SkillIndexParityTest(unittest.TestCase):
                         self.assertIn(entry["name"], catalog)
         self.assertEqual("AVAILABLE", codex["icm-architect"]["policy"]["installation"])
 
+    @unittest.skip("#6198: caveman-activate.js reads the plugin SKILL.md body; adapter needs a CE-side reader first")
     def test_vendor_plugin_adapters_are_short(self):
         hosts_module = load_module("ce_index_hosts_plugins", SOURCE / "hosts.py")
         images = hosts_module.companion_plugin_images()

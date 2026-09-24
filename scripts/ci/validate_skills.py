@@ -34,6 +34,8 @@ from scripts.ci.validate_agent_guidance import (  # noqa: E402
 )
 
 SKILLS_ROOT = ".agents/skills"
+# #6177: lint the real skill roots, not only the (empty in source) host map.
+SKILLS_ROOTS = (SKILLS_ROOT, "chaos-engine/skills", "chaos-engine/vendor/*/skills")
 MIN_DESCRIPTION_CHARS = 20
 # Loose, deliberately broad signal set for "states when to use it" -- this is
 # a MEDIUM-severity hygiene nudge, not a grammar check; see bmad's own
@@ -155,29 +157,46 @@ def validate_skill(
     return errors
 
 
+def skill_dirs(root: Path = ROOT) -> list[Path]:
+    """Every skill directory under the configured roots (globs allowed)."""
+    found: list[Path] = []
+    for pattern in SKILLS_ROOTS:
+        for skills_root in sorted(root.glob(pattern)):
+            if skills_root.is_dir():
+                found.extend(sorted(path for path in skills_root.iterdir() if path.is_dir()))
+    return found
+
+
+def _root_budget(budget: dict, skill_dir: Path, root: Path) -> int | None:
+    budgets = budget.get("skill_budgets", {})
+    parent = skill_dir.parent.relative_to(root).as_posix()
+    for key in (parent, "chaos-engine/skills" if parent.startswith("chaos-engine/") else SKILLS_ROOT, SKILLS_ROOT):
+        value = budgets.get(key, {}).get("max_skill_md_bytes")
+        if value is not None:
+            return value
+    return None
+
+
 def validate_repository(
     root: Path = ROOT, budget_path: Path | None = None
 ) -> list[dict[str, str]]:
     """Run every skill-hygiene check across canonical skills and return sorted issues."""
     budget = load_budget(budget_path or root / "scripts/ci/agent_guidance_budget.json")
-    max_skill_md_bytes = budget.get("skill_budgets", {}).get(SKILLS_ROOT, {}).get(
-        "max_skill_md_bytes"
-    )
-    if max_skill_md_bytes is None:
-        return [
-            issue(
-                "budget-config",
-                "scripts/ci/agent_guidance_budget.json",
-                f"skill_budgets[{SKILLS_ROOT!r}].max_skill_md_bytes is not configured",
-            )
-        ]
-
-    skills_root = root / SKILLS_ROOT
-    if not skills_root.is_dir():
+    directories = skill_dirs(root)
+    if not directories and not any(any(root.glob(pattern)) for pattern in SKILLS_ROOTS):
         return [issue("skill-root-missing", SKILLS_ROOT, "skills root is missing")]
 
     errors: list[dict[str, str]] = []
-    for skill_dir in sorted(path for path in skills_root.iterdir() if path.is_dir()):
+    for skill_dir in directories:
+        max_skill_md_bytes = _root_budget(budget, skill_dir, root)
+        if max_skill_md_bytes is None:
+            return [
+                issue(
+                    "budget-config",
+                    "scripts/ci/agent_guidance_budget.json",
+                    f"skill_budgets[{SKILLS_ROOT!r}].max_skill_md_bytes is not configured",
+                )
+            ]
         errors.extend(validate_skill(root, skill_dir, max_skill_md_bytes))
 
     return sorted(errors, key=lambda item: (item["path"], item["code"], item["message"]))

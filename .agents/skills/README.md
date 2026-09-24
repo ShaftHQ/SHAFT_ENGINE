@@ -377,3 +377,23 @@ change it:
 its own right: the file deciding whether the gate runs at all cannot sit
 outside the gate, or trimming one line from its run list would make every later
 green run report a hundred percent of nothing.
+
+<!-- HARNESS-INDEX:START -->
+
+Generated skill index (`chaos-engine/harness_index.py`):
+
+- [chaos-engine](../../chaos-engine/skills/chaos-engine/SKILL.md) (portable)
+- [work-item](../../chaos-engine/skills/work-item/SKILL.md) (portable)
+- [self-improve](../../chaos-engine/skills/self-improve/SKILL.md) (portable)
+- [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) (portable)
+- [local-runtimes](../../chaos-engine/skills/local-runtimes/SKILL.md) (portable)
+- [omniroute](../../chaos-engine/skills/omniroute/SKILL.md) (route)
+- [freetoken](../../chaos-engine/skills/freetoken/SKILL.md) (route)
+- [colibri](../../chaos-engine/skills/colibri/SKILL.md) (route)
+- [local-openai-compat](../../chaos-engine/skills/local-openai-compat/SKILL.md) (route)
+- [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) (route)
+- [caveman](../../chaos-engine/vendor/caveman/skills/caveman/SKILL.md) (vendor)
+- [ponytail](../../chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md) (vendor)
+- [icm-architect](../../chaos-engine/vendor/icm-architect/skills/icm-architect/SKILL.md) (vendor)
+
+<!-- HARNESS-INDEX:END -->

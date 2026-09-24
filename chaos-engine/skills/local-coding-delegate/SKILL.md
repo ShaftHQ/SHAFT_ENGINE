@@ -1,8 +1,8 @@
 ---
 name: local-coding-delegate
 description: >-
-  Use when an optional hardware size-class probe is needed, or when looking up
-  the folded local-coding-delegate pointer to local-agency / FreeToken.
+  Hardware size-class probe for local models. Use when you must learn which model
+  size this machine can host before any runtime is picked.
 license: MIT
 ---
 
@@ -26,7 +26,7 @@ See [`chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py`](scri
 Shim imports use [`hardware_probe.py`](hardware_probe.py), which re-exports that home:
 
 ```text
-python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
+python3 .chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
 ```
 
 Use it as an optional hint before choosing a checkpoint size class

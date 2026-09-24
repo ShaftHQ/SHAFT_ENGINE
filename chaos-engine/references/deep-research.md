@@ -1,3 +1,8 @@
+---
+name: deep-research
+description: Use when a question needs bounded parallel research with verification and a cited final report.
+---
+
 # Deep research
 
 Portable contract for sourced research. Host workflow scripts may implement

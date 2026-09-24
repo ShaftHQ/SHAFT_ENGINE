@@ -1,8 +1,9 @@
 ---
 name: freetoken
 description: >-
-  Use when an orchestrated workflow may dispatch bounded implementation through
-  an optional local FreeToken process (standalone; not OmniRoute).
+  Standalone FreeToken process: install, READY probe and bounded dispatch. Use
+  when the local-runtimes table points a job at FreeToken rather than a loopback
+  server.
 license: MIT
 ---
 
@@ -21,7 +22,7 @@ requires the other. Missing FreeToken is normal: use OmniRoute (if READY), a
 qualified native implementer, `SOLO`, or another local OpenAI-compat runtime
 when those skills exist.
 
-**Peer to Colibri.** FreeToken is the default local coding MoE path. Colibri (`:8000`) hosts frontier multitier MoE — see [colibri skill](../colibri/SKILL.md) and [guide](../../guides/colibri.md). Keep both; choose FreeToken for agency loops, Colibri for frontier MoE when the operator already serves it.
+**Peer to Colibri.** FreeToken is the default local coding MoE path. Colibri (`:8000`) hosts frontier multitier MoE — see [colibri skill](../colibri/SKILL.md) and guide (repo-only `chaos-engine/guides/colibri.md`). Keep both; choose FreeToken for agency loops, Colibri for frontier MoE when the operator already serves it.
 
 ## Hard rails (never regress)
 
@@ -34,7 +35,7 @@ when those skills exist.
 - Never bind or probe a non-loopback FreeToken URL from ChaosEngine.
 
 Operator install stays on vendor docs. See the
-[FreeToken guide](../../guides/freetoken.md).
+FreeToken guide (repo-only `chaos-engine/guides/freetoken.md`).
 
 ## Agent machine vs user machine
 
@@ -53,7 +54,7 @@ Probe helper: [`chaos-engine/skills/freetoken/scripts/probe.py`](scripts/probe.p
 ```text
 command -v ft
 curl -sf --max-time 2 http://127.0.0.1:1919/v1/models
-python3 chaos-engine/skills/freetoken/scripts/probe.py
+python3 .chaos-engine/skills/freetoken/scripts/probe.py
 ```
 
 Ambient `FREETOKEN_BASE_URL` is ignored for the probe host. States:
@@ -70,13 +71,13 @@ On `READY`, confirm OpenAI (`http://127.0.0.1:1919/v1`) and optionally Anthropic
 (`http://127.0.0.1:1919/v1/messages`) answer for this session only:
 
 ```text
-python3 chaos-engine/skills/freetoken/scripts/probe.py attest
+python3 .chaos-engine/skills/freetoken/scripts/probe.py attest
 ```
 
 ### 3. Models (session stdout only)
 
 ```text
-python3 chaos-engine/skills/freetoken/scripts/probe.py models --json
+python3 .chaos-engine/skills/freetoken/scripts/probe.py models --json
 ```
 
 JSON `models` is an array of objects `{id}` plus `context_length` only when the
@@ -91,7 +92,7 @@ usable KV; on `context_length_exceeded` shrink prompt and variant first.
 Optional size-class hint (stdlib, no downloads):
 
 ```text
-python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
+python3 .chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
 ```
 
 ### 4. Dispatch when READY
@@ -106,7 +107,7 @@ guide; continue with other qualified paths. Never auto-serve.
 
 ## Related
 
-- Guide: [freetoken.md](../../guides/freetoken.md)
+- Guide: freetoken.md (repo-only `chaos-engine/guides/freetoken.md`)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
 - OmniRoute (cloud-quota peer, not a dependency): [omniroute skill](../omniroute/SKILL.md)
 - Local OpenAI-compat peers (Ollama / LM Studio / llamacpp): [local-openai-compat](../local-openai-compat/SKILL.md)

@@ -1,3 +1,8 @@
+---
+name: harness-learn
+description: Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`.
+---
+
 # Harness learn
 
 Portable contract for tuning a git-tracked ChaosEngine overlay from repeated
