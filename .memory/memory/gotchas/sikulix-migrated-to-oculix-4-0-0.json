@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/sikulix-migrated-to-oculix-4-0-0.md",
+  "content_hash": "sha256:b71a9941d7f6b4e54f56b68b999ba50bf039c59657044830cde4ee58616115ee",
+  "created_at": "2026-09-24T17:40:00+03:00",
+  "evidence": [
+    {
+      "id": "6160",
+      "kind": "issue"
+    }
+  ],
+  "id": "gotcha.sikulix-migrated-to-oculix-4-0-0",
+  "source": {
+    "kind": "agent",
+    "task": "PR #6158 / issue #6160 OculiX migration on ROG local LLM"
+  },
+  "status": "active",
+  "tags": [
+    "sikulix",
+    "oculix",
+    "natives",
+    "shaft-sikulix"
+  ],
+  "title": "shaft-sikulix migrated to OculiX 4.0.0",
+  "type": "gotcha",
+  "updated_at": "2026-09-24T17:54:00+03:00"
+}

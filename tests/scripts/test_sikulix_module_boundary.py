@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 NAMESPACE = {"m": "http://maven.apache.org/POM/4.0.0"}
-SIKULIX_API = ("com.sikulix", "sikulixapi")
+SIKULIX_API = ("io.github.oculix-org", "oculixapi")
 FORBIDDEN_SHADOW_CLASSES = {
     "src/main/java/com/shaft/driver/SHAFT.java",
     "src/main/java/com/shaft/driver/DriverFactory.java",

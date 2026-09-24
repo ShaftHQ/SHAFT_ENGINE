@@ -5,7 +5,6 @@ import com.shaft.gui.internal.ocr.OcrCoordinateMapper;
 import com.shaft.gui.internal.ocr.OcrPoint;
 import com.shaft.gui.internal.ocr.OcrProcessingActions;
 import com.shaft.gui.ocr.OcrTarget;
-import com.shaft.sikulix.internal.SikuliNativeLibraryStager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.sikuli.basics.Settings;
@@ -398,7 +397,7 @@ public class SikuliActions {
 
     private Pattern prepareElementPattern(byte[] targetElement) throws IOException {
         if (applicationWindow != null) {
-            applicationWindow.waitForWindow(SHAFT.Properties.timeouts.browserNavigationTimeout());
+            applicationWindow.isRunning(SHAFT.Properties.timeouts.browserNavigationTimeout());
             applicationWindow.focus();
         }
         var bufferedImage = ImageIO.read(new ByteArrayInputStream(targetElement));
@@ -411,7 +410,6 @@ public class SikuliActions {
     }
 
     private void initializeSikuliEngineForCurrentScreen() {
-        SikuliNativeLibraryStager.ensureOpenCvNativeStaged();
         Settings.setShowActions(false);
         Settings.ActionLogs = true;
         Settings.InfoLogs = true;
