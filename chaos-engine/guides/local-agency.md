@@ -63,7 +63,7 @@ For `--mode design` / CE-brief chat, require the writer closing line
 
 ## Coach loop
 
-When the host process-owner delegates to a READY openai-compat writer, follow [coach-loop.md](../skills/local-agency/references/coach-loop.md): verify every artifact, grounded feedback with runtime evidence, RED-first then worked-example reproduce after free-form fails, never leave the local model unsupervised (#6075).
+Local writers are optional; implementers write code directly unless [when-to-use-local.md](../skills/local-agency/references/when-to-use-local.md) (#6171) favors local. When a READY openai-compat writer is chosen, follow [coach-loop.md](../skills/local-agency/references/coach-loop.md): verify every artifact, grounded feedback with runtime evidence, RED-first then worked-example reproduce after free-form fails, never leave the local model unsupervised (#6075).
 
 ## Mechanical dispatch
 
@@ -158,7 +158,7 @@ Local channel actual cost is $0 unless a paid local host was used.
 
 When the work machine has a proven OpenAI-compat loopback coding runtime:
 
-1. Prefer `dispatch.py --prefer openai-compat` (not FreeToken) for local writers.
+1. Prefer `dispatch.py --prefer llamacpp` (or `ollama` / `lmstudio`; not FreeToken) for local writers.
 2. Parent Shell with `machineId` on the work machine — Task children have no
    `machineId` (#6051).
 3. Keep a single user systemd unit for the loopback server so it returns after

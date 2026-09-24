@@ -177,10 +177,17 @@ When `dispatch.py chat` returns OpenAI-compat `usage` and `--session-id` is set,
 (`freetoken` / `openai-compat` / `colibri`). Never write model or provider ids into the ledger.
 `brief` / `config` / `argv` do not call the model, so they do not record usage.
 
-## Coach loop (host process-owner)
+## When to use local (#6171)
 
-Local openai-compat writers need an active host coach — verify every artifact,
-grounded feedback, never unsupervised finish. Playbook:
+Implementers write code directly; this skill is optional. Use local only when the
+handoff cost is well below generation cost (bulk mechanical edits, spec or ticket
+drafting, log summarization, offline or private work). See
+[when-to-use-local.md](references/when-to-use-local.md).
+
+## Coach loop (when local is chosen)
+
+A chosen local writer needs an active coach: verify every artifact, give
+grounded feedback, and never let it finish unsupervised. Playbook:
 [coach-loop.md](references/coach-loop.md) (#6075).
 
 ## Folded: local-coding-delegate
@@ -197,6 +204,7 @@ this skill when the adopter names OpenCode or “local agents”.
 - OmniRoute (explicit cloud only): [omniroute](../omniroute/SKILL.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
 - Coach loop: [coach-loop.md](references/coach-loop.md) (#6075)
+- When to use local: [when-to-use-local.md](references/when-to-use-local.md) (#6171)
 - Design-turn contract: [design-turn-contract.md](references/design-turn-contract.md)
 - Design-turn gate: [`design_turn_gate.py`](scripts/design_turn_gate.py)
 - Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md) (#6051)

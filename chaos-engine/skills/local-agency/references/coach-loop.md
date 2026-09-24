@@ -2,9 +2,12 @@
 
 ## When this applies
 
-Any delivery that uses a READY local OpenAI-compat / llamacpp / FreeToken coder
-through [local-agency](../SKILL.md) `dispatch.py`, especially small-context
-coding checkpoints on a loopback OpenAI-compat server.
+Only deliveries where the implementer **chose** a READY local OpenAI-compat /
+llamacpp / FreeToken coder through [local-agency](../SKILL.md) `dispatch.py`.
+Choosing local is optional. Use it only when the
+handoff cost is well below generation cost
+([when-to-use-local.md](when-to-use-local.md), #6171). Otherwise
+the implementer writes the code directly.
 
 The **host process-owner** is teacher / mentor / coach / consultant. The local
 model is a **mechanical runner** (and, with a locator-only CE brief, a bounded
@@ -17,7 +20,7 @@ drafter). Never treat a local turn as finished unsupervised.
 | Host process-owner | Spec, RED contracts, verify, PR, merge, dual CE, Learning Session | Dumping full skill bodies into the local context |
 | Local writer | Bounded patches / apply scripts / reproduce-from-example | Independent adversarial review; unattended multi-file design |
 
-## Cadence (non-negotiable)
+## Cadence (while a local writer is in use)
 
 1. Dispatch one bounded ask.
 2. Inspect the artifact on disk (diff, tests, syntax) before the next ask.

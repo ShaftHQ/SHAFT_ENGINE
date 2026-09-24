@@ -15,7 +15,7 @@ machine's project checkout.
 3. Gate before claiming READY:
    `python3 chaos-engine/skills/local-agency/scripts/assert_parent_rog_shell.py`
    `python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken resolve`
-   Prefer `--prefer openai-compat` when the locked local stack is the OpenAI-compat
+   Prefer `--prefer llamacpp` when the locked local stack is the OpenAI-compat
    loopback on `:8080`.
 4. Keep long work-machine writers on the **parent** (or parent-driven Shell
    scripts), not a Task executor.

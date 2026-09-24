@@ -27,7 +27,9 @@ MUST verify delegation deliverables before parent-slice completion. A child
 slice is incomplete until its claimed artifacts, checks, and exit evidence are
 inspected. Silent acceptance of a delegate narrative is forbidden. Keep one
 writer per overlapping file scope; serial is default; parallel writers stay
-file-disjoint and capped by execution-workflow policy.
+file-disjoint and capped by execution-workflow policy. Implementers write code
+directly; a local model writer is optional per
+[when-to-use-local](../skills/local-agency/references/when-to-use-local.md) (#6171).
 
 ### TDD and PDCA quality boundary
 

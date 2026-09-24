@@ -1,4 +1,4 @@
-"""#6161 token-waste epic contracts for #6162-#6169 (RED-first).
+"""#6161 token-waste epic contracts for #6162-#6169 and #6171 (RED-first).
 
 Each class pins one child ticket's portable ChaosEngine overlay behavior so
 Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share one outcome.
@@ -38,6 +38,10 @@ CONTEXT = REFS / "context-economy.md"
 LEVEL1 = REFS / "level-1-catalog.md"
 COACH = ROOT / "chaos-engine/skills/local-agency/references/coach-loop.md"
 ACTIVATION = ROOT / "chaos-engine/skills/self-improve/references/activation.md"
+LOCAL_AGENCY = ROOT / "chaos-engine/skills/local-agency"
+LOCAL_SKILL = LOCAL_AGENCY / "SKILL.md"
+LOCAL_RULE = LOCAL_AGENCY / "references/when-to-use-local.md"
+LOCAL_GUIDE = ROOT / "chaos-engine/guides/local-agency.md"
 MEMORY_WORKFLOW = (
     ROOT
     / ".memory/memory/workflows/"
@@ -414,6 +418,7 @@ class GraphifyEmptyOutputAbsorbTest(unittest.TestCase):
 
 class CodacyActionRequiredGateTest(unittest.TestCase):
     """#6168: Codacy ACTION_REQUIRED (>=medium, any category) equals unit red."""
+
     def test_gate_covers_every_category_and_keeps_complexity(self):
         gate = text(CODACY_GATE)
         for token in ("ACTION_REQUIRED", "any category", "≥medium", "codacy-complexity-gate.md", "#6165", "auto-merge"):
@@ -443,6 +448,7 @@ class CodacyActionRequiredGateTest(unittest.TestCase):
 
 class MemoryContentHashTest(unittest.TestCase):
     """#6169: recompute Memory content_hash before push, in the same tip as the body edit."""
+
     def test_stale_hash_blocks_and_rehash_repairs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -481,6 +487,70 @@ class MemoryContentHashTest(unittest.TestCase):
         self.assertIn("validate_agent_setup", doc)
         self.assertIn("memory_content_hash", doc)
         self.assertIn("tip-churn-preflight.md", text(MEMORY_WORKFLOW))
+
+
+class LocalWriterOptionalTest(unittest.TestCase):
+    """#6171: implementers write code directly; local writers are an optional, narrow tool."""
+
+    MANDATES = (
+        r"no code by (?:the )?host",
+        r"host (?:must|may|should) not (?:write|implement)",
+        r"(?:never|do not|don't) host-implement",
+        r"local writers? only",
+        r"(?:must|always) (?:route|dispatch|send) (?:all )?(?:implementation|code)\b[^.\n]{0,40}\blocal",
+        r"coach loop \(host process-owner\)\n+local openai-compat writers need",
+        r"cadence \(non-negotiable\)",
+    )
+    JOBS = ("bulk mechanical edits", "spec or ticket drafting", "log summarization", "offline or private work")
+    RULE = "handoff cost is well below generation cost"
+
+    def _overlay_docs(self):
+        root = ROOT / "chaos-engine"
+        for path in sorted(root.rglob("*.md")):
+            if "vendor" in path.parts:
+                continue
+            yield path
+
+    def test_overlay_has_no_local_writer_mandate(self):
+        """No overlay doc forces implementation through a local writer or forbids host code."""
+        import re
+
+        for path in self._overlay_docs():
+            body = text(path).lower()
+            for pattern in self.MANDATES:
+                with self.subTest(path=str(path.relative_to(ROOT)), pattern=pattern):
+                    self.assertIsNone(re.search(pattern, body))
+
+    def test_decision_rule_and_jobs_are_portable(self):
+        """The rule lives in the portable local-agency skill, not a host adapter."""
+        rule = text(LOCAL_RULE)
+        for token in (self.RULE, *self.JOBS, "#6171", "no host-only memory exception") + HOSTS:
+            with self.subTest(token=token):
+                self.assertIn(token, rule)
+        self.assertIn("implementers write code directly", rule)
+        self.assertIn("optional", rule)
+
+    def test_entrypoints_link_the_rule(self):
+        """Skill, coach loop, guide, process owner, and orchestrator all route to the rule."""
+        for path in (LOCAL_SKILL, COACH, LOCAL_GUIDE, PROCESS_OWNER, ORCHESTRATOR):
+            with self.subTest(path=path.name):
+                self.assertIn("when-to-use-local.md", text(path))
+        for path in (LOCAL_SKILL, COACH):
+            with self.subTest(path=path.name, token="rule"):
+                self.assertIn(self.RULE, text(path))
+
+    def test_token_accounting_method_documented(self):
+        """Cost comparisons use real local-server counts (print_timing sums)."""
+        rule = text(LOCAL_RULE)
+        for token in ("print_timing", "prompt eval", "journalctl"):
+            with self.subTest(token=token):
+                self.assertIn(token, rule)
+
+    def test_no_invalid_prefer_value_in_guidance(self):
+        """dispatch.py has no openai-compat --prefer choice; guidance must not cite it."""
+        for path in self._overlay_docs():
+            with self.subTest(path=str(path.relative_to(ROOT))):
+                self.assertNotIn("--prefer openai-compat", text(path))
 
 
 class HarnessParityTest(unittest.TestCase):

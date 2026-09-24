@@ -35,6 +35,10 @@ coach the owner through how-to-work impediments; escalate owner-only decisions.
 
 ## Delivery and escalation
 
+Implementers write code directly. Offload to a local writer when
+[when-to-use-local](../skills/local-agency/references/when-to-use-local.md)
+favors it (#6171).
+
 Opening a PR does not complete follow-through. Continue until the in-scope
 delivery condition is met. Unattended watch is one blocking
 `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`: one line
