@@ -41,7 +41,7 @@ favors it (#6171).
 
 Opening a PR does not complete follow-through. Continue until the in-scope
 delivery condition is met. Unattended watch is one blocking
-`python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`: one line
+`python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`: one line (repo-only)
 on GREEN, RED, or MERGED. No second poll, no heartbeat, no status table.
 A host "you will be notified" line does not end the turn. Ending the turn,
 a completion summary, or a worker_completed record while that watch is pending

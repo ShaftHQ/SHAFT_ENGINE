@@ -5,7 +5,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 
 | Path | Command / entry | Proves / repairs |
 | --- | --- | --- |
-| Install / upgrade | One-liners in [INSTALL.md](../INSTALL.md) | Fresh or upgraded payload + healthy doctor |
+| Install / upgrade | One-liners in INSTALL.md (repo-only `chaos-engine/INSTALL.md`) | Fresh or upgraded payload + healthy doctor |
 | Human doctor | `python3 .chaos-engine/install.py doctor --project .` | Component health + fix-next lines |
 | Fix-next only | `python3 .chaos-engine/install.py doctor --project . --fix-next-only` | Prints only actionable repair lines (exit 0 if none) |
 | Component repair | `python3 .chaos-engine/install.py repair --project . --component <id>` | Targeted quarantine/republish without full wipe (#5620/#5621) |
@@ -13,9 +13,9 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Level-1 catalog | [`level-1-catalog.md`](level-1-catalog.md) | Progressive-disclosure secondary surfaces |
 | JSON doctor | `... doctor --project . --json` | Schema v2 machine contract |
 | Status (passive) | `... status --project .` | Receipt-bound status without active probes |
-| Empty-project smoke | `python3 scripts/ci/chaos_engine_empty_project_smoke.py` | Install→doctor budget evidence |
-| ChaosGauge digests | `python3 scripts/ci/chaos_gauge/validate_experiment.py --write ...` | Harness digest refresh after CE changes |
-| README inventory | `python3 scripts/ci/validate_chaos_engine_readme.py` | Stdlib / surface inventory drift |
+| Empty-project smoke | `python3 scripts/ci/chaos_engine_empty_project_smoke.py` | Install→doctor budget evidence (repo-only) |
+| ChaosGauge digests | `python3 scripts/ci/chaos_gauge/validate_experiment.py --write ...` | Harness digest refresh after CE changes (repo-only) |
+| README inventory | `python3 scripts/ci/validate_chaos_engine_readme.py` | Stdlib / surface inventory drift (repo-only) |
 | Kernel contract | `python3 -m unittest tests.scripts.test_chaos_engine_kernel -v` | Host capability + adapt_hook_output |
 | Exit-2 fidelity | `python3 -m unittest tests.scripts.test_chaos_engine_exit2_fidelity -v` | Deny exit code + native payloads |
 | SessionStart budget | `python3 -m unittest tests.scripts.test_chaos_engine_sessionstart_locator_parity -v` | Locator-only ≤4096 bytes |
@@ -27,7 +27,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Wake pack | [`wake_pack.py`](../wake_pack.py) + `.chaos-engine-state/wake-pack.md` | Owner-curated ≤~120 tokens; draft-only MemPalace |
 | Portable Learning Session | [`learning_session.py`](../learning_session.py) `finalize` | Issues-first; **no** auto draft PRs |
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
-| Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) |
+| Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) (repo-only) |
 | Learning metrics | [`learning.py`](../learning.py) `metrics` + [`learning_counters.py`](../learning_counters.py) (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests (#5653) |
 | CE brief | [`ce_brief.py`](../ce_brief.py) | Locator-only byte-capped system brief for local-agency design turns (#6067) |
 | Design-turn gate | citation+schema zero-LLM gate for local design/spec turns | [`../skills/local-agency/scripts/design_turn_gate.py`](../skills/local-agency/scripts/design_turn_gate.py) |
@@ -38,7 +38,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Heuristics CLI | [`heuristics.py`](../heuristics.py) `locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
 | Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer (#5658) |
 | Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply (#5659) |
-| Javadoc `@param` arity | [`check_javadoc_param_arity.py`](../../scripts/ci/check_javadoc_param_arity.py) | Fail fast when `@param` names do not match method parameters in engine interaction packages (#5748) |
+| Javadoc `@param` arity | `scripts/ci/check_javadoc_param_arity.py` (repo-only) | Fail fast when `@param` names do not match method parameters in engine interaction packages (#5748) |
 | Meta-optimize review | [`meta_optimize.py`](../meta_optimize.py) `review`/`cadence` | Periodic aggregation of significance + learning metrics + compress proposals; not continuous (#5664) |
 | Draft skill PR gate | [`draft_skill_pr.py`](../draft_skill_pr.py) `status`/`prepare`/`open` | Opt-in draft PRs only; default OFF; never auto-merge (#5665) |
 | Learn-traces collect | [`learn_traces.py`](../learn_traces.py) `collect --out <dir>` | Portable session-trace run dir |

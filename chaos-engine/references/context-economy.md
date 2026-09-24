@@ -9,7 +9,7 @@ the host's job. This page teaches the agent how to stay under it.
 Patterns here reimplement published progressive-disclosure, just-in-time
 retrieval, compaction, tool-result pruning, and spill ideas. Named sources
 and licenses live in [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) and
-[RESEARCH](../RESEARCH.md).
+RESEARCH (repo-only `chaos-engine/RESEARCH.md`).
 
 ## Smallest high-signal set
 

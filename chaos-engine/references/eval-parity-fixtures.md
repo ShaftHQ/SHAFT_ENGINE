@@ -12,8 +12,8 @@ UI chrome parity and not driving hosts as child processes.
 | Piece | Path |
 | --- | --- |
 | Fixture corpus | [`evals/parity-fixtures.json`](../evals/parity-fixtures.json) |
-| Documented runner | `python3 scripts/ci/chaos_engine_eval_parity.py` |
-| Machine report | `python3 scripts/ci/chaos_engine_eval_parity.py --json` |
+| Documented runner | `python3 scripts/ci/chaos_engine_eval_parity.py` (repo-only) |
+| Machine report | `python3 scripts/ci/chaos_engine_eval_parity.py --json` (repo-only) |
 | Unittest | `python3 -m unittest tests.scripts.test_chaos_engine_eval_parity_fixtures -v` |
 
 Each fixture declares:

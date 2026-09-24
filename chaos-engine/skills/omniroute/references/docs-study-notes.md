@@ -30,7 +30,7 @@ Companion upstream text aligned with the installed release:
 | Auth / quotas | 429 / exhausted accounts → skip identity, requery, next candidate. Do not claim success. |
 | Chaos Mode | Do not dispatch through OmniRoute Chaos Mode (`auto/chaos` / `/dashboard/chaos`). |
 | Remote / loopback | CE forbids remote `--base-url` inventiveness. Agent boxes must Shell on the user machine (Local Execution / machineId) where serve is bound. Upstream Remote Mode is operator-owned, not a harness workaround. |
-| Missing serve | Guide the user to install/serve from [guides/omniroute.md](../../../guides/omniroute.md). Do not install credentials for the operator. |
+| Missing serve | Guide the user to install/serve from guides/omniroute.md (repo-only `chaos-engine/guides/omniroute.md`). Do not install credentials for the operator. |
 
 ## Live observation (same day)
 

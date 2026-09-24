@@ -2,7 +2,7 @@
 
 Spec-only contract for the installer rewrite. This file does not implement
 `install.py`, `hosts.py`, or the wrappers. Delivery PRs for the children
-implement it. Live operator steps today remain in [`INSTALL.md`](../INSTALL.md).
+implement it. Live operator steps today remain in `chaos-engine/INSTALL.md` (repo-only).
 Caller matrices and acceptance proof live in
 [`installer-program-executable-spec.md`](installer-program-executable-spec.md).
 
@@ -176,7 +176,7 @@ Human path. Python is not required before the wrapper.
 
 1. `cd` into the target directory (empty, Java/Maven repository-profile, or
    non-Java).
-2. Run exactly one official one-liner from [`INSTALL.md`](../INSTALL.md)
+2. Run exactly one official one-liner from `chaos-engine/INSTALL.md` (repo-only)
    (Windows PowerShell `install.ps1`, or macOS/Linux `install.sh`). Do not
    substitute a different upstream URL.
 3. If the TTY shows styled success without `Merge handoff`, run:
@@ -248,7 +248,7 @@ success-with-agent-prompt plumbing.
 
 ## Official self-heal (#5811)
 
-Required third parties self-heal via each item's official install command (CE vendor publish for companions). See [`INSTALL.md`](../INSTALL.md) inventory and [`official_self_heal.py`](../official_self_heal.py). Related: epic #5803, companions slice #5810.
+Required third parties self-heal via each item's official install command (CE vendor publish for companions). See `chaos-engine/INSTALL.md` (repo-only) inventory and [`official_self_heal.py`](../official_self_heal.py). Related: epic #5803, companions slice #5810.
 
 ## Out of scope
 
@@ -265,5 +265,5 @@ Required third parties self-heal via each item's official install command (CE ve
   [`installer-program-executable-spec.md`](installer-program-executable-spec.md).
 - Epic + children filed and linked.
 - No `install.py` / `hosts.py` behavior change in the spec PR.
-- `python3 scripts/ci/chaos_gauge/validate_experiment.py --write scripts/ci/chaos_gauge/experiment.json` after adding this file (harness tree digest).
-- `python3 scripts/ci/validate_documentation_boundaries.py` (glob already allows `chaos-engine/**/*.md`).
+- `python3 scripts/ci/chaos_gauge/validate_experiment.py --write scripts/ci/chaos_gauge/experiment.json` after adding this file (harness tree digest). (repo-only)
+- `python3 scripts/ci/validate_documentation_boundaries.py` (glob already allows `chaos-engine/**/*.md`). (repo-only)

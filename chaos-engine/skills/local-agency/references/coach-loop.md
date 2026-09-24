@@ -67,7 +67,7 @@ next prompt is the failing assertion only.
 ### D. Design / spec turns
 
 Inject a locator-only system brief via `chaos-engine/ce_brief.py` when present
-(`python3 chaos-engine/ce_brief.py --json`; #6067). Do not paste full SKILL bodies.
+(`python3 .chaos-engine/ce_brief.py --json`; #6067). Do not paste full SKILL bodies.
 Host still reviews the design before implementation.
 
 Follow the [design-turn contract](design-turn-contract.md). The first design
@@ -82,7 +82,7 @@ this contract (keep it short).
 Prefer:
 
 ```text
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp resolve
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp resolve
 ```
 
 Parent Shell must use `machineId` on the work machine (#6051). See
@@ -105,7 +105,7 @@ claim READY from a box probe of the work-machine ports.
 
 ## Pre-push tip preflight (#6164)
 
-1. Run `python3 chaos-engine/skills/local-agency/scripts/tip_preflight.py` before every push (the `git push` guard runs it too).
+1. Run `python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py` before every push (the `git push` guard runs it too).
 2. Bandit B607: resolve argv0 with `shutil.which`; `# nosec B603` alone does not cover a bare executable.
 3. README inventory: a new import in `chaos-engine/**/*.py` changes the inventory; run the validator `--write` in the same commit.
 4. `.memory/` bodies touched outside `memory save --stdin`: `tip_preflight.py --rehash <sidecar>` in the same tip.
@@ -123,7 +123,7 @@ Executor / Task prompts: `brief_path:` pointer plus the delta slice only; check 
 ## Related
 
 - Skill: [local-agency SKILL.md](../SKILL.md)
-- Guide: [local-agency.md](../../../guides/local-agency.md)
+- Guide: local-agency.md (repo-only `chaos-engine/guides/local-agency.md`)
 - CE brief builder: `chaos-engine/ce_brief.py` (#6067; land with CE-Brief P0)
 - Design/spec contract: [design-turn-contract.md](design-turn-contract.md)
 - Parent ROG Shell: [parent-rog-shell.md](parent-rog-shell.md) (#6051)

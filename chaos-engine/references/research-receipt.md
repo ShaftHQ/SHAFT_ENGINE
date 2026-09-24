@@ -29,11 +29,17 @@ Do these in order:
 8. Record a concrete plan and deferred consolidated proof commands in the issue
    for issue-backed work, otherwise in transient working context.
 
+Every receipt carries one retrieve line:
+`retrieve: used|skipped(<reason>)|exempt(harness)`. Instruction-only hosts
+(OpenCode, Cursor, Grok Bot, Copilot cloud) have no guard, so this field is
+their enforcement; the Learning Session flags a missing field instead of
+blocking ([retrieve-first](retrieve-first.md)).
+
 This list is the research receipt. Memory, MemPalace, and Graphify are advisory
 for ordinary tasks: store failure records `degraded` and never blocks work.
 Missing non-store evidence blocks implementation. Live evidence outranks every
 index or recollection; reuse proven solutions before inventing one.
-The dated [adoption matrix](../RESEARCH.md) records the portable harness
+The dated adoption matrix (repo-only `chaos-engine/RESEARCH.md`) records the portable harness
 baseline; revalidate a row when its relevant discovery, schema, or install
 contract changes.
 

@@ -153,7 +153,8 @@ class CheckJavadocParamArityTests(unittest.TestCase):
             "framework-source relative link to checker must resolve",
         )
         self.assertIn("check_javadoc_param_arity.py", catalog)
-        self.assertIn("[`check_javadoc_param_arity.py`](../../scripts/ci/check_javadoc_param_arity.py)", catalog)
+        # #6175: the installed catalog cannot link a repository script; it names it repo-only.
+        self.assertIn("`scripts/ci/check_javadoc_param_arity.py` (repo-only)", catalog)
         self.assertIn("javadoc-param-arity-contract", gate)
         self.assertIn("check_javadoc_param_arity.py", gate)
 

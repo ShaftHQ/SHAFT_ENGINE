@@ -1,8 +1,8 @@
 ---
 name: work-item
 description: >-
-  Use when opening or rewriting a work item on any git-based SCM.
-  Source-control agnostic; GitHub, GitLab, and Azure Boards are adapters only.
+  Use when opening or rewriting a work item on any git-based SCM. Source-control
+  agnostic; GitHub, GitLab, and Azure Boards are adapters only.
 license: MIT
 ---
 

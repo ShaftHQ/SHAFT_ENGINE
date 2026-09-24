@@ -1,8 +1,8 @@
 ---
 name: self-improve
-description: >
-  Use when running ChaosEngine Learning Session self-improve: dual-track
-  harness + product lessons via learning.py after delivery or on request.
+description: >-
+  Use when running ChaosEngine Learning Session self-improve: dual-track harness +
+  product lessons via learning.py after delivery or on request.
 ---
 
 # self-improve — ChaosEngine learning & adapting
@@ -99,10 +99,10 @@ Helper: [`session_token_usage.py`](../../session_token_usage.py).
 During the session, record coarse usage (no model/provider ids, prompts, or paths):
 
 ```bash
-python3 chaos-engine/session_token_usage.py record \
+python3 .chaos-engine/session_token_usage.py record \
   --session-id "$SESSION_ID" --channel local --runtime-class freetoken \
   --prompt-tokens 1200 --completion-tokens 400
-python3 chaos-engine/session_token_usage.py record \
+python3 .chaos-engine/session_token_usage.py record \
   --session-id "$SESSION_ID" --channel cloud --runtime-class host-session \
   --prompt-tokens 8000 --completion-tokens 1500
 ```

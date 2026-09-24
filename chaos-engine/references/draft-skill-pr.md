@@ -10,7 +10,7 @@ gate below passes. **Default OFF** for all hosts.
 
 1. Explicit CLI `--opt-in`
 2. Env `CHAOS_ENGINE_DRAFT_SKILL_PRS=1`
-3. eval-parity fixtures green (`python3 scripts/ci/chaos_engine_eval_parity.py`)
+3. eval-parity fixtures green (`python3 scripts/ci/chaos_engine_eval_parity.py`) (repo-only)
 4. Focused unit tests green (`test_chaos_engine_s2_self_improve`,
    `test_chaos_engine_s4_self_improve`)
 

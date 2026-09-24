@@ -5,14 +5,14 @@ Every tip push on a ChaosEngine PR re-runs PR Gate, Security, Codacy, and (when 
 ## Run before every push (#6164)
 
 ```bash
-python3 chaos-engine/skills/local-agency/scripts/tip_preflight.py
+python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py
 ```
 
 The `git push` guard runs the same checks through `scripts/ci/overlay_pre_push.py`. Each failure is one line; fix it in the same tip.
 
 Checks:
 - Bandit B607 on changed Python files (#6165).
-- README inventory drift whenever a `chaos-engine/**/*.py` file changes; an added import changes the `python-libraries` table, so refresh with `python3 scripts/ci/validate_chaos_engine_readme.py --write` in the same commit.
+- README inventory drift whenever a `chaos-engine/**/*.py` file changes; an added import changes the `python-libraries` table, so refresh with `python3 scripts/ci/validate_chaos_engine_readme.py --write` in the same commit. (repo-only)
 - Memory `content_hash` for touched `.memory/memory/**` objects (#6169).
 
 ## Tip batching rule
@@ -29,7 +29,7 @@ Never push one tip per micro-fix when fresh-installer paths are implicated. Squa
 ## Memory content_hash (#6169)
 
 - Default write path: `memory save --stdin`.
-- When a `.memory/**` body or sidecar changed outside `memory save`, recompute before push: `python3 chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash .memory/memory/<type>/<slug>.json`.
+- When a `.memory/**` body or sidecar changed outside `memory save`, recompute before push: `python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash .memory/memory/<type>/<slug>.json`.
 - Recipe (mirrors `scripts/ci/validate_agent_setup.py` `memory_content_hash`): sha256 over the sidecar as sorted compact JSON without `content_hash`, a newline, then the LF-normalized body; stored as `sha256:<hex>`.
 - The Agent Guidance Gate runs `validate_agent_setup`; a stale hash there is the `memory-content-hash` fingerprint.
 - Never hand-author sidecars; `--rehash` rewrites only the stored hash.

@@ -25,11 +25,11 @@ and CredentialHealth probes are not progress.
 ## Harness check
 
 ```text
-python3 chaos-engine/skills/omniroute/scripts/runner.py proof --required \
+python3 .chaos-engine/skills/omniroute/scripts/runner.py proof --required \
   --receipt /path/to/receipt.json
-python3 chaos-engine/skills/omniroute/scripts/runner.py proof --required \
+python3 .chaos-engine/skills/omniroute/scripts/runner.py proof --required \
   --call-logs /path/to/call-logs.json
-python3 chaos-engine/skills/omniroute/scripts/runner.py proof --required \
+python3 .chaos-engine/skills/omniroute/scripts/runner.py proof --required \
   --steps probe,candidates
 ```
 
