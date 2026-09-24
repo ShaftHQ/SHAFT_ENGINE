@@ -39,7 +39,7 @@ class OmniRoutePortabilityTest(unittest.TestCase):
         matrix = json.loads(
             (ROOT / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8")
         )
-        hosts = ["claude", "codex", "copilot", "gemini", "grok"]
+        hosts = ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot"]
         self.assertEqual(hosts, matrix["hosts"])
         for capability in matrix["capabilities"]:
             for host in hosts:
