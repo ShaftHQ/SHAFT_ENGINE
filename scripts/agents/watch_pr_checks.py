@@ -88,6 +88,18 @@ HARD_MAX_POLLS = 60
 DEFAULT_INTERVAL_SECONDS = 60
 MIN_INTERVAL_SECONDS = 10
 MAX_INTERVAL_SECONDS = 600
+# #6196: the slowest required leg (fresh installer on macOS) takes ~35 min, so
+# the default watch window covers 45 min plus one extra poll. Cancelled-only
+# groups are treated as pending for the first REGISTRATION_GRACE_SECONDS: a
+# superseded run is cancelled before its replacement registers.
+SLOWEST_REQUIRED_CHECK_MINUTES = 45
+REGISTRATION_GRACE_SECONDS = 180
+
+
+def default_max_polls(interval: int) -> int:
+    """Polls needed so the default window outlasts the slowest required check."""
+    interval = max(1, int(interval))
+    return -(-SLOWEST_REQUIRED_CHECK_MINUTES * 60 // interval) + 1
 
 # gh's `state` field (and our normalization of the check-runs API fallback)
 # use these upper-case vocabularies. ACTION_REQUIRED, STARTUP_FAILURE and
@@ -399,8 +411,12 @@ def _without_unexpanded_matrix_jobs(checks: list[dict]) -> list[dict]:
     return expanded if expanded else checks
 
 
-def classify_checks(checks: list[dict]) -> tuple[str, list[dict]]:
-    """Classify one poll's checks into RED, GREEN, or PENDING."""
+def classify_checks(checks: list[dict], *, registration_grace: bool = False) -> tuple[str, list[dict]]:
+    """Classify one poll's checks into RED, GREEN, or PENDING.
+
+    With ``registration_grace`` a RED made only of CANCELLED checks is PENDING:
+    the superseding run has not registered its replacement check yet (#6196).
+    """
     # Returns (bucket, failing_checks); failing_checks is only populated
     # for RED. An empty check list (nothing reported yet) is PENDING, not
     # GREEN. Collapse same-named superseded cancellations first (#5753).
@@ -415,6 +431,10 @@ def classify_checks(checks: list[dict]) -> tuple[str, list[dict]]:
     pending = any(str(check.get("state", "")).upper() in PENDING_STATES for check in effective)
     if failing and pending:
         failing = [check for check in failing if str(check.get("name", "")) != "PR Gate Summary"]
+    if failing and registration_grace and all(
+        str(check.get("state", "")).upper() == "CANCELLED" for check in failing
+    ):
+        return "PENDING", []
     if failing:
         return "RED", failing
     if pending:
@@ -498,9 +518,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-polls",
         type=int,
-        default=DEFAULT_MAX_POLLS,
-        help=f"Maximum poll attempts (default {DEFAULT_MAX_POLLS}, hard-capped at "
-        f"{HARD_MAX_POLLS} regardless of the value passed).",
+        default=None,
+        help=f"Maximum poll attempts (default: enough polls to cover "
+        f"{SLOWEST_REQUIRED_CHECK_MINUTES} min at --interval; hard-capped at "
+        f"max({HARD_MAX_POLLS}, that default)).",
+    )
+    parser.add_argument(
+        "--max-minutes",
+        type=int,
+        default=None,
+        help="Watch window in minutes; overrides --max-polls (#6196).",
     )
     parser.add_argument(
         "--interval",
@@ -541,15 +568,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def clamp_max_polls(requested: int) -> int:
-    """Clamp --max-polls into [1, HARD_MAX_POLLS], warning on stderr."""
+def clamp_max_polls(requested: int, interval: int = DEFAULT_INTERVAL_SECONDS) -> int:
+    """Clamp --max-polls into [1, max(HARD_MAX_POLLS, default window)], warning on stderr."""
     clamped = requested
-    if clamped > HARD_MAX_POLLS:
+    cap = max(HARD_MAX_POLLS, default_max_polls(interval))
+    if clamped > cap:
         print(
-            f"watch_pr_checks: clamping --max-polls {requested} to hard cap {HARD_MAX_POLLS}",
+            f"watch_pr_checks: clamping --max-polls {requested} to hard cap {cap}",
             file=sys.stderr,
         )
-        clamped = HARD_MAX_POLLS
+        clamped = cap
     if clamped < 1:
         print(f"watch_pr_checks: clamping --max-polls {requested} to 1", file=sys.stderr)
         clamped = 1
@@ -572,9 +600,13 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = args.root.resolve()
 
-    max_polls = clamp_max_polls(args.max_polls)
     interval = clamp_interval(args.interval)
+    requested_polls = args.max_polls if args.max_polls is not None else default_max_polls(interval)
+    if args.max_minutes is not None:
+        requested_polls = -(-max(1, args.max_minutes) * 60 // interval) + 1
+    max_polls = clamp_max_polls(requested_polls, interval)
     poll_budget = 1 if args.poll_once else max_polls
+    started = time.monotonic()
 
     try:
         gh_executable = resolve_gh()
@@ -625,7 +657,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.until_merged:
             bucket, failing = classify_unattended(checks, pull)
         else:
-            bucket, failing = classify_checks(checks)
+            grace = time.monotonic() - started < REGISTRATION_GRACE_SECONDS and not args.poll_once
+            bucket, failing = classify_checks(checks, registration_grace=grace)
         digest = build_digest(head_sha, bucket, checks, failing)
         if bucket != last_bucket:
             _publish(args, root, pr, digest)
