@@ -1672,7 +1672,8 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("tests/scripts/test_chaos_engine_installer_ux.py", workflow)
         block = workflow[workflow.index("  chaos-installer-acceptance:"):workflow.index("  summary:")]
         self.assertIn("needs.changes.outputs.chaos_installer == 'true'", block)
-        self.assertIn("os: [ubuntu-22.04, macos-15, windows-2025]", block)
+        # Issue #6187: macOS joins on main pushes, nightly, and labelled PRs.
+        self.assertIn("os: ${{ fromJSON(needs.changes.outputs.installer_os) }}", block)
         self.assertIn("GITHUB_TOKEN: ${{ github.token }}", block)
         self.assertIn("scripts/ci/chaos_engine_live_installer_acceptance.py", block)
         self.assertIn(

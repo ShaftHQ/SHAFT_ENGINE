@@ -73,6 +73,12 @@ jobs:
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
       chaos_installer: ${{ steps.filter.outputs.chaos_installer }}
       chaos_gauge: ${{ steps.filter.outputs.chaos_gauge }}
+      installer_os: ${{ steps.installer-tier.outputs.installer_os }}
+      installer_contracts_os: ${{ steps.installer-tier.outputs.installer_contracts_os }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
@@ -369,9 +375,29 @@ jobs:
               - 'tests/scripts/test_validate_workflow_timeouts.py'
               - 'scripts/ci/epic_autoclose.py'
               - 'tests/scripts/test_epic_autoclose.py'
+              # Issue #6187/#6184: installer OS tier and time-to-merge pins.
+              - 'scripts/ci/chaos_installer_tier.py'
+              - 'tests/scripts/test_pr_gate_time_to_merge.py'
               # Issue #6185: the post-merge main-red reaction and its pins.
               - 'scripts/ci/main_red_reaction.py'
               - 'tests/scripts/test_main_red_reaction.py'
+      # Issue #6187: macOS fresh installer runs post-merge on main, nightly, and
+      # on PRs labelled ci:installer-macos. Labels are read live so re-running
+      # this workflow after adding the label picks macOS up (label events no
+      # longer trigger PR Gate, #6190).
+      - name: Resolve ChaosEngine installer OS tier
+        id: installer-tier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          labels="$EVENT_LABELS"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '[.[].name]') || labels="$EVENT_LABELS"
+          fi
+          python3 scripts/ci/chaos_installer_tier.py --event-name "$GITHUB_EVENT_NAME" --labels "$labels" >> "$GITHUB_OUTPUT"
 
   docs-boundary:
     name: Documentation Boundary Gate
@@ -843,6 +869,7 @@ jobs:
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_main_red_reaction
+          tests.scripts.test_pr_gate_time_to_merge
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
@@ -1024,7 +1051,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15, windows-2025]
+        # PR: ubuntu-22.04 + windows-2025; push to main / ci:installer-macos
+        # label: + macos-15 (scripts/ci/chaos_installer_tier.py, #6187).
+        os: ${{ fromJSON(needs.changes.outputs.installer_os) }}
     steps:
       - name: Enable Windows long paths
         if: runner.os == 'Windows'
@@ -1066,7 +1095,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2025, macos-15]
+        # PR: windows-2025; push to main / ci:installer-macos label: + macos-15.
+        os: ${{ fromJSON(needs.changes.outputs.installer_contracts_os) }}
     steps:
       - name: Enable Windows long paths
         if: runner.os == 'Windows'

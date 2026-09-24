@@ -1,6 +1,6 @@
 # Tip-churn preflight (batch micro-fixes)
 
-Every tip push on a ChaosEngine PR re-runs PR Gate, Security, Codacy, and (when installer paths match) the fresh-installer matrix on ubuntu, macOS, and Windows for tens of minutes. PR #6158 paid that four times in one afternoon for Bandit, an inventory rehash, a Memory rehash, and a Windows flake skip (epic #6161). This preflight is portable: Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot run the same checks; no host-only memory exception.
+Every tip push on a ChaosEngine PR re-runs PR Gate, Security, Codacy, and (when installer paths match) the fresh-installer matrix on ubuntu and Windows (macOS too with the `ci:installer-macos` label, #6187) for tens of minutes. PR #6158 paid that four times in one afternoon for Bandit, an inventory rehash, a Memory rehash, and a Windows flake skip (epic #6161). This preflight is portable: Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot run the same checks; no host-only memory exception.
 
 ## Run before every push (#6164)
 
@@ -18,6 +18,10 @@ Checks:
 ## Tip batching rule
 
 Never push one tip per micro-fix when fresh-installer paths are implicated. Squash inventory, Bandit, Memory-hash, and known-flake fixes into the tip already in flight, or amend before pushing. When only `chaos-engine/**/*.md`, `nosec`, or inventory strings change, prefer the local validators over push-and-babysit. Required CI still runs on GitHub; this rule never skips it.
+
+## macOS installer opt-in (#6187)
+
+PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos` in the `gh pr create` step when a PR touches `chaos-engine/install.sh`, macOS-only installer branches, or `chaos-engine/distributions.json`. Without the label macOS runs post-merge on `main` (never cancelled; a red leg files a `ci-main-red` issue and a revert PR) and daily. PR Gate reads labels live and ignores label events (#6190), so a label added after the push needs `gh run rerun <id>` on the PR Gate run; label edits alone re-run only Release-note governance.
 
 ## Bandit B607 (#6165)
 

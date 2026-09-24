@@ -646,7 +646,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         job = self.workflow()["jobs"]["chaos-installer-contracts"]
         commands = " ".join(step.get("run", "") for step in job["steps"])
         self.assertLessEqual(legacy, set(commands.split()))
-        self.assertEqual(["windows-2025", "macos-15"], job["strategy"]["matrix"]["os"])
+        self.assertIn("installer_contracts_os", job["strategy"]["matrix"]["os"])
         acceptance = self.workflow()["jobs"]["chaos-installer-acceptance"]
         self.assertNotIn(
             "tests.scripts.test_chaos_engine_installer_ux",

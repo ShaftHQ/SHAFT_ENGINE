@@ -57,7 +57,7 @@ changing that token silently breaks both distribution publishers.
 | `guided-workflows-live.yml` | nightly, manual | Live IntelliJ guided Web, mobile-emulation, and Doctor flows through real MCP. |
 | `live-tools-nightly.yml` | nightly, manual | Live SHAFT CLI and IntelliJ assistant tool calls that cannot run in the PR gate. |
 | `trace-viewer-acceptance.yml` | trace-relevant pull request and push to `main` | Native Playwright trace parity across engines plus offline Chromium viewer acceptance. |
-| `agent-plugin-acceptance.yml` | weekly, manual | Three independent evidence jobs: native-client routing, immutable external guardrail-corpus scoring, and checksum-verified agnix cross-client conformance. |
+| `agent-plugin-acceptance.yml` | weekly (all jobs), daily (3-OS ChaosEngine installer jobs), manual | Native-client routing, external guardrail-corpus scoring, agnix conformance, and the 3-OS installer acceptance that carries macOS off the PR path; files a tracking issue on a scheduled failure. |
 | `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
 
 The quality validator fails when an active `*.yml` file is missing from this
@@ -84,6 +84,19 @@ table. Remove a row only in the same change that deletes its workflow.
   `changes`, in parallel with Agent Guidance Gate. On Linux the UX modules run
   inside Agent Guidance's `installer` surface, which every `chaos_installer`
   path selects (#6186).
+
+### ChaosEngine fresh-installer tiers (#6187)
+
+| Trigger | Fresh installer | Installer UX contracts |
+|---|---|---|
+| Pull request | ubuntu-22.04, windows-2025 | windows-2025 (Linux via Agent Guidance) |
+| Pull request labelled `ci:installer-macos` | + macos-15 | + macos-15 |
+| Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
+| Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |
+
+`scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels, so
+re-run PR Gate after adding the label. A macOS-only break is caught post-merge
+and handled by `Main red reaction` (issue + revert PR).
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.

@@ -1,8 +1,13 @@
 name: Agent Plugin Live Acceptance
 
+# Monday 04:15 UTC runs every job (weekly). Issue #6187: the 3-OS ChaosEngine
+# installer jobs also run the other six days at the same time, because the
+# macOS fresh installer left the PR path; `notify` files or recovers a
+# tracking issue for any scheduled failure.
 on:
   schedule:
     - cron: '15 4 * * 1'
+    - cron: '15 4 * * 0,2-6'
   workflow_dispatch:
 
 permissions:
@@ -15,6 +20,7 @@ concurrency:
 jobs:
   deterministic-harness-full:
     name: Full deterministic harness
+    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
@@ -172,6 +178,7 @@ jobs:
 
   harness-platform-contracts:
     name: Harness platform contracts (${{ matrix.os }})
+    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -200,6 +207,7 @@ jobs:
 
   agnix-conformance:
     name: Pinned agnix conformance
+    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -249,6 +257,7 @@ jobs:
 
   external-guardrail-corpus:
     name: Pinned external guardrail corpus
+    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -273,6 +282,7 @@ jobs:
 
   native-client-load:
     name: Claude and Codex live skill load
+    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -311,6 +321,7 @@ jobs:
 
   chaos-engine-promotion:
     name: Five-host promotion evaluator
+    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     steps:
@@ -422,3 +433,32 @@ jobs:
             chaos-engine-promotion-receipts
           if-no-files-found: error
           retention-days: 4
+
+  notify:
+    name: Notify on scheduled failure
+    needs:
+      - deterministic-harness-full
+      - chaos-engine-cross-platform
+      - chaos-engine-live-installer
+      - harness-platform-contracts
+      - agnix-conformance
+      - external-guardrail-corpus
+      - native-client-load
+      - chaos-engine-promotion
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: File or recover the scheduled tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          # Weekly-only jobs report `skipped` on the daily installer run; that is
+          # neither a failure nor a pass, so only failure/cancelled change state.
+          outcome: ${{ (contains(needs.*.result, 'failure') && 'failure') || (contains(needs.*.result, 'cancelled') && 'skip') || 'success' }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:agent-plugin-acceptance'
