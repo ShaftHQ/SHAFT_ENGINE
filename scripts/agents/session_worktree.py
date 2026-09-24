@@ -355,7 +355,30 @@ def _attach_session_worktree(primary: Path, target: Path, upstream: str) -> dict
     added = _git(primary, "worktree", "add", "--detach", "--", str(target), upstream)
     if added is None:
         return {"status": "skipped", "message": "Session worktree setup skipped: git worktree add failed."}
-    return {"status": "ok", "head": (_git(target, "rev-parse", "HEAD") or "").strip()}
+    result = {"status": "ok", "head": (_git(target, "rev-parse", "HEAD") or "").strip()}
+    overlay = _materialize_overlay(primary, target)
+    if overlay:
+        result["overlay"] = overlay
+    return result
+
+
+def _materialize_overlay(primary: Path, target: Path) -> str | None:
+    """#6178: a session worktree starts with the primary's untracked CE overlay."""
+    module_path = primary / ".chaos-engine" / "worktree_overlay.py"
+    if not module_path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("ce_worktree_overlay", module_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+        copied = module.materialize(primary, target)
+    except (OSError, ImportError, AttributeError) as error:
+        return f"overlay not materialized: {error}"
+    return f"materialized {len(copied)} overlay file(s)"
 
 
 def _reset_primary_default(primary: Path) -> None:
