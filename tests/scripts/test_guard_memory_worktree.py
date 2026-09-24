@@ -38,6 +38,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.agents.guard import is_linked_worktree, run_pretooluse
+from tests.scripts.ce_host_files import host_file_text  # noqa: E402  (#6197)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -561,9 +562,7 @@ class MemoryWriteGuardIsReachableTest(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[2]
 
     def pretooluse_matchers(self, relative_path: str, *keys: str) -> list[str]:
-        configuration = json.loads(
-            (self.ROOT / relative_path).read_text(encoding="utf-8")
-        )
+        configuration = json.loads(host_file_text(relative_path))  # #6197
         for key in keys:
             configuration = configuration[key]
         return [entry.get("matcher", "") for entry in configuration]

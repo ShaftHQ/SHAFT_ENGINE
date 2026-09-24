@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import patch
 
 from scripts.agents import guard
+from tests.scripts.ce_host_files import host_file_text  # #6197: no untracked host files
 try:
     from scripts.agents import learning_session
 except ImportError:  # RED replay runs this test file against pre-rename production.
@@ -1435,13 +1436,14 @@ class GuardLifecycleTest(unittest.TestCase):
         read_only_surfaces = ("Read", "Grep", "WebSearch", "WebFetch", "web__run", *plan_surfaces)
         for relative in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(relative=relative):
-                hooks = json.loads(
-                    (Path(__file__).resolve().parents[2] / relative).read_text(encoding="utf-8")
-                )["hooks"]
+                hooks = json.loads(host_file_text(relative))["hooks"]
                 pre = hooks["PreToolUse"][0]["matcher"]
                 post = hooks["PostToolUse"][0]["matcher"]
                 for tool in read_only_surfaces:
-                    self.assertIsNone(re.fullmatch(pre, tool), tool)
+                    # Read/Grep reach PreToolUse only for the store-citation
+                    # retrieve gate (#6091, #6174); they never reach PostToolUse.
+                    if tool not in {"Read", "Grep"}:
+                        self.assertIsNone(re.fullmatch(pre, tool), tool)
                     self.assertIsNone(re.fullmatch(post, tool), tool)
                 for tool in ("apply_patch", "PowerShell"):
                     self.assertIsNotNone(re.fullmatch(pre, tool), tool)
@@ -3024,11 +3026,9 @@ class DelegateStopHookTest(unittest.TestCase):
         isolate_stop_rules(self, except_for=("check_r16_learning_session",))
 
     def test_subagent_stop_registration_does_not_start_terminal_learning(self):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         for name in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(host=name):
-                with open(os.path.join(root, name), encoding="utf-8") as handle:
-                    hooks = json.load(handle)["hooks"]
+                hooks = json.loads(host_file_text(name))["hooks"]
                 self.assertIn("SubagentStop", hooks)
 
         output = io.StringIO()
@@ -3059,11 +3059,9 @@ class LearningWriteObservationTest(unittest.TestCase):
                 return guard.ledger_events(payload)
 
     def test_mcp_and_cli_learning_writes_reach_the_ledger(self):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         for name in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(host=name):
-                with open(os.path.join(root, name), encoding="utf-8") as handle:
-                    matcher = json.load(handle)["hooks"]["PreToolUse"][0]["matcher"]
+                matcher = json.loads(host_file_text(name))["hooks"]["PreToolUse"][0]["matcher"]
                 self.assertIn("mcp__mempalace__", matcher)
 
         for tool_name, command in (
@@ -4424,10 +4422,9 @@ class DispatchAdapterGateTest(unittest.TestCase):
 
     def test_both_hosts_intercept_a_dispatch(self):
         """Neither matcher listed Task or Agent, so the rule would be dead on arrival."""
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         for name in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(host=name):
-                text = Path(root, name).read_text(encoding="utf-8")
+                text = host_file_text(name)
                 self.assertIn("Task|Agent", text)
 
 
@@ -4938,7 +4935,7 @@ class FreshBaseGateTest(unittest.TestCase):
     def repository_target(self):
         root, _ = self.repository()
         subprocess.run(
-            ["git", "init", "--quiet", root],
+            ["git", "init", "--quiet", root],  # nosec B603 B607 - fixed git argv on a temp fixture.
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -5202,7 +5199,7 @@ class CanonicalInvocationContextRegressionTest(unittest.TestCase):
         root = os.path.join(parent, name)
         os.makedirs(root)
         subprocess.run(
-            ["git", "init", "-b", "main"],
+            ["git", "init", "-b", "main"],  # nosec B603 B607 - fixed git argv on a temp fixture.
             cwd=root,
             capture_output=True,
             text=True,
@@ -5210,7 +5207,7 @@ class CanonicalInvocationContextRegressionTest(unittest.TestCase):
         )
         subprocess.run(
             [
-                "git",
+                "git",  # nosec B603 B607 - fixed git argv on a temp fixture.
                 "-c",
                 "user.name=Hook Test",
                 "-c",
@@ -5227,7 +5224,7 @@ class CanonicalInvocationContextRegressionTest(unittest.TestCase):
         )
         if branch != "main":
             subprocess.run(
-                ["git", "switch", "-c", branch],
+                ["git", "switch", "-c", branch],  # nosec B603 B607 - fixed git argv on a temp fixture.
                 cwd=root,
                 capture_output=True,
                 text=True,
