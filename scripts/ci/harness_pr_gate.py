@@ -241,6 +241,15 @@ CHECKS = {
         ("tests.scripts.test_chaos_engine_installer",),
         True,
     ),
+    "token-waste-contract": Check(
+        "token-waste-contract",
+        "token-waste",
+        (
+            "tests.scripts.test_chaos_engine_token_waste_6161",
+            "tests.scripts.test_watch_pr_checks",
+            "tests.scripts.test_overlay_pre_push",
+        ),
+    ),
     "installer-ux-contract": Check(
         "installer-ux-contract",
         "installer",
@@ -275,6 +284,7 @@ SURFACE_CHECKS = {
     "promotion": ("promotion-contract",),
     "fallback": ("fallback-contract",),
     "javadoc": ("javadoc-param-arity-contract",),
+    "token-waste": ("token-waste-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -395,6 +405,26 @@ SURFACE_PATTERNS = {
     "promotion": (
         "scripts/ci/chaos_engine_promotion*.py",
         "tests/scripts/test_chaos_engine_promotion.py",
+    ),
+    "token-waste": (
+        "chaos-engine/references/ci-status-economy.md",
+        "chaos-engine/references/tip-churn-preflight.md",
+        "chaos-engine/references/codacy-action-required-gate.md",
+        "chaos-engine/references/codacy-complexity-gate.md",
+        "chaos-engine/references/eliminate-waste.md",
+        "chaos-engine/references/context-economy.md",
+        "chaos-engine/references/work-github-playbook.md",
+        "chaos-engine/references/process-owner-scrum-master.md",
+        "chaos-engine/references/orchestrator-follow-through.md",
+        "chaos-engine/skills/local-agency/references/coach-loop.md",
+        "chaos-engine/skills/local-agency/scripts/tip_preflight.py",
+        "chaos-engine/skills/local-agency/scripts/executor_brief.py",
+        "chaos-engine/skills/self-improve/references/activation.md",
+        "scripts/agents/status_lease.py",
+        "scripts/agents/watch_pr_checks.py",
+        "scripts/ci/overlay_pre_push.py",
+        "tests/scripts/test_chaos_engine_token_waste_6161.py",
+        "tests/scripts/test_overlay_pre_push.py",
     ),
     "javadoc": (
         "scripts/ci/check_javadoc_param_arity.py",
