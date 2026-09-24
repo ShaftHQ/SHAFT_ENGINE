@@ -358,10 +358,13 @@ SURFACE_PATTERNS = {
         ".mcp.json",
         "mempalace.yaml",
         "tools/repository-map/*",
+        "tools/agent-infra/shaft_knowledge_refresh.py",
         "scripts/agents/knowledge_stores.py",
-        "scripts/ci/shaft_knowledge_refresh.py",
+        "chaos-engine/stores.py",
+        "tests/scripts/test_chaos_engine_stores.py",
         "tests/scripts/test_knowledge_stores.py",
         "tests/scripts/test_resolve_*.py",
+        "tests/scripts/test_shaft_knowledge_refresh.py",
     ),
     "ci": (
         ".github/workflows/pr-gate.yml",
@@ -500,9 +503,10 @@ def classify_paths(paths: list[str]) -> GatePlan:
     check_ids = [check_id for surface in selected for check_id in SURFACE_CHECKS[surface]]
     if dependency_closure:
         check_ids.append("dependency-account-contract")
-    for protected_id in ("protected-ownership", "protected-secret-safety"):
+    # Run always-on protected checks first so installer suites cannot starve them.
+    for protected_id in reversed(("protected-ownership", "protected-secret-safety")):
         if protected_id not in check_ids:
-            check_ids.append(protected_id)
+            check_ids.insert(0, protected_id)
     return GatePlan(
         tuple(selected),
         (
@@ -931,8 +935,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        if args.budget_seconds < 1 or args.budget_seconds > 900:
-            raise GateError("budget must be between 1 and 900 seconds")
+        if args.budget_seconds < 1 or args.budget_seconds > 1200:
+            raise GateError("budget must be between 1 and 1200 seconds")
         if not re.fullmatch(r"[0-9a-f]{40}", args.head):
             raise GateError("head must be a full lowercase SHA")
         if args.plan_only and args.write_generated:

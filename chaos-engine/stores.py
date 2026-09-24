@@ -358,6 +358,84 @@ def _component_current(cwd: Path, component: str) -> bool:
     raise RuntimeError(f"unsupported store component: {component}")
 
 
+def _refresh_graphify(
+    cwd: Path,
+    *,
+    snapshot: Path,
+    scratch: Path,
+    revision: str,
+    invoke: Runner,
+) -> None:
+    """Extract Graphify into the shared graphify-out for one detached snapshot."""
+    graphify = shutil.which("graphify")
+    if graphify is None:
+        raise RuntimeError("graphify is not on PATH")
+    staging = scratch / "graph-out"
+    _run(
+        invoke,
+        [
+            graphify,
+            "extract",
+            str(snapshot),
+            "--code-only",
+            "--no-cluster",
+            "--out",
+            str(staging),
+        ],
+        snapshot,
+    )
+    produced = staging / "graphify-out"
+    if not (produced / "graph.json").is_file() or not (produced / "manifest.json").is_file():
+        raise RuntimeError("graphify extract did not write graph.json and manifest.json")
+    target = resolve_graph_out(cwd)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    backup = target.with_name(target.name + ".replacing")
+    if backup.exists():
+        shutil.rmtree(backup)
+    if target.exists():
+        target.rename(backup)
+    try:
+        shutil.move(str(produced), str(target))
+        write_marker(target, revision)
+    except (OSError, RuntimeError):
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+        if backup.exists():
+            backup.rename(target)
+        raise
+    if backup.exists():
+        shutil.rmtree(backup, ignore_errors=True)
+
+
+def _refresh_mempalace(
+    cwd: Path,
+    *,
+    snapshot: Path,
+    primary: Path,
+    invoke: Runner,
+) -> None:
+    """Mine MemPalace into the shared palace for one detached snapshot."""
+    mempalace = shutil.which("mempalace")
+    if mempalace is None:
+        raise RuntimeError("mempalace is not on PATH")
+    palace = resolve_palace(cwd)
+    mine = [
+        mempalace,
+        "--palace",
+        str(palace),
+        "--backend",
+        PALACE_BACKEND,
+        "mine",
+        str(snapshot),
+        "--agent",
+        "chaos-engine-stores",
+    ]
+    wing = read_wing(snapshot) or read_wing(primary)
+    if wing:
+        mine.extend(["--wing", wing])
+    _run(invoke, mine, snapshot)
+
+
 def refresh(
     cwd: Path,
     *,
@@ -391,66 +469,19 @@ def refresh(
             if "graphify" in selected and not (
                 if_stale and _component_current(cwd, "graphify")
             ):
-                graphify = shutil.which("graphify")
-                if graphify is None:
-                    raise RuntimeError("graphify is not on PATH")
-                staging = scratch / "graph-out"
-                _run(
-                    invoke,
-                    [
-                        graphify,
-                        "extract",
-                        str(snapshot),
-                        "--code-only",
-                        "--no-cluster",
-                        "--out",
-                        str(staging),
-                    ],
-                    snapshot,
+                _refresh_graphify(
+                    cwd,
+                    snapshot=snapshot,
+                    scratch=scratch,
+                    revision=revision,
+                    invoke=invoke,
                 )
-                produced = staging / "graphify-out"
-                if not (produced / "graph.json").is_file() or not (produced / "manifest.json").is_file():
-                    raise RuntimeError("graphify extract did not write graph.json and manifest.json")
-                target = resolve_graph_out(cwd)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                backup = target.with_name(target.name + ".replacing")
-                if backup.exists():
-                    shutil.rmtree(backup)
-                if target.exists():
-                    target.rename(backup)
-                try:
-                    shutil.move(str(produced), str(target))
-                    write_marker(target, revision)
-                except (OSError, RuntimeError):
-                    if target.exists():
-                        shutil.rmtree(target, ignore_errors=True)
-                    if backup.exists():
-                        backup.rename(target)
-                    raise
-                if backup.exists():
-                    shutil.rmtree(backup, ignore_errors=True)
             if "mempalace" in selected and not (
                 if_stale and _component_current(cwd, "mempalace")
             ):
-                mempalace = shutil.which("mempalace")
-                if mempalace is None:
-                    raise RuntimeError("mempalace is not on PATH")
-                palace = resolve_palace(cwd)
-                mine = [
-                    mempalace,
-                    "--palace",
-                    str(palace),
-                    "--backend",
-                    PALACE_BACKEND,
-                    "mine",
-                    str(snapshot),
-                    "--agent",
-                    "chaos-engine-stores",
-                ]
-                wing = read_wing(snapshot) or read_wing(primary)
-                if wing:
-                    mine.extend(["--wing", wing])
-                _run(invoke, mine, snapshot)
+                _refresh_mempalace(
+                    cwd, snapshot=snapshot, primary=primary, invoke=invoke
+                )
         finally:
             try:
                 _git(cwd, "worktree", "remove", "--force", str(snapshot))
