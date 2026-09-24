@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Tip-churn local preflight for ChaosEngine PRs (#6161: #6164 #6165 #6169).
+"""
+Tip-churn local preflight for ChaosEngine PRs (#6161: #6164 #6165 #6169).
 
 Run before every push so Bandit B607, README inventory drift, and stale
 Memory ``content_hash`` land in the same tip as the edit that caused them

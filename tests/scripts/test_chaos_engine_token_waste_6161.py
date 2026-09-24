@@ -1,4 +1,5 @@
-"""#6161 token-waste epic contracts for #6162-#6169 and #6171 (RED-first).
+"""
+#6161 token-waste epic contracts for #6162-#6169 and #6171 (RED-first).
 
 Each class pins one child ticket's portable ChaosEngine overlay behavior so
 Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share one outcome.
@@ -536,7 +537,7 @@ class LocalWriterOptionalTest(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertIn("when-to-use-local.md", text(path))
         for path in (LOCAL_SKILL, COACH):
-            with self.subTest(path=path.name, token="rule"):
+            with self.subTest(path=path.name, check="decision-rule"):
                 self.assertIn(self.RULE, text(path))
 
     def test_token_accounting_method_documented(self):

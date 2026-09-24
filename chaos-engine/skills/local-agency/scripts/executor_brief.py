@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Lean executor prompts + fingerprint-first failed-log budget (#6167).
+"""
+Lean executor prompts + fingerprint-first failed-log budget (#6167).
 
 Executor / Task / ``codex exec`` prompts carry a ``brief_path:`` pointer to a
 spilled wave brief plus the delta slice only (goal, constraints, files, RED

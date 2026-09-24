@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""One status channel per in-flight PR (#6163).
+"""
+One status channel per in-flight PR (#6163).
 
 The unattended watch (``watch_pr_checks.py --status-lease``) owns CI status
 for PR N and records ``.chaos-engine/runtime/status-lease-<N>.json``. While
