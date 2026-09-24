@@ -1042,8 +1042,9 @@ def _run_project_setup_command(
 
     Windows reupgrade can launch graphify.exe for ``extract`` and get a
     non-zero exit with empty streams even though ``--version`` still works.
-    Retry once after clearing a partial graphify-out. If the launcher is
-    healthy, keep the upgrade moving; graphify output is derived data.
+    Retry once after clearing a partial graphify-out (including a shared
+    ``--out`` target). If the launcher is healthy, keep the upgrade moving;
+    graphify output is derived data.
     """
     try:
         return _run_account_command(
@@ -1063,6 +1064,13 @@ def _run_project_setup_command(
         ):
             raise
         partial = project / "graphify-out"
+        if "--out" in command:
+            try:
+                out_parent = Path(command[command.index("--out") + 1])
+            except (ValueError, IndexError):
+                out_parent = None
+            if out_parent is not None:
+                partial = out_parent / "graphify-out"
         if partial.exists() and not (partial / "graph.json").is_file():
             shutil.rmtree(partial, ignore_errors=True)
         try:

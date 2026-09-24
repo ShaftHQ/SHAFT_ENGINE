@@ -64,6 +64,40 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual([item[1] for item in calls], ["extract", "extract", "--version"])
 
+    def test_windows_graphify_extract_clears_shared_out_partial_before_retry(self):
+        """Silent extract with --out must clear the shared partial, not project/graphify-out."""
+        module = load_controller()
+        calls = []
+
+        def runner(command, **_kwargs):
+            calls.append(list(command))
+            if list(command)[1:] == ["--version"]:
+                return SimpleNamespace(returncode=0, stdout="graphify 1\n", stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            shared_parent = project / "shared-owner"
+            partial = shared_parent / "graphify-out"
+            partial.mkdir(parents=True)
+            (project / "graphify-out").mkdir()
+            result = module._run_project_setup_command(
+                [
+                    str(project / "graphify.exe"),
+                    "extract",
+                    ".",
+                    "--code-only",
+                    "--out",
+                    str(shared_parent),
+                ],
+                project,
+                runner=runner,
+            )
+            self.assertFalse(partial.exists())
+            self.assertTrue((project / "graphify-out").is_dir())
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual([item[1] for item in calls], ["extract", "extract", "--version"])
+
     def symlink_or_skip(self, target: Path | str, link: Path) -> None:
         try:
             link.symlink_to(target)

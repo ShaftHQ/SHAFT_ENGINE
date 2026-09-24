@@ -1096,6 +1096,27 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         positions = [source.index(f'"{phase}"') for phase in phases]
         self.assertEqual(positions, sorted(positions))
 
+    def test_legacy_base_graphify_skips_match_known_base_markers(self):
+        """Base wrapper must skip silent graphify.exe project-setup on Windows (#6127)."""
+        module = load_acceptance()
+        self.assertIsNotNone(module)
+        if module is None:
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            module.seed_legacy_base_graphify_skips(project)
+            skill = project / ".agents/skills/graphify/SKILL.md"
+            graph = project / "graphify-out/graph.json"
+            self.assertTrue(skill.is_file())
+            self.assertTrue(graph.is_file())
+            self.assertEqual("# graphify" + chr(10), skill.read_text(encoding="utf-8"))
+            self.assertEqual("{}" + chr(10), graph.read_text(encoding="utf-8"))
+            before = skill.read_bytes()
+            module.seed_legacy_base_graphify_skips(project)
+            self.assertEqual(before, skill.read_bytes())
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        self.assertIn("seed_legacy_base_graphify_skips(base_project)", source)
+
     def test_weekly_manual_three_os_job_is_bounded_and_uploads_evidence(self):
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         self.assertIn("schedule", workflow[True])
