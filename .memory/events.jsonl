@@ -1233,3 +1233,4 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.learning-session-memory-save-is-the-default-write-path","timestamp":"2026-09-15T20:19:45+00:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.macos-live-installer-phase-budget-is-900s-linux-stays-600s","timestamp":"2026-09-15T22:26:50+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.human-prs-need-exactly-one-release-note-classification-label","timestamp":"2026-09-16T21:40:43+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.sikulix-migrated-to-oculix-4-0-0","timestamp":"2026-09-24T17:54:00+03:00"}

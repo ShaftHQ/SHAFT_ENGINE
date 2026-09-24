@@ -179,6 +179,16 @@ def record_store_outcome(
     current = current[-CITATION_LIMIT:]
     outcomes = payload.get("outcomes")
     kept = [item for item in outcomes if isinstance(item, dict)] if isinstance(outcomes, list) else []
+    if status == "used" and chosen == "mempalace":
+        kept = [
+            item
+            for item in kept
+            if not (
+                isinstance(item, dict)
+                and item.get("store") == "mempalace"
+                and item.get("reason") == "backend-mismatch"
+            )
+        ]
     if status in _FAIL_OPEN:
         outcome = {"store": chosen, "status": status, "query": str(query or "")[:500]}
         if reason:

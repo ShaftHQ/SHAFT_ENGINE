@@ -701,7 +701,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         "ws.schild:jave-*",
         "com.automation-remarks:video-recorder-*",
         "org.openpnp:opencv",
-        "com.sikulix:sikulixapi",
+        "io.github.oculix-org:oculixapi",
         "com.applitools:eyes-images-java4",
         "com.assertthat:selenium-shutterbug",
     ):

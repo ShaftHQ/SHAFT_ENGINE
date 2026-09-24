@@ -346,6 +346,27 @@ def known_repaired_base_component_statuses(
     return statuses
 
 
+
+def seed_legacy_base_graphify_skips(project: Path) -> None:
+    """Skip base SHA graphify project-setup that can exit silent on Windows.
+
+    Known base ``1dec809c`` plans ``graphify install --platform agents`` and
+    ``graphify extract`` when these markers are absent. Those commands write
+    derived project data; that base lacks the #6127 silent-extract absorb, so a
+    healthy ``graphify.exe --version`` can still fail Provision dependencies with
+    ``no process output``. Seed the skip markers so live acceptance stays on the
+    known post-provision doctor transition instead of failing the base wrapper.
+    """
+    skill = project / ".agents/skills/graphify/SKILL.md"
+    skill.parent.mkdir(parents=True, exist_ok=True)
+    if not skill.is_file():
+        skill.write_text("# graphify\n", encoding="utf-8")
+    graph = project / "graphify-out/graph.json"
+    graph.parent.mkdir(parents=True, exist_ok=True)
+    if not graph.is_file():
+        graph.write_text("{}\n", encoding="utf-8")
+
+
 def exact_base_compatibility_transition(
     error: Exception, base_sha: str, *, windows: bool
 ) -> str:
@@ -1506,6 +1527,7 @@ def run_acceptance(
         base_sentinel.write_bytes(b"preserve base user data\n")
         fresh_sentinel = fresh_project / "user-sentinel.txt"
         fresh_sentinel.write_bytes(b"preserve fresh user data\n")
+        seed_legacy_base_graphify_skips(base_project)
 
         def install_and_verify(
             project: Path,

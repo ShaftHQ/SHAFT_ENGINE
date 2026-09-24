@@ -11,7 +11,7 @@
     <artifactId>shaft-sikulix</artifactId>
     <packaging>jar</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>Optional SikuliX desktop image automation for SHAFT Engine.</description>
+    <description>Optional OculiX (SikuliX continuation) desktop image automation for SHAFT Engine.</description>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -26,21 +26,17 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.sikulix</groupId>
-            <artifactId>sikulixapi</artifactId>
-            <version>${sikulix.version}</version>
+            <groupId>io.github.oculix-org</groupId>
+            <artifactId>oculixapi</artifactId>
+            <version>4.0.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
                     <artifactId>netty-handler</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.openpnp</groupId>
-                    <artifactId>opencv</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.sikulix</groupId>
-                    <artifactId>sikulix2tigervnc</artifactId>
+                    <groupId>io.github.oculix-org</groupId>
+                    <artifactId>tigervnc-java-oculix</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.ow2.asm</groupId>
@@ -83,11 +79,6 @@
                     <artifactId>pdfbox</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.openpnp</groupId>
-            <artifactId>opencv</artifactId>
-            <version>4.9.0-0</version>
         </dependency>
     </dependencies>
 

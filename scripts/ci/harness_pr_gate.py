@@ -358,10 +358,13 @@ SURFACE_PATTERNS = {
         ".mcp.json",
         "mempalace.yaml",
         "tools/repository-map/*",
+        "tools/agent-infra/shaft_knowledge_refresh.py",
         "scripts/agents/knowledge_stores.py",
-        "scripts/ci/shaft_knowledge_refresh.py",
+        "chaos-engine/stores.py",
+        "tests/scripts/test_chaos_engine_stores.py",
         "tests/scripts/test_knowledge_stores.py",
         "tests/scripts/test_resolve_*.py",
+        "tests/scripts/test_shaft_knowledge_refresh.py",
     ),
     "ci": (
         ".github/workflows/pr-gate.yml",
@@ -829,13 +832,14 @@ def run_plan(
     results: list[dict[str, Any]] = []
     failed_ids: set[str] = set()
     execution_cache: dict[tuple[str, ...], tuple[str, int | None, float]] = {}
-    for check in plan.checks:
+
+    def _execute(check: Check) -> tuple[str, int | None, float]:
         remaining = budget_seconds - (time.monotonic() - started)
         check_started = time.monotonic()
         cached = execution_cache.get(check.modules)
         if cached:
-            status, exit_code, duration = cached
-        elif remaining <= 0:
+            return cached
+        if remaining <= 0:
             status, exit_code, duration = "timeout", None, 0.0
         else:
             status, exit_code = _run_check(
@@ -844,7 +848,17 @@ def run_plan(
                 remaining,
             )
             duration = round(time.monotonic() - check_started, 3)
-            execution_cache[check.modules] = status, exit_code, duration
+        execution_cache[check.modules] = status, exit_code, duration
+        return status, exit_code, duration
+
+    # Warm always-on protected checks first so long suites cannot starve them.
+    for pid in ("protected-ownership", "protected-secret-safety"):
+        for check in plan.checks:
+            if check.id == pid:
+                _execute(check)
+
+    for check in plan.checks:
+        status, exit_code, duration = _execute(check)
         if status != "passed":
             failed_ids.add(check.id)
             if (
@@ -931,8 +945,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        if args.budget_seconds < 1 or args.budget_seconds > 900:
-            raise GateError("budget must be between 1 and 900 seconds")
+        if args.budget_seconds < 1 or args.budget_seconds > 1200:
+            raise GateError("budget must be between 1 and 1200 seconds")
         if not re.fullmatch(r"[0-9a-f]{40}", args.head):
             raise GateError("head must be a full lowercase SHA")
         if args.plan_only and args.write_generated:

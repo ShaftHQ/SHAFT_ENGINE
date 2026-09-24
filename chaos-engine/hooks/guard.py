@@ -11,6 +11,8 @@ import hashlib
 import importlib.util
 import posixpath
 import re
+import shutil
+import subprocess  # nosec B404 - fixed git argv for toplevel.
 import shlex
 import sys
 from collections.abc import Mapping
@@ -193,6 +195,20 @@ def _overlay_push_block(commands: tuple[str, ...]) -> str:
     if not any(re.search(r"\bgit\s+push\b", command) for command in commands):
         return ""
     project = Path.cwd()
+    git = shutil.which("git")
+    if git is not None:
+        try:
+            completed = subprocess.run(  # nosec B603 - absolute git from which, fixed argv.
+                [git, "rev-parse", "--show-toplevel"],
+                cwd=project,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if completed.returncode == 0 and completed.stdout.strip():
+                project = Path(completed.stdout.strip())
+        except OSError:
+            pass
     script = project / "scripts/ci/overlay_pre_push.py"
     if not script.is_file():
         return ""
@@ -620,6 +636,20 @@ def _unattended_delivery():
     return module
 
 
+def _schedule_store_refresh(cwd: Path) -> None:
+    """Spawn a detached store refresh when the shared cache is stale. Never blocks."""
+    try:
+        import runpy
+
+        stores = runpy.run_path(
+            str(Path(__file__).resolve().parents[1] / "stores.py"),
+            run_name="_chaos_engine_guard_stores",
+        )
+        stores["maybe_spawn_refresh"](cwd)
+    except (OSError, RuntimeError, ValueError, KeyError):
+        return
+
+
 def _event_context(event_name: str, token: object) -> str:
     if event_name == "SessionStart":
         return _lifecycle.session_start_context(token, ACTIVATION)
@@ -870,6 +900,7 @@ def _run_event(event: dict, _host: str) -> int:
             print(json.dumps({"additionalContext": module.resume_prompt(checkpoint)}))
             return 0
     if event_name == "SessionStart":
+        _schedule_store_refresh(Path(str(event.get("cwd") or Path.cwd())))
         print(json.dumps({"additionalContext": _event_context(event_name, token)}))
         return 0
     complexity_hint = classifier_complexity_gate_hint(

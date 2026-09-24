@@ -261,6 +261,19 @@ class ClassifierTest(unittest.TestCase):
             )
         )
 
+    def test_shared_store_paths_use_retrieval_surface(self) -> None:
+        for path in (
+            "chaos-engine/stores.py",
+            "tests/scripts/test_chaos_engine_stores.py",
+            "tools/agent-infra/shaft_knowledge_refresh.py",
+            "tests/scripts/test_shaft_knowledge_refresh.py",
+        ):
+            with self.subTest(path=path):
+                plan = classify_paths([path])
+                self.assertIn("retrieval", plan.surfaces)
+                self.assertEqual((), plan.unknown_paths)
+                self.assertNotIn("fallback", plan.surfaces)
+
     def test_unknown_harness_path_falls_back_instead_of_skipping(self) -> None:
         plan = classify_paths(["scripts/agents/new_runtime_surface.py"])
 
@@ -280,7 +293,6 @@ class ClassifierTest(unittest.TestCase):
             "tests/scripts/test_worktree_hygiene.py",
             "tests/scripts/test_sync_user_harness.py",
             "tests/scripts/test_graphify_maintenance.py",
-            "tests/scripts/test_shaft_knowledge_refresh.py",
             "tools/intellij-plugin-recording/install.ps1",
         ):
             with self.subTest(path=path):
@@ -678,7 +690,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         )
 
         self.assertIn("scripts/ci/harness_pr_gate.py", agent_job)
-        self.assertIn("--budget-seconds 900", agent_job)
+        self.assertIn("--budget-seconds 1200", agent_job)
         self.assertNotIn("npm install --global", agent_job)
         self.assertNotIn("tests.scripts.test_agent_plugin_client_smoke", agent_job)
         self.assertNotIn("matrix:", agent_job)

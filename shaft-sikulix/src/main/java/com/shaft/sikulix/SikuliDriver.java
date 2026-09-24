@@ -19,7 +19,7 @@ public class SikuliDriver {
      */
     public SikuliDriver(String applicationName) {
         sikuliApp = new App(applicationName);
-        sikuliApp.waitForWindow(SHAFT.Properties.timeouts.browserNavigationTimeout());
+        sikuliApp.isRunning(SHAFT.Properties.timeouts.browserNavigationTimeout());
         sikuliApp.focus();
         ReportManager.log("Opened SikuliX app: [" + sikuliApp.getName() + "].");
     }

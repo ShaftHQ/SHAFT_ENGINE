@@ -292,6 +292,33 @@ def validate_pending_receipt(pending: Path, requested_root: Path) -> dict[str, o
     return data
 
 
+def shared_palace(root: Path) -> str:
+    """Return the shared sqlite_exact palace. A non-git fixture falls back beside .git."""
+    try:
+        path = Path(__file__).resolve().parents[1] / "repository-map/resolve_mempalace.py"
+        spec = importlib.util.spec_from_file_location("resolve_mempalace", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"cannot load MemPalace resolver: {path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return str(module.find_shared_mempalace(root))
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError):
+        return str((root / ".git" / "chaos-engine" / "mempalace").resolve())
+
+
+def bound_mempalace(executable: str, root: Path, action: str, *tail: str) -> list[str]:
+    """Place palace and backend flags before the MemPalace subcommand."""
+    return [
+        executable,
+        "--palace",
+        shared_palace(root),
+        "--backend",
+        "sqlite_exact",
+        action,
+        *tail,
+    ]
+
+
 def configured_wing(root: Path) -> str:
     """Return the shared wing declared by this checkout's mempalace.yaml."""
     matches = re.findall(
@@ -342,16 +369,23 @@ def refresh(requested_root: Path, requested_sentinel: Path) -> None:
         else:
             outcomes["Graphify"] = "healthy"
         try:
-            run([mempalace, "sync", str(root), "--wing", wing, "--apply"], root, git_env)
-            mine = [
+            run(
+                bound_mempalace(
+                    mempalace, root, "sync", str(root), "--wing", wing, "--apply"
+                ),
+                root,
+                git_env,
+            )
+            mine = bound_mempalace(
                 mempalace,
+                root,
                 "mine",
                 str(root),
                 "--wing",
                 wing,
                 "--agent",
                 "scheduled-refresh",
-            ]
+            )
             run(mine, root, git_env)
             for batch in include_ignored_batches(list_promote_paths(root)):
                 run([*mine, "--include-ignored", batch], root, git_env)

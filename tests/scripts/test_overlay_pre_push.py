@@ -79,6 +79,52 @@ class OverlayPrePushTest(unittest.TestCase):
             self.assertIn("16384", reason)
             self.assertIsNone(guard._overlay_pre_push_reason(str(root / "missing")))
 
+
+    def test_overlay_push_block_uses_git_toplevel_not_process_cwd(self):
+        """#6155: portable guard resolves the push worktree via git toplevel."""
+        import importlib.util
+        import os
+        from unittest import mock
+
+        spec = importlib.util.spec_from_file_location(
+            "ce_guard_6155", ROOT / "chaos-engine/hooks/guard.py"
+        )
+        self.assertIsNotNone(spec and spec.loader)
+        ce_guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ce_guard)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            git = shutil.which("git")
+            self.assertIsNotNone(git)
+            subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)  # nosec B603
+            destination = root / "scripts/ci/overlay_pre_push.py"
+            destination.parent.mkdir(parents=True)
+            shutil.copy(ROOT / "scripts/ci/overlay_pre_push.py", destination)
+            playbook = root / PLAYBOOK
+            playbook.parent.mkdir(parents=True)
+            playbook.write_text(("z" * 16385) + "\n" + "\n".join(PINNED), encoding="utf-8")
+            subprocess.run([git, "add", "-A"], cwd=root, check=True, capture_output=True)  # nosec B603
+            previous = Path.cwd()
+            captured: list[list[str]] = []
+            real_run = ce_guard.subprocess.run
+
+            def capture_run(argv, *args, **kwargs):  # noqa: ANN001
+                captured.append(list(argv))
+                return real_run(argv, *args, **kwargs)
+
+            try:
+                os.chdir(root)
+                with mock.patch.object(ce_guard.subprocess, "run", side_effect=capture_run):
+                    blocked = ce_guard._overlay_push_block(("git push origin HEAD",))
+            finally:
+                os.chdir(previous)
+            self.assertTrue(blocked)
+            self.assertIn("16384", blocked)
+            self.assertTrue(captured, "expected git rev-parse via subprocess.run")
+            self.assertTrue(Path(captured[0][0]).is_absolute(), captured[0][0])
+            self.assertEqual(Path(captured[0][0]), Path(git))
+            self.assertEqual(captured[0][1:], ["rev-parse", "--show-toplevel"])
+
     def test_live_playbook_and_entrypoint_satisfy_the_contract(self):
         text = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
         self.assertEqual([], playbook_contract_failures(text))

@@ -17,7 +17,7 @@ public class MobileEmulationTests {
     public void test_mobileEmulation_device() {
         SHAFT.Properties.web.set().isMobileEmulation(true);
         SHAFT.Properties.web.set().mobileEmulationIsCustomDevice(false);
-        SHAFT.Properties.web.set().mobileEmulationDeviceName("Pixel 2");
+        SHAFT.Properties.web.set().mobileEmulationDeviceName("Pixel 5");
         driver.set(new SHAFT.GUI.WebDriver());
         driver.get().browser().navigateToURL("data:text/html;charset=utf-8,<html><title>Mobile Fixture</title><body><input name='q'></body></html>");
         driver.get().verifyThat().browser().title().isEqualTo("Mobile Fixture").perform();

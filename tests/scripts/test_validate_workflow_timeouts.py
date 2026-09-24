@@ -109,9 +109,9 @@ jobs:
         )
         job = workflow["jobs"]["agent-guidance"]
         commands = " ".join(str(step.get("run", "")) for step in job["steps"])
-        self.assertEqual(job.get("timeout-minutes"), 20)
+        self.assertEqual(job.get("timeout-minutes"), 25)
         self.assertIn("scripts/ci/harness_pr_gate.py", commands)
-        self.assertIn("--budget-seconds 900", commands)
+        self.assertIn("--budget-seconds 1200", commands)
         self.assertNotIn("matrix", job)
 
     def test_capture_browser_e2e_job_allows_prerequisite_and_browser_runtime_margin(self):

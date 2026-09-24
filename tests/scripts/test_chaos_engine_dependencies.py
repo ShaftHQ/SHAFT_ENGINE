@@ -64,6 +64,40 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual([item[1] for item in calls], ["extract", "extract", "--version"])
 
+    def test_windows_graphify_extract_clears_shared_out_partial_before_retry(self):
+        """Silent extract with --out must clear the shared partial, not project/graphify-out."""
+        module = load_controller()
+        calls = []
+
+        def runner(command, **_kwargs):
+            calls.append(list(command))
+            if list(command)[1:] == ["--version"]:
+                return SimpleNamespace(returncode=0, stdout="graphify 1\n", stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            shared_parent = project / "shared-owner"
+            partial = shared_parent / "graphify-out"
+            partial.mkdir(parents=True)
+            (project / "graphify-out").mkdir()
+            result = module._run_project_setup_command(
+                [
+                    str(project / "graphify.exe"),
+                    "extract",
+                    ".",
+                    "--code-only",
+                    "--out",
+                    str(shared_parent),
+                ],
+                project,
+                runner=runner,
+            )
+            self.assertFalse(partial.exists())
+            self.assertTrue((project / "graphify-out").is_dir())
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual([item[1] for item in calls], ["extract", "extract", "--version"])
+
     def symlink_or_skip(self, target: Path | str, link: Path) -> None:
         try:
             link.symlink_to(target)
@@ -122,19 +156,14 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             core.mkdir()
             palace = project / "shared/palace"
             palace.mkdir(parents=True)
-            resolver = project / "tools/repository-map/resolve_mempalace.py"
-            resolver.parent.mkdir(parents=True)
-            resolver.write_text(
-                "from pathlib import Path\n"
-                f"def find_shared_mempalace(_cwd): return Path({str(palace)!r})\n",
-                encoding="utf-8",
-            )
             controller = {
                 "mempalace_directory_status": lambda _palace: {
                     "status": "healthy", "detail": "fixture state"
                 }
             }
-            with mock.patch.object(module, "load_host_controller", return_value=controller):
+            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace.resolve())}), mock.patch.object(
+                module, "load_host_controller", return_value=controller
+            ):
                 self.assertEqual(
                     ["--palace", str(palace.resolve()), "--backend", "sqlite_exact"],
                     module.mempalace_mcp_arguments(core, []),
@@ -259,16 +288,9 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             project = Path(temporary)
             core = project / ".chaos-engine"
             core.mkdir()
-            resolver = project / "tools/repository-map/resolve_mempalace.py"
-            resolver.parent.mkdir(parents=True)
-            resolver.write_text(
-                "from pathlib import Path\n"
-                "def find_shared_mempalace(_cwd): return Path('relative-palace')\n",
-                encoding="utf-8",
-            )
-
-            with self.assertRaisesRegex(ValueError, "returned a relative path"):
-                module.mempalace_mcp_arguments(core, [])
+            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": "relative/palace"}):
+                with self.assertRaisesRegex(ValueError, "must be absolute"):
+                    module.mempalace_mcp_arguments(core, [])
 
     @staticmethod
     def fake_runner(root: Path):
@@ -1273,7 +1295,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.assertEqual([["/tools/mempalace", "mine", "."]], calls)
             sleep.assert_not_called()
 
-    def test_project_setup_skips_a_repository_resolver(self):
+    def test_project_setup_plans_a_palace_when_a_resolver_file_exists(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -1283,7 +1305,11 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
             planned = module.project_setup_plan(project, {"mempalace": "/tools/mempalace"})
 
-            self.assertEqual([], planned)
+            self.assertTrue(planned)
+            self.assertIn("--palace", planned[0])
+            self.assertIn("--backend", planned[0])
+            self.assertLess(planned[0].index("--palace"), planned[0].index("init"))
+            self.assertEqual("sqlite_exact", planned[0][planned[0].index("--backend") + 1])
 
     def test_account_discovery_prefers_receipt_command_over_path(self):
         module = load_controller()

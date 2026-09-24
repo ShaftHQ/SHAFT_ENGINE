@@ -16,6 +16,7 @@ from pathlib import Path
 
 
 MARKER_NAME = ".shaft-source-revision.json"
+GENERIC_MARKER_NAME = ".chaos-engine-source-revision.json"
 MANIFEST_NAME = "manifest.json"
 
 
@@ -89,6 +90,17 @@ def manifest_digest(graph_out: Path) -> str:
     return hashlib.sha256((graph_out / MANIFEST_NAME).read_bytes()).hexdigest()
 
 
+def revision_marker(graph_out: Path) -> Path | None:
+    """Prefer the portable marker, then the SHAFT marker."""
+    generic = graph_out / GENERIC_MARKER_NAME
+    if generic.is_file():
+        return generic
+    legacy = graph_out / MARKER_NAME
+    if legacy.is_file():
+        return legacy
+    return None
+
+
 def cache_freshness(cwd: Path, graph_out: Path) -> tuple[bool, str]:
     """Report whether the shared cache exactly matches origin/main."""
     if not graph_out.is_dir() or not any(graph_out.iterdir()):
@@ -99,8 +111,8 @@ def cache_freshness(cwd: Path, graph_out: Path) -> tuple[bool, str]:
     manifest = graph_out / MANIFEST_NAME
     if not manifest.is_file():
         return False, "stale - shared Graphify cache has no manifest.json"
-    marker_path = graph_out / MARKER_NAME
-    if not marker_path.is_file():
+    marker_path = revision_marker(graph_out)
+    if marker_path is None:
         return False, (
             "stale - cache has no indexed revision marker; refresh it from the "
             "primary checkout or fall back to rg/.memory"

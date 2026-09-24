@@ -113,7 +113,8 @@ Known first-class SHAFT families that Graphifyy 0.9.43 still drops
 promote lands. Nightly MemPalace mine force-includes the exact
 `git ls-files` set for `.properties`, SPI, Dockerfiles, plugin XML, and
 `.feature` via `--include-ignored` (#5119). A new suffix is `unclassified_unexpected` and fails
-`graphify_maintenance.py audit`. `knowledge_stores.py refresh` still refuses;
-status/search remain the ordinary-task path. See #5087.
+`graphify_maintenance.py audit`. `knowledge_stores.py refresh` delegates to
+`python3 .chaos-engine/tool.py stores refresh` and is allowed from any
+worktree. status/search remain the ordinary-task path. See #5087.
 
 Freshness behavior is pinned by `tests/scripts/test_resolve_graph_out.py`.

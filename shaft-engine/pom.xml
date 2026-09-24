@@ -680,7 +680,7 @@
                                         <exclude>ws.schild:jave-*</exclude>
                                         <exclude>com.automation-remarks:video-recorder-*</exclude>
                                         <exclude>org.openpnp:opencv</exclude>
-                                        <exclude>com.sikulix:sikulixapi</exclude>
+                                        <exclude>io.github.oculix-org:oculixapi</exclude>
                                         <exclude>com.applitools:eyes-images-java4</exclude>
                                         <exclude>com.assertthat:selenium-shutterbug</exclude>
                                     </excludes>

@@ -3837,6 +3837,69 @@ DOCTOR_SOFT_STATUSES = frozenset({
 })
 
 
+def _load_stores_module():
+    import runpy
+
+    return runpy.run_path(
+        str(Path(__file__).resolve().with_name("stores.py")),
+        run_name="_chaos_engine_install_stores",
+    )
+
+
+def _apply_shared_store_doctor(project: Path, components: object) -> None:
+    """Attach shared-cache freshness. A missing cache stays the setup plan."""
+    if not isinstance(components, dict):
+        return
+    try:
+        stores = _load_stores_module()
+    except (OSError, RuntimeError, ValueError):
+        return
+    graphify = components.get("graphify")
+    if isinstance(graphify, dict) and graphify.get("status") == "healthy":
+        try:
+            row = stores["graphify_doctor_row"](project)
+        except (OSError, RuntimeError, ValueError):
+            row = None
+        if isinstance(row, dict) and row.get("status") not in {None, "healthy"}:
+            graphify.update(row)
+    mempalace = components.get("mempalace")
+    if isinstance(mempalace, dict):
+        try:
+            note = stores["home_palace_note"]()
+        except (OSError, RuntimeError, ValueError):
+            note = ""
+        if note:
+            mempalace["homePalace"] = note
+
+
+def _refresh_shared_store(project: Path, component: str) -> str:
+    """Refresh one shared store after CLI repair. Failure does not undo the CLI repair."""
+    argv = " ".join(sys.argv)
+    if "unittest" in argv or "tests/scripts" in argv:
+        return "skipped-test"
+    try:
+        stores = _load_stores_module()
+        stores["refresh"](project, if_stale=True, components=frozenset({component}))
+    except (OSError, RuntimeError, ValueError) as error:
+        return f"skipped: {error}"
+    return "current"
+
+
+def _install_store_schedule(project: Path) -> None:
+    """Write the daily timer during a real install. Tests do not touch the user timer."""
+    if os.environ.get("CHAOS_ENGINE_STORE_SCHEDULE", "1").strip().casefold() in {
+        "0", "false", "no", "off",
+    }:
+        return
+    argv = " ".join(sys.argv)
+    if "unittest" in argv or "tests/scripts" in argv:
+        return
+    try:
+        _load_stores_module()["install_schedule"](project)
+    except (OSError, RuntimeError, ValueError):
+        return
+
+
 def component_escalates_overall(item: dict[str, object]) -> bool:
     """Return True when one component should flip overall doctor to recovery-required.
 
@@ -4018,6 +4081,7 @@ def attach_component_status(
         mempalace_state = host_controller.mempalace_runtime_status(project)
         if mempalace_state.get("status") != "healthy":
             components["mempalace"] = {**mempalace_state, **capabilities["mempalace"]}
+    _apply_shared_store_doctor(project, components)
     cache_state = host_controller.maven_tools_cache_status()
     components["maven-tools-mcp"] = {
         **cache_state,
@@ -5437,25 +5501,30 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
             account_receipt = project / ".chaos-engine-dependencies.json"
             if account_receipt.is_file() and hasattr(controller, "install_account_dependencies"):
                 controller.install_account_dependencies(project, specification, runner=runner)
-                return {
+                payload: dict[str, object] = {
                     "status": "repaired",
                     "component": name,
                     "action": "account-reinstall",
                 }
-            runtime = project / ".chaos-engine-runtime"
-            repair = getattr(controller, "repair", None)
-            if not callable(repair):
-                raise ValueError("dependency repair is unavailable in this distribution")
-            plan_runner = runner
-            if plan_runner is None or plan_runner is subprocess.run:
-                plan_runner = controller.run_command
-            receipt = repair(runtime, specification, runner=plan_runner, force=True)
-            return {
-                "status": "repaired",
-                "component": name,
-                "action": "runtime-repair",
-                "receiptStatus": receipt.get("status") if isinstance(receipt, dict) else None,
-            }
+            else:
+                runtime = project / ".chaos-engine-runtime"
+                repair = getattr(controller, "repair", None)
+                if not callable(repair):
+                    raise ValueError("dependency repair is unavailable in this distribution")
+                plan_runner = runner
+                if plan_runner is None or plan_runner is subprocess.run:
+                    plan_runner = controller.run_command
+                receipt = repair(runtime, specification, runner=plan_runner, force=True)
+                payload = {
+                    "status": "repaired",
+                    "component": name,
+                    "action": "runtime-repair",
+                    "receiptStatus": receipt.get("status") if isinstance(receipt, dict) else None,
+                }
+            if name in {"mempalace", "graphify"}:
+                payload["storeRefresh"] = _refresh_shared_store(project, name)
+                _install_store_schedule(project)
+            return payload
         raise ValueError(f"repair not implemented for component: {name}")
 
 
@@ -6090,6 +6159,7 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target), "bundle": bundle}
+            _install_store_schedule(args.project)
         elif args.command == "repair":
             result = repair_component(args.project, args.component)
         elif args.command == "cache":

@@ -685,7 +685,13 @@ def write_account_receipt(
 
 
 def mempalace_project_palace(project: Path) -> Path:
-    """Return the one project-owned sqlite_exact palace path."""
+    """Return the shared sqlite_exact palace, or the project palace outside Git."""
+    import runpy
+
+    path = Path(__file__).resolve().with_name("stores.py")
+    if path.is_file():
+        namespace = runpy.run_path(str(path), run_name="_chaos_engine_stores_palace")
+        return namespace["resolve_palace"](project)
     return project.resolve() / ".chaos-engine-state/mempalace"
 
 
@@ -739,7 +745,7 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     project = project.resolve()
     planned: list[list[str]] = []
     mempalace = commands.get("mempalace")
-    if mempalace and not (project / "tools/repository-map/resolve_mempalace.py").is_file():
+    if mempalace:
         configured = mempalace_project_configuration_exists(project)
         if configured and not mempalace_project_setup_complete(project):
             planned.append(mempalace_project_cli(mempalace, "mine", project))
@@ -747,8 +753,18 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
             planned.append(mempalace_project_cli(mempalace, "init", project))
     graphify = commands.get("graphify")
     if graphify:
-        if not (project / "graphify-out/graph.json").is_file():
-            planned.append([graphify, "extract", ".", "--code-only"])
+        graph_out = project / "graphify-out"
+        store_path = Path(__file__).resolve().with_name("stores.py")
+        if store_path.is_file():
+            import runpy
+
+            namespace = runpy.run_path(str(store_path), run_name="_chaos_engine_stores_graph")
+            graph_out = namespace["resolve_graph_out"](project)
+        if not (graph_out / "graph.json").is_file():
+            command = [graphify, "extract", ".", "--code-only"]
+            if graph_out.resolve() != (project / "graphify-out").resolve():
+                command.extend(["--out", str(graph_out.parent)])
+            planned.append(command)
     memory = commands.get("memory")
     if memory and not (project / ".memory/config.json").is_file():
         planned.append([memory, "init", "--no-view"])
@@ -1026,8 +1042,9 @@ def _run_project_setup_command(
 
     Windows reupgrade can launch graphify.exe for ``extract`` and get a
     non-zero exit with empty streams even though ``--version`` still works.
-    Retry once after clearing a partial graphify-out. If the launcher is
-    healthy, keep the upgrade moving; graphify output is derived data.
+    Retry once after clearing a partial graphify-out (including a shared
+    ``--out`` target). If the launcher is healthy, keep the upgrade moving;
+    graphify output is derived data.
     """
     try:
         return _run_account_command(
@@ -1047,6 +1064,13 @@ def _run_project_setup_command(
         ):
             raise
         partial = project / "graphify-out"
+        if "--out" in command:
+            try:
+                out_parent = Path(command[command.index("--out") + 1])
+            except (ValueError, IndexError):
+                out_parent = None
+            if out_parent is not None:
+                partial = out_parent / "graphify-out"
         if partial.exists() and not (partial / "graph.json").is_file():
             shutil.rmtree(partial, ignore_errors=True)
         try:

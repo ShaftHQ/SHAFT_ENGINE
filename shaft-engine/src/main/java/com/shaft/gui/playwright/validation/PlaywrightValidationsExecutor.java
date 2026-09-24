@@ -792,6 +792,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         Page evidencePage = attachScreenshot || attachPageSnapshot
                 ? resolveEvidencePage(outcome)
                 : null;
+        if (evidencePage == null) {
+            return attachments;
+        }
         if (attachScreenshot) {
             try {
                 byte[] screenshot = evidencePage.screenshot(new Page.ScreenshotOptions().setFullPage(true));
