@@ -113,5 +113,32 @@ class ReleaseNoteGovernanceSplitTest(unittest.TestCase):
         )
 
 
+class CodeqlScopeTest(unittest.TestCase):
+    """#6192: PR CodeQL only for Maven Java diffs; main and weekly stay unfiltered."""
+
+    def test_pull_request_paths_pin_maven_java_inputs(self) -> None:
+        trigger = load("security.yml")["on"]
+        self.assertEqual(
+            [
+                "**/*.java",
+                "**/pom.xml",
+                "**/src/main/resources/**",
+                ".mvn/**",
+                ".github/codeql/**",
+                ".github/workflows/security.yml",
+            ],
+            trigger["pull_request"]["paths"],
+        )
+        self.assertNotIn("paths-ignore", trigger["pull_request"])
+
+    def test_main_push_and_weekly_schedule_scan_everything(self) -> None:
+        trigger = load("security.yml")["on"]
+        self.assertNotIn("paths", trigger["push"])
+        self.assertEqual(["**.md"], trigger["push"].get("paths-ignore"))
+        self.assertEqual(["main"], trigger["push"]["branches"])
+        self.assertEqual(1, len(trigger["schedule"]))
+        self.assertIn("workflow_dispatch", trigger)
+
+
 if __name__ == "__main__":
     unittest.main()

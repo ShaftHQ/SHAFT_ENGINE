@@ -5,6 +5,10 @@ name: Security
 # CodeQL, which stays here rather than folding into pr-gate.yml because no
 # org-wide CodeQL default setup is configured for this repository.
 
+# Issue #6192: on pull requests CodeQL (java) runs only when a Maven Java input
+# changes (68 of 94 PR runs analysed unchanged Java). Every push to `main` is
+# still scanned, plus a weekly full scan, so every commit that can reach a
+# release (mavenCentral_cd.yml releases from `main`) is analysed first.
 on:
   push:
     branches: [ main ]
@@ -12,8 +16,15 @@ on:
       - '**.md'
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - '**.md'
+    paths:
+      - '**/*.java'
+      - '**/pom.xml'
+      - '**/src/main/resources/**'
+      - '.mvn/**'
+      - '.github/codeql/**'
+      - '.github/workflows/security.yml'
+  schedule:
+    - cron: '30 2 * * 0'
   workflow_dispatch:
 
 permissions:
