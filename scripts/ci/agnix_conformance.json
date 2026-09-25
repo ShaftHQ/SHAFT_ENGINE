@@ -11,7 +11,13 @@
     "reference": "docker.io/library/ubuntu@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea",
     "id": "sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea"
   },
-  "expected_files_checked": 273,
+  "files_checked_floor": {
+    "extensions": [
+      ".md"
+    ],
+    "minimum_percent": 90,
+    "reason": "Derived from the staged surface (#6221): agnix must check at least this share of staged Markdown and never more files than were staged, so ordinary ChaosEngine content changes do not need a contract edit."
+  },
   "artifacts": [
     {
       "platform": "linux-x86_64",
@@ -47,16 +53,7 @@
     "scripts/ci/agent_ownership.json",
     "scripts/agents"
   ],
-  "allowlisted_findings": [
-    {
-      "rule": "XML-001",
-      "level": "error",
-      "path": "fixtures/chaos-engine/references/work-github-playbook.md",
-      "message": "Unclosed XML tag '<n>'",
-      "expected_count": 1,
-      "reason": "The GitHub playbook uses <n> as a documented issue-number metavariable, not XML."
-    }
-  ],
+  "allowlisted_findings": [],
   "evaluation": {
     "corpus_url": "https://github.com/agent-sh/agnix/archive/3792c6cfdf2e56ddf205340fb5afe8f272218501.tar.gz",
     "corpus_sha256": "3105d9b29cbfda7f2f04aa86c16c2fae17def8b243943b61bb2fe89569ef1c4d",

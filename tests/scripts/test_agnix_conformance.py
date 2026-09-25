@@ -19,6 +19,7 @@ try:
         run_conformance,
         score_evaluation,
         stage_harness,
+        staged_file_counts,
         validate_contract,
     )
 except ImportError:
@@ -29,12 +30,22 @@ except ImportError:
     run_conformance = None
     score_evaluation = None
     stage_harness = None
+    staged_file_counts = None
     validate_contract = None
 
 
 ROOT = Path(__file__).resolve().parents[2]
 CMD = shutil.which("cmd") or "cmd"
 CONTRACT_PATH = ROOT / "scripts/ci/agnix_conformance.json"
+STAGED = {"candidates": 100, "total": 150}
+LEDGER_ENTRY = {
+    "rule": "XML-001",
+    "level": "error",
+    "path": "fixtures/chaos-engine/references/work-github-playbook.md",
+    "message": "Unclosed XML tag '<n>'",
+    "expected_count": 1,
+    "reason": "Synthetic ledger entry for the exact-count contract.",
+}
 
 
 class AgnixConformanceTest(unittest.TestCase):
@@ -63,10 +74,11 @@ class AgnixConformanceTest(unittest.TestCase):
             {artifact["platform"] for artifact in contract["artifacts"]},
             {"linux-x86_64", "macos-aarch64", "windows-x86_64"},
         )
-        self.assertEqual(
-            {(row["rule"], row["expected_count"]) for row in contract["allowlisted_findings"]},
-            {("XML-001", 1)},
-        )
+        # #6221: only real, still-present intentional findings may be listed.
+        self.assertEqual(contract["allowlisted_findings"], [])
+        self.assertEqual(contract["files_checked_floor"]["extensions"], [".md"])
+        self.assertEqual(contract["files_checked_floor"]["minimum_percent"], 90)
+        self.assertNotIn("expected_files_checked", contract)
 
     def test_contract_rejects_missing_sibling_bad_digest_unpinned_image_and_broad_allowlist(self):
         contract = load_contract(ROOT)
@@ -88,8 +100,28 @@ class AgnixConformanceTest(unittest.TestCase):
         floating_image["image"] = "ubuntu:24.04"
         mutations.append(floating_image)
         broad_allowlist = copy.deepcopy(contract)
-        broad_allowlist["allowlisted_findings"][0]["path"] = ""
+        broad_allowlist["allowlisted_findings"] = [dict(LEDGER_ENTRY, path="")]
         mutations.append(broad_allowlist)
+        zero_count = copy.deepcopy(contract)
+        zero_count["allowlisted_findings"] = [dict(LEDGER_ENTRY, expected_count=0)]
+        mutations.append(zero_count)
+        not_a_ledger = copy.deepcopy(contract)
+        not_a_ledger["allowlisted_findings"] = None
+        mutations.append(not_a_ledger)
+        exact_count_pin = copy.deepcopy(contract)
+        exact_count_pin.pop("files_checked_floor")
+        exact_count_pin["expected_files_checked"] = 273
+        mutations.append(exact_count_pin)
+        for bad_floor in (
+            {"extensions": [], "minimum_percent": 90, "reason": "r"},
+            {"extensions": ["md"], "minimum_percent": 90, "reason": "r"},
+            {"extensions": [".md"], "minimum_percent": 0, "reason": "r"},
+            {"extensions": [".md"], "minimum_percent": 101, "reason": "r"},
+            {"extensions": [".md"], "minimum_percent": 90, "reason": " "},
+        ):
+            floor = copy.deepcopy(contract)
+            floor["files_checked_floor"] = bad_floor
+            mutations.append(floor)
         traversal = copy.deepcopy(contract)
         traversal["staging_paths"][0] = "../outside"
         mutations.append(traversal)
@@ -126,24 +158,31 @@ class AgnixConformanceTest(unittest.TestCase):
             self.assertIn(required, rendered)
         self.assertIn(contract["image"]["reference"], command)
 
-    def test_only_exact_allowlisted_errors_pass_and_count_drift_fails(self):
+    def test_empty_ledger_is_valid_and_accepts_a_clean_run(self):
         contract = load_contract(ROOT)
-        diagnostics = []
-        for allowlist in contract["allowlisted_findings"]:
-            diagnostics.extend(
-                {
-                    "file": allowlist["path"],
-                    "rule": allowlist["rule"],
-                    "level": allowlist["level"],
-                    "message": allowlist["message"],
-                }
-                for _ in range(allowlist["expected_count"])
-            )
-
-        expected_files = contract["expected_files_checked"]
-        report = assess_diagnostics(
-            {"files_checked": expected_files, "diagnostics": diagnostics}, contract
+        self.assertEqual(validate_contract(contract), [])
+        report = assess_diagnostics({"files_checked": 95, "diagnostics": []}, contract, STAGED)
+        self.assertTrue(report["accepted"], report)
+        new_error = {"file": "AGENTS.md", "rule": "NEW-001", "level": "error", "message": "new"}
+        self.assertFalse(
+            assess_diagnostics({"files_checked": 95, "diagnostics": [new_error]}, contract, STAGED)["accepted"]
         )
+
+    def test_only_exact_allowlisted_errors_pass_and_count_drift_or_staleness_fails(self):
+        contract = load_contract(ROOT)
+        contract["allowlisted_findings"] = [dict(LEDGER_ENTRY, expected_count=2)]
+        self.assertEqual(validate_contract(contract), [])
+        diagnostics = [
+            {
+                "file": LEDGER_ENTRY["path"],
+                "rule": LEDGER_ENTRY["rule"],
+                "level": LEDGER_ENTRY["level"],
+                "message": LEDGER_ENTRY["message"],
+            }
+            for _ in range(2)
+        ]
+
+        report = assess_diagnostics({"files_checked": 95, "diagnostics": diagnostics}, contract, STAGED)
         self.assertTrue(report["accepted"])
         self.assertEqual(report["unexpected_errors"], [])
 
@@ -151,39 +190,56 @@ class AgnixConformanceTest(unittest.TestCase):
         nested_substitution[0]["file"] = "nested/" + nested_substitution[0]["file"]
         self.assertFalse(
             assess_diagnostics(
-                {"files_checked": expected_files, "diagnostics": nested_substitution}, contract
-            )["accepted"]
-        )
-        self.assertFalse(
-            assess_diagnostics(
-                {"files_checked": expected_files - 1, "diagnostics": diagnostics}, contract
+                {"files_checked": 95, "diagnostics": nested_substitution}, contract, STAGED
             )["accepted"]
         )
 
-        missing = assess_diagnostics(
-            {"files_checked": expected_files, "diagnostics": diagnostics[:-1]}, contract
-        )
+        missing = assess_diagnostics({"files_checked": 95, "diagnostics": diagnostics[:-1]}, contract, STAGED)
         self.assertFalse(missing["accepted"])
         self.assertTrue(missing["allowlist_count_mismatches"])
 
-        extra = copy.deepcopy(diagnostics)
-        extra.append(
-            {"file": "AGENTS.md", "rule": "NEW-001", "level": "error", "message": "new"}
+        # #6221: an entry whose finding no longer occurs is stale and fails.
+        stale = assess_diagnostics({"files_checked": 95, "diagnostics": []}, contract, STAGED)
+        self.assertFalse(stale["accepted"])
+        self.assertEqual(
+            stale["allowlist_count_mismatches"],
+            [{"rule": "XML-001", "path": LEDGER_ENTRY["path"], "expected": 2, "actual": 0}],
         )
+
+        extra = copy.deepcopy(diagnostics)
+        extra.append({"file": "AGENTS.md", "rule": "NEW-001", "level": "error", "message": "new"})
         self.assertFalse(
-            assess_diagnostics(
-                {"files_checked": expected_files, "diagnostics": extra}, contract
-            )["accepted"]
+            assess_diagnostics({"files_checked": 95, "diagnostics": extra}, contract, STAGED)["accepted"]
         )
         unknown_level = copy.deepcopy(diagnostics)
-        unknown_level.append(
-            {"file": "AGENTS.md", "rule": "NEW-002", "level": "critical", "message": "new"}
-        )
+        unknown_level.append({"file": "AGENTS.md", "rule": "NEW-002", "level": "critical", "message": "new"})
         self.assertFalse(
-            assess_diagnostics(
-                {"files_checked": expected_files, "diagnostics": unknown_level}, contract
-            )["accepted"]
+            assess_diagnostics({"files_checked": 95, "diagnostics": unknown_level}, contract, STAGED)["accepted"]
         )
+
+    def test_files_checked_floor_is_derived_from_the_staged_surface(self):
+        contract = load_contract(ROOT)
+        # 100 staged Markdown candidates at 90 % -> at least 90; at most the 150 staged files.
+        for files_checked, accepted in ((89, False), (90, True), (150, True), (151, False), (None, False)):
+            with self.subTest(files_checked=files_checked):
+                report = assess_diagnostics(
+                    {"files_checked": files_checked, "diagnostics": []}, contract, STAGED
+                )
+                self.assertEqual(report["accepted"], accepted, report)
+        # Growing ChaosEngine content moves the floor with it; no contract edit needed.
+        grown = {"candidates": 300, "total": 600}
+        self.assertTrue(assess_diagnostics({"files_checked": 290, "diagnostics": []}, contract, grown)["accepted"])
+        self.assertFalse(assess_diagnostics({"files_checked": 95, "diagnostics": []}, contract, grown)["accepted"])
+
+    def test_staged_file_counts_use_declared_extensions(self):
+        contract = load_contract(ROOT)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a").mkdir()
+            (root / "a/SKILL.md").write_text("x", encoding="utf-8")
+            (root / "README.MD").write_text("x", encoding="utf-8")
+            (root / "a/tool.py").write_text("x", encoding="utf-8")
+            self.assertEqual(staged_file_counts(root, contract), {"candidates": 2, "total": 3})
 
     def test_evaluation_floors_fail_closed_on_false_positive_or_negative(self):
         contract = load_contract(ROOT)
@@ -325,7 +381,7 @@ class AgnixConformanceTest(unittest.TestCase):
             1,
             json.dumps(
                 {
-                    "files_checked": contract["expected_files_checked"],
+                    "files_checked": 1,
                     "diagnostics": diagnostics,
                 }
             ),
@@ -355,6 +411,7 @@ class AgnixConformanceTest(unittest.TestCase):
             root = Path(directory)
             for name in ("candidate", "fixtures", "evaluation", "output"):
                 (root / name).mkdir()
+            (root / "fixtures/AGENTS.md").write_text("# fixture\n", encoding="utf-8")
             runner = mock.Mock(side_effect=[telemetry, lint, low_efficacy])
 
             report = run_conformance(

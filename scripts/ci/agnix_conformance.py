@@ -47,7 +47,7 @@ def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-clo
         "schema_version",
         "source",
         "image",
-        "expected_files_checked",
+        "files_checked_floor",
         "artifacts",
         "staging_paths",
         "allowlisted_findings",
@@ -92,8 +92,25 @@ def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-clo
         defects.append("image ID must be an immutable SHA-256 digest")
     if image.get("reference") != f'docker.io/library/ubuntu@{image.get("id")}':
         defects.append("image reference must pin the reviewed Ubuntu image by digest")
-    if type(contract.get("expected_files_checked")) is not int or contract.get("expected_files_checked", 0) <= 0:
-        defects.append("expected_files_checked must be a positive integer")
+    floor = contract.get("files_checked_floor")
+    if (
+        not isinstance(floor, dict)
+        or set(floor) != {"extensions", "minimum_percent", "reason"}
+        or not isinstance(floor.get("extensions"), list)
+        or not floor["extensions"]
+        or not all(
+            isinstance(extension, str) and re.fullmatch(r"\.[a-z0-9]+", extension)
+            for extension in floor["extensions"]
+        )
+        or len(set(floor["extensions"])) != len(floor["extensions"])
+        or type(floor.get("minimum_percent")) is not int
+        or not 1 <= floor["minimum_percent"] <= 100
+        or not isinstance(floor.get("reason"), str)
+        or not floor["reason"].strip()
+    ):
+        defects.append(
+            "files_checked_floor must declare lowercase extensions, an integer minimum_percent in 1..100 and a reason"
+        )
 
     artifacts = contract.get("artifacts")
     platforms: list[str] = []
@@ -135,8 +152,11 @@ def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-clo
         defects.append("staging_paths must be unique non-empty relative paths")
 
     allowlist = contract.get("allowlisted_findings")
-    if not isinstance(allowlist, list) or not allowlist:
-        defects.append("allowlisted_findings must be a non-empty exact ledger")
+    # #6221: the ledger lists only real, still-present intentional findings.
+    # Empty is the ideal state; a listed entry that matches nothing is stale and
+    # fails the exact-count assessment instead.
+    if not isinstance(allowlist, list):
+        defects.append("allowlisted_findings must be an exact ledger list")
         allowlist = []
     for index, finding in enumerate(allowlist):
         if not isinstance(finding, dict) or set(finding) != {
@@ -299,16 +319,40 @@ def build_trial_command(candidate_root: Path, fixtures_root: Path, output_root: 
     )
 
 
-def assess_diagnostics(payload: object, contract: dict) -> dict:
-    """Fail on any new error or drift in an exact false-positive fingerprint."""
+def staged_file_counts(fixtures_root: Path, contract: dict) -> dict:
+    """Count staged lint candidates (by declared extension) and all staged files."""
+    extensions = set(contract["files_checked_floor"]["extensions"])
+    files = [path for path in Path(fixtures_root).rglob("*") if path.is_file() and not path.is_symlink()]
+    return {
+        "candidates": sum(1 for path in files if path.suffix.lower() in extensions),
+        "total": len(files),
+    }
+
+
+def files_checked_bounds(contract: dict, staged: dict) -> dict:
+    """Derive the accepted files_checked range from what was actually staged (#6221).
+
+    The floor follows the staged surface, so ordinary ChaosEngine content
+    changes move it automatically; agnix silently skipping most inputs, or
+    scanning outside the fixtures, still fails.
+    """
+    percent = contract["files_checked_floor"]["minimum_percent"]
+    candidates = int(staged.get("candidates", 0))
+    return {
+        "minimum": max(1, -(-candidates * percent // 100)),
+        "maximum": int(staged.get("total", 0)),
+        "staged_candidates": candidates,
+    }
+
+
+def assess_diagnostics(payload: object, contract: dict, staged: dict) -> dict:
+    """Fail on any new error, a stale or drifted ledger entry, or an implausible file count."""
+    bounds = files_checked_bounds(contract, staged)
     if not isinstance(payload, dict) or not isinstance(payload.get("diagnostics"), list):
         return {
             "accepted": False,
             "files_checked": 0,
-            "files_checked_mismatch": {
-                "expected": contract.get("expected_files_checked"),
-                "actual": None,
-            },
+            "files_checked_mismatch": {**bounds, "actual": None},
             "diagnostics": 0,
             "unexpected_errors": [{"reason": "invalid agnix JSON payload"}],
             "allowlist_count_mismatches": [],
@@ -355,8 +399,8 @@ def assess_diagnostics(payload: object, contract: dict) -> dict:
     files_checked = payload.get("files_checked")
     files_checked_mismatch = (
         None
-        if files_checked == contract["expected_files_checked"]
-        else {"expected": contract["expected_files_checked"], "actual": files_checked}
+        if type(files_checked) is int and bounds["minimum"] <= files_checked <= bounds["maximum"]
+        else {**bounds, "actual": files_checked}
     )
     return {
         "accepted": not unexpected and not mismatches and files_checked_mismatch is None,
@@ -466,7 +510,7 @@ def run_conformance(
         check=False,
     )
     payload = _json_object_from_output(lint.stdout)
-    assessment = assess_diagnostics(payload, contract)
+    assessment = assess_diagnostics(payload, contract, staged_file_counts(Path(fixtures_root), contract))
     evaluation_process = runner(  # nosec B603 - argv is fixed after contract validation.
         _trial_command(
             candidate_root,
