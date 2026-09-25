@@ -21,7 +21,7 @@ Never push one tip per micro-fix when fresh-installer paths are implicated. Squa
 
 ## macOS installer opt-in (#6187)
 
-PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos` in the `gh pr create` step when a PR touches `chaos-engine/install.sh`, macOS-only installer branches, or `chaos-engine/distributions.json`. Without the label macOS runs post-merge on `main` (never cancelled; a red leg files a `ci-main-red` issue and a revert PR) and daily. PR Gate reads labels live and ignores label events (#6190), so a label added after the push needs `gh run rerun <id>` on the PR Gate run; label edits alone re-run only Release-note governance.
+PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos` in the `gh pr create` step when a PR touches `chaos-engine/install.sh`, macOS-only installer branches, or `chaos-engine/distributions.json`. Without the label macOS runs post-merge on `main` (never cancelled; a red leg files a `ci-main-red` issue and a revert PR) and daily. PR Gate reads labels live and ignores label events (#6190); adding the label later re-runs the newest PR Gate run automatically (`installer-macos-rerun.yml`, #6208; fork PRs need a manual `gh run rerun <id>`).
 
 ## Bandit B607 (#6165)
 

@@ -530,7 +530,7 @@ class GraphifyMaintenanceTest(TestCase):
                 )
             except subprocess.CalledProcessError as error:
                 raise RuntimeError(
-                    f"Graphify {name} stage failed with exit {error.returncode}"
+                    f"Graphify {name} stage failed with exit {error.returncode}: {error.stderr}"
                 ) from error
 
         refresh_error = None

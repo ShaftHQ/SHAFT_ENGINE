@@ -188,7 +188,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 "run",
                 return_value=SimpleNamespace(stdout="/repo/.git\n"),
             ):
-                self.assertEqual(Path("/repo"), module.shared_project_root(worktree))
+                # Windows resolves "/repo" onto the worktree's drive (#6205).
+                self.assertEqual((worktree / "/repo").resolve(), module.shared_project_root(worktree))
 
             resolver.unlink()
             self.assertEqual(worktree.resolve(), module.shared_project_root(worktree))
@@ -262,7 +263,9 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
     def test_resolve_command_applies_origin_main_policy_before_dispatch(self):
         module = load_tool()
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary)
+            # macOS temp dirs are /var -> /private/var symlinks; the code
+            # resolves the project, so compare against the resolved path (#6205).
+            project = Path(temporary).resolve()
             core = project / ".chaos-engine"
             core.mkdir()
             (core / "dependencies.py").write_text(
@@ -683,12 +686,11 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.symlink_or_skip(root / "private", lexical_parent)
             lexical_home = lexical_parent / "person"
 
-            receipt = module.sanitize_receipt(
-                {"executable": str(lexical_home / ".local/bin/node")},
-                home=lexical_home,
-            )
+            executable = str(lexical_home / ".local/bin/node")
+            receipt = module.sanitize_receipt({"executable": executable}, home=lexical_home)
 
-        self.assertEqual("<home>/.local/bin/node", receipt["executable"])
+        # Only the home prefix is replaced; the remainder keeps the OS separator (#6205).
+        self.assertEqual("<home>" + executable[len(str(lexical_home)):], receipt["executable"])
 
     def test_account_discovery_rejects_project_local_generation_executables(self):
         module = load_controller()
@@ -814,9 +816,11 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             calls.append(command)
             return SimpleNamespace(returncode=0, stdout="/usr/local\n", stderr="")
 
-        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
-            module.Path, "home", return_value=Path(temporary)
+        with tempfile.TemporaryDirectory() as raw, mock.patch.object(
+            module.Path, "home", return_value=Path(raw).resolve()
         ), mock.patch.object(module.os, "access", return_value=False):
+            # Resolve the macOS /var -> /private/var temp symlink first (#6205).
+            temporary = str(Path(raw).resolve())
             prefix = module.require_user_writable_npm_prefix(
                 "/usr/bin/npm", Path(temporary), runner=runner
             )

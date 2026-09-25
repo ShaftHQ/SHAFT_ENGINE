@@ -112,7 +112,7 @@ def isolate_stop_rules(
 
 
 class ReflectionCheckpointContractTest(unittest.TestCase):
-    """The third attempted failure opens a reflection checkpoint (#6150)."""
+    """#5001: the third attempted failure opens a reflection checkpoint."""
 
     def test_second_failure_in_one_task_requires_reflection(self):
         with tempfile.TemporaryDirectory() as temporary:

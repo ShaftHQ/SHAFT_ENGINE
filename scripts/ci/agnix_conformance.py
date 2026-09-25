@@ -406,6 +406,17 @@ def score_evaluation(payload: object, contract: dict) -> dict:
     }
 
 
+def _make_world_readable(root: Path) -> None:
+    """Let the unprivileged quarantine container read the disposable fixtures.
+
+    The generated overlay writes private (0600) host adapters; agnix runs as a
+    different uid inside the container and reported them as unreadable (#6205).
+    """
+    for path in (root, *root.rglob("*")):
+        if not path.is_symlink():
+            path.chmod(0o755 if path.is_dir() else 0o644)
+
+
 def _json_object_from_output(output: str) -> object:
     """Decode the first JSON object from agnix output that may include status prose."""
     start = output.find("{")
@@ -431,6 +442,8 @@ def run_conformance(
     defects = validate_contract(contract)
     if defects:
         raise ValueError("invalid agnix contract: " + "; ".join(defects))
+    if Path(fixtures_root).is_dir():
+        _make_world_readable(Path(fixtures_root))
     telemetry_command = _trial_command(
         candidate_root,
         fixtures_root,
