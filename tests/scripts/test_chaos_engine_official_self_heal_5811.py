@@ -22,6 +22,67 @@ def load(path: Path, name: str):
     return module
 
 
+class MemoryStoreDataIsNotHealedByReinstall6234Test(unittest.TestCase):
+    """#6234: a schema-invalid Memory store stays unhealthy; reinstalling the CLI cannot fix data."""
+
+    def test_schema_failure_gets_its_own_code(self):
+        hosts = load(HOSTS, "ce_hosts_store_schema_6234")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            tool = project / ".chaos-engine/tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text(
+                "import json, sys\n"
+                "print(json.dumps({'ok': False, 'error': {'code': 'MemorySchemaValidationFailed',"
+                " 'details': {'issues': [{'path': '.memory/memory/gotchas/x.json',"
+                " 'field': '/evidence/0/kind'}]}}}))\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            status = hosts.retrieval_runtime_status(project)
+        self.assertEqual("recovery-required", status["status"])
+        self.assertEqual("memory-store-schema-invalid", status["code"])
+        self.assertIn(".memory/memory/gotchas/x.json", status["reason"])
+
+    def test_doctor_does_not_mark_store_data_healed(self):
+        module = load(HEAL, "ce_official_self_heal_store_6234")
+        for code in ("memory-store-schema-invalid", "memory-check-invalid-store"):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as temporary:
+                project = Path(temporary)
+                (project / ".chaos-engine-state").mkdir(parents=True)
+                result = {
+                    "status": "recovery-required",
+                    "components": {
+                        "memory": {
+                            "status": "recovery-required",
+                            "taskImpact": "advisory",
+                            "code": code,
+                        },
+                        "mempalace": {"status": "healthy", "taskImpact": "advisory"},
+                        "graphify": {"status": "healthy", "taskImpact": "advisory"},
+                    },
+                }
+                repairs = []
+
+                def fake_repair(proj, name, **_kwargs):
+                    repairs.append(name)
+                    return {"status": "repaired", "component": name}
+
+                summary = module.apply_doctor_official_self_heal(
+                    result,
+                    project,
+                    rematerialize=lambda _p, names=None: {"status": "healthy"},
+                    repair=fake_repair,
+                    bundle={name: True for name in ("memory", "mempalace", "graphify", "caveman", "ponytail")},
+                )
+                memory = result["components"]["memory"]
+                self.assertEqual([], [name for name in repairs if name == "memory"])
+                self.assertNotIn("memory", summary["healed"])
+                self.assertEqual("recovery-required", memory["status"])
+                self.assertIn("memory check --json", memory["fixNext"])
+                self.assertEqual("recovery-required", result["status"])
+
+
 class OfficialSelfHeal5811Test(unittest.TestCase):
     def test_inventory_covers_bundle_and_companions(self):
         module = load(HEAL, "ce_official_self_heal_inv")

@@ -804,7 +804,7 @@ class MemoryIntegrityTest(unittest.TestCase):
         return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
     def write_object(
-        self, name, body, *, created, updated=None, hash_body=None, scope=None
+        self, name, body, *, created, updated=None, hash_body=None, scope=None, evidence=None
     ):
         """Write one hash-correct object; `hash_body` fakes a pre-edit body."""
         relative_body = f"memory/gotchas/{name}.md"
@@ -820,6 +820,8 @@ class MemoryIntegrityTest(unittest.TestCase):
             "type": "gotcha",
             "updated_at": updated or created,
         }
+        if evidence is not None:
+            sidecar["evidence"] = evidence
         sidecar["content_hash"] = self.expected_hash(
             sidecar, hash_body if hash_body is not None else body
         )
@@ -1039,6 +1041,26 @@ class MemoryIntegrityTest(unittest.TestCase):
         )
         (self.root / ".memory" / sidecar["body_path"]).unlink()
         self.assertEqual(self.codes(), ["memory-body-missing"])
+
+    def test_evidence_kind_outside_the_memory_schema_fails_the_gate(self):
+        # #6234: `kind: "issue"` passed --skip-external while `memory status` failed
+        # with MemorySchemaValidationFailed on the same object.
+        self.write_object(
+            "issuekind",
+            "An object citing an issue with a kind the CLI rejects.",
+            created="2026-08-01T10:00:00+03:00",
+            evidence=[{"id": "6133", "kind": "issue"}],
+        )
+        self.assertEqual(self.codes(), ["memory-evidence-kind"])
+
+    def test_evidence_kinds_the_memory_schema_allows_pass(self):
+        self.write_object(
+            "taskkind",
+            "An object citing an issue URL as a task.",
+            created="2026-08-01T10:00:00+03:00",
+            evidence=[{"id": "https://github.com/o/n/issues/1", "kind": "task"}],
+        )
+        self.assertEqual(self.codes(), [])
 
     def test_the_live_store_satisfies_both_invariants(self):
         # The recipe's real proof: every stored hash was written by the

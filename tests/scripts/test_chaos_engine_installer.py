@@ -4790,5 +4790,69 @@ class ReceiptShimWiring6230Test(unittest.TestCase):
             self.assertIn(pattern, hosts.ORIGIN_OVERLAY_PATTERNS)
 
 
+class StaleGraphRefreshOnInstall6234Test(unittest.TestCase):
+    """#6234: an update + reinstall refreshes a stale shared graph instead of leaving 17/18."""
+
+    def stores(self, row):
+        calls = []
+        return calls, {
+            "graphify_doctor_row": lambda _project: row,
+            "refresh": lambda project, **kwargs: calls.append(kwargs),
+        }
+
+    def test_stale_graph_is_refreshed(self):
+        calls, stores = self.stores({"status": "degraded", "detail": "stale"})
+        self.assertEqual("refreshed", MODULE.refresh_stale_graph(Path("."), stores=stores))
+        self.assertEqual([{"if_stale": True, "components": frozenset({"graphify"})}], calls)
+
+    def test_fresh_or_absent_graph_is_left_alone(self):
+        for row, expected in (({"status": "healthy"}, "current"), (None, "absent")):
+            with self.subTest(expected=expected):
+                calls, stores = self.stores(row)
+                self.assertEqual(expected, MODULE.refresh_stale_graph(Path("."), stores=stores))
+                self.assertEqual([], calls)
+
+    def test_refresh_failure_never_fails_the_install(self):
+        def boom(_project, **_kwargs):
+            raise RuntimeError("graphify unavailable")
+
+        stores = {"graphify_doctor_row": lambda _p: {"status": "degraded"}, "refresh": boom}
+        self.assertTrue(MODULE.refresh_stale_graph(Path("."), stores=stores).startswith("skipped"))
+
+    def test_install_refreshes_a_stale_graph_after_wiring(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            specification = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
+            controller = SimpleNamespace(
+                load_specification=lambda _path: specification,
+                install_account_dependencies=mock.Mock(
+                    return_value={
+                        "schemaVersion": 2,
+                        "components": {},
+                        "commands": {
+                            "memory-mcp": "/user/bin/memory-mcp",
+                            "mempalace-mcp": "/user/bin/mempalace-mcp",
+                            "node": "/user/bin/node",
+                            "python3": "/user/bin/python3.14",
+                        },
+                    }
+                ),
+            )
+            order = []
+            with (
+                mock.patch.object(MODULE, "load_dependency_controller", return_value=controller),
+                mock.patch.object(MODULE.shutil, "which", return_value=None),
+                mock.patch.object(MODULE, "_running_under_tests", return_value=False),
+                mock.patch.object(
+                    MODULE, "wire_receipt_shims", side_effect=lambda *_a, **_k: order.append("shims")
+                ),
+                mock.patch.object(
+                    MODULE, "refresh_stale_graph", side_effect=lambda p: order.append(("graph", p))
+                ),
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, with_maven_tools=False)
+            self.assertEqual(["shims", ("graph", project)], order)
+
 if __name__ == "__main__":
     unittest.main()

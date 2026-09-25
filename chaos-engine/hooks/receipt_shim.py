@@ -203,7 +203,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "install":
         print(install((args.project or Path.cwd()).resolve(), host))
         return 0
-    raw = "" if sys.stdin is None or sys.stdin.isatty() else sys.stdin.read()
+    # Only the Cursor hook sends a JSON payload; any other host would wait on an open pipe (#6234).
+    reads_payload = host == "cursor" and sys.stdin is not None and not sys.stdin.isatty()
+    raw = sys.stdin.read() if reads_payload else ""
     project = args.project or _project_from_payload(raw, Path.cwd())
     try:
         ensure_receipt(project.resolve(), host)

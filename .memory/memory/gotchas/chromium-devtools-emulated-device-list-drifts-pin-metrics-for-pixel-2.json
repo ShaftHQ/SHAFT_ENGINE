@@ -1,15 +1,15 @@
 {
   "body_path": "memory/gotchas/chromium-devtools-emulated-device-list-drifts-pin-metrics-for-pixel-2.md",
-  "content_hash": "sha256:925c348b5abb7c7b49c2999ed4c279d421f92ba37e879864160e510f1a9cc963",
+  "content_hash": "sha256:c893905ebe085f5f86fac72873f1c320c78c6b0797989a5e283428cf140ae340",
   "created_at": "2026-09-24T18:05:00+03:00",
   "evidence": [
     {
-      "id": "6133",
-      "kind": "issue"
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/6133",
+      "kind": "task"
     },
     {
-      "id": "6132",
-      "kind": "issue"
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/6132",
+      "kind": "task"
     }
   ],
   "id": "gotcha.chromium-devtools-emulated-device-list-drifts-pin-metrics-for-pixel-2",
