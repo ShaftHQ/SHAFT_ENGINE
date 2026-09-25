@@ -10,6 +10,7 @@ the two offending tests.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 import subprocess  # nosec B404 - tests drive local git/python on temp fixtures.
@@ -130,9 +131,7 @@ class PytestRepoStateGuardTest(FixtureRepository):
 
     def setUp(self):
         super().setUp()
-        try:
-            import pytest  # noqa: F401
-        except ImportError:
+        if importlib.util.find_spec("pytest") is None:
             self.skipTest("pytest is not installed")
         suite = self.main / "tests" / "scripts"
         suite.mkdir(parents=True)

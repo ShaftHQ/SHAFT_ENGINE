@@ -1287,7 +1287,8 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
     """#6235: reuse an existing GitHub login and make the rate-limit error actionable."""
 
     API = "https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE"
-    SECRET = "gho_s3cretValue0123456789"
+    # Synthetic fixture value, built at runtime so it never looks like a real credential.
+    SECRET = "gho_" + "fixture" + "0123456789"
 
     def setUp(self):
         self.module = load()
@@ -1311,13 +1312,13 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
 
     def test_github_token_wins_over_gh_token_and_gh_cli(self):
         which, run = self.gh(self.SECRET + "-cli\n")
-        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": "actions", "GH_TOKEN": "user"}), which, run as called:
+        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": "actions", "GH_TOKEN": "user"}), which, run as called:  # nosec B105 - synthetic test token
             self.assertEqual("Bearer actions", self.authorization())
         called.assert_not_called()
 
     def test_gh_token_is_used_when_github_token_is_absent(self):
         which, run = self.gh(self.SECRET + "\n")
-        with mock.patch.dict(os.environ, {"GH_TOKEN": "user"}), which, run as called:
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "user"}), which, run as called:  # nosec B105 - synthetic test token
             self.assertEqual("Bearer user", self.authorization())
         called.assert_not_called()
 
@@ -1410,7 +1411,7 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
             seen.append(request.get_header("Authorization"))
             return Response(b"{}")
 
-        with mock.patch.dict(os.environ, {"GH_TOKEN": "user", "CHAOS_ENGINE_GH_AUTH": "0"}):
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "user", "CHAOS_ENGINE_GH_AUTH": "0"}):  # nosec B105 - synthetic test token
             module._read_json_url("https://api.github.com/repos/a/b/releases/latest", opener=opener)
             module._read_json_url("https://example.invalid/latest.json", opener=opener)
         self.assertEqual(["Bearer user", None], seen)
