@@ -103,6 +103,7 @@ def default_branch_name(root: Path) -> str:
             if probe.returncode == 0:
                 return name
     except (OSError, ValueError):
+        # No git or no probe: fall back to the first documented default below.
         pass
     return DEFAULT_BRANCH_FALLBACKS[0]
 
