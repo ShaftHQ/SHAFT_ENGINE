@@ -38,6 +38,25 @@ def load_contract(root: Path = ROOT) -> dict:
     return json.loads((Path(root) / CONTRACT_PATH).read_text(encoding="utf-8"))
 
 
+def _is_int(value: object) -> bool:
+    """Return whether ``value`` is a real integer (bool excluded)."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _valid_floor(floor: object) -> bool:
+    """Return whether ``files_checked_floor`` is well formed (#6221)."""
+    if not isinstance(floor, dict) or set(floor) != {"extensions", "minimum_percent", "reason"}:
+        return False
+    extensions = floor["extensions"]
+    if not isinstance(extensions, list) or not extensions or len(set(map(str, extensions))) != len(extensions):
+        return False
+    if not all(isinstance(extension, str) and re.fullmatch(r"\.[a-z0-9]+", extension) for extension in extensions):
+        return False
+    percent = floor["minimum_percent"]
+    reason = floor["reason"]
+    return _is_int(percent) and 1 <= percent <= 100 and isinstance(reason, str) and bool(reason.strip())
+
+
 def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-closed schema validation stays linear.
     """Return deterministic defects for one agnix contract."""
     defects: list[str] = []
@@ -92,22 +111,7 @@ def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-clo
         defects.append("image ID must be an immutable SHA-256 digest")
     if image.get("reference") != f'docker.io/library/ubuntu@{image.get("id")}':
         defects.append("image reference must pin the reviewed Ubuntu image by digest")
-    floor = contract.get("files_checked_floor")
-    if (
-        not isinstance(floor, dict)
-        or set(floor) != {"extensions", "minimum_percent", "reason"}
-        or not isinstance(floor.get("extensions"), list)
-        or not floor["extensions"]
-        or not all(
-            isinstance(extension, str) and re.fullmatch(r"\.[a-z0-9]+", extension)
-            for extension in floor["extensions"]
-        )
-        or len(set(floor["extensions"])) != len(floor["extensions"])
-        or type(floor.get("minimum_percent")) is not int
-        or not 1 <= floor["minimum_percent"] <= 100
-        or not isinstance(floor.get("reason"), str)
-        or not floor["reason"].strip()
-    ):
+    if not _valid_floor(contract.get("files_checked_floor")):
         defects.append(
             "files_checked_floor must declare lowercase extensions, an integer minimum_percent in 1..100 and a reason"
         )
@@ -330,7 +334,8 @@ def staged_file_counts(fixtures_root: Path, contract: dict) -> dict:
 
 
 def files_checked_bounds(contract: dict, staged: dict) -> dict:
-    """Derive the accepted files_checked range from what was actually staged (#6221).
+    """
+    Derive the accepted files_checked range from what was actually staged (#6221).
 
     The floor follows the staged surface, so ordinary ChaosEngine content
     changes move it automatically; agnix silently skipping most inputs, or
@@ -399,7 +404,7 @@ def assess_diagnostics(payload: object, contract: dict, staged: dict) -> dict:
     files_checked = payload.get("files_checked")
     files_checked_mismatch = (
         None
-        if type(files_checked) is int and bounds["minimum"] <= files_checked <= bounds["maximum"]
+        if _is_int(files_checked) and bounds["minimum"] <= files_checked <= bounds["maximum"]
         else {**bounds, "actual": files_checked}
     )
     return {

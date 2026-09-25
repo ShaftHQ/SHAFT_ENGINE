@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fail when the ChaosEngine plugin CHANGELOG/COMPATIBILITY miss the engine version (#6222).
+"""
+Fail when the ChaosEngine plugin CHANGELOG/COMPATIBILITY miss the engine version (#6222).
 
 The portable plugin is versioned by the root ``pom.xml`` project version. A
 release PR that bumps it must also add ``## <version>`` to the plugin
@@ -41,7 +42,7 @@ def defects(root: Path) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").strip().splitlines()[0])
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     args = parser.parse_args(argv)
     problems = defects(args.root)
