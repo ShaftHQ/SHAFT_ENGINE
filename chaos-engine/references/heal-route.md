@@ -22,8 +22,9 @@ points here; do not require plugin activation to heal.
    success-with-agent-prompt, agentic one-liner) and
    [`installer-program-executable-spec.md`](installer-program-executable-spec.md)
 
-GitHub `403` rate limit on install or bootstrap means the anonymous API quota
-is spent: export `GITHUB_TOKEN="$(gh auth token)"` and rerun the same command.
+`CE-GITHUB-RATE-LIMIT` means the GitHub API quota is spent. The bootstrap
+already uses `GITHUB_TOKEN`, `GH_TOKEN`, or a signed-in `gh`; otherwise run
+`gh auth login` or export `GITHUB_TOKEN="$(gh auth token)"` and rerun.
 
 ## When marketplace plugin is absent
 

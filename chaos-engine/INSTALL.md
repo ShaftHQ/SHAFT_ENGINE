@@ -232,7 +232,12 @@ reparse trees stay fail-closed. Uninstall and rollback of a still-drifted tree
 also stay fail-closed. Generated `__pycache__` files are not treated as
 ownership drift. The bootstrap retries
 transient timeout, connection, rate-limit, and server responses with bounded
-backoff, while permanent client errors fail immediately.
+backoff, while permanent client errors fail immediately. GitHub requests
+authenticate with `GITHUB_TOKEN`, then `GH_TOKEN`, then a signed-in `gh`
+(`gh auth token`, bounded; `CHAOS_ENGINE_GH_AUTH=0` disables it), else run
+anonymously. The token is never printed or written. A spent quota fails with
+`CE-GITHUB-RATE-LIMIT`, the reset time, and the fix: `gh auth login` or
+`export GITHUB_TOKEN="$(gh auth token)"`.
 
 Installations created before distribution-bound manifests are reported as
 `legacy`. To prevent repository-specific content from surviving in a backup,

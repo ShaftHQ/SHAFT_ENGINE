@@ -360,10 +360,39 @@ def prerequisite_command_plan(
     return plan
 
 
+_GH_CLI_TOKEN: list[str | None] = []
+
+
+def _github_api_token() -> str | None:
+    """#6235: same order as bootstrap: GITHUB_TOKEN, GH_TOKEN, bounded `gh auth token`."""
+    for key in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    if os.environ.get("CHAOS_ENGINE_GH_AUTH", "").strip().casefold() in {"0", "false", "no", "off"}:
+        return None
+    if not _GH_CLI_TOKEN:
+        token = None
+        executable = shutil.which("gh")
+        if executable:
+            try:
+                completed = subprocess.run(  # nosec B603 - resolved gh binary, fixed argv.
+                    [executable, "auth", "token", "--hostname", "github.com"],
+                    stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=5, check=False,
+                )
+                value = (completed.stdout or "").strip()
+                if completed.returncode == 0 and value and not any(c.isspace() for c in value):
+                    token = value
+            except (OSError, subprocess.SubprocessError, ValueError):
+                token = None
+        _GH_CLI_TOKEN.append(token)
+    return _GH_CLI_TOKEN[0]
+
+
 def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
     headers = {"Accept": "application/json", "User-Agent": "ChaosEngine-installer"}
-    github_token = os.environ.get("GITHUB_TOKEN")
-    if github_token and url.startswith("https://api.github.com/"):
+    github_token = _github_api_token() if url.startswith("https://api.github.com/") else None
+    if github_token:
         headers["Authorization"] = f"Bearer {github_token}"
     request = urllib.request.Request(
         url,

@@ -16,6 +16,7 @@ import re
 import shlex
 import runpy
 import shutil
+import subprocess  # nosec B404 - fixed `gh auth token` argv, never a shell.
 import sys
 import tempfile
 import textwrap
@@ -1570,12 +1571,95 @@ def parse_retry_after(value: str) -> float | None:
     return delay
 
 
+GITHUB_TOKEN_HOSTS = frozenset(
+    {"api.github.com", "github.com", "codeload.github.com", "raw.githubusercontent.com"}
+)
+GH_AUTH_TIMEOUT_SECONDS = 5
+RATE_LIMIT_FAILURE = "GitHub API rate limit reached"
+_GH_CLI_TOKEN: list[str | None] = []
+_GH_CLI_LOCK = threading.Lock()
+
+
+def _gh_cli_token() -> str | None:
+    """`gh auth token` once per process, bounded; None when gh is absent or signed out."""
+    if os.environ.get("CHAOS_ENGINE_GH_AUTH", "").strip().casefold() in {"0", "false", "no", "off"}:
+        return None
+    with _GH_CLI_LOCK:
+        if not _GH_CLI_TOKEN:
+            _GH_CLI_TOKEN.append(_read_gh_cli_token())
+        return _GH_CLI_TOKEN[0]
+
+
+def _read_gh_cli_token() -> str | None:
+    executable = shutil.which("gh")
+    if not executable:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - resolved gh binary, fixed argv.
+            [executable, "auth", "token", "--hostname", "github.com"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=GH_AUTH_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    token = (completed.stdout or "").strip()
+    if completed.returncode != 0 or not token or any(character.isspace() for character in token):
+        return None
+    return token
+
+
+def github_request_token() -> tuple[str | None, str]:
+    """#6235: GITHUB_TOKEN, then GH_TOKEN, then `gh auth token`, else anonymous.
+
+    Returns the token and the name of its source. The value is only ever put
+    in an Authorization header; it is never printed, traced, or written.
+    """
+    for key in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip(), key
+    token = _gh_cli_token()
+    return (token, "gh auth token") if token else (None, "anonymous")
+
+
 def request(url: str) -> urllib.request.Request:
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "ChaosEngine-bootstrap"}
-    token = os.environ.get("GITHUB_TOKEN")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    if (urllib.parse.urlsplit(url).hostname or "").casefold() in GITHUB_TOKEN_HOSTS:
+        token, _source = github_request_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
     return urllib.request.Request(url, headers=headers)
+
+
+def rate_limit_failure(error: BaseException, url: str) -> str | None:
+    """Actionable message for a GitHub 403/429 whose quota is spent, else None."""
+    if not isinstance(error, urllib.error.HTTPError) or error.code not in {403, 429}:
+        return None
+    headers = error.headers
+    if headers is None or str(headers.get("X-RateLimit-Remaining", "")).strip() != "0":
+        return None
+    reset = str(headers.get("X-RateLimit-Reset", "")).strip()
+    when = ""
+    if reset.isdigit():
+        minutes = max(0, round((int(reset) - time.time()) / 60))
+        when = f"; it resets at {time.strftime('%H:%M UTC', time.gmtime(int(reset)))} (in about {minutes} min)"
+    host = urllib.parse.urlsplit(url).hostname or "GitHub"
+    _token, source = github_request_token()
+    if source == "anonymous":
+        return (
+            f"{RATE_LIMIT_FAILURE}: the anonymous quota for {host} is spent{when}. "
+            'Fix: export GITHUB_TOKEN="$(gh auth token)" '
+            "(PowerShell: $env:GITHUB_TOKEN = gh auth token), or run `gh auth login` "
+            "so the installer uses your GitHub login automatically; then rerun the same install command."
+        )
+    return (
+        f"{RATE_LIMIT_FAILURE}: the quota of the token from {source} for {host} is spent{when}. "
+        "Fix: wait for the reset, or export GITHUB_TOKEN with a different token; "
+        "then rerun the same install command."
+    )
 
 
 def valid_branch(branch: str) -> bool:
@@ -1641,6 +1725,9 @@ def read_response(
                 if isinstance(error, urllib.error.HTTPError):
                     error.close()
             if delay is None or attempt + 1 == MAX_READ_ATTEMPTS:
+                limited = rate_limit_failure(error, url)
+                if limited is not None:
+                    raise RuntimeError(limited) from error
                 raise RuntimeError(
                     "unable to resolve latest ChaosEngine from the configured upstream"
                 ) from error
@@ -2137,6 +2224,8 @@ def classify_install_error(error: BaseException) -> str:
         return "CE-INSTALL-UNSUPPORTED-PLATFORM"
     if "entrypoint probe failed" in detail:
         return "CE-INSTALL-PROBE-FAILED"
+    if RATE_LIMIT_FAILURE in detail:
+        return "CE-GITHUB-RATE-LIMIT"
     return "CE-INSTALL-FAILED"
 
 
@@ -2302,6 +2391,12 @@ def emit_install_failure(
         if isinstance(error, InstallHealthError) or "doctor did not report" in cause:
             print(
                 "Next fix: paste the heal prompt below into any supported host in this folder.",
+                file=sys.stderr,
+            )
+        elif code == "CE-GITHUB-RATE-LIMIT":
+            print(
+                'Next fix: export GITHUB_TOKEN="$(gh auth token)" (or GH_TOKEN, or run '
+                "`gh auth login`), then rerun the same install one-liner.",
                 file=sys.stderr,
             )
         elif "checksum" in cause:
