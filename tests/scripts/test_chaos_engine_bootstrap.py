@@ -1288,7 +1288,7 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
 
     API = "https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE"
     # Synthetic fixture value, built at runtime so it never looks like a real credential.
-    SECRET = "gho_" + "fixture" + "0123456789"
+    FIXTURE_VALUE = "gho_" + "fixture" + "0123456789"
 
     def setUp(self):
         self.module = load()
@@ -1311,22 +1311,22 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
         return self.module.request(url).get_header("Authorization")
 
     def test_github_token_wins_over_gh_token_and_gh_cli(self):
-        which, run = self.gh(self.SECRET + "-cli\n")
+        which, run = self.gh(self.FIXTURE_VALUE + "-cli\n")
         with mock.patch.dict(os.environ, {"GITHUB_TOKEN": "actions", "GH_TOKEN": "user"}), which, run as called:  # nosec B105 - synthetic test token
             self.assertEqual("Bearer actions", self.authorization())
         called.assert_not_called()
 
     def test_gh_token_is_used_when_github_token_is_absent(self):
-        which, run = self.gh(self.SECRET + "\n")
+        which, run = self.gh(self.FIXTURE_VALUE + "\n")
         with mock.patch.dict(os.environ, {"GH_TOKEN": "user"}), which, run as called:  # nosec B105 - synthetic test token
             self.assertEqual("Bearer user", self.authorization())
         called.assert_not_called()
 
     def test_gh_auth_token_is_used_automatically_with_a_bounded_timeout(self):
-        which, run = self.gh(self.SECRET + "\n")
+        which, run = self.gh(self.FIXTURE_VALUE + "\n")
         with which, run as called:
-            self.assertEqual(f"Bearer {self.SECRET}", self.authorization())
-            self.assertEqual(f"Bearer {self.SECRET}", self.authorization(self.API + "/commits/main"))
+            self.assertEqual(f"Bearer {self.FIXTURE_VALUE}", self.authorization())
+            self.assertEqual(f"Bearer {self.FIXTURE_VALUE}", self.authorization(self.API + "/commits/main"))
         called.assert_called_once()
         argv = called.call_args.args[0]
         self.assertEqual(["auth", "token", "--hostname", "github.com"], argv[1:])
@@ -1345,11 +1345,11 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
             self.assertIsNone(self.authorization())
 
     def test_gh_cli_can_be_disabled_and_never_serves_other_hosts(self):
-        which, run = self.gh(self.SECRET)
+        which, run = self.gh(self.FIXTURE_VALUE)
         with mock.patch.dict(os.environ, {"CHAOS_ENGINE_GH_AUTH": "0"}), which, run as called:
             self.assertIsNone(self.authorization())
         called.assert_not_called()
-        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": self.SECRET}):
+        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": self.FIXTURE_VALUE}):
             self.assertIsNone(self.authorization("https://example.invalid/bootstrap.py"))
 
     def rate_limited(self, code=403):
@@ -1379,7 +1379,7 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
         error, _ = self.rate_limited(429)
         opener = mock.Mock(side_effect=error)
         stderr = io.StringIO()
-        with mock.patch.dict(os.environ, {"GH_TOKEN": self.SECRET}), self.assertRaises(RuntimeError) as raised:
+        with mock.patch.dict(os.environ, {"GH_TOKEN": self.FIXTURE_VALUE}), self.assertRaises(RuntimeError) as raised:
             self.module.read_response(opener, self.API, sleeper=mock.Mock())
         with mock.patch("sys.stderr", stderr):
             self.module.emit_install_failure(
@@ -1389,7 +1389,7 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
         self.assertIn("CE-GITHUB-RATE-LIMIT", output)
         self.assertIn("GH_TOKEN", output)
         self.assertIn("Next fix:", output)
-        self.assertNotIn(self.SECRET, output + str(raised.exception) + repr(raised.exception.args))
+        self.assertNotIn(self.FIXTURE_VALUE, output + str(raised.exception) + repr(raised.exception.args))
 
     def test_forbidden_without_rate_limit_headers_keeps_the_generic_error(self):
         forbidden = urllib.error.HTTPError(self.API, 403, "Forbidden", {}, None)
