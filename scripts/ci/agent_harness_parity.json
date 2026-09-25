@@ -1252,6 +1252,84 @@
         "chaos-engine/references/research-receipt.md"
       ],
       "note": "#6218: Cursor hooks and the OpenCode plugin open a pending research receipt before the first project read; Grok Bot stays instruction-only; the Copilot cloud overlay setup step needs a workflow change and owner approval."
+    },
+    {
+      "id": "receipt_shim_auto_wiring",
+      "owner": "chaos-engine/install.py",
+      "check": "tests/scripts/test_chaos_engine_installer.py::test_install_wires_detected_hosts_and_uninstall_removes_them",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "codex": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "copilot": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "gemini": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "grok": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "opencode": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "cursor": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "grok-bot": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "note": "#6230: install and repair --component hooks wire the Cursor hooks and OpenCode plugin receipt shims for hosts with a project marker or CLI on PATH; uninstall removes only the shim entries; the generated files are in the origin overlay ignore block."
+    },
+    {
+      "id": "copilot_cloud_receipt_setup_step",
+      "owner": ".github/workflows/copilot-setup-steps.yml",
+      "check": "tests/scripts/test_chaos_engine_learning.py::test_wave3_instruction_only_receipt_suite_passes",
+      "mode": "shared",
+      "claude": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "codex": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "copilot": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "gemini": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "grok": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "opencode": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "cursor": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "grok-bot": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ],
+      "note": "#6218 (owner-approved 2026-09-25 07:40 Cairo): the Copilot cloud copilot-setup-steps job runs receipt_shim.py ensure --host copilot-cloud before the agent starts, so a pending research receipt exists before the first project read."
     }
   ]
 }

@@ -1046,6 +1046,36 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     module.resolve_latest(repository, "main", opener=opener)
                 opener.assert_not_called()
 
+    def test_repository_accepts_the_full_github_url_form(self):
+        """#6230 (Refs): the documented URL form resolves to owner/name before any request."""
+        module = load()
+        for value in (
+            "ShaftHQ/SHAFT_ENGINE",
+            "https://github.com/ShaftHQ/SHAFT_ENGINE",
+            "https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+            "https://github.com/ShaftHQ/SHAFT_ENGINE/",
+        ):
+            with self.subTest(value=value):
+                self.assertEqual("ShaftHQ/SHAFT_ENGINE", module.normalize_repository(value))
+                arguments = module.parser().parse_args(
+                    ["--project", ".", "--repository", value, "--branch", "main"]
+                )
+                self.assertEqual("ShaftHQ/SHAFT_ENGINE", arguments.repository)
+                opener = mock.Mock(side_effect=AssertionError("network lookup was attempted"))
+                self.assertEqual(
+                    (COMMIT_ONE, COMMIT_ONE), module.resolve_latest(value, COMMIT_ONE, opener)
+                )
+        for value in (
+            "http://github.com/ShaftHQ/SHAFT_ENGINE",
+            "https://gitlab.com/ShaftHQ/SHAFT_ENGINE",
+            "https://github.com/ShaftHQ",
+            "https://github.com/ShaftHQ/SHAFT_ENGINE/tree/main",
+            "https://github.com/../SHAFT_ENGINE",
+        ):
+            with self.subTest(rejected=value):
+                with self.assertRaisesRegex(ValueError, "owner/repository"):
+                    module.resolve_latest(value, "main", opener=mock.Mock())
+
     def test_manifest_owner_rejects_unresolvable_git_provenance(self):
         module = load()
         installer = module.load_installer(ROOT / "chaos-engine")

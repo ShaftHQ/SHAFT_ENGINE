@@ -1,0 +1,30 @@
+name: Copilot Setup Steps
+
+# Issue #6218 (owner-approved): Copilot cloud starts from a fresh clone with no
+# ChaosEngine hook runtime. This setup job opens the pending research receipt
+# before the agent's first project read. GitHub runs only the job named exactly
+# `copilot-setup-steps`; the push/pull_request triggers validate edits here.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Open the ChaosEngine research receipt
+        run: python3 chaos-engine/hooks/receipt_shim.py ensure --host copilot-cloud --project .

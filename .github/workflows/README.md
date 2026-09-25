@@ -40,6 +40,7 @@ changing that token silently breaks both distribution publishers.
 | `pr-gate.yml` | pull request (no label events), push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
 | `installer-macos-rerun.yml` | pull request `labeled` | Adding `ci:installer-macos` re-runs the newest PR Gate run for the head commit (cancelling it first if running) so the macOS installer legs join; other labels skip (#6208). |
 | `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label, release template placeholders, and the release-notes renderer tests; always reports, no path filter (#6190, #6232). |
+| `copilot-setup-steps.yml` | manual; push/pull request touching itself | Copilot cloud setup job: opens the pending ChaosEngine research receipt before the agent's first read (#6218). |
 | `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
 | `security.yml` | Maven Java pull request, push to `main`, weekly, manual | CodeQL Java analysis; PRs only when Java/POM/resources change, `main` and the weekly scan cover everything (#6192). |
 | `shaft-pilot-release.yml` | release-relevant pull request, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, and container. |

@@ -183,5 +183,36 @@ class ReceiptShim6218Test(unittest.TestCase):
         self.assertIn("instruction-only", done.stderr)
 
 
+class CopilotCloudSetupStep6218Test(unittest.TestCase):
+    """#6218 (owner-approved 07:40 Cairo): Copilot cloud opens the receipt in its setup step."""
+
+    WORKFLOW = ROOT / ".github/workflows/copilot-setup-steps.yml"
+
+    def test_setup_step_opens_the_receipt_before_the_agent_starts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary).resolve()
+            done = _run_shim(project, "ensure", "--host", "copilot-cloud", "--project", str(project))
+            self.assertEqual(0, done.returncode, done.stderr)
+            text = (project / ".chaos-engine-state/research-receipt.md").read_text(encoding="utf-8")
+            self.assertIn("host: copilot-cloud", text)
+            self.assertIn("retrieve: pending", text)
+            refused = _run_shim(project, "install", "--host", "copilot-cloud", "--project", str(project))
+            self.assertNotEqual(0, refused.returncode)
+            self.assertIn("setup step", refused.stderr)
+
+    def test_workflow_is_the_minimal_copilot_setup_job(self):
+        text = self.WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("\n  copilot-setup-steps:\n", text, "Copilot only runs this exact job name")
+        self.assertIn("timeout-minutes:", text)
+        self.assertIn("contents: read", text)
+        self.assertIn(
+            "python3 chaos-engine/hooks/receipt_shim.py ensure --host copilot-cloud --project .",
+            text,
+        )
+        self.assertNotIn("secrets.", text)
+        readme = (ROOT / ".github/workflows/README.md").read_text(encoding="utf-8")
+        self.assertIn("`copilot-setup-steps.yml`", readme)
+
+
 if __name__ == "__main__":
     unittest.main()
