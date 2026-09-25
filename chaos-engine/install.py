@@ -3346,6 +3346,26 @@ RECEIPT_SHIM_MARKERS = {
 RECEIPT_SHIM_COMMANDS = {"cursor": ("cursor", "cursor-agent"), "opencode": ("opencode",)}
 
 
+def initialize_account_project_palace(project: Path, controller, host_controller) -> bool:
+    """#6236: account mode initializes the project palace doctor and MCP use.
+
+    Account `mempalace init` writes the repository's shared palace. Inside Git
+    that is not `.chaos-engine-state/mempalace`, so without this the project
+    palace stays uninitialized and doctor reports `mempalace-state` forever.
+    When both paths are the same, the account flow already owns it.
+    """
+    project_palace = (project / ".chaos-engine-state/mempalace").resolve()
+    resolve = getattr(controller, "mempalace_project_palace", None)
+    if callable(resolve):
+        try:
+            if Path(resolve(project)).resolve() == project_palace:
+                return False
+        except (OSError, RuntimeError, ValueError, KeyError):
+            pass
+    host_controller.initialize_mempalace_runtime(project)
+    return True
+
+
 def _consumer_mode_module():
     """#6237: consumer-mode helper shipped next to this installer, or None."""
     path = Path(__file__).resolve().with_name("consumer_mode.py")
@@ -3355,7 +3375,12 @@ def _consumer_mode_module():
     if spec is None or spec.loader is None:
         return None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 
@@ -3640,6 +3665,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 if "runner" in parameters:
                     kwargs["runner"] = account_runner
                 account_receipt = install_account(project, specification, **kwargs)
+                if bundle.get("mempalace", True):
+                    # #6236: inside the rollback capture window below.
+                    initialize_account_project_palace(project, controller, host_controller)
                 account_receipt_after = (
                     account_receipt_path.read_bytes()
                     if account_receipt_path.is_file() else None
@@ -3692,9 +3720,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             consumer = _consumer_mode_module()
             if consumer is not None and consumer.enabled(project):
                 consumer.write_exclude(project, host_controller.managed_paths())
-            if bundle.get("mempalace", True):
-                # #6236: account mode needs the project palace too, or doctor
-                # stays recovery-required / mempalace-state after install.
+            if not account_mode and bundle.get("mempalace", True):
                 host_controller.initialize_mempalace_runtime(project)
             if candidate is not None:
                 try:
@@ -5780,7 +5806,10 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                 }
             if name == "mempalace":
                 # #6236: repair must create a missing or uninitialized palace.
-                host_controller.initialize_mempalace_runtime(project)
+                try:
+                    host_controller.initialize_mempalace_runtime(project)
+                except ValueError as error:
+                    payload["palaceError"] = str(error)
                 payload["palace"] = str(
                     host_controller.mempalace_runtime_status(project).get("status") or "unknown"
                 )

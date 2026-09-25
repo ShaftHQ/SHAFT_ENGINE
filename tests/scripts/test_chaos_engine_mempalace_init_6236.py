@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import shutil
+import subprocess  # nosec B404 - git init on a temp fixture.
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -40,6 +41,9 @@ class MemPalaceInitializationTest(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.project = Path(self.temporary.name).resolve() / "consumer"
         self.project.mkdir()
+        # The portfolio#39 shape: a Git consumer repository, where the account
+        # flow's shared palace is not the project palace doctor checks.
+        subprocess.run(["git", "init", "-q", str(self.project)], check=True)  # nosec B603 B607
         self.hosts = load_hosts()
         load_controller = MODULE.load_dependency_controller
         patcher = mock.patch.object(
@@ -97,6 +101,17 @@ class MemPalaceInitializationTest(unittest.TestCase):
         resolver.write_text("print('')\n", encoding="utf-8")
         self.repair()
         self.assertFalse((self.project / PALACE).exists())
+
+    def test_account_mode_outside_git_leaves_the_palace_to_the_account_flow(self):
+        plain = Path(self.temporary.name).resolve() / "plain"
+        plain.mkdir()
+        host = mock.Mock()
+        controller = mock.Mock(mempalace_project_palace=lambda project: project / PALACE)
+        self.assertFalse(MODULE.initialize_account_project_palace(plain, controller, host))
+        host.initialize_mempalace_runtime.assert_not_called()
+        shared = mock.Mock(mempalace_project_palace=lambda project: project / ".git/chaos-engine/mempalace")
+        self.assertTrue(MODULE.initialize_account_project_palace(plain, shared, host))
+        host.initialize_mempalace_runtime.assert_called_once_with(plain)
 
     def test_legacy_chroma_state_stays_recovery_required_without_the_init_code(self):
         palace = self.project / PALACE

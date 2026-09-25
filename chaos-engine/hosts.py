@@ -6379,7 +6379,12 @@ def consumer_mode_module():
     if spec is None or spec.loader is None:
         return None
     module = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 
