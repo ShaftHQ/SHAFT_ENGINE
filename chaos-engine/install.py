@@ -3664,7 +3664,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             host_created = not host_existed
             if not account_mode and not generation_mode:
                 provisioner(runtime, specification)
-            if not account_mode and bundle.get("mempalace", True):
+            if bundle.get("mempalace", True):
+                # #6236: account mode needs the project palace too, or doctor
+                # stays recovery-required / mempalace-state after install.
                 host_controller.initialize_mempalace_runtime(project)
             if candidate is not None:
                 try:
@@ -5741,6 +5743,12 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                     "action": "runtime-repair",
                     "receiptStatus": receipt.get("status") if isinstance(receipt, dict) else None,
                 }
+            if name == "mempalace":
+                # #6236: repair must create a missing or uninitialized palace.
+                host_controller.initialize_mempalace_runtime(project)
+                payload["palace"] = str(
+                    host_controller.mempalace_runtime_status(project).get("status") or "unknown"
+                )
             if name in {"mempalace", "graphify"}:
                 payload["storeRefresh"] = _refresh_shared_store(project, name)
                 _install_store_schedule(project)
@@ -6031,6 +6039,12 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
     )
     if code == MANAGED_PYTHON_MISSING_CODE or detail == MANAGED_PYTHON_MISSING_DETAIL:
         return managed_python_missing_fix_next()
+    if code == "CE_MEMPALACE_UNINITIALIZED":
+        return (
+            f"Run `{cli} .chaos-engine/install.py repair --project . --component mempalace` "
+            f"(initializes the empty sqlite_exact palace), then "
+            f"`{cli} .chaos-engine/install.py doctor --project .`."
+        )
     if code == HOOKS_PROBE_FAILED_CODE or detail == HOOKS_PROBE_FAILED_DETAIL:
         return (
             f"Run `{cli} .chaos-engine/install.py repair --project . --component hooks`, "

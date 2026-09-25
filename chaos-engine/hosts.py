@@ -1355,7 +1355,15 @@ def mcp_runtime_status(
         if repository_map_resolver_present(project)
         else project / ".chaos-engine-state/mempalace"
     )
-    if palace is None or mempalace_directory_status(palace).get("status") != "healthy":
+    palace_status = None if palace is None else mempalace_directory_status(palace).get("status")
+    if palace_status == "initialization-required" and not repository_map_resolver_present(project):
+        # #6236: a missing store is fixable by `repair --component mempalace`.
+        return {
+            "status": "recovery-required",
+            "detail": "mempalace-state",
+            "code": "CE_MEMPALACE_UNINITIALIZED",
+        }
+    if palace_status != "healthy":
         return {"status": "recovery-required", "detail": "mempalace-state"}
     if account_commands is not None and not (project / "mempalace.yaml").is_file():
         return {"status": "recovery-required", "detail": "account-config"}
