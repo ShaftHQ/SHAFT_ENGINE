@@ -115,7 +115,7 @@ class ActiveMemoryContractTest(unittest.TestCase):
         self.assertEqual(constraint["status"], "active")
         self.assertNotIn(
             ".agents/skills/consult-first/SKILL.md",
-            constraint["facets"]["applies_to"],
+            json.dumps(constraint.get("facets", {}).get("applies_to", [])),
         )
         gotcha_body = (memory_root / gotcha["body_path"]).read_text(encoding="utf-8")
         self.assertNotIn("4 SKILL.md today", gotcha_body)
@@ -1933,7 +1933,7 @@ class NoDuplicationTest(unittest.TestCase):
         "AGENTS.md",
         "CLAUDE.md",
         ".agents/skills/README.md",
-        ".agents/skills/*/SKILL.md",
+        "chaos-engine/skills/*/SKILL.md",
         "chaos-engine/references/**/*.md",
         "chaos-engine/profiles/shaft/references/**/*.md",
         ".claude/skills/*/SKILL.md",
@@ -2216,7 +2216,7 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         "AGENTS.md",
         "CLAUDE.md",
         ".agents/skills/README.md",
-        ".agents/skills/*/SKILL.md",
+        "chaos-engine/skills/*/SKILL.md",
         "chaos-engine/references/**/*.md",
         "chaos-engine/profiles/shaft/references/**/*.md",
         ".claude/agents/*.md",
@@ -2266,8 +2266,9 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         content = re.sub(r"\s+", " ", self.section()).lower()
         self.assertIn("finish or hand over", content)
         workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(encoding="utf-8")
-        self.assertIn("When OmniRoute is absent", workflows)
-        self.assertIn("host-native implementer or `SOLO`", workflows)
+        prose = re.sub(r"\s+", " ", workflows)
+        self.assertIn("OmniRoute is absent", prose)
+        self.assertIn("native models or `SOLO`", prose)
 
     def test_solo_mode_owns_implementation(self):
         content = re.sub(r"\s+", " ", self.section()).lower()

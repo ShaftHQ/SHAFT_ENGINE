@@ -62,7 +62,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         runtime_sources.mkdir(parents=True)
         for name in (
             "chaos_engine_cli.py", "delivery_status.py", "github_client.py", "issue_filing.py", "planning_contract.py", "pr_audit.py",
-            "repository_context.py", "watch_pr_checks.py",
+            "repository_context.py", "status_lease.py", "watch_pr_checks.py",
         ):
             (runtime_sources / name).write_text("# fixture canonical runtime\n", encoding="utf-8")
         manifest = source_root / "agent-plugins/release.json"
@@ -100,7 +100,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         }
         self.assertEqual(
             packaged_skills,
-            {"chaos-engine", "colibri", "freetoken", "local-agency", "local-coding-delegate", "local-openai-compat", "omniroute", "self-improve", "work-item"},
+            {"chaos-engine", "colibri", "freetoken", "local-agency", "local-coding-delegate", "local-openai-compat", "local-runtimes", "omniroute", "self-improve", "work-item"},
         )
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))

@@ -145,13 +145,9 @@ class CheckJavadocParamArityTests(unittest.TestCase):
         catalog = ZERO_LLM.read_text(encoding="utf-8")
         gate = HARNESS_PR_GATE.read_text(encoding="utf-8")
         self.assertIn("Overload `@param` arity", framework)
-        self.assertIn("../../../../../scripts/ci/check_javadoc_param_arity.py", framework)
-        self.assertTrue(
-            (FRAMEWORK_SOURCE.parent / "../../../../../scripts/ci/check_javadoc_param_arity.py")
-            .resolve()
-            .is_file(),
-            "framework-source relative link to checker must resolve",
-        )
+        # #6175/#6202: the deployed tree links nothing outside itself; name the checker repo-only.
+        self.assertIn("`scripts/ci/check_javadoc_param_arity.py` (repo-only)", framework)
+        self.assertTrue(MODULE_PATH.is_file(), "the named checker must exist")
         self.assertIn("check_javadoc_param_arity.py", catalog)
         # #6175: the installed catalog cannot link a repository script; it names it repo-only.
         self.assertIn("`scripts/ci/check_javadoc_param_arity.py` (repo-only)", catalog)

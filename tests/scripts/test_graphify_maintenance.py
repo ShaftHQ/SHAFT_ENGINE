@@ -488,6 +488,8 @@ class GraphifyMaintenanceTest(TestCase):
         (primary / "tracked.txt").write_text("tracked\n", encoding="utf-8")
         run_git("add", "tracked.txt")
         run_git("commit", "-m", "fixture")
+        # The resolver records only when HEAD equals origin/main (#6202).
+        run_git("update-ref", "refs/remotes/origin/main", "HEAD")
         self.assertFalse(
             (primary / "tools/repository-map/resolve_graph_out.py").exists()
         )

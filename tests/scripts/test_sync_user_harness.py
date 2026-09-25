@@ -18,6 +18,8 @@ from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
 OVERLAY = session_overlay(ROOT)
 SCRIPT = ROOT / "scripts/agents/sync_user_harness.py"
+# #6202: tracked templates; the generated .claude/ overlay is not source-controlled.
+TEMPLATES = ROOT / "scripts/agents/user-harness"
 MANIFEST = ("CLAUDE.md", "settings.json")
 HISTORICAL_HARNESS_REVISION = "3993405e097d5d310c1d8a79d5c1974758064a85"
 HISTORICAL_MANIFEST = ROOT / "scripts/agents/user_harness_retired_manifest.json"
@@ -66,10 +68,21 @@ class SyncUserHarnessTest(unittest.TestCase):
             timeout=60,
         )
 
+    def test_sync_sources_are_tracked_templates_not_the_generated_overlay(self):
+        """#6202: a fresh clone has no .claude/ overlay, so the sync must not read it."""
+        tracked = subprocess.check_output(  # nosec B603 B607 - fixed git query.
+            ["git", "ls-files", "--", "scripts/agents/user-harness"], cwd=ROOT, text=True
+        ).split()
+        for name in MANIFEST:
+            with self.subTest(name=name):
+                self.assertIn(f"scripts/agents/user-harness/{name}", tracked)
+                source, _target = sync.sources(ROOT, self.target)[name]
+                self.assertEqual(TEMPLATES / name, source)
+
     def test_user_harness_defers_to_repository_and_syncs_no_skills(self):
-        guidance = (OVERLAY / ".claude/user-harness/CLAUDE.md").read_text(encoding="utf-8")
+        guidance = (TEMPLATES / "CLAUDE.md").read_text(encoding="utf-8")
         readme = " ".join(
-            (OVERLAY / ".claude/user-harness/README.md").read_text(encoding="utf-8").split()
+            (TEMPLATES / "README.md").read_text(encoding="utf-8").split()
         )
 
         self.assertIn("repository's source-controlled `AGENTS.md`", guidance)

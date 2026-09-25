@@ -1,5 +1,14 @@
 # Changelog
 
+## 10.3.20260911 - 2026-09-11
+
+- Breaking: the router `SKILL.md` becomes a core card; always-composed
+  sections move to `references/router-contract.md` and role adapters load a
+  2 KiB delegate card (#6176).
+- Add the design-turn contract and store-citation read gate (#6091).
+- Bundle `status_lease.py` in `bin/chaos-engine.pyz` so the `watch_pr_checks`
+  MCP tool starts (#6202).
+
 ## 10.3.20260824 - 2026-08-24
 
 - Breaking: rename the portable plugin, zipapp, and CLI from `act-as-mohab`

@@ -137,7 +137,8 @@ def remove_retired_owned_path(settings: dict, path: tuple[str, ...]) -> None:
 
 
 def sources(root: Path, claude_dir: Path) -> dict[str, tuple[Path, Path]]:
-    harness = root / ".claude/user-harness"
+    # #6202: tracked templates; the generated .claude/ overlay is untracked (#5713).
+    harness = root / "scripts/agents/user-harness"
     return {name: (harness / name, claude_dir / name) for name in MANIFEST}
 
 

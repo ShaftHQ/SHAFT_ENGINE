@@ -154,6 +154,7 @@
       ".claude/settings.json",
       ".claude/skills/*/SKILL.md",
       ".claude/user-harness/*",
+      "scripts/agents/user-harness/*",
       ".codex/agents/*.toml",
       ".codex/config.toml",
       ".codex/hooks.json",

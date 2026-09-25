@@ -15,6 +15,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DISPATCH = ROOT / "chaos-engine/skills/local-agency/scripts/dispatch.py"
+# #6202: an installed project. A fresh checkout has no generated host pointers
+# (#5713), so tests that need an installed ChaosEngine use a temp overlay.
+from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
+
+PROJECT = session_overlay(ROOT)
 
 _SPEC = importlib.util.spec_from_file_location("local_agency_dispatch", DISPATCH)
 if _SPEC is None or _SPEC.loader is None:
@@ -169,7 +174,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
         with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
             with tempfile.TemporaryDirectory() as temporary:  # nosec B108
-                args = dispatch.parse_args(["config", "--dir", temporary, "--project", str(ROOT)])
+                args = dispatch.parse_args(["config", "--dir", temporary, "--project", str(PROJECT)])
                 buf = StringIO()
                 with redirect_stdout(buf):
                     code = dispatch.cmd_config(args)
@@ -220,7 +225,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
             with tempfile.TemporaryDirectory() as temporary:  # nosec B108
                 args = dispatch.parse_args(
-                    ["argv", "--prompt", "one-command", "--workdir", "wt", "--dir", temporary, "--project", str(ROOT)]
+                    ["argv", "--prompt", "one-command", "--workdir", "wt", "--dir", temporary, "--project", str(PROJECT)]
                 )
                 buf = StringIO()
                 with redirect_stdout(buf):
@@ -268,7 +273,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CE_ALLOW_BOX_LOCAL_AGENCY": "1"}):
           with mock.patch.object(dispatch, "probe_runtime", side_effect=probe):
             with tempfile.TemporaryDirectory() as temporary:  # nosec B108
-                args = dispatch.parse_args(["--prefer", "freetoken", "config", "--dir", temporary])
+                args = dispatch.parse_args(["--prefer", "freetoken", "config", "--dir", temporary, "--project", str(PROJECT)])
                 buf = StringIO()
                 with redirect_stdout(buf):
                     code = dispatch.cmd_config(args)
@@ -428,7 +433,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
             with tempfile.TemporaryDirectory() as temporary:
                 buf = StringIO()
                 with redirect_stdout(buf):
-                    args = dispatch.parse_args(["config", "--dir", temporary, "--with-ce-brief", "--project", str(ROOT)])
+                    args = dispatch.parse_args(["config", "--dir", temporary, "--with-ce-brief", "--project", str(PROJECT)])
                     code = dispatch.cmd_config(args)
                 self.assertEqual(code, 0)
                 out = json.loads(buf.getvalue())
@@ -439,7 +444,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
                 buf2 = StringIO()
                 with redirect_stdout(buf2):
                     args = dispatch.parse_args(
-                        ["argv", "--prompt", "PING", "--dir", temporary, "--with-ce-brief", "--project", str(ROOT)]
+                        ["argv", "--prompt", "PING", "--dir", temporary, "--with-ce-brief", "--project", str(PROJECT)]
                     )
                     code = dispatch.cmd_argv(args)
                 self.assertEqual(code, 0)
@@ -538,7 +543,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
     def test_require_ce_pointers_ok_when_present(self):
         """#6070: installed project with AGENTS.md + chaos-engine skill passes."""
-        result = dispatch.require_ce_pointers(ROOT)
+        result = dispatch.require_ce_pointers(PROJECT)
         self.assertTrue(result["ok"], result)
         self.assertEqual(result["missing"], [])
 
@@ -753,7 +758,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
                             "--dir",
                             temporary,
                             "--project",
-                            str(ROOT),
+                            str(PROJECT),
                         ]
                     )
                     code = dispatch.cmd_config(args)
@@ -788,7 +793,7 @@ class LocalAgencyDispatchTest(unittest.TestCase):
                 buf = StringIO()
                 with redirect_stdout(buf):
                     args = dispatch.parse_args(
-                        ["config", "--dir", temporary, "--project", str(ROOT)]
+                        ["config", "--dir", temporary, "--project", str(PROJECT)]
                     )
                     code = dispatch.cmd_config(args)
                 self.assertEqual(code, 0)

@@ -34,6 +34,7 @@ RUNTIME_SOURCES = (
     Path("scripts/agents/planning_contract.py"),
     Path("scripts/agents/pr_audit.py"),
     Path("scripts/agents/repository_context.py"),
+    Path("scripts/agents/status_lease.py"),
     Path("scripts/agents/watch_pr_checks.py"),
 )
 RUNTIME_MAIN = b"from chaos_engine_cli import main\nraise SystemExit(main())\n"

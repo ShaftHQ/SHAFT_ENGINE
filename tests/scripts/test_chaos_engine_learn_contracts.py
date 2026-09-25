@@ -11,6 +11,9 @@ SKILL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 LEVEL1 = ROOT / "chaos-engine/references/level-1-catalog.md"
 PLAYBOOK = ROOT / "chaos-engine/references/work-github-playbook.md"
 WORK_ITEM = ROOT / "chaos-engine/skills/work-item/SKILL.md"
+# #6176/#6177: the router card links the contract and the generated catalog.
+ROUTER_CONTRACT = ROOT / "chaos-engine/references/router-contract.md"
+CATALOG = ROOT / "chaos-engine/references/catalog.md"
 CONTRACTS = (
     ROOT / "chaos-engine/references/harness-learn.md",
     ROOT / "chaos-engine/references/learn-traces.md",
@@ -43,7 +46,7 @@ class LearnContractTests(unittest.TestCase):
 
     def test_a2_pr_merger_does_not_import_pr_babysit_never_merge(self):
         section = PLAYBOOK.read_text(encoding="utf-8")
-        self.assertIn("When the owner says babysit and merge it when green", section)
+        self.assertIn("the owner says babysit and merge it when green", section)
         self.assertIn("Bundled `pr-babysit` forbids merge", section)
         self.assertIn("do not copy that rule into ChaosEngine", section)
         self.assertIn("do not edit the bundled skill in place", section)
@@ -53,7 +56,7 @@ class LearnContractTests(unittest.TestCase):
         planning = (ROOT / "chaos-engine/references/work-github-planning.md").read_text(
             encoding="utf-8"
         )
-        skill = SKILL.read_text(encoding="utf-8")
+        skill = SKILL.read_text(encoding="utf-8") + ROUTER_CONTRACT.read_text(encoding="utf-8")
         compact = re.sub(r"\s+", " ", playbook).casefold()
         self.assertIn("do not arm auto-merge while any in-scope sub-issue is open", compact)
         self.assertIn("initial scope", compact)
@@ -62,8 +65,9 @@ class LearnContractTests(unittest.TestCase):
         self.assertIn("initial scope is complete", skill.casefold())
 
     def test_router_and_level1_discover_portable_contracts(self):
-        rows = catalog_rows(SKILL.read_text(encoding="utf-8"))
-        skill = SKILL.read_text(encoding="utf-8")
+        self.assertIn("references/catalog.md", SKILL.read_text(encoding="utf-8"))
+        rows = catalog_rows(CATALOG.read_text(encoding="utf-8"))
+        skill = CATALOG.read_text(encoding="utf-8")
         level1 = LEVEL1.read_text(encoding="utf-8")
         for name, rel in (
             ("harness-learn", "references/harness-learn.md"),

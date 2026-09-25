@@ -95,11 +95,6 @@ rooms:
   keywords:
   - scripts
   - tools
-- name: graphify_out
-  description: Files from graphify-out/
-  keywords:
-  - graphify_out
-  - graphify-out
 - name: agent_plugins
   description: Files from agent-plugins/
   keywords:

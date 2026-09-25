@@ -112,7 +112,7 @@ def isolate_stop_rules(
 
 
 class ReflectionCheckpointContractTest(unittest.TestCase):
-    """The third attempted failure opens a reflection checkpoint."""
+    """The third attempted failure opens a reflection checkpoint (#6150)."""
 
     def test_second_failure_in_one_task_requires_reflection(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -3657,6 +3657,8 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
         for path in (
             ".claude/user-harness/CLAUDE.md",
             ".claude/user-harness/settings.json",
+            "scripts/agents/user-harness/CLAUDE.md",
+            "scripts/agents/user-harness/settings.json",
         ):
             with self.subTest(path=path):
                 self.assertTrue(guard._HARNESS_SOURCE.match(path))

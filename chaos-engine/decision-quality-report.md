@@ -102,7 +102,7 @@ needs a new evidence gate before those ideas are reconsidered.
 | [`decision-quality-calibration.aggregate.json`](decision-quality-calibration.aggregate.json) | Machine-readable redacted aggregate (source of truth) |
 | [`decision-quality-calibration.md`](decision-quality-calibration.md) | Human scorecard rendered from the aggregate |
 | [`README.md`](README.md) OmniRoute evidence section | Adopter-facing transparency block generated from the aggregate |
-| [`scripts/ci/chaos_gauge/omniroute_calibration.py`](../scripts/ci/chaos_gauge/omniroute_calibration.py) | Runner / validator / scorecard renderer |
+| `scripts/ci/chaos_gauge/omniroute_calibration.py` (repo-only) | Runner / validator / scorecard renderer |
 | PR #5552 | Landed calibration evidence (`Closes #5522`) |
 
 Recompute / verify:

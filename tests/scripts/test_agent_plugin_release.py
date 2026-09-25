@@ -139,16 +139,25 @@ class AgentPluginReleaseTest(unittest.TestCase):
             Path(__file__).resolve().parents[2] / ".github/workflows/mavenCentral_cd.yml"
         ).read_text(encoding="utf-8")
         workflow = yaml.safe_load(workflow_text)
-        release_steps = workflow["jobs"]["build_release_and_deliver"]["steps"]
+        # #6202: assets are built in a pre-deploy job; the deploy job must need it.
+        jobs = workflow["jobs"]
+        builder = next(
+            job_id for job_id, job in jobs.items()
+            if any(step.get("name") == "Build portable Agent Plugin release assets" for step in job.get("steps", []))
+        )
+        deploy_job = jobs["build_release_and_deliver"]
+        self.assertIn(builder, deploy_job["needs"])
         steps_by_name = {
             step.get("name"): (index, step)
-            for index, step in enumerate(release_steps)
+            for index, step in enumerate(jobs[builder]["steps"])
         }
+        deploy_steps = {step.get("name") for step in deploy_job["steps"]}
 
         self.assertIn("agent-plugins/**", workflow[True]["push"]["paths"])
         install_index, install_step = steps_by_name["Install Agent Plugin release prerequisites"]
         build_index, build_step = steps_by_name["Build portable Agent Plugin release assets"]
-        deploy_index, _ = steps_by_name["Deploy to Maven Central"]
+        self.assertIn("Deploy to Maven Central", deploy_steps)
+        deploy_index = len(jobs[builder]["steps"])
         self.assertEqual(
             install_step["run"],
             "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",

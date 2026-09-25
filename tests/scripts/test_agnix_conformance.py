@@ -13,6 +13,7 @@ try:
     from scripts.ci.agnix_conformance import (
         assess_diagnostics,
         build_trial_command,
+        generated_overlay,
         load_contract,
         run_conformance,
         score_evaluation,
@@ -22,6 +23,7 @@ try:
 except ImportError:
     assess_diagnostics = None
     build_trial_command = None
+    generated_overlay = None
     load_contract = None
     run_conformance = None
     score_evaluation = None
@@ -211,7 +213,8 @@ class AgnixConformanceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "fixtures"
 
-            copied = stage_harness(ROOT, destination, contract)
+            # #6202: generated host files come from the installer's overlay.
+            copied = stage_harness(ROOT, destination, contract, generated_overlay(ROOT))
 
             self.assertIn("AGENTS.md", copied)
             self.assertTrue((destination / ".claude/settings.json").is_file())
