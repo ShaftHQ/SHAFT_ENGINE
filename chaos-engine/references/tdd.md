@@ -21,8 +21,8 @@ not claim verified behavior.
 
 Mocks, or the urge to skip RED: [TDD failure modes](tdd-failure-modes.md).
 
-Caveman, Ponytail, and TDD adaptations retain their MIT notices under
-`references/*.LICENSE`.
+This TDD adaptation keeps its MIT notice in
+[test-driven-development.LICENSE](test-driven-development.LICENSE).
 
 ## Workflow
 
