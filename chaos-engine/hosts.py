@@ -2704,6 +2704,8 @@ ORIGIN_OVERLAY_PATTERNS = (
     ".grok/hooks/",
     ".github/skills/",
     ".github/hooks/",
+    ".cursor/hooks.json",
+    ".opencode/plugins/chaos-engine-receipt.js",
     "plugins/chaos-engine/",
     "plugins/caveman/",
     "plugins/ponytail/",

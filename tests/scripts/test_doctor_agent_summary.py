@@ -116,9 +116,15 @@ class DoctorAgentSummaryTest(unittest.TestCase):
             self.assertEqual(1, INSTALL.agent_summary_exit_code(result))
 
     def test_learning_session_non_skip_sentence_stays_reachable(self):
+        # #6229: the router core card moved the Learning Session into the router
+        # contract, so the sentence lives there and the card must link it (one hop).
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("Unchanged ChaosEngine sources are not a valid skip.", skill)
-        self.assertIn("`chaos-engine/` files were untouched", skill)
+        contract = (ROOT / "chaos-engine/references/router-contract.md").read_text(encoding="utf-8")
+        self.assertIn("](../../references/router-contract.md)", skill)
+        session = contract.split("## Learning Session", 1)[1].split("\n## ", 1)[0]
+        flat = " ".join(session.split())
+        self.assertIn("Unchanged ChaosEngine sources are not a valid skip.", flat)
+        self.assertIn("`chaos-engine/` files were untouched", flat)
         laws = skill.split("## Iron laws", 1)[1].split("## Triage", 1)[0]
         for number in range(1, 8):
             self.assertIn(f"{number}. ", laws)
