@@ -15,7 +15,7 @@ and the live profile catalog.
 | Non-Java first install | Operator cwd is the existing project root | Same wrappers | Same | No matching Maven id → `portable` | Project files may already include host configs |
 | Upgrade of each profile | Same cwd as the original install | Same wrappers; existing `.chaos-engine/` verified or rematerialized | Receipt-owned replace; persistent data retained | Existing bundle-options + current payload | `.chaos-engine/` present; hosts receipt may be drifted |
 | Conflict merge | Same project cwd | Deterministic `hosts.py` merge, no LLM | Foreign bytes are operator-owned | Owned markers/records lose to fail-closed when ambiguous | Pre-existing `AGENTS.md` / hooks / `.mcp.json` / Codex TOML |
-| #5667 verify | Adopter win32 class: hosts receipt present, core present | `py -3`; `Scripts\python.exe` layout | Doctor probes must not require origin/main for required `mcps` | Doctor `status` ⊆ `doctor` for required components | Core rematerialized at commit `887facff34…` |
+| #5667 verify | Adopter win32 class: hosts receipt present, core present | `py -3`; `Scripts\python.exe` layout | Doctor probes must not require a synced default branch for required `mcps` | Doctor `status` ⊆ `doctor` for required components | Core rematerialized at commit `887facff34…` |
 
 ## State/failure matrix
 
@@ -33,12 +33,12 @@ and the live profile catalog.
 
 | Criterion or invariant | Positive proof | Negative or mutation proof | Command |
 | --- | --- | --- | --- |
-| Empty first install reaches healthy doctor | Smoke fixture doctor `status` healthy, distribution `portable` | Delete `hooks/guard.py` after install → doctor unhealthy `hooks` | `python3 scripts/ci/chaos_engine_empty_project_smoke.py --output /tmp/ce-smoke.json` plus focused unittest (repo-only) |
+| Empty first install reaches healthy doctor | Smoke fixture doctor `status` healthy, distribution `portable` | Delete `hooks/guard.py` after install → doctor unhealthy `hooks` | `python3 scripts/ci/chaos_engine_empty_project_smoke.py --output <tmp>/ce-smoke.json` plus focused unittest (repo-only) |
 | Java first install selects repository | Manifest `distribution.id` is `repository`; Maven Tools component present | POM without the configured `installWhen.mavenArtifactIds` entry must not select repository | Focused installer distribution tests |
 | Non-Java first install stays portable | Manifest `portable`; missing Maven Tools does not fail required health | Inject matching artifact id → flips to repository | Same tests, non-Java fixture |
 | Upgrade preserves foreign bytes | Pre-seed `AGENTS.md` prose; after upgrade file contains that prose plus current owned block | Pre-seed colliding markers → no overwrite of foreign file | Hosts merge tests |
 | Impossible merge is success + handoff | Collision fixture: exit 0, `merge-handoff.md` exists, stdout has styled success and one backtick prompt, no `CE-INSTALL-FAILED` | Mutation: omit handoff write → test fails | New installer UX + hosts tests |
 | Foreign MCP server survives | Unknown server in `.mcp.json` remains after install | Same-name unknown `chaosengine-memory` → impossible, not overwrite | Existing MCP migration tests + new collision-handoff test |
-| #5667 no bare dual fail | When managed Python is missing on nt, `hooks` and `mcps` include `code` + `detail` + `fix-next`; verify does not fail solely because Memory origin/main is desynced | Mutation: drop detail → test fails | `tests.scripts.test_chaos_engine_installer` / hosts doctor tests on win32 layout |
+| #5667 no bare dual fail | When managed Python is missing on nt, `hooks` and `mcps` include `code` + `detail` + `fix-next`; verify does not fail solely because Memory is desynced from the default branch | Mutation: drop detail → test fails | `tests.scripts.test_chaos_engine_installer` / hosts doctor tests on win32 layout |
 | Doctor status ⊆ doctor for required components | Existing contract tests | Status healthy / doctor unhealthy still forbidden | `python3 -m unittest tests.scripts.test_chaos_engine_installer -v` (focused) |
 | Sibling omission | Merge AGENTS.md but skip `.mcp.json` in a fixture → MCP test fails | — | Hosts publish atomicity tests already required by #5368 |

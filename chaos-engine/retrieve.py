@@ -203,7 +203,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         }
     detail = (completed.stderr or completed.stdout or "").strip().splitlines()
     tip = detail[0][:120] if detail else ""
-    origin_sync = "not synchronized with origin/main" in (
+    origin_sync = "not synchronized with origin/" in (
         (completed.stderr or "") + (completed.stdout or "")
     )
     if completed.returncode != 0:

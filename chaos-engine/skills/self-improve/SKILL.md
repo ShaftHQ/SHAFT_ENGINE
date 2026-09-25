@@ -45,7 +45,7 @@ Research/explore isolation (harness): [../../references/context-firewall.md](../
 Example:
 
 ```bash
-cat > /tmp/learning-candidate.json <<'EOF'
+cat > .chaos-engine-state/learning-candidate.json <<'EOF'
 {
   "category": "tooling",
   "title": "Doctor fix-next missing for Graphify",
@@ -58,7 +58,7 @@ EOF
 python3 .chaos-engine/learning.py queue \
   --state .chaos-engine-state/learning \
   --upstream Owner/ExampleRepo \
-  --candidate /tmp/learning-candidate.json
+  --candidate .chaos-engine-state/learning-candidate.json
 ```
 
 ## Metrics / verify (zero-LLM)

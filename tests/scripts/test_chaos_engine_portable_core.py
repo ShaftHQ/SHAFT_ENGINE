@@ -37,10 +37,27 @@ COMPATIBILITY_ALIAS = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
 SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
 PORTABLE_README = CORE / "README.md"
 BRAND_ASSETS = CORE / "assets/brand"
-POSIX_ABSOLUTE_PATH = re.compile(
+_POSIX_PATH_CANDIDATE = re.compile(
     r"(?:^|[\s`\"'(=])(/[A-Za-z0-9._~-]+(?:/[A-Za-z0-9._~*{}-]+)+)",
     re.MULTILINE,
 )
+# #6216: not machine-specific filesystem paths -- HTTP API routes of local
+# OpenAI-compatible runtimes, the Linux /proc kernel interface, and hidden-dir
+# fragments such as `/.grok/skills` used for substring matching.
+NON_FILESYSTEM_PATH = re.compile(r"^/(?:v1|api|dashboard|proc)/|^/\.")
+
+
+class _MachinePathPattern:
+    """`search` like a regex, but only for machine-specific filesystem paths."""
+
+    def search(self, text: str):
+        for match in _POSIX_PATH_CANDIDATE.finditer(text):
+            if not NON_FILESYSTEM_PATH.match(match.group(1)):
+                return match
+        return None
+
+
+POSIX_ABSOLUTE_PATH = _MachinePathPattern()
 
 
 class ChaosEnginePortableCoreTest(unittest.TestCase):
@@ -89,14 +106,17 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         )
 
     def test_graphify_refresh_is_primary_ff_only_then_mempalace(self):
+        # #6216: refresh now indexes a detached default-branch snapshot via the
+        # stores owner; it never fetches or moves a checkout (no hard-coded branch).
         guidance = (CORE / "references/graphify.md").read_text(encoding="utf-8")
-        refresh = guidance.split("## Refresh", 1)[1]
-        self.assertIn("git fetch origin main && git merge --ff-only origin/main", refresh)
-        self.assertIn("resolve_mempalace.py", refresh)
-        self.assertIn("`mine` / `sweep` / `sync`", refresh)
-        self.assertIn("Do not mine from a linked worktree", refresh)
-        self.assertIn("graphify update .", refresh)
+        refresh = " ".join(guidance.split("## Refresh", 1)[1].split())
+        self.assertIn("detached snapshot of the local default-branch tip", refresh)
+        self.assertIn("does not fetch, reset, or clean a checkout", refresh)
+        self.assertIn("tool.py stores refresh --if-stale", refresh)
+        self.assertIn("must not refresh, retry-loop, clear the lock", refresh)
+        self.assertIn("`fix-next: git fetch`", refresh)
         self.assertIn("--palace", refresh)
+        self.assertNotRegex(refresh, r"origin/main")
 
     def test_portable_profile_owns_a_real_routing_surface(self):
         profile = ROOT / "chaos-engine/profiles/portable/entrypoint.md"
@@ -381,10 +401,11 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         lowered = skill.casefold()
 
-        self.assertIn("must not load companion skill bodies by default", lowered)
-        self.assertIn("selects **ultra**", lowered)
+        # #6216: current router-contract wording (lean router, #6176).
+        self.assertIn("do not load companion skill bodies by default", lowered)
+        self.assertIn("**ultra** is mandated", lowered)
         self.assertNotIn("Default intensity remains each companion's own", skill)
-        self.assertIn("yield to the companions", lowered)
+        self.assertIn("companion text wins over host prose", lowered)
         compact_hooks = " ".join(hooks.casefold().split())
         self.assertIn("apply companions through entrypoint load", compact_hooks)
         self.assertNotIn("Keep prose natural", agents)
@@ -557,7 +578,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             task_isolation.lower(),
         )
         for phrase in (
-            "advisory for ordinary tasks",
+            "for an ordinary task",  # #6216: was "advisory for ordinary tasks"
             "one attempt",
             "no retries",
             "no background store processes",
@@ -601,9 +622,12 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             / "grok-lifecycle-hooks-must-merge-not-overwrite-foreign-handlers.json"
         )
         payload = json.loads(gotcha.read_text(encoding="utf-8"))
-        self.assertEqual("project", payload["scope"]["kind"])
-        self.assertIsNone(payload["scope"]["task"])
-        self.assertIsNone(payload["scope"]["branch"])
+        # #6216: the current memory schema has no `scope`; objects are project
+        # scoped unless they carry one, which must not bind a branch or task.
+        scope = payload.get("scope") or {"kind": "project", "task": None, "branch": None}
+        self.assertEqual("project", scope["kind"])
+        self.assertIsNone(scope["task"])
+        self.assertIsNone(scope["branch"])
 
         offenders = []
         for path in (ROOT / ".memory/memory").rglob("*.json"):
@@ -815,11 +839,13 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
 
         self.assertTrue(skill.is_file())
         self.assertTrue(probe.is_file())
-        self.assertIn("local-coding-delegate/SKILL.md", portable_entry.read_text(encoding="utf-8"))
-        self.assertIn("local-coding-delegate/SKILL.md", portable_routing.read_text(encoding="utf-8"))
+        # #6216: body folded into local-runtimes (#6200); SKILL.md is a pointer.
+        folded = CORE / "skills/local-runtimes/references/local-coding-delegate.md"
+        self.assertIn("local-runtimes/references/local-coding-delegate.md", portable_entry.read_text(encoding="utf-8"))
+        self.assertIn("local-runtimes/references/local-coding-delegate.md", portable_routing.read_text(encoding="utf-8"))
         self.assertIn(
             "Close that writer after its PR exists.",
-            skill.read_text(encoding="utf-8"),
+            " ".join(folded.read_text(encoding="utf-8").split()),
         )
         self.assertIn(
             "local-coding-delegate",
@@ -1081,9 +1107,9 @@ class OrchestratorModeContractTest(unittest.TestCase):
 
     def test_harness_merge_reinstalls_overlay_from_main(self):
         playbook = (CORE / "references/work-github-playbook.md").read_text(encoding="utf-8")
-        self.assertIn("python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main", playbook)
+        self.assertIn("python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch <default>", playbook)
         self.assertIn("python3 .chaos-engine/install.py doctor --project .", playbook)
-        self.assertIn("git merge --ff-only origin/main", playbook)
+        self.assertIn("git merge --ff-only origin/<default>", playbook)  # #6216
         self.assertIn("Reload host hooks and skills", playbook)
         self.assertIn("Do not call", playbook)
         self.assertNotIn("ShaftHQ/", playbook)
@@ -1098,32 +1124,21 @@ class OrchestratorModeContractTest(unittest.TestCase):
         skill = self._skill()
         self.assertIn("Select exactly one mode from [execution workflows]", skill)
         self.assertIn("sole owner of workflow names, selection, switching, capacity fallback, and writer limits", skill)
-        self.assertIn("missing OmniRoute never weakens or disables the canonical workflows", skill)
+        self.assertIn("A missing peer does not weaken the workflow", skill)  # #6216 wording
         workflows = (CORE / "references/execution-workflows.md").read_text(encoding="utf-8")
         self.assertIn("Default to `ORCHESTRATOR + SINGLE IMPLEMENTER`", workflows)
         self.assertIn("four parallel\nagents", workflows)
 
     def test_delegation_pins_status_table_serial_cap_and_learning_session_before_kill(self):
         delegation = self._delegation()
-        for column in (
-            "ID / work item",
-            "Mode stream",
-            "Status",
-            "Owner / agent",
-            "Dependency",
-            "Last update",
-            "Details / evidence",
-            "Next action",
-        ):
-            with self.subTest(column=column):
-                self.assertIn(column, delegation)
+        # #6216: current default live status table (process-owner format).
+        self.assertIn("`Task ID | Ticket(s) | PR | Scope | Status | Elapsed | ETA`", delegation)
         for status in (
-            "planned",
-            "in progress",
-            "blocked",
-            "review",
-            "completed",
-            "out of scope",
+            "`Done`",
+            "`InProgress`",
+            "`ToDo`",
+            "`Blocked`",
+            "out-of-scope rows",
         ):
             with self.subTest(status=status):
                 self.assertIn(status, delegation)

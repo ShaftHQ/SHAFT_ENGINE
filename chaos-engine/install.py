@@ -102,6 +102,10 @@ REPAIRABLE_COMPONENTS = frozenset({
 })
 
 
+# #6216: branch-agnostic doctor fallback when a status carries no fix-next.
+DESYNC_FIX_NEXT_FALLBACK = "git fetch origin && git merge --ff-only @{upstream}"
+
+
 def legacy_capability_policy() -> dict[str, dict[str, str]]:
     """Return the immutable schema-v1 compatibility view; new installs use tracked contracts."""
     result = {
@@ -4504,7 +4508,7 @@ def apply_mcp_doctor_status(
     if mcp_status_value == "healthy":
         return
     if mcp_status_value in {"compatible-legacy", "degraded", "sync-advisory"}:
-        # Memory origin/main write gate is advisory for required mcps (#5630).
+        # Memory default-branch write gate is advisory for required mcps (#5630).
         mcps["status"] = "compatible-legacy"
         _attach_probe_fields(mcps, mcp_status)
         return
@@ -5942,13 +5946,12 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         )
     if name == "mcps":
         detail = item.get("detail")
-        if isinstance(detail, str) and "git fetch origin main" in detail:
+        if isinstance(detail, str) and "git fetch origin" in detail:
             return detail.strip()
         if item.get("code") == "CE_MEMORY_ORIGIN_MAIN_DESYNC" or status == "compatible-legacy":
             return (
-                "Primary checkout HEAD is not synchronized with origin/main "
-                "(Memory write gate). Fix-next: git fetch origin main && "
-                "git merge --ff-only origin/main — then rerun "
+                "Primary checkout HEAD is not synchronized with the default branch "
+                f"(Memory write gate). Fix-next: {item.get('fixNext') or DESYNC_FIX_NEXT_FALLBACK} — then rerun "
                 f"`{cli} .chaos-engine/install.py doctor --project .`. "
                 "Required mcps stay installable; memory/memory-mcp writes still hard-fail."
             )

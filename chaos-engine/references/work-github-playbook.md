@@ -175,9 +175,9 @@ This repository uses merge commits so a delivered branch remains identifiable
 by ancestry. Squash and rebase merging are disabled; do not substitute them.
 
 After **you** merge a PR that changes `chaos-engine/`, immediately rebuild the
-live overlay from the new `origin/main` on the **primary checkout**:
-`git fetch origin main && git merge --ff-only origin/main`, then
-`python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main`
+live overlay from the new `origin/<default>` on the **primary checkout**:
+`git fetch origin <default> && git merge --ff-only origin/<default>`, then
+`python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch <default>`
 and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reload host hooks and skills before the next turn so work builds on what is now on main. Do not call
 `install.py install` without `--source` and `--commit`. Replace
 `<configured-upstream>` with the adopter repository from installer identity.
@@ -222,8 +222,8 @@ and focused proofs observed; it must not represent remote checks as green.
 Before arming: one `Fixes #N` → one open PR (close twins); all in-scope commits
 on the **remote** head; at most one armed PR per overlapping product path. On
 overlap, leave the later PR unarmed until the earlier merges, then merge
-`origin/main` (merge commit, no force-push) and re-arm. If the later merged
-first and the earlier is `DIRTY`, merge `origin/main` into the earlier and
+`origin/<default>` (merge commit, no force-push) and re-arm. If the later merged
+first and the earlier is `DIRTY`, merge `origin/<default>` into the earlier and
 re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
 
 4. **Arm** immediately after that acceptance remains current:
