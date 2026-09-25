@@ -287,7 +287,6 @@ CHECKS = {
         "user-harness-sync-contract",
         "user-harness",
         ("tests.scripts.test_sync_user_harness",),
-        known_drift="#6202",
     ),
     "portable-core-contract": Check(
         "portable-core-contract",
@@ -305,19 +304,16 @@ CHECKS = {
         "harness-portability-contract",
         "guidance",
         ("tests.scripts.test_agent_harness_portability",),
-        known_drift="#6202",
     ),
     "plugin-assembly-contract": Check(
         "plugin-assembly-contract",
         "plugin-assembly",
         ("tests.scripts.test_assemble_chaos_engine_plugin",),
-        known_drift="#6202",
     ),
     "research-matrix-contract": Check(
         "research-matrix-contract",
         "research",
         ("tests.scripts.test_chaos_engine_research",),
-        known_drift="#6202",
     ),
     "graphify-maintenance-contract": Check(
         "graphify-maintenance-contract",
