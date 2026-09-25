@@ -174,11 +174,11 @@ do not copy that rule into ChaosEngine and do not edit the bundled skill in plac
 This repository uses merge commits so a delivered branch remains identifiable
 by ancestry. Squash and rebase merging are disabled; do not substitute them.
 
-After **you** merge a PR that changes `chaos-engine/`, immediately rebuild the
+After **you** merge a PR that changes `chaos-engine/`, rebuild the
 live overlay from the new `origin/<default>` on the **primary checkout**:
 `git fetch origin <default> && git merge --ff-only origin/<default>`, then
 `python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch <default>`
-and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reload host hooks and skills before the next turn so work builds on what is now on main. Do not call
+and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reload host hooks and skills before the next turn so work builds on the merge. Do not call
 `install.py install` without `--source` and `--commit`. Replace
 `<configured-upstream>` with the adopter repository from installer identity.
 

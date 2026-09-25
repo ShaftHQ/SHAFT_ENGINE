@@ -29,6 +29,8 @@ if SPEC is None or SPEC.loader is None:
     raise RuntimeError("installer test module could not be loaded")
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+# setUpModule patches repair_component offline; #6225 tests need the real core branch.
+REAL_REPAIR_COMPONENT = MODULE.repair_component
 
 # Doctor self-heal reaches `repair_component`, which runs a live `uv tool
 # install` (network, minutes). Tests that need it opt in explicitly (#6202).
@@ -4601,6 +4603,104 @@ module.install_with_dependencies(project, source, "3" * 40)
         self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
         gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
         self.assertIn("tests.scripts.test_chaos_engine_installer", gate)
+
+
+def _plant_nested_install(root: Path) -> None:
+    """Leave the project-level artifacts an install run inside ``root`` writes."""
+    (root / ".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+    (root / ".chaos-engine/identity.md").write_text("stale identity\n", encoding="utf-8")
+    (root / ".chaos-engine/skills/chaos-engine/SKILL.md").write_text("stale\n", encoding="utf-8")
+    (root / ".chaos-engine/manifest.json").write_text("{}\n", encoding="utf-8")
+    (root / ".claude").mkdir()
+    (root / ".claude/settings.json").write_text("{}\n", encoding="utf-8")
+    (root / ".chaos-engine-state").mkdir()
+    (root / ".chaos-engine-state/install-trace.json").write_text("{}\n", encoding="utf-8")
+    (root / ".chaos-engine-hosts.json").write_text("{}\n", encoding="utf-8")
+
+
+class NestedOverlayTree6225Test(unittest.TestCase):
+    """#6225: no nested .chaos-engine/.chaos-engine; repair clears it; digest == doctor."""
+
+    def test_source_files_skip_install_artifacts_left_inside_the_source_tree(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = copy_source(Path(temporary) / "source")
+            _plant_nested_install(source)
+            packaged = [path.relative_to(source) for path in MODULE.source_files(source)]
+            leaked = sorted(
+                relative.as_posix() for relative in packaged
+                if relative.parts[0].startswith(".")
+            )
+            self.assertEqual([], leaked)
+
+    def test_install_refuses_an_overlay_or_portable_tree_as_the_project(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "consumer"
+            overlay = parent / ".chaos-engine"
+            overlay.mkdir(parents=True)
+            with self.assertRaisesRegex(ValueError, "nested"):
+                MODULE.install(overlay, SOURCE, TEST_COMMIT)
+            with self.assertRaisesRegex(ValueError, "nested"):
+                MODULE.install_with_dependencies(overlay, SOURCE, TEST_COMMIT)
+            portable = copy_source(Path(temporary) / "portable-copy")
+            with self.assertRaisesRegex(ValueError, "nested"):
+                MODULE.install(portable, SOURCE, TEST_COMMIT)
+            self.assertFalse((overlay / ".chaos-engine").exists())
+            self.assertFalse((portable / ".chaos-engine").exists())
+
+    def _polluted_install(self, temporary: str) -> Path:
+        project = Path(temporary) / "consumer"
+        project.mkdir()
+        target = MODULE.install(project, SOURCE, TEST_COMMIT)
+        _plant_nested_install(target)
+        manifest = json.loads((target / MODULE.MANIFEST_NAME).read_text(encoding="utf-8"))
+        manifest["files"] = MODULE.installed_payload(target)
+        (target / MODULE.MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+        MODULE.verify_install(target)
+        return project
+
+    def test_repair_core_removes_the_nested_overlay_tree(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._polluted_install(temporary)
+            target = project / ".chaos-engine"
+            result = REAL_REPAIR_COMPONENT(project, "core")
+            self.assertEqual("removed-nested-overlay", result["action"])
+            self.assertIn(".chaos-engine", result["removed"])
+            self.assertFalse((target / ".chaos-engine").exists())
+            self.assertFalse((target / ".claude").exists())
+            self.assertFalse((target / ".chaos-engine-state").exists())
+            MODULE.verify_install(target)
+            again = REAL_REPAIR_COMPONENT(project, "core")
+            self.assertEqual("verified", again["action"])
+
+    def test_reinstall_at_the_same_commit_heals_a_polluted_overlay(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._polluted_install(temporary)
+            target = MODULE.install(project, SOURCE, TEST_COMMIT)
+            self.assertFalse((target / ".chaos-engine").exists())
+            self.assertFalse((target / ".chaos-engine-hosts.json").exists())
+            MODULE.verify_install(target)
+
+    def test_status_digest_carries_the_doctor_policy_overlay_row(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for tree in (root / "chaos-engine", root / ".chaos-engine"):
+                (tree / "skills/chaos-engine").mkdir(parents=True)
+                (tree / "identity.md").write_text("identity\n", encoding="utf-8")
+                (tree / "skills/chaos-engine/SKILL.md").write_text("router\n", encoding="utf-8")
+            nested = root / ".chaos-engine/.chaos-engine/skills/chaos-engine"
+            nested.mkdir(parents=True)
+            (nested / "SKILL.md").write_text("old router\n", encoding="utf-8")
+            healthy = {"status": "healthy", "components": {"core": {"status": "healthy"}}}
+            with (
+                mock.patch.object(MODULE, "status_with_dependencies", return_value=healthy),
+                mock.patch.object(MODULE, "load_installed_controller", side_effect=OSError),
+                mock.patch.object(MODULE, "validate_diagnostic_json", side_effect=lambda d: d),
+            ):
+                status = MODULE.status_json(root)
+            self.assertEqual("recovery-required", status["status"])
+            row = status["components"]["policy-overlay"]
+            self.assertIn("skills/chaos-engine/SKILL.md", row["nestedDrift"])
+            self.assertIn("repair --project . --component core", row["fixNext"])
 
 
 if __name__ == "__main__":

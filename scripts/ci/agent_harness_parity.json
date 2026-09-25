@@ -1174,6 +1174,45 @@
         "chaos-engine/references/delegate-card.md"
       ],
       "note": "#6223: hook hosts deny mutating git stash on a shared .git before any session gate; instruction-only hosts (grok-bot, opencode/cursor without shims) carry the rule in the delegate card."
+    },
+    {
+      "id": "nested_overlay_tree_guard",
+      "owner": "chaos-engine/install.py",
+      "check": "tests/scripts/test_chaos_engine_installer.py::test_repair_core_removes_the_nested_overlay_tree",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "codex": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "copilot": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "gemini": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "grok": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "opencode": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "cursor": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "grok-bot": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "note": "#6225: install refuses an overlay or portable tree as the project, source_files skips top-level dot residue, repair --component core removes a nested .chaos-engine tree, and status --digest carries the doctor policy-overlay row."
     }
   ]
 }
