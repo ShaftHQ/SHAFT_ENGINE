@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PROOF_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/proof.py"
 RUNNER_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/runner.py"
-SKILL_PATH = ROOT / "chaos-engine/skills/omniroute/SKILL.md"
+SKILL_PATH = ROOT / "chaos-engine/skills/local-runtimes/references/omniroute.md"
 GUIDE_PATH = ROOT / "chaos-engine/guides/omniroute.md"
 PROOF_REF = ROOT / "chaos-engine/skills/omniroute/references/proof-of-dispatch.md"
 DOCS_NOTES = ROOT / "chaos-engine/skills/omniroute/references/docs-study-notes.md"

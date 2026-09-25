@@ -49,7 +49,8 @@ class ChaosEngineResearchTest(unittest.TestCase):
 
     def test_top_ten_matrix_is_dated_primary_sourced_and_actionable(self):
         content = MATRIX.read_text(encoding="utf-8")
-        self.assertIn("Accessed: 2026-08-12", content)
+        # #6202: the matrix is re-dated on every live re-check; pin that it is dated.
+        self.assertRegex(content, r"(?m)^Accessed: 20\d\d-\d\d-\d\d\.")
         rows = [line for line in content.splitlines() if re.match(r"^\| [1-9][0-9]? \|", line)]
         self.assertEqual(10, len(rows))
         for row in rows:
@@ -61,7 +62,7 @@ class ChaosEngineResearchTest(unittest.TestCase):
         content = MATRIX.read_text(encoding="utf-8")
         self.assertIn("Selected approach", content)
         self.assertIn("Marketplace-only alternative", content)
-        self.assertIn("Global-tool alternative", content)
+        self.assertIn("Private-runtime alternative", content)
         self.assertIn("latest-main", content)
 
     def test_versioned_release_keeps_shaft_skills_but_retires_act_as_mohab(self):

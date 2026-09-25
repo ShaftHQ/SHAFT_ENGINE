@@ -283,32 +283,32 @@
     },
     {
       "id": "omniroute",
-      "owner": "chaos-engine/skills/omniroute/SKILL.md",
+      "owner": "chaos-engine/skills/local-runtimes/references/omniroute.md",
       "claude": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "codex": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "copilot": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "gemini": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "grok": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "check": "tests/scripts/test_omniroute_portability.py::test_portable_payload_contains_optional_transport_and_workflow_owner",
       "mode": "shared",
       "opencode": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "cursor": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "grok-bot": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ]
     },
     {
@@ -980,6 +980,161 @@
         "chaos-engine/identity.md"
       ],
       "note": "#6180: identity matches #6171, one local-runtimes skill, delta-only status, permanent rules in CE."
+    },
+    {
+      "id": "mempalace_backend_pin",
+      "owner": "chaos-engine/retrieve.py",
+      "check": "tests/scripts/test_knowledge_stores.py::test_wave3_mempalace_backend_pin_suite_passes",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/retrieve.py"
+      ],
+      "codex": [
+        "chaos-engine/retrieve.py"
+      ],
+      "copilot": [
+        "chaos-engine/retrieve.py"
+      ],
+      "gemini": [
+        "chaos-engine/retrieve.py"
+      ],
+      "grok": [
+        "chaos-engine/retrieve.py"
+      ],
+      "opencode": [
+        "chaos-engine/retrieve.py"
+      ],
+      "cursor": [
+        "chaos-engine/retrieve.py"
+      ],
+      "grok-bot": [
+        "chaos-engine/retrieve.py"
+      ],
+      "note": "#6212: retrieve pins sqlite_exact; a backend mismatch is blocking with fixNext; doctor row mempalace-backend."
+    },
+    {
+      "id": "local_runtimes_fold",
+      "owner": "chaos-engine/skills/local-runtimes/SKILL.md",
+      "check": "tests/scripts/test_omniroute.py::test_wave3_local_runtimes_fold_suite_passes",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "codex": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "copilot": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "gemini": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "grok": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "opencode": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "cursor": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ],
+      "note": "#6200: runtime bodies live under local-runtimes/references; old SKILL.md files are pointers."
+    },
+    {
+      "id": "mcp_opt_in",
+      "owner": "chaos-engine/hosts.py",
+      "check": "tests/scripts/test_chaos_engine_dependencies.py::test_wave3_mcp_opt_in_suite_passes",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/hosts.py"
+      ],
+      "codex": [
+        "chaos-engine/hosts.py"
+      ],
+      "copilot": [
+        "chaos-engine/hosts.py"
+      ],
+      "gemini": [
+        "chaos-engine/hosts.py"
+      ],
+      "grok": [
+        "chaos-engine/hosts.py"
+      ],
+      "opencode": [
+        "chaos-engine/hosts.py"
+      ],
+      "cursor": [
+        "chaos-engine/hosts.py"
+      ],
+      "grok-bot": [
+        "chaos-engine/hosts.py"
+      ],
+      "note": "#6199: memory, mempalace and context7 MCP are opt-in (install --with-mcp); host files stay portable."
+    },
+    {
+      "id": "vendor_plugin_adapters",
+      "owner": "chaos-engine/plugin-adapters/INDEX.md",
+      "check": "tests/scripts/test_agent_plugin_release.py::test_wave3_vendor_plugin_adapters_suite_passes",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "codex": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "copilot": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "gemini": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "grok": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "opencode": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "cursor": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ],
+      "note": "#6198: short plugin adapters; Caveman activation reads the vendor body; Ponytail keeps its body."
+    },
+    {
+      "id": "instruction_only_receipt",
+      "owner": "chaos-engine/learning_session.py",
+      "check": "tests/scripts/test_chaos_engine_learning.py::test_wave3_instruction_only_receipt_suite_passes",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/learning_session.py"
+      ],
+      "codex": [
+        "chaos-engine/learning_session.py"
+      ],
+      "copilot": [
+        "chaos-engine/learning_session.py"
+      ],
+      "gemini": [
+        "chaos-engine/learning_session.py"
+      ],
+      "grok": [
+        "chaos-engine/learning_session.py"
+      ],
+      "opencode": [
+        "chaos-engine/learning_session.py"
+      ],
+      "cursor": [
+        "chaos-engine/learning_session.py"
+      ],
+      "grok-bot": [
+        "chaos-engine/learning_session.py"
+      ],
+      "note": "#6201: instruction-only hosts record retrieve: in .chaos-engine-state/research-receipt.md; finalize flags a missing one."
     }
   ]
 }

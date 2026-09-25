@@ -5,7 +5,7 @@
   "files": {
     "LICENSE": "f0abc56b6f49ab2e285bb6e6723f028abb7ebd4fe0e242bbdc2b4dded0ace8b9",
     "skills/caveman/SKILL.md": "1eddf7055618153869975678d9ff36635602a3aa333f8b4cc0787f12de75b6f8",
-    "src/hooks/caveman-activate.js": "e5a83c95fd97d2f6934bf4065169ec5a68cabc98fd1e03645cec2c21abba7d82",
+    "src/hooks/caveman-activate.js": "2f8df3829cc7fd28d18cc39c28f29202622680c2b5d07ce0c574857f2b6753c7",
     "src/hooks/caveman-config.js": "78782a6cdc989cbaf732838cf9a594b2e65232f83093b58698e34572f0a3b5f7",
     "src/hooks/caveman-mode-tracker.js": "873cb1fe7107a2b45eafc701a67fe6efe3cc7160a762c09ab0052dc74e64593d",
     "src/hooks/caveman-parse.js": "a25af414462980df2fe8aab96bb3dbaae38c9c945cb7028214ed440cc826b7f6",

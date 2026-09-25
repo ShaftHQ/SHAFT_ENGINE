@@ -18,6 +18,13 @@ STATUS_SKIPPED = "skipped"
 STATUS_DEGRADED = "degraded"
 QUERY_MAX = 240
 TIMEOUT_SECONDS = 8
+PALACE_BACKEND = "sqlite_exact"
+BACKEND_MISMATCH_FIX = (
+    "run `python3 .chaos-engine/install.py doctor --project .`, then "
+    "`python3 .chaos-engine/install.py repair --project . --component mempalace`; "
+    "a Graphify-only answer is not a fallback for an indexed MemPalace; "
+    "rerun retrieve with `--recheck` after repair (#6212)"
+)
 
 _GRAPHIFY_HINT = re.compile(r"\b(call(s|er|ees?)?|depend|graph|import|edge)\b", re.I)
 _MEMPALACE_HINT = re.compile(r"\b(history|palace|session|timeline|before)\b", re.I)
@@ -167,6 +174,9 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     else:
         args = [sys.executable, str(tool), "graphify", "query", query]
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "CHAOS_ENGINE_RETRIEVE": "1"}
+    if store == "mempalace":
+        # An ambient selection (e.g. chroma) must not override the owned palace (#6212).
+        env["MEMPALACE_BACKEND"] = PALACE_BACKEND
     try:
         completed = subprocess.run(  # nosec B603 - fixed owned tool.py only.
             args,
@@ -209,13 +219,17 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         mismatch = store == "mempalace" and _is_backend_mismatch(
             completed.stderr or "", completed.stdout or "", tip
         )
-        return {
+        degraded = {
             "store": store,
             "status": STATUS_DEGRADED,
             "reason": "backend-mismatch" if mismatch else (tip or "nonzero-exit"),
             "query": query,
             "exitCode": completed.returncode,
         }
+        if mismatch:
+            degraded.update(blocking=True, fixNext=BACKEND_MISMATCH_FIX)
+            print(f"retrieve: MemPalace backend mismatch; {BACKEND_MISMATCH_FIX}", file=sys.stderr)
+        return degraded
     body = (completed.stdout or "").strip()
     if not body or body.casefold() in {"[]", "{}", "none", "no results"}:
         return {
@@ -241,12 +255,34 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     return receipt
 
 
+def _recorded_mismatch(project: Path, store: str, recheck: bool) -> dict[str, Any] | None:
+    """Return the recorded MemPalace mismatch without re-running the store (#6212)."""
+    if store != "mempalace":
+        return None
+    module = _justification(project)
+    if module is None or not hasattr(module, "backend_mismatch_recorded"):
+        return None
+    if recheck and hasattr(module, "clear_backend_mismatch"):
+        module.clear_backend_mismatch(project)
+        return None
+    if not module.backend_mismatch_recorded(project):
+        return None
+    return {
+        "status": STATUS_DEGRADED,
+        "reason": "backend-mismatch",
+        "scheduled": False,
+        "blocking": True,
+        "fixNext": BACKEND_MISMATCH_FIX,
+    }
+
+
 def retrieve(
     query: str,
     *,
     store: str | None = None,
     project: Path | None = None,
     dry_run: bool = False,
+    recheck: bool = False,
 ) -> dict[str, Any]:
     cleaned = " ".join(str(query).split())
     if not cleaned:
@@ -265,6 +301,10 @@ def retrieve(
     if dry_run:
         receipt["status"] = STATUS_SKIPPED
         receipt["reason"] = "dry-run"
+        return receipt
+    recorded = _recorded_mismatch(root, chosen, recheck)
+    if recorded is not None:
+        receipt.update(recorded)
         return receipt
     outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)
@@ -336,10 +376,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--store", choices=STORES, default=None)
     parser.add_argument("--project", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--recheck", action="store_true", help="re-probe MemPalace after a backend repair"
+    )
     args = parser.parse_args(raw)
     try:
         receipt = retrieve(
-            args.query, store=args.store, project=args.project, dry_run=args.dry_run
+            args.query,
+            store=args.store,
+            project=args.project,
+            dry_run=args.dry_run,
+            recheck=args.recheck,
         )
     except ValueError as error:
         print(str(error), file=sys.stderr)

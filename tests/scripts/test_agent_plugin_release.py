@@ -200,5 +200,23 @@ class AgentPluginReleaseTest(unittest.TestCase):
         self.assertNotIn("continue-on-error", checkout_verification)
 
 
+class VendorPluginAdaptersSuite6198(unittest.TestCase):
+    """Run the focused tests/scripts/test_vendor_plugin_adapters_6198.py suite inside this CI-gated module."""
+
+    def test_wave3_vendor_plugin_adapters_suite_passes(self) -> None:
+        import sys as _sys
+        from pathlib import Path as _Path
+
+        root = str(_Path(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.insert(0, root)
+        suite = unittest.defaultTestLoader.loadTestsFromName("tests.scripts.test_vendor_plugin_adapters_6198")
+        result = unittest.TestResult()
+        suite.run(result)
+        problems = [f"{test}: {trace}" for test, trace in result.failures + result.errors]
+        self.assertTrue(result.testsRun > 0, "focused suite discovered no tests")
+        self.assertEqual([], problems)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -118,9 +118,15 @@ def resolve_graph_out(cwd: Path) -> Path:
 
 
 def inject_mempalace_arguments(arguments: list[str], palace: Path) -> list[str]:
-    """Place ``--palace`` and ``--backend`` before the MemPalace subcommand."""
-    if "--palace" in arguments:
+    """Place ``--palace`` and ``--backend`` before the MemPalace subcommand.
+
+    A caller-supplied ``--palace`` keeps its path but still gets the pinned
+    backend, so an ambient backend selection cannot pick another one (#6212).
+    """
+    if "--backend" in arguments:
         return list(arguments)
+    if "--palace" in arguments:
+        return ["--backend", PALACE_BACKEND, *arguments]
     if arguments and arguments[0].startswith("-"):
         return list(arguments)
     return [

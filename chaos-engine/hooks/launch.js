@@ -89,9 +89,24 @@ if (!guard) {
   deny(GUARD_UNAVAILABLE);
 }
 
-const candidates = process.platform === "win32"
-  ? [["py", ["-3"]], ["python3", []], ["python", []]]
-  : [["python3", []], ["python", []]];
+// #6199: the managed interpreter lives in the untracked hook-python pointer,
+// never in tracked host files.
+function pointerPython(guardFile) {
+  const base = path.resolve(path.dirname(guardFile), "..", "..");
+  try {
+    const recorded = fs.readFileSync(path.join(base, ".chaos-engine-state/hook-python"), "utf8").trim();
+    return recorded && fs.existsSync(recorded) ? [[recorded, []]] : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+const candidates = [
+  ...pointerPython(guard),
+  ...(process.platform === "win32"
+    ? [["py", ["-3"]], ["python3", []], ["python", []]]
+    : [["python3", []], ["python", []]]),
+];
 for (const [command, prefix] of candidates) {
   const result = spawnSync(command, [...prefix, guard], {
     input,

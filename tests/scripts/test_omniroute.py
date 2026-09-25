@@ -1342,5 +1342,23 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertIn('commands.add_parser("complete")', parser_source)
 
 
+class LocalRuntimesFoldSuite6200(unittest.TestCase):
+    """Run the focused tests/scripts/test_local_runtimes_fold_6200.py suite inside this CI-gated module."""
+
+    def test_wave3_local_runtimes_fold_suite_passes(self) -> None:
+        import sys as _sys
+        from pathlib import Path as _Path
+
+        root = str(_Path(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.insert(0, root)
+        suite = unittest.defaultTestLoader.loadTestsFromName("tests.scripts.test_local_runtimes_fold_6200")
+        result = unittest.TestResult()
+        suite.run(result)
+        problems = [f"{test}: {trace}" for test, trace in result.failures + result.errors]
+        self.assertTrue(result.testsRun > 0, "focused suite discovered no tests")
+        self.assertEqual([], problems)
+
+
 if __name__ == "__main__":
     unittest.main()

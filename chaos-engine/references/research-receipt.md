@@ -74,3 +74,20 @@ and are enforced by `tests/scripts/test_chaos_engine_installer.py`,
 `tests/scripts/test_chaos_engine_hosts.py`,
 `tests/scripts/test_chaos_engine_learning.py`, and
 `tests/scripts/test_chaos_engine_research.py`.
+
+## Instruction-only hosts
+
+OpenCode, Cursor and Grok Bot load `AGENTS.md` but run no project hook, so the
+`retrieve:` field replaces the read gate. Write the receipt to
+`.chaos-engine-state/research-receipt.md` (untracked); `tool.py retrieve`
+also fills the retrieve ledger. `learning_session.py finalize --host <id>`
+flags `missing-retrieve-receipt` when neither exists; it never blocks (#6201).
+
+Native hook shims, evaluated for #6201 and not shipped yet:
+
+| Host | Native surface | Verdict |
+| --- | --- | --- |
+| OpenCode | JS plugins with a before-tool event | Feasible: plugin calls `guard.py`; needs event-schema mapping. |
+| Cursor | project hooks file with before-read/shell events | Feasible: same mapping; stop event could run the receipt check. |
+| Grok Bot | cloud box session, no project hook runtime | Receipt sink only. |
+| Copilot cloud | fresh clone without the untracked overlay | `worktree_overlay.py verify` reports `missing-overlay`; needs an environment setup step that materializes the overlay. |

@@ -1374,7 +1374,7 @@ def run_public_wrapper_with_diagnostics(
 
 def verify_account_phase(
     project: Path, expected_commit: str, *, probe_generated: bool = True,
-    environment: dict[str, str] | None = None,
+    environment: dict[str, str] | None = None, with_mcp: bool = True,
 ) -> dict[str, object]:
     installed = project / ".chaos-engine"
     environment = account_command_environment(
@@ -1430,11 +1430,12 @@ def verify_account_phase(
         dispatches[name] = "pass"
     if probe_generated:
         probe_project_mcps(tool, project, base_environment=environment)
-        probe_generated_mcps(project, base_environment=environment)
-        dispatches.update({
-            "project-memory-mcp": "pass", "project-mempalace-mcp": "pass",
-            "generated-memory-mcp": "pass", "generated-mempalace-mcp": "pass",
-        })
+        dispatches.update({"project-memory-mcp": "pass", "project-mempalace-mcp": "pass"})
+        if with_mcp:
+            probe_generated_mcps(project, base_environment=environment)
+            dispatches.update({
+                "generated-memory-mcp": "pass", "generated-mempalace-mcp": "pass",
+            })
     return {
         "status": "healthy",
         "dispatches": dispatches,
@@ -1494,10 +1495,20 @@ def assert_local_mempalace(project: Path) -> None:
         raise RuntimeError("candidate MemPalace mine marker is invalid")
 
 
-def assert_single_generated_mempalace(project: Path) -> None:
+WITH_MCP_ENV = "CHAOS_ENGINE_WITH_MCP"
+OPT_IN_MCP_SERVERS = ("chaosengine-memory", "chaosengine-mempalace", "context7")
+
+
+def assert_single_generated_mempalace(project: Path, *, with_mcp: bool = True) -> None:
     servers = read_json(project / ".mcp.json").get("mcpServers")
     if not isinstance(servers, dict):
         raise RuntimeError("generated MCP configuration is missing servers")
+    if not with_mcp:
+        # #6199: CLI-equivalent servers are opt-in; a default upgrade drops them.
+        published = sorted(name for name in OPT_IN_MCP_SERVERS if name in servers)
+        if published:
+            raise RuntimeError(f"default install published opt-in MCP servers: {published}")
+        return
     registrations = [
         name for name in servers if "mempalace" in name.casefold()
     ]
@@ -1524,6 +1535,9 @@ def run_acceptance(
         account_environment = isolated_account_environment(account_root)
         fresh_account_root = root / "fresh isolated account"
         fresh_environment = isolated_account_environment(fresh_account_root)
+        # #6199: the fresh account opts in so generated MCP servers are still probed
+        # live; the base account upgrades with the default (no opt-in servers).
+        fresh_environment[WITH_MCP_ENV] = "1"
         base_project = root / "base consumer with spaces Ω"
         fresh_project = root / "fresh consumer with spaces Ω"
         base_project.mkdir()
@@ -1547,19 +1561,24 @@ def run_acceptance(
             require_current_action: bool = True,
             probe_generated: bool = True,
             environment: dict[str, str] | None = None,
+            with_mcp: bool = True,
         ) -> dict[str, object]:
             run_public_wrapper_with_diagnostics(
                 commit, project, require_current_action=require_current_action,
                 environment=environment,
             )
             return verify_account_phase(
-                project, commit, probe_generated=probe_generated, environment=environment
+                project, commit, probe_generated=probe_generated, environment=environment,
+                with_mcp=with_mcp,
             )
 
         def install_candidate_and_verify(
-            project: Path, account: Path, *, environment: dict[str, str]
+            project: Path, account: Path, *, environment: dict[str, str],
+            with_mcp: bool = True,
         ) -> dict[str, object]:
-            result = install_and_verify(project, candidate_sha, environment=environment)
+            result = install_and_verify(
+                project, candidate_sha, environment=environment, with_mcp=with_mcp
+            )
             commands = account_receipt_commands(project, account)
             result["accountCommandNames"] = sorted(commands)
             return result
@@ -1620,13 +1639,14 @@ def run_acceptance(
             evidence,
             "upgrade-candidate-wrapper",
             lambda: install_candidate_and_verify(
-                base_project, account_root, environment=account_environment
+                base_project, account_root, environment=account_environment,
+                with_mcp=False,
             ),
         )
         if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
             raise RuntimeError("candidate upgrade rewrote valid user configuration")
         assert_local_mempalace(base_project)
-        assert_single_generated_mempalace(base_project)
+        assert_single_generated_mempalace(base_project, with_mcp=False)
 
         def rollback_base() -> dict[str, object]:
             installed = base_project / ".chaos-engine/install.py"
@@ -1660,13 +1680,14 @@ def run_acceptance(
             evidence,
             "reupgrade-candidate-wrapper",
             lambda: install_candidate_and_verify(
-                base_project, account_root, environment=account_environment
+                base_project, account_root, environment=account_environment,
+                with_mcp=False,
             ),
         )
         if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
             raise RuntimeError("candidate reupgrade rewrote valid user configuration")
         assert_local_mempalace(base_project)
-        assert_single_generated_mempalace(base_project)
+        assert_single_generated_mempalace(base_project, with_mcp=False)
 
         first_fresh = record_phase(
             evidence,

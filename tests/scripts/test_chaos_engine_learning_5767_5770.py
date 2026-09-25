@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PLAYBOOK = ROOT / "chaos-engine/references/work-github-playbook.md"
 PROCESS = ROOT / "chaos-engine/skills/omniroute/references/process-lifecycle.md"
-SKILL = ROOT / "chaos-engine/skills/omniroute/SKILL.md"
+SKILL = ROOT / "chaos-engine/skills/local-runtimes/references/omniroute.md"
 GOTCHAS = ROOT / ".memory/memory/gotchas"
 
 

@@ -28,6 +28,25 @@ INSTALLER = load("install")
 HOSTS = load("hosts")
 
 
+# These suites pin the opted-in MCP rendering; the default (CLI-only)
+# catalog is covered by test_mcp_opt_in_6199 (#6199).
+_WITH_MCP = None
+
+
+def setUpModule():
+    global _WITH_MCP
+    import os as _os
+    from unittest import mock as _mock
+
+    _WITH_MCP = _mock.patch.dict(_os.environ, {"CHAOS_ENGINE_WITH_MCP": "1"})
+    _WITH_MCP.start()
+
+
+def tearDownModule():
+    if _WITH_MCP is not None:
+        _WITH_MCP.stop()
+
+
 class ManagedRuntimeManifestTest(TestCase):
     def setUp(self):
         self.specification = json.loads(
@@ -309,7 +328,7 @@ class ManagedRuntimeCliTest(TestCase):
     def test_owned_mcp_servers_use_portable_python(self):
         """#6179: tracked MCP config names python3 / py -3; tool.py hands off to the runtime."""
         managed = Path("/owned/python")
-        servers = HOSTS.owned_servers(managed_python=managed)
+        servers = HOSTS.owned_servers(managed_python=managed, with_mcp=True)
         for name in ("chaosengine-memory", "chaosengine-mempalace"):
             with self.subTest(server=name):
                 self.assertEqual("python3", servers[name]["command"])
@@ -331,8 +350,9 @@ class ManagedRuntimeCliTest(TestCase):
             self.assertEqual(str(python), pointer.read_text(encoding="utf-8").strip())
             HOSTS.write_hook_python_pointer(project, None)
             self.assertFalse(pointer.exists())
+        # #6199: Node hook documents stay portable too; launch.js reads the pointer.
         copilot = json.loads(HOSTS.copilot_hooks_document(node))
-        self.assertIn(str(node), copilot["hooks"]["sessionStart"][0]["bash"])
+        self.assertNotIn(str(node), copilot["hooks"]["sessionStart"][0]["bash"])
 
     def test_maven_tools_reuses_verified_existing_runtime(self):
         expected = (Path("/java25"), Path("/maven-tools.jar"))

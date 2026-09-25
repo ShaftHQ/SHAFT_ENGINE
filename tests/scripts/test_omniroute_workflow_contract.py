@@ -30,7 +30,7 @@ class OmniRouteWorkflowContractTest(unittest.TestCase):
 
         for target in (
             "execution-workflows.md",
-            "omniroute/SKILL.md",
+            "references/omniroute.md",
             "tdd.md#workflow",
             "roles.md",
             "delegation.md",
@@ -46,7 +46,7 @@ class OmniRouteWorkflowContractTest(unittest.TestCase):
 
     def test_omniroute_auto_use_preserves_operator_route_selection_boundary(self):
         workflows = self.read("chaos-engine/references/execution-workflows.md")
-        omniroute = self.read("chaos-engine/skills/omniroute/SKILL.md")
+        omniroute = self.read("chaos-engine/skills/local-runtimes/references/omniroute.md")
         guide = self.read("chaos-engine/guides/omniroute.md")
         for text in (workflows, omniroute):
             normalized = " ".join(text.split())

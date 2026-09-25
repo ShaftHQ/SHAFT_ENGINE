@@ -16,6 +16,7 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
+GIT = shutil.which("git") or "git"
 from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
 OVERLAY = session_overlay(ROOT)
@@ -223,7 +224,7 @@ POLICY_RECORD_ALLOWLIST: dict[str, dict[str, str]] = {
             "asserting no cadence: the exact false positive A1 accepts by "
             "design, taking the exact escape A2 exists to give it."
         ),
-        "workflow.after-opening-a-pr-rely-on-ci-push-notifications-not-a"
+        "feature.after-opening-a-pr-rely-on-ci-push-notifications-not-a"
         "-self-polling-monitor": (
             "The live false negative from #4516. It says \"It idles as a frozen "
             "background agent\" of a self-polling monitor, and separately gives "
@@ -395,7 +396,7 @@ def absolute_guidance_path_offenders(
 ) -> list[str]:
     if tracked_paths is None:
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            ["git", "ls-files", "-z", "--", *ACTIVE_GUIDANCE_PATHS],
+            [GIT, "ls-files", "-z", "--", *ACTIVE_GUIDANCE_PATHS],
             cwd=root,
             capture_output=True,
             text=True,
@@ -413,9 +414,20 @@ def absolute_guidance_path_offenders(
     ]
 
 
+def _load_hosts():
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location("hosts_portability_6199", ROOT / "chaos-engine/hosts.py")
+    module = _ilu.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_codex_discovers_only_the_repo_local_router(self):
-        discovered = sorted(ROOT.glob(".agents/skills/*/SKILL.md"))
+        # #6202: host skill dirs are generated into the overlay, never tracked (#5713).
+        discovered = sorted(OVERLAY.glob(".agents/skills/*/SKILL.md"))
 
         self.assertEqual(
             discovered,
@@ -431,7 +443,8 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertGreater(len(markdown_body(canonical)), 1000)
         self.assertLess(len(markdown_body(adapter)), 500)
 
-        candidates = [canonical, *ROOT.glob(".*/skills/chaos-engine/SKILL.md")]
+        installed = OVERLAY / ".chaos-engine/skills/chaos-engine/SKILL.md"
+        candidates = [canonical, *OVERLAY.glob(".[!c]*/skills/chaos-engine/SKILL.md")]
         substantive = [path for path in candidates if len(markdown_body(path)) > 500]
         self.assertEqual(substantive, [canonical])
 
@@ -439,14 +452,17 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIsNotNone(match)
         target = match.group(1)
         self.assertFalse(Path(target).is_absolute())
-        repository_adapter = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
-        self.assertEqual((adapter.parent / target).resolve(), repository_adapter.resolve())
+        # #6202: adapters point at the installed canonical copy, not another adapter.
+        self.assertEqual((adapter.parent / target).resolve(), installed.resolve())
+        self.assertEqual(canonical.read_bytes(), installed.read_bytes())
 
     def test_act_as_mohab_embeds_core_working_rules(self):
-        content = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("### Companions", content)
+        # #6176: always-composed sections live in the router contract the card links.
+        card = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        contract = (ROOT / "chaos-engine/references/router-contract.md").read_text(encoding="utf-8")
+        self.assertIn("router-contract.md", card)
+        content = card + "\n" + contract
+        self.assertIn("### Companions", contract)
         for retired_link in (
             "references/caveman.md",
             "references/ponytail.md",
@@ -529,9 +545,13 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
         )
-        mandatory = ".agents/skills/chaos-engine/SKILL.md"
-        for host, paths in budget["host_contexts"].items():
-            self.assertIn(mandatory, paths, host)
+        # #6176/#6202: the router card is budgeted once in the mandated chain for
+        # every host; host_contexts only lists the host pointer files.
+        mandatory = "chaos-engine/skills/chaos-engine/SKILL.md"
+        chain = budget["mandated_chain"]
+        self.assertIn(mandatory, chain["common"])
+        for host in budget["host_contexts"]:
+            self.assertIn(host, chain["hosts"], host)
 
     def test_rule_docs_are_embedded_rather_than_redirected(self):
         """Redirect stubs cost a read and carry no content, so the rules live in
@@ -560,7 +580,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIn("@AGENTS.md", claude)
         self.assertFalse((ROOT / "GROK.md").exists())
         grok_tracked = subprocess.run(
-            ["git", "ls-files", "--", ".grok"],
+            [GIT, "ls-files", "--", ".grok"],
             cwd=ROOT,
             check=True,
             capture_output=True,
@@ -588,16 +608,26 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             )
 
     def test_delegation_policy_uses_capability_tiers_not_fixed_models_or_effort(self):
-        paths = [ROOT / "AGENTS.md", OVERLAY / ".claude/user-harness/settings.json"]
-        paths.extend((ROOT / "chaos-engine").rglob("*.md"))
+        paths = [ROOT / "AGENTS.md", ROOT / "scripts/agents/user-harness/settings.json"]
+        # #6202: local-runtime skills and provider guides route by concrete model
+        # ids as data (catalog tiers, loopback servers); they are not delegation
+        # policy. Everything else in the portable tree must name tiers only.
+        runtime_data = ("skills/omniroute", "skills/freetoken", "skills/colibri",
+                        "skills/local-openai-compat", "skills/local-coding-delegate",
+                        "skills/local-runtimes", "guides/")
+        paths.extend(
+            path for path in (ROOT / "chaos-engine").rglob("*.md")
+            if not any(part in path.relative_to(ROOT / "chaos-engine").as_posix() for part in runtime_data)
+        )
         paths.extend((OVERLAY / ".claude/agents").glob("*.md"))
+        # Version-shaped ids only: GAP-GROK-* gap ids and the Grok Bot host name are not models.
         forbidden = re.compile(
-            r"(?i)\b(?:sonnet|haiku|opus|fable|gpt-[\w.-]+|grok-[\w.-]+)\b"
+            r"(?i)\b(?:sonnet|haiku|opus|fable|gpt-\d[\w.-]*|grok-\d[\w.-]*)\b"
             r"|\beffortLevel\b|\bHIGH effort\b|^model:\s*",
             re.MULTILINE,
         )
         offenders = [
-            path.relative_to(ROOT).as_posix()
+            path.as_posix()
             for path in paths
             if forbidden.search(path.read_text(encoding="utf-8"))
         ]
@@ -717,7 +747,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_hook_configs_are_tracked_for_host_local_trust(self):
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            ["git", "ls-files", "--error-unmatch", "scripts/agents/guard.py"],
+            [GIT, "ls-files", "--error-unmatch", "scripts/agents/guard.py"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -954,7 +984,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_mempalace_config_is_tracked_while_generated_state_is_ignored(self):
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            ["git", "ls-files", "--error-unmatch", "mempalace.yaml"],
+            [GIT, "ls-files", "--error-unmatch", "mempalace.yaml"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -966,20 +996,22 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertNotRegex(palace, r"(?m)^- name: (?:target|graphify_out|allure_results)$")
         claude_mcp = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
         user_settings = json.loads(
-            (OVERLAY / ".claude/user-harness/settings.json").read_text(encoding="utf-8")
+            (ROOT / "scripts/agents/user-harness/settings.json").read_text(encoding="utf-8")
         )
         self.assertIs(user_settings["enabledPlugins"]["mempalace@mempalace"], False)
         expected_mempalace_env = {
             "MEMPALACE_EMBEDDING_MODEL": "minilm",
             "MEMPALACE_BACKEND": "sqlite_exact",
         }
-        self.assertEqual(
-            claude_mcp["mcpServers"]["mempalace"]["env"],
-            expected_mempalace_env,
-        )
-        codex = tomllib.loads((OVERLAY / ".codex/config.toml").read_text(encoding="utf-8"))
-        project_mcp = claude_mcp["mcpServers"]["mempalace"]
-        codex_mcp = codex["mcp_servers"]["mempalace"]
+        # #6199: MemPalace MCP is opt-in; the tracked file is the CLI-only default
+        # and the opted-in renders of both hosts agree on the backend env.
+        self.assertNotIn("chaosengine-mempalace", claude_mcp["mcpServers"])
+        hosts = _load_hosts()
+        project_mcp = json.loads(hosts.json_content(None, with_mcp=True))["mcpServers"][
+            "chaosengine-mempalace"
+        ]
+        codex = tomllib.loads(hosts.codex_content(None, with_mcp=True).decode("utf-8"))
+        codex_mcp = codex["mcp_servers"]["chaosengine-mempalace"]
         self.assertEqual(codex_mcp["command"], project_mcp["command"])
         self.assertEqual(codex_mcp["env"], project_mcp["env"])
         self.assertEqual(codex_mcp["env"], expected_mempalace_env)
@@ -1230,9 +1262,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         """
         citable = memory_object_identifiers(ROOT / ".memory")
         for citation in (
-            "See [[constraint.one-branch-one-worktree-one-pr-per-session]] for the incident.",
+            "See [[gotcha.one-branch-one-worktree-one-pr-per-session]] for the incident.",
             "See [[one-branch-one-worktree-one-pr-per-session]] for the incident.",
-            "See [[workflow.orchestrator-checks-in-on-any-delegated-background-task"
+            "See [[feature.orchestrator-checks-in-on-any-delegated-background-task"
             "-after-30-minutes]].",
             "See [[orchestrator-checks-in-on-any-delegated-background-task-after-30-minutes]].",
         ):
@@ -1253,7 +1285,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         # proves nothing about greed.
         self.assertEqual(
             superseded_policy_offences(
-                "Between [[constraint.one-branch-one-worktree-one-pr-per-session]] and still"
+                "Between [[gotcha.one-branch-one-worktree-one-pr-per-session]] and still"
                 " one PR per session, see [[gotcha.java25-isuite-mocking]].",
                 citable,
             ),
@@ -1264,9 +1296,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         # which manufactures both a subject and a phrase that no one wrote.
         # Real ids again, for the same reason.
         for fused in (
-            "Wake the sub[[constraint.one-branch-one-worktree-one-pr-per-session]]agent"
+            "Wake the sub[[gotcha.one-branch-one-worktree-one-pr-per-session]]agent"
             " every 30 minutes.",
-            "The one[[constraint.one-branch-one-worktree-one-pr-per-session]] PR per session"
+            "The one[[gotcha.one-branch-one-worktree-one-pr-per-session]] PR per session"
             " rule.",
         ):
             with self.subTest(fused=fused[:40]):
@@ -1349,7 +1381,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
              [ONE_PR_PER_SESSION_REASON]),
             ("Check in on a [[delegate]] every 30 minutes.", [DELEGATE_INTERVAL_REASON]),
             ("Check in on a delegate every [[30 minutes]].", [DELEGATE_INTERVAL_REASON]),
-            ("See [[constraint.one-branch-one-worktree-one-pr-per-session and still one PR"
+            ("See [[gotcha.one-branch-one-worktree-one-pr-per-session and still one PR"
              " per session, see [[gotcha.java25-isuite-mocking]].",
              [ONE_PR_PER_SESSION_REASON]),
         ):
@@ -1360,7 +1392,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         # anything at all -- or from nothing -- would look identical here.
         self.assertEqual(
             superseded_policy_offences(
-                "See [[constraint.one-branch-one-worktree-one-pr-per-session]].", frozenset()
+                "See [[gotcha.one-branch-one-worktree-one-pr-per-session]].", frozenset()
             ),
             [ONE_PR_PER_SESSION_REASON],
         )

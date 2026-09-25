@@ -15,5 +15,5 @@ When the deliverable is open or rewrite a work item, load the portable
 GitHub playbook. When the adopter asked for OpenCode / local OSS agency against local weights,
 load [local-agency](../../../skills/local-agency/SKILL.md). When they need only
 the hardware size-class probe, load the
-[local-coding-delegate](../../../skills/local-coding-delegate/SKILL.md) compat
+[local-coding-delegate](../../../skills/local-runtimes/references/local-coding-delegate.md) compat
 shim. The most-intelligent or default capability stays the decider.

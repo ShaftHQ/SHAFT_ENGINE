@@ -22,8 +22,8 @@ first.
 ## Hard rails (never regress)
 
 - Prefer a **READY** local runtime: FreeToken (`:1919`), then Ollama / LM Studio /
-  llamacpp via [local-openai-compat](../local-openai-compat/SKILL.md), then Colibri (`:8000`)
-  via [colibri](../colibri/SKILL.md) (frontier MoE; prefer FreeToken for coding agency).
+  llamacpp via [local-openai-compat](../local-runtimes/references/local-openai-compat.md), then Colibri (`:8000`)
+  via [colibri](../local-runtimes/references/colibri.md) (frontier MoE; prefer FreeToken for coding agency).
 - Configure OpenCode with **ephemeral** `OPENCODE_CONFIG` /
   `OPENCODE_CONFIG_CONTENT` that sets `enabled_providers` to the READY local
   provider. OpenCode merges global config; the allowlist keeps other providers
@@ -192,16 +192,16 @@ grounded feedback, and never let it finish unsupervised. Playbook:
 
 ## Folded: local-coding-delegate
 
-[local-coding-delegate](../local-coding-delegate/SKILL.md) is a **compat shim**:
+[local-coding-delegate](../local-runtimes/references/local-coding-delegate.md) is a **compat shim**:
 hardware probe stays there; local OpenCode / agency routing lives here. Prefer
 this skill when the adopter names OpenCode or “local agents”.
 
 ## Related
 
 - Guide: local-agency.md (repo-only `chaos-engine/guides/local-agency.md`)
-- FreeToken: [freetoken](../freetoken/SKILL.md)
-- Local OpenAI-compat: [local-openai-compat](../local-openai-compat/SKILL.md)
-- OmniRoute (explicit cloud only): [omniroute](../omniroute/SKILL.md)
+- FreeToken: [freetoken](../local-runtimes/references/freetoken.md)
+- Local OpenAI-compat: [local-openai-compat](../local-runtimes/references/local-openai-compat.md)
+- OmniRoute (explicit cloud only): [omniroute](../local-runtimes/references/omniroute.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
 - Coach loop: [coach-loop.md](references/coach-loop.md) (#6075)
 - When to use local: [when-to-use-local.md](references/when-to-use-local.md) (#6171)

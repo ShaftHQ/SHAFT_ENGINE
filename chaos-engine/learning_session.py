@@ -8,6 +8,7 @@ import contextlib
 import hashlib
 import importlib.util
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -102,11 +103,52 @@ def protect_identity_truth_if_present(project, before: bytes | None, after: byte
     return mod.learning_may_write_identity(before, after)
 
 
+# #6201: instruction-only hosts have no read gate or Stop hook; their research
+# receipt `retrieve:` field is checked here and flagged, never blocking.
+INSTRUCTION_ONLY_HOSTS = ("opencode", "cursor", "grok-bot")
+RESEARCH_RECEIPT_SINK = ".chaos-engine-state/research-receipt.md"
+RETRIEVE_LEDGER = ".chaos-engine-state/retrieve-justification.json"
+
+
+def _ledger_has_retrieve(project: Path) -> bool:
+    try:
+        payload = json.loads((project / RETRIEVE_LEDGER).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    return bool(payload.get("citations")) or bool(payload.get("outcomes"))
+
+
+def retrieve_receipt_check(project: Path) -> dict[str, str]:
+    """Find a `retrieve:` receipt in the sink file or the retrieve ledger."""
+    gate = None
+    path = Path(__file__).resolve().parent / "hooks" / "retrieve_justification.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_receipt_gate", path)
+    if path.is_file() and spec is not None and spec.loader is not None:
+        gate = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gate)
+    try:
+        text = (project / RESEARCH_RECEIPT_SINK).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        text = ""
+    field = gate.retrieve_receipt_field(text) if gate is not None and text else None
+    if field:
+        return {"status": "present", "source": RESEARCH_RECEIPT_SINK, "field": field}
+    if _ledger_has_retrieve(project):
+        return {"status": "present", "source": "ledger"}
+    return {
+        "status": "missing",
+        "fixNext": f"record `retrieve: used|skipped(<reason>)|exempt(harness)` in {RESEARCH_RECEIPT_SINK}",
+    }
+
+
 def finalize(
     session_id: str,
     *,
     disposition: str = "issues-first",
     extract_heuristics: bool = True,
+    host: str | None = None,
 ) -> dict[str, object]:
     """Record a portable completion receipt. Never auto-opens draft PRs."""
     if not isinstance(session_id, str) or not session_id.strip():
@@ -155,6 +197,13 @@ def finalize(
             "retrospective": retrospective,
         }
 
+    chosen_host = (host or os.environ.get("CHAOS_ENGINE_HOST") or "").strip().casefold()
+    if chosen_host in INSTRUCTION_ONLY_HOSTS:
+        check = retrieve_receipt_check(Path.cwd())
+        receipt["retrieveReceipt"] = check
+        if check["status"] == "missing":
+            receipt["flags"] = ["missing-retrieve-receipt"]
+
     state = Path.cwd() / ".chaos-engine-state" / "learning-session"
     state.mkdir(parents=True, exist_ok=True)
     out = state / f"{session_id.strip()[:64]}.completion.json"
@@ -190,6 +239,9 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="skip ERL heuristic extract (#5656)",
     )
+    final.add_argument(
+        "--host", default=None, help="host id; instruction-only hosts get a retrieve receipt check"
+    )
     runtime = sub.add_parser("finalize-runtime")
     runtime.add_argument("--session-id", required=True)
     runtime.add_argument(
@@ -199,12 +251,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     runtime.add_argument("--silent", action="store_true")
     runtime.add_argument("--no-heuristics", action="store_true")
+    runtime.add_argument("--host", default=None)
     args = parser.parse_args(argv)
     try:
         result = finalize(
             args.session_id,
             disposition=args.disposition,
             extract_heuristics=not args.no_heuristics,
+            host=args.host,
         )
     except (OSError, RuntimeError, ValueError) as error:
         if getattr(args, "silent", False):

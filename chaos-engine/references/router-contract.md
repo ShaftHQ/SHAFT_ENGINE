@@ -149,7 +149,7 @@ index as authority over a live file.
 
 Local and optional inference goes through one table,
 [local-runtimes](../skills/local-runtimes/SKILL.md); provider-neutral transport
-is [OmniRoute](../skills/omniroute/SKILL.md), used only when explicitly chosen.
+is [OmniRoute](../skills/local-runtimes/references/omniroute.md), used only when explicitly chosen.
 
 Prefer the Zero-LLM / Heal rows before opening host chat for recovery. Iron-law
 Route: doctor and `repair --component` catalog entries beat discovery chat.

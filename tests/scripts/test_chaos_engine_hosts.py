@@ -94,6 +94,25 @@ def create_chroma_state(path: Path) -> None:
         database.close()
 
 
+# These suites pin the opted-in MCP rendering; the default (CLI-only)
+# catalog is covered by test_mcp_opt_in_6199 (#6199).
+_WITH_MCP = None
+
+
+def setUpModule():
+    global _WITH_MCP
+    import os as _os
+    from unittest import mock as _mock
+
+    _WITH_MCP = _mock.patch.dict(_os.environ, {"CHAOS_ENGINE_WITH_MCP": "1"})
+    _WITH_MCP.start()
+
+
+def tearDownModule():
+    if _WITH_MCP is not None:
+        _WITH_MCP.stop()
+
+
 class ChaosEngineHostsTest(unittest.TestCase):
     def test_hook_receipt_reports_exact_hash_trust_and_restart_only_on_change(self):
         module = load(HOSTS, "chaos_engine_hook_receipt")
@@ -717,17 +736,18 @@ class ChaosEngineHostsTest(unittest.TestCase):
         source = (ROOT / ".mcp.json").read_bytes()
         servers = json.loads(source)["mcpServers"]
         self.assertNotIn("mempalace", servers)
+        # #6199: the tracked file is the default CLI-only catalog.
+        self.assertNotIn("chaosengine-mempalace", servers)
+        self.assertEqual(source, module.json_content(source, with_mcp=False))
+        opted_in = json.loads(module.json_content(source, with_mcp=True))["mcpServers"]
         self.assertEqual(
             [".chaos-engine/tool.py", "mempalace-mcp"],
-            servers["chaosengine-mempalace"]["args"],
+            opted_in["chaosengine-mempalace"]["args"],
         )
-        self.assertEqual(source, module.json_content(source))
         gemini = json.loads((OVERLAY / ".gemini/settings.json").read_text(encoding="utf-8"))
         self.assertNotIn("mempalace", gemini["mcpServers"])
-        self.assertEqual(
-            [".chaos-engine/tool.py", "mempalace-mcp"],
-            gemini["mcpServers"]["chaosengine-mempalace"]["args"],
-        )
+        # The session overlay is rendered with the default CLI-only catalog (#6199).
+        self.assertNotIn("chaosengine-mempalace", gemini["mcpServers"])
         codex = (OVERLAY / ".codex/config.toml").read_text(encoding="utf-8")
         self.assertNotIn("[mcp_servers.mempalace]", codex)
         self.assertNotIn('"--palace"', codex)
@@ -861,13 +881,15 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         encoding="utf-8"
                     )
                 )
+                adapter = ROOT / "chaos-engine/plugin-adapters" / vendor / "SKILL.md"
                 for relative in pin["files"]:
                     published = project / "plugins" / name / relative
                     self.assertTrue(published.is_file(), published)
-                    self.assertEqual(
-                        published.read_bytes(),
-                        (ROOT / "chaos-engine/vendor" / vendor / relative).read_bytes(),
-                    )
+                    expected = ROOT / "chaos-engine/vendor" / vendor / relative
+                    if relative == f"skills/{vendor}/SKILL.md" and adapter.is_file():
+                        # #6198: the listed skill is the short adapter.
+                        expected = adapter
+                    self.assertEqual(published.read_bytes(), expected.read_bytes())
                 manifest = json.loads(
                     project.joinpath(f"plugins/{name}/.claude-plugin/plugin.json").read_text()
                 )
@@ -2600,8 +2622,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")
 
-        windows = module.owned_servers("nt")
-        posix = module.owned_servers("posix")
+        windows = module.owned_servers("nt", with_mcp=True)
+        posix = module.owned_servers("posix", with_mcp=True)
 
         self.assertEqual(windows, posix)
         for name in ("chaosengine-memory", "chaosengine-mempalace"):
@@ -2824,7 +2846,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             "mempalace-mcp": "/home/user tools/bin/mempalace-mcp",
         }
 
-        servers = module.owned_servers(account_commands=commands)
+        servers = module.owned_servers(account_commands=commands, with_mcp=True)
 
         self.assertEqual("python3", servers["chaosengine-memory"]["command"])
         self.assertEqual(
@@ -4356,10 +4378,19 @@ class ChaosEngineHostsTest(unittest.TestCase):
         )
         after = dict(before)
         after[".codex/config.toml"] = module.codex_content(None)
+
+        def legacy_spelling(interpreter: Path) -> bytes:
+            # #6199: renders stay portable; rebuild the pre-#6199 absolute spelling.
+            return (
+                after[".codex/config.toml"]
+                .replace(b'command = "python3"', f'command = "{interpreter}"'.encode())
+                .replace(b'commandWindows = "py"', f'commandWindows = "{interpreter}"'.encode())
+                .replace(b'argsWindows = ["-3", ', b"argsWindows = [")
+            )
+
+        self.assertNotIn(str(managed).encode(), module.codex_content(None, managed_python=managed))
         current = dict(after)
-        current[".codex/config.toml"] = module.codex_content(
-            None, managed_python=managed
-        )
+        current[".codex/config.toml"] = legacy_spelling(managed)
         snapshot = module.upgrade_before_images(Path("."), before, after, current)
         self.assertEqual(b"", snapshot[".codex/config.toml"])
 
@@ -4371,9 +4402,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.upgrade_before_images(Path("."), before, after, mutated)
 
         foreign = dict(after)
-        foreign[".codex/config.toml"] = module.codex_content(
-            None, managed_python=Path("/tmp/evil-python")
-        )
+        foreign[".codex/config.toml"] = legacy_spelling(Path("/tmp/evil-python"))
         with self.assertRaisesRegex(ValueError, "Codex configuration collision"):
             module.upgrade_before_images(Path("."), before, after, foreign)
 

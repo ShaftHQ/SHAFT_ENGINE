@@ -20,7 +20,7 @@
       "allowed": ["chaos-engine/skills/chaos-engine/SKILL.md", ".agents/skills/README.md", "chaos-engine/README.md"]
     },
     "optional OmniRoute transport": {
-      "owner": "chaos-engine/skills/omniroute/SKILL.md",
+      "owner": "chaos-engine/skills/local-runtimes/references/omniroute.md",
       "terms": ["Optional provider-neutral transport", "Missing, stopped, unauthenticated"],
       "allowed": ["chaos-engine/skills/omniroute/scripts/runner.py", "chaos-engine/guides/omniroute.md", "chaos-engine/README.md", "chaos-engine/INSTALL.md", ".agents/skills/README.md"]
     },

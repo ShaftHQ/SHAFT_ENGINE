@@ -41,8 +41,8 @@ Encode lasting behavior in this Level-1 ref +
 [delegation](delegation.md) — never Grok-Bot-only memory.
 
 Optional local labor: [local-agency](../skills/local-agency/SKILL.md) (OpenCode);
-[FreeToken](../skills/freetoken/SKILL.md); [local-coding-delegate](../skills/local-coding-delegate/SKILL.md) (compat shim)
-or [OmniRoute](../skills/omniroute/SKILL.md) when the decider chooses them;
+[FreeToken](../skills/local-runtimes/references/freetoken.md); [local-coding-delegate](../skills/local-runtimes/references/local-coding-delegate.md) (compat shim)
+or [OmniRoute](../skills/local-runtimes/references/omniroute.md) when the decider chooses them;
 missing optional transport never weakens this firewall.
 
 ## Token economics

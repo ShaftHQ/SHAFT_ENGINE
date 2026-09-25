@@ -30,6 +30,30 @@ if SPEC is None or SPEC.loader is None:
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
+# Doctor self-heal reaches `repair_component`, which runs a live `uv tool
+# install` (network, minutes). Tests that need it opt in explicitly (#6202).
+LIVE_INSTALL_ENV = "CHAOS_ENGINE_LIVE_INSTALL_TESTS"
+_LIVE_INSTALL_PATCH = None
+
+
+def _offline_repair(project, component, **_kwargs):
+    raise RuntimeError(
+        f"live repair of {component!r} is disabled in unit tests; set {LIVE_INSTALL_ENV}=1"
+    )
+
+
+def setUpModule():
+    global _LIVE_INSTALL_PATCH
+    if os.environ.get(LIVE_INSTALL_ENV) == "1":
+        return
+    _LIVE_INSTALL_PATCH = mock.patch.object(MODULE, "repair_component", _offline_repair)
+    _LIVE_INSTALL_PATCH.start()
+
+
+def tearDownModule():
+    if _LIVE_INSTALL_PATCH is not None:
+        _LIVE_INSTALL_PATCH.stop()
+
 
 def load_module(path: Path):
     spec = importlib.util.spec_from_file_location("chaos_engine_test_dependency", path)
@@ -217,10 +241,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
             self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
             mcp = json.loads(project.joinpath(".mcp.json").read_text(encoding="utf-8"))
-            self.assertEqual(
-                "https://mcp.context7.com/mcp",
-                mcp["mcpServers"]["context7"]["url"],
-            )
+            # #6199: CLI-equivalent servers (context7, memory, mempalace) are opt-in.
+            self.assertNotIn("context7", mcp["mcpServers"])
 
     def test_successful_install_reconciles_only_stale_detected_client_plugins(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -2825,7 +2847,7 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertTrue(project.joinpath(".claude/skills/chaos-engine/SKILL.md").is_file())
             self.assertTrue(project.joinpath(".gemini/skills/chaos-engine/SKILL.md").is_file())
             self.assertTrue(project.joinpath(".github/skills/chaos-engine/SKILL.md").is_file())
-            self.assertIn("chaosengine-memory", project.joinpath(".mcp.json").read_text())
+            self.assertNotIn("chaosengine-memory", project.joinpath(".mcp.json").read_text())
 
     def test_public_install_repairs_a_missing_managed_tool_on_normal_upgrade(self):
         dependency_module = load_module(SOURCE / "dependencies.py")

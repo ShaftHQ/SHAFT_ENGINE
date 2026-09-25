@@ -27,6 +27,25 @@ def load(path: Path, name: str):
     return module
 
 
+# These suites pin the opted-in MCP rendering; the default (CLI-only)
+# catalog is covered by test_mcp_opt_in_6199 (#6199).
+_WITH_MCP = None
+
+
+def setUpModule():
+    global _WITH_MCP
+    import os as _os
+    from unittest import mock as _mock
+
+    _WITH_MCP = _mock.patch.dict(_os.environ, {"CHAOS_ENGINE_WITH_MCP": "1"})
+    _WITH_MCP.start()
+
+
+def tearDownModule():
+    if _WITH_MCP is not None:
+        _WITH_MCP.stop()
+
+
 class InstallerSelfHeal5630Test(unittest.TestCase):
     def test_codex_orphan_context7_heals_and_keeps_foreign_mcp(self):
         module = load(HOSTS, "chaos_engine_hosts_5630_codex")

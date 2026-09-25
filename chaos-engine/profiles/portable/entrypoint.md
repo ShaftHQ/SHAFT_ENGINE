@@ -8,7 +8,7 @@ assumes a product, organization, hosting provider, or repository layout.
 Route project-specific work through the portable
 [routing table](references/routing.md).
 Optional local labor: [local-agency](../../skills/local-agency/SKILL.md) for
-OpenCode against a READY local runtime; [local-coding-delegate](../../skills/local-coding-delegate/SKILL.md)
+OpenCode against a READY local runtime; [local-coding-delegate](../../skills/local-runtimes/references/local-coding-delegate.md)
 keeps the hardware probe as a compat shim.
 Keep canonical non-secret harness configuration tracked; keep generated
 runtime state, indexes, reports, and caches untracked.
