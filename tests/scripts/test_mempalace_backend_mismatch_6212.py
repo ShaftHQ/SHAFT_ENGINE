@@ -12,8 +12,8 @@ import os
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -63,7 +63,7 @@ class BackendPinTest(unittest.TestCase):
                 seen.update(kwargs["env"])
                 return subprocess.CompletedProcess(args, 0, "hit.md:1 retrieve gate\n", "")
 
-            with mock.patch.dict(os.environ, {"MEMPALACE_BACKEND": "chroma"}), mock.patch.object(
+            with unittest.mock.patch.dict(os.environ, {"MEMPALACE_BACKEND": "chroma"}), unittest.mock.patch.object(
                 retrieve.subprocess, "run", side_effect=fake_run
             ):
                 retrieve._run_store(project, "mempalace", "retrieve gate")
@@ -78,7 +78,7 @@ class LoudMismatchTest(unittest.TestCase):
             tool.parent.mkdir(parents=True)
             tool.write_text("", encoding="utf-8")
             failed = subprocess.CompletedProcess([], 1, "", MISMATCH)
-            with mock.patch.object(retrieve.subprocess, "run", return_value=failed):
+            with unittest.mock.patch.object(retrieve.subprocess, "run", return_value=failed):
                 receipt = retrieve._run_store(project, "mempalace", "q")
         self.assertEqual("backend-mismatch", receipt["reason"])
         self.assertTrue(receipt["blocking"])
@@ -100,7 +100,7 @@ class RecheckTest(unittest.TestCase):
             (hooks / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
             failed = subprocess.CompletedProcess([], 1, "", MISMATCH)
             healthy = subprocess.CompletedProcess([], 0, "a/b.md:1 hit\n", "")
-            with mock.patch.object(
+            with unittest.mock.patch.object(
                 retrieve.subprocess, "run", side_effect=[failed, healthy]
             ) as run:
                 first = retrieve.retrieve("history", store="mempalace", project=project)

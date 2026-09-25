@@ -9,8 +9,8 @@ import sys
 import tempfile
 import tomllib
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 OPTIONAL = {"chaosengine-memory", "chaosengine-mempalace", "context7"}
@@ -31,7 +31,7 @@ HOSTS = _load("hosts_6199", ROOT / "chaos-engine/hosts.py")
 
 class DefaultCatalogTest(unittest.TestCase):
     def setUp(self):
-        patcher = mock.patch.dict(os.environ)
+        patcher = unittest.mock.patch.dict(os.environ)
         patcher.start()
         self.addCleanup(patcher.stop)
         os.environ.pop(HOSTS.WITH_MCP_ENV, None)
