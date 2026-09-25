@@ -1283,5 +1283,139 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", budget["harness_reachability"]["element_globs"])
 
 
+class GitHubAuthAndRateLimitTest(unittest.TestCase):
+    """#6235: reuse an existing GitHub login and make the rate-limit error actionable."""
+
+    API = "https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE"
+    # Synthetic fixture value, built at runtime so it never looks like a real credential.
+    FIXTURE_VALUE = "gho_" + "fixture" + "0123456789"
+
+    def setUp(self):
+        self.module = load()
+        environment = {key: value for key, value in os.environ.items() if key not in {"GITHUB_TOKEN", "GH_TOKEN", "CHAOS_ENGINE_GH_AUTH"}}
+        patcher = mock.patch.dict(os.environ, environment, clear=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def gh(self, stdout=None, *, returncode=0, error=None):
+        which = mock.patch.object(self.module.shutil, "which", return_value="/usr/bin/gh")
+        run = mock.patch.object(
+            self.module.subprocess,
+            "run",
+            side_effect=error,
+            return_value=subprocess.CompletedProcess(["gh"], returncode, stdout or "", ""),
+        )
+        return which, run
+
+    def authorization(self, url=API):
+        return self.module.request(url).get_header("Authorization")
+
+    def test_github_token_wins_over_gh_token_and_gh_cli(self):
+        which, run = self.gh(self.FIXTURE_VALUE + "-cli\n")
+        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": "actions", "GH_TOKEN": "user"}), which, run as called:  # nosec B105 - synthetic test token
+            self.assertEqual("Bearer actions", self.authorization())
+        called.assert_not_called()
+
+    def test_gh_token_is_used_when_github_token_is_absent(self):
+        which, run = self.gh(self.FIXTURE_VALUE + "\n")
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "user"}), which, run as called:  # nosec B105 - synthetic test token
+            self.assertEqual("Bearer user", self.authorization())
+        called.assert_not_called()
+
+    def test_gh_auth_token_is_used_automatically_with_a_bounded_timeout(self):
+        which, run = self.gh(self.FIXTURE_VALUE + "\n")
+        with which, run as called:
+            self.assertEqual(f"Bearer {self.FIXTURE_VALUE}", self.authorization())
+            self.assertEqual(f"Bearer {self.FIXTURE_VALUE}", self.authorization(self.API + "/commits/main"))
+        called.assert_called_once()
+        argv = called.call_args.args[0]
+        self.assertEqual(["auth", "token", "--hostname", "github.com"], argv[1:])
+        self.assertLessEqual(called.call_args.kwargs["timeout"], 10)
+
+    def test_missing_failing_or_slow_gh_falls_back_to_anonymous(self):
+        with mock.patch.object(self.module.shutil, "which", return_value=None):
+            self.assertIsNone(self.authorization())
+        self.module._GH_CLI_TOKEN.clear()
+        which, run = self.gh("", returncode=1)
+        with which, run:
+            self.assertIsNone(self.authorization())
+        self.module._GH_CLI_TOKEN.clear()
+        which, run = self.gh(error=subprocess.TimeoutExpired(["gh"], 5))
+        with which, run:
+            self.assertIsNone(self.authorization())
+
+    def test_gh_cli_can_be_disabled_and_never_serves_other_hosts(self):
+        which, run = self.gh(self.FIXTURE_VALUE)
+        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_GH_AUTH": "0"}), which, run as called:
+            self.assertIsNone(self.authorization())
+        called.assert_not_called()
+        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": self.FIXTURE_VALUE}):
+            self.assertIsNone(self.authorization("https://example.invalid/bootstrap.py"))
+
+    def rate_limited(self, code=403):
+        reset = int(time.time()) + 1800
+        return urllib.error.HTTPError(
+            self.API, code, "rate limit exceeded",
+            {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(reset)}, None,
+        ), reset
+
+    def test_anonymous_rate_limit_names_the_exact_fix_and_reset_time(self):
+        error, reset = self.rate_limited()
+        opener = mock.Mock(side_effect=error)
+        with mock.patch.object(self.module.shutil, "which", return_value=None), self.assertRaises(
+            RuntimeError
+        ) as raised:
+            self.module.read_response(opener, self.API, sleeper=mock.Mock())
+        message = str(raised.exception)
+        self.assertIn("rate limit", message)
+        self.assertIn('GITHUB_TOKEN="$(gh auth token)"', message)
+        self.assertIn("gh auth login", message)
+        stamp = time.strftime("%H:%M UTC", time.gmtime(reset))
+        self.assertIn(stamp, message)
+        self.assertEqual("CE-GITHUB-RATE-LIMIT", self.module.classify_install_error(raised.exception))
+        opener.assert_called_once()
+
+    def test_authenticated_rate_limit_never_prints_the_token(self):
+        error, _ = self.rate_limited(429)
+        opener = mock.Mock(side_effect=error)
+        stderr = io.StringIO()
+        with mock.patch.dict(os.environ, {"GH_TOKEN": self.FIXTURE_VALUE}), self.assertRaises(RuntimeError) as raised:
+            self.module.read_response(opener, self.API, sleeper=mock.Mock())
+        with mock.patch("sys.stderr", stderr):
+            self.module.emit_install_failure(
+                self.module.classify_install_error(raised.exception), raised.exception, "ShaftHQ/SHAFT_ENGINE"
+            )
+        output = stderr.getvalue()
+        self.assertIn("CE-GITHUB-RATE-LIMIT", output)
+        self.assertIn("GH_TOKEN", output)
+        self.assertIn("Next fix:", output)
+        self.assertNotIn(self.FIXTURE_VALUE, output + str(raised.exception) + repr(raised.exception.args))
+
+    def test_forbidden_without_rate_limit_headers_keeps_the_generic_error(self):
+        forbidden = urllib.error.HTTPError(self.API, 403, "Forbidden", {}, None)
+        with mock.patch.object(self.module.shutil, "which", return_value=None), self.assertRaises(
+            RuntimeError
+        ) as raised:
+            self.module.read_response(mock.Mock(side_effect=forbidden), self.API, sleeper=mock.Mock())
+        self.assertEqual(
+            "unable to resolve latest ChaosEngine from the configured upstream", str(raised.exception)
+        )
+
+    def test_dependency_resolver_shares_the_token_order(self):
+        dependencies = importlib.util.spec_from_file_location("ce_deps_6235", ROOT / "chaos-engine/dependencies.py")
+        module = importlib.util.module_from_spec(dependencies)
+        dependencies.loader.exec_module(module)
+        seen = []
+
+        def opener(request, timeout):
+            seen.append(request.get_header("Authorization"))
+            return Response(b"{}")
+
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "user", "CHAOS_ENGINE_GH_AUTH": "0"}):  # nosec B105 - synthetic test token
+            module._read_json_url("https://api.github.com/repos/a/b/releases/latest", opener=opener)
+            module._read_json_url("https://example.invalid/latest.json", opener=opener)
+        self.assertEqual(["Bearer user", None], seen)
+
+
 if __name__ == "__main__":
     unittest.main()

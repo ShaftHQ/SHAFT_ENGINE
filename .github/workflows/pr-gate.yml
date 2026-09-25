@@ -98,6 +98,9 @@ jobs:
               - 'tests/scripts/test_chaos_engine_installer_ux.py'
               - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
               - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
+              - 'chaos-engine/consumer_mode.py'
+              - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
+              - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
             docs:
               - "**/*.md"
               - "**/*.mdx"
@@ -228,6 +231,12 @@ jobs:
               # gate, whose installer surface replaced the ubuntu UX step.
               - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
               - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
+              - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
+              - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
+              # #6239: repo-state guard for the script suites.
+              - 'tests/scripts/conftest.py'
+              - 'tests/scripts/repo_state_guard.py'
+              - 'tests/scripts/test_repo_state_guard.py'
               - 'tests/scripts/test_chaos_engine_promotion.py'
               - 'tests/scripts/test_validate_chaos_engine_readme.py'
               # Not agent guidance, but this is the only gate that runs the

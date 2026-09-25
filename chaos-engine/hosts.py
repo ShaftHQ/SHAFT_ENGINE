@@ -1355,7 +1355,15 @@ def mcp_runtime_status(
         if repository_map_resolver_present(project)
         else project / ".chaos-engine-state/mempalace"
     )
-    if palace is None or mempalace_directory_status(palace).get("status") != "healthy":
+    palace_status = None if palace is None else mempalace_directory_status(palace).get("status")
+    if palace_status == "initialization-required" and not repository_map_resolver_present(project):
+        # #6236: a missing store is fixable by `repair --component mempalace`.
+        return {
+            "status": "recovery-required",
+            "detail": "mempalace-state",
+            "code": "CE_MEMPALACE_UNINITIALIZED",
+        }
+    if palace_status != "healthy":
         return {"status": "recovery-required", "detail": "mempalace-state"}
     if account_commands is not None and not (project / "mempalace.yaml").is_file():
         return {"status": "recovery-required", "detail": "account-config"}
@@ -2779,11 +2787,16 @@ EXTRA_POLICY_LOAD = re.compile(
 def competing_policy_errors(project: Path) -> list[str]:
     bodies: dict[str, str] = {}
     errors: list[str] = []
+    consumer = consumer_mode_module()
+    consumer_mode = consumer is not None and consumer.enabled(project)
     for relative in MARKER_POLICY_FILES:
         path = project / relative
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8")
+        if consumer_mode and START not in text:
+            # #6237: consumer mode leaves tracked instruction files untouched.
+            continue
         if relative in IMPORT_POINTER_FILES and START not in text:
             if EXTRA_POLICY_LOAD.search(text):
                 errors.append(f"{relative}: extra ChaosEngine Load outside marker")
@@ -6349,7 +6362,30 @@ def desired_content(
         maven_docker=maven_docker, with_mcp=with_mcp,
     )
     after[".gitattributes"] = gitattributes_content(before[".gitattributes"])
+    consumer = consumer_mode_module()
+    if project is not None and consumer is not None and consumer.enabled(project):
+        after, _untouched = consumer.filter_content(project, before, after)
     return after
+
+
+def consumer_mode_module():
+    """#6237: optional consumer-mode helper next to this controller."""
+    path = Path(__file__).resolve().with_name("consumer_mode.py")
+    if not path.is_file():
+        return None
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location("ce_consumer_mode_hosts", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = _ilu.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
+    return module
 
 
 def current_images(project: Path) -> dict[str, bytes | None]:

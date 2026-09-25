@@ -20,8 +20,31 @@ HOOK = ROOT / "chaos-engine/hooks/guard.py"
 SOURCE_HOOK = ROOT / "scripts/agents/guard.py"
 
 
+def isolated_session_environment() -> dict[str, str]:
+    """#6239: a SessionStart subprocess never mutates this checkout.
+
+    The session-worktree gate would otherwise check the developer's clean task
+    branch out to the default branch, hard-reset it, and add a sibling
+    worktree; the detached store refresh would add another.
+    """
+    protected = [item for item in os.environ.get("CHAOS_ENGINE_PROTECTED_CHECKOUTS", "").split(os.pathsep) if item]
+    protected.append(str(ROOT))
+    common = subprocess.run(  # nosec B603 B607 - fixed git argv.
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    ).stdout.strip()
+    if common:
+        protected.append(str(Path(common).parent))
+    return {
+        **os.environ,
+        "CHAOS_ENGINE_PROTECTED_CHECKOUTS": os.pathsep.join(protected),
+        "CHAOS_ENGINE_STORE_REFRESH": "0",
+    }
+
+
 class ChaosEngineHookTest(unittest.TestCase):
     def run_hook(self, event: dict[str, object], env=None):
+        env = isolated_session_environment() if env is None else env
         return subprocess.run(  # nosec B603 - fixed interpreter and hook.
             [sys.executable, str(HOOK)],
             input=json.dumps(event),
@@ -32,6 +55,7 @@ class ChaosEngineHookTest(unittest.TestCase):
         )
 
     def run_source_hook(self, event: dict[str, object], env=None):
+        env = isolated_session_environment() if env is None else env
         return subprocess.run(  # nosec B603 - fixed repository hook.
             [sys.executable, str(SOURCE_HOOK)],
             input=json.dumps(event),
@@ -337,8 +361,9 @@ class ChaosEngineHookTest(unittest.TestCase):
 
     def test_source_and_portable_session_start_share_exact_companion_context(self):
         event = {"hook_event_name": "SessionStart", "session_id": "companion-parity", "cwd": str(ROOT)}
-        portable = self.run_hook(event)
-        source = self.run_source_hook(event)
+        environment = isolated_session_environment()
+        portable = self.run_hook(event, environment)
+        source = self.run_source_hook(event, environment)
         portable_context = json.loads(portable.stdout)["additionalContext"]
         source_context = json.loads(source.stdout)["hookSpecificOutput"]["additionalContext"]
         selector = "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. Off only: stop caveman, stop ponytail, or normal mode."

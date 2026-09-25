@@ -16,6 +16,10 @@ SCHEMA_VERSION = 1
 GIT_TIMEOUT_SECONDS = 30
 FETCH_TIMEOUT_SECONDS = 60
 SESSION_ID_MAX = 32
+# #6239: checkouts listed here (os.pathsep-separated) are never switched,
+# reset, cleaned, or given a session worktree. The test suite protects the
+# developer's own checkout this way; production leaves it unset.
+PROTECTED_CHECKOUTS_ENV = "CHAOS_ENGINE_PROTECTED_CHECKOUTS"
 
 _LOCK_EXCL = os.O_CREAT | os.O_RDWR
 
@@ -30,6 +34,17 @@ def sanitize_session_id(session_id: str) -> str:
         return raw
     digest = hashlib.sha256(str(session_id).encode("utf-8")).hexdigest()[:12]
     return f"{raw[:19].rstrip('-_')}-{digest}"
+
+
+def is_protected_checkout(path: Path) -> bool:
+    """True when ``path`` is listed in ``CHAOS_ENGINE_PROTECTED_CHECKOUTS``."""
+    raw = os.environ.get(PROTECTED_CHECKOUTS_ENV, "")
+    try:
+        target = os.path.normcase(str(Path(path).resolve()))
+        listed = {os.path.normcase(str(Path(item).resolve())) for item in raw.split(os.pathsep) if item.strip()}
+    except OSError:
+        return False
+    return target in listed
 
 
 # #6239: the test package sets this to the git common dirs of the repository
@@ -281,6 +296,8 @@ def _prepare_locked(cwd: Path, session_id: str, source: str) -> dict:
     primary = primary_checkout(cwd)
     if primary is None:
         return {"status": "skipped", "message": "Session worktree setup skipped: primary checkout could not be identified."}
+    if is_protected_checkout(primary):
+        return {"status": "skipped", "message": "Session worktree setup skipped: primary checkout is protected."}
     _reap_merged(primary)
     remotes = (_git(primary, "remote") or "").split()
     if remotes:
@@ -442,6 +459,8 @@ def _materialize_overlay(primary: Path, target: Path) -> str | None:
 
 
 def _reset_primary_default(primary: Path) -> None:
+    if is_protected_checkout(primary):
+        return
     upstream = default_upstream(primary)
     branch = current_branch(primary)
     if upstream is None or branch is None:

@@ -148,6 +148,33 @@ class UiDeliveryLessonTests(unittest.TestCase):
             self.assertIn(path, isolation)
         self.assertIn("`git status --porcelain` lists only task files", isolation)
 
+    def test_wide_tables_scroll_in_a_named_focusable_region_not_the_page(self):
+        # #6246: WCAG 2.2 1.4.10 exempts only the table; 2.1.1 needs the tab stop.
+        tables = section(self.raw, "Wide tables")
+        for token in ('role="region"', 'tabindex="0"', "aria-labelledby", "caption", "focus-visible"):
+            self.assertIn(token, tables)
+        self.assertIn("not the page", tables)
+        self.assertIn("scrollWidth <= innerWidth", tables)
+        self.assertIn("1.4.10", tables)
+        self.assertIn("2.1.1", tables)
+
+    def test_wide_tables_keep_semantics_and_say_when_to_restructure(self):
+        tables = section(self.raw, "Wide tables")
+        self.assertIn("Keep table semantics", tables)
+        for forbidden in ('role="grid"', "display", "card"):
+            self.assertIn(forbidden, tables)
+        self.assertIn("Restructure instead", tables)
+        for trigger in ("paragraphs or lists", "rows differ", "layout", "too many columns"):
+            self.assertIn(trigger, tables)
+
+    def test_wide_tables_are_verified_by_axe_and_keyboard(self):
+        tables = section(self.raw, "Wide tables")
+        self.assertIn("axe `scrollable-region-focusable`", tables)
+        self.assertIn("Tab reaches the named region", tables)
+        self.assertIn("ArrowRight scrolls it", tables)
+        for source in ("Roselli", "Pickering", "GOV.UK", "USWDS"):
+            self.assertIn(source, tables)
+
     def test_heal_route_names_the_rate_limit_fix(self):
         heal = compact(HEAL)
         self.assertIn("rate limit", heal)
