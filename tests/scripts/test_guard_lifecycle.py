@@ -2269,11 +2269,12 @@ class HookJsonProtocolTest(unittest.TestCase):
             "hook_event_name": "SessionStart",
             "session_id": "repository-kernel-reachability",
         }
+        # #6239: without `cwd` this reached the real checkout and reset it; keep it isolated.
         with patch.object(
             guard,
             "_evaluate_kernel_event",
             wraps=guard._evaluate_kernel_event,
-        ) as evaluate_kernel:
+        ) as evaluate_kernel, patch.object(guard, "_prepare_session_worktree", return_value=None):
             output = self.invoke(payload)
 
         evaluate_kernel.assert_called_once()
