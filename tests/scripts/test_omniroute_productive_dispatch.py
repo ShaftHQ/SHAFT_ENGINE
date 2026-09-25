@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNNER_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/runner.py"
-SKILL_PATH = ROOT / "chaos-engine/skills/omniroute/SKILL.md"
+SKILL_PATH = ROOT / "chaos-engine/skills/local-runtimes/references/omniroute.md"
 
 
 def load_runner():

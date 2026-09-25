@@ -30,10 +30,10 @@ for these peers. Skills link here. A missing peer does not weaken the workflow.
 
 | Order | Transport | Loopback port | Skill |
 | --- | --- | --- | --- |
-| 1 | FreeToken | 1919 | [FreeToken](../skills/freetoken/SKILL.md) |
-| 2 | Colibri | 8000 | [Colibri](../skills/colibri/SKILL.md) |
-| 3 | OmniRoute | 20128 | [OmniRoute](../skills/omniroute/SKILL.md) |
-| 4 | local OpenAI-compat | 11434, 1234, 8080 | [local OpenAI-compat](../skills/local-openai-compat/SKILL.md) |
+| 1 | FreeToken | 1919 | [FreeToken](../skills/local-runtimes/references/freetoken.md) |
+| 2 | Colibri | 8000 | [Colibri](../skills/local-runtimes/references/colibri.md) |
+| 3 | OmniRoute | 20128 | [OmniRoute](../skills/local-runtimes/references/omniroute.md) |
+| 4 | local OpenAI-compat | 11434, 1234, 8080 | [local OpenAI-compat](../skills/local-runtimes/references/local-openai-compat.md) |
 
 Prefer FreeToken for coding agency; Colibri when the operator hosts frontier MoE.
 Colibri does not replace FreeToken or OmniRoute and is not a workflow owner.

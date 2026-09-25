@@ -28,7 +28,7 @@ class OmniRoutePortabilityTest(unittest.TestCase):
         }
         self.assertLessEqual(
             {
-                "skills/omniroute/SKILL.md",
+                "skills/local-runtimes/references/omniroute.md",
                 "skills/omniroute/scripts/runner.py",
                 "references/execution-workflows.md",
             },
@@ -55,9 +55,9 @@ class OmniRoutePortabilityTest(unittest.TestCase):
         guide = (CORE / "guides/omniroute.md").read_text(encoding="utf-8")
         for text in (readme, install, map_text):
             self.assertIn("omniroute", text.casefold())
-        self.assertIn("skills/omniroute/SKILL.md", readme)
+        self.assertIn("skills/local-runtimes/references/omniroute.md", readme)
         self.assertIn("references/execution-workflows.md", map_text)
-        self.assertIn("../skills/omniroute/SKILL.md", guide)
+        self.assertIn("../skills/local-runtimes/references/omniroute.md", guide)
         self.assertIn("optional", guide.casefold())
 
 

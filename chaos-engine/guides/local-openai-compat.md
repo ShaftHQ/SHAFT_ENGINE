@@ -11,7 +11,7 @@ already-running loopback server. ChaosEngine never installs them.
 | ChaosEngine | Never installs providers | Never installs or starts `ft` | Never installs or starts these servers |
 | Coupling | None to FreeToken | None to OmniRoute | None to OmniRoute or FreeToken |
 
-Skill: [local-openai-compat](../skills/local-openai-compat/SKILL.md).
+Skill: [local-openai-compat](../skills/local-runtimes/references/local-openai-compat.md).
 
 ```bash
 python3 chaos-engine/skills/local-openai-compat/scripts/probe.py

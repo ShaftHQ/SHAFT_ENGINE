@@ -283,32 +283,32 @@
     },
     {
       "id": "omniroute",
-      "owner": "chaos-engine/skills/omniroute/SKILL.md",
+      "owner": "chaos-engine/skills/local-runtimes/references/omniroute.md",
       "claude": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "codex": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "copilot": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "gemini": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "grok": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "check": "tests/scripts/test_omniroute_portability.py::test_portable_payload_contains_optional_transport_and_workflow_owner",
       "mode": "shared",
       "opencode": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "cursor": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "grok-bot": [
-        "chaos-engine/skills/omniroute/SKILL.md"
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ]
     },
     {

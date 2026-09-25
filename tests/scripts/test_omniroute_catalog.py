@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNNER_PATH = ROOT / "chaos-engine/skills/omniroute/scripts/runner.py"
-SKILL = ROOT / "chaos-engine/skills/omniroute/SKILL.md"
+SKILL = ROOT / "chaos-engine/skills/local-runtimes/references/omniroute.md"
 WORKFLOWS = ROOT / "chaos-engine/references/execution-workflows.md"
 GUIDE = ROOT / "chaos-engine/guides/omniroute.md"
 SPEC = importlib.util.spec_from_file_location("omniroute_catalog_runner", RUNNER_PATH)

@@ -15,7 +15,7 @@ server. ChaosEngine never installs it.
 | ChaosEngine | Never installs or authenticates providers | Never installs, downloads weights, or starts `ft` | Never installs, converts weights, or starts `coli` |
 | Coupling | None to FreeToken/Colibri | None to OmniRoute/Colibri | None to OmniRoute/FreeToken |
 
-Skill: [Colibri](../skills/colibri/SKILL.md).
+Skill: [Colibri](../skills/local-runtimes/references/colibri.md).
 
 ```bash
 python3 chaos-engine/skills/colibri/scripts/probe.py

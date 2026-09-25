@@ -12,7 +12,7 @@ against an already-running loopback server. ChaosEngine never installs it.
 | ChaosEngine | Never installs or authenticates providers | Never installs, downloads weights, or starts `ft` |
 | Coupling | None to FreeToken | None to OmniRoute |
 
-Skill: [FreeToken](../skills/freetoken/SKILL.md).
+Skill: [FreeToken](../skills/local-runtimes/references/freetoken.md).
 
 ```bash
 python3 chaos-engine/skills/freetoken/scripts/probe.py

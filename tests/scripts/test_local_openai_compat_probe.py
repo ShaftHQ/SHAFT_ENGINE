@@ -256,7 +256,7 @@ class LocalOpenAICompatProbeTest(unittest.TestCase):
         self.assertEqual(payload["models"], ["coding-moe"])
 
     def test_skill_and_guide_declare_non_coupling(self):
-        skill = (ROOT / "chaos-engine/skills/local-openai-compat/SKILL.md").read_text(
+        skill = (ROOT / "chaos-engine/skills/local-runtimes/references/local-openai-compat.md").read_text(
             encoding="utf-8"
         )
         guide = (ROOT / "chaos-engine/guides/local-openai-compat.md").read_text(encoding="utf-8")

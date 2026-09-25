@@ -1,7 +1,7 @@
 # OmniRoute: enable ChaosEngine to use the local gateway
 
 OmniRoute is an optional local gateway. ChaosEngine uses it through the
-provider-neutral [OmniRoute skill](../skills/omniroute/SKILL.md) after the
+provider-neutral [OmniRoute skill](../skills/local-runtimes/references/omniroute.md) after the
 canonical [execution workflow](../references/execution-workflows.md) is
 selected. The goal is to make a running local OmniRoute easy to use, not to
 fence operators behind restricted keys or attestation hashes.

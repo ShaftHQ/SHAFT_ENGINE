@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class LlamaCppBringupTest(unittest.TestCase):
     def test_skill_uses_llamacpp_id_and_forbids_ft_launch(self):
-        text = (ROOT / "chaos-engine/skills/local-openai-compat/SKILL.md").read_text(encoding="utf-8")
+        text = (ROOT / "chaos-engine/skills/local-runtimes/references/local-openai-compat.md").read_text(encoding="utf-8")
         self.assertIn("llamacpp", text)
         self.assertNotIn("llama.cpp", text.casefold())
         self.assertIn("Do not use `ft launch`", text)
